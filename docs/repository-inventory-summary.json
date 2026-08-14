@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6883,
-    "bytes": 62507866,
-    "lines": 1465869,
+    "files": 6895,
+    "bytes": 64095764,
+    "lines": 1513900,
     "directories": 259,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2073,
-      "documentation": 1880,
-      "api-runtime": 1386,
+      "tests-and-specs": 2076,
+      "documentation": 1883,
+      "api-runtime": 1387,
       "database-migrations": 778,
-      "root-and-other": 237,
+      "root-and-other": 239,
       "ci-workflows": 157,
       "api-contracts": 152,
-      "ci-config": 98,
+      "ci-config": 101,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2477,
-      ".mjs": 1595,
+      ".md": 2478,
+      ".mjs": 1601,
       ".js": 969,
       ".sql": 793,
-      ".json": 707,
+      ".json": 712,
       ".yml": 159,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3555,
-      "docs": 1787,
+      "http-generic-api": 3559,
+      "docs": 1790,
       "specs": 846,
-      ".github": 255,
-      ".changes": 232,
+      ".github": 258,
+      ".changes": 234,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -212,7 +212,7 @@
     "workflows": 157,
     "migrations": 778,
     "apiContracts": 152,
-    "testSpecFiles": 2139
+    "testSpecFiles": 2142
   },
   "largestFiles": [
     {
@@ -232,6 +232,12 @@
       "category": "api-runtime",
       "bytes": 1930662,
       "lines": 58377
+    },
+    {
+      "path": "docs/staging-write-route-partition-2026-08-14.json",
+      "category": "documentation",
+      "bytes": 1535977,
+      "lines": 47056
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -328,12 +334,6 @@
       "category": "schemas-and-data",
       "bytes": 134568,
       "lines": 3397
-    },
-    {
-      "path": "http-generic-api/routes/devAgentRoutes.js",
-      "category": "api-runtime",
-      "bytes": 127236,
-      "lines": 2754
     }
   ]
 }

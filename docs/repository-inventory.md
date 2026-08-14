@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,883 |
-| Total bytes | 62,507,866 |
-| Counted text lines | 1,465,869 |
+| Tracked files | 6,895 |
+| Total bytes | 64,095,764 |
+| Counted text lines | 1,513,900 |
 | Directories | 259 |
 | Categories | 13 |
 
@@ -17,14 +17,14 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,073 |
-| `documentation` | 1,880 |
-| `api-runtime` | 1,386 |
+| `tests-and-specs` | 2,076 |
+| `documentation` | 1,883 |
+| `api-runtime` | 1,387 |
 | `database-migrations` | 778 |
-| `root-and-other` | 237 |
+| `root-and-other` | 239 |
 | `ci-workflows` | 157 |
 | `api-contracts` | 152 |
-| `ci-config` | 98 |
+| `ci-config` | 101 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
 | `applications` | 19 |
@@ -35,11 +35,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,477 |
-| `.mjs` | 1,595 |
+| `.md` | 2,478 |
+| `.mjs` | 1,601 |
 | `.js` | 969 |
 | `.sql` | 793 |
-| `.json` | 707 |
+| `.json` | 712 |
 | `.yml` | 159 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -72,7 +72,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 157 |
 | Database migrations | 778 |
 | API/OpenAPI contracts | 152 |
-| Test/spec files (paths) | 2,139 |
+| Test/spec files (paths) | 2,142 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -89,6 +89,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,121,096 | 95769 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,930,662 | 58377 |
+| `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 984,031 | 22830 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
@@ -115,7 +116,6 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/routes/systemLayerRoutes.js` | api-runtime | 103,931 | 2644 |
 | `docs/change-documentation-governance.md` | documentation | 102,373 | 533 |
 | `http-generic-api/openapi/session-insight-promotion-read-models.yaml` | api-contracts | 101,333 | 1743 |
-| `http-generic-api/registry.js` | api-runtime | 96,496 | 2451 |
 
 ## Complete machine-readable inventory
 

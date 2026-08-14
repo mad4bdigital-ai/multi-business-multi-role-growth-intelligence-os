@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "50f6a3b99925056218dc20d8350dc85072d327766cbc98c9e0c2b2bb5a392b4f",
+  "inputFingerprint": "de719439185a1c8d024663de8017c531f075ad3c93559f5132031e17d496fa5f",
   "inventory": {
-    "files": 6883,
-    "bytes": 62507866,
+    "files": 6895,
+    "bytes": 64095764,
     "directories": 259,
     "categories": 13
   },
@@ -24,7 +24,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6853,
+      "trackedTextFilesScanned": 6865,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -51,9 +51,9 @@
       "workflowBudget": 160,
       "workflowBudgetWarning": 155,
       "workflowBudgetStatus": "near-limit",
-      "totalLargeFiles": 3,
+      "totalLargeFiles": 4,
       "approvedLargeFiles": 2,
-      "unapprovedLargeFiles": 1
+      "unapprovedLargeFiles": 2
     }
   },
   "policies": {
@@ -172,7 +172,7 @@
       "status": "open",
       "blocking": false,
       "evidence": {
-        "totalLargeFiles": 3,
+        "totalLargeFiles": 4,
         "approved": [
           {
             "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
@@ -187,6 +187,10 @@
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "bytes": 1930662
+          },
+          {
+            "path": "docs/staging-write-route-partition-2026-08-14.json",
+            "bytes": 1535977
           }
         ]
       },
