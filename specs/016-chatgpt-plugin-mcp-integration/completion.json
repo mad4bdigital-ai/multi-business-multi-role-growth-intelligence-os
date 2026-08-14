@@ -45,6 +45,8 @@
   "specification": {
     "complete": true,
     "review_state": "merged",
+    "file_count_expected": 25,
+    "file_count_recorded": 25,
     "functional_requirements": 32,
     "non_functional_requirements": 12,
     "success_criteria": 10,
