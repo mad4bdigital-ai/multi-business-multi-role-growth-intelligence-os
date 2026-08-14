@@ -150,8 +150,12 @@ function compileSurface({ surface, manifest, registrations }) {
     });
   }
 
+  // Candidate registration validation is intentionally deferred until after
+  // visibility is established. An unauthorized surface must not reveal
+  // candidate existence through validation errors, duplicate keys, or counts.
+  const normalizedRegistrations = normalizeRegistrations(registrations, surface);
   const actionEligible = surface === "tool_catalog" && toolActionEligible(manifest);
-  const items = registrations.map((item) => Object.freeze({
+  const items = normalizedRegistrations.map((item) => Object.freeze({
     ...item,
     visible: true,
     ...(surface === "tool_catalog" ? {
@@ -188,7 +192,7 @@ export function compileAuthoritySurfaceProjections({ manifest, registrations = {
     surfaces[surface] = compileSurface({
       surface,
       manifest: normalizedManifest,
-      registrations: normalizeRegistrations(registrations[surface], surface),
+      registrations: registrations[surface],
     });
   }
 
