@@ -3,8 +3,16 @@
   "track": "C",
   "branch": "agent/track-c-surfaces-mcp-gpt-frontend",
   "base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
-  "pinned_main_sha": "d1c59d0b3351a192ff9458675b51376f5c8cb49a",
-  "source_head_before_handoff_refresh": "82828f3971a31de7d95a27f82530911927b5f356",
+  "pinned_main_sha": "7bd744ecb7bb792fce8ff18440311034d2858603",
+  "source_head_before_handoff_refresh": "13435c2c142654f8509e1bd26729a0e636f6fc79",
+  "synchronization": {
+    "policy": "read live main before every write batch and resync before continuing whenever main moves",
+    "main_is_ancestor": true,
+    "behind_by": 0,
+    "latest_sync_pr": 7127,
+    "latest_sync_merge_sha": "5b7da33f0e62b93773673ba099d52ec55904fc43",
+    "force_push_used": false
+  },
   "contract_chain": [
     "Context Kernel",
     "Capability Manifest",
@@ -20,26 +28,28 @@
   "dependencies": {
     "track_a": {
       "required_contract": "final-authority plus durable execution, adapter, readback runtime contract consuming Track B readiness",
-      "pinned_head": "c9d89aa45af0fcc83dcf6db499a34edcb3dd8bb1",
+      "pinned_head": "8227ecd0527fa8e0750a84aa3816b8c7466d1b1f",
       "pr": 7122,
-      "state": "started_but_not_admissible_before_track_b_merge",
-      "current_exact_head_ci": "843_of_843_tests_passed_and_e2e_passed",
+      "state": "draft_not_merged_and_behind_current_main",
+      "behind_current_main_by": 16,
       "runtime_contract_consumable_by_track_c": false,
       "reserved_final_integration_artifacts_present_in_pr": true
     },
     "track_b": {
       "required_contract": "readiness evidence consumed through Track A runtime composition",
-      "pinned_head": "7ff342d7020671ace76170b8b6da7dce4d5d39ce",
+      "pinned_head": "e76e9833a72512524905c743fd9ce1849a1cc4e4",
       "pr": 7114,
-      "state": "draft_not_merged_and_requires_main_reconciliation"
+      "state": "draft_not_merged_diverged_from_current_main",
+      "behind_current_main_by": 16,
+      "reserved_generated_delta_present": true
     }
   },
   "projection_only": true,
   "creates_authority": false,
   "selects_connection": false,
   "executes_provider": false,
-  "generated_artifacts_modified": false,
-  "reserved_inventory_or_evaluation_modified": false,
+  "generated_artifacts_modified_relative_to_pinned_main": false,
+  "reserved_inventory_or_evaluation_modified_relative_to_pinned_main": false,
   "runtime_wiring": {
     "remote_mcp_tools_call_rewired": false,
     "reason": "Track B has not merged and Track A has not been rebuilt on the resulting main with the final consumable runtime authority contract.",
@@ -50,59 +60,61 @@
     "host_tenant_isolation": "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json",
     "spec016_e2e_projection_binding": "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
     "spec016_work_map_binding": "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
-    "remote_mcp_dynamic_surface_test": "http-generic-api/test-remote-mcp-governed-surface-consumer.mjs"
+    "remote_mcp_dynamic_surface_test": "http-generic-api/test-remote-mcp-governed-surface-consumer.mjs",
+    "tenant_gpt_effective_capability_test": "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs"
   },
   "reconciliation": {
-    "current_main_direct_overlap": [
-      "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json"
-    ],
     "required_order": ["B", "A", "C", "integration"],
-    "early_rebase_authorized": false,
+    "current_main_direct_overlap_resolved": true,
+    "spec017_semantic_reconciliation": "current main preserved and Track C projection evidence restored on top",
+    "spec010_premature_completion_delta_removed": true,
+    "spec016_manifest_count_invariants_restored": true,
     "spec016_work_map_registry_binding": {
       "scope": "exact_track_c_checkout",
       "fingerprint": "ac111b8c4d0c8db936c3425cd98a41fb5889d3848e898c56230c87df985a9a1f",
       "index_source_hash": "64076dfcb85e1477af51c63b870b75f48aa268306270cf041ad7ac64393d15ea",
       "coverage_source_hash": "1e1bceb2d095c751e749b1fc52e42e5e5838a4eed484681ea1df846da2918cb3",
-      "refresh_required_after_future_rebase": true
-    }
-  },
-  "validation": {
-    "previous_exact_source_head": "ea4bfc46a6118c0c6bc107f94bf58aa474290124",
-    "previous_exact_head_full_ordered_npm_test": "pass",
-    "ci_recovery_first_failure": {
-      "run_id": 31753280751,
-      "job_id": 94623815892,
-      "artifact_id": 9201793432,
-      "command": "node test-delegation-execution-policy-runtime.mjs",
-      "ownership": "upstream_shared_baseline_not_track_c",
-      "track_c_patch_required": false
-    },
-    "remote_mcp_dynamic_surface_test": {
-      "head": "82828f3971a31de7d95a27f82530911927b5f356",
-      "dynamic_unknown_read_tool_accepted_only_via_upstream_contract": true,
-      "write_effect_rejected_after_upstream_resolution": true,
-      "projection_tool_binding_enforced": true,
-      "secret_projection_rejected": true,
-      "local_tool_authority_catalog": false
-    },
-    "spec016_e2e_contract": "updated_with_public_capability_projection",
-    "spec016_work_map": {
-      "status": "reconciled_to_exact_track_c_registry",
-      "review_state": "ready_for_implementation",
+      "review_state": "draft",
+      "implementation_readiness": "blocked",
       "work_map_decisions": 19,
       "domain_decisions": 16,
-      "unresolved_dimensions": 0,
-      "taxonomy_gap_clusters": 0,
-      "acceptance_refs_added": true,
-      "fresh_actions_run_observed": false
+      "acceptance_refs_present": true,
+      "refresh_required_after_future_upstream_rebase": true
+    }
+  },
+  "hardening": {
+    "dynamic_read_tool_requires_upstream_contract": true,
+    "write_effect_rejected_after_upstream_resolution": true,
+    "local_tool_authority_catalog_created": false,
+    "projection_tool_binding_enforced": true,
+    "authoritative_context_to_projection_binding_enforced_without_client_selector": true,
+    "projection_secret_marker_rejected": true,
+    "bearer_basic_private_key_and_url_secret_string_redaction": true,
+    "authority_preflight_explicit_denial_fails_closed": true,
+    "alternate_authority_created": false,
+    "alternate_connection_selector_created": false
+  },
+  "validation": {
+    "latest_exact_source_validation_head_before_handoff_refresh": "13435c2c142654f8509e1bd26729a0e636f6fc79",
+    "e2e_phase_evaluation": "pass",
+    "e2e_current_phase_journeys": "pass",
+    "spec016_contract_validator": "pass",
+    "remote_mcp_governed_surface_consumer_test": "pass_in_declared_current_phase_journeys",
+    "tenant_gpt_effective_capability_surface_test": "pass_in_declared_current_phase_journeys",
+    "oauth_declared_current_phase_tests": "pass",
+    "work_map_integration": {
+      "spec016_contract_semantics": "corrected_to_draft_blocked",
+      "generator_currentness": "blocked_on_two_generator_owned_docs_inherited_from_current_main_workflow_changes",
+      "repair_candidate_run_id": 31760298167,
+      "repair_candidate_artifact_id": 9204333296,
+      "candidate_changed_files": [
+        "docs/work-maps/README.md",
+        "docs/work-maps/repository-automation-map.md"
+      ],
+      "manual_generated_doc_write_executed": false,
+      "governed_autofix_required": true
     },
-    "spec010_completion_delta": "premature_metadata_only_delta_no_frontend_source_change",
-    "spec010_revert_attempt": "normal_contents_api_blocked_before_write",
-    "e2e_phase_governance": "latest_canonical_result_is_stale_for_current_head_spec010_known_remaining_metadata_debt",
-    "evaluation_loop": "deferred_until_required_upstream_reconciliation_and_final_integration_for_reserved_generated_outputs",
-    "schemas_guard": "required_after_upstream_reconciliation",
-    "frontend_dispatch_check": "required_after_upstream_reconciliation",
-    "path_guard": "required_after_upstream_reconciliation",
+    "syntax_check": "repository_generated_currentness_may_fail_before_downstream_steps; do not mutate reserved integration artifacts on Track C",
     "merge_ready": false
   },
   "live_acceptance": {
