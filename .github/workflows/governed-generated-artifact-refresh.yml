@@ -26,9 +26,23 @@ on:
         description: Type APPLY_GENERATED_ARTIFACT_REFRESH
         required: true
         type: string
+      create_from_main:
+        description: Create the governed target branch from exact main before refresh
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      source_main_sha:
+        description: Exact main SHA authorizing post-merge inventory convergence
+        required: false
+        default: ""
+        type: string
 
 # This is the sole registered generated-artifact writer; all inputs remain exact-head and branch-scoped.
-# Contract: mad4b.repository-inventory-self-hosting.v1 for the repository_inventory_refresh recipe.
+# A bounded post-merge Inventory repair may create a governed work branch from exact main, but never mutates main or Production.
+# Contract: mad4b.repository-inventory-self-hosting.v2 for the repository_inventory_refresh recipe.
 env:
   GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
 
@@ -54,6 +68,8 @@ jobs:
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
           RECIPE: ${{ inputs.recipe }}
           CONFIRMATION: ${{ inputs.confirmation }}
+          CREATE_FROM_MAIN: ${{ inputs.create_from_main }}
+          SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
         run: |
           set -euo pipefail
           test "$GENERATED_ARTIFACT_AUTHORITY_MODE" = "trusted_writer"
@@ -68,6 +84,44 @@ jobs:
             *) echo "Unregistered generated-artifact recipe: $RECIPE" >&2; exit 1 ;;
           esac
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
+          [[ "$CREATE_FROM_MAIN" == "false" || "$CREATE_FROM_MAIN" == "true" ]]
+          if [[ "$CREATE_FROM_MAIN" == "true" ]]; then
+            [[ "$RECIPE" == "repository_inventory_refresh" ]]
+            [[ "$SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
+            [[ "$TARGET_REF" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
+          else
+            [[ -z "$SOURCE_MAIN_SHA" ]]
+          fi
+
+      - name: Prepare exact main convergence branch
+        if: inputs.create_from_main == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
+        run: |
+          set -euo pipefail
+          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main_sha" = "$SOURCE_MAIN_SHA"
+          test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
+
+          set +e
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha' 2>/dev/null)"
+          existing_status=$?
+          set -e
+          if (( existing_status == 0 )); then
+            test "$existing_sha" = "$EXPECTED_HEAD_SHA"
+          else
+            payload="$(jq -cn --arg ref "refs/heads/${TARGET_REF}" --arg sha "$EXPECTED_HEAD_SHA" '{ref:$ref,sha:$sha}')"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" --input - <<<"$payload"
+          fi
+
+          remote_target_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
+          test "$remote_target_sha" = "$EXPECTED_HEAD_SHA"
+          echo "Prepared governed convergence branch ${TARGET_REF} from exact main@${SOURCE_MAIN_SHA}." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout exact expected head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
