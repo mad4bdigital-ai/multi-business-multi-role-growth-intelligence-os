@@ -1,8 +1,11 @@
-FROM node:20-slim
+FROM node:22-slim
 WORKDIR /app
-COPY package.json ./
-RUN npm install --omit=dev
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
 COPY . .
+ENV NODE_ENV=staging
 ENV PORT=8080
-# REDIS_URL must be set at runtime, e.g. redis://your-redis-host:6379
+# REDIS_URL is supplied by docker-compose at runtime.
 CMD ["npm", "start"]

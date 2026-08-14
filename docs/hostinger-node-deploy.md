@@ -54,6 +54,18 @@ Start command: npm start
 
 The root `server.js` wrapper enters `http-generic-api` and starts the ESM runtime. Startup failures must preserve the full stack trace.
 
+## Cloud Plan capability contract
+
+Hostinger Cloud is the Production application host. The supported managed Node.js Web App path is compatible with Node.js 22, but it must not be treated as a Docker host or a general-purpose database server. The application can use Hostinger-managed MySQL-compatible databases for the three logical bindings only after the account limits, database names, users, and connection parameters have been verified in hPanel. Those bindings must remain distinct: runtime (`DB_*`), governance (`GOVERNANCE_DB_*`), and runtime persistence (`RUNTIME_PERSISTENCE_DB_*`).
+
+Redis is not assumed to be available on Hostinger Cloud. The application deliberately supports a disabled-queue mode when `REDIS_URL` is empty and `QUEUE_WORKER_ENABLED=FALSE`; in that mode queue-backed features are unavailable and must be declared degraded rather than silently treated as healthy. If Production requires queued jobs, configure a dedicated external managed Redis endpoint in the Hostinger Production environment only, with TLS and a credential that is never reused by Dev. Do not install Redis or PostgreSQL through the managed Cloud plan; that requires a different hosting capability such as VPS.
+
+Production hPanel variables must preserve `MIGRATION_APPLIED=false` and `DATABASE_MUTATED=false` for deployment automation. Deployment, process restart, and SQL migration remain separate governed states. No Hostinger deployment path may read the local `.env.staging`, the Dev tunnel token, or the External SSD bind mounts.
+
+## Cloudflare separation
+
+`dev.mad4b.com` is a local-only Cloudflare Tunnel whose token and ingress belong to the staging device. Its remote ingress targets `http://app:8080` on the local Compose network. Production uses a separate Cloudflare DNS/CDN record in front of the Hostinger app, such as `auth.mad4b.com`; it does not reuse the Dev tunnel, token, hostname, or credentials. Cloudflare DNS changes and tunnel creation are manual/provider-side operations and are not performed by the local Auto Pilot.
+
 ## Hostinger hPanel production setup
 
 Configure only the production Node.js app through this Hostinger flow.

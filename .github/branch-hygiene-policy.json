@@ -1,0 +1,63 @@
+{
+  "contract": "mad4b.branch-hygiene-policy.v2",
+  "policy_version": 2,
+  "default_mode": "dry_run",
+  "schedule_mode": "apply",
+  "grace_period_days": 7,
+  "unmerged_review_after_days": 45,
+  "archive_report_retention_days": 90,
+  "age_band_days": {
+    "recent": 7,
+    "review": 45,
+    "aging": 90,
+    "old": 180
+  },
+  "delete_only_if": {
+    "merged_into_default_branch": true,
+    "no_open_pull_request": true,
+    "older_than_grace_period_days": true,
+    "not_protected": true,
+    "not_excluded_namespace": true,
+    "head_sha_revalidated_before_delete": true
+  },
+  "protected_branch_patterns": [
+    "^main$",
+    "^Production$"
+  ],
+  "excluded_namespace_patterns": [
+    "^feat/spec015-tenant-audit-convergence(?:/.*)?$",
+    "^release/production-candidate-.*$",
+    "^gpt/validate-production-candidate-.*$",
+    "^chore/repository-inventory-main-sync-.*$",
+    "^chore/work-map-main-sync-.*$",
+    "^chore/branch-hygiene-.*$",
+    "^(?:release|cert|bootstrap|ops)/.*(?:production|promotion|recovery|candidate|evidence).*$",
+    "^gpt/.*(?:production|promotion|recovery|candidate|evidence|spec015|tenant-audit).*$"
+  ],
+  "review_only_namespace_patterns": [
+    "^feat/.*$",
+    "^fix/.*$",
+    "^gpt/.*$",
+    "^docs-agent/.*$",
+    "^agent/.*$",
+    "^validation/.*$",
+    "^surface-contract-auto/.*$"
+  ],
+  "apply_confirmation": "APPLY_BRANCH_HYGIENE",
+  "report_contract": "mad4b.branch-hygiene-report.v2",
+  "triage_sort_order": [
+    "priority_rank_asc",
+    "age_days_desc",
+    "unique_commit_count_desc",
+    "name_asc"
+  ],
+  "report_fields": [
+    "generated_at",
+    "policy_sha256",
+    "default_branch_sha",
+    "mode",
+    "summary",
+    "triage",
+    "branches"
+  ]
+}
