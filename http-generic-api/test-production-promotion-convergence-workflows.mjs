@@ -5,6 +5,14 @@ const launcher = readFileSync(
   new URL("../.github/workflows/governed-production-promotion-request-launcher.yml", import.meta.url),
   "utf8",
 );
+const runSelector = readFileSync(
+  new URL("../.github/scripts/production-promotion-run-selector.mjs", import.meta.url),
+  "utf8",
+);
+const evidenceHelper = readFileSync(
+  new URL("../.github/scripts/production-promotion-evidence.mjs", import.meta.url),
+  "utf8",
+);
 const postFinalizationGuard = readFileSync(
   new URL("../.github/workflows/governed-production-promotion-post-finalization-guard.yml", import.meta.url),
   "utf8",
@@ -39,10 +47,9 @@ for (const required of [
   /Platform Remaining Scope Scorecard/,
   /Spec 011 Delegation MariaDB Certification/,
   /resolve_run_once\(\)/,
-  /sort_by\(\.createdAt, \.databaseId\)/,
-  /\.status != \\"completed\\"/,
-  /\.conclusion == \\"success\\"/,
-  /\.conclusion == \\"action_required\\"/,
+  /production-promotion-run-selector\.mjs/,
+  /production-promotion-evidence\.mjs/,
+  /resolve_dispatch_run_once\(\)/,
   /spec-011-delegation-mariadb-certification\.yml/,
   /dispatch_workflow_and_capture_run frontend-surface-dispatch\.yml "\$RELEASE_BRANCH"/,
   /dispatch_workflow_and_capture_run http-generic-api-fanout-relocation\.yml "\$RELEASE_BRANCH"[\s\S]*--field scope=scripts[\s\S]*--field max_files=20[\s\S]*--field target_branch="\$RELEASE_BRANCH"/,
@@ -52,16 +59,8 @@ for (const required of [
   /Spec 011 release branch moved before supporting gate dispatch/,
   /Spec 011 supporting workflow dispatch failed and no exact-head run was captured/,
   /protected refs moved during validation; retrying from current refs/,
-  /request_pr: \$request_pr/,
-  /candidate_tree_matches_main: true/,
-  /protected_refs_stable_during_validation: true/,
-  /exact_full_ci_success: true/,
-  /merge_executed: false/,
-  /deployment_executed: false/,
-  /migration_executed: false/,
-  /provider_call_executed: false/,
-  /credential_payload_read: false/,
-  /secrets_included: false/,
+  /INPUT_PATH="\$ATTEMPT_EVIDENCE_DIR\/convergence-input\.json"/,
+  /node \.github\/scripts\/production-promotion-evidence\.mjs --input/,
   /\.head\.repo\.full_name \/\/ ""/,
   /request PR must originate from this repository/,
   /run \$run_id is waiting for required approval; keeping governed review surfaces open/,
@@ -73,6 +72,30 @@ for (const required of [
   assert.match(launcher, required);
 }
 assert.doesNotMatch(launcher, /headRepositoryOwner/);
+for (const required of [
+  /terminalSuccess/,
+  /run\.conclusion === "success"/,
+  /includeActionRequired/,
+  /run\.headSha === headSha/,
+  /run\.event === event/,
+]) {
+  assert.match(runSelector, required);
+}
+for (const required of [
+  /request_pr: String\(input\.request_pr\)/,
+  /candidate_tree_matches_main: true/,
+  /protected_refs_stable_during_validation: true/,
+  /exact_full_ci_success: true/,
+  /review_authority: reviewMode === "ai_policy"/,
+  /merge_executed: false/,
+  /deployment_executed: false/,
+  /migration_executed: false/,
+  /provider_call_executed: false/,
+  /credential_payload_read: false/,
+  /secrets_included: false/,
+]) {
+  assert.match(evidenceHelper, required);
+}
 
 for (const required of [
   /resolve_exact_validation_run\(\)/,
@@ -184,7 +207,7 @@ const spec011DispatchBlock = launcher.slice(spec011Start, spec011End);
 assert.ok(spec011Start >= 0 && spec011End > spec011Start, "Spec 011 supporting gate must have an explicit bounded dispatch block");
 assert.match(
   spec011DispatchBlock,
-  /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?if \[\[ "\$REVIEW_MODE" == "ai_policy" \]\]; then[\s\S]*?SUPPORTING_RUN_ID="\$\(resolve_dispatch_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"[\s\S]*?else[\s\S]*?SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"/,
+  /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?if \[\[ "\$REVIEW_MODE" == "ai_policy" \]\]; then[\s\S]*?SUPPORTING_RUN_ID="\$\(resolve_dispatch_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"[\s\S]*?else[\s\S]*?SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA" true\)"/,
   "Spec 011 must use an exact-head workflow_dispatch run only in ai_policy mode and retain exact-head run reuse in human mode",
 );
 assert.match(

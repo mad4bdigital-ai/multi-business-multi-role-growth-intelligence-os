@@ -68,6 +68,22 @@ jobs:
       VALIDATION_BASE_BRANCH_PREFIX: ${{ inputs.validation_base_branch_prefix }}
       REVIEW_MODE: ${{ inputs.review_mode }}
     steps:
+      - name: Checkout trusted launcher helpers
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node for promotion helpers
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      - name: Preflight promotion runtime helpers
+        shell: bash
+        run: node --test .github/tests/production-promotion-runtime.test.mjs
+
       - name: Validate governed dispatch identity and exact heads
         shell: bash
         env:
@@ -177,20 +193,21 @@ jobs:
             local workflow="$1"
             local earliest="$2"
             local expected_head_sha="${3:-}"
-            local filter=""
-
+            local include_action_required="${4:-false}"
+            local selector_args=(--earliest "$earliest")
             if [[ -n "$expected_head_sha" ]]; then
-              filter="(map(select(.createdAt >= \"$earliest\" and .headSha == \"$expected_head_sha\" and (.status != \"completed\" or .conclusion == \"success\" or .conclusion == \"action_required\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty"
-            else
-              filter="(map(select(.createdAt >= \"$earliest\" and (.status != \"completed\" or .conclusion == \"success\" or .conclusion == \"action_required\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty"
+              selector_args+=(--head-sha "$expected_head_sha")
+            fi
+            if [[ "$include_action_required" == "true" ]]; then
+              selector_args+=(--include-action-required)
             fi
 
             gh run list \
               --repo "$REPOSITORY" \
               --workflow "$workflow" \
               --limit 100 \
-              --json databaseId,headSha,createdAt,status,conclusion \
-              --jq "$filter" 2>/dev/null || true
+              --json databaseId,headSha,createdAt,status,conclusion,event \
+              | node .github/scripts/production-promotion-run-selector.mjs "${selector_args[@]}" 2>/dev/null || true
           }
 
           resolve_run() {
@@ -200,7 +217,7 @@ jobs:
             local run_id=""
 
             for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
-              run_id="$(resolve_run_once "$workflow" "$earliest" "$expected_head_sha")"
+              run_id="$(resolve_run_once "$workflow" "$earliest" "$expected_head_sha" true)"
               if [[ -n "$run_id" ]]; then
                 printf '%s' "$run_id"
                 return 0
@@ -250,7 +267,10 @@ jobs:
               --workflow "$workflow_file" \
               --limit 100 \
               --json databaseId,event,headSha,createdAt,status,conclusion \
-              --jq "(map(select(.event == \\\"workflow_dispatch\\\" and .createdAt >= \\\"$earliest\\\" and .headSha == \\\"$expected_head_sha\\\" and (.status != \\\"completed\\\" or .conclusion == \\\"success\\\" or .conclusion == \\\"action_required\\\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty" 2>/dev/null || true
+              | node .github/scripts/production-promotion-run-selector.mjs \
+                --earliest "$earliest" \
+                --head-sha "$expected_head_sha" \
+                --event workflow_dispatch 2>/dev/null || true
           }
 
           resolve_dispatch_run() {
@@ -510,7 +530,7 @@ jobs:
                 if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
                   SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
                 else
-                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" true)"
                 fi
                 if [[ -z "$SUPPORTING_RUN_ID" ]]; then
                   SPEC011_RELEASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
@@ -523,7 +543,7 @@ jobs:
                   if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
                     SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
                   else
-                    SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                    SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" true)"
                   fi
                   if [[ -z "$SUPPORTING_RUN_ID" ]]; then
                     if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
@@ -541,7 +561,7 @@ jobs:
                 if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
                   SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
                 else
-                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" true)"
                 fi
                 if [[ -z "$SUPPORTING_RUN_ID" ]]; then
                   case "$workflow_name" in
@@ -636,6 +656,7 @@ jobs:
             EVIDENCE_DIGEST="$(find "$ATTEMPT_EVIDENCE_DIR" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
             require_sha256 EVIDENCE_DIGEST "$EVIDENCE_DIGEST"
 
+            INPUT_PATH="$ATTEMPT_EVIDENCE_DIR/convergence-input.json"
             jq -n \
               --arg request_pr "$REQUEST_PR" \
               --arg main_sha "$MAIN_SHA" \
@@ -652,36 +673,8 @@ jobs:
               --arg review_mode "$REVIEW_MODE" \
               --argjson supporting_runs "$SUPPORTING_RUNS" \
               --argjson attempt "$attempt" \
-              '{
-                schema_version: "governed_production_promotion_convergence.v1",
-                ok: true,
-                attempt: $attempt,
-                request_pr: $request_pr,
-                main_sha: $main_sha,
-                production_sha: $production_sha,
-                candidate_sha: $candidate_sha,
-                release_branch: $release_branch,
-                validation_branch: $validation_branch,
-                validation_base_branch: $validation_base_branch,
-                builder_run_id: $builder_run_id,
-                exact_validation_run_id: $exact_validation_run_id,
-                supporting_runs: $supporting_runs,
-                review_mode: $review_mode,
-                review_authority: ($review_mode == "ai_policy" ? "bounded_ai_policy_agent" : "human_maintainer"),
-                ai_policy_scope: ($review_mode == "ai_policy" ? "read_only_supporting_gates_and_exact_candidate_validation" : null),
-                release_pr: $release_pr,
-                validation_pr: $validation_pr,
-                evidence_digest: $evidence_digest,
-                candidate_tree_matches_main: true,
-                protected_refs_stable_during_validation: true,
-                exact_full_ci_success: true,
-                merge_executed: false,
-                deployment_executed: false,
-                migration_executed: false,
-                provider_call_executed: false,
-                credential_payload_read: false,
-                secrets_included: false
-              }' > "$EVIDENCE_PATH"
+              '{request_pr:$request_pr,main_sha:$main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,builder_run_id:$builder_run_id,exact_validation_run_id:$exact_validation_run_id,supporting_runs:$supporting_runs,review_mode:$review_mode,release_pr:$release_pr,validation_pr:$validation_pr,evidence_digest:$evidence_digest,attempt:$attempt}' > "$INPUT_PATH"
+            node .github/scripts/production-promotion-evidence.mjs --input "$INPUT_PATH" --output "$EVIDENCE_PATH"
 
             RELEASE_BODY="$RUNNER_TEMP/release-pr-final.md"
             cat > "$RELEASE_BODY" <<EOF

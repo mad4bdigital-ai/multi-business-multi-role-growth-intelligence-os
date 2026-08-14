@@ -112,6 +112,9 @@ jobs:
       - name: Validate governed production promotion review mode
         run: node .github/tests/production-promotion-review-mode.test.mjs
 
+      - name: Validate governed production promotion runtime helpers
+        run: node --test .github/tests/production-promotion-runtime.test.mjs
+
       - name: Validate governed command gateway contract
         run: node --test .github/tests/governed-command-gateway.test.mjs
 
