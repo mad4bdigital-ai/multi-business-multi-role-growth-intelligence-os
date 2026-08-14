@@ -24,10 +24,6 @@ on:
         description: Reviewed repository-relative manifest binding exactly eight authority source files
         required: true
         type: string
-      target_schema:
-        description: Exact Production schema authorized for the read-only catalog census
-        required: true
-        type: string
       confirm:
         description: Type I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE
         required: true
@@ -92,7 +88,13 @@ jobs:
           grep -q 'source manifest must be a regular repository file' "$workflow"
           grep -q 'source manifest escaped repository root' "$workflow"
           grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
-          test "$(grep -Ec '^[[:space:]]+BACKEND_API_KEY:' "$workflow")" -eq 1
+          grep -q 'Resolve runtime database identity from Hostinger App Env' "$workflow"
+          grep -q 'name: "DB_NAME"' "$workflow"
+          grep -q 'TARGET_SCHEMA=' "$workflow"
+          ! grep -q 'inputs.target_schema' "$workflow"
+          ! grep -Eq '^      target_schema:' "$workflow"
+          grep -q "target_schema_source: 'hostinger_app_env:DB_NAME'" "$workflow"
+          test "$(grep -Ec '^[[:space:]]+BACKEND_API_KEY:' "$workflow")" -eq 2
           grep -Fq "steps.artifact_safety.outputs.safe == 'true'" "$workflow"
 
   live-read-only-cycle:
@@ -108,7 +110,7 @@ jobs:
     env:
       REPOSITORY: ${{ github.repository }}
       SOURCE_MANIFEST_FILE: ${{ inputs.source_manifest_file }}
-      TARGET_SCHEMA: ${{ inputs.target_schema }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
     steps:
       - name: Checkout exact trusted dispatch SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -120,6 +122,46 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+      - name: Resolve runtime database identity from Hostinger App Env
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const baseUrl = String(process.env.RUNTIME_BASE_URL || '').trim().replace(/\/+$/, '');
+          const backendApiKey = String(process.env.BACKEND_API_KEY || '').trim();
+          if (!baseUrl || !backendApiKey) throw new Error('Runtime URL and BACKEND_API_KEY are required for App Env identity readback.');
+          const response = await fetch(`${baseUrl}/admin/cli/control`, {
+            method: 'POST',
+            redirect: 'error',
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${backendApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tool: 'env', action: 'get', name: "DB_NAME" }),
+            signal: AbortSignal.timeout(30000)
+          });
+          const text = await response.text();
+          let payload;
+          try { payload = text ? JSON.parse(text) : {}; }
+          catch { throw new Error('Hostinger runtime App Env readback returned non-JSON content.'); }
+          if (!response.ok || payload?.ok !== true || payload?.tool !== 'env') {
+            throw new Error(`Hostinger runtime App Env readback failed with HTTP ${response.status}.`);
+          }
+          const result = payload?.result || {};
+          if (result.action !== 'get' || result.name !== 'DB_NAME' || result.exists !== true) {
+            throw new Error('Hostinger App Env DB_NAME is missing or the env readback contract changed.');
+          }
+          const targetSchema = String(result.value || '').trim();
+          if (targetSchema === '[masked]' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(targetSchema)) {
+            throw new Error('Hostinger App Env DB_NAME is unavailable or invalid.');
+          }
+          fs.appendFileSync(process.env.GITHUB_ENV, `TARGET_SCHEMA=${targetSchema}\n`);
+          console.log('Resolved runtime database identity from Hostinger App Env DB_NAME without logging its value.');
+          NODE
       - name: Enforce trusted immutable inputs
         shell: bash
         run: |
@@ -127,6 +169,7 @@ jobs:
           EVIDENCE_DIR="${RUNNER_TEMP}/ueacp-governed-operational-evidence"
           test "${GITHUB_REF_NAME}" = "main"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test -n "${TARGET_SCHEMA:-}"
           [[ "${TARGET_SCHEMA}" =~ ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ ]]
           [[ "${SOURCE_MANIFEST_FILE}" != /* ]]
           [[ "${SOURCE_MANIFEST_FILE}" != *..* ]]
@@ -169,6 +212,7 @@ jobs:
             operation_ref: `github.run.${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_SHA}`,
             environment: 'production_runtime',
             target_schema: process.env.TARGET_SCHEMA,
+            target_schema_source: 'hostinger_app_env:DB_NAME',
             issued_at: issued.toISOString(),
             expires_at: expires.toISOString(),
             approved: true,
@@ -179,7 +223,7 @@ jobs:
             external_writes: false,
             secrets_included: false
           };
-          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/authorization.json`, `${JSON.stringify(authorization, null, 2)}\n`);
+          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/authorization.json`, `${JSON.stringify(authorization, null, 2)}\n`, { mode: 0o600 });
           NODE
       - name: Collect SHA-bound repository authority snapshots
         working-directory: http-generic-api
@@ -191,7 +235,6 @@ jobs:
             --attestation-output "${EVIDENCE_DIR}/repository-attestation.json"
       - name: Observe live SQL catalog with same-cycle readback
         env:
-          RUNTIME_BASE_URL: https://auth.mad4b.com
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
           EVIDENCE_PATH="${EVIDENCE_DIR}/catalog-observation.json" \
