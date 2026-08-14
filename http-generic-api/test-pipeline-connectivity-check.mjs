@@ -351,10 +351,10 @@ jobs:
   assert.ok(integrationWorkflow.includes("EXPECTED_CHECKED_OUT_SHA"));
   assert.ok(integrationWorkflow.includes('tested_head_sha="$(git rev-parse HEAD)"'));
   assert.ok(integrationWorkflow.includes("Repair candidate checkout mismatch"));
-  assert.ok(integrationWorkflow.includes("event_sha: process.env.GITHUB_SHA"));
-  assert.ok(integrationWorkflow.includes("expected_head_sha: process.env.EXPECTED_CHECKED_OUT_SHA"));
-  assert.ok(integrationWorkflow.includes("tested_head_sha: process.env.WORK_MAP_TESTED_HEAD_SHA"));
-  assert.ok(integrationWorkflow.includes("process.env.WORK_MAP_TESTED_HEAD_SHA === process.env.EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(integrationWorkflow.includes('--arg event_sha "${GITHUB_SHA}"'));
+  assert.ok(integrationWorkflow.includes('--arg expected_head_sha "${EXPECTED_CHECKED_OUT_SHA}"'));
+  assert.ok(integrationWorkflow.includes('--arg tested_head_sha "${tested_head_sha}"'));
+  assert.ok(integrationWorkflow.includes('export WORK_MAP_TESTED_HEAD_SHA="${tested_head_sha}"'));
   assert.ok(!integrationWorkflow.includes("tested_head_sha: process.env.GITHUB_SHA"));
   assert.ok(integrationWorkflow.includes("generated_from_exact_checked_out_head"));
   assert.ok(integrationWorkflow.includes("remote_write_executed: false"));
