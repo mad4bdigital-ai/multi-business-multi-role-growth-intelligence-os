@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6872,
-    "bytes": 62446204,
-    "lines": 1464328,
+    "bytes": 62448740,
+    "lines": 1464372,
     "directories": 256,
     "categories": 13
   },
@@ -11170,9 +11170,9 @@
       "path": ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 14492,
-      "lines": 276,
-      "sha256": "4a00fa9950ea2138ece32a0e3f9806d7b328d2c3d7931fbb8a48761e56fdf264",
+      "bytes": 17028,
+      "lines": 320,
+      "sha256": "2ae38d7f4a97d27be184faab747d2041b69fcbb5345f5053778b8538e6b466ea",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31918,7 +31918,7 @@
       "extension": ".md",
       "bytes": 4318,
       "lines": 43,
-      "sha256": "a141c944c06647c5b2009cd38e129f54bd683f14337bb1ef765089cfddd3d8b9",
+      "sha256": "7cf123ab7dad3419c1ec5b9400204489405d69b6fad193c848b0b63a87bf3de2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32083,7 +32083,7 @@
       "extension": ".md",
       "bytes": 46801,
       "lines": 502,
-      "sha256": "a4300b968687c26a61d3bcc1bc585aabb01081af9956089632d7eeadd65e8511",
+      "sha256": "cb3093afa3ec3cee0505b064e485fd6e33fba272dadfb96c8b0d85043b3a0891",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79020,7 +79020,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "37cf58272d29a073f15a5edad2257046f9e606adec4d46ebcf17e63f1dd3c891",
+      "sha256": "9d9961a0c9b847e5c3d2b09534a145892951cf205a1e3d63af11d05070391a2b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79581,7 +79581,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "c21250891bc502d9b00d8617ce8e0f6934f755497fd7273c78d9ea5e85ac5c42",
+      "sha256": "7c5d9ed1227236e753acebbbeaa98c2633da67399c138804c05a85b293e52876",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80406,7 +80406,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "c7dc64c38eb6c0cb9466d4ce6ca7bc6fa323218bc3fa089c2e163445ab8c84c2",
+      "sha256": "9eafc1f30c4fa4d3e2224d8f1527b3cb4987e42b6613d4a03652a03577c44e2e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80637,7 +80637,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "cc1a3c29ac3302e0f288b6dadc7ab70c7df10680168cfa203f58e3c24f82018a",
+      "sha256": "443151b021fb0bd09a51d86accd0c1be58f7683a5846ff062cba795651cb5c77",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80956,7 +80956,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "4fd9eb8e82d47f96bc82988980b25306b09163990c8c5f0a9879ec60959a2240",
+      "sha256": "4750694c602e1dc0b22968daf67755a549c05b1a1ad84a979154055f7941a0ff",
       "mode": "644",
       "executable": false,
       "generated": false
