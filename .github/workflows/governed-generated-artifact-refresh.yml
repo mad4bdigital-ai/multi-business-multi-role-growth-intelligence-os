@@ -41,7 +41,7 @@ on:
         type: string
 
 # This is the sole registered generated-artifact writer; all inputs remain exact-head and branch-scoped.
-# A bounded post-merge Inventory repair may create a governed work branch from exact main, but never mutates main or Production.
+# A bounded post-merge Repository State repair may create a governed work branch from exact main, but never mutates main or Production.
 # Contract: mad4b.repository-inventory-self-hosting.v2 for the repository_inventory_refresh recipe.
 env:
   GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
@@ -163,38 +163,44 @@ jobs:
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           [[ "$remote_sha" == "$result_sha" ]]
 
-          case "$resolved_recipe" in
-            repository_inventory_refresh)
-              verifier_workflow="repository-inventory.yml"
-              verifier_name="Repository Inventory"
-              ;;
-            frontend_openapi_refresh|work_map_self_hosting_bootstrap)
-              verifier_workflow="pr-generated-artifact-refresh.yml"
-              verifier_name="PR Generated Artifact Refresh"
-              ;;
-            *)
-              echo "No registered verifier route for recipe: $resolved_recipe" >&2
-              exit 1
-              ;;
-          esac
+          verifier_records='[]'
+          if [[ "$resolved_recipe" == "repository_inventory_refresh" ]]; then
+            verifier_workflows=("repository-inventory.yml" "repository-evaluation.yml")
+            verifier_names=("Repository Inventory" "Repository Evaluation")
+          elif [[ "$resolved_recipe" == "frontend_openapi_refresh" || "$resolved_recipe" == "work_map_self_hosting_bootstrap" ]]; then
+            verifier_workflows=("pr-generated-artifact-refresh.yml")
+            verifier_names=("PR Generated Artifact Refresh")
+          else
+            echo "No registered verifier route for recipe: $resolved_recipe" >&2
+            exit 1
+          fi
 
-          payload="$(jq -cn \
-            --arg ref "$TARGET_REF" \
-            --arg target_ref "$TARGET_REF" \
-            --arg expected_head_sha "$result_sha" \
-            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
-          gh api \
-            --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches" \
-            --input - <<<"$payload"
+          for index in "${!verifier_workflows[@]}"; do
+            verifier_workflow="${verifier_workflows[$index]}"
+            verifier_name="${verifier_names[$index]}"
+            payload="$(jq -cn \
+              --arg ref "$TARGET_REF" \
+              --arg target_ref "$TARGET_REF" \
+              --arg expected_head_sha "$result_sha" \
+              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches" \
+              --input - <<<"$payload"
+            verifier_records="$(jq -cn \
+              --argjson current "$verifier_records" \
+              --arg workflow "$verifier_name" \
+              --arg workflow_file "$verifier_workflow" \
+              '$current + [{workflow:$workflow,workflow_file:$workflow_file}]')"
+          done
+
           jq -cn \
-            --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
+            --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v2" \
             --arg recipe "$resolved_recipe" \
             --arg target_ref "$TARGET_REF" \
             --arg candidate_sha "$result_sha" \
-            --arg workflow "$verifier_name" \
-            --arg workflow_file "$verifier_workflow" \
-            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,requested:true,secrets_included:false}' \
+            --argjson verifiers "$verifier_records" \
+            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,verifiers:$verifiers,requested:true,secrets_included:false}' \
             > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
 
       - name: Upload canonical refresh report
