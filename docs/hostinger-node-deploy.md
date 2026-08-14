@@ -4,11 +4,11 @@
 
 The machine-readable authority is `http-generic-api/config/deployment-branch-policy.json`.
 
-| Hostname | Role | Source branch | Deployment path |
+| Hostname family | Role | Source branch | Deployment path |
 |---|---|---|---|
-| `auth.mad4b.com` | Production control plane | `Production` | Hostinger Auto Deploy |
-| `dev.mad4b.com` | Planned local staging runtime | `main` | Local device; not Hostinger Auto Deploy |
-| `connector.mad4b.com` | Admin-only break-glass local connector | Managed local Windows service | Cloudflare Tunnel; not Hostinger |
+| `auth.mad4b.com`, `mcp.mad4b.com`, `activation.mad4b.com` | Production application family | `Production` | Hostinger Auto Deploy and separate Production edge |
+| `dev.mad4b.com`, `mcp_dev.mad4b.com`, `activation_dev.mad4b.com` | Planned local staging family | `main` | Local device through dedicated Dev Cloudflare Tunnel; not Hostinger Auto Deploy |
+| `connector.mad4b.com` | Admin-only break-glass local connector | Managed local Windows service | Cloudflare Tunnel; not Hostinger and excluded from both application families |
 
 A push or merge to `main` must not deploy production directly. `main` is the source-of-change branch and the source for the planned local staging runtime. Production changes reach Hostinger only after a governed pull request promotes an exact validated `main` snapshot into protected `Production`.
 
@@ -64,13 +64,13 @@ Production hPanel variables must preserve `MIGRATION_APPLIED=false` and `DATABAS
 
 ## Cloudflare separation
 
-`dev.mad4b.com` is a local-only Cloudflare Tunnel whose token and ingress belong to the staging device. Its remote ingress targets `http://app:8080` on the local Compose network. Production uses a separate Cloudflare DNS/CDN record in front of the Hostinger app, such as `auth.mad4b.com`; it does not reuse the Dev tunnel, token, hostname, or credentials. Cloudflare DNS changes and tunnel creation are manual/provider-side operations and are not performed by the local Auto Pilot.
+The Dev family (`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com`) uses one dedicated local-only Cloudflare Tunnel identity with explicit hostname ingress rules targeting `http://app:8080` on the local Compose network. The Production family (`auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`) uses separate Cloudflare DNS/CDN records in front of the Hostinger Production edge and never reuses the Dev tunnel, token, hostname, origin, or credentials. Every hostname must be represented explicitly in `http-generic-api/config/domain-family-policy.json`; unmatched hostnames fail closed. Cloudflare DNS changes, CNAME creation, and tunnel creation are manual/provider-side operations and are not performed by the local Auto Pilot.
 
 ## Hostinger hPanel production setup
 
 Configure only the production Node.js app through this Hostinger flow.
 
-1. Open the `auth.mad4b.com` Node.js app in hPanel.
+1. Open the Production Node.js app in hPanel and bind the Production hostname family: `auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`.
 2. Connect repository `mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os`.
 3. Select branch `Production`.
 4. Use the repository root as the app root.
@@ -87,18 +87,19 @@ Hostinger may use a detached checkout. Git `HEAD`, hostname inference, or branch
 
 ## Planned staging environment
 
-`dev.mad4b.com` is reserved for a future staging runtime built on the local device.
+The Dev hostname family (`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com`) is reserved for the staging runtime built on the local device.
 
 Its source branch is `main`, but it must not be connected to Hostinger Auto Deploy. When implemented, the local staging runtime must expose bounded deployment evidence and remain isolated from production traffic and production mutations.
 
 Expected future provenance:
 
 ```text
-hostname: dev.mad4b.com
+hostnames: dev.mad4b.com, mcp_dev.mad4b.com, activation_dev.mad4b.com
 source branch: main
 runtime location: local device
-deployment mode: local staging runtime
+deployment mode: local staging runtime through dedicated Dev Tunnel
 Hostinger Auto Deploy: disabled
+Production credentials: not present
 ```
 
 Until that local runtime exists and passes its own governance/readback checks, `dev.mad4b.com` must be treated as planned or unavailable, not as production fallback.
@@ -111,6 +112,8 @@ After every Hostinger Auto Deploy triggered by `Production`, verify in the same 
 https://auth.mad4b.com/health
 https://auth.mad4b.com/version
 https://auth.mad4b.com/deployment-info
+https://mcp.mad4b.com/health
+https://activation.mad4b.com/health
 https://auth.mad4b.com/connector-agent/version
 ```
 

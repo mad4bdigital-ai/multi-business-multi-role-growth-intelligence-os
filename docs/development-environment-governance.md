@@ -2,25 +2,27 @@
 
 ## Purpose
 
-`dev.mad4b.com` is reserved for the governed development/staging runtime. It is not a customer brand site and must not receive production traffic.
+`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com` are reserved for the governed development/staging runtime. They are not customer brand sites and must not receive Production traffic.
 
-`main` is the source branch for the planned local staging runtime at `dev.mad4b.com`. It is not the Hostinger production deployment branch.
+`main` is the source branch for the planned local staging hostname family at `dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com`. It is not the Hostinger Production deployment branch.
 
 The machine-readable branch authority is `http-generic-api/config/deployment-branch-policy.json`.
 
 ## Environment contract
 
-| Environment | Host | Source branch | Runtime/deployment path | Current status |
+| Environment | Hostname family | Source branch | Runtime/deployment path | Current status |
 |---|---|---|---|---|
-| staging | `dev.mad4b.com` | `main` | Local device | Planned |
-| production | `auth.mad4b.com` | `Production` | Hostinger Auto Deploy | Active production path |
+| staging | `dev.mad4b.com`, `mcp_dev.mad4b.com`, `activation_dev.mad4b.com` | `main` | Local device through dedicated Dev Cloudflare Tunnel | Planned |
+| production | `auth.mad4b.com`, `mcp.mad4b.com`, `activation.mad4b.com` | `Production` | Hostinger Auto Deploy and separate Production edge | Active production path |
 | connector recovery | `connector.mad4b.com` | Managed separately | Cloudflare Tunnel to local Windows connector | Independent recovery path |
+
+The machine-readable hostname contract is `http-generic-api/config/domain-family-policy.json`. The six application hostnames are explicit environment members; they are not interchangeable aliases and must not be covered by an uncontrolled cross-environment wildcard. Production and staging use separate credential namespaces, routing authorities, and Cloudflare tunnel identities. The connector recovery hostname is excluded from both application families.
 
 ## Staging lifecycle
 
 The local staging runtime will be built in a future governed implementation. Until then:
 
-- do not configure `dev.mad4b.com` as a Hostinger Auto Deploy target;
+- do not configure `dev.mad4b.com`, `mcp_dev.mad4b.com`, or `activation_dev.mad4b.com` as Hostinger Auto Deploy targets;
 - do not treat it as available merely because DNS exists;
 - do not use it as a production fallback;
 - do not route tenant or admin production traffic through it;
@@ -59,10 +61,10 @@ Staging and production use different deployment authorities:
 
 ```text
 main
-  -> planned local staging runtime at dev.mad4b.com
+  -> planned local staging hostname family (dev.mad4b.com, mcp_dev.mad4b.com, activation_dev.mad4b.com)
   -> governed source-pinned promotion candidate
   -> protected Production
-  -> Hostinger Auto Deploy to auth.mad4b.com
+  -> Hostinger Auto Deploy to Production hostname family (auth.mad4b.com, mcp.mad4b.com, activation.mad4b.com)
 ```
 
 A change may be promoted toward production only after:
@@ -107,7 +109,7 @@ The existence of `main` code or a local process never authorizes migration appli
 Current intended classification:
 
 ```text
-dev.mad4b.com = planned_local_staging
+dev.mad4b.com,mcp_dev.mad4b.com,activation_dev.mad4b.com = planned_local_staging
 source_branch = main
 hostinger_auto_deploy = false
 production_traffic_allowed = false
@@ -116,7 +118,7 @@ production_traffic_allowed = false
 Production remains:
 
 ```text
-auth.mad4b.com = production
+auth.mad4b.com,mcp.mad4b.com,activation.mad4b.com = production
 source_branch = Production
 deployment_mode = hostinger_auto_deploy
 ```
