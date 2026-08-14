@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "track": "B",
+  "branch": "agent/track-b-db-lifecycle-readiness",
+  "migration_applied": false,
+  "database_mutated": false,
+  "runtime_consumer_enabled": false,
+  "provider_called": false,
+  "production_promotion_authorized": false,
+  "migrations": [
+    {
+      "file": "migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
+      "environment": "non-production",
+      "checksum_sha256": "a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9",
+      "statement_count": 4,
+      "expected_tables": [],
+      "missing_expected_tables": [],
+      "destructive_findings": [],
+      "readiness_status": "ready_for_governed_preflight",
+      "migration_applied": false,
+      "database_mutated": false,
+      "apply_authorized": false,
+      "secrets_included": false,
+      "purpose": "Tenant Managed Execution 017 readiness authorization and preflight; apply disabled."
+    },
+    {
+      "file": "migrations/20260812_deployment_attestation_runtime_integrity_v1.sql",
+      "environment": "non-production",
+      "checksum_sha256": "be6da5bec1113d2e08441806a6f9f29e9534a90d2894fc78456daf3c2abbc359",
+      "statement_count": 1,
+      "expected_tables": [],
+      "missing_expected_tables": [],
+      "destructive_findings": [],
+      "readiness_status": "ready_for_governed_preflight",
+      "migration_applied": false,
+      "database_mutated": false,
+      "apply_authorized": false,
+      "secrets_included": false,
+      "purpose": "Environment Promotion 018 runtime integrity support; apply disabled."
+    }
+  ],
+  "readbacks": [
+    {
+      "file": "migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
+      "expected_checksum_sha256": "a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9",
+      "observed_checksum_sha256": null,
+      "checksum_matches": false,
+      "expected_statement_count": 4,
+      "observed_statement_count": null,
+      "statement_count_matches": false,
+      "same_cycle_readback": false,
+      "readback_status": "blocked",
+      "migration_applied": false,
+      "database_mutated": false,
+      "secrets_included": false
+    },
+    {
+      "file": "migrations/20260812_deployment_attestation_runtime_integrity_v1.sql",
+      "expected_checksum_sha256": "be6da5bec1113d2e08441806a6f9f29e9534a90d2894fc78456daf3c2abbc359",
+      "observed_checksum_sha256": null,
+      "checksum_matches": false,
+      "expected_statement_count": 1,
+      "observed_statement_count": null,
+      "statement_count_matches": false,
+      "same_cycle_readback": false,
+      "readback_status": "blocked",
+      "migration_applied": false,
+      "database_mutated": false,
+      "secrets_included": false
+    }
+  ],
+  "attestations": [],
+  "rollback_matrix": [
+    {
+      "operation": "environment_promotion_runtime_integrity",
+      "pre_change_evidence_required": true,
+      "rollback_evidence_required": true,
+      "clean_readback_required": true,
+      "rollback_status": "not_executed",
+      "database_mutated": false,
+      "secrets_included": false
+    },
+    {
+      "operation": "tenant_managed_execution_lifecycle",
+      "pre_change_evidence_required": true,
+      "rollback_evidence_required": true,
+      "clean_readback_required": true,
+      "rollback_status": "not_executed",
+      "database_mutated": false,
+      "secrets_included": false
+    },
+    {
+      "operation": "context_ownership_additive_persistence",
+      "pre_change_evidence_required": true,
+      "rollback_evidence_required": true,
+      "clean_readback_required": true,
+      "rollback_status": "not_executed",
+      "database_mutated": false,
+      "secrets_included": false
+    }
+  ],
+  "secrets_included": false
+}

@@ -1,0 +1,156 @@
+{
+  "contract": "mad4b.agent-track-handoff.v1",
+  "track": "B",
+  "title": "Database Lifecycle, Migrations, Readiness",
+  "branch": "fix/track-b-db-lifecycle-readiness-governed",
+  "governed_successor_of": {
+    "branch": "agent/track-b-db-lifecycle-readiness",
+    "head_sha": "e9cbd128c7fdb17f3b650f2d48bbae02d7d7c726"
+  },
+  "shared_base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "observed_main_after_parallel_work_sha": "ea7dace76568ba5c8579dfea43654be7b3eff558",
+  "cooperation_chain": [
+    "Context Kernel",
+    "Capability Manifest",
+    "Authority Preflight",
+    "Plan",
+    "Approval/Delegation",
+    "Final Authority",
+    "Durable Execution",
+    "Adapter",
+    "Readback",
+    "Surface Projection"
+  ],
+  "owned_completion_ledgers": [
+    "specs/018-environment-promotion-runtime-integrity/completion.json",
+    "specs/019-governed-database-lifecycle-pressure-relief/completion.json"
+  ],
+  "supporting_readiness_only_specs": [
+    "012-unified-admin-tenant-context-kernel",
+    "017-tenant-managed-execution-lifecycle"
+  ],
+  "implementation": {
+    "database_lifecycle_mutation_readiness_evidence_validator": true,
+    "response_chunk_ttl_non_production_dry_run_pilot": true,
+    "repository_audit_supersession_adapter": true,
+    "break_glass_d07_d13_reconciliation_readiness": true,
+    "break_glass_rollback_rehearsal": true,
+    "migration_checksum_readback_aggregator": true,
+    "new_migration_added": false,
+    "policy_engine_added": false,
+    "connection_selector_added": false,
+    "tenant_authority_added": false,
+    "authority_resolver_modified": false,
+    "context_decision_code_modified": false,
+    "openapi_or_mcp_modified": false,
+    "frontend_or_catalog_modified": false,
+    "repository_wide_generated_artifact_modified": false
+  },
+  "mandatory_outputs": [
+    "docs/agent-tracks/track-b-handoff.json",
+    "docs/agent-tracks/track-b-migration-checksum-readback-manifest.json",
+    "docs/agent-tracks/track-b-dry-run-evidence.json",
+    "docs/agent-tracks/track-b-rollback-matrix.json"
+  ],
+  "validation": {
+    "focused_tests": "pass",
+    "syntax_checks": "pass",
+    "full_checkout_guards": "deferred_to_post_commit_ci_and_final_integration_refresh_due_connector_only_checkout_limit_and_reserved_generated_artifacts",
+    "generated_artifact_refresh_owner": "final_integration_branch"
+  },
+  "handoff_to_track_a": {
+    "consume": [
+      "database lifecycle authority/receipt/readback readiness evidence",
+      "break-glass reconciliation readiness evidence",
+      "migration checksum/ledger/readback readiness manifest"
+    ],
+    "must_not_assume": [
+      "Track B grants Final Authority",
+      "Track B enables runtime execution",
+      "Track B applied migrations",
+      "Track B mutated any database"
+    ]
+  },
+  "handoff_to_track_c": {
+    "direct_runtime_authority": false,
+    "surface_projection_must_follow_track_a_final_authority": true
+  },
+  "explicit_safety_state": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "runtime_consumer_enabled": false,
+    "production_mutated": false,
+    "protected_branch_mutated": false,
+    "secrets_included": false,
+    "production_promotion_authorized": false
+  },
+  "local_readiness_evidence": {
+    "schema_version": 1,
+    "scope": [
+      "018 Environment Promotion & Runtime Integrity readiness contracts",
+      "019 Governed Database Lifecycle and Pressure Relief authority/readiness foundation",
+      "012 Context Kernel persistence migration preflight contracts",
+      "017 Tenant Managed Execution migration 1043 readiness authorization and preflight"
+    ],
+    "implemented": [
+      "Deterministic SQL checksum and statement-count binding",
+      "Destructive SQL and production-environment fail-closed preflight",
+      "Same-cycle readback contract",
+      "Environment SHA/runtime immutability attestation contract",
+      "Evidence-first rollback matrix",
+      "Exact database-table authority and registered recipe allowlist validation",
+      "Capability, lease, typed approval, and receipt/readback fail-closed readiness",
+      "Preflight-only migration ledger entry and readiness aggregate",
+      "Ready/absent/partial/mismatched readback classification",
+      "Evidence-backed rollback lifecycle with stale/expired/incomplete evidence blocking",
+      "Replay, idempotency, wildcard, and path-traversal negative checks",
+      "No-secret evidence payload boundary",
+      "Focused no-apply contract tests",
+      "migration/readiness manifest generator",
+      "Policy-bound autopilot eligibility remains review-only and fail-closed"
+    ],
+    "required_artifacts": {
+      "readiness_manifest": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
+      "focused_test": "http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+      "readiness_module": "http-generic-api/databaseLifecycleReadiness.js",
+      "manifest_generator": "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs",
+      "closure_status": "docs/agent-tracks/track-b-closure-status.md",
+      "isolated_validation": "http-generic-api/scripts/track-b-local-validation.mjs"
+    },
+    "evidence": {
+      "focused_tests": {
+        "status": "pass",
+        "command": "node --test http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+        "passed": 18,
+        "failed": 0
+      },
+      "syntax_check": {
+        "status": "pass",
+        "command": "node --check http-generic-api/databaseLifecycleReadiness.js"
+      },
+      "migration_checksum_readback": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
+      "dry_run_only": true,
+      "rollback_matrix_present": true,
+      "authority_binding_contract": "implemented",
+      "mutation_readiness_contract": "fail_closed_without_receipt_readback",
+      "replay_and_path_safety_tests": "pass",
+      "migration_ledger_contract": "preflight_only",
+      "readiness_aggregate": "production_fail_closed",
+      "no_secret_evidence_boundary": "pass",
+      "isolated_shared_artifact_validation": "pass",
+      "expanded_contract_suite": "22_tests_pass",
+      "autopilot_policy_guard": "review_only_fail_closed",
+      "autopilot_policy_tasks": {
+        "G01_low_risk_eligibility": "closed_contract_only",
+        "G02_explicit_enablement_and_expiry": "closed_contract_only",
+        "G03_high_risk_recipe_exclusions": "closed_contract_only",
+        "job_runner_enabled": false,
+        "autopilot_enabled": false
+      },
+      "readback_classification": "pass",
+      "rollback_lifecycle": "fail_closed_with_stale_expiry_checks"
+    },
+    "status": "ready_for_review"
+  }
+}
