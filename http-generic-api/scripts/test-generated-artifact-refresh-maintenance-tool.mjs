@@ -266,13 +266,17 @@ runCheck("repository-inventory-autofix-dispatcher", () => {
   assert.match(autofixWorkflowSource, /Repository Inventory/u);
   assert.match(autofixWorkflowSource, /SOURCE_CONCLUSION/u);
   assert.match(autofixWorkflowSource, /SOURCE_EVENT/u);
-  assert.match(autofixWorkflowSource, /source_event_not_pull_request/u);
+  assert.match(autofixWorkflowSource, /source_push_not_main/u);
+  assert.match(autofixWorkflowSource, /source_main_head_is_stale/u);
+  assert.match(autofixWorkflowSource, /main_convergence/u);
+  assert.match(autofixWorkflowSource, /MANUAL_MODE/u);
+  assert.match(autofixWorkflowSource, /source_main_sha_mismatch/u);
   assert.match(autofixWorkflowSource, /fork_pr_not_eligible/u);
   assert.match(autofixWorkflowSource, /branch_requires_reconciliation/u);
   assert.match(autofixWorkflowSource, /governance_surface_changed_requires_manual_regeneration/u);
   assert.match(autofixWorkflowSource, /repository_inventory_stale_only/u);
   assert.match(autofixWorkflowSource, /dirty_set_exceeds_inventory_outputs/u);
-  assert.match(autofixWorkflowSource, /repository-inventory-regeneration-pr-/u);
+  assert.match(autofixWorkflowSource, /repository-inventory-regeneration-/u);
   assert.match(autofixWorkflowSource, /actions:\s*write/u);
   assert.match(autofixWorkflowSource, /contents:\s*read/u);
   assert.match(autofixWorkflowSource, /pull-requests:\s*read/u);
@@ -326,6 +330,7 @@ console.log(JSON.stringify({
   work_map_self_hosting_bootstrap_registered: true,
   repository_inventory_refresh_registered: true,
   repository_inventory_autofix_dispatch_registered: true,
+  main_convergence_recovery_registered: true,
   pull_request_write_authority: false,
   jobs_level_runner_context_used: false,
   secrets_included: false,
