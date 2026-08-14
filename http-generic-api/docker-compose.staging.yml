@@ -1,4 +1,9 @@
 services:
+  redis:
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/redis:/data
+
+
   runtime-db:
     image: mariadb:11.4
     restart: unless-stopped
@@ -8,7 +13,7 @@ services:
       MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.staging}
       MARIADB_ROOT_PASSWORD: ${RUNTIME_DB_ROOT_PASSWORD:?set RUNTIME_DB_ROOT_PASSWORD in .env.staging}
     volumes:
-      - runtime_db_data:/var/lib/mysql
+      - ${STAGING_DATA_ROOT:-./.staging-data}/runtime-db:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MARIADB_USER} -p$${MARIADB_PASSWORD} --silent"]
       interval: 5s
@@ -24,7 +29,7 @@ services:
       MARIADB_PASSWORD: ${GOVERNANCE_DB_PASSWORD:?set GOVERNANCE_DB_PASSWORD in .env.staging}
       MARIADB_ROOT_PASSWORD: ${GOVERNANCE_DB_ROOT_PASSWORD:?set GOVERNANCE_DB_ROOT_PASSWORD in .env.staging}
     volumes:
-      - governance_db_data:/var/lib/mysql
+      - ${STAGING_DATA_ROOT:-./.staging-data}/governance-db:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MARIADB_USER} -p$${MARIADB_PASSWORD} --silent"]
       interval: 5s
@@ -40,7 +45,7 @@ services:
       MARIADB_PASSWORD: ${RUNTIME_PERSISTENCE_DB_PASSWORD:?set RUNTIME_PERSISTENCE_DB_PASSWORD in .env.staging}
       MARIADB_ROOT_PASSWORD: ${RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD:?set RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD in .env.staging}
     volumes:
-      - persistence_db_data:/var/lib/mysql
+      - ${STAGING_DATA_ROOT:-./.staging-data}/persistence-db:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MARIADB_USER} -p$${MARIADB_PASSWORD} --silent"]
       interval: 5s
@@ -50,6 +55,8 @@ services:
   app:
     env_file:
       - .env.staging
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/app:/app/data
     environment:
       NODE_ENV: staging
       DB_HOST: runtime-db
@@ -80,8 +87,3 @@ services:
         condition: service_healthy
       persistence-db:
         condition: service_healthy
-
-volumes:
-  runtime_db_data:
-  governance_db_data:
-  persistence_db_data:

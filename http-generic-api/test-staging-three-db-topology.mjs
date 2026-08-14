@@ -20,9 +20,22 @@ assert.deepEqual(services.app.depends_on, {
   'governance-db': { condition: 'service_healthy' },
   'persistence-db': { condition: 'service_healthy' },
 });
-const volumeNames = ['runtime_db_data', 'governance_db_data', 'persistence_db_data'];
-assert.equal(new Set(volumeNames).size, 3);
+for (const service of ['redis', 'app', 'runtime-db', 'governance-db', 'persistence-db']) {
+  const mounts = services[service].volumes || [];
+  assert.ok(mounts.some((mount) => String(mount).includes('${STAGING_DATA_ROOT:-./.staging-data}')), `missing SSD bind mount for ${service}`);
+}
+assert.match(env, /STAGING_DATA_ROOT=\.\/\.staging-data/);
 assert.match(env, /MIGRATION_APPLIED=false/);
 assert.match(env, /DATABASE_MUTATED=false/);
-assert.match(env, /PRODUCTION_MUTATION_AUTHORIZED=false/);
+assert.match(env, /RULESET_MUTATION_AUTHORIZED=false/);
+for (const disabled of [
+  'OUTBOX_DELIVERY_ENABLED=false',
+  'AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED=false',
+  'CONNECTOR_POWERSHELL_ENABLED=false',
+  'CONNECTOR_WIN_ENABLED=false',
+  'DEV_MIGRATION_APPLY_ENABLED=false',
+  'DELEGATION_MARIADB_PRODUCTION_APPLY_MODE=disabled',
+  'AGENT_DELEGATION_LEGACY_DIRECT_MUTATION_ENABLED=false',
+  'REPO_PATCH_ALLOW_PROTECTED_BRANCH=false',
+]) assert.match(env, new RegExp(disabled.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 console.log('staging_three_db_topology=PASS');

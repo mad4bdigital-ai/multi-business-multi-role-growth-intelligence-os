@@ -82,7 +82,7 @@ The application has three independent MariaDB bindings and the staging override 
 
 The ordinary runtime pool is created by `getPool()`. Governance writes use `getGovernancePool()` and reject the ordinary runtime identity or the ordinary runtime database. Runtime persistence writes use `getRuntimePersistencePool()` and are evaluated against their own privilege contract. Do not point two prefixes at the same database name or user.
 
-The staging Compose override starts three separate `mariadb:11.4` services with separate named volumes. It creates empty local databases only; it does not run schema migrations. A service may start successfully while application features that require schema objects remain unavailable until a separately approved, local-only schema provisioning procedure exists.
+The staging Compose override starts three separate `mariadb:11.4` services with separate bind mounts under `${STAGING_DATA_ROOT:-./.staging-data}`. Redis, app data, and all three databases therefore remain on the repository drive/External SSD instead of an opaque Docker named volume. It creates empty local databases only; it does not run schema migrations. A service may start successfully while application features that require schema objects remain unavailable until a separately approved, local-only schema provisioning procedure exists.
 
 To validate the complete topology without starting it:
 
@@ -97,4 +97,4 @@ To start all local services:
 docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
 ```
 
-Use `docker compose ... ps` and `docker compose ... logs --tail=100 app` for read-only diagnostics. Do not use `down -v`; the three database volumes are local state.
+Use `docker compose ... ps` and `docker compose ... logs --tail=100 app` for read-only diagnostics. The bind-mounted local state is under `.staging-data`; do not delete it unless you intentionally want to reset Redis, app data, or one of the three local databases.
