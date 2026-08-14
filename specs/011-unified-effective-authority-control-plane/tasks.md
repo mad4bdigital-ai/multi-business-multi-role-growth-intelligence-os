@@ -36,9 +36,9 @@
 
 - [x] T030 Implement connector readiness dimensions.
 - [x] T031 Implement Admin authority diagnostics.
-- [ ] T032 Compile Dynamic Tabs from authority projection.
-- [ ] T033 Compile Dashboard from authority projection.
-- [ ] T034 Compile Tool Catalog visibility and action eligibility.
+- [x] T032 Compile Dynamic Tabs from authority projection.
+- [x] T033 Compile Dashboard from authority projection.
+- [x] T034 Compile Tool Catalog visibility and action eligibility.
 - [x] T035 Preserve backward-compatible legacy fields.
 - [x] T036 Compare exact IDs and reasons across projections.
 
