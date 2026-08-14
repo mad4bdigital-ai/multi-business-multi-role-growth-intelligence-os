@@ -9,17 +9,29 @@ on:
       - completed
   workflow_dispatch:
     inputs:
+      mode:
+        description: Recovery mode; pull_request handles a stale PR and main_convergence handles a stale exact main run
+        required: false
+        default: pull_request
+        type: choice
+        options:
+          - pull_request
+          - main_convergence
       pr_number:
-        description: Open same-repository pull request number
-        required: true
+        description: Open same-repository pull request number; unused for main_convergence
+        required: false
         type: string
       target_ref:
-        description: Governed work branch containing the stale Repository Inventory
-        required: true
+        description: Governed work branch containing stale Repository Inventory; derived for main_convergence
+        required: false
         type: string
       expected_head_sha:
-        description: Exact current 40-character pull-request head SHA
+        description: Exact current 40-character source SHA
         required: true
+        type: string
+      source_main_sha:
+        description: Exact main SHA authorizing main_convergence; must equal expected_head_sha
+        required: false
         type: string
       confirmation:
         description: Type REQUEST_REPOSITORY_INVENTORY_REFRESH
@@ -70,9 +82,11 @@ jobs:
           SOURCE_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || 'manual' }}
           SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.expected_head_sha }}
           SOURCE_HEAD_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || '' }}
+          MANUAL_MODE: ${{ inputs.mode || 'pull_request' }}
           MANUAL_PR_NUMBER: ${{ inputs.pr_number || '' }}
           MANUAL_TARGET_REF: ${{ inputs.target_ref || '' }}
           MANUAL_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+          MANUAL_SOURCE_MAIN_SHA: ${{ inputs.source_main_sha || '' }}
           MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
         run: |
           set -euo pipefail
@@ -122,13 +136,37 @@ jobs:
             fi
           else
             [[ "$MANUAL_CONFIRMATION" == "REQUEST_REPOSITORY_INVENTORY_REFRESH" ]] || emit_ineligible "manual_confirmation_invalid"
-            [[ "$MANUAL_PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
-            [[ "$MANUAL_TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]] || emit_ineligible "target_ref_not_governed"
-            [[ "$MANUAL_TARGET_REF" != "main" && "$MANUAL_TARGET_REF" != "Production" ]] || emit_ineligible "protected_target_forbidden"
             [[ "$MANUAL_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_head_sha_invalid"
-            pr_number="$MANUAL_PR_NUMBER"
-            requested_target_ref="$MANUAL_TARGET_REF"
-            requested_head_sha="$MANUAL_EXPECTED_HEAD_SHA"
+            case "$MANUAL_MODE" in
+              pull_request)
+                [[ "$MANUAL_PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
+                [[ "$MANUAL_TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]] || emit_ineligible "target_ref_not_governed"
+                [[ "$MANUAL_TARGET_REF" != "main" && "$MANUAL_TARGET_REF" != "Production" ]] || emit_ineligible "protected_target_forbidden"
+                pr_number="$MANUAL_PR_NUMBER"
+                requested_target_ref="$MANUAL_TARGET_REF"
+                requested_head_sha="$MANUAL_EXPECTED_HEAD_SHA"
+                ;;
+              main_convergence)
+                [[ "$MANUAL_SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_main_sha_invalid"
+                [[ "$MANUAL_SOURCE_MAIN_SHA" == "$MANUAL_EXPECTED_HEAD_SHA" ]] || emit_ineligible "source_main_sha_mismatch"
+                current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+                [[ "$current_main_sha" == "$MANUAL_SOURCE_MAIN_SHA" ]] || emit_ineligible "source_main_head_is_stale"
+                mode="main_convergence"
+                pr_number=""
+                requested_head_sha="$MANUAL_EXPECTED_HEAD_SHA"
+                source_main_sha="$MANUAL_SOURCE_MAIN_SHA"
+                target_ref="chore/repository-inventory-main-sync-${MANUAL_SOURCE_MAIN_SHA:0:12}"
+                echo "mode=${mode}" >> "$GITHUB_OUTPUT"
+                echo "pr_number=" >> "$GITHUB_OUTPUT"
+                echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
+                echo "expected_head_sha=${requested_head_sha}" >> "$GITHUB_OUTPUT"
+                echo "source_main_sha=${source_main_sha}" >> "$GITHUB_OUTPUT"
+                echo "eligible=pending_reproduction" >> "$GITHUB_OUTPUT"
+                echo "reason=pending_reproduction" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+              *) emit_ineligible "manual_mode_not_supported" ;;
+            esac
           fi
 
           pr_json="${RUNNER_TEMP}/repository-inventory-autofix-pr.json"

@@ -3,6 +3,8 @@ import fs from "node:fs";
 
 const workflow = fs.readFileSync("../.github/workflows/repository-inventory.yml", "utf8");
 const ci = fs.readFileSync("../.github/workflows/ci.yml", "utf8");
+const dispatcher = fs.readFileSync("../.github/workflows/repository-inventory-autofix-dispatch.yml", "utf8");
+const writer = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 const gate = fs.readFileSync("../scripts/repository-inventory-verification-gate.mjs", "utf8");
 const contract = JSON.parse(
   fs.readFileSync("../.changes/e2e/repository-inventory-governed-regeneration.json", "utf8"),
@@ -14,6 +16,26 @@ assert.doesNotMatch(workflow, /git\s+push/u);
 assert.match(workflow, /scripts\/repository-inventory-verification-gate\.mjs/u);
 assert.match(ci, /Verify dynamic repository inventory/u);
 assert.match(ci, /scripts\/repository-inventory-verification-gate\.mjs/u);
+assert.match(dispatcher, /SOURCE_EVENT.*workflow_run/u);
+assert.match(dispatcher, /SOURCE_HEAD_BRANCH/u);
+assert.match(dispatcher, /MANUAL_MODE/u);
+assert.match(dispatcher, /MANUAL_SOURCE_MAIN_SHA/u);
+assert.match(dispatcher, /manual_mode_not_supported/u);
+assert.match(dispatcher, /source_main_sha_mismatch/u);
+assert.match(dispatcher, /SOURCE_EVENT.*push/u);
+assert.match(dispatcher, /source_push_not_main/u);
+assert.match(dispatcher, /source_main_head_is_stale/u);
+assert.match(dispatcher, /mode="?\$\{?mode\}?|mode=\$\{mode\}/u);
+assert.match(dispatcher, /chore\/repository-inventory-main-sync-\$\{SOURCE_HEAD_SHA:0:12\}/u);
+assert.match(dispatcher, /main_convergence_exact_head_not_trusted/u);
+assert.match(dispatcher, /PR publication remains a separate governed/u);
+assert.doesNotMatch(dispatcher, /contents:\s*write/u);
+assert.match(writer, /create_from_main/u);
+assert.match(writer, /source_main_sha/u);
+assert.match(writer, /git\/refs/u);
+assert.match(writer, /repository_inventory_refresh/u);
+assert.match(writer, /Protected branch mutation is forbidden/u);
+assert.doesNotMatch(writer, /gh\s+pr\s+merge/u);
 assert.match(gate, /mad4b\.repository-inventory-verification-gate\.v1/u);
 assert.match(gate, /ALLOWED_BOOTSTRAP_EVENTS = new Set\(\["pull_request", "workflow_dispatch"\]\)/u);
 assert.match(gate, /scripts\/repository-inventory\.mjs/u);
@@ -67,6 +89,8 @@ console.log(JSON.stringify({
   deterministic_double_pass: true,
   permissions: "read_only",
   bootstrap_pending: true,
+  main_push_and_workflow_dispatch_recovery: true,
+  manual_main_convergence_mode: true,
   candidate_mutation_before_main_trust: false,
   protected_branch_mutation: false,
   force_push: false,

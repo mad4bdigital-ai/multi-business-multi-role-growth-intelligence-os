@@ -48,7 +48,10 @@
             "Require the authority installation to include the governed writer workflow, Inventory verifier, Inventory autofix dispatcher, generated-artifact maintenance tool, and repository-inventory-governed-regeneration E2E contract.",
             "Require deterministic regeneration to dirty exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md and no other worktree path.",
             "Publish bootstrap_pending as read-only evidence from Repository Inventory or CI; do not commit, push, dispatch candidate write code, mutate a protected branch, or force-push.",
-            "After source authority merges to main, create a non-protected generated-output work branch from trusted main, invoke repository_inventory_refresh through the trusted writer, and verify the resulting exact head before the generated-output PR is merged."
+            "After source authority merges to main, create a non-protected generated-output work branch from trusted main, invoke repository_inventory_refresh through the trusted writer, and verify the resulting exact head before the generated-output PR is merged.",
+            "For a failed push-triggered Inventory run on exact main, classify only the live main SHA, reject stale event heads, and route recovery into chore/repository-inventory-main-sync-<sha12> rather than mutating main.",
+            "For a workflow_dispatch convergence request, require create_from_main=true, source_main_sha equal to expected_head_sha, the governed branch namespace, and live main equality before creating the branch.",
+            "If the convergence branch already exists, require its remote head to equal the exact source main SHA; refuse branch reuse with a different head."
           ],
           "assertions": [
             "Repository Inventory and CI use one shared read-only verification gate for currentness and self-hosting bootstrap decisions.",
@@ -66,6 +69,9 @@
             "The governed writer requires an exact expected_head_sha and typed confirmation, rejects main and Production, and never force-pushes.",
             "The post-merge bootstrap uses a non-protected work branch; main and Production remain outside direct generated-artifact mutation targets.",
             "Generated-artifact verification routes repository_inventory_refresh to Repository Inventory rather than a generic verifier.",
+            "Push-triggered and workflow_dispatch-triggered recovery use the same exact-head and fail-closed source identity contract.",
+            "Main convergence creates only a non-protected branch and never grants the dispatcher contents write authority.",
+            "The writer refuses protected targets, requires typed confirmation, and does not merge or publish a Production change.",
             "Production deployment, database mutation, direct protected-ref mutation, and secret publication are outside this feature."
           ],
           "tests": [
@@ -100,7 +106,7 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Observe the first trusted post-merge Repository Inventory generated-output follow-up on a non-protected work branch and retain canonical exact-head verification evidence.",
+      "objective": "Observe the first trusted post-merge Repository Inventory generated-output follow-up on a non-protected work branch, including push-run recovery, branch collision refusal, and canonical exact-head verification evidence.",
       "blockers": [
         "Current main has deterministic Repository Inventory drift and requires the first trusted post-merge generated-output convergence before operational can be claimed."
       ]
