@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-configuration-control-plane-20260815",
+  "title": "Typed platform configuration catalog, context resolver, federated registry adapters, and legacy compatibility",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/platform-configuration-control-plane-20260815.json",
+      ".github/repository-maintenance-tool-governance.json",
+      "docs/governance/configuration-drift-policy.json",
+      "http-generic-api/migrations/20260815_platform_configuration_catalog_and_resolver.sql",
+      "http-generic-api/platformConfigurationResolver.js",
+      "http-generic-api/platformConfigurationRegistryAdapter.js",
+      "http-generic-api/platformLegacyConfigurationAdapter.js",
+      "http-generic-api/test-platform-configuration-resolver.mjs",
+      "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "http-generic-api/test-platform-legacy-configuration-adapter.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide typed catalog contracts and read-only resolution across platform, tenant, workspace, route, and resource contexts while retaining specialized registries and legacy compatibility only as fail-closed fallback.",
+      "e2e_journeys": [
+        {
+          "id": "resolve-configuration-safely",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform configuration resolver",
+          "entrypoint": "platformConfigurationRegistryAdapter.resolve",
+          "terminal_outcome": "A uniquely resolved configuration produces immutable hashes and evidence; ambiguous, invalid, expired, unauthorized, or secret-bearing inputs fail closed; no write or Production authority is returned.",
+          "steps": [
+            "Load one typed definition and active federated bindings.",
+            "Match context by explicit scope precedence.",
+            "Apply only registered merge operators and validate the final schema.",
+            "Resolve legacy platform_runtime_config only when the definition explicitly permits legacy compatibility.",
+            "Record hashes, lineage, conflicts, and decision without raw payload or secrets."
+          ],
+          "assertions": [
+            "Equal-precedence conflicting bindings return ambiguous and do not select a first row.",
+            "Lower scopes cannot bypass the definition's allowed scope types or security semantics.",
+            "Expired and non-active bindings are excluded.",
+            "Legacy values are compatibility-only and never become Production or write-scope authority.",
+            "All adapter and resolver safety flags remain false."
+          ],
+          "tests": [
+            { "id": "platform-configuration-resolver", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-configuration-resolver.mjs", "args": [] },
+            { "id": "platform-configuration-registry-adapter", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-configuration-registry-adapter.mjs", "args": [] },
+            { "id": "platform-legacy-configuration-adapter", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-legacy-configuration-adapter.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/platform-configuration-control-plane-20260815.json",
+            "http-generic-api/migrations/20260815_platform_configuration_catalog_and_resolver.sql",
+            "http-generic-api/platformConfigurationResolver.js",
+            "http-generic-api/platformConfigurationRegistryAdapter.js",
+            "http-generic-api/platformLegacyConfigurationAdapter.js",
+            "http-generic-api/test-platform-configuration-resolver.mjs",
+            "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+            "http-generic-api/test-platform-legacy-configuration-adapter.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Adopt domain-specific registry bindings through governed proposals, approvals, activation receipts, and shadow parity before any cutover."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This feature cannot authorize write scopes, external writes, or Production activation.",
+      "blockers": [
+        "independent_owner_attestation",
+        "specific_canary_evidence",
+        "durable_activation_receipt"
+      ]
+    }
+  ],
+  "secrets_included": false
+}

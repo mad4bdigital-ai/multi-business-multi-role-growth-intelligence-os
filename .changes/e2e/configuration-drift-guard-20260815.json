@@ -13,7 +13,8 @@
       "docs/governance/configuration-drift-policy.json",
       "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-      "http-generic-api/scripts/test-configuration-drift-guard.mjs"
+      "http-generic-api/scripts/test-configuration-drift-guard.mjs",
+      "http-generic-api/test-configuration-drift-guard.mjs"
     ]
   },
   "merge_contract": {
@@ -52,6 +53,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/scripts/test-configuration-drift-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "configuration-drift-guard-root-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-configuration-drift-guard.mjs",
               "args": []
             }
           ],

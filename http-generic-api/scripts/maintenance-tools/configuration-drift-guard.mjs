@@ -68,14 +68,18 @@ function checkAuthority(policy, repositoryPolicy) {
   return findings;
 }
 
-function checkContractScope(policy, e2eContract) {
+function checkContractScope(policy, e2eContracts = []) {
   const findings = [];
-  const include = new Set(e2eContract?.scope?.include || []);
+  const contracts = e2eContracts.filter(Boolean);
+  const include = new Set(contracts.flatMap((contract) => Array.isArray(contract?.scope?.include) ? contract.scope.include : []));
   for (const requiredPath of policy.required_contract_paths || []) {
-    if (!include.has(requiredPath)) findings.push(finding("E2E_SCOPE_DRIFT", "critical", `E2E contract does not cover required path ${requiredPath}.`, { path: requiredPath }));
+    if (!include.has(requiredPath)) findings.push(finding("E2E_SCOPE_DRIFT", "critical", `No E2E contract covers required path ${requiredPath}.`, { path: requiredPath }));
   }
-  if (e2eContract?.secrets_included !== false) findings.push(finding("E2E_SECRET_FLAG_DRIFT", "critical", "Configuration discovery E2E contract must declare secrets_included=false."));
-  if (e2eContract?.current_phase === "production") findings.push(finding("E2E_PRODUCTION_PHASE_DRIFT", "critical", "Configuration discovery cannot enter Production phase."));
+  for (const contract of contracts) {
+    if (contract.secrets_included !== false) findings.push(finding("E2E_SECRET_FLAG_DRIFT", "critical", "Every configuration E2E contract must declare secrets_included=false.", { feature_key: contract.feature_key || null }));
+    if (contract.current_phase === "production") findings.push(finding("E2E_PRODUCTION_PHASE_DRIFT", "critical", "Configuration control plane cannot enter Production phase.", { feature_key: contract.feature_key || null }));
+  }
+  if (contracts.length === 0) findings.push(finding("E2E_CONTRACT_MISSING", "critical", "At least one configuration E2E contract is required."));
   return findings;
 }
 
@@ -104,7 +108,10 @@ export async function runConfigurationDriftGuard({ repositoryRoot = process.cwd(
   try {
     const policy = await loadJson(policyPath, null);
     const repositoryPolicy = await loadJson(".github/repository-maintenance-tool-governance.json", null);
-    const e2eContract = await loadJson(".changes/e2e/configuration-drift-guard-20260815.json", null);
+    const e2eContracts = await Promise.all([
+      loadJson(".changes/e2e/configuration-drift-guard-20260815.json", null),
+      loadJson(".changes/e2e/platform-configuration-control-plane-20260815.json", null),
+    ]);
     const reportDir = resolve(outputDir, "discovery");
     const report = await discoverConfigurationCandidates({ repositoryRoot, inventoryPath: policy?.inventory_path || "docs/repository-inventory.json", outputDir: reportDir });
     const manifest = await loadJson(resolve(reportDir, "configuration-candidates-manifest.json"), null);
@@ -121,7 +128,7 @@ export async function runConfigurationDriftGuard({ repositoryRoot = process.cwd(
     if (!policy || policy.contract !== CONTRACT) findings.push(finding("DRIFT_POLICY_INVALID", "critical", `Drift policy must use ${CONTRACT}.`));
     for (const suppression of allSuppressions) if (!validSuppression(suppression)) findings.push(finding("INVALID_OR_EXPIRED_SUPPRESSION", "high", "Every suppression must have an owner, reason, fingerprint, and future expiry.", { fingerprint: suppression?.fingerprint || null }));
     findings.push(...checkAuthority(policy || {}, repositoryPolicy));
-    findings.push(...checkContractScope(policy || {}, e2eContract));
+    findings.push(...checkContractScope(policy || {}, e2eContracts));
     findings.push(...checkSafety(report, manifest, policy || {}));
     for (const item of unsuppressed) findings.push(finding("NEW_CONFIGURATION_CANDIDATE_DRIFT", "high", "A new configuration candidate is not in the approved baseline or a valid suppression.", { fingerprint: item }));
     if ((policy?.fail_on_removed_candidates === true) && removed.length) findings.push(finding("REMOVED_CONFIGURATION_CANDIDATE_DRIFT", "medium", "A baseline candidate disappeared without an explicit baseline update.", { fingerprints: removed.slice(0, 50) }));

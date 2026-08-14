@@ -70,6 +70,13 @@ jobs:
       - name: Run configuration drift guard regression
         run: node http-generic-api/scripts/test-configuration-drift-guard.mjs
 
+      - name: Run platform configuration control plane regression
+        id: platform_configuration
+        run: |
+          node http-generic-api/test-platform-configuration-resolver.mjs
+          node http-generic-api/test-platform-configuration-registry-adapter.mjs
+          node http-generic-api/test-platform-legacy-configuration-adapter.mjs
+
       - name: Evaluate configuration drift
         id: configuration_drift
         continue-on-error: true
@@ -123,7 +130,7 @@ jobs:
           cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce repository tool lifecycle
-        if: steps.discovery.outcome != 'success' || steps.configuration_discovery.outcome != 'success' || steps.configuration_drift.outcome != 'success' || steps.governance.outcome != 'success'
+        if: steps.discovery.outcome != 'success' || steps.configuration_discovery.outcome != 'success' || steps.platform_configuration.outcome != 'success' || steps.configuration_drift.outcome != 'success' || steps.governance.outcome != 'success'
         run: |
           echo "Repository tool discovery or lifecycle governance failed. Read the canonical artifact first."
           exit 1
