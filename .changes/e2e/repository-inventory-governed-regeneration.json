@@ -103,6 +103,7 @@
             "Work Map Integration may retain the broad .github/workflows/** trigger required by pipeline connectivity, but its currentness and repair path must remain inactive for unrelated repository-state changes.",
             "Main convergence creates only a non-protected branch and never turns the dispatcher into a direct protected-ref writer.",
             "The generated-artifact-refresh maintenance tool remains the sole registered mutating repository maintenance tool.",
+            "A recovery PR that changes registered Repository Inventory, Repository Evaluation, or Remote MCP write-scope outputs carries this contract in its changed paths so E2E governance classifies it as repository-state recovery.",
             "Production deployment, database mutation, direct protected-ref mutation, provider calls, credential payload reads, and secret publication are outside this feature."
           ],
           "tests": [

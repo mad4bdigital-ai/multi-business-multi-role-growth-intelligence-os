@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6847,
-    "bytes": 62201308,
-    "lines": 1458629,
+    "bytes": 62201545,
+    "lines": 1458630,
     "directories": 256,
     "categories": 13
   },
@@ -6991,9 +6991,9 @@
       "path": ".changes/e2e/repository-inventory-governed-regeneration.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 16680,
-      "lines": 175,
-      "sha256": "6a881a73be9a49ac6b23a428e3afa5ebc302a4f34aa206742b9ca26e1bf171b8",
+      "bytes": 16917,
+      "lines": 176,
+      "sha256": "e390e6a0e26e6ae2492525a4b38c958a33bd8f53d71ac982048ae9559aa0a12a",
       "mode": "644",
       "executable": false,
       "generated": false
