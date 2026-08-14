@@ -1,0 +1,105 @@
+name: Branch Hygiene
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode; dry_run is the safe default"
+        required: true
+        default: dry_run
+        type: choice
+        options:
+          - dry_run
+          - apply
+      confirmation:
+        description: "Required only for apply: APPLY_BRANCH_HYGIENE"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-hygiene-main
+  cancel-in-progress: false
+
+jobs:
+  hygiene:
+    name: Evaluate and enforce branch hygiene
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      - name: Fetch all branch refs for immutable local comparison
+        run: git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+      - name: Run governed branch hygiene
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_MODE: ${{ inputs.mode || '' }}
+          MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
+        run: |
+          set -euo pipefail
+          mode="${MANUAL_MODE:-}"
+          confirmation="${MANUAL_CONFIRMATION:-}"
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            mode="$(node -e 'const p=JSON.parse(require("fs").readFileSync(".github/branch-hygiene-policy.json","utf8")); process.stdout.write(p.schedule_mode)')"
+            confirmation="APPLY_BRANCH_HYGIENE"
+          fi
+          [[ "$mode" == "dry_run" || "$mode" == "apply" ]]
+          report="$RUNNER_TEMP/branch-hygiene-report.json"
+          csv="$RUNNER_TEMP/branch-hygiene-report.csv"
+          markdown="$RUNNER_TEMP/branch-hygiene-report.md"
+          node http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs \
+            --repo "$GITHUB_REPOSITORY" \
+            --policy .github/branch-hygiene-policy.json \
+            --mode "$mode" \
+            --confirm "$confirmation" \
+            --output "$report" \
+            --csv-output "$csv" \
+            --markdown-output "$markdown" | tee "$RUNNER_TEMP/branch-hygiene-summary.json"
+          jq -r '
+            "Branch Hygiene: mode=" + .mode +
+            " | total=" + ((.summary.total // 0) | tostring) +
+            " | processable=" + ((.summary.processable // 0) | tostring) +
+            " | delete_eligible=" + ((.summary.delete_eligible // 0) | tostring) +
+            " | deleted=" + ((.summary.deleted // 0) | tostring) +
+            " | review_only_unmerged=" + ((.summary.review_only_unmerged // 0) | tostring) +
+            " | open_pull_request=" + ((.summary.open_pull_request // 0) | tostring) +
+            " | policy_sha256=" + .policy_sha256
+          ' "$report" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo
+            echo "## Branch Hygiene triage queue"
+            cat "$markdown"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload branch hygiene report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: branch-hygiene-report-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/branch-hygiene-report.json
+            ${{ runner.temp }}/branch-hygiene-report.csv
+            ${{ runner.temp }}/branch-hygiene-report.md
+            ${{ runner.temp }}/branch-hygiene-summary.json
+          if-no-files-found: warn
+          retention-days: 90

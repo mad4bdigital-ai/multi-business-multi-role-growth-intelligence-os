@@ -55,6 +55,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 ## Automation Workflows
 
 - `.github/workflows/automation-overlap-guard.yml`
+- `.github/workflows/branch-hygiene.yml`
 - `.github/workflows/branch-test-diagnostic-shards.yml`
 - `.github/workflows/brand-skill-mariadb-certification.yml`
 - `.github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml`
