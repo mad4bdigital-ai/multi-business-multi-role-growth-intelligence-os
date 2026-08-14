@@ -55,17 +55,9 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Install HTTP API dependencies
-        run: npm ci
-        working-directory: http-generic-api
 
       - name: Verify Remote MCP write-scope currentness
         run: npm run write-scopes:inventory:check
-        working-directory: http-generic-api
 
       - name: Verify Remote MCP write-scope contract
         run: npm run write-scopes:inventory:test
-        working-directory: http-generic-api
