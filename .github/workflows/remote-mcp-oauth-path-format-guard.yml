@@ -55,12 +55,23 @@ on:
       - "edge/activation-gateway/**"
       - ".github/workflows/remote-mcp-oauth-path-format-guard.yml"
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Governed work branch whose exact head is being verified
+        required: false
+        default: ""
+        type: string
+      expected_head_sha:
+        description: Exact 40-character head SHA to verify
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: remote-mcp-oauth-path-format-guard-${{ github.ref }}
+  group: remote-mcp-oauth-path-format-guard-${{ github.ref }}-${{ inputs.expected_head_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -68,8 +79,37 @@ jobs:
     name: Remote MCP OAuth path format and coverage guard
     runs-on: ubuntu-latest
     steps:
+      - name: Validate exact-head verification dispatch
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
+
       - name: Checkout repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify local and remote exact-head identity
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          local_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          test "$local_sha" = "$EXPECTED_HEAD_SHA"
+          test "$remote_sha" = "$EXPECTED_HEAD_SHA"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
