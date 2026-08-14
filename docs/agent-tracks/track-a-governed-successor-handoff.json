@@ -1,0 +1,162 @@
+{
+  "contract": "mad4b.agent-track-handoff.v1",
+  "track": "A",
+  "title": "Authority, Context, Durable Runtime — governed successor v2",
+  "branch": "fix/track-a-authority-runtime-governed-v2",
+  "base_main_sha": "81d4d1024a20f23f06858f438bf04d42c6d7d8ce",
+  "reconciliation": {
+    "track_b": {
+      "pr": 7136,
+      "status": "merged",
+      "merge_commit_sha": "f0d77f0bd27c3724982ae469f61983b47c4e667b",
+      "consumed_as": "readiness_and_readback_evidence_only",
+      "grants_final_authority": false
+    },
+    "parallel_old_track_a": {
+      "pr": 7122,
+      "status": "merged_in_parallel_after_successor_work_started",
+      "merge_commit_sha": "81d4d1024a20f23f06858f438bf04d42c6d7d8ce",
+      "historical_handoff_preserved": "docs/agent-tracks/track-a-handoff.json",
+      "context_integrity_test_now_inherited_from_main": true,
+      "generated_artifacts_now_inherited_from_main": true,
+      "successor_modifies_inherited_generated_artifacts": false,
+      "note": "The successor treats PR #7122 as baseline history. It does not revert or regenerate repository-wide artifacts and does not overwrite the historical handoff."
+    },
+    "superseded_successor": {
+      "pr": 7141,
+      "branch": "fix/track-a-authority-runtime-governed",
+      "reason": "current main moved by merging PR #7122 and the synchronization PR developed an add/add handoff conflict"
+    },
+    "failed_sync_pr": {
+      "pr": 7143,
+      "reason": "content conflict after parallel PR #7122 merge; no force push or low-level Git rewrite used"
+    }
+  },
+  "cooperation_chain": [
+    "Context Kernel",
+    "Capability Manifest",
+    "Authority Preflight",
+    "Plan",
+    "Approval/Delegation",
+    "Final Authority",
+    "Durable Execution",
+    "Adapter",
+    "Readback",
+    "Surface Projection"
+  ],
+  "current_slice": {
+    "status": "mvp_read_only_authoritative_composition_contract_pending_exact_head_validation",
+    "composition_module": "http-generic-api/governedExecutionRuntimeComposition.js",
+    "composition_test": "http-generic-api/test-governed-execution-runtime-composition.mjs",
+    "context_integrity_regression": {
+      "path": "http-generic-api/test-context-kernel-integrity-regression.mjs",
+      "source": "inherited_from_main_via_pr_7122"
+    },
+    "resource_graph_property_test": "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
+    "e2e_contract": ".changes/e2e/track-a-governed-runtime-composition.json",
+    "creates_authority": false,
+    "selects_connection": false,
+    "executes_provider": false,
+    "execution_performed": false,
+    "mutation_cutover_authorized": false,
+    "runtime_consumer_enabled": false,
+    "production_mutated": false,
+    "database_mutated": false,
+    "migration_applied": false,
+    "secrets_included": false
+  },
+  "ueacp_t043": {
+    "task": "T043 Add graph inheritance/restriction property tests",
+    "implementation_test": "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
+    "coverage": [
+      "determinism_under_input_permutation",
+      "cycle_deduplication",
+      "deny_wins_before_inheritance",
+      "wildcard_and_operation_specific_restrictions",
+      "expired_and_revoked_restrictions",
+      "cross_tenant_contamination_fail_closed",
+      "depth_bound",
+      "inheritance_policy_allowlist",
+      "root_restriction_terminal_block"
+    ],
+    "task_ledger_closed": false,
+    "closure_condition": "exact-head E2E and CI must pass before changing specs/011-unified-effective-authority-control-plane/tasks.md"
+  },
+  "composition_contract": {
+    "requires_explicit_authoritative_final_authority": true,
+    "rejects_shadow_only_authority": true,
+    "rejects_legacy_runtime_authoritative_evidence": true,
+    "rejects_context_hash_drift": true,
+    "rejects_provider_call_evidence": true,
+    "rejects_external_write_evidence": true,
+    "rejects_database_mutation_evidence": true,
+    "rejects_credential_payload_read_evidence": true,
+    "rejects_secret_inclusion_evidence": true,
+    "caller_identity_forwarded_beyond_context_resolution": false,
+    "read_only_surface_projection_supported": true,
+    "mutation_surface_projection_supported": false
+  },
+  "live_authority_assessment": {
+    "ueacp": {
+      "completion_status": "in_progress",
+      "runtime_enforcement_enabled": false,
+      "remaining_enforcement_tasks": ["T060", "T061", "T062", "T063", "T064", "T065"],
+      "accepted_as_global_final_authority": false
+    },
+    "canonical_execution_contract_resolver": {
+      "path": "http-generic-api/canonicalExecutionContractResolver.js",
+      "classification": "shadow_preflight_only",
+      "accepted_as_final_authority": false
+    },
+    "governed_execution_preflight": {
+      "path": "http-generic-api/governedExecutionPreflight.js",
+      "classification": "policy_and_resource_preflight_component",
+      "accepted_as_final_authority": false
+    },
+    "dynamic_resource_authority": {
+      "path": "http-generic-api/dynamicResourceAuthority.js",
+      "classification": "resource_authority_component_with_legacy_grant_dependency",
+      "accepted_as_final_authority": false
+    },
+    "growth_control_final_boundary": {
+      "path": "http-generic-api/src/application/growthControlPlane/growthControlFinalBoundaryService.js",
+      "classification": "domain_specific_final_boundary_verifier",
+      "global_authority_assumed": false,
+      "accepted_as_global_final_authority": false,
+      "note": "The Growth Control boundary is a reusable domain pattern but its contract does not establish platform-wide Final Authority."
+    }
+  },
+  "blocking_gates_before_operational_binding": [
+    "Repository-canonical platform-wide Final Authority implementation must be separately identified, implemented, or certified; shadow-only evidence cannot be promoted by composition code.",
+    "Final Authority must expose explicit authoritative=true and allowed=true semantics bound to resolved Context and Plan.",
+    "Operational wiring must preserve plan-before-credential and exact connection binding without allowing this composition layer to select a connection.",
+    "Durable execution and readback bindings require focused operational tests before runtime consumer enablement.",
+    "Mutation cutover requires separate authorization, parity, rollback, migration/readback, and non-production evidence."
+  ],
+  "handoff_to_track_c": {
+    "contract_available": true,
+    "module": "http-generic-api/governedExecutionRuntimeComposition.js",
+    "consumer_factory": "createGovernedExecutionRuntimeResolver",
+    "may_treat_shadow_authority_as_final": false,
+    "may_bind_canonical_execution_contract_resolver_as_final_authority": false,
+    "may_treat_growth_control_final_boundary_as_global_authority": false,
+    "operational_final_authority_binding_ready": false,
+    "track_c_must_remain_draft_until_operational_binding_ready": true
+  },
+  "generated_artifacts": {
+    "inherited_from_main_after_pr_7122": true,
+    "repository_wide_generated_artifact_modified_by_successor": false,
+    "owner_for_future_refresh": "final_integration_branch"
+  },
+  "explicit_safety_state": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "runtime_consumer_enabled": false,
+    "production_mutated": false,
+    "protected_branch_mutated": false,
+    "force_push_used": false,
+    "low_level_git_conflict_bypass_used": false,
+    "secrets_included": false
+  }
+}
