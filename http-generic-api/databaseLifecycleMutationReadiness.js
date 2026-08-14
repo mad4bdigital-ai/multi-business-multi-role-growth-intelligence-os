@@ -308,6 +308,42 @@ function normalizeFinding(row = {}) {
 }
 function runTerminal(status) { return ["completed", "succeeded", "success"].includes(text(status).toLowerCase()); }
 
+export function assessPolicyBoundAutopilotEligibility({
+  recipe_key,
+  environment_key = "staging",
+  explicit_enablement = false,
+  expires_at,
+  fallback_readiness = false,
+  reconciliation_ready = false,
+  now = new Date(),
+} = {}) {
+  const blockers = [];
+  const recipe = DATABASE_LIFECYCLE_REGISTERED_RECIPES[text(recipe_key)];
+  const nowMs = now instanceof Date ? now.getTime() : toMs(now);
+  const expiryMs = toMs(expires_at);
+  if (!recipe) blockers.push("AUTOPILOT_RECIPE_NOT_REGISTERED");
+  if (recipe && recipe.risk_class !== "low") blockers.push("AUTOPILOT_RISK_CLASS_NOT_LOW");
+  if (/(archive|purge|compaction|rebuild|reclaim)/iu.test(text(recipe_key))) blockers.push("AUTOPILOT_HIGH_RISK_RECIPE_FORBIDDEN");
+  if (isProductionEnvironment(environment_key)) blockers.push("AUTOPILOT_PRODUCTION_FORBIDDEN");
+  if (explicit_enablement !== true) blockers.push("AUTOPILOT_EXPLICIT_ENABLEMENT_REQUIRED");
+  if (!Number.isFinite(nowMs) || expiryMs === null || expiryMs <= nowMs) blockers.push("AUTOPILOT_ENABLEMENT_EXPIRED");
+  if (fallback_readiness !== true) blockers.push("AUTOPILOT_FALLBACK_READINESS_REQUIRED");
+  if (reconciliation_ready !== true) blockers.push("AUTOPILOT_RECONCILIATION_REQUIRED");
+  return Object.freeze({
+    contract: "mad4b.database-lifecycle-policy-bound-autopilot.v1",
+    recipe_key: text(recipe_key),
+    environment_key: text(environment_key),
+    policy_status: blockers.length === 0 ? "eligible_for_review_only" : "blocked",
+    blockers: Object.freeze(unique(blockers)),
+    explicit_enablement_observed: explicit_enablement === true,
+    execution_enabled: false,
+    autopilot_enabled: false,
+    database_mutated: false,
+    provider_called: false,
+    secrets_included: false,
+  });
+}
+
 export function buildRepositoryAuditSupersessionPlan({
   findings = [],
   runs = [],

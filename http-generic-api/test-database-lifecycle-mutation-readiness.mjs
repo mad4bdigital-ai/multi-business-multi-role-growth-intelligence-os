@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   assessDatabaseLifecycleMutationReadiness,
+  assessPolicyBoundAutopilotEligibility,
   buildRepositoryAuditSupersessionPlan,
   buildResponseChunkTtlPilotPlan,
   reconcileResponseChunkTtlPilot,
@@ -90,5 +91,41 @@ const recipeInjectionBlocked = assessDatabaseLifecycleMutationReadiness({
   now: new Date("2026-08-14T00:00:00Z"),
 });
 assert.ok(recipeInjectionBlocked.blockers.includes("DATABASE_RECIPE_NOT_REGISTERED"));
+
+const autopilot = assessPolicyBoundAutopilotEligibility({
+  recipe_key: "database.response_chunks.expired_cleanup",
+  environment_key: "staging",
+  explicit_enablement: true,
+  expires_at: "2026-08-15T00:00:00.000Z",
+  fallback_readiness: true,
+  reconciliation_ready: true,
+  now: new Date("2026-08-14T00:00:00.000Z"),
+});
+assert.equal(autopilot.policy_status, "blocked");
+assert.ok(autopilot.blockers.includes("AUTOPILOT_RISK_CLASS_NOT_LOW"));
+assert.equal(autopilot.autopilot_enabled, false);
+assert.equal(autopilot.database_mutated, false);
+
+const productionAutopilot = assessPolicyBoundAutopilotEligibility({
+  recipe_key: "database.response_chunks.expired_cleanup",
+  environment_key: "production",
+  expires_at: "2026-08-15T00:00:00.000Z",
+  now: new Date("2026-08-14T00:00:00.000Z"),
+});
+assert.ok(productionAutopilot.blockers.includes("AUTOPILOT_PRODUCTION_FORBIDDEN"));
+assert.ok(productionAutopilot.blockers.includes("AUTOPILOT_EXPLICIT_ENABLEMENT_REQUIRED"));
+assert.equal(productionAutopilot.execution_enabled, false);
+
+const highRiskAutopilot = assessPolicyBoundAutopilotEligibility({
+  recipe_key: "database.archive.reclaim",
+  environment_key: "staging",
+  explicit_enablement: true,
+  expires_at: "2026-08-15T00:00:00.000Z",
+  fallback_readiness: true,
+  reconciliation_ready: true,
+  now: new Date("2026-08-14T00:00:00.000Z"),
+});
+assert.ok(highRiskAutopilot.blockers.includes("AUTOPILOT_HIGH_RISK_RECIPE_FORBIDDEN"));
+assert.equal(highRiskAutopilot.autopilot_enabled, false);
 
 console.log("database lifecycle mutation readiness tests passed");
