@@ -9,6 +9,30 @@
   ],
   "tool_root": "http-generic-api/scripts/maintenance-tools",
   "canonical_report_contract": "mad4b.repository-tool-lifecycle-report.v1",
+  "discovery": {
+    "contract": "mad4b.repository-tool-discovery.v1",
+    "central_inventory_path": "docs/repository-inventory.json",
+    "roots": [
+      {
+        "path": "http-generic-api/scripts/maintenance-tools",
+        "registration": "explicit_registry_required"
+      },
+      {
+        "path": ".github/scripts",
+        "registration": "auto_catalog_read_only"
+      }
+    ],
+    "extensions": [
+      ".mjs",
+      ".cjs",
+      ".js",
+      ".py",
+      ".sh"
+    ],
+    "mutating_unregistered_changed_fails": true,
+    "orphaned_registry_fails": true,
+    "read_only_auto_catalog": true
+  },
   "forbidden_path_patterns": [
     "(^|/)\\.changes/e2e/.*trigger$",
     "(^|/).*\\.trigger$",
@@ -33,6 +57,13 @@
       "mode": "read_only",
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
+    },
+    "repository-tool-discovery": {
+      "description": "Build a non-authoritative live catalog of repository tools from the Git index, cross-check central inventory coverage, and require explicit registry authority for governed or mutating tools.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.repository-tool-discovery.v1"
     },
     "generated-artifact-refresh": {
       "description": "Regenerate bounded OpenAPI/frontend, Work Map, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",

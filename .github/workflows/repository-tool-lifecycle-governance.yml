@@ -28,9 +28,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Run repository-tool lifecycle regression
-        run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-
       - name: Prepare exact changed-file inventory
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -39,6 +36,25 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin "$BASE_SHA"
           git diff --name-status "$BASE_SHA" "$HEAD_SHA" > /tmp/repository-tool-changes.tsv
+
+      - name: Run repository-tool discovery regression
+        run: node http-generic-api/scripts/test-repository-tool-discovery.mjs
+
+      - name: Discover and catalog repository tools
+        id: discovery
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --inventory docs/repository-inventory.json \
+            --output-dir .artifacts/repository-tool-lifecycle
+
+      - name: Run repository-tool lifecycle regression
+        run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
 
       - name: Evaluate repository tool lifecycle
         id: governance
@@ -52,7 +68,7 @@ jobs:
             --policy .github/repository-maintenance-tool-governance.json \
             --output-dir .artifacts/repository-tool-lifecycle
 
-      - name: Publish canonical repository-tool report
+      - name: Publish canonical repository-tool evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -63,10 +79,17 @@ jobs:
 
       - name: Publish bounded step summary
         if: always()
-        run: cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .artifacts/repository-tool-lifecycle/repository-tool-discovery.md ]]; then
+            cat .artifacts/repository-tool-lifecycle/repository-tool-discovery.md >> "$GITHUB_STEP_SUMMARY"
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce repository tool lifecycle
-        if: steps.governance.outcome != 'success'
+        if: steps.discovery.outcome != 'success' || steps.governance.outcome != 'success'
         run: |
-          echo "Repository tool lifecycle governance failed. Read the canonical report artifact first."
+          echo "Repository tool discovery or lifecycle governance failed. Read the canonical artifact first."
           exit 1

@@ -8,11 +8,11 @@ on:
         required: true
         type: string
       expected_head_sha:
-        description: Exact trusted workflow head SHA
+        description: Exact authorized main release-cut SHA and trusted launcher SHA
         required: true
         type: string
       expected_request_head_sha:
-        description: Exact request PR head SHA
+        description: Exact tree-identical governed request PR head SHA
         required: true
         type: string
       release_branch_prefix:
@@ -20,21 +20,19 @@ on:
         required: true
         type: string
       validation_branch_prefix:
-        description: Non-protected branch prefix for exact candidate validation
+        description: Non-protected branch prefix for certified candidate validation
         required: true
         type: string
       validation_base_branch_prefix:
-        description: Governed non-protected validation base prefix
+        description: Non-protected validation-base prefix pinned to the release cut
         required: true
         type: string
       review_mode:
-        description: "Review mode: human keeps existing maintainer gates; ai_policy uses bounded AI policy review for read-only supporting gates only"
+        description: Human or bounded AI policy review for read-only supporting gates
         required: true
         default: human
         type: choice
-        options:
-          - human
-          - ai_policy
+        options: [human, ai_policy]
       confirmation:
         description: Type AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST
         required: true
@@ -51,8 +49,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  converge-source-pinned-candidate:
-    name: Converge current source-pinned Production candidate
+  converge-release-cut:
+    name: Converge immutable Production release cut
     if: github.event_name == 'workflow_dispatch' && inputs.confirmation == 'AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST'
     runs-on: ubuntu-latest
     timeout-minutes: 240
@@ -67,667 +65,372 @@ jobs:
       VALIDATION_BRANCH_PREFIX: ${{ inputs.validation_branch_prefix }}
       VALIDATION_BASE_BRANCH_PREFIX: ${{ inputs.validation_base_branch_prefix }}
       REVIEW_MODE: ${{ inputs.review_mode }}
+      GATE_REGISTRY: .github/contracts/production-promotion-supporting-gates.v1.json
     steps:
-      - name: Checkout trusted launcher helpers
+      - name: Checkout exact authorized launcher
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup Node for promotion helpers
+      - name: Setup Node for promotion controller
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
-      - name: Preflight promotion runtime helpers
+      - name: Preflight typed promotion controller
         shell: bash
-        run: node --test .github/tests/production-promotion-runtime.test.mjs
+        run: |
+          set -Eeuo pipefail
+          node --test .github/tests/production-promotion-runtime.test.mjs
+          node .github/scripts/production-promotion-supporting-gates.mjs \
+            --registry "$GATE_REGISTRY" \
+            --review-mode "$REVIEW_MODE" \
+            --release-branch "${RELEASE_BRANCH_PREFIX}-preflight-probe" \
+            --candidate-sha 1111111111111111111111111111111111111111 \
+            --output "$RUNNER_TEMP/supporting-gate-preflight.json" >/dev/null
+          jq -e '.gates | length > 0' "$RUNNER_TEMP/supporting-gate-preflight.json" >/dev/null
 
-      - name: Validate governed dispatch identity and exact heads
+      - name: Resolve authorized release cut and request identity
+        id: source
         shell: bash
         env:
           CONFIRMATION: ${{ inputs.confirmation }}
         run: |
           set -Eeuo pipefail
-          reject() {
-            echo "::error::$1"
-            exit 1
-          }
-
+          reject() { echo "::error::$1"; exit 1; }
           [[ "$CONFIRMATION" == "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST" ]] || reject "typed confirmation mismatch"
           [[ "$REQUEST_PR" =~ ^[1-9][0-9]*$ ]] || reject "request_pr must be a positive integer"
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_head_sha must be an exact lowercase SHA"
           [[ "$EXPECTED_REQUEST_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_request_head_sha must be an exact lowercase SHA"
-          [[ "$CURRENT_HEAD_SHA" == "$EXPECTED_HEAD_SHA" ]] || reject "expected head mismatch: current workflow head is not authorized"
+          [[ "$CURRENT_HEAD_SHA" == "$EXPECTED_HEAD_SHA" ]] || reject "launcher SHA differs from the authorized release cut"
           [[ "$GITHUB_REF_NAME" == "main" ]] || reject "launcher must be dispatched from trusted main"
-          case "$REVIEW_MODE" in
-            human|ai_policy) ;;
-            *) reject "review_mode must be human or ai_policy" ;;
-          esac
+          case "$REVIEW_MODE" in human|ai_policy) ;; *) reject "review_mode must be human or ai_policy" ;; esac
 
           for prefix in "$RELEASE_BRANCH_PREFIX" "$VALIDATION_BRANCH_PREFIX" "$VALIDATION_BASE_BRANCH_PREFIX"; do
             [[ -n "$prefix" ]] || reject "branch prefix must not be empty"
-            git check-ref-format --branch "${prefix}-probe" >/dev/null 2>&1 || reject "invalid branch prefix"
-            case "$prefix" in
-              main|main/*|Production|Production/*)
-                reject "branch prefix must reject main and Production"
-                ;;
-            esac
+            git check-ref-format --branch "${prefix}-probe" >/dev/null 2>&1 || reject "invalid branch prefix: $prefix"
+            case "$prefix" in main|main/*|Production|Production/*|refs/*) reject "branch prefix must reject protected refs" ;; esac
           done
-
           case "$VALIDATION_BRANCH_PREFIX" in
             gpt/validate-production-candidate) ;;
-            *) reject "validation branch prefix must use the governed candidate namespace" ;;
+            *) reject "validation branch prefix must use governed candidate namespace" ;;
           esac
           case "$VALIDATION_BASE_BRANCH_PREFIX" in
             gpt/validate-production-base) ;;
-            *) reject "validation base branch prefix must use the governed base namespace" ;;
+            *) reject "validation base prefix must use governed base namespace" ;;
           esac
 
-          if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+          request_file="$RUNNER_TEMP/production-promotion-request-pr.json"
+          gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}" > "$request_file"
+          [[ "$(jq -r '.state' "$request_file")" == open ]] || reject "request PR is not open"
+          [[ "$(jq -r '.base.ref' "$request_file")" == main ]] || reject "request PR must target main"
+          [[ "$(jq -r '.head.repo.full_name // ""' "$request_file")" == "$REPOSITORY" ]] || reject "request PR must originate from this repository"
+          [[ "$(jq -r '.head.sha' "$request_file")" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request PR exact head mismatch"
+          [[ "$(jq -r '.title' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"
+          REQUEST_HEAD_BRANCH="$(jq -r '.head.ref' "$request_file")"
+          git check-ref-format --branch "$REQUEST_HEAD_BRANCH" >/dev/null 2>&1 || reject "request head branch is invalid"
+          case "$REQUEST_HEAD_BRANCH" in main|Production|refs/*) reject "request head branch may not be protected" ;; esac
+
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production' \
+            "+refs/heads/${REQUEST_HEAD_BRANCH}:refs/remotes/origin/${REQUEST_HEAD_BRANCH}"
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+          REQUEST_HEAD_READBACK="$(git rev-parse "refs/remotes/origin/${REQUEST_HEAD_BRANCH}")"
+          [[ "$REQUEST_HEAD_READBACK" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request branch moved after API readback"
+          git cat-file -e "${EXPECTED_HEAD_SHA}^{commit}"
+          git merge-base --is-ancestor "$EXPECTED_HEAD_SHA" "$CURRENT_MAIN_SHA" || reject "authorized release cut is no longer contained by current main"
+          git merge-base --is-ancestor "$EXPECTED_HEAD_SHA" "$EXPECTED_REQUEST_HEAD_SHA" || reject "request head does not descend from the authorized release cut"
+          git diff --quiet "$EXPECTED_HEAD_SHA" "$EXPECTED_REQUEST_HEAD_SHA" || reject "request head is not tree-identical to the authorized release cut"
+          git merge-base --is-ancestor "$PRODUCTION_SHA" "$EXPECTED_HEAD_SHA" || reject "current Production contains commits absent from the authorized release cut"
+
+          if [[ "$REVIEW_MODE" == ai_policy ]]; then
             echo "AI_POLICY_REVIEW_MODE=bounded_supporting_gates_only"
-            echo "AI_POLICY_REVIEW_SCOPE=read_only_supporting_workflows_and_exact_candidate_validation"
+            echo "AI_POLICY_REVIEW_SCOPE=declarative_read_only_supporting_gates_and_certified_release_cut_validation"
             echo "AI_POLICY_REVIEW_FORBIDDEN=production_merge,deployment,migration,grant,provider_mutation,credential_payload_read"
           fi
 
-          request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"
-          gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}" > "$request_file"
-          [[ "$(jq -r '.state' "$request_file")" == "open" ]] || reject "request PR is not open"
-          [[ "$(jq -r '.base.ref' "$request_file")" == "main" ]] || reject "request PR must target main"
-          [[ "$(jq -r '.head.repo.full_name // ""' "$request_file")" == "$REPOSITORY" ]] || reject "request PR must originate from this repository"
-          [[ "$(jq -r '.head.sha' "$request_file")" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request PR expected head SHA mismatch"
-          [[ "$(jq -r '.title' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"
+          {
+            echo "release_cut_sha=$EXPECTED_HEAD_SHA"
+            echo "current_main_sha=$CURRENT_MAIN_SHA"
+            echo "production_sha=$PRODUCTION_SHA"
+            echo "request_head_branch=$REQUEST_HEAD_BRANCH"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Initialize bounded convergence evidence path
-        shell: bash
-        run: |
-          set -euo pipefail
-          evidence_dir="${RUNNER_TEMP}/governed-production-promotion"
-          rm -rf "${evidence_dir}"
-          mkdir -p "${evidence_dir}"
-          echo "EVIDENCE_PATH=${evidence_dir}/governed-production-promotion-convergence.json" >> "${GITHUB_ENV}"
-
-      - name: Build, validate, and converge protected refs
-        id: converge
+      - name: Initialize convergence evidence
         shell: bash
         run: |
           set -Eeuo pipefail
+          evidence_dir="$RUNNER_TEMP/governed-production-promotion"
+          rm -rf "$evidence_dir"
+          mkdir -p "$evidence_dir"
+          echo "EVIDENCE_PATH=${evidence_dir}/governed-production-promotion-convergence.json" >> "$GITHUB_ENV"
 
-          MAX_ATTEMPTS=3
-          RUN_DISCOVERY_ATTEMPTS=60
-          RUN_DISCOVERY_INTERVAL_SECONDS=5
-          RUN_POLL_INTERVAL_SECONDS=30
+      - name: Build, validate, and converge immutable release cut
+        id: converge
+        shell: bash
+        env:
+          RELEASE_CUT_SHA: ${{ steps.source.outputs.release_cut_sha }}
+          INITIAL_MAIN_SHA: ${{ steps.source.outputs.current_main_sha }}
+          PRODUCTION_SHA: ${{ steps.source.outputs.production_sha }}
+          REQUEST_HEAD_BRANCH: ${{ steps.source.outputs.request_head_branch }}
+        run: |
+          set -Eeuo pipefail
+          RUN_POLL_INTERVAL_SECONDS=20
           RUN_POLL_DEADLINE_SECONDS=3900
-          RUN_SETTLE_GRACE_SECONDS=180
-          STABLE=0
-          FINAL_MAIN_SHA=""
-          FINAL_PRODUCTION_SHA=""
-          FINAL_CANDIDATE_SHA=""
-          FINAL_RELEASE_PR=""
-          FINAL_VALIDATION_PR=""
-          FINAL_BUILDER_RUN_ID=""
-          FINAL_EXACT_RUN_ID=""
-          FINAL_EVIDENCE_DIGEST=""
-          FINAL_SUPPORTING_RUNS='{}'
+          RUN_DISCOVERY_ATTEMPTS=40
+          RUN_DISCOVERY_INTERVAL_SECONDS=5
 
-          require_sha() {
-            local label="$1"
-            local value="$2"
-            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "::error::$label must resolve to an exact lowercase 40-character SHA"
-              return 1
-            fi
-          }
+          require_sha() { [[ "$2" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$1 must be an exact lowercase SHA"; return 1; }; }
+          require_run_id() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || { echo "::error::$1 must be a positive run ID"; return 1; }; }
 
-          require_sha256() {
-            local label="$1"
-            local value="$2"
-            if [[ ! "$value" =~ ^[0-9a-f]{64}$ ]]; then
-              echo "::error::$label must resolve to an exact lowercase 64-character SHA-256 digest"
-              return 1
-            fi
-          }
-
-          resolve_run_once() {
-            local workflow="$1"
-            local earliest="$2"
-            local expected_head_sha="${3:-}"
-            local include_action_required="${4:-false}"
-            local selector_args=(--earliest "$earliest")
-            if [[ -n "$expected_head_sha" ]]; then
-              selector_args+=(--head-sha "$expected_head_sha")
-            fi
-            if [[ "$include_action_required" == "true" ]]; then
-              selector_args+=(--include-action-required)
-            fi
-
-            gh run list \
-              --repo "$REPOSITORY" \
-              --workflow "$workflow" \
-              --limit 100 \
-              --json databaseId,headSha,createdAt,status,conclusion,event \
-              | node .github/scripts/production-promotion-run-selector.mjs "${selector_args[@]}" 2>/dev/null || true
-          }
-
-          resolve_run() {
-            local workflow="$1"
-            local earliest="$2"
-            local expected_head_sha="${3:-}"
-            local run_id=""
-
+          resolve_dispatched_run() {
+            local workflow="$1" branch="$2" expected_sha="$3" earliest="$4" run_id=""
             for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
-              run_id="$(resolve_run_once "$workflow" "$earliest" "$expected_head_sha" true)"
-              if [[ -n "$run_id" ]]; then
-                printf '%s' "$run_id"
-                return 0
-              fi
+              run_id="$(gh run list --repo "$REPOSITORY" --workflow "$workflow" --branch "$branch" --event workflow_dispatch --limit 100 \
+                --json databaseId,headSha,createdAt,status,conclusion,event \
+                | node .github/scripts/production-promotion-run-selector.mjs --earliest "$earliest" --head-sha "$expected_sha" --event workflow_dispatch 2>/dev/null || true)"
+              [[ -n "$run_id" ]] && { printf '%s' "$run_id"; return 0; }
               sleep "$RUN_DISCOVERY_INTERVAL_SECONDS"
             done
             return 1
           }
 
-          resolve_exact_validation_run() {
-            local earliest="$1"
-            local expected_head_sha="$2"
-            local run_id=""
-
-            for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
-              run_id="$(gh run list \
-                --repo "$REPOSITORY" \
-                --workflow production-promotion-exact-candidate-validation.yml \
-                --limit 100 \
-                --json databaseId,event,headSha,createdAt,status,conclusion \
-                --jq "(map(select(.event == \\"workflow_dispatch\\" and .createdAt >= \\"$earliest\\" and .headSha == \\"$expected_head_sha\\" and (.status != \\"completed\\" or .conclusion == \\"success\\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty" 2>/dev/null || true)"
-              if [[ -n "$run_id" ]]; then
-                printf '%s' "$run_id"
-                return 0
-              fi
-              sleep "$RUN_DISCOVERY_INTERVAL_SECONDS"
-            done
-            return 1
-          }
-
-          resolve_dispatch_run_once() {
-            local workflow_name="$1"
-            local earliest="$2"
-            local expected_head_sha="$3"
-            local workflow_file=""
-            case "$workflow_name" in
-              "Frontend surface dispatch") workflow_file="frontend-surface-dispatch.yml" ;;
-              "HTTP Generic API Fanout Relocation") workflow_file="http-generic-api-fanout-relocation.yml" ;;
-              "Custom GPT Contract Guard") workflow_file="custom-gpt-contract-guard.yml" ;;
-              "Platform Completion Cleanup Readback") workflow_file="platform-completion-cleanup-readback.yml" ;;
-              "Platform Remaining Scope Scorecard") workflow_file="platform-remaining-scope-scorecard.yml" ;;
-              "Spec 011 Delegation MariaDB Certification") workflow_file="spec-011-delegation-mariadb-certification.yml" ;;
-              *) return 1 ;;
-            esac
-            gh run list \
-              --repo "$REPOSITORY" \
-              --workflow "$workflow_file" \
-              --limit 100 \
-              --json databaseId,event,headSha,createdAt,status,conclusion \
-              | node .github/scripts/production-promotion-run-selector.mjs \
-                --earliest "$earliest" \
-                --head-sha "$expected_head_sha" \
-                --event workflow_dispatch 2>/dev/null || true
-          }
-
-          resolve_dispatch_run() {
-            local workflow_name="$1"
-            local earliest="$2"
-            local expected_head_sha="$3"
-            local run_id=""
-            for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
-              run_id="$(resolve_dispatch_run_once "$workflow_name" "$earliest" "$expected_head_sha")"
-              if [[ -n "$run_id" ]]; then
-                printf '%s' "$run_id"
-                return 0
-              fi
-              sleep "$RUN_DISCOVERY_INTERVAL_SECONDS"
-            done
-            return 1
-          }
-
-          dispatch_workflow_and_capture_run() {
-            local workflow_file="$1"
-            local ref="$2"
-            shift 2
-            local dispatch_output=""
-            local run_id=""
-
-            if ! dispatch_output="$(gh workflow run "$workflow_file" \
-              --repo "$REPOSITORY" \
-              --ref "$ref" \
-              "$@" 2>&1)"; then
-              printf '%s\n' "$dispatch_output" >&2
+          dispatch_and_capture() {
+            local workflow="$1" ref="$2" expected_sha="$3" earliest="$4"
+            shift 4
+            local output="" run_id=""
+            if ! output="$(gh workflow run "$workflow" --repo "$REPOSITORY" --ref "$ref" "$@" 2>&1)"; then
+              printf '%s\n' "$output" >&2
               return 1
             fi
-
-            printf '%s\n' "$dispatch_output" >&2
-            run_id="$(sed -n 's#.*actions/runs/\([0-9][0-9]*\).*#\1#p' <<<"$dispatch_output" | tail -n 1)"
+            printf '%s\n' "$output" >&2
+            run_id="$(sed -n 's#.*actions/runs/\([0-9][0-9]*\).*#\1#p' <<<"$output" | tail -n1)"
             if [[ -z "$run_id" ]]; then
-              echo "::warning::workflow dispatch returned no run URL for $workflow_file on $ref" >&2
-              return 1
+              run_id="$(resolve_dispatched_run "$workflow" "$ref" "$expected_sha" "$earliest" || true)"
             fi
-
+            require_run_id "$workflow run" "$run_id"
             printf '%s' "$run_id"
           }
 
           wait_run_success() {
-            local run_id="$1"
-            local label="$2"
-            local deadline="$(( $(date +%s) + RUN_POLL_DEADLINE_SECONDS ))"
-            local status=""
-            local conclusion=""
-            local status_file="$RUNNER_TEMP/run-${run_id}.json"
-            local error_file="$RUNNER_TEMP/run-${run_id}.err"
-
+            local run_id="$1" label="$2" allow_action_required="$3"
+            local deadline=$(( $(date +%s) + RUN_POLL_DEADLINE_SECONDS )) status="" conclusion=""
             while (( $(date +%s) < deadline )); do
-              : > "$error_file"
-              if gh run view "$run_id" \
-                --repo "$REPOSITORY" \
-                --json databaseId,headSha,event,status,conclusion \
-                > "$status_file" 2> "$error_file"; then
-                status="$(jq -r '.status // ""' "$status_file")"
-                conclusion="$(jq -r '.conclusion // ""' "$status_file")"
-                if [[ "$status" == "completed" ]]; then
-                  if [[ "$conclusion" == "success" ]]; then
-                    return 0
-                  fi
-                  if [[ "$conclusion" == "action_required" ]]; then
-                    echo "::warning::$label run $run_id is waiting for required approval; keeping governed review surfaces open"
-                    sleep "$RUN_POLL_INTERVAL_SECONDS"
-                    continue
-                  fi
-                  echo "::warning::$label run $run_id completed with conclusion $conclusion"
-                  return 1
-                fi
-                sleep "$RUN_POLL_INTERVAL_SECONDS"
-                continue
-              fi
-
-              if grep -Eqi 'rate limit exceeded|HTTP 403|HTTP 404|HTTP 408|HTTP 409|HTTP 429|HTTP 500|HTTP 502|HTTP 503|HTTP 504|not found|temporarily unavailable|connection reset|timed out|EOF' "$error_file"; then
-                echo "::warning::transient GitHub API error while polling $label; retrying within bounded deadline"
-                sleep "$RUN_POLL_INTERVAL_SECONDS"
-                continue
-              fi
-              cat "$error_file" >&2
-              return 1
-            done
-
-            echo "::warning::$label run $run_id did not complete before the bounded deadline"
-            return 1
-          }
-
-          wait_run_success_settled() {
-            local run_id="$1"
-            local label="$2"
-            if wait_run_success "$run_id" "$label"; then
-              return 0
-            fi
-
-            local deadline="$(( $(date +%s) + RUN_SETTLE_GRACE_SECONDS ))"
-            local status_file="$RUNNER_TEMP/settle-run-${run_id}.json"
-            local error_file="$RUNNER_TEMP/settle-run-${run_id}.err"
-            local status=""
-            local conclusion=""
-
-            while (( $(date +%s) < deadline )); do
-              : > "$error_file"
-              if gh run view "$run_id" \
-                --repo "$REPOSITORY" \
-                --json databaseId,headSha,event,status,conclusion \
-                > "$status_file" 2> "$error_file"; then
-                status="$(jq -r '.status // ""' "$status_file")"
-                conclusion="$(jq -r '.conclusion // ""' "$status_file")"
-                if [[ "$status" == "completed" ]]; then
-                  [[ "$conclusion" == "success" ]] && return 0
-                  return 1
-                fi
-                sleep "$RUN_POLL_INTERVAL_SECONDS"
-                continue
-              fi
-
-              if grep -Eqi 'rate limit exceeded|HTTP 403|HTTP 404|HTTP 408|HTTP 409|HTTP 429|HTTP 500|HTTP 502|HTTP 503|HTTP 504|not found|temporarily unavailable|connection reset|timed out|EOF' "$error_file"; then
-                echo "::warning::transient GitHub API error during settle readback for $label; retrying"
-                sleep "$RUN_POLL_INTERVAL_SECONDS"
-                continue
-              fi
-              cat "$error_file" >&2
-              return 1
-            done
-
-            echo "::warning::$label did not reach a settled terminal state before bounded grace expired"
-            return 1
-          }
-
-          close_surface() {
-            local pr_number="$1"
-            local reason="$2"
-            if [[ -z "$pr_number" ]]; then
-              return 0
-            fi
-            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "$reason" || true
-            gh pr close "$pr_number" --repo "$REPOSITORY" || true
-          }
-
-          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-            echo "::group::Production convergence attempt $attempt/$MAX_ATTEMPTS"
-            ATTEMPT_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-            require_sha MAIN_SHA "$MAIN_SHA"
-            require_sha PRODUCTION_SHA "$PRODUCTION_SHA"
-            if [[ "$MAIN_SHA" != "$EXPECTED_HEAD_SHA" ]]; then
-              echo "::error::source-pinned main moved during convergence: expected=$EXPECTED_HEAD_SHA actual=$MAIN_SHA"
-              echo "::error::refresh the request PR pin and dispatch a new governed convergence; refusing to build against an unapproved main"
-              echo "::endgroup::"
-              break
-            fi
-
-            MAIN_SHORT="${MAIN_SHA:0:12}"
-            PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
-            ATTEMPT_SUFFIX="a${attempt}-${GITHUB_RUN_ID}"
-            RELEASE_BRANCH="${RELEASE_BRANCH_PREFIX}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
-            VALIDATION_BRANCH="${VALIDATION_BRANCH_PREFIX}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
-            VALIDATION_BASE_BRANCH="${VALIDATION_BASE_BRANCH_PREFIX}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
-
-            echo "main=$MAIN_SHA Production=$PRODUCTION_SHA"
-            echo "release_branch=$RELEASE_BRANCH"
-
-            BUILDER_RUN_ID=""
-            if ! BUILDER_RUN_ID="$(dispatch_workflow_and_capture_run production-promotion-candidate.yml main \
-              --field expected_main_sha="$MAIN_SHA" \
-              --field expected_head_sha="$MAIN_SHA" \
-              --field expected_production_sha="$PRODUCTION_SHA" \
-              --field release_branch="$RELEASE_BRANCH" \
-              --field validation_branch="$VALIDATION_BRANCH" \
-              --field validation_base_branch="$VALIDATION_BASE_BRANCH" \
-              --field create_pull_requests=true)"; then
-              echo "::warning::candidate builder dispatch failed; retrying with fresh protected refs"
-              echo "::endgroup::"
-              continue
-            fi
-            echo "candidate_builder_run=$BUILDER_RUN_ID attempt=$attempt"
-            if ! wait_run_success "$BUILDER_RUN_ID" "candidate builder"; then
-              echo "::warning::candidate builder did not succeed; protected refs may have moved"
-              echo "::endgroup::"
-              continue
-            fi
-
-            RELEASE_JSON="$(gh pr list \
-              --repo "$REPOSITORY" \
-              --state open \
-              --head "$RELEASE_BRANCH" \
-              --base Production \
-              --limit 1 \
-              --json number,url,headRefOid,baseRefName,headRefName)"
-            VALIDATION_JSON="$(gh pr list \
-              --repo "$REPOSITORY" \
-              --state open \
-              --head "$VALIDATION_BRANCH" \
-              --base "$VALIDATION_BASE_BRANCH" \
-              --limit 1 \
-              --json number,url,headRefOid,baseRefName,headRefName)"
-
-            RELEASE_PR="$(jq -r '.[0].number // empty' <<<"$RELEASE_JSON")"
-            VALIDATION_PR="$(jq -r '.[0].number // empty' <<<"$VALIDATION_JSON")"
-            CANDIDATE_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$RELEASE_JSON")"
-            VALIDATION_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$VALIDATION_JSON")"
-            VALIDATION_BASE_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BASE_BRANCH}" --jq '.object.sha')"
-
-            if [[ -z "$RELEASE_PR" || -z "$VALIDATION_PR" ]]; then
-              echo "::warning::builder did not create both governed review surfaces"
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=missing_review_surface merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=missing_review_surface merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-            require_sha CANDIDATE_SHA "$CANDIDATE_SHA"
-            if [[ "$VALIDATION_SHA" != "$CANDIDATE_SHA" || "$VALIDATION_BASE_SHA" != "$MAIN_SHA" ]]; then
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=branch_readback_mismatch merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=branch_readback_mismatch merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-
-            TREE_DIFF_COUNT="$(gh api "/repos/${REPOSITORY}/compare/${MAIN_SHA}...${CANDIDATE_SHA}" --jq '.files | length')"
-            if [[ "$TREE_DIFF_COUNT" != "0" ]]; then
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=candidate_tree_differs_from_main merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=candidate_tree_differs_from_main merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-
-            EXACT_RUN_ID=""
-            if ! EXACT_RUN_ID="$(dispatch_workflow_and_capture_run production-promotion-exact-candidate-validation.yml "$VALIDATION_BRANCH" \
-              --field expected_main_sha="$MAIN_SHA" \
-              --field expected_head_sha="$CANDIDATE_SHA" \
-              --field expected_candidate_ref="$VALIDATION_BRANCH" \
-              --field expected_validation_base_sha="$VALIDATION_BASE_SHA" \
-              --field expected_validation_base_ref="$VALIDATION_BASE_BRANCH" \
-              --field confirmation=VALIDATE_EXACT_PRODUCTION_CANDIDATE)"; then
-              echo "::warning::exact candidate validation dispatch failed"
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_dispatch_failed merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_dispatch_failed merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-            echo "exact_validation_run=$EXACT_RUN_ID attempt=$attempt"
-            if ! wait_run_success_settled "$EXACT_RUN_ID" "exact candidate validation"; then
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_failed_or_missing merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_failed_or_missing merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-
-            SUPPORTING_RUNS='{}'
-            SUPPORTING_OK=1
-            while IFS= read -r workflow_name; do
-              SUPPORTING_RUN_ID=""
-              if [[ "$workflow_name" == "Spec 011 Delegation MariaDB Certification" ]]; then
-                if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
-                  SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
-                else
-                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" true)"
-                fi
-                if [[ -z "$SUPPORTING_RUN_ID" ]]; then
-                  SPEC011_RELEASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
-                  if [[ "$SPEC011_RELEASE_READBACK" != "$CANDIDATE_SHA" ]]; then
-                    echo "::warning::Spec 011 release branch moved before supporting gate dispatch: expected=$CANDIDATE_SHA actual=$SPEC011_RELEASE_READBACK"
-                    SUPPORTING_OK=0
-                    break
-                  fi
-
-                  if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
-                    SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+              local file="$RUNNER_TEMP/run-${run_id}.json" err="$RUNNER_TEMP/run-${run_id}.err"
+              : > "$err"
+              if gh run view "$run_id" --repo "$REPOSITORY" --json databaseId,headSha,event,status,conclusion > "$file" 2> "$err"; then
+                status="$(jq -r '.status // ""' "$file")"
+                conclusion="$(jq -r '.conclusion // ""' "$file")"
+                if [[ "$status" == completed ]]; then
+                  [[ "$conclusion" == success ]] && return 0
+                  if [[ "$conclusion" == action_required && "$allow_action_required" == true ]]; then
+                    echo "::notice::$label run $run_id requires human action; preserving the review surface"
                   else
-                    SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" true)"
-                  fi
-                  if [[ -z "$SUPPORTING_RUN_ID" ]]; then
-                    if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
-                      SPEC011_DISPATCH_STATUS=0
-                      SUPPORTING_RUN_ID="$(dispatch_workflow_and_capture_run spec-011-delegation-mariadb-certification.yml "$RELEASE_BRANCH" || { SPEC011_DISPATCH_STATUS=$?; true; })"
-                    else
-                      SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
-                    fi
-                    if [[ "$SPEC011_DISPATCH_STATUS" != "0" && -z "$SUPPORTING_RUN_ID" ]]; then
-                      echo "::warning::Spec 011 supporting workflow dispatch failed and no exact-head run was captured"
-                    fi
+                    echo "::error::$label run $run_id completed with $conclusion"
+                    return 1
                   fi
                 fi
-              else
-                if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
-                  SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
-                else
-                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" true)"
-                fi
-                if [[ -z "$SUPPORTING_RUN_ID" ]]; then
-                  case "$workflow_name" in
-                    "Frontend surface dispatch")
-                      SUPPORTING_RUN_ID="$(dispatch_workflow_and_capture_run frontend-surface-dispatch.yml "$RELEASE_BRANCH" || true)"
-                      ;;
-                    "HTTP Generic API Fanout Relocation")
-                      SUPPORTING_RUN_ID="$(dispatch_workflow_and_capture_run http-generic-api-fanout-relocation.yml "$RELEASE_BRANCH" \
-                        --field scope=scripts \
-                        --field max_files=20 \
-                        --field target_branch="$RELEASE_BRANCH" || true)"
-                      ;;
-                    "Custom GPT Contract Guard")
-                      SUPPORTING_RUN_ID="$(dispatch_workflow_and_capture_run custom-gpt-contract-guard.yml "$RELEASE_BRANCH" \
-                        --field drill_mode=none || true)"
-                      ;;
-                    "Platform Completion Cleanup Readback")
-                      SUPPORTING_RUN_ID="$(dispatch_workflow_and_capture_run platform-completion-cleanup-readback.yml "$RELEASE_BRANCH" || true)"
-                      ;;
-                    "Platform Remaining Scope Scorecard")
-                      SUPPORTING_RUN_ID="$(dispatch_workflow_and_capture_run platform-remaining-scope-scorecard.yml "$RELEASE_BRANCH" || true)"
-                      ;;
-                    *)
-                      echo "::error::no bounded dispatch contract for supporting workflow: $workflow_name"
-                      SUPPORTING_OK=0
-                      break
-                      ;;
-                  esac
-                fi
+                sleep "$RUN_POLL_INTERVAL_SECONDS"
+                continue
               fi
-
-              if [[ -z "$SUPPORTING_RUN_ID" ]] || ! wait_run_success_settled "$SUPPORTING_RUN_ID" "$workflow_name"; then
-                echo "::warning::required supporting workflow failed or was not found: $workflow_name"
-                SUPPORTING_OK=0
-                break
+              if grep -Eqi 'rate limit exceeded|HTTP 403|HTTP 404|HTTP 408|HTTP 409|HTTP 429|HTTP 5[0-9][0-9]|temporarily unavailable|connection reset|timed out|EOF' "$err"; then
+                echo "::warning::transient GitHub API error while polling $label"
+                sleep "$RUN_POLL_INTERVAL_SECONDS"
+                continue
               fi
-              SUPPORTING_RUNS="$(jq --arg name "$workflow_name" --arg run_id "$SUPPORTING_RUN_ID" '. + {($name): $run_id}' <<<"$SUPPORTING_RUNS")"
-            done <<'WORKFLOWS'
-          Frontend surface dispatch
-          HTTP Generic API Fanout Relocation
-          Custom GPT Contract Guard
-          Platform Completion Cleanup Readback
-          Platform Remaining Scope Scorecard
-          Spec 011 Delegation MariaDB Certification
-          WORKFLOWS
-
-            if [[ "$SUPPORTING_OK" != "1" ]]; then
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=supporting_gate_failed_or_missing merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=supporting_gate_failed_or_missing merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-
-            READBACK_MAIN="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            READBACK_PRODUCTION="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-            RELEASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
-            VALIDATION_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BRANCH}" --jq '.object.sha')"
-            VALIDATION_BASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BASE_BRANCH}" --jq '.object.sha')"
-
-            if [[ "$READBACK_MAIN" != "$MAIN_SHA" \
-               || "$READBACK_PRODUCTION" != "$PRODUCTION_SHA" \
-               || "$RELEASE_READBACK" != "$CANDIDATE_SHA" \
-               || "$VALIDATION_READBACK" != "$CANDIDATE_SHA" \
-               || "$VALIDATION_BASE_READBACK" != "$MAIN_SHA" ]]; then
-              REASON="STALE_PRODUCTION_CANDIDATE attempt=$attempt main_before=$MAIN_SHA main_after=$READBACK_MAIN production_before=$PRODUCTION_SHA production_after=$READBACK_PRODUCTION candidate=$CANDIDATE_SHA merge_executed=false deployment_executed=false"
-              close_surface "$RELEASE_PR" "$REASON"
-              close_surface "$VALIDATION_PR" "$REASON"
-              echo "::warning::protected refs moved during validation; retrying from current refs"
-              echo "::endgroup::"
-              continue
-            fi
-
-            ATTEMPT_EVIDENCE_DIR="$RUNNER_TEMP/production-promotion-exact-${attempt}"
-            mkdir -p "$ATTEMPT_EVIDENCE_DIR"
-            ARTIFACT_DOWNLOADED=0
-            for _ in $(seq 1 5); do
-              if gh run download "$EXACT_RUN_ID" \
-                --repo "$REPOSITORY" \
-                --name "production-promotion-exact-candidate-ci-${CANDIDATE_SHA}" \
-                --dir "$ATTEMPT_EVIDENCE_DIR"; then
-                ARTIFACT_DOWNLOADED=1
-                break
-              fi
-              sleep 10
+              cat "$err" >&2
+              return 1
             done
-            if [[ "$ARTIFACT_DOWNLOADED" != "1" ]]; then
-              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_evidence_artifact_missing merge_executed=false deployment_executed=false"
-              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_evidence_artifact_missing merge_executed=false deployment_executed=false"
-              echo "::endgroup::"
-              continue
-            fi
-            EVIDENCE_DIGEST="$(find "$ATTEMPT_EVIDENCE_DIR" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-            require_sha256 EVIDENCE_DIGEST "$EVIDENCE_DIGEST"
+            echo "::error::$label did not complete before the bounded deadline"
+            return 1
+          }
 
-            INPUT_PATH="$ATTEMPT_EVIDENCE_DIR/convergence-input.json"
-            jq -n \
-              --arg request_pr "$REQUEST_PR" \
-              --arg main_sha "$MAIN_SHA" \
-              --arg production_sha "$PRODUCTION_SHA" \
-              --arg candidate_sha "$CANDIDATE_SHA" \
-              --arg release_branch "$RELEASE_BRANCH" \
-              --arg validation_branch "$VALIDATION_BRANCH" \
-              --arg validation_base_branch "$VALIDATION_BASE_BRANCH" \
-              --arg builder_run_id "$BUILDER_RUN_ID" \
-              --arg exact_validation_run_id "$EXACT_RUN_ID" \
-              --arg release_pr "$RELEASE_PR" \
-              --arg validation_pr "$VALIDATION_PR" \
-              --arg evidence_digest "$EVIDENCE_DIGEST" \
-              --arg review_mode "$REVIEW_MODE" \
-              --argjson supporting_runs "$SUPPORTING_RUNS" \
-              --argjson attempt "$attempt" \
-              '{request_pr:$request_pr,main_sha:$main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,builder_run_id:$builder_run_id,exact_validation_run_id:$exact_validation_run_id,supporting_runs:$supporting_runs,review_mode:$review_mode,release_pr:$release_pr,validation_pr:$validation_pr,evidence_digest:$evidence_digest,attempt:$attempt}' > "$INPUT_PATH"
-            node .github/scripts/production-promotion-evidence.mjs --input "$INPUT_PATH" --output "$EVIDENCE_PATH"
+          ATTEMPT_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CURRENT_PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "$CURRENT_PRODUCTION_SHA" == "$PRODUCTION_SHA" ]] || { echo "::error::Production moved before convergence"; exit 1; }
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/Production:refs/remotes/origin/Production'
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$CURRENT_MAIN_SHA" || { echo "::error::main no longer contains release cut"; exit 1; }
+          git merge-base --is-ancestor "$PRODUCTION_SHA" "$RELEASE_CUT_SHA" || { echo "::error::Production is not contained by release cut"; exit 1; }
 
-            RELEASE_BODY="$RUNNER_TEMP/release-pr-final.md"
-            cat > "$RELEASE_BODY" <<EOF
-          ## Governed converged Production candidate
+          CUT_SHORT="${RELEASE_CUT_SHA:0:12}"
+          PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
+          SUFFIX="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RELEASE_BRANCH="${RELEASE_BRANCH_PREFIX}-${CUT_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
+          VALIDATION_BRANCH="${VALIDATION_BRANCH_PREFIX}-${CUT_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
+          VALIDATION_BASE_BRANCH="${VALIDATION_BASE_BRANCH_PREFIX}-${CUT_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
 
-          - pinned main: \`$MAIN_SHA\`
+          BUILDER_RUN_ID="$(dispatch_and_capture production-promotion-candidate.yml "$REQUEST_HEAD_BRANCH" "$EXPECTED_REQUEST_HEAD_SHA" "$ATTEMPT_STARTED_AT" \
+            --field expected_main_sha="$RELEASE_CUT_SHA" \
+            --field expected_head_sha="$EXPECTED_REQUEST_HEAD_SHA" \
+            --field expected_production_sha="$PRODUCTION_SHA" \
+            --field release_branch="$RELEASE_BRANCH" \
+            --field validation_branch="$VALIDATION_BRANCH" \
+            --field validation_base_branch="$VALIDATION_BASE_BRANCH" \
+            --field create_pull_requests=true)"
+          wait_run_success "$BUILDER_RUN_ID" "release-cut candidate builder" false
+
+          RELEASE_JSON="$(gh pr list --repo "$REPOSITORY" --state open --head "$RELEASE_BRANCH" --base Production --limit 1 --json number,headRefOid,headRefName,baseRefName)"
+          VALIDATION_JSON="$(gh pr list --repo "$REPOSITORY" --state open --head "$VALIDATION_BRANCH" --base "$VALIDATION_BASE_BRANCH" --limit 1 --json number,title,headRefOid,headRefName,baseRefName)"
+          RELEASE_PR="$(jq -r '.[0].number // empty' <<<"$RELEASE_JSON")"
+          VALIDATION_PR="$(jq -r '.[0].number // empty' <<<"$VALIDATION_JSON")"
+          CANDIDATE_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$RELEASE_JSON")"
+          VALIDATION_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$VALIDATION_JSON")"
+          VALIDATION_TITLE="$(jq -r '.[0].title // empty' <<<"$VALIDATION_JSON")"
+          [[ "$RELEASE_PR" =~ ^[1-9][0-9]*$ && "$VALIDATION_PR" =~ ^[1-9][0-9]*$ ]] || { echo "::error::builder did not create both review surfaces"; exit 1; }
+          require_sha CANDIDATE_SHA "$CANDIDATE_SHA"
+          [[ "$VALIDATION_SHA" == "$CANDIDATE_SHA" ]] || { echo "::error::validation/release candidate mismatch"; exit 1; }
+          [[ "$VALIDATION_TITLE" == test\(release\):\ certify\ immutable\ Production\ candidate\ * ]] || { echo "::error::validation PR did not select certified release-cut contract"; exit 1; }
+
+          git fetch --no-tags origin \
+            "+refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}" \
+            "+refs/heads/${VALIDATION_BRANCH}:refs/remotes/origin/${VALIDATION_BRANCH}" \
+            "+refs/heads/${VALIDATION_BASE_BRANCH}:refs/remotes/origin/${VALIDATION_BASE_BRANCH}"
+          [[ "$(git rev-parse "refs/remotes/origin/${VALIDATION_BASE_BRANCH}")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::validation base is not release cut"; exit 1; }
+          [[ "$(git rev-parse "${CANDIDATE_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::candidate first parent is not release cut"; exit 1; }
+          git diff --quiet "$RELEASE_CUT_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate tree differs from release cut"; exit 1; }
+
+          CERTIFIED_RUN_ID=""
+          for _ in $(seq 1 60); do
+            CERTIFIED_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-certified-release-cut-validation.yml/runs?event=pull_request_target&per_page=100" \
+              | jq --argjson pr "$VALIDATION_PR" --arg title "$VALIDATION_TITLE" --arg earliest "$ATTEMPT_STARTED_AT" -r \
+                '[.workflow_runs[] | select(.created_at >= $earliest) | select(((.pull_requests // []) | map(.number) | index($pr)) != null or .display_title == $title)] | sort_by(.created_at, .id) | last | .id // empty')"
+            [[ -n "$CERTIFIED_RUN_ID" ]] && break
+            sleep 5
+          done
+          require_run_id CERTIFIED_RUN_ID "$CERTIFIED_RUN_ID"
+          wait_run_success "$CERTIFIED_RUN_ID" "certified release-cut validation" false
+
+          CERTIFIED_DIR="$RUNNER_TEMP/certified-release-cut"
+          mkdir -p "$CERTIFIED_DIR"
+          gh run download "$CERTIFIED_RUN_ID" --repo "$REPOSITORY" --name "certified-production-release-cut-${CANDIDATE_SHA}" --dir "$CERTIFIED_DIR"
+          CERTIFIED_EVIDENCE="$(find "$CERTIFIED_DIR" -type f -name 'certified-production-release-cut.json' -print -quit)"
+          test -n "$CERTIFIED_EVIDENCE"
+          jq -e --arg cut "$RELEASE_CUT_SHA" --arg candidate "$CANDIDATE_SHA" --arg prod "$PRODUCTION_SHA" '
+            .schema_version == "certified_production_release_cut.v1" and .ok == true and
+            .certified_cut_sha == $cut and .candidate_sha == $candidate and .production_sha == $prod and
+            .exact_full_ci_success == true and .candidate_tree_matches_certified_cut == true and
+            .certified_cut_is_ancestor_of_current_main == true and .candidate_contains_production == true and
+            .production_ref_stable_during_validation == true and .main_tip_may_advance == true and
+            .merge_executed == false and .deployment_executed == false and .migration_executed == false and .secrets_included == false
+          ' "$CERTIFIED_EVIDENCE" >/dev/null
+
+          GATE_PLAN="$RUNNER_TEMP/production-promotion-supporting-gates.json"
+          node .github/scripts/production-promotion-supporting-gates.mjs \
+            --registry "$GATE_REGISTRY" --review-mode "$REVIEW_MODE" --release-branch "$RELEASE_BRANCH" --candidate-sha "$CANDIDATE_SHA" --output "$GATE_PLAN" >/dev/null
+          GATE_REGISTRY_SHA256="$(jq -r '.registry_sha256' "$GATE_PLAN")"
+          SUPPORTING_RUNS='{}'
+
+          while IFS= read -r gate; do
+            gate_id="$(jq -r '.id' <<<"$gate")"
+            label="$(jq -r '.label' <<<"$gate")"
+            workflow="$(jq -r '.workflow' <<<"$gate")"
+            ref="$(jq -r '.ref' <<<"$gate")"
+            [[ "$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')" == "$CANDIDATE_SHA" ]] || { echo "::error::release branch moved before $label dispatch"; exit 1; }
+            dispatch_args=()
+            while IFS=$'\t' read -r key value; do
+              [[ -n "$key" ]] || continue
+              dispatch_args+=(--field "${key}=${value}")
+            done < <(jq -r '.inputs | to_entries[]? | [.key,.value] | @tsv' <<<"$gate")
+            gate_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            gate_run_id="$(dispatch_and_capture "$workflow" "$ref" "$CANDIDATE_SHA" "$gate_started" "${dispatch_args[@]}")"
+            SUPPORTING_RUNS="$(jq --arg id "$gate_id" --arg run "$gate_run_id" '. + {($id):$run}' <<<"$SUPPORTING_RUNS")"
+            echo "dispatched supporting gate $gate_id run=$gate_run_id"
+          done < <(jq -c '.gates[]' "$GATE_PLAN")
+
+          ALLOW_ACTION_REQUIRED=false
+          [[ "$REVIEW_MODE" == human ]] && ALLOW_ACTION_REQUIRED=true
+          while IFS= read -r gate; do
+            gate_id="$(jq -r '.id' <<<"$gate")"
+            label="$(jq -r '.label' <<<"$gate")"
+            gate_run_id="$(jq -r --arg id "$gate_id" '.[$id]' <<<"$SUPPORTING_RUNS")"
+            wait_run_success "$gate_run_id" "$label" "$ALLOW_ACTION_REQUIRED"
+          done < <(jq -c '.gates[]' "$GATE_PLAN")
+
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production' \
+            "+refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}" \
+            "+refs/heads/${VALIDATION_BRANCH}:refs/remotes/origin/${VALIDATION_BRANCH}" \
+            "+refs/heads/${VALIDATION_BASE_BRANCH}:refs/remotes/origin/${VALIDATION_BASE_BRANCH}"
+          FINAL_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          FINAL_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+          [[ "$FINAL_PRODUCTION_SHA" == "$PRODUCTION_SHA" ]] || { echo "::error::Production moved during convergence"; exit 1; }
+          git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$FINAL_MAIN_SHA" || { echo "::error::release cut is no longer contained by current main"; exit 1; }
+          git merge-base --is-ancestor "$PRODUCTION_SHA" "$RELEASE_CUT_SHA" || { echo "::error::Production is no longer contained by release cut"; exit 1; }
+          [[ "$(git rev-parse "refs/remotes/origin/${RELEASE_BRANCH}")" == "$CANDIDATE_SHA" ]] || { echo "::error::release branch moved"; exit 1; }
+          [[ "$(git rev-parse "refs/remotes/origin/${VALIDATION_BRANCH}")" == "$CANDIDATE_SHA" ]] || { echo "::error::validation branch moved"; exit 1; }
+          [[ "$(git rev-parse "refs/remotes/origin/${VALIDATION_BASE_BRANCH}")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::validation base moved"; exit 1; }
+          [[ "$(git rev-parse "${CANDIDATE_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::candidate first parent changed"; exit 1; }
+          git diff --quiet "$RELEASE_CUT_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate tree drifted"; exit 1; }
+          git merge-base --is-ancestor "$PRODUCTION_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate lost Production ancestry"; exit 1; }
+
+          INPUT_PATH="$RUNNER_TEMP/release-cut-convergence-input.json"
+          export SUPPORTING_RUNS FINAL_MAIN_SHA RELEASE_PR VALIDATION_PR CANDIDATE_SHA BUILDER_RUN_ID CERTIFIED_RUN_ID GATE_REGISTRY_SHA256 RELEASE_CUT_SHA PRODUCTION_SHA REQUEST_PR REVIEW_MODE
+          node - "$INPUT_PATH" <<'NODE'
+          const fs = require('node:fs');
+          const out = process.argv[2];
+          const input = {
+            review_mode: process.env.REVIEW_MODE,
+            request_pr: process.env.REQUEST_PR,
+            release_pr: process.env.RELEASE_PR,
+            validation_pr: process.env.VALIDATION_PR,
+            release_cut_sha: process.env.RELEASE_CUT_SHA,
+            current_main_sha: process.env.FINAL_MAIN_SHA,
+            production_sha: process.env.PRODUCTION_SHA,
+            candidate_sha: process.env.CANDIDATE_SHA,
+            builder_run_id: process.env.BUILDER_RUN_ID,
+            certified_validation_run_id: process.env.CERTIFIED_RUN_ID,
+            gate_registry_sha256: process.env.GATE_REGISTRY_SHA256,
+            supporting_runs: JSON.parse(process.env.SUPPORTING_RUNS),
+          };
+          fs.writeFileSync(out, `${JSON.stringify(input, null, 2)}\n`);
+          NODE
+          node .github/scripts/production-promotion-release-cut-evidence.mjs --input "$INPUT_PATH" --output "$EVIDENCE_PATH"
+          EVIDENCE_DIGEST="$(sha256sum "$EVIDENCE_PATH" | awk '{print $1}')"
+
+          RELEASE_BODY="$RUNNER_TEMP/release-pr-final.md"
+          cat > "$RELEASE_BODY" <<EOF
+          ## Governed certified immutable Production release cut
+
+          - release cut: \`$RELEASE_CUT_SHA\`
+          - pinned main: \`$RELEASE_CUT_SHA\`
+          - current main after validation: \`$FINAL_MAIN_SHA\`
           - pinned Production: \`$PRODUCTION_SHA\`
           - exact candidate: \`$CANDIDATE_SHA\`
-          - exact validation run: \`$EXACT_RUN_ID\`
-          - review mode: \`$REVIEW_MODE\`
-          - review authority: \`$([[ "$REVIEW_MODE" == "ai_policy" ]] && printf '%s' bounded_ai_policy_agent || printf '%s' human_maintainer)\`
+          - certified validation run: \`$CERTIFIED_RUN_ID\`
           - builder run: \`$BUILDER_RUN_ID\`
-          - evidence digest: \`sha256:$EVIDENCE_DIGEST\`
-          - tree policy: exact pinned-main tree
-          - protected refs stable throughout validation: yes
+          - review mode: \`$REVIEW_MODE\`
+          - supporting gate registry: \`sha256:$GATE_REGISTRY_SHA256\`
+          - convergence evidence: \`sha256:$EVIDENCE_DIGEST\`
+          - release_cut_mode: true
+          - main_tip_may_advance: true
+          - production_ref_stable: true
           - governed_promotion_candidate: true
 
-          Exact Full CI and all required supporting workflows succeeded on the exact candidate. Validation PR #$VALIDATION_PR is closed without merge after evidence readback.
+          The candidate tree is byte-identical to the certified release cut. Current main may advance only while retaining the release cut as an ancestor. Production must remain pinned exactly. Certified direct CI and every declaratively registered required supporting gate succeeded on the exact candidate.
 
-          This PR promotes Git ancestry only. It does not authorize or execute deployment, SQL, migrations, provider calls, credential reads, restarts, or external writes. Merge remains blocked until explicit authorization names exact candidate \`$CANDIDATE_SHA\`. Hostinger/runtime parity must be verified separately after an authorized Production merge.
+          This PR promotes Git ancestry only. Merge remains separately authorized and must re-run the Release Source-Pin Gate. No deployment, SQL, migration, grant, provider mutation, credential payload read, restart, or external write is authorized by this evidence.
           EOF
-            gh pr edit "$RELEASE_PR" --repo "$REPOSITORY" --body-file "$RELEASE_BODY"
-            gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "EXACT_CANDIDATE_VALIDATED candidate=$CANDIDATE_SHA main=$MAIN_SHA Production=$PRODUCTION_SHA builder_run=$BUILDER_RUN_ID exact_run=$EXACT_RUN_ID evidence_digest=sha256:$EVIDENCE_DIGEST full_ci=4/4 supporting_gates=6/6 merge_executed=false deployment_executed=false"
-            gh pr close "$VALIDATION_PR" --repo "$REPOSITORY"
+          gh pr edit "$RELEASE_PR" --repo "$REPOSITORY" --body-file "$RELEASE_BODY"
 
-            FINAL_MAIN_SHA="$MAIN_SHA"
-            FINAL_PRODUCTION_SHA="$PRODUCTION_SHA"
-            FINAL_CANDIDATE_SHA="$CANDIDATE_SHA"
-            FINAL_RELEASE_PR="$RELEASE_PR"
-            FINAL_VALIDATION_PR="$VALIDATION_PR"
-            FINAL_BUILDER_RUN_ID="$BUILDER_RUN_ID"
-            FINAL_EXACT_RUN_ID="$EXACT_RUN_ID"
-            FINAL_EVIDENCE_DIGEST="$EVIDENCE_DIGEST"
-            FINAL_SUPPORTING_RUNS="$SUPPORTING_RUNS"
-            STABLE=1
-            echo "::endgroup::"
-            break
-          done
-
-          if [[ "$STABLE" != "1" ]]; then
-            echo "::error::unable to obtain a stable exact Production candidate after $MAX_ATTEMPTS bounded attempts"
-            exit 1
-          fi
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_RELEASE_CUT_VALIDATED candidate=$CANDIDATE_SHA release_cut=$RELEASE_CUT_SHA current_main=$FINAL_MAIN_SHA Production=$PRODUCTION_SHA certified_run=$CERTIFIED_RUN_ID gate_registry=sha256:$GATE_REGISTRY_SHA256 merge_executed=false deployment_executed=false" || echo "::warning::validation evidence comment transport degraded"
+          gh pr close "$VALIDATION_PR" --repo "$REPOSITORY" || echo "::warning::validation surface cleanup degraded"
 
           {
-            echo "main_sha=$FINAL_MAIN_SHA"
-            echo "production_sha=$FINAL_PRODUCTION_SHA"
-            echo "candidate_sha=$FINAL_CANDIDATE_SHA"
-            echo "release_pr=$FINAL_RELEASE_PR"
-            echo "validation_pr=$FINAL_VALIDATION_PR"
-            echo "builder_run_id=$FINAL_BUILDER_RUN_ID"
-            echo "exact_run_id=$FINAL_EXACT_RUN_ID"
-            echo "evidence_digest=$FINAL_EVIDENCE_DIGEST"
+            echo "main_sha=$RELEASE_CUT_SHA"
+            echo "current_main_sha=$FINAL_MAIN_SHA"
+            echo "production_sha=$PRODUCTION_SHA"
+            echo "candidate_sha=$CANDIDATE_SHA"
+            echo "release_pr=$RELEASE_PR"
+            echo "validation_pr=$VALIDATION_PR"
+            echo "builder_run_id=$BUILDER_RUN_ID"
+            echo "exact_run_id=$CERTIFIED_RUN_ID"
+            echo "evidence_digest=$EVIDENCE_DIGEST"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload convergence evidence
@@ -739,25 +442,21 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record request outcome
+      - name: Record request outcome without making comment transport authoritative
         if: always()
         shell: bash
         env:
-          MAIN_SHA: ${{ steps.converge.outputs.main_sha }}
-          PRODUCTION_SHA: ${{ steps.converge.outputs.production_sha }}
+          CONVERGENCE_OUTCOME: ${{ steps.converge.outcome }}
           CANDIDATE_SHA: ${{ steps.converge.outputs.candidate_sha }}
           RELEASE_PR: ${{ steps.converge.outputs.release_pr }}
           VALIDATION_PR: ${{ steps.converge.outputs.validation_pr }}
-          BUILDER_RUN_ID: ${{ steps.converge.outputs.builder_run_id }}
-          EXACT_RUN_ID: ${{ steps.converge.outputs.exact_run_id }}
-          EVIDENCE_DIGEST: ${{ steps.converge.outputs.evidence_digest }}
-          CONVERGENCE_OUTCOME: ${{ steps.converge.outcome }}
+          CURRENT_MAIN_SHA: ${{ steps.converge.outputs.current_main_sha }}
         run: |
-          set -euo pipefail
-          BODY="GOVERNED_PRODUCTION_PROMOTION_CONVERGENCE outcome=${CONVERGENCE_OUTCOME} run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID:-unresolved} exact_run_id=${EXACT_RUN_ID:-unresolved} main_sha=${MAIN_SHA:-unresolved} production_sha=${PRODUCTION_SHA:-unresolved} candidate_sha=${CANDIDATE_SHA:-unresolved} release_pr=${RELEASE_PR:-unresolved} validation_pr=${VALIDATION_PR:-unresolved} evidence_digest=${EVIDENCE_DIGEST:+sha256:}${EVIDENCE_DIGEST:-unresolved} merge_executed=false deployment_executed=false"
-          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
-          if [[ "$CONVERGENCE_OUTCOME" == "success" ]]; then
-            gh pr close "$REQUEST_PR" --repo "$REPOSITORY"
+          set -Eeuo pipefail
+          BODY="GOVERNED_PRODUCTION_RELEASE_CUT_CONVERGENCE outcome=${CONVERGENCE_OUTCOME} run_id=${GITHUB_RUN_ID} release_cut=${EXPECTED_HEAD_SHA} current_main=${CURRENT_MAIN_SHA:-unresolved} candidate=${CANDIDATE_SHA:-unresolved} release_pr=${RELEASE_PR:-unresolved} validation_pr=${VALIDATION_PR:-unresolved} main_tip_may_advance=true merge_executed=false deployment_executed=false"
+          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY" || echo "::warning::request evidence comment transport degraded"
+          if [[ "$CONVERGENCE_OUTCOME" == success ]]; then
+            gh pr close "$REQUEST_PR" --repo "$REPOSITORY" || echo "::warning::request surface cleanup degraded"
           fi
 
       - name: Publish summary
@@ -765,17 +464,17 @@ jobs:
         shell: bash
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Governed Production promotion convergence
+          ## Governed immutable Production release-cut convergence
 
           - outcome: \`${{ steps.converge.outcome }}\`
-          - main: \`${{ steps.converge.outputs.main_sha }}\`
-          - Production: \`${{ steps.converge.outputs.production_sha }}\`
+          - release cut: \`${{ steps.converge.outputs.main_sha || steps.source.outputs.release_cut_sha }}\`
+          - current main: \`${{ steps.converge.outputs.current_main_sha || steps.source.outputs.current_main_sha }}\`
+          - Production: \`${{ steps.converge.outputs.production_sha || steps.source.outputs.production_sha }}\`
           - candidate: \`${{ steps.converge.outputs.candidate_sha }}\`
-          - builder run: \`${{ steps.converge.outputs.builder_run_id }}\`
-          - exact validation run: \`${{ steps.converge.outputs.exact_run_id }}\`
+          - certified validation run: \`${{ steps.converge.outputs.exact_run_id }}\`
           - release PR: \`${{ steps.converge.outputs.release_pr }}\`
-          - validation PR: \`${{ steps.converge.outputs.validation_pr }}\`
-          - evidence digest: \`sha256:${{ steps.converge.outputs.evidence_digest }}\`
+          - main tip may advance: \`true\`
+          - Production must remain stable: \`true\`
           - merge executed: false
           - deployment executed: false
           EOF

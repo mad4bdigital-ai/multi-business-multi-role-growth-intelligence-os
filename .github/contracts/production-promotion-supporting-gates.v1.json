@@ -1,0 +1,75 @@
+{
+  "contract": "mad4b.production-promotion-supporting-gates.v1",
+  "version": 1,
+  "gates": [
+    {
+      "id": "frontend_surface_dispatch",
+      "label": "Frontend surface dispatch",
+      "workflow": "frontend-surface-dispatch.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {}
+    },
+    {
+      "id": "http_generic_api_fanout_relocation",
+      "label": "HTTP Generic API Fanout Relocation",
+      "workflow": "http-generic-api-fanout-relocation.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {
+        "scope": "scripts",
+        "max_files": "20",
+        "target_branch": "{{release_branch}}"
+      }
+    },
+    {
+      "id": "custom_gpt_contract_guard",
+      "label": "Custom GPT Contract Guard",
+      "workflow": "custom-gpt-contract-guard.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {
+        "drill_mode": "none"
+      }
+    },
+    {
+      "id": "platform_completion_cleanup_readback",
+      "label": "Platform Completion Cleanup Readback",
+      "workflow": "platform-completion-cleanup-readback.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {}
+    },
+    {
+      "id": "platform_remaining_scope_scorecard",
+      "label": "Platform Remaining Scope Scorecard",
+      "workflow": "platform-remaining-scope-scorecard.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {}
+    },
+    {
+      "id": "spec_011_delegation_mariadb_certification",
+      "label": "Spec 011 Delegation MariaDB Certification",
+      "workflow": "spec-011-delegation-mariadb-certification.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {}
+    }
+  ],
+  "safety": {
+    "production_merge": false,
+    "deployment": false,
+    "migration_apply": false,
+    "grant_apply": false,
+    "provider_mutation": false,
+    "credential_payload_read": false,
+    "secrets_included": false
+  }
+}

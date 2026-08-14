@@ -5,18 +5,20 @@ on:
     branches: [main]
     paths:
       - .github/workflows/production-promotion-candidate.yml
-      - .github/workflows/production-promotion-exact-candidate-validation.yml
+      - .github/workflows/production-certified-release-cut-validation.yml
       - .github/workflows/production-promotion-candidate-contract.yml
       - http-generic-api/test-production-promotion-candidate-workflow.mjs
       - docs/production-promotion-candidate-automation.md
+      - docs/production-promotion-release-cut-controller.md
   push:
     branches: [main]
     paths:
       - .github/workflows/production-promotion-candidate.yml
-      - .github/workflows/production-promotion-exact-candidate-validation.yml
+      - .github/workflows/production-certified-release-cut-validation.yml
       - .github/workflows/production-promotion-candidate-contract.yml
       - http-generic-api/test-production-promotion-candidate-workflow.mjs
       - docs/production-promotion-candidate-automation.md
+      - docs/production-promotion-release-cut-controller.md
 
 permissions:
   contents: read
@@ -36,7 +38,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Verify fail-closed Production candidate contract
+      - name: Verify fail-closed immutable Production release-cut candidate contract
         working-directory: http-generic-api
         run: node test-production-promotion-candidate-workflow.mjs
 
@@ -47,13 +49,18 @@ jobs:
           node - <<'NODE'
           const fs = require("node:fs");
           const evidence = {
-            schema_version: "production_promotion_candidate_contract.v2",
+            schema_version: "production_promotion_candidate_contract.v3",
             ok: true,
+            release_mode: "certified_release_cut",
             workflow: ".github/workflows/production-promotion-candidate.yml",
-            exact_validation_workflow: ".github/workflows/production-promotion-exact-candidate-validation.yml",
+            certified_validation_workflow: ".github/workflows/production-certified-release-cut-validation.yml",
             test: "http-generic-api/test-production-promotion-candidate-workflow.mjs",
-            pinned_validation_base_required: true,
-            exact_candidate_ci_required: true,
+            immutable_release_cut_required: true,
+            release_cut_first_parent_required: true,
+            candidate_tree_matches_release_cut_required: true,
+            release_cut_ancestor_of_current_main_required: true,
+            production_ref_stability_required: true,
+            main_tip_may_advance: true,
             merge_executed: false,
             deployment_executed: false,
             migration_executed: false,
@@ -64,7 +71,7 @@ jobs:
           fs.writeFileSync(process.env.RUNNER_TEMP + "/production-promotion-candidate-contract.json", JSON.stringify(evidence, null, 2) + "\n");
           NODE
           test -s "$RUNNER_TEMP/production-promotion-candidate-contract.json"
-          node -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.pinned_validation_base_required!==true || value.exact_candidate_ci_required!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
+          node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.release_mode!=="certified_release_cut" || value.immutable_release_cut_required!==true || value.production_ref_stability_required!==true || value.main_tip_may_advance!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
 
       - name: Upload contract evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
