@@ -2025,8 +2025,7 @@
     "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
     "http-generic-api/test-platform-configuration-resolver.mjs",
     "http-generic-api/test-platform-configuration-registry-adapter.mjs",
-    "http-generic-api/test-platform-legacy-configuration-adapter.mjs",
-    "http-generic-api/test-configuration-drift-guard.mjs"
+    "http-generic-api/test-platform-legacy-configuration-adapter.mjs"
   ],
   "suppressions": [],
   "safety": {
