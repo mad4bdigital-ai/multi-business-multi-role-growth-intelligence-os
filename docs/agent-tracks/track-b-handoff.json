@@ -2,9 +2,13 @@
   "contract": "mad4b.agent-track-handoff.v1",
   "track": "B",
   "title": "Database Lifecycle, Migrations, Readiness",
-  "branch": "agent/track-b-db-lifecycle-readiness",
+  "branch": "fix/track-b-db-lifecycle-readiness-governed",
+  "governed_successor_of": {
+    "branch": "agent/track-b-db-lifecycle-readiness",
+    "head_sha": "e9cbd128c7fdb17f3b650f2d48bbae02d7d7c726"
+  },
   "shared_base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
-  "observed_main_after_parallel_work_sha": "2033e0797775e8931f973ec298111b961f1f435e",
+  "observed_main_after_parallel_work_sha": "ea7dace76568ba5c8579dfea43654be7b3eff558",
   "cooperation_chain": [
     "Context Kernel",
     "Capability Manifest",
@@ -104,7 +108,7 @@
       "No-secret evidence payload boundary",
       "Focused no-apply contract tests",
       "migration/readiness manifest generator",
-    "Policy-bound autopilot eligibility remains review-only and fail-closed"
+      "Policy-bound autopilot eligibility remains review-only and fail-closed"
     ],
     "required_artifacts": {
       "readiness_manifest": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
