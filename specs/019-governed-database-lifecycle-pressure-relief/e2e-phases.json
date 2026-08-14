@@ -9,11 +9,28 @@
     "include": [
       "specs/019-governed-database-lifecycle-pressure-relief/**",
       "http-generic-api/databaseLifecyclePressureIntelligence.js",
+      "http-generic-api/databaseLifecycleMutationReadiness.js",
+      "http-generic-api/migrationReadinessManifest.js",
       "http-generic-api/scripts/database-lifecycle-pressure-intelligence.mjs",
       "http-generic-api/routes/platformEngineRoutes.js",
       "http-generic-api/test-database-lifecycle-pressure-intelligence.mjs",
+      "http-generic-api/databaseLifecycleReadiness.js",
+      "http-generic-api/runtimeBreakGlassReconciliationReadiness.js",
+      "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs",
+      "http-generic-api/scripts/track-b-local-validation.mjs",
+      "http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+      "http-generic-api/test-runtime-break-glass-reconciliation-readiness.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "scripts/repository-inventory-verification-gate.mjs",
+      "http-generic-api/test-database-lifecycle-mutation-readiness.mjs",
+      "http-generic-api/test-track-b-migration-readiness-manifest.mjs",
+      "http-generic-api/test-track-b-handoff-contract.mjs",
       "http-generic-api/test-spec019-database-lifecycle-contract.mjs",
-      "docs/issue-execution/spec019-lifecycle-gap-assessment-20260813.txt"
+      "docs/issue-execution/spec019-lifecycle-gap-assessment-20260813.txt",
+      "docs/agent-tracks/track-b-handoff.json",
+      "docs/agent-tracks/track-b-migration-checksum-readback-manifest.json",
+      "docs/agent-tracks/track-b-dry-run-evidence.json",
+      "docs/agent-tracks/track-b-rollback-matrix.json"
     ]
   },
   "merge_contract": {
@@ -34,15 +51,13 @@
           "terminal_outcome": "The lifecycle contract is complete, bounded, secret-free, and does not authorize runtime mutation.",
           "steps": [
             "Load the Spec 019 documents and JSON schemas.",
-            "Verify the lifecycle stages, domain decisions, authority boundaries, receipts, readback, and error taxonomy.",
-            "Reject arbitrary SQL, wildcard authority, silent retention, and destructive defaults.",
-            "Report deterministic contract validation without contacting Production."
+            "Verify lifecycle stages, domain decisions, authority boundaries, receipts, readback, and error taxonomy.",
+            "Reject arbitrary SQL, wildcard authority, silent retention, and destructive defaults."
           ],
           "assertions": [
-            "The Spec Kit contains specification, plan, tasks, data model, operations, research, threat model, checklists, contracts, E2E, and Work Map artifacts.",
             "Engine runs remain plan-only when retention policy is missing.",
             "Logical cleanup and physical reclaim are separate contracts.",
-            "No secrets or production mutation authority are included."
+            "No secrets or Production mutation authority are included."
           ],
           "tests": [
             {
@@ -64,7 +79,7 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Implement read-only pressure observation, domain classification, and deterministic lifecycle planning without database mutation.",
+      "objective": "Implement read-only pressure observation plus Track B authority/receipt/readback readiness, bounded non-production TTL rehearsal, supersession classification, and migration checksum/readback preflight without database mutation.",
       "e2e_journeys": [
         {
           "id": "validate-spec019-readonly-pressure-intelligence",
@@ -72,21 +87,15 @@
           "level": "synthetic_runtime",
           "actor": "platform admin read-only observer",
           "entrypoint": "GET /platform/engines/database-lifecycle/pressure-intelligence and pressure intelligence CLI",
-          "terminal_outcome": "The observer receives pressure metrics, largest tables, growth estimate, policy coverage, domain classifications, and immutable review plans; no write or execution authority is produced.",
+          "terminal_outcome": "The observer receives pressure metrics, domain classifications, policy coverage, and immutable review plans while write and execution authority remain absent.",
           "steps": [
             "Load bounded table and capacity observations through SELECT-only adapters.",
-            "Normalize and sort table evidence deterministically.",
-            "Classify response chunks, repo audit findings, engine runs, and unknown resources by domain semantics.",
-            "Resolve approved policy metadata or return a blocking policy result.",
-            "Build an immutable fingerprinted review plan with exact resource and recipe requirements.",
-            "Return read-only safety markers and separate logical cleanup versus physical reclaim estimates."
+            "Classify registered and unknown database resources by domain semantics.",
+            "Resolve approved policy metadata or return a blocking result and immutable plan."
           ],
           "assertions": [
-            "Missing quota yields capacity_unknown rather than an invented 100 percent pressure value.",
-            "Reordering candidates does not change plan fingerprint.",
             "Unknown retention and missing policy fail closed.",
-            "Engine execution runs remain execution_allowed=false without archive policy.",
-            "The collector executes SELECT-only SQL and always returns will_write=false and will_execute=false.",
+            "The collector remains SELECT-only with will_write=false and will_execute=false.",
             "No secrets are included."
           ],
           "tests": [
@@ -101,8 +110,82 @@
           "evidence_paths": [
             "http-generic-api/databaseLifecyclePressureIntelligence.js",
             "http-generic-api/routes/platformEngineRoutes.js",
-            "specs/019-governed-database-lifecycle-pressure-relief/contracts/lifecycle-plan.schema.json",
-            "specs/019-governed-database-lifecycle-pressure-relief/operation-paths.md"
+            "specs/019-governed-database-lifecycle-pressure-relief/contracts/lifecycle-plan.schema.json"
+          ]
+        },
+        {
+          "id": "validate-spec019-track-b-readiness-and-dry-run",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Track B database lifecycle readiness reviewer",
+          "entrypoint": "databaseLifecycleMutationReadiness, migrationReadinessManifest, and Track B evidence manifests",
+          "terminal_outcome": "Exact authority/approval/lease/receipt/readback evidence, bounded TTL rehearsal, supersession classification, and pinned 012/1043 migration preflight can be validated deterministically while Final Authority, execution, migration apply, database mutation, provider invocation, runtime consumers, and Production mutation remain disabled.",
+          "steps": [
+            "Validate exact database_table resource authority evidence, registered recipe identity, plan fingerprint, capability envelope, execution lease, typed approval, and expiry without granting Final Authority.",
+            "Require durable receipt persistence, idempotency, unknown-outcome reconciliation, and same-cycle authoritative readback before any future retry.",
+            "Build immutable-cutoff response-chunk TTL dry-run batches that preserve non-expired and post-plan rows and keep physical reclaim observation-only.",
+            "Classify repository-audit supersession only for completed-parent, strictly newer same-file observations and reject concurrent newer observations until re-read and re-plan.",
+            "Verify pinned checksum, source identity, statement count, ledger, expected objects, and same-cycle readback contracts for the existing 012 connection-ownership migration and Migration 1043.",
+            "Verify the Track B handoff keeps job runner, autopilot, archive/thin, physical reclaim execution, provider calls, runtime consumers, migration apply, database mutation, and Production mutation disabled."
+          ],
+          "assertions": [
+            "Track B consumes authority evidence but does not grant Final Authority.",
+            "Wildcard or unknown resources, expired evidence, missing receipts/readback, and Production environment requests fail closed.",
+            "Unknown outcomes never permit blind retry.",
+            "No live non-production TTL or supersession database mutation is executed by this phase.",
+            "F/G/H/I execution follow-ups remain separate or disabled.",
+            "migration_applied=false and database_mutated=false remain explicit in the handoff evidence."
+          ],
+          "tests": [
+            {
+              "id": "spec019-mutation-readiness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-lifecycle-mutation-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "spec019-track-b-readiness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-lifecycle-readiness-track-b.mjs",
+              "args": []
+            },
+            {
+              "id": "spec019-runtime-break-glass-readiness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-break-glass-reconciliation-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "spec019-migration-readiness-manifest-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-track-b-migration-readiness-manifest.mjs",
+              "args": []
+            },
+            {
+              "id": "spec019-track-b-handoff-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-track-b-handoff-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseLifecycleMutationReadiness.js",
+            "http-generic-api/databaseLifecycleReadiness.js",
+            "http-generic-api/runtimeBreakGlassReconciliationReadiness.js",
+            "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs",
+            "http-generic-api/scripts/track-b-local-validation.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "scripts/repository-inventory-verification-gate.mjs",
+            "http-generic-api/migrationReadinessManifest.js",
+            "docs/agent-tracks/track-b-handoff.json",
+            "docs/agent-tracks/track-b-migration-checksum-readback-manifest.json",
+            "docs/agent-tracks/track-b-dry-run-evidence.json",
+            "docs/agent-tracks/track-b-rollback-matrix.json"
           ]
         }
       ]
@@ -110,18 +193,17 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Add exact authority, durable receipts, bounded execution, reconciliation, and preservation-invariant tests."
+      "objective": "Run separately authorized live reconciliation and preservation-invariant failure testing before any execution surface is enabled."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Run the response-chunk pilot in non-production with fixed cutoff, readback, and rollback evidence."
+      "objective": "Run a separately authorized response-chunk live non-production pilot with fixed cutoff, receipts, same-cycle readback, and rollback evidence."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Promote only after staging/canary/readback, security, performance, migration, and owner approval gates."
+      "objective": "Promote only after staging/canary/readback, security, performance, migration, owner approval, and Track A Final Authority gates."
     }
-  ],
-  "secrets_included": false
+  ]
 }

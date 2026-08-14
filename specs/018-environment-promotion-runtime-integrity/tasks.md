@@ -34,13 +34,13 @@
 - [x] D04 Reject unrestricted local shell/filesystem mutation as break-glass substitute.
 - [x] D05 Record post-change hashes/readback for applied local patch.
 - [x] D06 Require runtime verification before reconciliation state.
-- [ ] D07 Require governed Git representation of the fix.
-- [ ] D08 Require merge/commit reachability on `main` and staging verification.
-- [ ] D09 Require promotion to `Production` through normal governed promotion.
-- [ ] D10 Require clean redeploy from exact `Production` SHA.
-- [ ] D11 Block `CLOSED` until clean runtime readback and no unreconciled local differences remain.
-- [ ] D12 Support governed rollback state and evidence.
-- [ ] D13 Add expiry, replay, stale evidence, and incomplete-reconciliation tests.
+- [x] D07 Define Track B evidence that requires a governed Git representation of the fix, exact commit binding, and bounded path-hash coverage; no Git write is performed by Track B.
+- [x] D08 Define fresh `main` reachability and staging-verification evidence for the exact fix commit; runtime state-transition enforcement remains Track A.
+- [x] D09 Define evidence that Production promotion occurred only through the normal governed promotion flow; Track B does not promote or write protected branches.
+- [x] D10 Define clean-redeploy evidence binding the deployed runtime to the exact governed `Production` SHA; Track B does not deploy.
+- [x] D11 Define fail-closed closure-readiness evidence requiring clean runtime readback and zero unreconciled local differences; Track B does not activate `CLOSED` runtime transitions.
+- [x] D12 Define governed rollback rehearsal/evidence requirements, including scope, pre-change hash restoration, and clean readback; no live rollback is executed by Track B.
+- [x] D13 Add expiry, replay, stale-evidence, incomplete-reconciliation, and rollback-readiness tests for the Track B evidence contract.
 
 ## E. Canonical Resource Registry
 - [x] E01 Design additive `canonical_resource_registry` schema or approved equivalent.
