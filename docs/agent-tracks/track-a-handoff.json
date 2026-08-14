@@ -3,8 +3,8 @@
   "track": "A",
   "name": "authority-context-durable-runtime",
   "branch": "agent/track-a-authority-runtime",
-  "base_main_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
-  "current_commit": "17793fcd17d280d3c5b0f3691d6c54a61c45e82d",
+  "base_main_sha": "d1c59d0b3351a192ff9458675b51376f5c8cb49a",
+  "current_commit": "95ccd4dac6ecf6ff595ddfaca7dbea2a2d0af0b8",
   "status": "bounded_context_integrity_and_durable_shadow_slice_complete",
   "context_slice": {
     "regression_test": "http-generic-api/test-context-kernel-integrity-regression.mjs",
