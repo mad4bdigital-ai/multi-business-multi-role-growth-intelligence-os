@@ -3,10 +3,10 @@
   "track": "A",
   "title": "Authority, Context, Durable Runtime — governed successor v2",
   "branch": "fix/track-a-authority-runtime-governed-v2",
-  "base_main_sha": "5b8159feea4cde2b9501e81972a28a5cf4334254",
-  "pre_handoff_sync_head_sha": "99c0b92eda76b56081f52c1c1a286d9c1e8293f1",
   "pr": 7145,
   "state": "draft",
+  "base_main_sha": "3ea875a7d267d7062a823be80d2e7650355e444c",
+  "last_completed_sync_head_sha": "a1a2f6f6687731e0786a015153b17efa8edc1730",
   "reconciliation": {
     "track_b": {
       "pr": 7136,
@@ -17,24 +17,22 @@
     },
     "parallel_old_track_a": {
       "pr": 7122,
-      "status": "merged_in_parallel_after_successor_work_started",
+      "status": "merged_into_main",
       "merge_commit_sha": "81d4d1024a20f23f06858f438bf04d42c6d7d8ce",
       "historical_handoff_preserved": "docs/agent-tracks/track-a-handoff.json",
-      "context_integrity_test_now_inherited_from_main": true,
-      "generated_artifacts_now_inherited_from_main": true,
       "successor_modifies_inherited_generated_artifacts": false
     },
-    "superseded_successor": {
-      "pr": 7141,
-      "status": "closed_unmerged"
-    },
-    "failed_conflict_sync": {
-      "pr": 7143,
-      "status": "closed_unmerged",
+    "superseded_or_conflicted_prs": [7141, 7143],
+    "successful_sync_prs": [7146, 7153, 7157, 7158],
+    "parallel_successor_merge": {
+      "observed_head": "700836668a6220d2e5a16f87f818ad231be9ed0a",
+      "compatible_addition": "http-generic-api/authorityGovernanceEvidenceGate.js",
+      "canonical_e2e_conflict_detected": true,
+      "canonical_e2e_conflict_reconciled": true,
+      "reconciliation_commit": "4ef48d1a854d656e5676ff77c91e0d5638d2d592",
       "force_push_used": false,
       "low_level_git_conflict_bypass_used": false
-    },
-    "successful_sync_prs": [7146, 7153, 7157]
+    }
   },
   "cooperation_chain": [
     "Context Kernel",
@@ -49,11 +47,13 @@
     "Surface Projection"
   ],
   "current_slice": {
-    "status": "mvp_read_only_composition_t043_and_t032_t034_closed_pending_post_handoff_exact_head_revalidation",
+    "status": "bounded_read_only_composition_projection_and_machine_evidence_gates_complete_pending_final_exact_head_validation",
     "composition_module": "http-generic-api/governedExecutionRuntimeComposition.js",
     "composition_test": "http-generic-api/test-governed-execution-runtime-composition.mjs",
     "projection_compiler": "http-generic-api/authorityProjectionCompiler.js",
     "projection_test": "http-generic-api/test-authority-projection-compiler.mjs",
+    "authority_governance_evidence_gate": "http-generic-api/authorityGovernanceEvidenceGate.js",
+    "authority_governance_evidence_test": "http-generic-api/test-authority-governance-evidence-gate.mjs",
     "context_integrity_regression": {
       "path": "http-generic-api/test-context-kernel-integrity-regression.mjs",
       "source": "inherited_from_main_via_pr_7122"
@@ -72,44 +72,10 @@
     "migration_applied": false,
     "secrets_included": false
   },
-  "validated_closure_evidence": {
-    "exact_head_sha": "39075a6d2d8f6f284356dba8d2026671c59dd80b",
-    "base_main_sha": "4b83321c88d19bfdfa9e8681fde2404abf8e1c3f",
-    "behind_by": 0,
-    "e2e_phase_contract_evaluation": "passed",
-    "e2e_current_phase_journeys": "passed",
-    "syntax_check": "passed",
-    "repository_inventory": "passed",
-    "repository_evaluation": "passed_read_only_bootstrap_convergence",
-    "ueacp_operational_contract": "passed",
-    "ueacp_live_read_only_cycle": "skipped_on_pull_request",
-    "work_map_semantic_validation": "passed_before_generated_currentness_gate",
-    "work_map_generated_currentness": {
-      "status": "repair_candidate_only",
-      "changed_files": [
-        "docs/work-maps/README.md",
-        "docs/work-maps/repository-automation-map.md"
-      ],
-      "remote_write_executed": false,
-      "feature_source_defect": false
-    },
-    "note": "This evidence closed T032-T034. A later generated-only main advance was synchronized through PR #7157; post-handoff exact-head revalidation remains required."
-  },
   "ueacp_t043": {
     "task": "T043 Add graph inheritance/restriction property tests",
-    "implementation_test": "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
     "task_ledger_closed": true,
-    "coverage": [
-      "determinism_under_input_permutation",
-      "cycle_deduplication",
-      "deny_wins_before_inheritance",
-      "wildcard_and_operation_specific_restrictions",
-      "expired_and_revoked_restrictions",
-      "cross_tenant_contamination_fail_closed",
-      "depth_bound",
-      "inheritance_policy_allowlist",
-      "root_restriction_terminal_block"
-    ]
+    "implementation_test": "http-generic-api/test-context-kernel-resource-graph-properties.mjs"
   },
   "ueacp_projection_closure": {
     "tasks": [
@@ -123,14 +89,6 @@
     "canonical_journey": "shared-authority-projection-compiler-closure",
     "shared_compiler_only": true,
     "surface_specific_policy_engines_created": false,
-    "dynamic_tabs_from_projection_eligibility": true,
-    "dashboard_from_projection_eligibility": true,
-    "tool_catalog_visibility_separate_from_action_eligibility": true,
-    "action_eligibility_requires": [
-      "decision_ready_or_canary_ready",
-      "projectionEligibility.execution=true",
-      "readiness.execution=ready"
-    ],
     "action_eligible_implies_execution_authorized": false,
     "hidden_candidate_existence_leak_blocked": true,
     "ineligible_expired_or_stale_candidates_inspected": false,
@@ -148,23 +106,15 @@
     "database_mutated": false,
     "secrets_included": false
   },
-  "composition_contract": {
-    "requires_explicit_authoritative_final_authority": true,
-    "rejects_shadow_only_authority": true,
-    "rejects_legacy_runtime_authoritative_evidence": true,
-    "rejects_context_hash_drift": true,
-    "rejects_provider_call_evidence": true,
-    "rejects_external_write_evidence": true,
-    "rejects_database_mutation_evidence": true,
-    "rejects_credential_payload_read_evidence": true,
-    "rejects_secret_inclusion_evidence": true,
-    "caller_identity_forwarded_beyond_context_resolution": false,
-    "read_only_surface_projection_supported": true,
-    "mutation_surface_projection_supported": false
-  },
   "authority_governance_evidence_gate": {
-    "contract": "http-generic-api/authorityGovernanceEvidenceGate.js",
+    "contract": "mad4b.ueacp.authority-governance-evidence-gate.v1",
+    "module": "http-generic-api/authorityGovernanceEvidenceGate.js",
     "test": "http-generic-api/test-authority-governance-evidence-gate.mjs",
+    "path_inventory_contract_required": true,
+    "read_only_catalog_census_required": true,
+    "expected_source_set_required": true,
+    "expected_source_set_must_match_inventory_binding": true,
+    "inventory_human_review_readiness_required": true,
     "t001_machine_ready_only": true,
     "t002_machine_ready_only": true,
     "t001_complete": false,
@@ -178,6 +128,13 @@
     "database_mutated": false,
     "secrets_included": false
   },
+  "canonical_e2e_reconciliation": {
+    "duplicate_scope_entries_removed": true,
+    "authority_governance_gate_evidence_paths_bound": true,
+    "t001_t002_auto_closure_allowed": false,
+    "projection_journey_preserved": true,
+    "t043_journey_preserved": true
+  },
   "live_authority_assessment": {
     "ueacp": {
       "completion_status": "in_progress",
@@ -188,11 +145,6 @@
     "canonical_execution_contract_resolver": {
       "path": "http-generic-api/canonicalExecutionContractResolver.js",
       "classification": "shadow_preflight_only",
-      "accepted_as_final_authority": false
-    },
-    "governed_execution_preflight": {
-      "path": "http-generic-api/governedExecutionPreflight.js",
-      "classification": "policy_and_resource_preflight_component",
       "accepted_as_final_authority": false
     },
     "dynamic_resource_authority": {
@@ -220,14 +172,6 @@
     "t055_blocked_by_measurement_and_approval": true,
     "live_authority_workflow_dispatch_history_count": 0
   },
-  "blocking_gates_before_operational_binding": [
-    "Repository-canonical platform-wide Final Authority implementation must be separately identified, implemented, or certified; shadow-only evidence cannot be promoted by composition code.",
-    "Final Authority must expose explicit authoritative=true and allowed=true semantics bound to resolved Context and Plan.",
-    "T024 must establish the approved invalidation/data foundation before T050/T051 consumers are implemented.",
-    "Operational wiring must preserve plan-before-credential and exact connection binding without allowing this composition layer to select a connection.",
-    "Durable execution and readback bindings require focused operational tests before runtime consumer enablement.",
-    "Mutation cutover requires separate authorization, parity, rollback, migration/readback, and non-production evidence."
-  ],
   "handoff_to_track_c": {
     "composition_contract_available": true,
     "composition_module": "http-generic-api/governedExecutionRuntimeComposition.js",
@@ -236,6 +180,7 @@
     "projection_compiler": "http-generic-api/authorityProjectionCompiler.js",
     "may_render_projection_output": true,
     "may_treat_projection_action_eligibility_as_execution_authority": false,
+    "may_treat_machine_evidence_readiness_as_final_authority": false,
     "may_treat_shadow_authority_as_final": false,
     "may_bind_canonical_execution_contract_resolver_as_final_authority": false,
     "may_treat_growth_control_final_boundary_as_global_authority": false,
