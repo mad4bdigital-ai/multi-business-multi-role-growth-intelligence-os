@@ -165,6 +165,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-runtime-parity-evidence.yml`
 - `.github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml`
 - `.github/workflows/remote-mcp-oauth-path-format-guard.yml`
+- `.github/workflows/remote-mcp-write-scope-verification.yml`
 - `.github/workflows/repository-evaluation.yml`
 - `.github/workflows/repository-inventory-autofix-dispatch.yml`
 - `.github/workflows/repository-inventory.yml`
