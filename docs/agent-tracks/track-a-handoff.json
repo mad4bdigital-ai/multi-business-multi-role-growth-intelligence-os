@@ -39,13 +39,33 @@
     "runtime_authority_enabled": false,
     "secrets_included": false
   },
+  "upstream_dependencies": [
+    {
+      "track": "B",
+      "required_before_authoritative_merge": true,
+      "known_branch_sha": "7ff342d7020671ace76170b8b6da7dce4d5d39ce",
+      "status": "not_merged",
+      "required_evidence": [
+        "approved-environment migration preflight",
+        "same-cycle schema readback",
+        "rollback and reconciliation rehearsal"
+      ]
+    }
+  ],
   "integration_contract": {
     "context_before_plan": true,
     "plan_before_approval_or_dispatch": true,
     "durable_receipt_before_mutation": true,
     "read_before_retry_after_unknown_outcome": true,
     "no_arbitrary_candidate_selection": true,
-    "legacy_direct_delegation_default_off": true
+    "legacy_direct_delegation_default_off": true,
+    "final_authority_to_durable_to_adapter_to_readback": true,
+    "track_b_readiness_binding_required": true
+  },
+  "generated_artifacts": {
+    "status": "mechanically_refreshed_for_repository_gates",
+    "final_integration_owner": "integration-branch",
+    "must_be_regenerated_after": ["track-b-merge", "track-a-rebase", "track-c-merge"]
   },
   "required_next_steps": [
     "rebase on current integration main before PR review",
