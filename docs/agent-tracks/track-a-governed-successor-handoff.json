@@ -111,6 +111,22 @@
     "read_only_surface_projection_supported": true,
     "mutation_surface_projection_supported": false
   },
+  "authority_governance_evidence_gate": {
+    "contract": "http-generic-api/authorityGovernanceEvidenceGate.js",
+    "test": "http-generic-api/test-authority-governance-evidence-gate.mjs",
+    "t001_machine_ready_only": true,
+    "t002_machine_ready_only": true,
+    "t001_complete": false,
+    "t002_complete": false,
+    "human_review_required": true,
+    "live_catalog_readback_required": true,
+    "migration_authorized": false,
+    "runtime_enforcement_enabled": false,
+    "provider_calls": false,
+    "external_writes": false,
+    "database_mutated": false,
+    "secrets_included": false
+  },
   "live_authority_assessment": {
     "ueacp": {
       "completion_status": "in_progress",

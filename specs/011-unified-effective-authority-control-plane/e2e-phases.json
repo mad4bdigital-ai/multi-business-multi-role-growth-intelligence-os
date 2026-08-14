@@ -11,6 +11,8 @@
       ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/authorityGovernanceEvidenceGate.js",
+      "http-generic-api/test-authority-governance-evidence-gate.mjs",
       "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
@@ -56,6 +58,13 @@
             "No live collector, SQL, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or task closure occurs."
           ],
           "tests": [
+            {
+              "id": "authority-governance-evidence-gate",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-governance-evidence-gate.mjs",
+              "args": []
+            },
             {
               "id": "authority-evidence-repository-candidate-builder",
               "runner": "node",
@@ -121,6 +130,8 @@
             ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
             "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
             "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+            "http-generic-api/authorityGovernanceEvidenceGate.js",
+            "http-generic-api/test-authority-governance-evidence-gate.mjs",
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
           ]
