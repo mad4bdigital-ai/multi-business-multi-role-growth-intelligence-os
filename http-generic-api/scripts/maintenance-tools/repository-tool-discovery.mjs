@@ -61,6 +61,11 @@ function discoveryConfig(policy) {
   };
 }
 
+function hasProcessExecutionCapability(content) {
+  const source = String(content || "");
+  return /node:child_process|(?:^|[^A-Za-z0-9_])child_process(?:[^A-Za-z0-9_]|$)|\bsubprocess\s*\.|\bsubprocess\s+import\b|\bimport\s+subprocess\b/imu.test(source);
+}
+
 function mutationSignals(content) {
   const source = String(content || "");
   const signals = [];
@@ -69,6 +74,16 @@ function mutationSignals(content) {
   if (/\bgh\s+(?:pr\s+merge|workflow\s+(?:run|enable|disable))\b/iu.test(source)) signals.push("gh_mutation");
   if (/github\.rest\.[A-Za-z0-9_.]+\.(?:create|update|delete|merge|dispatch|rerun|cancel|enable|disable)[A-Za-z0-9_]*\s*\(/iu.test(source)) signals.push("github_rest_mutation");
   if (/\bcurl\b[^\n]*(?:-X|--request)\s*(?:POST|PUT|PATCH|DELETE)\b[^\n]*api\.github\.com/iu.test(source)) signals.push("github_api_curl_write");
+
+  const nodeProcessGitPush = /(?:spawnSync|spawn|execFileSync|execFile|execFileAsync|run)\s*\(\s*(?:["'][^"'\r\n]+["']\s*,\s*)?["']git["']\s*,\s*\[[\s\S]{0,1200}?["']push["']/iu;
+  const nodeProcessGhMutation = /(?:spawnSync|spawn|execFileSync|execFile|execFileAsync|run)\s*\(\s*(?:["'][^"'\r\n]+["']\s*,\s*)?["']gh["']\s*,\s*\[[\s\S]{0,1800}?(?:["']pr["']\s*,\s*["']merge["']|["']workflow["']\s*,\s*["'](?:run|enable|disable)["']|["']api["'][\s\S]{0,1000}?(?:["'](?:--method|-X)["']\s*,\s*["'](?:POST|PUT|PATCH|DELETE)["']|["'](?:-f|--field|--raw-field)["']))/iu;
+  const pythonGitPush = /subprocess\.(?:run|call|check_call|check_output|Popen)\s*\(\s*\[\s*["']git["']\s*,\s*["']push["']/iu;
+  const pythonGhMutation = /subprocess\.(?:run|call|check_call|check_output|Popen)\s*\(\s*\[\s*["']gh["']\s*,[\s\S]{0,1400}?(?:["']pr["']\s*,\s*["']merge["']|["']workflow["']\s*,\s*["'](?:run|enable|disable)["']|["']api["'][\s\S]{0,800}?["'](?:--method|-X|-f|--field|--raw-field)["'])/iu;
+
+  if (nodeProcessGitPush.test(source)) signals.push("programmatic_git_push");
+  if (nodeProcessGhMutation.test(source)) signals.push("programmatic_gh_mutation");
+  if (pythonGitPush.test(source)) signals.push("python_git_push");
+  if (pythonGhMutation.test(source)) signals.push("python_gh_mutation");
   return [...new Set(signals)];
 }
 
@@ -129,22 +144,27 @@ export async function discoverRepositoryTools({
       content = await readText(path);
     } catch {
       findings.push(finding("UNREADABLE_DISCOVERED_TOOL", path, "Discovered repository tool must be readable for lifecycle classification."));
-      catalog.push({ path, root: root?.path || null, classification: "unreadable", authority_registered: Boolean(registration), changed: changedSet.has(path), central_inventory_status: inventorySet.has(path) ? "indexed" : "pending_refresh", mutation_signals: [] });
+      catalog.push({ path, root: root?.path || null, classification: "unreadable", authority_registered: Boolean(registration), changed: changedSet.has(path), central_inventory_status: inventorySet.has(path) ? "indexed" : "pending_refresh", mutation_signals: [], process_execution_capable: false });
       continue;
     }
 
     const signals = mutationSignals(content);
     const mutating = signals.length > 0;
+    const processExecutionCapable = hasProcessExecutionCapability(content);
     let classification = "auto_catalogued_read_only";
     if (registration) classification = registration.mode === "mutating" ? "registered_mutating" : "registered_read_only";
     else if (root?.registration === "explicit_registry_required") classification = "unregistered_governed_tool";
     else if (mutating) classification = changedSet.has(path) ? "unregistered_mutating_changed" : "legacy_unregistered_mutating";
+    else if (processExecutionCapable && changedSet.has(path)) classification = "unregistered_process_capable_changed";
 
     if (!registration && root?.registration === "explicit_registry_required") {
       findings.push(finding("DISCOVERED_TOOL_REQUIRES_REGISTRY", path, "Every reusable tool under the governed maintenance-tool root must have an explicit authority-registry entry."));
     }
     if (!registration && mutating && root?.registration === "auto_catalog_read_only" && changedSet.has(path) && config.mutating_unregistered_changed_fails) {
       findings.push(finding("MUTATING_TOOL_OUTSIDE_GOVERNED_ROOT", path, "A new or changed repository-mutating helper may not rely on auto-cataloguing; move it under the governed maintenance-tool root and register explicit mutation authority."));
+    }
+    if (!registration && !mutating && processExecutionCapable && root?.registration === "auto_catalog_read_only" && changedSet.has(path)) {
+      findings.push(finding("UNREGISTERED_PROCESS_CAPABLE_HELPER", path, "A new or changed helper with child-process execution capability cannot be proven read-only by static discovery; register it explicitly before merge."));
     }
     if (registration?.mode === "read_only" && mutating) {
       findings.push(finding("DISCOVERY_MODE_MISMATCH", path, `Registered read-only tool ${registration.key} exposes repository-mutation signals: ${signals.join(", ")}.`));
@@ -160,6 +180,7 @@ export async function discoverRepositoryTools({
       changed: changedSet.has(path),
       central_inventory_status: inventorySet.has(path) ? "indexed" : "pending_refresh",
       mutation_signals: signals,
+      process_execution_capable: processExecutionCapable,
     });
   }
 
@@ -176,6 +197,7 @@ export async function discoverRepositoryTools({
     registered_tools: catalog.filter((item) => item.authority_registered).length,
     auto_catalogued_read_only: catalog.filter((item) => item.classification === "auto_catalogued_read_only").length,
     unregistered_mutating_changed: catalog.filter((item) => item.classification === "unregistered_mutating_changed").length,
+    unregistered_process_capable_changed: catalog.filter((item) => item.classification === "unregistered_process_capable_changed").length,
     legacy_unregistered_mutating: catalog.filter((item) => item.classification === "legacy_unregistered_mutating").length,
     central_inventory_pending_refresh: catalog.filter((item) => item.central_inventory_status === "pending_refresh").length,
   };
@@ -194,7 +216,7 @@ export async function discoverRepositoryTools({
       role: "coverage_reference_not_execution_authority",
     },
     authority_source: ".github/repository-maintenance-tool-governance.json",
-    authority_rule: "read_only_helpers_auto_catalogued; mutating_or_governed_maintenance_tools_require_explicit_registry",
+    authority_rule: "read_only_helpers_auto_catalogued; process-capable, mutating, or governed maintenance tools require explicit registry when changed",
     counts,
     catalog,
     findings,
@@ -209,7 +231,7 @@ function renderMarkdown(report) {
   const rows = report.findings.length
     ? report.findings.map((item) => `| ${item.code} | \`${item.path}\` | ${item.message} |`).join("\n")
     : "| none | — | Live discovery and central-inventory coverage satisfy the lifecycle contract. |";
-  return `# Repository Tool Discovery\n\n- Contract: \`${report.contract}\`\n- Candidate SHA: \`${report.candidate_sha || "n/a"}\`\n- Result: **${report.ok ? "PASS" : "FAIL"}**\n- Discovery source: live Git index\n- Central inventory role: coverage reference, not execution authority\n- Discovered tools: ${report.counts.discovered_tools}\n- Explicitly registered: ${report.counts.registered_tools}\n- Auto-catalogued read-only: ${report.counts.auto_catalogued_read_only}\n- Changed unregistered mutating: ${report.counts.unregistered_mutating_changed}\n- Central inventory pending refresh: ${report.counts.central_inventory_pending_refresh}\n- Repository mutation executed: no\n- Secrets included: no\n\n| Code | Path | Finding |\n|---|---|---|\n${rows}\n`;
+  return `# Repository Tool Discovery\n\n- Contract: \`${report.contract}\`\n- Candidate SHA: \`${report.candidate_sha || "n/a"}\`\n- Result: **${report.ok ? "PASS" : "FAIL"}**\n- Discovery source: live Git index\n- Central inventory role: coverage reference, not execution authority\n- Discovered tools: ${report.counts.discovered_tools}\n- Explicitly registered: ${report.counts.registered_tools}\n- Auto-catalogued read-only: ${report.counts.auto_catalogued_read_only}\n- Changed unregistered mutating: ${report.counts.unregistered_mutating_changed}\n- Changed unregistered process-capable: ${report.counts.unregistered_process_capable_changed}\n- Central inventory pending refresh: ${report.counts.central_inventory_pending_refresh}\n- Repository mutation executed: no\n- Secrets included: no\n\n| Code | Path | Finding |\n|---|---|---|\n${rows}\n`;
 }
 
 async function liveTrackedPaths() {

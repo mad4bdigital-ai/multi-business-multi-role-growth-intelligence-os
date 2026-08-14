@@ -67,6 +67,42 @@ const mutating = await run({
 assert.equal(mutating.ok, false);
 assert(mutating.findings.some((item) => item.code === "MUTATING_TOOL_OUTSIDE_GOVERNED_ROOT"));
 
+const programmaticMutator = ".github/scripts/programmatic-writer.mjs";
+const programmatic = await run({
+  tracked: [guardTool, discoveryTool, programmaticMutator],
+  changed: [{ status: "A", path: programmaticMutator }],
+  contents: {
+    [programmaticMutator]: `import { spawnSync } from "node:child_process";\nspawnSync("git", ["push", "origin", "HEAD:work"]);\n`,
+  },
+});
+assert.equal(programmatic.ok, false);
+assert(programmatic.findings.some((item) => item.code === "MUTATING_TOOL_OUTSIDE_GOVERNED_ROOT"));
+assert(programmatic.catalog.find((item) => item.path === programmaticMutator)?.mutation_signals.includes("programmatic_git_push"));
+
+const indirectProcessHelper = ".github/scripts/indirect-process-helper.mjs";
+const indirectProcess = await run({
+  tracked: [guardTool, discoveryTool, indirectProcessHelper],
+  changed: [{ status: "A", path: indirectProcessHelper }],
+  contents: {
+    [indirectProcessHelper]: `import { execFile } from "node:child_process";\nconst command = process.env.RUNTIME_COMMAND;\nexecFile(command, []);\n`,
+  },
+});
+assert.equal(indirectProcess.ok, false);
+assert(indirectProcess.findings.some((item) => item.code === "UNREGISTERED_PROCESS_CAPABLE_HELPER"));
+assert.equal(indirectProcess.catalog.find((item) => item.path === indirectProcessHelper)?.classification, "unregistered_process_capable_changed");
+
+const pythonMutator = ".github/scripts/programmatic-writer.py";
+const pythonProgrammatic = await run({
+  tracked: [guardTool, discoveryTool, pythonMutator],
+  changed: [{ status: "A", path: pythonMutator }],
+  contents: {
+    [pythonMutator]: `import subprocess\nsubprocess.run(["git", "push", "origin", "HEAD:work"], check=True)\n`,
+  },
+});
+assert.equal(pythonProgrammatic.ok, false);
+assert(pythonProgrammatic.findings.some((item) => item.code === "MUTATING_TOOL_OUTSIDE_GOVERNED_ROOT"));
+assert(pythonProgrammatic.catalog.find((item) => item.path === pythonMutator)?.mutation_signals.includes("python_git_push"));
+
 const unregistered = "http-generic-api/scripts/maintenance-tools/new-reader.mjs";
 const unregisteredGoverned = await run({
   tracked: [guardTool, discoveryTool, unregistered],
@@ -111,12 +147,14 @@ assert.equal(legacy.ok, true);
 assert.equal(legacy.catalog.find((item) => item.path === legacyMutator)?.classification, "legacy_unregistered_mutating");
 
 console.log(JSON.stringify({
-  contract: "mad4b.repository-tool-discovery-regression.v1",
+  contract: "mad4b.repository-tool-discovery-regression.v2",
   ok: true,
-  cases: 7,
+  cases: 10,
   live_git_discovery: true,
   central_inventory_coverage: true,
   read_only_auto_catalog: true,
+  programmatic_process_mutation_detection: true,
+  unknown_process_capability_fails_closed_when_changed: true,
   mutating_requires_explicit_registry: true,
   repository_mutation_executed: false,
   secrets_included: false,
