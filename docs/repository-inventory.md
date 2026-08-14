@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,895 |
-| Total bytes | 64,095,764 |
-| Counted text lines | 1,513,900 |
+| Tracked files | 6,900 |
+| Total bytes | 64,110,950 |
+| Counted text lines | 1,514,246 |
 | Directories | 259 |
 | Categories | 13 |
 
@@ -17,9 +17,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,076 |
-| `documentation` | 1,883 |
-| `api-runtime` | 1,387 |
+| `tests-and-specs` | 2,077 |
+| `documentation` | 1,884 |
+| `api-runtime` | 1,390 |
 | `database-migrations` | 778 |
 | `root-and-other` | 239 |
 | `ci-workflows` | 157 |
@@ -35,12 +35,12 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,478 |
-| `.mjs` | 1,601 |
+| `.md` | 2,479 |
+| `.mjs` | 1,602 |
 | `.js` | 969 |
 | `.sql` | 793 |
 | `.json` | 712 |
-| `.yml` | 159 |
+| `.yml` | 160 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
 | `.cs` | 14 |
@@ -48,16 +48,17 @@ This report is generated deterministically from the Git index. It is intentional
 | `.txt` | 7 |
 | `.py` | 5 |
 | `.ps1` | 5 |
+| `.example` | 3 |
 | `.css` | 3 |
 | `.csproj` | 2 |
 | `.toml` | 2 |
-| `.example` | 2 |
 | `.gitattributes` | 1 |
 | `.gitignore` | 1 |
 | `.nvmrc` | 1 |
 | `.manifest` | 1 |
 | `.jsonl` | 1 |
 | `.htaccess` | 1 |
+| `.dockerignore` | 1 |
 | `.gcloudignore` | 1 |
 | `[no extension]` | 1 |
 | `.png` | 1 |
@@ -72,7 +73,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 157 |
 | Database migrations | 778 |
 | API/OpenAPI contracts | 152 |
-| Test/spec files (paths) | 2,142 |
+| Test/spec files (paths) | 2,143 |
 | package.json manifests | 2 |
 
 ## Package manifests

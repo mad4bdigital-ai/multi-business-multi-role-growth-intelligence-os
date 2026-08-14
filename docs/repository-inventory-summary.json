@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6895,
-    "bytes": 64095764,
-    "lines": 1513900,
+    "files": 6900,
+    "bytes": 64110950,
+    "lines": 1514246,
     "directories": 259,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2076,
-      "documentation": 1883,
-      "api-runtime": 1387,
+      "tests-and-specs": 2077,
+      "documentation": 1884,
+      "api-runtime": 1390,
       "database-migrations": 778,
       "root-and-other": 239,
       "ci-workflows": 157,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2478,
-      ".mjs": 1601,
+      ".md": 2479,
+      ".mjs": 1602,
       ".js": 969,
       ".sql": 793,
       ".json": 712,
-      ".yml": 159,
+      ".yml": 160,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -39,16 +39,17 @@
       ".txt": 7,
       ".py": 5,
       ".ps1": 5,
+      ".example": 3,
       ".css": 3,
       ".csproj": 2,
       ".toml": 2,
-      ".example": 2,
       ".gitattributes": 1,
       ".gitignore": 1,
       ".nvmrc": 1,
       ".manifest": 1,
       ".jsonl": 1,
       ".htaccess": 1,
+      ".dockerignore": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
       ".png": 1,
@@ -57,7 +58,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3559,
+      "http-generic-api": 3563,
       "docs": 1790,
       "specs": 846,
       ".github": 258,
@@ -80,6 +81,7 @@
       "GPT_Tenant_Connector_Instructions.md": 1,
       "GPT_Tenant_Connector_Knowledge.md": 1,
       "README.md": 1,
+      "STAGING-WINDOWS.md": 1,
       "Top Level Instructions.md": 1,
       "Updating Registry Patch Index.md": 1,
       "build-canonicals.mjs": 1,
@@ -212,7 +214,7 @@
     "workflows": 157,
     "migrations": 778,
     "apiContracts": 152,
-    "testSpecFiles": 2142
+    "testSpecFiles": 2143
   },
   "largestFiles": [
     {
