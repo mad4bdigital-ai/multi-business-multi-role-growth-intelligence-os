@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6846,
-    "bytes": 62186331,
-    "lines": 1458318,
+    "bytes": 62188951,
+    "lines": 1458371,
     "directories": 256,
     "categories": 13
   },
@@ -9344,9 +9344,9 @@
       "path": ".github/tests/production-promotion-review-mode.test.mjs",
       "category": "ci-config",
       "extension": ".mjs",
-      "bytes": 2845,
-      "lines": 63,
-      "sha256": "485d2a2fd48e01392af16c4ab6a79c8d0dfdb317804d48ce31e10112011c2b88",
+      "bytes": 3435,
+      "lines": 73,
+      "sha256": "174fc2ee415d9c96613ebd06ab64fdc90f3d380974582ff5953a865cbfe7be1c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9828,9 +9828,9 @@
       "path": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 37677,
-      "lines": 738,
-      "sha256": "c3351d3cae3b748f23673a8096acd121e8ea7f0472f6ee36e30c9eb91a864954",
+      "bytes": 39707,
+      "lines": 781,
+      "sha256": "b3e63e5e86470db8fea71bc8bb704f47f577ba4025bf1e3bbe0b92a0c83eac75",
       "mode": "644",
       "executable": false,
       "generated": false
