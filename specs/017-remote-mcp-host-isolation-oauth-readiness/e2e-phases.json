@@ -21,6 +21,7 @@
       "specs/017-remote-mcp-host-isolation-oauth-readiness/checklists/requirements.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json",
       "http-generic-api/.env.example",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -28,6 +29,8 @@
       "http-generic-api/remoteMcpOAuthProfile.js",
       "http-generic-api/remoteMcpReadiness.js",
       "http-generic-api/remoteMcpRequestHost.js",
+      "http-generic-api/remoteMcpGovernedSurfaceConsumer.js",
+      "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
       "http-generic-api/routes/remoteMcpConnectorRoutes.js",
       "http-generic-api/routes/runtimeVerificationRoutes.js",
       "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -37,6 +40,8 @@
       "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
       "http-generic-api/test-remote-mcp-host-isolation.mjs",
       "http-generic-api/test-remote-mcp-readiness.mjs",
+      "http-generic-api/test-remote-mcp-governed-surface-consumer.mjs",
+      "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
     ]
   },
@@ -113,7 +118,8 @@
             "Route protected-resource metadata explicitly among the Remote MCP resource, Tenant GPT core resource, and Activation resource, returning 404 for unknown hosts.",
             "Advertise the Remote MCP DCR registration endpoint only while DCR is enabled and a usable redirect policy exists.",
             "Expose admin-protected readiness that reports configuration and OAuth persistence prerequisites as booleans and bounded metadata without secret values.",
-            "Execute canonical host, metadata routing, readiness, OAuth profile, OAuth route, access-token, disabled-boundary, and canonical test-manifest checks on the exact source head."
+            "Consume the upstream runtime contract for Tenant GPT and Remote MCP surface projections without deriving a second tenant authority or connection selector.",
+            "Execute canonical host, metadata routing, readiness, OAuth profile, OAuth route, access-token, projection, disabled-boundary, and canonical test-manifest checks on the exact source head."
           ],
           "assertions": [
             "auth.mad4b.com/mcp cannot substitute for mcp.mad4b.com/mcp.",
@@ -123,6 +129,7 @@
             "Unknown protected-resource hosts do not silently inherit Tenant GPT metadata.",
             "The readiness response never serializes the OAuth signing secret or OAuth grant values.",
             "DCR metadata remains absent when redirect policy is unavailable.",
+            "Surface projection does not mint execution authority or select a connection.",
             "No DNS, TLS, reverse-proxy, migration, secret, feature-flag, OAuth-client, deployment, or Production mutation is inferred from source tests."
           ],
           "tests": [
@@ -174,11 +181,26 @@
               "working_directory": "http-generic-api",
               "path": "test-remote-mcp-disabled-startup-boundary.mjs",
               "args": []
+            },
+            {
+              "id": "remote-mcp-governed-surface-consumer",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-governed-surface-consumer.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-gpt-effective-capability-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-effective-capability-surface.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json",
             "http-generic-api/.env.example",
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -186,6 +208,8 @@
             "http-generic-api/remoteMcpRequestHost.js",
             "http-generic-api/remoteMcpReadiness.js",
             "http-generic-api/remoteMcpOAuthProfile.js",
+            "http-generic-api/remoteMcpGovernedSurfaceConsumer.js",
+            "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
             "http-generic-api/routes/remoteMcpConnectorRoutes.js",
             "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
             "http-generic-api/routes/runtimeVerificationRoutes.js",
@@ -195,6 +219,8 @@
             "http-generic-api/test-remote-mcp-host-isolation.mjs",
             "http-generic-api/test-remote-mcp-readiness.mjs",
             "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+            "http-generic-api/test-remote-mcp-governed-surface-consumer.mjs",
+            "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
           ]
         }
