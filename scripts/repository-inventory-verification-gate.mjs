@@ -21,8 +21,7 @@ const TRUSTED_GENERATOR_PATHS = [
   "package.json",
   "package-lock.json",
 ];
-// Agent track branches are governed read-only CI candidates and never grant mutation authority.
-const GOVERNED_BRANCH = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$|^agent\/track-[A-Za-z0-9._-]+$/u;
+const GOVERNED_BRANCH = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const ALLOWED_BOOTSTRAP_EVENTS = new Set(["pull_request", "workflow_dispatch"]);
 
@@ -250,9 +249,7 @@ if (e2eContract.feature_key !== "repository-inventory-governed-regeneration" || 
 }
 
 const sourceChanges = new Set(lines(git(["diff", "--name-only", "origin/main...HEAD"]).stdout));
-const isAgentTrack = /^agent\/track-[A-Za-z0-9._-]+$/u.test(targetRef);
-// Agent tracks validate candidate artifacts only; authority installation is reserved for integration branches.
-const missingAuthority = isAgentTrack ? [] : REQUIRED_AUTHORITY_CHANGES.filter((file) => !sourceChanges.has(file));
+const missingAuthority = REQUIRED_AUTHORITY_CHANGES.filter((file) => !sourceChanges.has(file));
 const trustedAuthorityOnMain = REQUIRED_AUTHORITY_CHANGES.every((file) =>
   git(["cat-file", "-e", `origin/main:${file}`], { allowFailure: true }).status === 0,
 );
@@ -299,7 +296,6 @@ writeEvidence(outputPath, {
   output_sha256: secondHashes,
   dirty_files: actualOutputs,
   followup_required: true,
-  followup_mode: isAgentTrack ? "agent_track_read_only_candidate" : "trusted_post_merge_work_branch",
-  agent_track_read_only: isAgentTrack,
+  followup_mode: "trusted_post_merge_work_branch",
   governed_work_push: governedWorkPush,
 });
