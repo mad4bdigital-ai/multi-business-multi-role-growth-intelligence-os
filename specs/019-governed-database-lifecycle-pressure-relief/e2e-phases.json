@@ -14,6 +14,14 @@
       "http-generic-api/scripts/database-lifecycle-pressure-intelligence.mjs",
       "http-generic-api/routes/platformEngineRoutes.js",
       "http-generic-api/test-database-lifecycle-pressure-intelligence.mjs",
+      "http-generic-api/databaseLifecycleReadiness.js",
+      "http-generic-api/runtimeBreakGlassReconciliationReadiness.js",
+      "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs",
+      "http-generic-api/scripts/track-b-local-validation.mjs",
+      "http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+      "http-generic-api/test-runtime-break-glass-reconciliation-readiness.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "scripts/repository-inventory-verification-gate.mjs",
       "http-generic-api/test-database-lifecycle-mutation-readiness.mjs",
       "http-generic-api/test-track-b-migration-readiness-manifest.mjs",
       "http-generic-api/test-track-b-handoff-contract.mjs",
@@ -137,6 +145,20 @@
               "args": []
             },
             {
+              "id": "spec019-track-b-readiness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-lifecycle-readiness-track-b.mjs",
+              "args": []
+            },
+            {
+              "id": "spec019-runtime-break-glass-readiness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-break-glass-reconciliation-readiness.mjs",
+              "args": []
+            },
+            {
               "id": "spec019-migration-readiness-manifest-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -153,6 +175,12 @@
           ],
           "evidence_paths": [
             "http-generic-api/databaseLifecycleMutationReadiness.js",
+            "http-generic-api/databaseLifecycleReadiness.js",
+            "http-generic-api/runtimeBreakGlassReconciliationReadiness.js",
+            "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs",
+            "http-generic-api/scripts/track-b-local-validation.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "scripts/repository-inventory-verification-gate.mjs",
             "http-generic-api/migrationReadinessManifest.js",
             "docs/agent-tracks/track-b-handoff.json",
             "docs/agent-tracks/track-b-migration-checksum-readback-manifest.json",

@@ -74,7 +74,8 @@
             "The effective deployment branch is resolved from environment_branch_authority_v1 and is Production.",
             "expected_commit_sha must equal the current same-cycle Production branch head before dispatch.",
             "Caller branch main or any arbitrary work branch fails before deploy dispatch.",
-            "The candidate does not apply migrations, write main or Production, invoke Hostinger mutation, or return secrets."
+            "The candidate does not apply migrations, write main or Production, invoke Hostinger mutation, or return secrets.",
+            "Reconciled runtime-integrity task evidence remains covered by this phase contract."
           ],
           "tests": [
             {
@@ -116,6 +117,7 @@
           "evidence_paths": [
             "specs/018-environment-promotion-runtime-integrity/contracts/openapi.yaml",
             "specs/018-environment-promotion-runtime-integrity/completion.json",
+            "specs/018-environment-promotion-runtime-integrity/tasks.md",
             "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
             "http-generic-api/environmentBranchAuthority.js",
             "http-generic-api/productionDeploymentAuthority.js",
