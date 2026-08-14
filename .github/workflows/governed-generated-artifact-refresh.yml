@@ -194,13 +194,17 @@ jobs:
               '$current + [{workflow:$workflow,workflow_file:$workflow_file}]')"
           done
 
+          primary_verifier_name="${verifier_names[0]}"
+          primary_verifier_workflow="${verifier_workflows[0]}"
           jq -cn \
-            --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v2" \
+            --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
             --arg recipe "$resolved_recipe" \
             --arg target_ref "$TARGET_REF" \
             --arg candidate_sha "$result_sha" \
+            --arg workflow "$primary_verifier_name" \
+            --arg workflow_file "$primary_verifier_workflow" \
             --argjson verifiers "$verifier_records" \
-            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,verifiers:$verifiers,requested:true,secrets_included:false}' \
+            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,verifiers:$verifiers,requested:true,secrets_included:false}' \
             > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
 
       - name: Upload canonical refresh report
