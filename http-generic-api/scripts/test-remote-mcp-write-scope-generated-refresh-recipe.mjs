@@ -94,7 +94,6 @@ check("e2e-phase-classifies-bounded-refresh-tooling-as-governance-only", () => {
     "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
     "http-generic-api/scripts/remote-mcp-write-scope-inventory.mjs",
     "http-generic-api/scripts/schema-docs-change-guard.mjs",
-    "http-generic-api/scripts/test-manifest.mjs",
     "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
     "http-generic-api/scripts/test-remote-mcp-write-scope-inventory.mjs",
   ];
