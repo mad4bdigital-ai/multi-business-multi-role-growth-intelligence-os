@@ -1,0 +1,131 @@
+{
+  "contract": "mad4b.agent-track-handoff.v1",
+  "track": "A",
+  "title": "Authority, Context, Durable Runtime",
+  "branch": "fix/track-a-authority-runtime-governed",
+  "governed_successor_of": {
+    "branch": "agent/track-a-authority-runtime",
+    "head_sha": "8227ecd0527fa8e0750a84aa3816b8c7466d1b1f"
+  },
+  "base_main_sha": "f0d77f0bd27c3724982ae469f61983b47c4e667b",
+  "track_b_dependency": {
+    "status": "merged",
+    "pr": 7136,
+    "source_head_sha": "756a4aa7036d08c06bf139954023ea3d6850cbb6",
+    "merge_commit_sha": "f0d77f0bd27c3724982ae469f61983b47c4e667b",
+    "consumed_as": "readiness_and_readback_evidence_only",
+    "grants_final_authority": false
+  },
+  "cooperation_chain": [
+    "Context Kernel",
+    "Capability Manifest",
+    "Authority Preflight",
+    "Plan",
+    "Approval/Delegation",
+    "Final Authority",
+    "Durable Execution",
+    "Adapter",
+    "Readback",
+    "Surface Projection"
+  ],
+  "current_slice": {
+    "status": "mvp_read_only_authoritative_composition_contract",
+    "composition_module": "http-generic-api/governedExecutionRuntimeComposition.js",
+    "composition_test": "http-generic-api/test-governed-execution-runtime-composition.mjs",
+    "context_integrity_regression": "http-generic-api/test-context-kernel-integrity-regression.mjs",
+    "e2e_contract": ".changes/e2e/track-a-governed-runtime-composition.json",
+    "creates_authority": false,
+    "selects_connection": false,
+    "executes_provider": false,
+    "execution_performed": false,
+    "mutation_cutover_authorized": false,
+    "runtime_consumer_enabled": false,
+    "production_mutated": false,
+    "database_mutated": false,
+    "migration_applied": false,
+    "secrets_included": false
+  },
+  "composition_contract": {
+    "requires_explicit_authoritative_final_authority": true,
+    "rejects_shadow_only_authority": true,
+    "rejects_legacy_runtime_authoritative_evidence": true,
+    "rejects_context_hash_drift": true,
+    "rejects_provider_call_evidence": true,
+    "rejects_external_write_evidence": true,
+    "rejects_database_mutation_evidence": true,
+    "rejects_credential_payload_read_evidence": true,
+    "rejects_secret_inclusion_evidence": true,
+    "caller_identity_forwarded_beyond_context_resolution": false,
+    "read_only_surface_projection_supported": true,
+    "mutation_surface_projection_supported": false
+  },
+  "live_source_assessment": {
+    "canonical_execution_contract_resolver": {
+      "path": "http-generic-api/canonicalExecutionContractResolver.js",
+      "classification": "shadow_preflight_only",
+      "accepted_as_final_authority": false
+    },
+    "governed_execution_preflight": {
+      "path": "http-generic-api/governedExecutionPreflight.js",
+      "classification": "policy_and_resource_preflight",
+      "accepted_as_final_authority": false
+    },
+    "dynamic_resource_authority": {
+      "path": "http-generic-api/dynamicResourceAuthority.js",
+      "classification": "resource_authority_component_with_legacy_grant_dependency",
+      "accepted_as_final_authority": false
+    },
+    "capability_family_authorization": {
+      "path": "http-generic-api/toolCapabilityFamilyAuthorization.js",
+      "classification": "capability_family_authorization_component",
+      "accepted_as_final_authority": false
+    },
+    "ueacp_application_service": {
+      "documented_path": "http-generic-api/src/application/effectiveAuthority/effectiveAuthorityService.js",
+      "present_on_base_main": false,
+      "documented_enforcement_mode": "shadow_only",
+      "accepted_as_final_authority": false
+    },
+    "durable_execution_control": {
+      "path": "http-generic-api/durableExecutionControlService.js",
+      "classification": "existing_durable_runtime_to_reuse",
+      "provider_dispatch_invoked_by_current_slice": false
+    }
+  },
+  "blocking_gates_before_operational_binding": [
+    "Repository-canonical Final Authority implementation must be identified or separately implemented and certified without relying on shadow-only evidence as enforcement authority.",
+    "Final Authority must expose explicit authoritative=true and allowed=true semantics bound to the resolved Context and Plan.",
+    "Operational adapter wiring must preserve plan-before-credential and exact connection binding without allowing this composition layer to select a connection.",
+    "Durable execution and readback bindings require focused operational tests before any runtime consumer enablement.",
+    "Mutation cutover requires separate authorization, parity, rollback, migration/readback, and non-production evidence."
+  ],
+  "old_branch_reconciliation": {
+    "context_integrity_regression_preserved": true,
+    "old_repository_generated_artifacts_imported": false,
+    "old_spec012_completion_overwrite_imported": false,
+    "reason": "The old branch is 56 commits behind post-Track-B main and contains eight final-integration-only generated artifacts; current Spec012 ledgers have advanced and must not be overwritten from the stale snapshot."
+  },
+  "handoff_to_track_c": {
+    "contract_available": true,
+    "module": "http-generic-api/governedExecutionRuntimeComposition.js",
+    "consumer_factory": "createGovernedExecutionRuntimeResolver",
+    "may_treat_shadow_authority_as_final": false,
+    "may_bind_canonical_execution_contract_resolver_as_final_authority": false,
+    "operational_final_authority_binding_ready": false,
+    "track_c_must_remain_draft_until_operational_binding_ready": true
+  },
+  "generated_artifacts": {
+    "repository_wide_generated_artifact_modified": false,
+    "owner": "final_integration_branch"
+  },
+  "explicit_safety_state": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "runtime_consumer_enabled": false,
+    "production_mutated": false,
+    "protected_branch_mutated": false,
+    "force_push_used": false,
+    "secrets_included": false
+  }
+}
