@@ -1,12 +1,11 @@
 {
   "schema_version": 1,
   "feature_key": "016-chatgpt-plugin-mcp-integration",
-  "review_state": "draft",
+  "review_state": "ready_for_implementation",
   "registry": {
-    "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
-    "fingerprint": "f282e53d6620e906ca48ff703e2e0b65c5fde6b10d20194b596c2bd2e687f235",
-    "index_source_hash": "752bc2ef9ed7417689f1644ab9b492009fa4611a2c91e4bf0d2ddf0326d25073",
-    "coverage_source_hash": "0cdfc494f247174aa8badfb019a7ce3aec1df42173f69b0f870ea9d55012159f",
+    "fingerprint": "606ba8232d69b23a35f077300b6289d86c06b781efc4dcf0ec7357a3176d1751",
+    "index_source_hash": "78f9b9a42e843fde1dcc2eb8833228a016e36d0e04099f1fabb4b858d49d63ba",
+    "coverage_source_hash": "6dabc49603b31ba80b952e5ffacfb5e10565453370f50e4b6f7504a7050b01ca",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
@@ -15,205 +14,441 @@
   "work_map_decisions": {
     "activation-access-map": {
       "decision": "integrate",
-      "rationale": "Developer, workspace, and public plugin rollout require existing activation, eligibility, access, revoke, and disable authorities.",
+      "rationale": "Client eligibility, workspace rollout, tool enablement, revocation, and disable controls must remain within the existing activation and access authority rather than a client-owned path.",
       "owner": "platform-team",
-      "integration_points": ["client eligibility", "workspace rollout", "tool enablement", "revocation"],
+      "integration_points": ["client eligibility", "workspace rollout", "tool enablement and revocation"],
       "requirement_refs": ["FR-021", "FR-026", "FR-032"],
       "task_refs": ["T015", "T018", "T028", "T041"],
-      "evidence_refs": ["spec.md", "operation-paths.md#op-010--revoke-or-disable-the-integration"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/activation-access-map.md", "specs/016-chatgpt-plugin-mcp-integration/spec.md"],
+      "depends_on": []
     },
     "activation-onboarding-map": {
       "decision": "integrate",
-      "rationale": "Account linking, consent, workspace policy, initial connection testing, and support guidance extend the current onboarding lifecycle.",
+      "rationale": "Account linking, consent, workspace policy, initial connection testing, and relink guidance extend the existing onboarding lifecycle without creating a second identity authority.",
       "owner": "platform-team",
       "integration_points": ["account link", "scope consent", "connection readiness", "relink guidance"],
       "requirement_refs": ["FR-005", "FR-006", "FR-031"],
       "task_refs": ["T013", "T015", "T038", "T041"],
-      "evidence_refs": ["quickstart.md", "operation-paths.md#op-003--link-a-platform-account-through-oauth"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/activation-onboarding-map.md", "specs/016-chatgpt-plugin-mcp-integration/quickstart.md"],
+      "depends_on": ["activation-access-map"]
     },
     "agent-skill-plugin-map": {
       "decision": "extend",
-      "rationale": "The feature introduces a reviewed ChatGPT and Codex plugin package, focused MCP tools, metadata snapshots, and optional future skills.",
+      "rationale": "ChatGPT, Claude, Codex, and approved generic MCP clients extend the existing agent, skill, and plugin integration surface while tool authority remains upstream and server-owned.",
       "owner": "platform-team",
-      "integration_points": ["plugin package", "tool catalog", "selection metadata", "optional skills"],
+      "integration_points": ["plugin package", "MCP client profiles", "tool projection metadata"],
       "requirement_refs": ["FR-012", "FR-013", "FR-027", "FR-028"],
       "task_refs": ["T025", "T026", "T039", "T040"],
-      "evidence_refs": ["research.md", "contracts/plugin-package.schema.json"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/agent-skill-plugin-map.md", "specs/016-chatgpt-plugin-mcp-integration/multi-client-connector-extension.md"],
+      "depends_on": ["policy-authority-map"]
     },
     "asset-package-map": {
       "decision": "integrate",
-      "rationale": "Plugin manifests, icons, legal links, screenshots when applicable, and versioned packages use existing asset and package governance.",
+      "rationale": "Plugin manifests, package versions, icons, legal links, and review snapshots use the existing asset and package lifecycle rather than introducing an ungoverned packaging model.",
       "owner": "platform-team",
-      "integration_points": ["plugin manifest", "package version", "assets", "review snapshot"],
+      "integration_points": ["plugin manifest", "package version", "review snapshot"],
       "requirement_refs": ["FR-027", "FR-029", "FR-030"],
       "task_refs": ["T039", "T040"],
-      "evidence_refs": ["data-model.md#7-plugin-package-version", "contracts/plugin-package.schema.json"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/asset-package-map.md", "specs/016-chatgpt-plugin-mcp-integration/contracts/plugin-package.schema.json"],
+      "depends_on": []
     },
     "commercial-usage-map": {
       "decision": "integrate",
-      "rationale": "Rate limits, quotas, provider costs, public distribution posture, and workspace availability require existing commercial and usage policy.",
+      "rationale": "Rate limits, quotas, provider costs, distribution posture, and workspace availability must continue to use existing commercial and usage governance.",
       "owner": "platform-team",
       "integration_points": ["rate limits", "quota", "cost attribution", "distribution policy"],
       "requirement_refs": ["FR-021", "FR-022", "NFR-005"],
       "task_refs": ["T015", "T029", "T042"],
-      "evidence_refs": ["concerns.md#c-013--oversized-or-unbounded-responses", "testing-strategy.md#boundedness-and-performance"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/commercial-usage-map.md", "specs/016-chatgpt-plugin-mcp-integration/testing-strategy.md"],
+      "depends_on": []
     },
     "connector-provider-map": {
       "decision": "integrate",
-      "rationale": "External actions remain behind connector and provider authority, while MCP receives only bounded results and no credentials or raw provider secrets.",
+      "rationale": "External provider work remains behind existing connection ownership and provider dispatch authority; MCP and GPT surfaces receive only bounded results and no provider credentials.",
       "owner": "platform-team",
       "integration_points": ["provider dispatch", "connection ownership", "provider readback", "credential isolation"],
       "requirement_refs": ["FR-009", "FR-020", "FR-024"],
       "task_refs": ["T009", "T027", "T032"],
-      "evidence_refs": ["concerns.md#c-020--governance-bypass-through-adapter-code", "data-model.md"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/connector-provider-map.md", "specs/016-chatgpt-plugin-mcp-integration/concerns.md"],
+      "depends_on": ["policy-authority-map", "platform-runtime-map"]
     },
     "data-model-domain-map": {
       "decision": "integrate",
-      "rationale": "Client registration, grants, tool catalogs, invocation evidence, confirmations, packages, and review snapshots require reuse-first field classification.",
+      "rationale": "Client registrations, grants, tool catalogs, invocation evidence, confirmations, packages, and review snapshots require reuse-first classification against the canonical schema domains.",
       "owner": "platform-team",
-      "integration_points": ["logical entities", "reuse matrix", "classification", "retention"],
+      "integration_points": ["logical entities", "schema reuse", "classification", "retention"],
       "requirement_refs": ["FR-007", "FR-025", "FR-027"],
       "task_refs": ["T008", "T009", "T013"],
-      "evidence_refs": ["data-model.md", ".specify/work-map-schema-classification-registry.json"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/data-model-domain-map.md", "specs/016-chatgpt-plugin-mcp-integration/data-model.md"],
+      "depends_on": []
     },
     "delivery-support-map": {
       "decision": "integrate",
-      "rationale": "Connection failures, relinking, revocation, unknown outcomes, review findings, and plugin maintenance require existing support and handoff paths.",
+      "rationale": "Connection failures, relinking, revocation, unknown outcomes, review findings, and plugin maintenance require the existing support and handoff lifecycle.",
       "owner": "platform-team",
       "integration_points": ["support IDs", "relink", "unknown outcome", "review remediation"],
       "requirement_refs": ["FR-024", "FR-026", "FR-032"],
       "task_refs": ["T016", "T018", "T038"],
-      "evidence_refs": ["operation-paths.md", "checklists/release-readiness.md"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/delivery-support-map.md", "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md"],
+      "depends_on": ["execution-log-evidence-map"]
     },
     "execution-log-evidence-map": {
       "decision": "integrate",
-      "rationale": "Initialization, discovery, authorization, denial, invocation, operation, revocation, and review need distinct no-secret lifecycle evidence.",
+      "rationale": "Initialization, discovery, authorization, denial, invocation, operation, revocation, and review require distinct no-secret lifecycle evidence and bounded diagnostic records.",
       "owner": "platform-team",
       "integration_points": ["invocation evidence", "authorization decision", "operation ID", "redaction status"],
       "requirement_refs": ["FR-018", "FR-025", "NFR-007"],
       "task_refs": ["T023", "T024", "T032"],
-      "evidence_refs": ["data-model.md#5-mcp-invocation-evidence", "testing-strategy.md#evidence-format"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/execution-log-evidence-map.md", "specs/016-chatgpt-plugin-mcp-integration/testing-strategy.md"],
+      "depends_on": []
     },
     "migration-lifecycle-map": {
       "decision": "integrate",
-      "rationale": "Any justified client, grant, catalog, confirmation, package, or review persistence must use additive governed migration and rollback lifecycles.",
+      "rationale": "Any justified client, grant, catalog, confirmation, package, or review persistence must use additive governed migration, readback, rollback, and closeout lifecycles.",
       "owner": "platform-team",
-      "integration_points": ["reuse decision", "additive migration", "backfill", "rollback"],
+      "integration_points": ["reuse decision", "additive migration", "readback", "rollback"],
       "requirement_refs": ["NFR-008", "NFR-011"],
       "task_refs": ["T007", "T008", "T013"],
-      "evidence_refs": ["plan.md#migration-posture", "data-model.md#migration-decision-gate"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/migration-lifecycle-map.md", "specs/016-chatgpt-plugin-mcp-integration/plan.md"],
+      "depends_on": ["data-model-domain-map"]
     },
     "observability-release-map": {
       "decision": "integrate",
-      "rationale": "Endpoint health, metadata parity, OAuth failures, isolation denials, latency, rollout, review, publication, revoke, and rollback require release observability.",
+      "rationale": "Endpoint health, metadata parity, OAuth failures, isolation denials, latency, rollout, review, revoke, and rollback require existing release observability and evidence.",
       "owner": "platform-team",
       "integration_points": ["health", "metadata fingerprint", "alerts", "release parity", "rollback"],
       "requirement_refs": ["FR-025", "FR-026", "FR-032", "NFR-011"],
       "task_refs": ["T023", "T024", "T041", "T042"],
-      "evidence_refs": ["testing-strategy.md", "checklists/release-readiness.md"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/observability-release-map.md", "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md"],
+      "depends_on": ["execution-log-evidence-map"]
     },
     "platform-resource-graph-map": {
       "decision": "integrate",
-      "rationale": "OAuth clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and review snapshots require typed relationships.",
+      "rationale": "OAuth clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and review snapshots require explicit typed relationships.",
       "owner": "platform-team",
       "integration_points": ["resource binding", "Brand selectors", "operation ownership", "package identity"],
       "requirement_refs": ["FR-007", "FR-009", "FR-010", "FR-018"],
       "task_refs": ["T013", "T027", "T031"],
-      "evidence_refs": ["data-model.md#ownership-hierarchy", "operation-paths.md#op-004--read-accessible-workspace-and-brand-context"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/platform-resource-graph-map.md", "specs/016-chatgpt-plugin-mcp-integration/data-model.md"],
+      "depends_on": ["data-model-domain-map"]
     },
     "platform-runtime-map": {
       "decision": "reuse",
-      "rationale": "The MCP adapter reuses existing context, authorization, execution, idempotency, readback, reconciliation, evidence, and rollback runtime services.",
+      "rationale": "The MCP and GPT adapters must reuse the shared context, capability, authority, durable execution, adapter, readback, and projection chain rather than create a surface-owned runtime authority.",
       "owner": "platform-team",
-      "integration_points": ["Context Kernel", "capability resolution", "operation runtime", "readback"],
+      "integration_points": ["Context Kernel", "capability resolution", "Final Authority", "durable execution", "readback"],
       "requirement_refs": ["FR-003", "FR-017", "FR-023", "FR-024"],
       "task_refs": ["T009", "T020", "T027"],
-      "evidence_refs": ["plan.md#architecture-summary", "concerns.md#c-020--governance-bypass-through-adapter-code"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/platform-runtime-map.md", "specs/016-chatgpt-plugin-mcp-integration/plan.md", "http-generic-api/tenantGptEffectiveCapabilitySurface.js"],
+      "depends_on": ["policy-authority-map", "workflow-task-orchestration-map"]
     },
     "policy-authority-map": {
       "decision": "integrate",
-      "rationale": "Scopes, client eligibility, tool visibility, confirmation, external effects, destructive actions, privacy, and tenant rollout require policy authority.",
+      "rationale": "Scopes, client eligibility, tool visibility, confirmation, external effects, privacy, and tenant rollout remain governed upstream authority decisions and are never granted by Track C surfaces.",
       "owner": "platform-team",
       "integration_points": ["OAuth scopes", "tool policy", "confirmation", "tenant rollout", "privacy"],
       "requirement_refs": ["FR-007", "FR-015", "FR-016", "FR-021"],
       "task_refs": ["T014", "T015", "T027", "T028"],
-      "evidence_refs": ["spec.md#actors-and-authority", "checklists/security.md"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/policy-authority-map.md", "specs/016-chatgpt-plugin-mcp-integration/checklists/security.md", "http-generic-api/tenantGptEffectiveCapabilitySurface.js"],
+      "depends_on": []
     },
     "repository-automation-map": {
       "decision": "integrate",
-      "rationale": "Contract validation, annotation parity, metadata fingerprinting, exact-head evidence, package validation, and no-secret scans require repository automation.",
+      "rationale": "Contract validation, metadata parity, exact-head evidence, package validation, no-secret scans, and governed CI remain repository automation responsibilities.",
       "owner": "platform-team",
-      "integration_points": ["schema validation", "metadata drift", "package validation", "secret scan"],
+      "integration_points": ["schema validation", "metadata drift", "exact-head evidence", "secret scan"],
       "requirement_refs": ["FR-013", "FR-027", "NFR-010", "NFR-011"],
       "task_refs": ["T003", "T005", "T030", "T039"],
-      "evidence_refs": ["testing-strategy.md#static-contract-validation", "traceability.md"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/repository-automation-map.md", "specs/016-chatgpt-plugin-mcp-integration/traceability.md"],
+      "depends_on": []
     },
     "repository-development-map": {
       "decision": "integrate",
-      "rationale": "Multi-PR delivery, SDK adoption, compatibility changes, generated contracts, CI, review, and release evidence use existing development governance.",
+      "rationale": "Multi-PR delivery, SDK adoption, compatibility changes, canonical contracts, CI, review, and release evidence continue to use repository development governance.",
       "owner": "platform-team",
-      "integration_points": ["multi-PR plan", "dependency pinning", "CI", "review"],
+      "integration_points": ["multi-PR delivery", "dependency pinning", "CI", "review"],
       "requirement_refs": ["FR-003", "FR-004", "NFR-010"],
       "task_refs": ["T006", "T019", "T020"],
-      "evidence_refs": ["plan.md#delivery-strategy", "tasks.md"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/repository-development-map.md", "specs/016-chatgpt-plugin-mcp-integration/tasks.md"],
+      "depends_on": ["repository-automation-map"]
     },
     "session-memory-map": {
       "decision": "integrate",
-      "rationale": "Follow-up prompts may reuse stable identifiers, but the integration must not require or persist broad conversation transcripts or cross-session secrets.",
+      "rationale": "Follow-up prompts may reuse stable identifiers, but the integration must not require or persist broad conversation transcripts, caller-injected authority, or cross-session secrets.",
       "owner": "platform-team",
-      "integration_points": ["stable follow-up IDs", "task context", "privacy minimization", "session boundaries"],
+      "integration_points": ["stable follow-up IDs", "bounded task context", "privacy minimization", "session boundaries"],
       "requirement_refs": ["FR-018", "FR-020", "NFR-003"],
       "task_refs": ["T026", "T029", "T032"],
-      "evidence_refs": ["research.md#security-and-privacy-findings", "concerns.md#c-007--overcollection-of-conversation-context"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/session-memory-map.md", "specs/016-chatgpt-plugin-mcp-integration/research.md"],
+      "depends_on": ["policy-authority-map"]
     },
     "work-map-coverage-matrix": {
       "decision": "integrate",
-      "rationale": "The feature must classify every reused or proposed schema object and preserve zero accidental unclassified objects across all current domains.",
+      "rationale": "The feature must classify every reused or proposed schema object and preserve zero accidental unclassified objects across the current Work Map domains.",
       "owner": "platform-architecture",
       "integration_points": ["domain review", "object classification", "taxonomy gap review"],
       "requirement_refs": ["NFR-010"],
       "task_refs": ["T003", "T005"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "data-model.md#migration-decision-gate"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/data-model.md"],
+      "depends_on": ["data-model-domain-map"]
     },
     "workflow-task-orchestration-map": {
       "decision": "integrate",
-      "rationale": "Durable writes, long-running operations, retries, unknown outcomes, status follow-up, compensation, and support escalation reuse workflow orchestration.",
+      "rationale": "Durable writes, long-running operations, retries, unknown outcomes, status follow-up, compensation, and support escalation reuse governed workflow orchestration.",
       "owner": "platform-team",
       "integration_points": ["operation creation", "idempotency", "status", "reconciliation", "compensation"],
       "requirement_refs": ["FR-023", "FR-024", "FR-025"],
       "task_refs": ["T009", "T027"],
-      "evidence_refs": ["operation-paths.md#op-006--request-a-governed-write-operation", "testing-strategy.md#write-tool-tests-for-future-phase"]
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/workflow-task-orchestration-map.md", "specs/016-chatgpt-plugin-mcp-integration/operation-paths.md"],
+      "depends_on": ["policy-authority-map", "execution-log-evidence-map"]
     }
   },
-  "schema_domain_decisions": {
-    "Activation & onboarding": {"decision": "integrate", "rationale": "Account linking, consent, rollout, and connection readiness use existing activation and onboarding schema authority."},
-    "Agents & intelligence": {"decision": "integrate", "rationale": "Tool selection metadata and optional skills integrate with existing agent, skill, and plugin governance."},
-    "Assets & packages": {"decision": "integrate", "rationale": "Plugin packages and presentation assets use existing versioned asset and package lifecycle concepts."},
-    "Brand & business": {"decision": "integrate", "rationale": "Brand operating context is exposed only through authorized existing Brand and business projections."},
-    "Commercial & usage": {"decision": "integrate", "rationale": "Rate limits, quotas, costs, and distribution policy reuse existing commercial and usage governance."},
-    "Connectors & providers": {"decision": "integrate", "rationale": "External provider actions remain behind existing connection ownership, dispatch, and credential boundaries."},
-    "Delivery & support": {"decision": "integrate", "rationale": "Relinking, unknown outcomes, review remediation, and support handoff reuse existing support lifecycles."},
-    "Developer & API": {"decision": "extend", "rationale": "A standards-compliant MCP transport and OAuth discovery surface extend the current developer and API domain."},
-    "Governance & authority": {"decision": "integrate", "rationale": "Client, scope, tool, confirmation, resource, and rollout decisions remain governed authority records."},
-    "Migration & lifecycle": {"decision": "integrate", "rationale": "New persistence is conditional and must follow additive migration, rollback, and closeout authority."},
-    "Observability & release": {"decision": "integrate", "rationale": "Metadata parity, endpoint health, invocation evidence, review, publication, and rollback require release evidence."},
-    "Platform resources & graph": {"decision": "integrate", "rationale": "Clients, users, tenants, workspaces, Brands, tools, operations, packages, and reviews require typed relationships."},
-    "Repository & development": {"decision": "integrate", "rationale": "SDK adoption, contracts, CI, exact-head evidence, and multi-PR delivery use repository governance."},
-    "Sessions & memory": {"decision": "integrate", "rationale": "Stable follow-up identifiers are supported while broad conversation collection remains prohibited by design."},
-    "Tenancy & identity": {"decision": "extend", "rationale": "OAuth resource-server and client contracts extend identity while retaining tenant and membership authority."},
-    "Workflow & tasks": {"decision": "integrate", "rationale": "Governed mutations, status, retry, reconciliation, compensation, and support remain workflow responsibilities."}
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "decision": "integrate",
+      "rationale": "Account linking, consent, rollout, revocation, and readiness remain integrated with the existing activation and onboarding schema authority.",
+      "owner": "platform-team",
+      "integration_points": ["OAuth linking", "consent", "rollout readiness"],
+      "requirement_refs": ["FR-005", "FR-006", "FR-021"],
+      "task_refs": ["T013", "T015", "T041"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/quickstart.md"],
+      "depends_on": []
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "decision": "integrate",
+      "rationale": "Tool selection metadata and client-facing projections integrate with existing agent, skill, and plugin governance without adding model-owned execution authority.",
+      "owner": "platform-team",
+      "integration_points": ["tool metadata", "client profiles", "capability projection"],
+      "requirement_refs": ["FR-012", "FR-013"],
+      "task_refs": ["T025", "T026"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/multi-client-connector-extension.md"],
+      "depends_on": []
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "decision": "integrate",
+      "rationale": "Plugin package versions, manifests, assets, and review snapshots reuse the existing package and asset lifecycle with repository-owned validation.",
+      "owner": "platform-team",
+      "integration_points": ["plugin package", "manifest", "review snapshot"],
+      "requirement_refs": ["FR-027", "FR-029"],
+      "task_refs": ["T039", "T040"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/contracts/plugin-package.schema.json"],
+      "depends_on": []
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "decision": "integrate",
+      "rationale": "Brand operating context is projected only through authorized tenant and workspace context and cannot be widened by caller-supplied client arguments.",
+      "owner": "platform-team",
+      "integration_points": ["Brand context", "workspace binding", "tenant isolation"],
+      "requirement_refs": ["FR-009", "FR-010"],
+      "task_refs": ["T013", "T027"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs"],
+      "depends_on": []
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "decision": "integrate",
+      "rationale": "Rate limits, quotas, provider cost attribution, and distribution policy reuse existing commercial and usage governance rather than client metadata.",
+      "owner": "platform-team",
+      "integration_points": ["rate limit", "quota", "cost attribution"],
+      "requirement_refs": ["FR-021", "FR-022"],
+      "task_refs": ["T015", "T029"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/testing-strategy.md"],
+      "depends_on": []
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "decision": "integrate",
+      "rationale": "Connection ownership, provider dispatch, credential isolation, and provider readback remain behind the existing connector and provider authority boundary.",
+      "owner": "platform-team",
+      "integration_points": ["connection ownership", "provider dispatch", "credential isolation"],
+      "requirement_refs": ["FR-009", "FR-020", "FR-024"],
+      "task_refs": ["T009", "T027", "T032"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/concerns.md"],
+      "depends_on": []
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "decision": "integrate",
+      "rationale": "Relinking, revocation, unknown outcomes, review remediation, and operator handoff continue through existing delivery and support lifecycle evidence.",
+      "owner": "platform-team",
+      "integration_points": ["relink", "unknown outcome", "operator handoff"],
+      "requirement_refs": ["FR-024", "FR-026"],
+      "task_refs": ["T016", "T038"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md"],
+      "depends_on": []
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "decision": "extend",
+      "rationale": "Standards-compliant MCP, OAuth discovery, resource metadata, and client profiles extend the existing developer and API surface while preserving canonical OpenAPI ownership.",
+      "owner": "platform-team",
+      "integration_points": ["MCP transport", "OAuth metadata", "client profiles", "OpenAPI parity"],
+      "requirement_refs": ["FR-003", "FR-004", "FR-013"],
+      "task_refs": ["T019", "T020", "T030"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml"],
+      "depends_on": []
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "decision": "integrate",
+      "rationale": "Client, scope, tool, confirmation, resource, and rollout decisions remain upstream governed authority records and Track C surfaces only project their bounded result.",
+      "owner": "platform-team",
+      "integration_points": ["scope", "tool policy", "Final Authority", "surface projection"],
+      "requirement_refs": ["FR-007", "FR-015", "FR-016"],
+      "task_refs": ["T014", "T015", "T027"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "http-generic-api/tenantGptEffectiveCapabilitySurface.js"],
+      "depends_on": []
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "decision": "integrate",
+      "rationale": "Any required persistence remains additive, governed, reversible, and separately authorized; Track C does not apply migrations or infer production readiness.",
+      "owner": "platform-team",
+      "integration_points": ["migration authority", "readback", "rollback"],
+      "requirement_refs": ["NFR-008", "NFR-011"],
+      "task_refs": ["T007", "T008"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/plan.md"],
+      "depends_on": []
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "decision": "integrate",
+      "rationale": "Metadata parity, endpoint health, isolation denials, invocation evidence, release review, revocation, and rollback remain observable release evidence.",
+      "owner": "platform-team",
+      "integration_points": ["health", "metadata parity", "release evidence", "rollback"],
+      "requirement_refs": ["FR-025", "FR-026", "NFR-011"],
+      "task_refs": ["T023", "T024", "T041"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md"],
+      "depends_on": []
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "decision": "integrate",
+      "rationale": "Clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and reviews retain explicit typed graph relationships.",
+      "owner": "platform-team",
+      "integration_points": ["resource binding", "tenant/workspace/Brand graph", "operation ownership"],
+      "requirement_refs": ["FR-007", "FR-009", "FR-010"],
+      "task_refs": ["T013", "T027", "T031"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/data-model.md"],
+      "depends_on": []
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "decision": "integrate",
+      "rationale": "Contracts, CI, exact-head evidence, package validation, dependency pinning, and multi-PR delivery remain governed through repository development automation.",
+      "owner": "platform-team",
+      "integration_points": ["contracts", "CI", "exact-head evidence", "multi-PR delivery"],
+      "requirement_refs": ["FR-003", "FR-004", "NFR-010"],
+      "task_refs": ["T006", "T019", "T020"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/traceability.md"],
+      "depends_on": []
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "decision": "integrate",
+      "rationale": "Stable follow-up identifiers and bounded task context may be reused, while broad transcripts, caller-injected identity, and cross-session secrets remain excluded.",
+      "owner": "platform-team",
+      "integration_points": ["follow-up IDs", "bounded task context", "privacy minimization"],
+      "requirement_refs": ["FR-018", "FR-020", "NFR-003"],
+      "task_refs": ["T026", "T029", "T032"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/research.md"],
+      "depends_on": []
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "decision": "integrate",
+      "rationale": "User, tenant, workspace, Brand, client, and resource identity must be server-owned and exact; caller-provided identity cannot widen authoritative context.",
+      "owner": "platform-team",
+      "integration_points": ["server-owned identity", "tenant isolation", "workspace and Brand binding"],
+      "requirement_refs": ["FR-007", "FR-009", "FR-010"],
+      "task_refs": ["T013", "T014", "T027"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs"],
+      "depends_on": []
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "decision": "integrate",
+      "rationale": "Long-running operations, retries, idempotency, unknown outcomes, reconciliation, compensation, and support escalation remain governed workflow responsibilities.",
+      "owner": "platform-team",
+      "integration_points": ["durable operation", "idempotency", "reconciliation", "compensation"],
+      "requirement_refs": ["FR-023", "FR-024", "FR-025"],
+      "task_refs": ["T009", "T027"],
+      "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/016-chatgpt-plugin-mcp-integration/operation-paths.md"],
+      "depends_on": []
+    }
   },
-  "taxonomy_gaps": [],
+  "cross_map_dependencies": [
+    {
+      "from": "policy-authority-map",
+      "to": "platform-runtime-map",
+      "reason": "Runtime projection must consume governed authority rather than derive it locally."
+    },
+    {
+      "from": "platform-runtime-map",
+      "to": "connector-provider-map",
+      "reason": "Provider dispatch may only occur after the authoritative runtime contract resolves the operation."
+    },
+    {
+      "from": "execution-log-evidence-map",
+      "to": "observability-release-map",
+      "reason": "Release readiness and rollback depend on bounded no-secret runtime and denial evidence."
+    }
+  ],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "The current generated registry reports zero uncategorized objects and zero taxonomy-gap clusters. Spec 016 composes the existing 19 Work Maps and 16 schema domains; no additional dimension is required for this Track C slice."
+  },
   "implementation_readiness": {
-    "status": "blocked",
-    "blocking_reasons": [
-      "canonical_scaffold_not_run_for_spec_016",
-      "oauth_identity_conformance_not_verified",
-      "legacy_mcp_consumer_inventory_missing",
-      "phase_1_tool_catalog_not_approved",
-      "field_level_schema_reuse_matrix_missing"
-    ],
-    "next_action": "Run the canonical Work Map scaffold and complete specification review before any implementation change."
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "track-c",
+    "evidence_refs": [
+      "specs/016-chatgpt-plugin-mcp-integration/spec.md",
+      "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
+      "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+      "docs/agent-tracks/track-c-handoff.json"
+    ]
   },
   "secrets_included": false
 }
