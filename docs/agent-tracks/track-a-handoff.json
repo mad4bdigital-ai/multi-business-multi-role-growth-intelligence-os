@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "track": "A",
+  "name": "authority-context-durable-runtime",
+  "branch": "agent/track-a-authority-runtime",
+  "base_main_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "current_commit": "17793fcd17d280d3c5b0f3691d6c54a61c45e82d",
+  "status": "bounded_context_integrity_and_durable_shadow_slice_complete",
+  "context_slice": {
+    "regression_test": "http-generic-api/test-context-kernel-integrity-regression.mjs",
+    "claims": [
+      "sensitive values are excluded from public context hashes",
+      "owner-scope revision movement changes context hash",
+      "context revision mismatch is rejected",
+      "authority and workspace invalidation graphs fail closed"
+    ],
+    "task_reconciliation": {
+      "spec": "012-unified-admin-tenant-context-kernel",
+      "checked": ["phase2.types", "phase2.connection_precedence", "phase2.owner_scope", "phase2.unresolved_decision", "phase2.hash_graph", "phase2.high_risk_fallback", "phase2.tests"],
+      "left_open": ["workspaceOwnershipType persistence", "owner/connection/authorization revision vector persistence", "migration readback", "runtime enablement"]
+    }
+  },
+  "durable_slice": {
+    "tests_passed": [
+      "test-durable-execution-control-service.mjs",
+      "test-durable-execution-shadow-service.mjs",
+      "test-execution-capsule-contract.mjs",
+      "test-execution-capsule-shadow-adapter.mjs",
+      "test-execution-capsule-shadow-composition.mjs",
+      "test-execution-capsule-read-dispatch-gate.mjs",
+      "test-execution-capsule-selected-read-pilot.mjs",
+      "test-managed-execution-projections-reconciliation.mjs",
+      "test-managed-execution-recovery-operations.mjs"
+    ],
+    "provider_call_executed": false,
+    "external_write_executed": false,
+    "database_mutated": false,
+    "migration_applied": false,
+    "runtime_authority_enabled": false,
+    "secrets_included": false
+  },
+  "integration_contract": {
+    "context_before_plan": true,
+    "plan_before_approval_or_dispatch": true,
+    "durable_receipt_before_mutation": true,
+    "read_before_retry_after_unknown_outcome": true,
+    "no_arbitrary_candidate_selection": true,
+    "legacy_direct_delegation_default_off": true
+  },
+  "required_next_steps": [
+    "rebase on current integration main before PR review",
+    "obtain separate migration authorization before any apply",
+    "prove owner/connection/authorization revision persistence in approved non-production environment",
+    "complete staging/shadow acceptance and rollback/reconciliation rehearsal",
+    "run final exact-head CI and independent review"
+  ]
+}
