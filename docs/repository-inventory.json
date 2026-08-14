@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6882,
-    "bytes": 62503555,
-    "lines": 1465799,
+    "files": 6883,
+    "bytes": 62507866,
+    "lines": 1465869,
     "directories": 259,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2073,
-      "documentation": 1879,
+      "documentation": 1880,
       "api-runtime": 1386,
       "database-migrations": 778,
       "root-and-other": 237,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2476,
+      ".md": 2477,
       ".mjs": 1595,
       ".js": 969,
       ".sql": 793,
@@ -58,7 +58,7 @@
     },
     "topLevel": {
       "http-generic-api": 3555,
-      "docs": 1786,
+      "docs": 1787,
       "specs": 846,
       ".github": 255,
       ".changes": 232,
@@ -29982,6 +29982,17 @@
       "generated": false
     },
     {
+      "path": "docs/platform-completion-loop-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 4311,
+      "lines": 70,
+      "sha256": "bf3a75eefd80c1896ecae6e3c76e2edebc268c76ae261c9ba0f8c0a08ae1b2bc",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/platform-disaster-recovery-runbook.md",
       "category": "documentation",
       "extension": ".md",
@@ -30581,7 +30592,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "afdc250eaa3c4fd23c2c6fc6200fb6b48e9176d79b4047a3b1b8c1c49bae53c9",
+      "sha256": "de972c157b804d7d68e80ab60293825c33e4c8de6a9ff44c1f37a6779e179682",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49479,7 +49490,7 @@
       "extension": ".json",
       "bytes": 1930662,
       "lines": 58377,
-      "sha256": "7178b62bd6b3b20a40cd7029a28ff538ee102aa7ae0c8398fd109ec4b8ae4677",
+      "sha256": "375f7ae5b807f97c5f45a9f02d6dd04183dd53d26b22df5ac91f1869eec857b7",
       "mode": "644",
       "executable": false,
       "generated": false
