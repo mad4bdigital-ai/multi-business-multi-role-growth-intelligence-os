@@ -66,7 +66,7 @@ jobs:
 `, "utf8");
 
   fs.writeFileSync(path.join(temporaryRoot, "docs", "example.md"), `
-Documentation example only: DB_NAME: synthetic_documentation_db
+DB_NAME: synthetic_documentation_db
 `, "utf8");
 
   fs.writeFileSync(path.join(temporaryRoot, "tests", "fixture.js"), `
