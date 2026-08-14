@@ -140,14 +140,35 @@ const baseContract = {
   let resolverCalled = false;
   const result = await consumeRemoteMcpGovernedSurface({
     toolName: "apply_change",
-    resolveGovernedSurface: async () => {
+    resolveGovernedSurface: async (request) => {
       resolverCalled = true;
-      return baseContract;
+      assert.equal(request.tool_name, "apply_change");
+      assert.equal(request.requested_effect, "read_only");
+      assert.equal(request.authority_requested_from_surface, false);
+      assert.equal(request.provider_execution_requested_from_surface, false);
+      return {
+        ...baseContract,
+        plan: {
+          plan_id: "plan-write-1",
+          effect: "write",
+        },
+        final_authority: {
+          decision: "allow",
+          allowed: true,
+          authority_revision: "auth-write-1",
+          effect: "write",
+        },
+        surface_projection: {
+          tool_name: "apply_change",
+          effect: "write",
+          result: { accepted: false },
+        },
+      };
     },
   });
+  assert.equal(resolverCalled, true);
   assert.equal(result.ok, false);
   assert.equal(result.code, "MCP_WRITE_SURFACE_NOT_ENABLED");
-  assert.equal(resolverCalled, false);
 }
 
 console.log(JSON.stringify({
@@ -157,6 +178,7 @@ console.log(JSON.stringify({
   readiness_required: true,
   tenant_binding_enforced: true,
   write_surface_disabled: true,
+  local_tool_authority_catalog_created: false,
   local_authority_created: false,
   local_connection_selector_created: false,
 }));
