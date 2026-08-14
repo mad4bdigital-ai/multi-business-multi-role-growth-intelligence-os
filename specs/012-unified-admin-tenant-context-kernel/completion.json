@@ -515,5 +515,26 @@
     "provider_called": false,
     "production_promotion_authorized": false
   },
+  "track_a_context_integrity_slice": {
+    "status": "bounded_regression_passed_default_off",
+    "focused_test": "http-generic-api/test-context-kernel-integrity-regression.mjs",
+    "assertions": [
+      "sensitive_values_excluded_from_public_context_hash",
+      "owner_scope_revision_changes_context_hash",
+      "context_revision_mismatch_rejected",
+      "authority_and_workspace_invalidation_graph_fail_closed"
+    ],
+    "supporting_tests": [
+      "test-context-kernel-domain.mjs",
+      "test-context-kernel-application-use-cases.mjs",
+      "test-context-kernel-cross-tenant-isolation.mjs",
+      "test-context-kernel-shadow-authority-parity-fail-closed.mjs"
+    ],
+    "runtime_authority": false,
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "secrets_included": false
+  },
   "secrets_included": false
 }
