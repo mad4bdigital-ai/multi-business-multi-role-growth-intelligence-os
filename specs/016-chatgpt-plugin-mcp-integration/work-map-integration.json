@@ -414,9 +414,6 @@
   "implementation_readiness": {
     "status": "blocked",
     "blocking_dimensions": [
-      "track_b_readiness_evidence_not_landed",
-      "track_a_runtime_contract_not_landed",
-      "remote_mcp_tools_call_not_bound_to_track_a_contract",
       "governed_migration_not_applied",
       "live_oauth_and_cross_client_acceptance_not_verified",
       "production_rollout_and_rollback_evidence_missing"
@@ -426,7 +423,11 @@
       "specs/016-chatgpt-plugin-mcp-integration/spec.md",
       "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
       "specs/016-chatgpt-plugin-mcp-integration/completion.json",
-      "docs/agent-tracks/track-c-handoff.json"
+      "docs/agent-tracks/track-c-handoff.json",
+      "docs/agent-tracks/track-b-handoff.json",
+      "docs/agent-tracks/track-a-handoff.json",
+      "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/pull/7136",
+      "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/pull/7122"
     ]
   },
   "secrets_included": false
