@@ -47,7 +47,10 @@
             "Production and staging have distinct origin kinds, deployment providers, credential namespaces, and tunnel authority.",
             "The local staging tunnel remains behind the explicit tunnel profile and targets only http://app:8080.",
             "Unmatched hostnames fail closed with HTTP 404, and Auto Pilot performs no DNS, tunnel, Hostinger, database, migration, or provider mutation.",
-            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false remain explicit local defaults."
+            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false remain explicit local defaults.",
+            "Staging uses host-only Tenant GPT SSO cookies and never shares a .mad4b.com cookie with Production.",
+            "The current Activation Gateway bundle is Production-only for activation.mad4b.com to https://auth.mad4b.com; activation_dev.mad4b.com remains reserved-disabled until a dedicated staging bundle exists.",
+            "The Dev MCP hostname remains reserved-disabled until the explicit staging MCP runtime flag is enabled under separate credentials."
           ],
           "tests": [
             {

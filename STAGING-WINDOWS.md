@@ -68,7 +68,7 @@ The tunnel is a routing mechanism, not a deployment or migration authorization. 
 docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging --profile tunnel stop cloudflared
 ```
 
-Production remains on Hostinger Cloud and uses separate Cloudflare DNS/CDN records for `auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`, with separate Production credentials. None of those Production records may point at this local Dev tunnel, and no Dev hostname may point at the Hostinger Production origin.
+Production remains on Hostinger Cloud and uses separate Cloudflare DNS/CDN records for `auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`, with separate Production credentials. None of those Production records may point at this local Dev tunnel, and no Dev hostname may point at the Hostinger Production origin. Staging must use `TENANT_GPT_SSO_COOKIE_MODE=host_only`; never configure a shared `.mad4b.com` cookie on the External SSD. `mcp_dev.mad4b.com` and `activation_dev.mad4b.com` remain reserved-disabled until their separate runtime flag/bundle contracts are available; exposing DNS is not evidence that either service is ready.
 
 Stop without deleting local data:
 

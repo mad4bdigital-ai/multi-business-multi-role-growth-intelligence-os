@@ -53,6 +53,7 @@
           "hostname": "dev.mad4b.com",
           "service": "auth",
           "origin_kind": "local_staging_app",
+          "exposure_status": "planned",
           "dns_record_type": "CNAME",
           "dns_proxy_required": true,
           "credential_namespace": "staging.auth"
@@ -61,6 +62,8 @@
           "hostname": "mcp_dev.mad4b.com",
           "service": "mcp",
           "origin_kind": "local_staging_app",
+          "exposure_status": "reserved_disabled",
+          "required_runtime_flag": "REMOTE_MCP_ENABLED=true",
           "dns_record_type": "CNAME",
           "dns_proxy_required": true,
           "credential_namespace": "staging.mcp"
@@ -69,6 +72,8 @@
           "hostname": "activation_dev.mad4b.com",
           "service": "activation",
           "origin_kind": "local_staging_app",
+          "exposure_status": "reserved_disabled",
+          "required_runtime_bundle": "dedicated_staging_activation_gateway_bundle",
           "dns_record_type": "CNAME",
           "dns_proxy_required": true,
           "credential_namespace": "staging.activation"
