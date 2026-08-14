@@ -169,8 +169,8 @@ jobs:
             verifier_workflows=("repository-inventory.yml" "repository-evaluation.yml")
             verifier_names=("Repository Inventory" "Repository Evaluation")
           elif [[ "$resolved_recipe" == "remote_mcp_write_scope_refresh" ]]; then
-            verifier_workflows=("remote-mcp-oauth-path-format-guard.yml")
-            verifier_names=("Remote MCP OAuth Path Format Guard")
+            verifier_workflows=("remote-mcp-write-scope-verification.yml")
+            verifier_names=("Remote MCP Write-Scope Verification")
           elif [[ "$resolved_recipe" == "frontend_openapi_refresh" || "$resolved_recipe" == "work_map_self_hosting_bootstrap" ]]; then
             verifier_workflows=("pr-generated-artifact-refresh.yml")
             verifier_names=("PR Generated Artifact Refresh")

@@ -40,7 +40,7 @@ function requiredWorkflowDispatchInputs(source) {
 }
 
 function assertCallerSuppliesRequiredInputs(caller, label, requiredInputs) {
-  assert.match(caller, /gh workflow run production-promotion-candidate\.yml/u, `${label} must invoke the candidate builder`);
+  assert.match(caller, /(?:gh workflow run|dispatch_workflow_and_capture_run) production-promotion-candidate\.yml/u, `${label} must invoke the candidate builder`);
   for (const input of requiredInputs) {
     assert.match(caller, new RegExp(`--field\\s+${input}=`, "u"), `${label} must supply required candidate input ${input}`);
   }
