@@ -60,6 +60,22 @@ assert.doesNotMatch(
   /\bgit\s+push[^\n]*(?:--force(?:-with-lease)?|\s-f(?:\s|$))/u,
   "workflow must not contain a force-push command",
 );
+
+// Exact-main branch creation is a distributed GitHub API operation. A newly
+// created ref may not be readable on the immediately following request, so the
+// writer must distinguish true absence from other API failures and settle the
+// ref through a bounded exact-SHA readback instead of producing a false red.
+assert.match(workflow, /Initialize bounded refresh evidence/u, "early preflight evidence must exist before any mutable preflight can fail");
+assert.match(workflow, /generated-artifact-refresh-preflight\.json/u, "early failures must still leave an auditable artifact payload");
+assert.match(workflow, /remote_write_executed:false/u, "preflight evidence must not claim a repository write");
+assert.match(workflow, /HTTP 404\|Not Found/u, "only an explicit not-found response may be interpreted as an absent target branch");
+assert.match(workflow, /non-404 error; refusing to infer absence/u, "non-404 lookup failures must remain fail-closed");
+assert.match(workflow, /for attempt in \$\(seq 1 8\)/u, "post-create ref visibility must use a bounded retry window");
+assert.match(workflow, /sleep "\$attempt"/u, "bounded readback retries must back off rather than spin");
+assert.match(workflow, /Target ref resolved to unexpected SHA during readback/u, "a visible but wrong target SHA must fail immediately");
+assert.match(workflow, /Target ref did not converge to expected SHA after bounded readback retries/u, "an invisible or unresolved target ref must fail after the bounded window");
+assert.match(workflow, /Target ref create returned status .* requiring bounded exact-SHA readback/u, "a create collision may only settle through exact-SHA readback");
+
 assert.ok(
   schemaDocsGuard.includes("^http-generic-api\\/scripts\\/test-.*\\.mjs$"),
   "schema/docs coverage must recognize repository-maintenance tests under http-generic-api/scripts/test-*",
@@ -69,12 +85,15 @@ console.log(JSON.stringify({
   ok: true,
   gate: "governed_generated_artifact_refresh_apply_context",
   contract: "mad4b.governed-generated-artifact-refresh.v1",
-  cases: 25,
+  cases: 35,
   workflow_dispatch_only: true,
   exact_run_identity_visible: true,
   stale_requests_cancelled: true,
   remote_mcp_write_scope_recipe_registered: true,
   scripts_test_coverage_registered: true,
+  bounded_ref_readback: true,
+  non_404_absence_inference: false,
+  preflight_evidence_initialized: true,
   jobs_level_runner_context_used: false,
   protected_branch_mutation: false,
   force_push: false,
