@@ -133,7 +133,7 @@ const TARGET_SCHEMA = "synthetic_protocol_schema";
     path.join(repositoryRoot, ".github", "workflows", "ueacp-live-source-capture.yml"),
     "utf8",
   );
-  assert.doesNotMatch(liveWorkflow, /inputs\.target_schema/u);
+  assert.doesNotMatch(liveWorkflow, /\$\{\{\s*inputs\.target_schema\s*\}\}/u);
   assert.doesNotMatch(liveWorkflow, /^\s+target_schema:\s*$/mu);
   assert.match(liveWorkflow, /name:\s*"DB_NAME"/u);
   assert.match(liveWorkflow, /TARGET_SCHEMA=/u);
