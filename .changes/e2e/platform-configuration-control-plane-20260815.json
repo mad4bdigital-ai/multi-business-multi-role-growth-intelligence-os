@@ -15,6 +15,9 @@
       "http-generic-api/platformConfigurationResolver.js",
       "http-generic-api/platformConfigurationRegistryAdapter.js",
       "http-generic-api/platformLegacyConfigurationAdapter.js",
+      "http-generic-api/routes/tenantInfrastructureRoutes.js",
+      "http-generic-api/src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js",
+      "http-generic-api/test-growth-control-shadow-parity.mjs",
       "http-generic-api/test-platform-configuration-resolver.mjs",
       "http-generic-api/test-platform-configuration-registry-adapter.mjs",
       "http-generic-api/test-platform-legacy-configuration-adapter.mjs"
@@ -53,7 +56,8 @@
           "tests": [
             { "id": "platform-configuration-resolver", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-configuration-resolver.mjs", "args": [] },
             { "id": "platform-configuration-registry-adapter", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-configuration-registry-adapter.mjs", "args": [] },
-            { "id": "platform-legacy-configuration-adapter", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-legacy-configuration-adapter.mjs", "args": [] }
+            { "id": "platform-legacy-configuration-adapter", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-legacy-configuration-adapter.mjs", "args": [] },
+            { "id": "growth-control-shadow-parity", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-growth-control-shadow-parity.mjs", "args": [] }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-configuration-control-plane-20260815.json",
@@ -62,6 +66,9 @@
             "http-generic-api/platformConfigurationResolver.js",
             "http-generic-api/platformConfigurationRegistryAdapter.js",
             "http-generic-api/platformLegacyConfigurationAdapter.js",
+            "http-generic-api/routes/tenantInfrastructureRoutes.js",
+            "http-generic-api/src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js",
+            "http-generic-api/test-growth-control-shadow-parity.mjs",
             "http-generic-api/test-platform-configuration-resolver.mjs",
             "http-generic-api/test-platform-configuration-registry-adapter.mjs",
             "http-generic-api/test-platform-legacy-configuration-adapter.mjs"

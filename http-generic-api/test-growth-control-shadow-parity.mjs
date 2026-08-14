@@ -164,7 +164,7 @@ const repository = createGrowthControlShadowParityRepository({
         }]];
       }
       if (statement.includes("FROM platform_runtime_config")) {
-        return [[{ configJson: JSON.stringify({ policy: { allowExternalWrite: false, token: SECRET } }), updatedAt: null }]];
+        return [[{ config_key: LEGACY_KEY, config_json: JSON.stringify({ policy: { allowExternalWrite: false } }), updated_at: null, status: "active" }]];
       }
       return [{ affectedRows: 1 }];
     }
@@ -173,11 +173,11 @@ const repository = createGrowthControlShadowParityRepository({
 const storedMapping = await repository.getMapping(CONFIG_KEY);
 assert.deepEqual(storedMapping.privilegePaths, ["allowExternalWrite"]);
 const legacyRecord = await repository.readLegacyRuntimeConfig(LEGACY_KEY);
-assert.equal(legacyRecord.value.policy.token, SECRET);
+assert.equal(legacyRecord.value.policy.allowExternalWrite, false);
 await repository.recordEvidence(recorded[0]);
 assert.match(sqlCalls[0].statement, /growth_config_key = \?/);
 assert.deepEqual(sqlCalls[0].params, [CONFIG_KEY]);
-assert.match(sqlCalls[1].statement, /config_key = \?/);
+assert.match(sqlCalls[1].statement, /config_key\s*=\s*\?/);
 assert.deepEqual(sqlCalls[1].params, [LEGACY_KEY]);
 const insertCall = sqlCalls.at(-1);
 assert.match(insertCall.statement, /INSERT INTO growth_control_shadow_parity_evidence/);
@@ -195,7 +195,8 @@ assert.equal(/\bALTER\s+TABLE\b/i.test(migration), false);
 assert.equal(migration.includes(SECRET), false);
 
 const repositorySource = readFileSync("src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js", "utf8");
-assert(repositorySource.includes("platform_runtime_config"));
+assert(repositorySource.includes("createPlatformLegacyConfigurationAdapter"));
+assert.equal(repositorySource.includes("FROM platform_runtime_config"), false);
 assert(repositorySource.includes("growth_control_shadow_parity_evidence"));
 assert.equal(repositorySource.includes("providerApplyAllowed: true"), false);
 assert.equal(repositorySource.includes("externalWriteAllowed: true"), false);

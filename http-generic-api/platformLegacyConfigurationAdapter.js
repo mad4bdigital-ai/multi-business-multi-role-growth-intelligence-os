@@ -12,6 +12,19 @@ function containsSensitiveKey(value) {
   return Object.entries(value).some(([key, child]) => SENSITIVE_KEY.test(key) || containsSensitiveKey(child));
 }
 
+function uniqueLegacyRow(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (rows.length > 1) {
+    const error = new Error("LEGACY_CONFIG_AMBIGUOUS");
+    error.code = "LEGACY_CONFIG_AMBIGUOUS";
+    throw error;
+  }
+  return rows.reduce((selected, candidate) => {
+    if (selected !== undefined) throw new Error("LEGACY_CONFIG_UNIQUE_LOOKUP_FAILED");
+    return candidate;
+  }, undefined);
+}
+
 export function createPlatformLegacyConfigurationAdapter({ pool } = {}) {
   if (!pool || typeof pool.query !== "function") throw new TypeError("A database pool is required.");
 
@@ -20,13 +33,9 @@ export function createPlatformLegacyConfigurationAdapter({ pool } = {}) {
       "SELECT config_key,config_json,status,updated_at FROM platform_runtime_config WHERE config_key=? AND status='active'",
       [configKey],
     );
-    if (!Array.isArray(rows) || rows.length === 0) return { present: false, value: undefined, source: "platform_runtime_config", secrets_included: false };
-    if (rows.length > 1) {
-      const error = new Error("LEGACY_CONFIG_AMBIGUOUS");
-      error.code = "LEGACY_CONFIG_AMBIGUOUS";
-      throw error;
-    }
-    const value = parseJson(rows[0].config_json, undefined);
+    const row = uniqueLegacyRow(rows);
+    if (!row) return { present: false, value: undefined, source: "platform_runtime_config", secrets_included: false };
+    const value = parseJson(row.config_json, undefined);
     if (containsSensitiveKey(value)) {
       const error = new Error("LEGACY_CONFIG_SECRET_PRESENT");
       error.code = "LEGACY_CONFIG_SECRET_PRESENT";
@@ -37,7 +46,7 @@ export function createPlatformLegacyConfigurationAdapter({ pool } = {}) {
       present: value !== undefined,
       value,
       source: "platform_runtime_config",
-      updated_at: rows[0].updated_at || null,
+      updated_at: row.updated_at || null,
       secrets_included: false,
       authority: "legacy_compatibility_only",
     };
