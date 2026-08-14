@@ -168,7 +168,7 @@ jobs:
             cp "${changed_file}" "${destination}"
           done
 
-          source_hash="$(sed -n 's/^> Source hash: `\([0-9a-f]\{64\}\)`$/\1/p' docs/work-maps/README.md | head -n1)"
+          source_hash="$(sed -n 's/^> Source hash: `\([0-9a-f]\{64\}\)`$/\1/p' docs/work-maps/README.md | sed -n '1p')"
           [[ "${source_hash}" =~ ^[0-9a-f]{64}$ ]]
           jq -n \
             --arg contract "mad4b.work-map-repair-candidate.v1" \
