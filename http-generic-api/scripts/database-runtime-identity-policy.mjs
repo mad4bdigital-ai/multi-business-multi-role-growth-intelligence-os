@@ -21,7 +21,7 @@ const IDENTITY_FIELDS = Object.freeze([
   "target_schema",
 ]);
 const SUPPORTED_EXTENSIONS = new Set([
-  ".cjs", ".js", ".json", ".mjs", ".sh", ".ts", ".tsx", ".yaml", ".yml",
+  ".cjs", ".js", ".json", ".md", ".mjs", ".sh", ".ts", ".tsx", ".yaml", ".yml",
 ]);
 const EXCLUDED_SEGMENTS = new Set([
   ".git", ".next", "artifacts", "build", "coverage", "dist", "node_modules", "vendor",
