@@ -54,7 +54,18 @@ export function resolveSqlFiles({ baseSha = "", headSha = "", all = false, gitFn
     diffArgs = ["diff", "--name-only", "HEAD^", "HEAD", "--"];
   }
 
-  return gitFn(diffArgs)
+  let changedFiles;
+  try {
+    changedFiles = gitFn(diffArgs);
+  } catch (error) {
+    const canFallbackToHeadParent = !all
+      && isSha(normalizedHead)
+      && diffArgs[2] !== `${normalizedHead}^`;
+    if (!canFallbackToHeadParent) throw error;
+    changedFiles = gitFn(["diff", "--name-only", `${normalizedHead}^`, normalizedHead, "--"]);
+  }
+
+  return changedFiles
     .split(/\r?\n/u)
     .map((file) => file.trim())
     .filter(isSqlFile)

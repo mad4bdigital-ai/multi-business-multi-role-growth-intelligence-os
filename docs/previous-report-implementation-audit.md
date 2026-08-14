@@ -1,6 +1,6 @@
 # تدقيق تنفيذ التقارير السابقة
 
-**الفرع:** `feat/remote-mcp-dcr-dynamic-permissions`  
+**الفرع:** `feat/remote-mcp-dcr-dynamic-permissions`
 **آخر baseline مدقق قبل هذه الدفعة:** `a0ca13c8f`
 **الغرض:** منع الخلط بين وجود توثيق أو wiring وبين إغلاق acceptance gate فعليًا.
 

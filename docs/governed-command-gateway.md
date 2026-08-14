@@ -90,6 +90,8 @@ The adapter maps only to the existing authoritative workflow:
 
 The gateway does not mutate `Production`. It dispatches the existing governed launcher from trusted `main`; the downstream launcher remains responsible for source pins, request PR validation, candidate construction, exact validation, evidence, and any protected-ref convergence rules.
 
+The promotion parameter schema includes `review_mode`, which is restricted to `human` or `ai_policy`. In `ai_policy` mode, the bounded AI policy agent may replace maintainer approval only for the read-only supporting workflows and exact-candidate validation by selecting exact-head `workflow_dispatch` runs instead of reusing `pull_request` runs marked `action_required`. The mode cannot merge `Production`, deploy, apply migrations or grants, mutate databases or providers, read credential payloads, or authorize protected-ref mutation.
+
 ## Request contract
 
 The gateway accepts four inputs:
@@ -97,7 +99,7 @@ The gateway accepts four inputs:
 - `command` — registered command id;
 - `parameters_json` — JSON object matching the registered parameter schema;
 - `expected_head_sha` — exact lowercase 40-character SHA of trusted `main` containing the gateway;
-- `authorization` — exact typed confirmation fixed by the code-side adapter.
+- `authorization` — exact typed confirmation fixed by the code-side adapter. The promotion command additionally requires `parameters_json.review_mode` to be exactly `human` or `ai_policy`.
 
 The resolver fails closed when the workflow is not executing from `main`, the current workflow SHA does not equal `expected_head_sha`, the command is unknown/disabled, authorization differs, the schema is invalid, parameters are incomplete or contain unknown fields, or the adapter does not resolve to a code-allowlisted target.
 

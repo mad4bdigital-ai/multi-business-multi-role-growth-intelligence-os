@@ -38,6 +38,7 @@
       "http-generic-api/test-environment-branch-authority.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
       "http-generic-api/test-production-deployment-openapi-transition.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
@@ -103,6 +104,13 @@
               "working_directory": ".",
               "path": "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
               "args": []
+            },
+            {
+              "id": "spec-018-governed-production-convergence-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -117,6 +125,7 @@
             "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
             "http-generic-api/test-production-deployment-authority.mjs",
             "http-generic-api/test-production-deployment-openapi-transition.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
             "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
           ]
         },

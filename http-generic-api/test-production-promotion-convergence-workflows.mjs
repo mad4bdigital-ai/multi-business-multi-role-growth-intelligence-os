@@ -179,15 +179,14 @@ assert.match(
   "action_required must remain approval-pending instead of closing governed review surfaces",
 );
 
-const spec011DispatchBlock =
-  launcher.match(
-    /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?else\n\s+SUPPORTING_RUN_ID=/,
-  )?.[0] ?? "";
-assert.ok(spec011DispatchBlock, "Spec 011 supporting gate must have an explicit bounded dispatch block");
+const spec011Start = launcher.indexOf('if [[ "$workflow_name" == "Spec 011 Delegation MariaDB Certification" ]]; then');
+const spec011End = launcher.indexOf('              else\n                if [[ "$REVIEW_MODE" == "ai_policy" ]]; then', spec011Start);
+const spec011DispatchBlock = launcher.slice(spec011Start, spec011End);
+assert.ok(spec011Start >= 0 && spec011End > spec011Start, "Spec 011 supporting gate must have an explicit bounded dispatch block");
 assert.match(
   spec011DispatchBlock,
-  /SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"/,
-  "Spec 011 must reuse an already-visible exact-head run before dispatch",
+  /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?if \[\[ "\$REVIEW_MODE" == "ai_policy" \]\]; then[\s\S]*?SUPPORTING_RUN_ID="\$\(resolve_dispatch_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"[\s\S]*?else[\s\S]*?SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"/,
+  "Spec 011 must use an exact-head workflow_dispatch run only in ai_policy mode and retain exact-head run reuse in human mode",
 );
 assert.match(
   spec011DispatchBlock,

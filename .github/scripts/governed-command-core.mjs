@@ -70,6 +70,7 @@ export const ADAPTERS = Object.freeze({
       "release_branch_prefix",
       "validation_branch_prefix",
       "validation_base_branch_prefix",
+      "review_mode",
     ]),
     targetPrNumberKey: "request_pr",
     targetPrHeadShaKey: "expected_request_head_sha",

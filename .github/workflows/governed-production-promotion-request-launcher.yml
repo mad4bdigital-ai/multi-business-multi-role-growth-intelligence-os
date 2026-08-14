@@ -27,6 +27,14 @@ on:
         description: Governed non-protected validation base prefix
         required: true
         type: string
+      review_mode:
+        description: "Review mode: human keeps existing maintainer gates; ai_policy uses bounded AI policy review for read-only supporting gates only"
+        required: true
+        default: human
+        type: choice
+        options:
+          - human
+          - ai_policy
       confirmation:
         description: Type AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST
         required: true
@@ -58,6 +66,7 @@ jobs:
       RELEASE_BRANCH_PREFIX: ${{ inputs.release_branch_prefix }}
       VALIDATION_BRANCH_PREFIX: ${{ inputs.validation_branch_prefix }}
       VALIDATION_BASE_BRANCH_PREFIX: ${{ inputs.validation_base_branch_prefix }}
+      REVIEW_MODE: ${{ inputs.review_mode }}
     steps:
       - name: Validate governed dispatch identity and exact heads
         shell: bash
@@ -76,6 +85,10 @@ jobs:
           [[ "$EXPECTED_REQUEST_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_request_head_sha must be an exact lowercase SHA"
           [[ "$CURRENT_HEAD_SHA" == "$EXPECTED_HEAD_SHA" ]] || reject "expected head mismatch: current workflow head is not authorized"
           [[ "$GITHUB_REF_NAME" == "main" ]] || reject "launcher must be dispatched from trusted main"
+          case "$REVIEW_MODE" in
+            human|ai_policy) ;;
+            *) reject "review_mode must be human or ai_policy" ;;
+          esac
 
           for prefix in "$RELEASE_BRANCH_PREFIX" "$VALIDATION_BRANCH_PREFIX" "$VALIDATION_BASE_BRANCH_PREFIX"; do
             [[ -n "$prefix" ]] || reject "branch prefix must not be empty"
@@ -95,6 +108,12 @@ jobs:
             gpt/validate-production-base) ;;
             *) reject "validation base branch prefix must use the governed base namespace" ;;
           esac
+
+          if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+            echo "AI_POLICY_REVIEW_MODE=bounded_supporting_gates_only"
+            echo "AI_POLICY_REVIEW_SCOPE=read_only_supporting_workflows_and_exact_candidate_validation"
+            echo "AI_POLICY_REVIEW_FORBIDDEN=production_merge,deployment,migration,grant,provider_mutation,credential_payload_read"
+          fi
 
           request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"
           gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}" > "$request_file"
@@ -202,6 +221,44 @@ jobs:
                 --limit 100 \
                 --json databaseId,event,headSha,createdAt,status,conclusion \
                 --jq "(map(select(.event == \\"workflow_dispatch\\" and .createdAt >= \\"$earliest\\" and .headSha == \\"$expected_head_sha\\" and (.status != \\"completed\\" or .conclusion == \\"success\\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty" 2>/dev/null || true)"
+              if [[ -n "$run_id" ]]; then
+                printf '%s' "$run_id"
+                return 0
+              fi
+              sleep "$RUN_DISCOVERY_INTERVAL_SECONDS"
+            done
+            return 1
+          }
+
+          resolve_dispatch_run_once() {
+            local workflow_name="$1"
+            local earliest="$2"
+            local expected_head_sha="$3"
+            local workflow_file=""
+            case "$workflow_name" in
+              "Frontend surface dispatch") workflow_file="frontend-surface-dispatch.yml" ;;
+              "HTTP Generic API Fanout Relocation") workflow_file="http-generic-api-fanout-relocation.yml" ;;
+              "Custom GPT Contract Guard") workflow_file="custom-gpt-contract-guard.yml" ;;
+              "Platform Completion Cleanup Readback") workflow_file="platform-completion-cleanup-readback.yml" ;;
+              "Platform Remaining Scope Scorecard") workflow_file="platform-remaining-scope-scorecard.yml" ;;
+              "Spec 011 Delegation MariaDB Certification") workflow_file="spec-011-delegation-mariadb-certification.yml" ;;
+              *) return 1 ;;
+            esac
+            gh run list \
+              --repo "$REPOSITORY" \
+              --workflow "$workflow_file" \
+              --limit 100 \
+              --json databaseId,event,headSha,createdAt,status,conclusion \
+              --jq "(map(select(.event == \\\"workflow_dispatch\\\" and .createdAt >= \\\"$earliest\\\" and .headSha == \\\"$expected_head_sha\\\" and (.status != \\\"completed\\\" or .conclusion == \\\"success\\\" or .conclusion == \\\"action_required\\\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty" 2>/dev/null || true
+          }
+
+          resolve_dispatch_run() {
+            local workflow_name="$1"
+            local earliest="$2"
+            local expected_head_sha="$3"
+            local run_id=""
+            for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
+              run_id="$(resolve_dispatch_run_once "$workflow_name" "$earliest" "$expected_head_sha")"
               if [[ -n "$run_id" ]]; then
                 printf '%s' "$run_id"
                 return 0
@@ -381,7 +438,11 @@ jobs:
             while IFS= read -r workflow_name; do
               SUPPORTING_RUN_ID=""
               if [[ "$workflow_name" == "Spec 011 Delegation MariaDB Certification" ]]; then
-                SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+                  SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                else
+                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                fi
                 if [[ -z "$SUPPORTING_RUN_ID" ]]; then
                   SPEC011_RELEASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
                   if [[ "$SPEC011_RELEASE_READBACK" != "$CANDIDATE_SHA" ]]; then
@@ -390,21 +451,33 @@ jobs:
                     break
                   fi
 
-                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                  if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+                    SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                  else
+                    SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                  fi
                   if [[ -z "$SUPPORTING_RUN_ID" ]]; then
                     SPEC011_DISPATCH_STATUS=0
                     gh workflow run spec-011-delegation-mariadb-certification.yml \
                       --repo "$REPOSITORY" \
                       --ref "$RELEASE_BRANCH" || SPEC011_DISPATCH_STATUS=$?
 
-                    SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                    if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+                      SUPPORTING_RUN_ID="$(resolve_dispatch_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                    else
+                      SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                    fi
                     if [[ "$SPEC011_DISPATCH_STATUS" != "0" && -z "$SUPPORTING_RUN_ID" ]]; then
                       echo "::warning::Spec 011 supporting workflow dispatch returned non-zero and no exact-head run was observed; refusing blind dispatch retry"
                     fi
                   fi
                 fi
               else
-                SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+                  SUPPORTING_RUN_ID="$(resolve_dispatch_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                else
+                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                fi
                 if [[ -z "$SUPPORTING_RUN_ID" ]]; then
                   case "$workflow_name" in
                     "Frontend surface dispatch")
@@ -442,7 +515,11 @@ jobs:
                       break
                       ;;
                   esac
-                  SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                  if [[ "$REVIEW_MODE" == "ai_policy" ]]; then
+                    SUPPORTING_RUN_ID="$(resolve_dispatch_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                  else
+                    SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                  fi
                 fi
               fi
 
@@ -522,6 +599,7 @@ jobs:
               --arg release_pr "$RELEASE_PR" \
               --arg validation_pr "$VALIDATION_PR" \
               --arg evidence_digest "$EVIDENCE_DIGEST" \
+              --arg review_mode "$REVIEW_MODE" \
               --argjson supporting_runs "$SUPPORTING_RUNS" \
               --argjson attempt "$attempt" \
               '{
@@ -538,6 +616,9 @@ jobs:
                 builder_run_id: $builder_run_id,
                 exact_validation_run_id: $exact_validation_run_id,
                 supporting_runs: $supporting_runs,
+                review_mode: $review_mode,
+                review_authority: ($review_mode == "ai_policy" ? "bounded_ai_policy_agent" : "human_maintainer"),
+                ai_policy_scope: ($review_mode == "ai_policy" ? "read_only_supporting_gates_and_exact_candidate_validation" : null),
                 release_pr: $release_pr,
                 validation_pr: $validation_pr,
                 evidence_digest: $evidence_digest,
@@ -560,6 +641,8 @@ jobs:
           - pinned Production: \`$PRODUCTION_SHA\`
           - exact candidate: \`$CANDIDATE_SHA\`
           - exact validation run: \`$EXACT_RUN_ID\`
+          - review mode: \`$REVIEW_MODE\`
+          - review authority: \`$([[ "$REVIEW_MODE" == "ai_policy" ]] && printf '%s' bounded_ai_policy_agent || printf '%s' human_maintainer)\`
           - builder run: \`$BUILDER_RUN_ID\`
           - evidence digest: \`sha256:$EVIDENCE_DIGEST\`
           - tree policy: exact pinned-main tree
