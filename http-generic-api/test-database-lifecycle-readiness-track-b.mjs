@@ -14,6 +14,7 @@ import {
   buildMigrationLedgerEntry,
   assessReadinessAggregate,
   classifyReadbackEvidence,
+  validateRollbackTransition,
 } from "./databaseLifecycleReadiness.js";
 
 const SQL = "CREATE TABLE IF NOT EXISTS `track_b_probe` (id BIGINT PRIMARY KEY);";
@@ -119,6 +120,29 @@ test("readiness aggregate blocks production and failed checks", () => {
   const production = assessReadinessAggregate({ checks: { checksum: true, authorization: true, readback: true }, environment: "production" });
   assert.equal(production.readiness_status, "blocked");
   assert.ok(production.blocking_reasons.includes("production_apply_disabled"));
+});
+
+test("rollback lifecycle accepts evidence-backed transitions and remains non-mutating", () => {
+  const evidence = { pre_change_evidence: true, rollback_plan: true, audit_id: "audit-1" };
+  const result = validateRollbackTransition({ from: "requested", to: "approved", evidence, expiresAt: "2026-08-15T00:00:00.000Z", now: NOW, expectedEvidenceRevision: "rev-1", observedEvidenceRevision: "rev-1" });
+  assert.equal(result.valid, true);
+  assert.equal(result.rollback_executed, false);
+  assert.equal(result.database_mutated, false);
+});
+
+test("rollback closure fails on stale or incomplete evidence", () => {
+  const result = validateRollbackTransition({ from: "verifying", to: "closed", evidence: { pre_change_evidence: true, rollback_plan: true, audit_id: "audit-1", runtime_verified: true, clean_readback: false, unreconciled_count: 1 }, expiresAt: "2026-08-15T00:00:00.000Z", now: NOW, expectedEvidenceRevision: "rev-2", observedEvidenceRevision: "rev-1" });
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes("rollback_evidence_stale"));
+  assert.ok(result.errors.includes("rollback_clean_readback_missing"));
+  assert.ok(result.errors.includes("rollback_unreconciled_changes_present"));
+});
+
+test("expired rollback authorization can only transition to expired", () => {
+  const result = validateRollbackTransition({ from: "approved", to: "applied", evidence: { pre_change_evidence: true, rollback_plan: true, audit_id: "audit-1" }, expiresAt: "2026-08-13T00:00:00.000Z", now: NOW });
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes("rollback_authorization_expired"));
+  assert.equal(validateRollbackTransition({ from: "approved", to: "expired", expiresAt: "2026-08-13T00:00:00.000Z", now: NOW }).valid, true);
 });
 
 test("readback classification distinguishes ready, absent, partial, and mismatched evidence", () => {

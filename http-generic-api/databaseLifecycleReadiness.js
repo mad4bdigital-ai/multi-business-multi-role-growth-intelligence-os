@@ -195,6 +195,40 @@ export function reconcileMutationReceipt({ receipt = {}, readback = {} } = {}) {
   });
 }
 
+const ROLLBACK_TRANSITIONS = Object.freeze({
+  requested: Object.freeze(["approved", "expired"]),
+  approved: Object.freeze(["applied", "rollback_pending", "expired"]),
+  applied: Object.freeze(["verifying", "rollback_pending"]),
+  verifying: Object.freeze(["reconciled", "rollback_pending"]),
+  rollback_pending: Object.freeze(["rolled_back", "expired"]),
+  rolled_back: Object.freeze(["verifying", "closed"]),
+  reconciled: Object.freeze(["closed"]),
+  closed: Object.freeze([]),
+  expired: Object.freeze([]),
+});
+
+export function validateRollbackTransition({ from, to, evidence = {}, now = new Date(), expiresAt, expectedEvidenceRevision, observedEvidenceRevision } = {}) {
+  const errors = [];
+  if (!Object.prototype.hasOwnProperty.call(ROLLBACK_TRANSITIONS, from) || !ROLLBACK_TRANSITIONS[from].includes(to)) errors.push("rollback_transition_not_allowed");
+  if (to !== "expired" && !validFutureDate(expiresAt, now)) errors.push("rollback_authorization_expired");
+  if (expectedEvidenceRevision && observedEvidenceRevision !== expectedEvidenceRevision) errors.push("rollback_evidence_stale");
+  if (to !== "expired" && (!evidence.pre_change_evidence || !evidence.rollback_plan || !evidence.audit_id)) errors.push("rollback_evidence_incomplete");
+  if (["reconciled", "closed"].includes(to)) {
+    if (evidence.runtime_verified !== true) errors.push("rollback_runtime_not_verified");
+    if (evidence.clean_readback !== true) errors.push("rollback_clean_readback_missing");
+    if (Number(evidence.unreconciled_count || 0) !== 0) errors.push("rollback_unreconciled_changes_present");
+  }
+  return Object.freeze({
+    valid: errors.length === 0,
+    from: String(from || ""),
+    to: String(to || ""),
+    errors,
+    rollback_executed: false,
+    database_mutated: false,
+    secrets_included: false,
+  });
+}
+
 export function buildRollbackMatrix(entries = []) {
   return Object.freeze(entries.map((entry) => Object.freeze({
     operation: String(entry.operation),

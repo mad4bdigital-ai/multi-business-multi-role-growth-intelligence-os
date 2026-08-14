@@ -19,6 +19,7 @@
     "Capability, lease, typed approval, and receipt/readback fail-closed readiness",
     "Preflight-only migration ledger entry and readiness aggregate",
     "Ready/absent/partial/mismatched readback classification",
+    "Evidence-backed rollback lifecycle with stale/expired/incomplete evidence blocking",
     "Replay, idempotency, wildcard, and path-traversal negative checks",
     "No-secret evidence payload boundary",
     "Focused no-apply contract tests",
@@ -36,7 +37,7 @@
     "focused_tests": {
       "status": "pass",
       "command": "node --test http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
-      "passed": 15,
+      "passed": 18,
       "failed": 0
     },
     "syntax_check": {
@@ -53,7 +54,8 @@
     "readiness_aggregate": "production_fail_closed",
     "no_secret_evidence_boundary": "pass",
     "isolated_shared_artifact_validation": "pass",
-    "readback_classification": "pass"
+    "readback_classification": "pass",
+    "rollback_lifecycle": "fail_closed_with_stale_expiry_checks"
   },
   "guarantees": {
     "migration_applied": false,
