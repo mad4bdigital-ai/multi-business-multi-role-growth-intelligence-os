@@ -31,15 +31,13 @@ assert.match(dispatcher, /chore\/repository-inventory-main-sync-\$\{SOURCE_HEAD_
 assert.match(dispatcher, /main_convergence_exact_head_not_trusted/u);
 assert.match(dispatcher, /PR publication remains a separate governed/u);
 assert.doesNotMatch(dispatcher, /contents:\s*write/u);
-assert.doesNotMatch(workMapIntegration, /^\s*-\s*"\.github\/workflows\/\*\*"/mu);
-for (const workflow of [
-  ".github/workflows/spec-kit-work-map-integration.yml",
-  ".github/workflows/spec-kit-work-map-autofix.yml",
-  ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-  ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
-]) {
-  assert.match(workMapIntegration, new RegExp(workflow.replaceAll("/", "\\/"), "u"));
-}
+assert.match(workMapIntegration, /^\s*-\s*"\.github\/workflows\/\*\*"/mu);
+assert.match(workMapIntegration, /id: work_map_scope/u);
+assert.match(workMapIntegration, /currentness_required=false/u);
+assert.match(workMapIntegration, /git diff --name-only "origin\/main\.\.\.HEAD"/u);
+assert.match(workMapIntegration, /specs\/\*/u);
+assert.match(workMapIntegration, /docs\/work-maps\/\*/u);
+assert.match(workMapIntegration, /steps\.work_map_scope\.outputs\.currentness_required == 'true'/u);
 assert.match(writer, /create_from_main/u);
 assert.match(writer, /source_main_sha/u);
 assert.match(writer, /git\/refs/u);
