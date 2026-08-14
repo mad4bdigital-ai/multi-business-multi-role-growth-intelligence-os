@@ -134,6 +134,7 @@
       "readiness_aggregate": "production_fail_closed",
       "no_secret_evidence_boundary": "pass",
       "isolated_shared_artifact_validation": "pass",
+      "expanded_contract_suite": "22_tests_pass",
       "readback_classification": "pass",
       "rollback_lifecycle": "fail_closed_with_stale_expiry_checks"
     },

@@ -26,7 +26,13 @@ function main() {
     run(process.execPath, ["scripts/repository-inventory.mjs", "--check"], inventoryEnv);
     run(process.execPath, ["scripts/remote-mcp-write-scope-inventory.mjs"], writeScopeEnv);
     run(process.execPath, ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"], writeScopeEnv);
-    run(process.execPath, ["--test", "http-generic-api/test-database-lifecycle-readiness-track-b.mjs"]);
+    run(process.execPath, ["--test",
+      "http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+      "http-generic-api/test-database-lifecycle-mutation-readiness.mjs",
+      "http-generic-api/test-track-b-migration-readiness-manifest.mjs",
+      "http-generic-api/test-runtime-break-glass-reconciliation-readiness.mjs",
+      "http-generic-api/test-track-b-handoff-contract.mjs",
+    ]);
     console.log(JSON.stringify({ ok: true, mode: "isolated", shared_artifacts_modified: false, migration_applied: false, database_mutated: false, secrets_included: false }, null, 2));
   } finally {
     rmSync(workspace, { recursive: true, force: true });
