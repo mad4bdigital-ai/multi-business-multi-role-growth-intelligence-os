@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-promotion-direct-run-id-settlement",
+  "title": "Production promotion direct run-ID settlement",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-promotion-direct-run-id-settlement.json",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".github/tests/production-promotion-review-mode.test.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make governed Promotion convergence bind every builder, exact-validation, and ai_policy supporting run to the workflow-dispatch response that created it, eliminating time-sensitive run-list discovery races while retaining bounded fallback and fail-closed behavior.",
+      "e2e_journeys": [
+        {
+          "id": "settle-directly-dispatched-governed-promotion-runs",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Production Promotion Request Launcher",
+          "entrypoint": "A bounded ai_policy Promotion convergence attempt dispatches the candidate builder, exact validation, and allowlisted supporting gates for one exact candidate SHA.",
+          "terminal_outcome": "Each dispatch returns an exact run ID captured from its response URL; the launcher polls that run directly, records attempt/run provenance, retains bounded discovery only as fallback, and fails closed without closing a candidate on ambiguous dispatch transport.",
+          "steps": [
+            "Pin the current main, Production, release, validation, and validation-base refs for one convergence attempt.",
+            "Dispatch the candidate builder and capture its workflow run ID directly from the dispatch response URL.",
+            "Create the exact candidate surfaces and dispatch exact validation on the validation branch, capturing its run ID directly.",
+            "Poll exact validation by the captured run ID and require successful completion before supporting-gate resolution.",
+            "In ai_policy mode, dispatch each allowlisted supporting workflow on the exact release branch and capture each run ID directly.",
+            "Poll every captured supporting run to successful completion and record the exact IDs in convergence evidence.",
+            "Use bounded list discovery only when direct response capture is unavailable, and preserve fail-closed behavior for missing or ambiguous runs.",
+            "Perform final protected-ref and candidate readbacks before publishing evidence; no Production mutation is authorized."
+          ],
+          "assertions": [
+            "Candidate-builder and exact-validation run IDs are not selected solely by a later time-sensitive gh run list query.",
+            "Each ai_policy supporting gate is bound to the exact candidate SHA and release branch.",
+            "A dispatch response without a parseable run URL is treated as a bounded failure and does not trigger blind mutation or deployment.",
+            "The launcher retains transient API retry and settle-readback behavior.",
+            "The launcher still requires exact validation and all six supporting workflows.",
+            "No Production merge, deployment, SQL, migration, grant, provider, credential, secret, or protected-ref write authority is added by this repair.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            },
+            {
+              "id": "production-promotion-review-mode-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/production-promotion-review-mode.test.mjs",
+              "args": []
+            },
+            {
+              "id": "production-promotion-candidate-dispatch-input-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-dispatch-input-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-promotion-direct-run-id-settlement.json",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/tests/production-promotion-review-mode.test.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Record direct dispatch run IDs and fallback provenance in canonical convergence evidence across retries without weakening exact-head validation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise delayed workflow registration, transient dispatch transport errors, and canceled runs while proving no blind duplicate dispatch occurs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This orchestration repair has no provider or live-runtime canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair does not authorize Production merge, deployment, database mutation, migration apply, grant apply, or provider mutation."
+    }
+  ],
+  "secrets_included": false
+}
+
