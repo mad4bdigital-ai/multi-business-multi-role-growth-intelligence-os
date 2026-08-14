@@ -77,6 +77,7 @@ const CRITICAL_PATTERNS = [
 const COVERAGE_PATTERNS = [
   /^http-generic-api\/openapi.*\.ya?ml$/,
   /^http-generic-api\/test-.*\.mjs$/,
+  /^http-generic-api\/scripts\/test-.*\.mjs$/,
   /^tests\/.*\.(ts|js|mjs)$/,
   /^docs\//,
   /^canonicals\//,
@@ -129,7 +130,7 @@ console.error("Guarded files:");
 for (const file of critical) console.error(`  - ${file}`);
 console.error("\nAdd or update at least one of:");
 console.error("  - http-generic-api/openapi*.yaml");
-console.error("  - http-generic-api/test-*.mjs or tests/**");
+console.error("  - http-generic-api/test-*.mjs, http-generic-api/scripts/test-*.mjs, or tests/**");
 console.error("  - docs/**, canonicals/**, schemas/**");
 console.error("  - AI_Agent_Knowledge_Guide.md or another canonical guide");
 process.exit(1);
