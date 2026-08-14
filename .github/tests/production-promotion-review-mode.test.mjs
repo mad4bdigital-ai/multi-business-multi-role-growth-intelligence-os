@@ -14,6 +14,9 @@ test("promotion launcher registers bounded human and AI policy review modes", ()
   assert.match(launcher, /- ai_policy/u);
   assert.match(launcher, /AI_POLICY_REVIEW_MODE=bounded_supporting_gates_only/u);
   assert.match(launcher, /resolve_dispatch_run_once/u);
+  assert.match(launcher, /dispatch_workflow_and_capture_run/u);
+  assert.match(launcher, /candidate_builder_run=/u);
+  assert.match(launcher, /exact_validation_run=/u);
   assert.ok(launcher.includes("workflow_dispatch"), "AI policy resolver must select workflow_dispatch runs");
   for (const workflowFile of [
     "frontend-surface-dispatch.yml",
@@ -45,6 +48,8 @@ test("promotion launcher settles transient exact and supporting run readback bef
   assert.match(launcher, /transient GitHub API error during settle readback/u);
   assert.match(launcher, /exact candidate validation/u);
   assert.match(launcher, /required supporting workflow failed or was not found/u);
+  assert.match(launcher, /workflow dispatch returned no run URL/u);
+  assert.match(launcher, /exact_validation_dispatch_failed/u);
 });
 
 test("main source-pin guard can comment stale release PRs without broader mutation permission", () => {
