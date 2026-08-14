@@ -18,6 +18,7 @@
     "Exact database-table authority and registered recipe allowlist validation",
     "Capability, lease, typed approval, and receipt/readback fail-closed readiness",
     "Preflight-only migration ledger entry and readiness aggregate",
+    "Ready/absent/partial/mismatched readback classification",
     "Replay, idempotency, wildcard, and path-traversal negative checks",
     "No-secret evidence payload boundary",
     "Focused no-apply contract tests",
@@ -35,7 +36,7 @@
     "focused_tests": {
       "status": "pass",
       "command": "node --test http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
-      "passed": 14,
+      "passed": 15,
       "failed": 0
     },
     "syntax_check": {
@@ -51,7 +52,8 @@
     "migration_ledger_contract": "preflight_only",
     "readiness_aggregate": "production_fail_closed",
     "no_secret_evidence_boundary": "pass",
-    "isolated_shared_artifact_validation": "pass"
+    "isolated_shared_artifact_validation": "pass",
+    "readback_classification": "pass"
   },
   "guarantees": {
     "migration_applied": false,

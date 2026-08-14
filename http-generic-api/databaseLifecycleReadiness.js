@@ -69,6 +69,14 @@ export function buildReadbackContract({ migration, observed = {} }) {
   });
 }
 
+export function classifyReadbackEvidence({ ok = false, ledgerFound = false, expected = {}, missing = {}, checksumMatches = true, statementCountMatches = true } = {}) {
+  const missingCount = Object.values(missing).reduce((count, value) => count + (Array.isArray(value) ? value.length : 0), 0);
+  if (ok && ledgerFound && checksumMatches && statementCountMatches && missingCount === 0) return "ready";
+  if (!ledgerFound && missingCount > 0 && Object.values(expected).some((value) => Array.isArray(value) && value.length > 0) && missingCount >= Object.values(expected).filter(Array.isArray).reduce((count, value) => count + value.length, 0)) return "absent";
+  if (!checksumMatches || !statementCountMatches) return "mismatched";
+  return "partial";
+}
+
 export function buildEnvironmentAttestation({ environment, branch, expectedSha, deployedSha, runtimeImmutable = true, breakGlass = [] }) {
   const shaMatches = Boolean(expectedSha && deployedSha && expectedSha === deployedSha);
   const unreconciled = breakGlass.filter((item) => item && item.reconciliation_status !== "closed");

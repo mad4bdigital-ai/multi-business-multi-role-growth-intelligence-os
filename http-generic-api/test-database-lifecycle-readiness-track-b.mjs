@@ -13,6 +13,7 @@ import {
   validateAuthorityBinding,
   buildMigrationLedgerEntry,
   assessReadinessAggregate,
+  classifyReadbackEvidence,
 } from "./databaseLifecycleReadiness.js";
 
 const SQL = "CREATE TABLE IF NOT EXISTS `track_b_probe` (id BIGINT PRIMARY KEY);";
@@ -118,6 +119,14 @@ test("readiness aggregate blocks production and failed checks", () => {
   const production = assessReadinessAggregate({ checks: { checksum: true, authorization: true, readback: true }, environment: "production" });
   assert.equal(production.readiness_status, "blocked");
   assert.ok(production.blocking_reasons.includes("production_apply_disabled"));
+});
+
+test("readback classification distinguishes ready, absent, partial, and mismatched evidence", () => {
+  const expected = { tables: ["a", "b"], columns: ["c"] };
+  assert.equal(classifyReadbackEvidence({ ok: true, ledgerFound: true, expected, missing: { tables: [], columns: [] } }), "ready");
+  assert.equal(classifyReadbackEvidence({ ok: false, ledgerFound: false, expected, missing: { tables: ["a", "b"], columns: ["c"] } }), "absent");
+  assert.equal(classifyReadbackEvidence({ ok: false, ledgerFound: false, expected, missing: { tables: ["b"], columns: [] } }), "partial");
+  assert.equal(classifyReadbackEvidence({ ok: false, ledgerFound: true, expected, missing: {}, checksumMatches: false }), "mismatched");
 });
 
 test("readiness evidence payloads contain no credential-bearing fields", () => {
