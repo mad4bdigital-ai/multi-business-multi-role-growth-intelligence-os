@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6901,
-    "bytes": 64140691,
-    "lines": 1514870,
+    "files": 6907,
+    "bytes": 64166031,
+    "lines": 1515372,
     "directories": 259,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2076,
-      "documentation": 1884,
-      "api-runtime": 1388,
+      "tests-and-specs": 2077,
+      "documentation": 1885,
+      "api-runtime": 1391,
       "database-migrations": 778,
-      "root-and-other": 240,
+      "root-and-other": 241,
       "ci-workflows": 158,
       "api-contracts": 152,
       "ci-config": 103,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2479,
-      ".mjs": 1603,
+      ".md": 2480,
+      ".mjs": 1604,
       ".js": 969,
       ".sql": 793,
-      ".json": 714,
-      ".yml": 160,
+      ".json": 715,
+      ".yml": 161,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -39,16 +39,17 @@
       ".txt": 7,
       ".py": 5,
       ".ps1": 5,
+      ".example": 3,
       ".css": 3,
       ".csproj": 2,
       ".toml": 2,
-      ".example": 2,
       ".gitattributes": 1,
       ".gitignore": 1,
       ".nvmrc": 1,
       ".manifest": 1,
       ".jsonl": 1,
       ".htaccess": 1,
+      ".dockerignore": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
       ".png": 1,
@@ -57,11 +58,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3560,
+      "http-generic-api": 3564,
       "docs": 1791,
       "specs": 846,
       ".github": 261,
-      ".changes": 235,
+      ".changes": 236,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -80,6 +81,7 @@
       "GPT_Tenant_Connector_Instructions.md": 1,
       "GPT_Tenant_Connector_Knowledge.md": 1,
       "README.md": 1,
+      "STAGING-WINDOWS.md": 1,
       "Top Level Instructions.md": 1,
       "Updating Registry Patch Index.md": 1,
       "build-canonicals.mjs": 1,
@@ -212,7 +214,7 @@
     "workflows": 158,
     "migrations": 778,
     "apiContracts": 152,
-    "testSpecFiles": 2143
+    "testSpecFiles": 2144
   },
   "largestFiles": [
     {
