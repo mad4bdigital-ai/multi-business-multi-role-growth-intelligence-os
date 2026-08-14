@@ -166,7 +166,114 @@ jobs:
             echo "No committed baseline is available for this event."
           fi
 
+      - name: Classify read-only repository-state bootstrap
+        id: repository_state
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          TARGET_REF: ${{ github.head_ref }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git diff --quiet origin/main...HEAD -- scripts/repository-inventory-verification-gate.mjs; then
+            echo "Repository Evaluation bootstrap requires the Inventory verification gate to be byte-unchanged from trusted main." >&2
+            exit 1
+          fi
+
+          report="$RUNNER_TEMP/repository-inventory-verification.json"
+          node scripts/repository-inventory-verification-gate.mjs \
+            --event-name pull_request \
+            --target-ref "$TARGET_REF" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --head-repository "$HEAD_REPOSITORY" \
+            --base-ref "$BASE_REF" \
+            --repository "$REPOSITORY" \
+            --output "$report"
+
+          outcome="$(jq -er '.outcome' "$report")"
+          if [[ "$outcome" == "bootstrap_pending" ]]; then
+            test "$(jq -r '.repository_mutation' "$report")" = "false"
+            test "$(jq -r '.protected_branch_mutation' "$report")" = "false"
+            test "$(jq -r '.force_push' "$report")" = "false"
+            test "$(jq -r '.deterministic_generation_verified' "$report")" = "true"
+            echo "bootstrap_pending=true" >> "$GITHUB_OUTPUT"
+            echo "trusted_main_sha=$(jq -er '.trusted_main_sha' "$report")" >> "$GITHUB_OUTPUT"
+          else
+            echo "bootstrap_pending=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prove read-only Repository State bootstrap convergence
+        if: steps.repository_state.outputs.bootstrap_pending == 'true'
+        shell: bash
+        env:
+          TRUSTED_MAIN_SHA: ${{ steps.repository_state.outputs.trusted_main_sha }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TRUSTED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+          trusted_evaluation_paths=(
+            scripts/repository-evaluation.mjs
+            scripts/test-repository-evaluation.mjs
+          )
+          if ! git diff --quiet "$TRUSTED_MAIN_SHA"...HEAD -- "${trusted_evaluation_paths[@]}"; then
+            echo "Repository Evaluation bootstrap requires Evaluation generator/test bytes to be unchanged from trusted main." >&2
+            exit 1
+          fi
+
+          evaluation_outputs=(
+            docs/repository-evaluation.json
+            docs/repository-evaluation-summary.json
+            docs/repository-evaluation.md
+          )
+          npm run evaluation:write -- --enforce
+          : > "$RUNNER_TEMP/evaluation-first.sha256"
+          for file in "${evaluation_outputs[@]}"; do
+            sha256sum "$file" >> "$RUNNER_TEMP/evaluation-first.sha256"
+          done
+
+          npm run evaluation:write -- --enforce
+          : > "$RUNNER_TEMP/evaluation-second.sha256"
+          for file in "${evaluation_outputs[@]}"; do
+            sha256sum "$file" >> "$RUNNER_TEMP/evaluation-second.sha256"
+          done
+          cmp "$RUNNER_TEMP/evaluation-first.sha256" "$RUNNER_TEMP/evaluation-second.sha256"
+
+          npm run evaluation:test
+          npm run evaluation:check -- --enforce
+
+          expected_dirty="$RUNNER_TEMP/repository-state-expected-dirty.txt"
+          actual_dirty="$RUNNER_TEMP/repository-state-actual-dirty.txt"
+          printf '%s\n' \
+            docs/repository-evaluation-summary.json \
+            docs/repository-evaluation.json \
+            docs/repository-evaluation.md \
+            docs/repository-inventory-summary.json \
+            docs/repository-inventory.json \
+            docs/repository-inventory.md \
+            | sort > "$expected_dirty"
+          {
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sed '/^$/d' | sort -u > "$actual_dirty"
+          diff -u "$expected_dirty" "$actual_dirty"
+
+          jq -cn \
+            --arg contract "mad4b.repository-state-bootstrap-proof.v1" \
+            --arg candidate_sha "$EXPECTED_HEAD_SHA" \
+            --arg trusted_main_sha "$TRUSTED_MAIN_SHA" \
+            --slurpfile inventory "$RUNNER_TEMP/repository-inventory-verification.json" \
+            '{contract:$contract,outcome:"bootstrap_pending",candidate_sha:$candidate_sha,trusted_main_sha:$trusted_main_sha,inventory_evidence:$inventory[0],inventory_then_evaluation:true,evaluation_deterministic:true,evaluation_current_after_generation:true,dirty_set_exact_six_outputs:true,repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/repository-state-bootstrap-proof.json"
+
       - name: Run deterministic evaluation loop
+        if: steps.repository_state.outputs.bootstrap_pending != 'true'
         shell: bash
         env:
           INCLUDE_NETWORK: ${{ github.event_name == 'workflow_dispatch' && inputs.include_network || false }}
@@ -188,13 +295,14 @@ jobs:
             docs/repository-evaluation.md
 
       - name: Report baseline lifecycle diff
-        if: env.EVALUATION_BASELINE != ''
+        if: env.EVALUATION_BASELINE != '' && steps.repository_state.outputs.bootstrap_pending != 'true'
         shell: bash
         run: |
           set -euo pipefail
           node scripts/repository-evaluation.mjs --diff --baseline "$EVALUATION_BASELINE" > "$RUNNER_TEMP/repository-evaluation-baseline-diff.json"
 
       - name: Upload evaluation artifacts
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: repository-evaluation-${{ inputs.expected_head_sha || github.sha }}
@@ -206,4 +314,6 @@ jobs:
             ${{ runner.temp }}/repository-evaluation-probes.json
             ${{ runner.temp }}/repository-evaluation-probes.md
             ${{ runner.temp }}/repository-evaluation-probes-summary.json
+            ${{ runner.temp }}/repository-inventory-verification.json
+            ${{ runner.temp }}/repository-state-bootstrap-proof.json
           if-no-files-found: warn
