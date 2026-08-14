@@ -201,6 +201,13 @@ export function buildTenantGptEffectiveCapabilitySurface({
   appendBlockers(blockers, "final_authority", final_authority?.blockers || final_authority?.blocking_reasons);
   appendBlockers(blockers, "readiness", readiness?.blocking_checks || readiness?.blockers);
 
+  const preflightDecision = String(authority_preflight?.decision || authority_preflight?.status || "").trim().toLowerCase();
+  const preflightDenied = authority_preflight?.allowed === false
+    || ["deny", "denied", "blocked", "reject", "rejected"].includes(preflightDecision);
+  if (authority_preflight && preflightDenied && !blockers.some((entry) => entry.source === "authority_preflight")) {
+    blockers.push({ source: "authority_preflight", code: "AUTHORITY_PREFLIGHT_DENIED" });
+  }
+
   if (final_authority && final_authority.allowed !== true && !blockers.some((entry) => entry.source === "final_authority")) {
     blockers.push({ source: "final_authority", code: "FINAL_AUTHORITY_DENIED" });
   }
