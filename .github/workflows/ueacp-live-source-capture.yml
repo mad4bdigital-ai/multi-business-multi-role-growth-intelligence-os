@@ -1,0 +1,257 @@
+name: UEACP Live Source Capture
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/ueacp-live-source-capture.yml"
+      - ".github/scripts/authority-live-census-observation.mjs"
+      - "http-generic-api/authorityLiveEvidenceOrchestrator.js"
+      - "http-generic-api/authorityLiveSourceCollectors.js"
+      - "http-generic-api/scripts/authority-live-evidence-collect.mjs"
+  workflow_dispatch:
+    inputs:
+      target_schema:
+        description: Exact Production schema authorized for the bounded read-only source capture
+        required: true
+        type: string
+      confirm:
+        description: Type I_AUTHORIZE_READ_ONLY_UEACP_SOURCE_CAPTURE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ueacp-live-source-capture
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Live Source Capture Contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+      - name: Check source-capture syntax
+        run: |
+          node --check .github/scripts/authority-live-census-observation.mjs
+          node --check http-generic-api/authorityLiveEvidenceOrchestrator.js
+          node --check http-generic-api/authorityLiveSourceCollectors.js
+          node --check http-generic-api/scripts/authority-live-evidence-collect.mjs
+      - name: Enforce governed manual read-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/ueacp-live-source-capture.yml
+          grep -q '^  workflow_dispatch:' "$workflow"
+          ! grep -Eq '^  (push|schedule|issue_comment|workflow_run):' "$workflow"
+          grep -q '^permissions:$' "$workflow"
+          grep -q '^  contents: read$' "$workflow"
+          grep -q "vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true'" "$workflow"
+          grep -q 'environment: ueacp-live-evidence' "$workflow"
+          grep -q 'I_AUTHORIZE_READ_ONLY_UEACP_SOURCE_CAPTURE' "$workflow"
+          grep -q 'github.ref_name == '\''main'\''' "$workflow"
+          grep -q 'persist-credentials: false' "$workflow"
+          grep -q 'authority-live-census-observation.mjs' "$workflow"
+          grep -q 'authority-live-evidence-collect.mjs' "$workflow"
+          grep -q 'Validate and extract exactly eight no-secret source snapshots' "$workflow"
+          grep -q 'Validate capture artifacts are no-secret' "$workflow"
+          grep -q 'retention-days: 30' "$workflow"
+
+  capture:
+    name: Capture Eight Read-Only Authority Sources
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_name == 'main' &&
+      vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true' &&
+      inputs.confirm == 'I_AUTHORIZE_READ_ONLY_UEACP_SOURCE_CAPTURE'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ueacp-live-evidence
+    env:
+      REPOSITORY: ${{ github.repository }}
+      TARGET_SCHEMA: ${{ inputs.target_schema }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+    steps:
+      - name: Checkout exact trusted main dispatch SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+      - name: Enforce trusted immutable dispatch inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "main"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          [[ "${TARGET_SCHEMA}" =~ ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ ]]
+          EVIDENCE_DIR="${RUNNER_TEMP}/ueacp-live-source-capture"
+          mkdir -p "${EVIDENCE_DIR}"
+          printf 'EVIDENCE_DIR=%s\n' "${EVIDENCE_DIR}" >> "${GITHUB_ENV}"
+      - name: Create short-lived read-only capture authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const issued = new Date();
+          const expires = new Date(issued.getTime() + 30 * 60 * 1000);
+          const authorization = {
+            contract: 'mad4b.ueacp.authority-live-evidence-authorization.v1',
+            operation_mode: 'read_only_live_authority_evidence',
+            operation_ref: `github.run.${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_SHA}`,
+            environment: 'production_runtime',
+            target_schema: process.env.TARGET_SCHEMA,
+            issued_at: issued.toISOString(),
+            expires_at: expires.toISOString(),
+            approved: true,
+            read_only: true,
+            applies_sql: false,
+            provider_calls: false,
+            credential_payload_read: false,
+            external_writes: false,
+            secrets_included: false
+          };
+          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/authorization.json`, `${JSON.stringify(authorization, null, 2)}\n`, { mode: 0o600 });
+          NODE
+      - name: Observe live catalog read-only with same-cycle readback
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-source-capture/catalog-observation.json
+          OBSERVED_REF: ${{ github.sha }}
+        run: node .github/scripts/authority-live-census-observation.mjs
+      - name: Collect all eight fixed authority sources
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-source-capture/authorization.json
+          CENSUS_PATH: ${{ runner.temp }}/ueacp-live-source-capture/catalog-observation.json
+          EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-source-capture/live-evidence-packet.json
+        run: node http-generic-api/scripts/authority-live-evidence-collect.mjs
+      - name: Validate and extract exactly eight no-secret source snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const packetPath = `${process.env.EVIDENCE_DIR}/live-evidence-packet.json`;
+          const packet = JSON.parse(fs.readFileSync(packetPath, 'utf8'));
+          if (packet.contract !== 'mad4b.ueacp.authority-live-evidence-packet.v1') throw new Error('invalid live evidence packet contract');
+          if (!['ready_for_human_ownership_review', 'blocked'].includes(packet.status)) throw new Error('invalid live evidence packet status');
+          const sources = packet?.source_bundle?.sources;
+          if (!Array.isArray(sources) || sources.length !== 8) throw new Error('exactly eight authority source snapshots are required');
+          const families = sources.map((source) => source?.source_family).sort();
+          const expected = [
+            'admin_endpoint_catalog',
+            'compatibility_alias_registry',
+            'descriptor_catalog',
+            'direct_http_routes',
+            'local_device_catalog',
+            'provider_binding_catalog',
+            'runtime_action_registry',
+            'system_tool_registry'
+          ].sort();
+          if (JSON.stringify(families) !== JSON.stringify(expected)) throw new Error('authority source family set mismatch');
+          for (const source of sources) {
+            if (source?.pagination?.complete !== true || source?.pagination?.next_cursor !== null) throw new Error(`incomplete pagination: ${source?.source_family}`);
+            if (source?.safety?.read_only !== true
+              || source?.safety?.provider_calls !== false
+              || source?.safety?.credential_payload_read !== false
+              || source?.safety?.external_writes !== false
+              || source?.safety?.secrets_included !== false) {
+              throw new Error(`unsafe source snapshot: ${source?.source_family}`);
+            }
+          }
+          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/sources.json`, `${JSON.stringify(sources, null, 2)}\n`, { mode: 0o600 });
+          NODE
+      - name: Validate capture artifacts are no-secret
+        id: artifact_safety
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'safe=false\n' >> "${GITHUB_OUTPUT}"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = fs.realpathSync(process.env.EVIDENCE_DIR);
+          const names = ['catalog-observation.json', 'live-evidence-packet.json', 'sources.json'];
+          const sensitive = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+          const scan = (value, location = 'root', seen = new WeakSet()) => {
+            if (!value || typeof value !== 'object' || seen.has(value)) return;
+            seen.add(value);
+            for (const [key, nested] of Object.entries(value)) {
+              if (sensitive.test(key) && nested !== false && nested !== null && nested !== undefined) {
+                throw new Error(`sensitive evidence value at ${location}.${key}`);
+              }
+              scan(nested, `${location}.${key}`, seen);
+            }
+          };
+          for (const name of names) {
+            const declared = path.join(root, name);
+            const stat = fs.lstatSync(declared);
+            if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`unsafe capture artifact: ${name}`);
+            if (stat.size > 128 * 1024 * 1024) throw new Error(`oversized capture artifact: ${name}`);
+            if (path.dirname(fs.realpathSync(declared)) !== root) throw new Error(`capture artifact escaped root: ${name}`);
+            scan(JSON.parse(fs.readFileSync(declared, 'utf8')), name);
+          }
+          NODE
+          printf 'safe=true\n' >> "${GITHUB_OUTPUT}"
+      - name: Upload validated no-secret source capture
+        if: always() && steps.artifact_safety.outputs.safe == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ueacp-live-source-capture-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ueacp-live-source-capture/catalog-observation.json
+            ${{ runner.temp }}/ueacp-live-source-capture/live-evidence-packet.json
+            ${{ runner.temp }}/ueacp-live-source-capture/sources.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce capture-only boundary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          packet="${EVIDENCE_DIR}/live-evidence-packet.json"
+          sources="${EVIDENCE_DIR}/sources.json"
+          test -f "$packet"
+          test -f "$sources"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const packet = JSON.parse(fs.readFileSync(`${process.env.EVIDENCE_DIR}/live-evidence-packet.json`, 'utf8'));
+          const safe = packet.read_only === true
+            && packet.applies_sql === false
+            && packet.runtime_authority_changed === false
+            && packet.provider_calls === false
+            && packet.credential_payload_read === false
+            && packet.external_writes === false
+            && packet.secrets_included === false
+            && packet.closure_state?.t001_complete === false
+            && packet.closure_state?.t002_complete === false
+            && packet.closure_state?.migration_apply_authorized === false;
+          if (!safe) throw new Error('source capture packet violated the bounded read-only boundary');
+          console.log(JSON.stringify({
+            status: packet.status,
+            source_family_count: packet.source_bundle?.source_family_count,
+            blocking_gap_count: packet.source_bundle?.blocking_gap_count,
+            packet_sha256: packet.packet_sha256,
+            closes_t001: false,
+            closes_t002: false,
+            secrets_included: false
+          }));
+          NODE

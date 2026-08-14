@@ -37,6 +37,16 @@ test("promotion parameter schema fails closed outside the two registered modes",
   assert.equal(schema.additionalProperties, false);
 });
 
+test("promotion launcher settles transient exact and supporting run readback before closing surfaces", () => {
+  assert.match(launcher, /RUN_SETTLE_GRACE_SECONDS=180/u);
+  assert.match(launcher, /wait_run_success_settled/u);
+  assert.match(launcher, /HTTP 404\|HTTP 408\|HTTP 409\|HTTP 429/u);
+  assert.match(launcher, /transient GitHub API error while polling/u);
+  assert.match(launcher, /transient GitHub API error during settle readback/u);
+  assert.match(launcher, /exact candidate validation/u);
+  assert.match(launcher, /required supporting workflow failed or was not found/u);
+});
+
 test("main source-pin guard can comment stale release PRs without broader mutation permission", () => {
   assert.match(sourcePin, /actions: write/u);
   assert.match(sourcePin, /contents: read/u);
