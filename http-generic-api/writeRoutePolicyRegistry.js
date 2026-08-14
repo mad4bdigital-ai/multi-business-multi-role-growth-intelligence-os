@@ -68,11 +68,13 @@ export async function resolveWriteRoutePolicy({ routeId, environment = "staging"
   try {
     const [rows] = await pool.query(
       `SELECT ${SELECT_COLUMNS} FROM write_route_policy_registry
-        WHERE route_id = ? AND environment = ? LIMIT 1`,
+        WHERE route_id = ? AND environment = ?`,
       [route, scope],
     );
-    const policy = normalizeWriteRoutePolicy(rows?.[0]);
-    if (!policy.route_id) return { ok: false, reason_code: "write_route_policy_not_found", environment: scope, mode: requested, policy: null, secrets_included: false };
+    if (!rows?.length) return { ok: false, reason_code: "write_route_policy_not_found", environment: scope, mode: requested, policy: null, secrets_included: false };
+    if (rows.length > 1) return { ok: false, reason_code: "write_route_policy_ambiguous", environment: scope, mode: requested, policy: null, candidate_count: rows.length, secrets_included: false };
+    const [policyRow] = rows;
+    const policy = normalizeWriteRoutePolicy(policyRow);
     if (policy.mode !== requested) return { ok: false, reason_code: "write_route_policy_mode_mismatch", environment: scope, mode: requested, policy, secrets_included: false };
     if (policy.environment === "production" || requested.startsWith("production-")) {
       return { ok: false, reason_code: "production_write_route_activation_requires_separate_promotion", environment: scope, mode: requested, policy: { ...policy, enabled: false }, secrets_included: false };

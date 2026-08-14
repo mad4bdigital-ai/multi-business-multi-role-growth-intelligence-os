@@ -25,10 +25,7 @@ const baseRow = {
 const pool = {
   async query(sql, params) {
     assert.match(sql, /write_route_policy_registry/);
-    if (sql.includes("LIMIT 1")) {
-      return [[params?.[1] === "production" ? { ...baseRow, environment: "production", mode: "production-live" } : baseRow]];
-    }
-    return [[baseRow]];
+    return [[params?.[1] === "production" ? { ...baseRow, environment: "production", mode: "production-live" } : baseRow]];
   },
 };
 
