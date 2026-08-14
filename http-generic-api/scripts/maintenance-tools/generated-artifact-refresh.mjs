@@ -15,11 +15,13 @@ const MAX_DIAGNOSTIC_CHARS = 4000;
 const AUTO_RECIPE = "auto";
 const FRONTEND_OPENAPI_RECIPE = "frontend_openapi_refresh";
 const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
+const REMOTE_MCP_WRITE_SCOPE_RECIPE = "remote_mcp_write_scope_refresh";
 const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
 const TRUSTED_WRITER_AUTHORITY_MODE = "trusted_generated_artifact_writer";
 const EXPLICIT_RECIPES = new Set([
   FRONTEND_OPENAPI_RECIPE,
   WORK_MAP_BOOTSTRAP_RECIPE,
+  REMOTE_MCP_WRITE_SCOPE_RECIPE,
   REPOSITORY_INVENTORY_RECIPE,
 ]);
 const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
@@ -42,6 +44,10 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
   "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
 ]);
+const REMOTE_MCP_WRITE_SCOPE_OUTPUTS = new Set([
+  "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+  "docs/remote-mcp-write-scope-inventory.md",
+]);
 const REPOSITORY_INVENTORY_OUTPUTS = new Set([
   "docs/repository-inventory.json",
   "docs/repository-inventory-summary.json",
@@ -58,7 +64,7 @@ const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
 ]);
 const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
-  /^(?:\.github\/workflows\/(?:governed-generated-artifact-refresh|repository-inventory(?:-autofix-dispatch)?)\.yml|docs\/repository-inventory-guide\.md)$/u,
+  /^(?:\.github\/workflows\/(?:governed-generated-artifact-refresh|repository-inventory(?:-autofix-dispatch)?|remote-mcp-oauth-path-format-guard)\.yml|docs\/repository-inventory-guide\.md)$/u,
   /^\.github\/repository-maintenance-tool-governance\.json$/u,
   /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
   /^docs\/ci-evidence-routing\.md$/u,
@@ -230,11 +236,33 @@ function assertWorkMapSelfHostingScope(candidateSourceFiles) {
   }
 }
 
+function remoteMcpWriteScopeInventoryIsCurrent() {
+  const result = spawnSync(process.execPath, ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+    env: { ...process.env },
+  });
+  if (!result.error && result.status === 0) return true;
+  if (!result.error && result.status === 1 && /Write-scope inventory artifacts are stale:/u.test(String(result.stderr || ""))) return false;
+  throw new ToolFailure({
+    code: "remote_mcp_write_scope_currentness_probe_failed",
+    step: "classify_recipe",
+    command: "node scripts/remote-mcp-write-scope-inventory.mjs --check",
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr || result.error?.message,
+  });
+}
+
 function classifyRecipe(candidateSourceFiles) {
   const hasSelfHostingTrigger = candidateSourceFiles.some((file) => WORK_MAP_SELF_HOSTING_TRIGGER_PATHS.has(file));
-  if (!hasSelfHostingTrigger) return FRONTEND_OPENAPI_RECIPE;
-  assertWorkMapSelfHostingScope(candidateSourceFiles);
-  return WORK_MAP_BOOTSTRAP_RECIPE;
+  if (hasSelfHostingTrigger) {
+    assertWorkMapSelfHostingScope(candidateSourceFiles);
+    return WORK_MAP_BOOTSTRAP_RECIPE;
+  }
+  if (!remoteMcpWriteScopeInventoryIsCurrent()) return REMOTE_MCP_WRITE_SCOPE_RECIPE;
+  return FRONTEND_OPENAPI_RECIPE;
 }
 
 function resolveRecipe(requestedRecipe, candidateSourceFiles) {
@@ -307,6 +335,38 @@ function hashFile(relativePath) {
   return createHash("sha256").update(fs.readFileSync(path.join(repoRoot, relativePath))).digest("hex");
 }
 
+function readRemoteMcpWriteScopeHashes() {
+  return Object.fromEntries([...REMOTE_MCP_WRITE_SCOPE_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
+}
+
+function runRemoteMcpWriteScopeRefresh() {
+  const beforeHashes = readRemoteMcpWriteScopeHashes();
+  run("generate_remote_mcp_write_scope_first_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  const firstPassHashes = readRemoteMcpWriteScopeHashes();
+  run("generate_remote_mcp_write_scope_second_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  const secondPassHashes = readRemoteMcpWriteScopeHashes();
+  if (JSON.stringify(firstPassHashes) !== JSON.stringify(secondPassHashes)) {
+    throw new ToolFailure({
+      code: "remote_mcp_write_scope_not_deterministic",
+      step: "prove_remote_mcp_write_scope_determinism",
+      command: "compare SHA-256 hashes after two remote write-scope generation passes",
+      status: 1,
+      stdout: JSON.stringify({ first_pass: firstPassHashes, second_pass: secondPassHashes }),
+      stderr: "Remote MCP write-scope outputs changed between deterministic generation passes.",
+    });
+  }
+  run("verify_remote_mcp_write_scope_current", "node", ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"], { cwd: repoRoot });
+  run("verify_remote_mcp_write_scope_contract", "node", ["scripts/test-remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  return {
+    deterministic: true,
+    currentness_check: true,
+    contract_test: true,
+    before_hashes: beforeHashes,
+    after_hashes: secondPassHashes,
+    authority_mode: TRUSTED_WRITER_AUTHORITY_MODE,
+  };
+}
+
 function readRepositoryInventoryHashes() {
   return Object.fromEntries([...REPOSITORY_INVENTORY_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
 }
@@ -369,6 +429,7 @@ function runRepositoryInventoryRefresh() {
 
 function isAllowedGeneratedOutput(recipe, file) {
   if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) return isWorkMapBootstrapOutput(file);
+  if (recipe === REMOTE_MCP_WRITE_SCOPE_RECIPE) return REMOTE_MCP_WRITE_SCOPE_OUTPUTS.has(file);
   if (recipe === REPOSITORY_INVENTORY_RECIPE) return REPOSITORY_INVENTORY_OUTPUTS.has(file) || REPOSITORY_EVALUATION_OUTPUTS.has(file);
   return FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES.has(file);
 }
@@ -449,6 +510,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     } else {
       run("install_dependencies", "npm", ["ci"], { cwd: apiDir, failureCode: "npm_ci_failed" });
       if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) runWorkMapSelfHostingBootstrap();
+      else if (recipe === REMOTE_MCP_WRITE_SCOPE_RECIPE) verification = runRemoteMcpWriteScopeRefresh();
       else runFrontendOpenApiRefresh();
     }
 
@@ -465,9 +527,11 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
       run("stage_generated_artifacts", "git", ["add", "--", ...changedFiles], { cwd: repoRoot });
       const commitMessage = recipe === WORK_MAP_BOOTSTRAP_RECIPE
         ? "docs(work-maps): bootstrap governed maps and Spec Kit bindings"
-        : recipe === REPOSITORY_INVENTORY_RECIPE
-          ? "docs(inventory): regenerate repository inventory and evaluation"
-          : "chore(ci): refresh generated contract artifacts";
+        : recipe === REMOTE_MCP_WRITE_SCOPE_RECIPE
+          ? "docs(remote-mcp): regenerate write-scope inventory"
+          : recipe === REPOSITORY_INVENTORY_RECIPE
+            ? "docs(inventory): regenerate repository inventory and evaluation"
+            : "chore(ci): refresh generated contract artifacts";
       run("commit_generated_artifacts", "git", ["commit", "-m", commitMessage], { cwd: repoRoot });
       commitSha = run("read_resulting_commit", "git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout.trim();
       if (!FULL_SHA_PATTERN.test(commitSha)) throw new ToolFailure({ code: "resulting_commit_sha_invalid", step: "read_resulting_commit", command: "git rev-parse HEAD", status: 1, stdout: commitSha });
