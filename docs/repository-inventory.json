@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6846,
-    "bytes": 62186205,
-    "lines": 1458315,
+    "bytes": 62186331,
+    "lines": 1458318,
     "directories": 256,
     "categories": 13
   },
@@ -6990,9 +6990,9 @@
       "path": ".changes/e2e/repository-inventory-governed-regeneration.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 16554,
-      "lines": 172,
-      "sha256": "3d73bd4a7cc16c99c943c072c98ed6a4870ecf9da5b16ac13b2f032c7b1e01e1",
+      "bytes": 16680,
+      "lines": 175,
+      "sha256": "6a881a73be9a49ac6b23a428e3afa5ebc302a4f34aa206742b9ca26e1bf171b8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30422,7 +30422,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "6e2b097f41994205c4592450aeccd2a1a9dd9ab7d49b9c4dcd58728d09b9d6d7",
+      "sha256": "24b18fac33864af687582f13fd7d202684bc28e7b5da054cac24775b88fd3d3d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49265,7 +49265,7 @@
       "extension": ".json",
       "bytes": 1930662,
       "lines": 58377,
-      "sha256": "93a5e88c9f8cad4482a694128b9cebfe06742c909a6b970ec32b4f9bab1b8d81",
+      "sha256": "03fcf97624cf00ac9763d9ae093c036d136411c8c616b4469409f3b1e466a3c9",
       "mode": "644",
       "executable": false,
       "generated": false
