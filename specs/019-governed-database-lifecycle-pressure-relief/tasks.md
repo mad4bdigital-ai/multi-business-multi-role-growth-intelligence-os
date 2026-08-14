@@ -57,9 +57,9 @@
 - [ ] F01 Reuse recipe, plan, lease, receipt, and readback contracts in JobRunner.
 - [ ] F02 Add bounded scheduling, backoff, pause, and reconciliation.
 - [ ] F03 Observe fallback/mismatch/lock metrics before enabling automation.
-- [ ] G01 Define low-risk policy-bound autopilot eligibility.
-- [ ] G02 Require explicit enablement and expiry.
-- [ ] G03 Prohibit autopilot for archive, purge, compaction, rebuild, and reclaim.
+- [x] G01 Define low-risk policy-bound autopilot eligibility as review-only; no autopilot execution is enabled.
+- [x] G02 Require explicit enablement and bounded expiry in the readiness contract.
+- [x] G03 Prohibit autopilot for archive, purge, compaction, rebuild, and reclaim recipes.
 
 ## H — Engine-Run Archive/Thin (Separate Project)
 

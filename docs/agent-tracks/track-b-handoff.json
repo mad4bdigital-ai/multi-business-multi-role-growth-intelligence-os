@@ -137,6 +137,13 @@
       "isolated_shared_artifact_validation": "pass",
       "expanded_contract_suite": "22_tests_pass",
       "autopilot_policy_guard": "review_only_fail_closed",
+      "autopilot_policy_tasks": {
+        "G01_low_risk_eligibility": "closed_contract_only",
+        "G02_explicit_enablement_and_expiry": "closed_contract_only",
+        "G03_high_risk_recipe_exclusions": "closed_contract_only",
+        "job_runner_enabled": false,
+        "autopilot_enabled": false
+      },
       "readback_classification": "pass",
       "rollback_lifecycle": "fail_closed_with_stale_expiry_checks"
     },
