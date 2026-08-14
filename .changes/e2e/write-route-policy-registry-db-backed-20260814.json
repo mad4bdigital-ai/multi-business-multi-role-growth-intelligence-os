@@ -10,7 +10,8 @@
       ".changes/e2e/write-route-policy-registry-db-backed-20260814.json",
       "http-generic-api/migrations/20260814_write_route_policy_registry.sql",
       "http-generic-api/writeRoutePolicyRegistry.js",
-      "http-generic-api/test-write-route-policy-registry.mjs"
+      "http-generic-api/test-write-route-policy-registry.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"
     ]
   },
   "merge_contract": {
@@ -54,7 +55,8 @@
           "evidence_paths": [
             "http-generic-api/migrations/20260814_write_route_policy_registry.sql",
             "http-generic-api/writeRoutePolicyRegistry.js",
-            "http-generic-api/test-write-route-policy-registry.mjs"
+            "http-generic-api/test-write-route-policy-registry.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"
           ]
         }
       ]
