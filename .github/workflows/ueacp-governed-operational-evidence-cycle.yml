@@ -6,11 +6,18 @@ on:
     paths:
       - ".github/workflows/ueacp-governed-operational-evidence-cycle.yml"
       - "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js"
+      - "http-generic-api/authorityEvidenceRepositorySourceMaterializer.js"
+      - "http-generic-api/authorityEvidenceRepositorySourceMaterializerStrict.js"
+      - "http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs"
       - "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs"
+      - "http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs"
       - "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs"
+      - "http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs"
       - "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs"
+      - "http-generic-api/test-authority-evidence-repository-source-materializer.mjs"
       - "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
       - "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+      - "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md"
   workflow_dispatch:
     inputs:
       source_manifest_file:
@@ -50,12 +57,24 @@ jobs:
       - name: Check syntax
         run: |
           node --check http-generic-api/authorityEvidenceRepositorySnapshotCollector.js
+          node --check http-generic-api/authorityEvidenceRepositorySourceMaterializer.js
+          node --check http-generic-api/authorityEvidenceRepositorySourceMaterializerStrict.js
+          node --check http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs
           node --check http-generic-api/scripts/authority-evidence-repository-snapshots.mjs
+          node --check http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs
           node --check http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs
+          node --check http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs
           node --check http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs
+          node --check http-generic-api/test-authority-evidence-repository-source-materializer.mjs
       - name: Run repository snapshot collector regression
         working-directory: http-generic-api
         run: node test-authority-evidence-repository-snapshot-collector.mjs
+      - name: Run repository source materializer regression
+        working-directory: http-generic-api
+        run: node test-authority-evidence-repository-source-materializer.mjs
+      - name: Run pagination-preserving canonical round-trip regression
+        working-directory: http-generic-api
+        run: node test-authority-evidence-repository-pagination-roundtrip.mjs
       - name: Enforce no implicit operational trigger
         shell: bash
         run: |
