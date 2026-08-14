@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
+import { evaluateRepository } from "./e2e-phase-governance.mjs";
 
 const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v2";
 const toolSource = fs.readFileSync("scripts/maintenance-tools/generated-artifact-refresh.mjs", "utf8");
@@ -8,6 +10,8 @@ const contractAdapterSource = fs.readFileSync("scripts/test-remote-mcp-write-sco
 const writerWorkflowSource = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 const verifierWorkflowSource = fs.readFileSync("../.github/workflows/remote-mcp-write-scope-verification.yml", "utf8");
 const governance = JSON.parse(fs.readFileSync("../.github/repository-maintenance-tool-governance.json", "utf8"));
+const e2ePolicy = JSON.parse(fs.readFileSync("../.specify/e2e-phase-governance.json", "utf8"));
+const repositoryRoot = path.resolve("..");
 
 const failures = [];
 function check(id, fn) {
@@ -85,10 +89,40 @@ check("maintenance-governance-registers-only-two-remote-outputs", () => {
   assert.equal(remotePatterns.length, 2);
 });
 
+check("e2e-phase-classifies-bounded-refresh-tooling-as-governance-only", () => {
+  const governanceOnlyFiles = [
+    "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+    "http-generic-api/scripts/remote-mcp-write-scope-inventory.mjs",
+    "http-generic-api/scripts/schema-docs-change-guard.mjs",
+    "http-generic-api/scripts/test-manifest.mjs",
+    "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+    "http-generic-api/scripts/test-remote-mcp-write-scope-inventory.mjs",
+  ];
+  const result = evaluateRepository({
+    root: repositoryRoot,
+    policy: e2ePolicy,
+    changedFiles: governanceOnlyFiles,
+    baseRef: "main",
+  });
+  assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+  assert.equal(result.report.change_class, "governance_only");
+  assert.deepEqual(result.report.runtime_files, []);
+
+  const runtimeControl = evaluateRepository({
+    root: repositoryRoot,
+    policy: e2ePolicy,
+    changedFiles: ["http-generic-api/scripts/runtime-request-handler.mjs"],
+    baseRef: "main",
+  });
+  assert.equal(runtimeControl.report.change_class, "feature");
+  assert.equal(runtimeControl.report.ok, false);
+  assert.ok(runtimeControl.report.findings.some((finding) => finding.code === "feature_change_missing_e2e_phase_contract"));
+});
+
 const report = {
   contract: CONTRACT,
   ok: failures.length === 0,
-  checks: 7,
+  checks: 8,
   failures,
   repository_mutation: false,
   runtime_mutation: false,
