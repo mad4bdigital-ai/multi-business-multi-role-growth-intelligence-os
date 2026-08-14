@@ -35,7 +35,7 @@
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
     },
     "generated-artifact-refresh": {
-      "description": "Regenerate bounded OpenAPI/frontend, Work Map, or Repository Inventory generated artifacts through the existing registered exact-head mutation authority.",
+      "description": "Regenerate bounded OpenAPI/frontend, Work Map, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "mode": "mutating",
       "allowed_changed_path_patterns": [
@@ -58,7 +58,10 @@
         "^specs/019-governed-database-lifecycle-pressure-relief/work-map-integration\\.json$",
         "^docs/repository-inventory\\.json$",
         "^docs/repository-inventory-summary\\.json$",
-        "^docs/repository-inventory\\.md$"
+        "^docs/repository-inventory\\.md$",
+        "^docs/repository-evaluation\\.json$",
+        "^docs/repository-evaluation-summary\\.json$",
+        "^docs/repository-evaluation\\.md$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },
