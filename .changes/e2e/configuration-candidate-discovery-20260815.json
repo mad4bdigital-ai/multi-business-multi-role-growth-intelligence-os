@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "configuration-candidate-discovery-20260815",
+  "title": "Central read-only hardcoded configuration candidate discovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/configuration-candidate-discovery-20260815.json",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Discover hardcoded configuration candidates from the central repository inventory scope without modifying code, database, protected refs, or secrets.",
+      "e2e_journeys": [
+        {
+          "id": "classify-hardcoded-configuration-candidates-safely",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Central repository maintenance automation",
+          "entrypoint": "configuration-candidate-discovery.mjs report-only CLI",
+          "terminal_outcome": "Runtime settings, policy candidates, secret candidates, and generated artifacts are classified deterministically; sensitive values are redacted; the manifest forbids automatic application.",
+          "steps": [
+            "Scan tracked source and configuration files while excluding tests, fixtures, generated artifacts, dependencies, and snapshots.",
+            "Detect environment references, configuration-like declarations, migration seeds, and policy-like symbols.",
+            "Classify candidates by setting, policy, secret, generated artifact, or manual review category.",
+            "Redact sensitive values and emit deterministic JSON, Markdown, and review manifest artifacts.",
+            "Assert that repository mutation, database mutation, protected-ref mutation, and automatic migration generation are all disabled."
+          ],
+          "assertions": [
+            "The scanner is registered as a read-only maintenance tool.",
+            "No raw secret value is included in any candidate, evidence, preview, or manifest output.",
+            "Generated artifacts are excluded from migration proposals.",
+            "The manifest contains no approved candidates and explicitly disables automatic apply.",
+            "The tool does not write to runtime configuration tables or activate write scopes."
+          ],
+          "tests": [
+            {
+              "id": "configuration-candidate-discovery-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish reviewed candidate reports through the central repository automation evidence path without enabling automatic migration or runtime mutation."
+    },
+    {
+      "id": "migration",
+      "status": "blocked",
+      "objective": "Generate database migration candidates only after explicit classification, schema validation, secret review, parity evidence, and owner approval.",
+      "blockers": [
+        "candidate_classification_approval",
+        "secret_inventory_and_redaction_review",
+        "shadow_parity_evidence",
+        "owner_exact_head_attestation"
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "The discovery tool cannot authorize write scopes or Production mutations.",
+      "blockers": [
+        "independent_production_approval",
+        "successful_canary",
+        "durable_activation_evidence"
+      ]
+    }
+  ],
+  "secrets_included": false
+}

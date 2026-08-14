@@ -53,6 +53,20 @@ jobs:
             --inventory docs/repository-inventory.json \
             --output-dir .artifacts/repository-tool-lifecycle
 
+      - name: Run configuration candidate discovery regression
+        run: node http-generic-api/scripts/test-configuration-candidate-discovery.mjs
+
+      - name: Discover hardcoded configuration candidates
+        id: configuration_discovery
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs \
+            --inventory docs/repository-inventory.json \
+            --output-dir .artifacts/repository-tool-lifecycle/configuration-candidates
+
       - name: Run repository-tool lifecycle regression
         run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
 
@@ -86,10 +100,14 @@ jobs:
             cat .artifacts/repository-tool-lifecycle/repository-tool-discovery.md >> "$GITHUB_STEP_SUMMARY"
             printf '\n' >> "$GITHUB_STEP_SUMMARY"
           fi
+          if [[ -f .artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.md ]]; then
+            cat .artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.md >> "$GITHUB_STEP_SUMMARY"
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
           cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce repository tool lifecycle
-        if: steps.discovery.outcome != 'success' || steps.governance.outcome != 'success'
+        if: steps.discovery.outcome != 'success' || steps.configuration_discovery.outcome != 'success' || steps.governance.outcome != 'success'
         run: |
           echo "Repository tool discovery or lifecycle governance failed. Read the canonical artifact first."
           exit 1

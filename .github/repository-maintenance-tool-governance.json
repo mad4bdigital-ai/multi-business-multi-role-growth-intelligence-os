@@ -65,6 +65,13 @@
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.repository-tool-discovery.v1"
     },
+    "configuration-candidate-discovery": {
+      "description": "Discover hardcoded configuration candidates from the central repository inventory scope, redact sensitive values, classify runtime settings versus policies, secrets, constants, and generated artifacts, and emit a review-only manifest without repository or database mutation.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.configuration-candidate-discovery.v1"
+    },
     "generated-artifact-refresh": {
       "description": "Regenerate bounded OpenAPI/frontend, Work Map, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
