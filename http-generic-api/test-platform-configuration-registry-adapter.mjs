@@ -66,3 +66,28 @@ await assert.rejects(
 );
 
 console.log(JSON.stringify({ ok: true, contract: "mad4b.platform-configuration-registry-adapter-regression.v1", cases: 3, database_mutation_executed: false, production_activation_executed: false, secrets_included: false }));
+
+const legacyPool = {
+  async query(sql) {
+    if (sql.includes("FROM platform_configuration_catalog")) return [[{
+      config_key: "legacy.policy",
+      namespace: "runtime",
+      value_type: "json",
+      schema_json: JSON.stringify({ type: "object", required: ["allow_write", "max_resources"] }),
+      allowed_scope_types_json: JSON.stringify(["platform"]),
+      merge_operator: "priority_replace",
+      fallback_policy: "legacy_compatibility",
+      status: "active",
+    }]];
+    if (sql.includes("FROM platform_configuration_bindings")) return [[]];
+    return [{ affectedRows: 1 }];
+  },
+};
+const legacyResolution = await createPlatformConfigurationRegistryAdapter({
+  pool: legacyPool,
+  legacyAdapter: { async read() { return { present: true, value: { allow_write: false, max_resources: 1 }, secrets_included: false }; } },
+  uuid: () => "22222222-2222-4222-8222-222222222222",
+}).resolve({ configKey: "legacy.policy", context: {} });
+assert.equal(legacyResolution.result.decision, "resolved");
+assert.equal(legacyResolution.result.resolved_value.max_resources, 1);
+assert.equal(legacyResolution.result.lineage.length, 0);

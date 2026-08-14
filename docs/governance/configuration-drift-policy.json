@@ -2014,6 +2014,7 @@
   "required_contract_paths": [
     ".changes/e2e/configuration-drift-guard-20260815.json",
     ".changes/e2e/platform-configuration-control-plane-20260815.json",
+    "http-generic-api/activation-surfaces/exclusions/platform_configuration_bindings.json",
     ".github/repository-maintenance-tool-governance.json",
     ".github/workflows/repository-tool-lifecycle-governance.yml",
     "docs/governance/configuration-drift-policy.json",

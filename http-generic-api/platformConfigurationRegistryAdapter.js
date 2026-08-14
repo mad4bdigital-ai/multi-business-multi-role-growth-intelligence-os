@@ -60,7 +60,7 @@ function mapBinding(row) {
   };
 }
 
-export function createPlatformConfigurationRegistryAdapter({ pool, resolver = resolvePlatformConfiguration, uuid = randomUUID, now = () => new Date() } = {}) {
+export function createPlatformConfigurationRegistryAdapter({ pool, legacyAdapter = null, resolver = resolvePlatformConfiguration, uuid = randomUUID, now = () => new Date() } = {}) {
   if (!pool || typeof pool.query !== "function") throw new TypeError("A database pool is required.");
 
   async function getDefinition(configKey) {
@@ -107,7 +107,12 @@ export function createPlatformConfigurationRegistryAdapter({ pool, resolver = re
       return { result, evidence: null };
     }
     const bindings = await listBindings(configKey);
-    const result = resolver({ definition, bindings, context, legacyValue, fallbackValue, now: now() });
+    let compatibilityValue = legacyValue;
+    if (compatibilityValue === undefined && definition.fallback_policy === "legacy_compatibility" && legacyAdapter?.read) {
+      const legacy = await legacyAdapter.read(configKey);
+      if (legacy.present) compatibilityValue = legacy.value;
+    }
+    const result = resolver({ definition, bindings, context, legacyValue: compatibilityValue, fallbackValue, now: now() });
     const evidence = await recordResolutionEvidence({ configKey, result });
     return { result, evidence };
   }

@@ -10,6 +10,7 @@
       ".changes/e2e/platform-configuration-control-plane-20260815.json",
       ".github/repository-maintenance-tool-governance.json",
       "docs/governance/configuration-drift-policy.json",
+      "http-generic-api/activation-surfaces/exclusions/platform_configuration_bindings.json",
       "http-generic-api/migrations/20260815_platform_configuration_catalog_and_resolver.sql",
       "http-generic-api/platformConfigurationResolver.js",
       "http-generic-api/platformConfigurationRegistryAdapter.js",
@@ -56,6 +57,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/platform-configuration-control-plane-20260815.json",
+            "http-generic-api/activation-surfaces/exclusions/platform_configuration_bindings.json",
             "http-generic-api/migrations/20260815_platform_configuration_catalog_and_resolver.sql",
             "http-generic-api/platformConfigurationResolver.js",
             "http-generic-api/platformConfigurationRegistryAdapter.js",
