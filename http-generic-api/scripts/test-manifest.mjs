@@ -67,6 +67,7 @@ const staticDiscoveryCommands = [
   "node scripts/test-runtime-startup-deployment-evidence.mjs",
   "node test-remote-mcp-disabled-startup-boundary.mjs",
   "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+  "node test-schema-docs-change-guard.mjs",
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
