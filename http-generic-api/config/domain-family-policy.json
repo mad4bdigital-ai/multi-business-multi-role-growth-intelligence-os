@@ -53,6 +53,8 @@
       "deployment_provider": "local_device",
       "credential_namespace": "staging",
       "tunnel_enabled": true,
+      "active_tunnel_hostnames": ["dev.mad4b.com"],
+      "reserved_disabled_hostnames": ["mcp_dev.mad4b.com", "activation_dev.mad4b.com"],
       "tunnel_token_env": "CLOUDFLARE_TUNNEL_TOKEN",
       "tunnel_hostname_env": "CLOUDFLARE_TUNNEL_HOSTNAMES",
       "tunnel_origin_env": "CLOUDFLARE_TUNNEL_ORIGIN_APP",

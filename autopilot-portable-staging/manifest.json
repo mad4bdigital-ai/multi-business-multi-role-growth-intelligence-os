@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "purpose": "portable_local_staging_fail_closed",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "required_ref": "main",
+  "files": [
+    {
+      "path": "http-generic-api/docker-compose.yml",
+      "sha256": "06539f972c22dc0d60be2c5b47dcb56818d50b913e881db057dbeb6de5bb59e8"
+    },
+    {
+      "path": "http-generic-api/docker-compose.staging.yml",
+      "sha256": "ee73ec7596c5f246b77e76e3942534b03c6b57bdcdf925e931f4f3ffc73b531f"
+    },
+    {
+      "path": "http-generic-api/.env.staging.example",
+      "sha256": "7d0d083625a8922dec82cd6c350bd0b4f07f3c3b515e4e2408eeaeec5f45222e"
+    },
+    {
+      "path": "http-generic-api/config/domain-family-policy.json",
+      "sha256": "cb569a2098b064d4afa378c8eea99510f5dba91f5d62376baa05e8ff29c0e629"
+    },
+    {
+      "path": "http-generic-api/config/deployment-branch-policy.json",
+      "sha256": "50597a75e5adcf42f728fb6eaad2273b1557adb2bf67abe13ad3c7a698f251fe"
+    },
+    {
+      "path": "http-generic-api/test-domain-family-policy.mjs",
+      "sha256": "a959bcc4c0164212ae73dd284a70fc3e33ef19b763a8dac5240e9a95267b2825"
+    },
+    {
+      "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "sha256": "7b50d29280436703f51e3391af0809cfcef3e55128fbac43fe3184402bc1f676"
+    },
+    {
+      "path": "autopilot-portable-staging/README.md",
+      "sha256": "7763a1025fd8afc5ee1a700f2b48a2f90df2509237bf664161e37b3c9b9b18bd"
+    },
+    {
+      "path": "STAGING-WINDOWS.md",
+      "sha256": "bfc05345044af303e9ba70e49450e1044f2b740ee4de1a90c26fbbaddcda2a68"
+    }
+  ],
+  "safety": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "production_deploy": false,
+    "provider_mutation": false,
+    "cloudflare_dns_mutation": false,
+    "hostinger_mutation": false
+  }
+}
