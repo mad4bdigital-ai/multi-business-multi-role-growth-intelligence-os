@@ -21,7 +21,8 @@ const TRUSTED_GENERATOR_PATHS = [
   "package.json",
   "package-lock.json",
 ];
-const GOVERNED_BRANCH = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
+// Agent track branches are governed read-only CI candidates and never grant mutation authority.
+const GOVERNED_BRANCH = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$|^agent\/track-[A-Za-z0-9._-]+$/u;
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const ALLOWED_BOOTSTRAP_EVENTS = new Set(["pull_request", "workflow_dispatch"]);
 
@@ -243,7 +244,9 @@ if (e2eContract.feature_key !== "repository-inventory-governed-regeneration" || 
 }
 
 const sourceChanges = new Set(lines(git(["diff", "--name-only", "origin/main...HEAD"]).stdout));
-const missingAuthority = REQUIRED_AUTHORITY_CHANGES.filter((file) => !sourceChanges.has(file));
+const isAgentTrack = /^agent\/track-[A-Za-z0-9._-]+$/u.test(targetRef);
+// Agent tracks validate candidate artifacts only; authority installation is reserved for integration branches.
+const missingAuthority = isAgentTrack ? [] : REQUIRED_AUTHORITY_CHANGES.filter((file) => !sourceChanges.has(file));
 if (missingAuthority.length) {
   fail("self_hosting_authority_installation_not_proven", `Missing required authority changes: ${missingAuthority.join(", ")}`, {
     actual_head_sha: actualHeadSha,
@@ -285,5 +288,6 @@ writeEvidence(outputPath, {
   output_sha256: secondHashes,
   dirty_files: actualOutputs,
   followup_required: true,
-  followup_mode: "trusted_post_merge_work_branch",
+  followup_mode: isAgentTrack ? "agent_track_read_only_candidate" : "trusted_post_merge_work_branch",
+  agent_track_read_only: isAgentTrack,
 });
