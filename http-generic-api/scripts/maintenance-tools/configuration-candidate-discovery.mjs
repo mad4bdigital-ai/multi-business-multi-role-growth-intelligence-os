@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { extname, relative, resolve } from "node:path";
+import { extname, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -117,9 +117,44 @@ async function loadInventory(path) {
   catch { return null; }
 }
 
+function normalizeConfigKey(value) {
+  return String(value || "").trim().toLowerCase().replaceAll("_", ".").replace(/\.+/gu, ".");
+}
+
+function extractRegistryKeys(content) {
+  const keys = new Set();
+  const source = String(content || "");
+  const pattern = /(?:config_key|configKey|growthConfigKey|legacyConfigKey|config-key)\s*[=:,)]\s*["'`]([^"'`]{2,191})["'`]/gu;
+  for (const match of source.matchAll(pattern)) keys.add(normalizeConfigKey(match[1]));
+  return keys;
+}
+
+export function registryMatches({ path, content, suggestedConfigKey, registryKeys }) {
+  const source = String(content || "");
+  const key = normalizeConfigKey(suggestedConfigKey);
+  const matches = [];
+  if (registryKeys.has(key)) matches.push("known_config_key");
+  if (/platform_runtime_config/iu.test(source)) matches.push("platform_runtime_config");
+  if (/growth_control_(?:config|shadow_parity)/iu.test(source)) matches.push("growth_control_registry");
+  if (/write_route_policy_registry/iu.test(source)) matches.push("write_route_policy_registry");
+  if (/governed_policy_(?:proposal|approval|version|activation)/iu.test(source)) matches.push("governed_policy_registry");
+  if (/platform_engine_policy|runtime_policy/iu.test(source)) matches.push("platform_policy_registry");
+  if (/migrations?[\\/]/iu.test(path) && !matches.includes("known_config_key")) matches.push("migration_source");
+  return [...new Set(matches)].sort();
+}
+
+function confidenceFor({ candidateClass, registryMatches: matches, expressionKind }) {
+  if (candidateClass === "secret_candidate") return matches.length ? "high" : "medium";
+  if (candidateClass === "generated_artifact") return "high";
+  if (matches.includes("known_config_key")) return "high";
+  if (candidateClass === "policy_candidate") return expressionKind === "environment_reference" ? "high" : "medium";
+  if (candidateClass === "runtime_setting") return expressionKind === "environment_reference" ? "medium" : "high";
+  return "low";
+}
+
 function renderMarkdown(report) {
-  const rows = report.candidates.slice(0, 500).map((item) => `| ${item.candidate_class} | ${item.risk_class} | \`${item.path}:${item.line}\` | \`${item.symbol}\` | ${item.migration_action} |`).join("\n");
-  return `# Configuration Candidate Discovery\n\n- Contract: \`${report.contract}\`\n- Mode: **report-only**\n- Result: **${report.ok ? "PASS" : "REVIEW_REQUIRED"}**\n- Candidate count: ${report.summary.total}\n- Critical secret candidates: ${report.summary.secret_candidates}\n- Policy candidates: ${report.summary.policy_candidates}\n- Runtime settings: ${report.summary.runtime_settings}\n- Generated artifacts excluded: ${report.summary.generated_artifacts}\n- Repository mutation executed: no\n- Database mutation executed: no\n- Secrets included: no\n\n| Class | Risk | Location | Symbol | Action |\n|---|---|---|---|---|\n${rows || "| none | — | — | — | — |"}\n`;
+  const rows = report.candidates.slice(0, 500).map((item) => `| ${item.candidate_class} | ${item.risk_class} | ${item.confidence} | \`${item.path}:${item.line}\` | \`${item.symbol}\` | ${item.registry_matches.join(", ") || "none"} | ${item.migration_action} |`).join("\n");
+  return `# Configuration Candidate Discovery\n\n- Contract: \`${report.contract}\`\n- Mode: **report-only**\n- Result: **${report.ok ? "PASS" : "REVIEW_REQUIRED"}**\n- Candidate count: ${report.summary.total}\n- Critical secret candidates: ${report.summary.secret_candidates}\n- Policy candidates: ${report.summary.policy_candidates}\n- Runtime settings: ${report.summary.runtime_settings}\n- Generated artifacts excluded: ${report.summary.generated_artifacts}\n- Repository mutation executed: no\n- Database mutation executed: no\n- Secrets included: no\n\n| Class | Risk | Confidence | Location | Symbol | Registry matches | Action |\n|---|---|---|---|---|---|---|\n${rows || "| none | — | — | — | — | — | — |"}\n`;
 }
 
 export async function discoverConfigurationCandidates({ repositoryRoot = process.cwd(), inventoryPath = DEFAULT_INVENTORY, outputDir = DEFAULT_OUTPUT_DIR } = {}) {
@@ -128,8 +163,16 @@ export async function discoverConfigurationCandidates({ repositoryRoot = process
   try {
     const inventory = await loadInventory(inventoryPath);
     const paths = await trackedFiles();
+    const records = await Promise.all(paths.map(async (path) => ({ path, content: await readFile(path, "utf8") })));
+    const registryKeys = new Set(records.flatMap((record) => [...extractRegistryKeys(record.content)]));
+    const inventorySet = Array.isArray(inventory?.files) ? new Set(inventory.files.map((file) => normalizePath(file.path))) : null;
     const candidates = [];
-    for (const path of paths) candidates.push(...extractCandidates(path, await readFile(path, "utf8")));
+    for (const { path, content } of records) {
+      for (const candidate of extractCandidates(path, content)) {
+        const matches = registryMatches({ path, content: candidate.evidence, suggestedConfigKey: candidate.suggested_config_key, registryKeys });
+        candidates.push({ ...candidate, registry_matches: matches, confidence: confidenceFor({ candidateClass: candidate.candidate_class, registryMatches: matches, expressionKind: candidate.expression_kind }) });
+      }
+    }
     candidates.sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line || a.symbol.localeCompare(b.symbol));
     const summary = {
       total: candidates.length,
@@ -138,13 +181,24 @@ export async function discoverConfigurationCandidates({ repositoryRoot = process
       runtime_settings: candidates.filter((item) => item.candidate_class === "runtime_setting").length,
       generated_artifacts: candidates.filter((item) => item.candidate_class === "generated_artifact").length,
       unknown_review_required: candidates.filter((item) => item.candidate_class === "unknown_review_required").length,
+      high_confidence: candidates.filter((item) => item.confidence === "high").length,
+      registry_matched: candidates.filter((item) => item.registry_matches.length > 0).length,
+      known_config_key_matches: candidates.filter((item) => item.registry_matches.includes("known_config_key")).length,
     };
     const report = {
       contract: CONTRACT,
       schema_version: 1,
       mode: "report-only",
-      repository_inventory: { path: normalizePath(inventoryPath), present: Boolean(inventory), role: "coverage_reference_not_execution_authority" },
+      repository_inventory: {
+        path: normalizePath(inventoryPath),
+        present: Boolean(inventory),
+        role: "coverage_reference_not_execution_authority",
+        inventory_files: Array.isArray(inventory?.files) ? inventory.files.length : 0,
+        tracked_files_scanned: paths.length,
+        tracked_files_missing_from_inventory: inventorySet ? paths.filter((path) => !inventorySet.has(path)).length : null,
+      },
       scan_extensions: [...SCAN_EXTENSIONS].sort(),
+      registry_key_count: registryKeys.size,
       excluded_path_policy: EXCLUDED_PATH.source,
       summary,
       candidates,

@@ -65,12 +65,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Publish reviewed candidate reports through the central repository automation evidence path without enabling automatic migration or runtime mutation."
-    },
-    {
-      "id": "migration",
-      "status": "blocked",
-      "objective": "Generate database migration candidates only after explicit classification, schema validation, secret review, parity evidence, and owner approval.",
+      "objective": "Publish reviewed candidate reports through the central repository automation evidence path without enabling automatic migration or runtime mutation.",
       "blockers": [
         "candidate_classification_approval",
         "secret_inventory_and_redaction_review",

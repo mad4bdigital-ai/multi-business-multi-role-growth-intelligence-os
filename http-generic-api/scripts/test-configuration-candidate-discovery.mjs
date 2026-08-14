@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { extractCandidates } from "./maintenance-tools/configuration-candidate-discovery.mjs";
+import { extractCandidates, registryMatches } from "./maintenance-tools/configuration-candidate-discovery.mjs";
 
 const fixture = `
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -23,6 +23,25 @@ assert.ok(candidates.every((item) => !/CLIENT_SECRET=[^\s]+/iu.test(JSON.stringi
 const generated = extractCandidates("docs/repository-inventory.generated.json", "const DEFAULT_LIMIT = 10;");
 assert.equal(generated[0].candidate_class, "generated_artifact");
 assert.equal(generated[0].migration_action, "exclude_from_migration");
+
+assert.deepEqual(
+  registryMatches({
+    path: "http-generic-api/runtime/example.js",
+    content: "const DEFAULT_TIMEOUT_MS = 30000;",
+    suggestedConfigKey: "timeout.ms",
+    registryKeys: new Set(["timeout.ms"]),
+  }),
+  ["known_config_key"],
+);
+assert.deepEqual(
+  registryMatches({
+    path: "http-generic-api/runtime/example.js",
+    content: "const DEFAULT_TIMEOUT_MS = 30000;",
+    suggestedConfigKey: "cache.key",
+    registryKeys: new Set(),
+  }),
+  [],
+);
 
 console.log(JSON.stringify({
   ok: true,
