@@ -50,7 +50,9 @@
       "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
-      "http-generic-api/docs/remote-mcp-oauth21-runbook.md"
+      "http-generic-api/docs/remote-mcp-oauth21-runbook.md",
+      "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
+      "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs"
     ]
   },
   "merge_contract": {
@@ -109,15 +111,15 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Complete the disabled-by-default OAuth 2.1 boundary with path-scoped discovery, allowlisted DCR, a short-lived signed consent request, PKCE S256, a dedicated OAuth signing key, exact redirect and resource validation, durable token-to-grant identity, live user and tenant-membership revalidation, refresh rotation, revocation, and synthetic cross-client evidence.",
+      "objective": "Complete the disabled-by-default OAuth 2.1 boundary with path-scoped discovery, allowlisted DCR, a short-lived signed consent request, PKCE S256, a dedicated OAuth signing key, exact redirect and resource validation, durable token-to-grant identity, live user and tenant-membership revalidation, refresh rotation, revocation, and synthetic cross-client evidence, while keeping Track C capability projection authority-free and fail-closed until the Track A runtime contract is available.",
       "e2e_journeys": [
         {
           "id": "multi-client-oauth21-operational-contract-to-revocation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Approved remote MCP client and active platform user",
-          "entrypoint": "OAuth metadata, allowlisted dynamic registration, signed authorization request and consent, authorization code plus PKCE, token exchange, MCP tools/call, refresh, and revocation",
-          "terminal_outcome": "The same bounded MCP resource works for approved OpenAI, Anthropic, and generic clients only through server-owned identity, active tenant membership, signed consent, scope, grant, and revocation checks, while all feature flags remain disabled by default.",
+          "entrypoint": "OAuth metadata, allowlisted dynamic registration, signed authorization request and consent, authorization code plus PKCE, token exchange, MCP tools/call, refresh, revocation, and the public Tenant GPT capability projection contract",
+          "terminal_outcome": "The same bounded MCP resource works for approved OpenAI, Anthropic, and generic clients only through server-owned identity, active tenant membership, signed consent, scope, grant, and revocation checks, while the public capability projection remains no-secret and cannot mint authority, select a connection, or execute a provider.",
           "steps": [
             "Discover the exact issuer-derived OAuth endpoints and supported read scopes, advertising DCR only when a usable redirect policy exists.",
             "Register an exact HTTPS redirect only while DCR is enabled and its Origin is present in the server-controlled allowlist.",
@@ -127,7 +129,8 @@
             "Persist an active grant and issue a short-lived resource-bound access JWT with the dedicated OAuth key plus a rotating opaque refresh token.",
             "Require exact issuer, audience, resource, purpose, azp, client, subject, user, tenant, scope, JTI, expiry, active grant, and live subject authorization before protected MCP tool dispatch.",
             "Revalidate the user and tenant membership before refresh, rotate refresh state transactionally, and reject replay.",
-            "Revoke an access or refresh grant and deny subsequent protected use."
+            "Revoke an access or refresh grant and deny subsequent protected use.",
+            "Project Tenant GPT capability data only from an upstream authoritative context/capability/preflight/final-authority/readiness contract; caller identity cannot widen the authoritative tenant or workspace and missing final authority or readiness fails closed."
           ],
           "assertions": [
             "The existing Tenant GPT and Activation OAuth metadata remains independent and unchanged.",
@@ -141,7 +144,8 @@
             "Failed PKCE does not consume the authorization code, successful exchange does, refresh rotates once, and revocation invalidates the durable grant.",
             "A token or refresh grant becomes unusable when its user or tenant membership is no longer active.",
             "Only workspaces.read and brands.read can reach the phase-one tool catalog.",
-            "No migration, deployment, DNS change, real client registration, external connection, submission, or publication is inferred from synthetic evidence."
+            "The Track C public capability projection does not mint execution authority, select a connection, execute a provider, emit execution credentials, or include secrets.",
+            "No migration, deployment, DNS change, real client registration, external connection, submission, publication, DCR acceptance, or OAuth client acceptance is inferred from synthetic evidence."
           ],
           "tests": [
             {
@@ -173,6 +177,13 @@
               "args": []
             },
             {
+              "id": "tenant-gpt-public-capability-projection",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-effective-capability-surface.mjs",
+              "args": []
+            },
+            {
               "id": "spec-016-contract-validator-operational",
               "runner": "node",
               "working_directory": "specs/016-chatgpt-plugin-mcp-integration",
@@ -196,6 +207,8 @@
             "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
             "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
             "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+            "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
+            "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs",
             "http-generic-api/docs/remote-mcp-oauth21-runbook.md"
           ]
         }
