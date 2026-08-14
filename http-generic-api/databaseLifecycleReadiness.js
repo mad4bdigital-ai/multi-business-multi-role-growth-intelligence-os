@@ -137,6 +137,41 @@ export function assessMutationReadiness({ authority, approval, capability, lease
   });
 }
 
+export function buildMigrationLedgerEntry({ migration = {}, authorization = {}, environment = "non-production", readback = {} } = {}) {
+  const authorized = authorization.status === "approved" && authorization.environment === environment && authorization.apply_authorized === true;
+  const checksumReadback = buildReadbackContract({ migration, observed: readback });
+  return Object.freeze({
+    ledger_entry_status: authorized ? "preflight_authorized" : "preflight_only",
+    migration_file: migration.file || null,
+    checksum_sha256: migration.checksum_sha256 || null,
+    statement_count: migration.statement_count || 0,
+    environment: String(environment),
+    authorization_id: authorization.authorization_id || null,
+    apply_authorized: false,
+    authorization_observed: authorized,
+    readback_status: checksumReadback.readback_status,
+    same_cycle_readback: checksumReadback.same_cycle_readback,
+    migration_applied: false,
+    database_mutated: false,
+    secrets_included: false,
+  });
+}
+
+export function assessReadinessAggregate({ checks = {}, environment = "non-production" } = {}) {
+  const entries = Object.entries(checks);
+  const failures = entries.filter(([, value]) => value !== true).map(([key]) => key);
+  if (String(environment).toLowerCase() === "production") failures.push("production_apply_disabled");
+  return Object.freeze({
+    readiness_status: failures.length === 0 ? "ready_for_review" : "blocked",
+    checks: Object.fromEntries(entries),
+    blocking_reasons: [...new Set(failures)],
+    migration_applied: false,
+    database_mutated: false,
+    runtime_consumer_enabled: false,
+    secrets_included: false,
+  });
+}
+
 export function reconcileMutationReceipt({ receipt = {}, readback = {} } = {}) {
   const samePlan = receipt.plan_id && receipt.plan_id === readback.plan_id && receipt.plan_fingerprint === readback.plan_fingerprint;
   const sameIdempotency = receipt.idempotency_key && receipt.idempotency_key === readback.idempotency_key;
