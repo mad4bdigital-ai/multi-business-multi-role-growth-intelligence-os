@@ -11,11 +11,13 @@
       ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/authorityProjectionCompiler.js",
       "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
       "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/test-authority-projection-compiler.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md",
       "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md",
@@ -29,7 +31,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Build and review bounded repository authority-source candidates, bind reviewed source documents to an ancestor ref, compose them with the bounded live catalog observer, produce no-secret evidence ready only for later human ownership review, and preserve deterministic Resource Graph inheritance/restriction safety evidence.",
+      "objective": "Build and review bounded repository authority-source candidates, compose them with the bounded live catalog observer, preserve deterministic Resource Graph safety evidence, and compile one shared no-secret projection-eligibility contract for Dynamic Tabs, Dashboard, and Tool Catalog without granting execution authority.",
       "e2e_journeys": [
         {
           "id": "build-reviewed-repository-source-candidates",
@@ -163,6 +165,51 @@
           "evidence_paths": [
             "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
             "http-generic-api/contextKernel/domain/resourceGraphPolicy.js",
+            "specs/011-unified-effective-authority-control-plane/tasks.md",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
+          ]
+        },
+        {
+          "id": "shared-authority-projection-compiler-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP projection consumer",
+          "entrypoint": "Shared Authority Projection Compiler",
+          "terminal_outcome": "T032, T033, and T034 are backed by one deterministic no-secret compiler that projects Dynamic Tabs, Dashboard, and Tool Catalog visibility/action eligibility without becoming a PEP or granting execution authority.",
+          "steps": [
+            "Load a typed Effective Authority Manifest with explicit decision, timestamps, no-secret attestation, readiness, and projection eligibility.",
+            "Fail closed on missing or unsupported manifest evidence before any surface candidate is inspected.",
+            "Compile Dynamic Tabs and Dashboard visibility from the same manifest projection eligibility rather than local UI policy.",
+            "Compile Tool Catalog visibility separately from action eligibility.",
+            "Require ready or canary-ready decision plus execution projection eligibility and execution readiness before an action can be marked eligible for later PEP evaluation.",
+            "Return zero candidates and inspect no registrations for ineligible, expired, or stale surfaces.",
+            "Return deterministic secret-safe public projection metadata without emitting execution authorization or an action grant."
+          ],
+          "assertions": [
+            "Dynamic Tabs, Dashboard, and Tool Catalog consume one shared compiler rather than separate policy engines.",
+            "Ineligible, expired, or stale surfaces reveal no candidate identities, counts, malformed shapes, or duplicate-registration errors.",
+            "Visible surface registrations are deterministic and ambiguous duplicate keys fail closed.",
+            "Tool Catalog visibility is independent from action eligibility.",
+            "Shadow-ready authority can remain visible where projection policy permits it but cannot make a tool action eligible.",
+            "Action eligibility requires execution projection eligibility and execution readiness and never implies execution_authorized.",
+            "The compiler requires explicit secretsIncluded=false, evaluatedAt, expiresAt, and a supported manifest decision.",
+            "Secret-like keys, authorization values, private keys, URL credentials, and secret query parameters do not enter public projection output.",
+            "The compiler creates no authority, emits no action grant, enables no runtime enforcement, performs no provider call, and mutates no database."
+          ],
+          "tests": [
+            {
+              "id": "ueacp-shared-authority-projection-compiler",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-projection-compiler.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/authorityProjectionCompiler.js",
+            "http-generic-api/test-authority-projection-compiler.mjs",
+            "specs/011-unified-effective-authority-control-plane/architecture.md",
+            "specs/011-unified-effective-authority-control-plane/contracts/openapi.yaml",
             "specs/011-unified-effective-authority-control-plane/tasks.md",
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
           ]
