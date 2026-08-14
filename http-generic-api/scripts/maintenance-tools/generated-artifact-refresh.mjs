@@ -47,6 +47,11 @@ const REPOSITORY_INVENTORY_OUTPUTS = new Set([
   "docs/repository-inventory-summary.json",
   "docs/repository-inventory.md",
 ]);
+const REPOSITORY_EVALUATION_OUTPUTS = new Set([
+  "docs/repository-evaluation.json",
+  "docs/repository-evaluation-summary.json",
+  "docs/repository-evaluation.md",
+]);
 const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
   ".github/workflows/spec-kit-work-map-autofix.yml",
   "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
@@ -306,8 +311,13 @@ function readRepositoryInventoryHashes() {
   return Object.fromEntries([...REPOSITORY_INVENTORY_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
 }
 
+function readRepositoryEvaluationHashes() {
+  return Object.fromEntries([...REPOSITORY_EVALUATION_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
+}
+
 function runRepositoryInventoryRefresh() {
   const beforeHashes = readRepositoryInventoryHashes();
+  const evaluationBeforeHashes = readRepositoryEvaluationHashes();
   run("install_root_dependencies", "npm", ["ci", "--ignore-scripts"], { cwd: repoRoot, failureCode: "root_npm_ci_failed" });
   run("generate_repository_inventory_first_pass", "npm", ["run", "inventory:write"], { cwd: repoRoot });
   const firstPassHashes = readRepositoryInventoryHashes();
@@ -325,19 +335,41 @@ function runRepositoryInventoryRefresh() {
   }
   run("verify_repository_inventory_current", "npm", ["run", "inventory:check"], { cwd: repoRoot });
   run("verify_repository_inventory_contract", "npm", ["run", "inventory:test"], { cwd: repoRoot });
+
+  run("generate_repository_evaluation_first_pass", "npm", ["run", "evaluation:write", "--", "--enforce"], { cwd: repoRoot });
+  const evaluationFirstPassHashes = readRepositoryEvaluationHashes();
+  run("generate_repository_evaluation_second_pass", "npm", ["run", "evaluation:write", "--", "--enforce"], { cwd: repoRoot });
+  const evaluationSecondPassHashes = readRepositoryEvaluationHashes();
+  if (JSON.stringify(evaluationFirstPassHashes) !== JSON.stringify(evaluationSecondPassHashes)) {
+    throw new ToolFailure({
+      code: "repository_evaluation_not_deterministic",
+      step: "prove_repository_evaluation_determinism",
+      command: "compare SHA-256 hashes after two evaluation:write -- --enforce passes",
+      status: 1,
+      stdout: JSON.stringify({ first_pass: evaluationFirstPassHashes, second_pass: evaluationSecondPassHashes }),
+      stderr: "Repository Evaluation outputs changed between deterministic generation passes.",
+    });
+  }
+  run("verify_repository_evaluation_contract", "npm", ["run", "evaluation:test"], { cwd: repoRoot });
+  run("verify_repository_evaluation_current", "npm", ["run", "evaluation:check", "--", "--enforce"], { cwd: repoRoot });
+
   return {
     deterministic: true,
     inventory_check: true,
     inventory_test: true,
+    evaluation_check: true,
+    evaluation_test: true,
     before_hashes: beforeHashes,
     after_hashes: secondPassHashes,
+    evaluation_before_hashes: evaluationBeforeHashes,
+    evaluation_after_hashes: evaluationSecondPassHashes,
     authority_mode: TRUSTED_WRITER_AUTHORITY_MODE,
   };
 }
 
 function isAllowedGeneratedOutput(recipe, file) {
   if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) return isWorkMapBootstrapOutput(file);
-  if (recipe === REPOSITORY_INVENTORY_RECIPE) return REPOSITORY_INVENTORY_OUTPUTS.has(file);
+  if (recipe === REPOSITORY_INVENTORY_RECIPE) return REPOSITORY_INVENTORY_OUTPUTS.has(file) || REPOSITORY_EVALUATION_OUTPUTS.has(file);
   return FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES.has(file);
 }
 
@@ -434,7 +466,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
       const commitMessage = recipe === WORK_MAP_BOOTSTRAP_RECIPE
         ? "docs(work-maps): bootstrap governed maps and Spec Kit bindings"
         : recipe === REPOSITORY_INVENTORY_RECIPE
-          ? "docs(inventory): regenerate repository inventory"
+          ? "docs(inventory): regenerate repository inventory and evaluation"
           : "chore(ci): refresh generated contract artifacts";
       run("commit_generated_artifacts", "git", ["commit", "-m", commitMessage], { cwd: repoRoot });
       commitSha = run("read_resulting_commit", "git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout.trim();
