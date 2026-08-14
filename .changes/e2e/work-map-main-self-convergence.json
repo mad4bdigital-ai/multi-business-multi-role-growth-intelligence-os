@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "work-map-main-self-convergence",
-  "title": "Work Map exact-main post-merge self-convergence",
+  "title": "Work Map pre-merge currentness and exact-main fallback convergence",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -24,22 +24,25 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Convert failed push-time Work Map currentness on exact main from a recurring manual repair into a fail-closed, SHA-bound post-merge convergence loop that consumes the existing Integration Gate repair evidence and delegates all Work Map generation and repository mutation to the sole registered generated-artifact writer on a non-protected branch.",
+      "objective": "Prevent Work Map source/currentness divergence before merge by making every main-bound pull request a Work Map currentness boundary, then retain a fail-closed SHA-bound exact-main fallback that consumes Integration Gate repair evidence and delegates all Work Map generation and repository mutation to the sole registered generated-artifact writer on a non-protected branch.",
       "e2e_journeys": [
         {
-          "id": "converge-stale-work-maps-after-main-advance",
+          "id": "prevent-work-map-drift-before-main-and-recover-exact-main-fallback",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Spec Kit Work Map Integration, read-only main convergence dispatcher, and governed generated-artifact writer",
-          "entrypoint": "Spec Kit Work Map Integration completes with failure for a push event whose head branch and live exact head are main, after publishing its bounded exact-head Work Map repair candidate artifact.",
-          "terminal_outcome": "The dispatcher validates the immutable failed Integration run and its exact-head repair evidence without generating or writing Work Maps, then delegates the exact main SHA to work_map_self_hosting_bootstrap on chore/work-map-main-sync-<sha12>; the writer creates or validates that branch, performs the deterministic Work Map convergence, pushes without force, reads back the exact result head, and dispatches read-only verification while main and Production remain untouched.",
+          "actor": "Spec Kit Work Map Integration, pull-request Work Map writer, read-only exact-main convergence dispatcher, and governed generated-artifact writer",
+          "entrypoint": "Any pull request targets main, or an exceptional/legacy main push is observed with stale generated Work Maps.",
+          "terminal_outcome": "Normal pull requests cannot merge while their exact head has stale Work Maps, eliminating the former workflow-source/currentness gap. If stale state nevertheless reaches current exact main, the dispatcher validates the immutable failed Integration run and repair evidence without becoming another producer, then delegates to the governed writer on chore/work-map-main-sync-<sha12>; main and Production are never directly written by the fallback path.",
           "steps": [
-            "Accept only a failed Spec Kit Work Map Integration workflow_run whose source event is push, source branch is main, and source SHA still equals the live main ref; manual recovery requires the exact same main SHA plus REQUEST_WORK_MAP_MAIN_CONVERGENCE and resolves an existing failed push run for that SHA.",
+            "Run Spec Kit Work Map Integration for every pull request targeting main by using an all-path fail-closed trigger; retain explicit pipeline paths only as governance anchors.",
+            "Treat every Integration workflow invocation as a Work Map currentness boundary instead of maintaining a second narrower changed-path classifier that can diverge from the generator source universe.",
+            "On a stale pull-request head, generate the existing bounded exact-head repair candidate locally in the read-only Integration Gate, fail closed, and require the existing authorized pull-request Work Map writer before merge.",
+            "For the exact-main fallback, accept only a failed Spec Kit Work Map Integration workflow_run whose source event is push, source branch is main, and source SHA still equals the live main ref; manual recovery requires the same main SHA plus REQUEST_WORK_MAP_MAIN_CONVERGENCE and an existing failed push run for that SHA.",
             "Re-read the source workflow run and require the canonical workflow path, push event, main branch, exact source SHA, completed state, failure conclusion, and valid run attempt.",
-            "Resolve exactly the non-expired work-map-repair-candidate-main-<full-sha> artifact from that failed run and download it without checking out or executing repository code.",
+            "Resolve exactly the non-expired work-map-repair-candidate-main-<full-sha> artifact from that failed run and download it without checking out or executing repository code in the dispatcher.",
             "Validate mad4b.work-map-repair-candidate.v1 identity: repository, run ID, run attempt, event and tested SHA, exact-checkout flag, docs/work-maps allowed root, no remote write, no secrets, and a valid source SHA-256.",
             "Require report changed_count and changed_files to match the artifact changed-files manifest exactly, reject duplicates or paths outside docs/work-maps, reject symlinks, and require every declared changed output to exist in the artifact.",
-            "Derive one SHA-specific target branch chore/work-map-main-sync-<sha12> and re-read live main before any delegation.",
+            "Derive one SHA-specific target branch chore/work-map-main-sync-<sha12> and re-read live main before any fallback delegation.",
             "If the target branch is absent or still equals the exact source main SHA, dispatch the governed generated-artifact writer; if an already-converged generated-only descendant exists, stop idempotently; reject unrelated branch collisions or generated-scope escape.",
             "Invoke only work_map_self_hosting_bootstrap with create_from_main=true, source_main_sha equal to expected_head_sha, and the typed generated-artifact confirmation.",
             "Inside the writer, reject main and Production targets, validate the Work Map convergence branch namespace, require exact live-main equality, create the target branch only from that exact main SHA, and never force-push.",
@@ -47,17 +50,19 @@
             "Commit only registered generated artifacts after exact-head CAS, push without force, require post-push remote readback, and dispatch read-only PR Generated Artifact Refresh verification on the resulting exact branch head; PR publication and merge remain separate governed actions."
           ],
           "assertions": [
-            "A failed Work Map Integration run from a stale main SHA cannot start a repair.",
+            "Every pull request targeting main runs Work Map Integration regardless of changed path, so a newly introduced Work Map source cannot silently bypass the gate because a static trigger list was not updated.",
+            "Every Integration invocation requires generated Work Map currentness; there is no secondary currentness_required=false classifier that can omit workflow YAML or another generator input.",
+            "The ordinary pull-request Integration gate remains read-only, publishes exact-head repair evidence when stale, and fails closed until the governed pull-request writer converges generated state.",
+            "A failed Work Map Integration run from a stale main SHA cannot start fallback repair.",
             "A non-push event, non-main branch, successful source run, malformed SHA, mismatched workflow path, or missing exact repair artifact cannot start automatic main convergence.",
-            "The classifier/delegator has contents read only and performs no Work Map generator execution, git commit, git push, direct protected-ref update, force push, or PR merge.",
-            "The dispatcher consumes the Integration Gate's existing exact-head repair evidence instead of becoming a second Work Map producer.",
+            "The exact-main classifier/delegator has contents read only and performs no Work Map generator execution, git commit, git push, direct protected-ref update, force push, or PR merge.",
+            "The fallback dispatcher consumes the Integration Gate's existing exact-head repair evidence instead of becoming a second Work Map producer.",
             "Repair evidence must be bound to the exact failed run and run attempt, exact main SHA, repository, allowed root, changed-file manifest, no-remote-write declaration, and no-secret declaration.",
             "The target branch identity is derived from the exact source main SHA, making retries idempotent and preventing cross-main branch reuse.",
             "Existing target reuse is accepted only for the exact source seed or an already-converged generated-only descendant; unrelated branch contents or write-set escape fail closed.",
             "create_from_main is accepted for work_map_self_hosting_bootstrap only under the SHA-specific Work Map convergence branch pattern or for the pre-existing Repository Inventory convergence recipe under its own pattern.",
-            "Deterministic double-pass Work Map generation remains inside the sole registered generated-artifact writer tool, not in the dispatcher.",
+            "Deterministic double-pass Work Map generation remains inside the sole registered generated-artifact writer tool, not in the main fallback dispatcher.",
             "The generated-artifact writer still rejects main and Production as mutation targets and preserves exact-head CAS, bounded changed paths, post-push readback, and no-force-push semantics.",
-            "The ordinary Spec Kit Work Map Integration gate remains read-only and continues to publish an exact-head repair candidate before failing closed on stale generated Work Maps.",
             "No Production deployment, database or provider mutation, credential payload read, migration apply, grant mutation, or protected-branch mutation is part of this feature."
           ],
           "tests": [
@@ -82,20 +87,20 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Observe the first exact-main failed Work Map currentness run after this authority is trusted on main and verify exact repair-artifact validation, automatic SHA-specific branch creation, governed deterministic regeneration, read-only exact-head verification, and idempotent retry behavior.",
+      "objective": "Observe both the first main-bound source PR under universal pre-merge currentness and the first exceptional exact-main stale Work Map fallback after this authority is trusted on main, verifying exact repair-artifact validation, SHA-specific branch creation, governed deterministic regeneration, read-only exact-head verification, and idempotent retry behavior.",
       "blockers": [
-        "The dispatcher and create_from_main Work Map authority are not trusted until this source change merges to main; the first post-merge canary must remain non-protected and review-gated."
+        "The universal PR currentness rule, fallback dispatcher, and create_from_main Work Map authority are not trusted until this source change merges to main; the first post-merge fallback canary must remain non-protected and review-gated."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale workflow_run heads, main movement during evidence validation, missing or expired artifact, mismatched run attempt, forged repair identity, artifact symlink, changed-file manifest mismatch, generated-path escape, pre-existing unrelated target collisions, seeded-target retry, already-converged target retry, writer nondeterminism, writer CAS failure, and verifier-dispatch failure."
+      "objective": "Exercise unrelated PRs with current Work Maps, newly introduced source paths, stale pull-request Work Maps, stale workflow_run heads, main movement during evidence validation, missing or expired artifact, mismatched run attempt, forged repair identity, artifact symlink, changed-file manifest mismatch, generated-path escape, pre-existing unrelated target collisions, seeded-target retry, already-converged target retry, writer nondeterminism, writer CAS failure, and verifier-dispatch failure."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Use the first real post-merge Work Map drift as a bounded canary with exact main identity, exact failed-run repair evidence, and no protected-ref mutation."
+      "objective": "Use the first post-merge main-bound PR as the pre-merge prevention canary and any later real exact-main drift as a bounded fallback canary with exact failed-run repair evidence and no protected-ref mutation."
     },
     {
       "id": "production",
