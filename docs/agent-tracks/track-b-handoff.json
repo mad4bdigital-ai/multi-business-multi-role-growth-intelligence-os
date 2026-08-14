@@ -27,7 +27,8 @@
     "readiness_manifest": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
     "focused_test": "http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
     "readiness_module": "http-generic-api/databaseLifecycleReadiness.js",
-    "manifest_generator": "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs"
+    "manifest_generator": "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs",
+    "closure_status": "docs/agent-tracks/track-b-closure-status.md"
   },
   "evidence": {
     "focused_tests": {
