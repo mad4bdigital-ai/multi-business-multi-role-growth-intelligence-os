@@ -10,7 +10,9 @@
       ".changes/e2e/track-a-governed-runtime-composition.json",
       "docs/agent-tracks/track-a-governed-successor-handoff.json",
       "http-generic-api/governedExecutionRuntimeComposition.js",
+      "http-generic-api/authorityProjectionCompiler.js",
       "http-generic-api/test-governed-execution-runtime-composition.mjs",
+      "http-generic-api/test-authority-projection-compiler.mjs",
       "http-generic-api/test-context-kernel-integrity-regression.mjs",
       "http-generic-api/test-context-kernel-resource-graph-properties.mjs"
     ]
@@ -22,7 +24,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Compose Context, Capability, Authority, Plan, Approval/Delegation, Track B readiness, Durable, Adapter, and Readback contracts into one fail-closed read-only runtime resolution without minting authority or executing a provider, while proving resource-graph inheritance and restriction invariants.",
+      "objective": "Compose Context, Capability, Authority, Plan, Approval/Delegation, Track B readiness, Durable, Adapter, Readback, and shared projection-eligibility contracts without minting authority, selecting connections, executing a provider, or creating surface-specific policy engines.",
       "e2e_journeys": [
         {
           "id": "authoritative-read-only-runtime-composition",
@@ -81,13 +83,55 @@
             "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
             "docs/agent-tracks/track-a-governed-successor-handoff.json"
           ]
+        },
+        {
+          "id": "shared-authority-surface-projection-eligibility",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authority projection consumer",
+          "entrypoint": "compileAuthoritySurfaceProjections",
+          "terminal_outcome": "Dynamic Tabs, Dashboard, and Tool Catalog consume one no-secret projection-eligibility decision; ineligible surfaces reveal no candidate existence, and Tool Catalog action eligibility never becomes execution authorization.",
+          "steps": [
+            "Load one bounded Effective Authority Manifest and registered public surface candidates",
+            "Validate manifest expiry and no-secret invariants",
+            "Compile Dynamic Tabs and Dashboard visibility from surface projection eligibility",
+            "Compile Tool Catalog visibility separately from later action eligibility",
+            "Require ready/canary-ready decision plus execution projection/readiness before marking a tool action eligible for later PEP evaluation",
+            "Return deterministic public projections with no authority grant, runtime enforcement, provider call, or database mutation"
+          ],
+          "assertions": [
+            "A surface with projectionEligibility=false returns zero items and does not disclose candidate count or identities",
+            "Expired manifests fail closed for all three product surfaces",
+            "Shadow-ready manifests may preserve authorized visibility but cannot mark a Tool Catalog action eligible",
+            "Tool action eligibility requires execution projection eligibility and execution readiness",
+            "action_eligible never implies execution_authorized and no action grant is emitted",
+            "Duplicate projection registrations fail closed rather than selecting one candidate",
+            "Secret-like fields and URL credentials/query secrets are removed from public metadata",
+            "Registration order does not change projection output order",
+            "The compiler creates no authority and performs no runtime/provider/database mutation"
+          ],
+          "tests": [
+            {
+              "id": "shared-authority-projection-compiler",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-projection-compiler.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/authorityProjectionCompiler.js",
+            "http-generic-api/test-authority-projection-compiler.mjs",
+            "specs/011-unified-effective-authority-control-plane/architecture.md",
+            "specs/011-unified-effective-authority-control-plane/contracts/openapi.yaml"
+          ]
         }
       ]
     },
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Bind the composition contract to repository-canonical live authority and durable readiness implementations after their separate evidence gates are satisfied."
+      "objective": "Bind the composition and projection contracts to repository-canonical live authority and durable readiness implementations after their separate evidence gates are satisfied."
     },
     {
       "id": "resilient",
