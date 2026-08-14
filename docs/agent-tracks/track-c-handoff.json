@@ -4,7 +4,7 @@
   "branch": "agent/track-c-surfaces-mcp-gpt-frontend",
   "base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
   "pinned_main_sha": "4753d6904c16a30ea8bede5f329a5dca17f98bfb",
-  "source_head_before_handoff_refresh": "551650a4c428e94a1b56da701d51fea83d5494e3",
+  "source_head_before_handoff_refresh": "b60678f94c93d404f982e0840560c33586dd2b14",
   "contract_chain": [
     "Context Kernel",
     "Capability Manifest",
@@ -43,14 +43,22 @@
   "evidence": {
     "openapi_schema_parity": "specs/005-dynamic-mcp-schema-surfaces/evidence/track-c-openapi-schema-parity-20260814.json",
     "host_tenant_isolation": "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json",
-    "spec016_e2e_projection_binding": "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json"
+    "spec016_e2e_projection_binding": "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
+    "spec016_work_map_binding": "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json"
   },
   "reconciliation": {
     "current_main_direct_overlap": [
       "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json"
     ],
     "required_order": ["B", "A", "C", "integration"],
-    "early_rebase_authorized": false
+    "early_rebase_authorized": false,
+    "spec016_work_map_registry_binding": {
+      "scope": "exact_track_c_checkout",
+      "fingerprint": "ac111b8c4d0c8db936c3425cd98a41fb5889d3848e898c56230c87df985a9a1f",
+      "index_source_hash": "64076dfcb85e1477af51c63b870b75f48aa268306270cf041ad7ac64393d15ea",
+      "coverage_source_hash": "1e1bceb2d095c751e749b1fc52e42e5e5838a4eed484681ea1df846da2918cb3",
+      "refresh_required_after_future_rebase": true
+    }
   },
   "validation": {
     "previous_exact_source_head": "ea4bfc46a6118c0c6bc107f94bf58aa474290124",
@@ -66,9 +74,19 @@
       "current_main_specific_contract_consistent": true
     },
     "spec016_e2e_contract": "updated_with_public_capability_projection_on_551650a4c428e94a1b56da701d51fea83d5494e3",
+    "spec016_work_map": {
+      "status": "reconciled_to_exact_track_c_registry",
+      "review_state": "ready_for_implementation",
+      "work_map_decisions": 19,
+      "domain_decisions": 16,
+      "unresolved_dimensions": 0,
+      "taxonomy_gap_clusters": 0,
+      "acceptance_refs_added": true,
+      "gate_contract_structurally_reviewed": true,
+      "fresh_actions_run_observed": false
+    },
     "spec010_e2e_contract": "missing_normal_contents_api_create_was_blocked_before_write",
-    "e2e_phase_governance": "pending_new_head_evaluation_spec010_known_remaining_blocker",
-    "spec016_work_map": "reconciliation_debt_remains",
+    "e2e_phase_governance": "fresh_run_not_observed_after_contents_api_commits_spec010_remains_known_debt",
     "evaluation_loop": "deferred_until_required_upstream_reconciliation_and_final_integration_for_reserved_generated_outputs",
     "schemas_guard": "required_after_upstream_reconciliation",
     "frontend_dispatch_check": "required_after_upstream_reconciliation",
