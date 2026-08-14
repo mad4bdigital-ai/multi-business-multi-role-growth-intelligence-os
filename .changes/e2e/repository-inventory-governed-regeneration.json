@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "repository-inventory-governed-regeneration",
-  "title": "Governed Repository Inventory regeneration",
+  "title": "Governed Repository Inventory and Evaluation convergence",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -11,6 +11,7 @@
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/ci.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/repository-evaluation.yml",
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
       ".github/workflows/repository-inventory.yml",
       ".github/workflows/spec-kit-work-map-integration.yml",
@@ -18,6 +19,7 @@
       "scripts/repository-inventory-verification-gate.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
       "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs"
     ]
   },
@@ -28,53 +30,61 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make Repository Inventory regeneration a bounded recipe of the existing governed generated-artifact writer while keeping verification read-only and resolving the writer's first-install self-hosting cycle without executing candidate mutation authority.",
+      "objective": "Make Repository Inventory regeneration a bounded transaction of the existing governed generated-artifact writer that converges dependent Repository Evaluation outputs only after Inventory is deterministic and current, while keeping verification read-only and preserving the writer's first-install self-hosting boundary.",
       "e2e_journeys": [
         {
-          "id": "regenerate-stale-repository-inventory-through-governed-writer",
+          "id": "regenerate-stale-repository-state-through-governed-writer",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository inventory verification gate, CI, trusted dispatcher, and governed generated-artifact writer",
-          "entrypoint": "A same-repository governed work branch has stale Repository Inventory outputs, either under already-trusted Inventory authority or while installing that authority for the first time.",
-          "terminal_outcome": "Ordinary stale-only pull requests are delegated to already-trusted writer authority. A first-install authority branch remains read-only, proves deterministic exact-head candidate outputs with the canonical generator unchanged from main, reports bootstrap_pending rather than executing candidate write authority, and requires the generated-output follow-up only after writer authority has become trusted on main.",
+          "actor": "repository inventory verification gate, repository evaluation verifier, CI, trusted dispatcher, and governed generated-artifact writer",
+          "entrypoint": "A same-repository governed work branch has stale Repository Inventory outputs or Repository Evaluation outputs derived from an Inventory state change, either under already-trusted authority or while installing that authority for the first time.",
+          "terminal_outcome": "Ordinary stale Inventory pull requests remain delegated through the trusted writer. The repository_inventory_refresh transaction deterministically converges Inventory first and Evaluation second, commits only the six registered repository-state outputs, and dispatches read-only exact-head verification for both families. A first-install authority branch remains read-only and cannot execute candidate mutation authority before that authority is trusted on main.",
           "steps": [
             "Checkout the exact candidate head with read-only repository permission.",
             "Run the shared Repository Inventory verification gate from both Repository Inventory and CI.",
             "Generate the three Inventory outputs twice and require identical SHA-256 identities across both passes.",
-            "Run the canonical Inventory check and self-test after generation.",
+            "Run the canonical Inventory currentness check and self-test after generation.",
+            "Only after Inventory is deterministic and current, generate the three Repository Evaluation outputs twice with enforcement and require identical SHA-256 identities across both passes.",
+            "Run the canonical Repository Evaluation self-test and enforced currentness check after the two Evaluation passes.",
             "If committed Inventory is current, report current and continue normally.",
-            "For an ordinary stale-only PR, keep existing fail-closed dispatch rules: same repository, main base, zero-behind freshness, unchanged trusted authority, deterministic exact three-file drift, and trusted writer delegation only.",
+            "For an ordinary stale-only PR, keep existing fail-closed dispatch rules: same repository, main base, zero-behind freshness, unchanged trusted authority, deterministic exact three-Inventory-file drift, and trusted writer delegation only.",
             "For a self-hosting authority installation, permit bootstrap_pending only on pull_request or exact-head workflow_dispatch for a governed non-protected branch whose remote head still equals the expected SHA.",
             "Require current main to be an ancestor of the exact candidate and require scripts/repository-inventory.mjs, package.json, and package-lock.json to be byte-unchanged from trusted main.",
-            "Require the authority installation to include the governed writer workflow, Inventory verifier, Inventory autofix dispatcher, generated-artifact maintenance tool, and repository-inventory-governed-regeneration E2E contract.",
-            "Require deterministic regeneration to dirty exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md and no other worktree path.",
+            "Require deterministic stale detection to dirty exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md and no other worktree path before delegation; this read-only classifier does not pre-generate Evaluation outputs.",
             "Publish bootstrap_pending as read-only evidence from Repository Inventory or CI; do not commit, push, dispatch candidate write code, mutate a protected branch, or force-push.",
-            "After source authority merges to main, create a non-protected generated-output work branch from trusted main, invoke repository_inventory_refresh through the trusted writer, and verify the resulting exact head before the generated-output PR is merged.",
+            "After source authority merges to main, create a non-protected generated-output work branch from trusted main and invoke repository_inventory_refresh through the sole trusted writer.",
+            "Bound the trusted mutation write-set to the three Inventory outputs plus docs/repository-evaluation.json, docs/repository-evaluation-summary.json, and docs/repository-evaluation.md.",
+            "After the writer reads back the resulting exact remote head, dispatch Repository Inventory and Repository Evaluation as read-only verifiers pinned to the same result SHA.",
             "For a failed push-triggered Inventory run on exact main, classify only the live main SHA, reject stale event heads, and route recovery into chore/repository-inventory-main-sync-<sha12> rather than mutating main.",
             "For a workflow_dispatch convergence request, require create_from_main=true, source_main_sha equal to expected_head_sha, the governed branch namespace, and live main equality before creating the branch.",
             "If the convergence branch already exists, require its remote head to equal the exact source main SHA; refuse branch reuse with a different head."
           ],
           "assertions": [
             "Repository Inventory and CI use one shared read-only verification gate for currentness and self-hosting bootstrap decisions.",
-            "The shared gate performs two generation passes and compares SHA-256 identities before claiming deterministic_generation_verified.",
+            "The shared Inventory gate performs two generation passes and compares SHA-256 identities before claiming deterministic_generation_verified.",
             "Repository Inventory pull-request verification has contents read only and performs no git push.",
-            "Repository Inventory regeneration writes exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md.",
+            "The stale-only Inventory classifier remains bounded to exactly the three Repository Inventory outputs before delegation.",
+            "The trusted repository_inventory_refresh mutation transaction may write exactly the three Repository Inventory outputs plus the three Repository Evaluation outputs and no other path.",
+            "Repository Evaluation generation starts only after Inventory currentness and contract verification succeed.",
+            "Repository Evaluation is generated twice, hash-compared for determinism, self-tested, and checked with enforcement before commit.",
             "The self-hosting bootstrap may report bootstrap_pending on pull_request or workflow_dispatch, and on push only when the same-repository target is a governed non-protected work branch; push on main or Production remains fail-closed.",
             "workflow_dispatch bootstrap_pending requires a governed non-protected branch and remote exact-head equality.",
             "bootstrap_pending requires the canonical Inventory generator and package contract to be unchanged from trusted main.",
-            "bootstrap_pending requires behind_by zero and an exact three-output dirty set with no additional worktree changes.",
+            "bootstrap_pending requires behind_by zero and an exact three-Inventory-output dirty set with no additional worktree changes.",
             "bootstrap_pending is evidence only: repository_mutation, protected_branch_mutation, and force_push remain false.",
             "Candidate-modified generated-artifact mutation authority is never executed before it is trusted on main.",
             "The ordinary automatic dispatcher still refuses candidate-modified mutation authority and requires its trusted control surface to match main.",
             "The dispatcher has actions write only in the delegation job and never receives contents write permission.",
             "The governed writer requires an exact expected_head_sha and typed confirmation, rejects main and Production, and never force-pushes.",
             "The post-merge bootstrap uses a non-protected work branch; main and Production remain outside direct generated-artifact mutation targets.",
-            "Generated-artifact verification routes repository_inventory_refresh to Repository Inventory rather than a generic verifier.",
-            "Push-triggered and workflow_dispatch-triggered recovery use the same exact-head and fail-closed source identity contract.",
+            "Generated-artifact verification routes repository_inventory_refresh to both Repository Inventory and Repository Evaluation on the same resulting exact head.",
+            "Repository Evaluation workflow_dispatch supports optional exact target_ref and expected_head_sha pinning, validates remote identity, checks out that SHA, and revalidates local and remote identity before evaluation.",
+            "Repository Evaluation remains read-only and never receives contents write permission or performs git push.",
+            "Push-triggered and workflow_dispatch-triggered Inventory recovery use the same exact-head and fail-closed source identity contract.",
             "A governed work-branch push may publish bootstrap evidence only with repository identity, main-base identity, and a non-protected governed branch; protected-ref pushes remain blocked.",
             "Work Map Integration may retain the broad .github/workflows/** trigger required by pipeline connectivity, but its currentness and repair path must classify pull-request changes and remain inactive for unrelated generated-artifact or inventory changes.",
             "Main convergence creates only a non-protected branch and never grants the dispatcher contents write authority.",
-            "The writer refuses protected targets, requires typed confirmation, and does not merge or publish a Production change.",
+            "The generated-artifact-refresh maintenance tool remains the sole registered mutating repository maintenance tool.",
             "Production deployment, database mutation, direct protected-ref mutation, and secret publication are outside this feature."
           ],
           "tests": [
@@ -86,6 +96,13 @@
               "args": []
             },
             {
+              "id": "repository-state-generated-artifact-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-state-generated-artifact-convergence.mjs",
+              "args": []
+            },
+            {
               "id": "repository-inventory-self-hosting-bootstrap",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -94,13 +111,16 @@
             }
           ],
           "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/ci.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml",
+            ".github/workflows/repository-evaluation.yml",
             ".github/workflows/repository-inventory-autofix-dispatch.yml",
             ".github/workflows/repository-inventory.yml",
             "scripts/repository-inventory-verification-gate.mjs",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
             "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs"
           ]
         }
@@ -109,20 +129,20 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Observe the first trusted post-merge Repository Inventory generated-output follow-up on a non-protected work branch, including push-run recovery, branch collision refusal, and canonical exact-head verification evidence.",
+      "objective": "Observe the first trusted post-merge Repository State generated-output follow-up on a non-protected work branch, including Inventory plus Evaluation convergence, dual exact-head verification, push-run recovery, branch collision refusal, and canonical evidence.",
       "blockers": [
-        "Current main has deterministic Repository Inventory drift and requires the first trusted post-merge generated-output convergence before operational can be claimed."
+        "Current main has deterministic Repository Inventory and dependent Repository Evaluation drift and requires the first trusted post-merge generated-output convergence before operational can be claimed."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale SHA, main drift, changed generator/package contract, changed authority surface, nondeterministic generation, dirty-set escape, no-op, dispatch failure, and post-push readback mismatch paths."
+      "objective": "Exercise stale SHA, main drift, changed generator/package contract, changed authority surface, nondeterministic Inventory, nondeterministic Evaluation, dirty-set escape, no-op, verifier dispatch failure, and post-push readback mismatch paths."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Use the first post-merge generated-output work branch as the bounded canary for repository_inventory_refresh."
+      "objective": "Use the first post-merge generated-output work branch as the bounded canary for repository_inventory_refresh and dual Repository State verification."
     },
     {
       "id": "production",
