@@ -3,7 +3,6 @@ services:
     volumes:
       - ${STAGING_DATA_ROOT:-./.staging-data}/redis:/data
 
-
   runtime-db:
     image: mariadb:11.4
     restart: unless-stopped
@@ -87,3 +86,16 @@ services:
         condition: service_healthy
       persistence-db:
         condition: service_healthy
+
+  # Optional local-only ingress. Start explicitly with --profile tunnel.
+  # The Cloudflare dashboard ingress must target http://app:8080.
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1-amd64@sha256:f751174c3d8ae54b12575af320a4aa01bb3b6e61ab82aa1e4f8ecac8a079ce61
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-}"]
+    environment:
+      TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
+    depends_on:
+      app:
+        condition: service_started

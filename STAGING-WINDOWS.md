@@ -52,6 +52,24 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .e
 
 The staging override disables the queue worker and explicitly sets mutation/Production flags to false. Redis is local to the Compose project. No migration or SQL apply command is part of this procedure.
 
+## Dev-only Cloudflare Tunnel
+
+The `cloudflared` service is intentionally placed behind the opt-in `tunnel` profile. The default staging startup does not expose the application publicly. After the local app is healthy, create or select a dedicated Cloudflare Tunnel for Dev, configure its hostname as `dev.mad4b.com`, and configure the tunnel ingress target as `http://app:8080`. Put only that Dev tunnel token in the untracked `.env.staging` as `CLOUDFLARE_TUNNEL_TOKEN`; never copy the Hostinger/Production DNS credentials or Production secrets to the External SSD.
+
+Start the tunnel explicitly, without changing the default local safety flags:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging --profile tunnel up -d cloudflared
+```
+
+The tunnel is a routing mechanism, not a deployment or migration authorization. Keep `CLOUDFLARE_TUNNEL_ENABLED=false`, `MIGRATION_APPLIED=false`, and `DATABASE_MUTATED=false`; the Compose profile is the explicit operator action that starts the connector. Stop it separately when public Dev access is no longer required:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging --profile tunnel stop cloudflared
+```
+
+Production remains on Hostinger Cloud and uses a separate Cloudflare DNS/CDN record and separate credentials. It must not point its DNS record at this local tunnel.
+
 Stop without deleting local data:
 
 ```bash
