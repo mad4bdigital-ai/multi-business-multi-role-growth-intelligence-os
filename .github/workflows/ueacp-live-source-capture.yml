@@ -1,10 +1,10 @@
-name: UEACP Live Source Capture Temporary
+name: UEACP Live Source Capture
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - ".github/workflows/ueacp-live-source-capture-temporary.yml"
+      - ".github/workflows/ueacp-live-source-capture.yml"
       - ".github/scripts/authority-live-census-observation.mjs"
       - "http-generic-api/authorityLiveEvidenceOrchestrator.js"
       - "http-generic-api/authorityLiveSourceCollectors.js"
@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ueacp-live-source-capture-one-shot
+  group: ueacp-live-source-capture
   cancel-in-progress: false
 
 jobs:
@@ -47,11 +47,11 @@ jobs:
           node --check http-generic-api/authorityLiveEvidenceOrchestrator.js
           node --check http-generic-api/authorityLiveSourceCollectors.js
           node --check http-generic-api/scripts/authority-live-evidence-collect.mjs
-      - name: Enforce temporary manual read-only contract
+      - name: Enforce governed manual read-only contract
         shell: bash
         run: |
           set -euo pipefail
-          workflow=.github/workflows/ueacp-live-source-capture-temporary.yml
+          workflow=.github/workflows/ueacp-live-source-capture.yml
           grep -q '^  workflow_dispatch:' "$workflow"
           ! grep -Eq '^  (push|schedule|issue_comment|workflow_run):' "$workflow"
           grep -q '^permissions:$' "$workflow"
