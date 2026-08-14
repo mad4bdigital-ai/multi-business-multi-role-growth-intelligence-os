@@ -58,6 +58,7 @@
             "A workflow_dispatch run is accepted only for PR Generated Artifact Refresh and an exact current work-branch head.",
             "The report declares secrets_included=false and bounded redacted diagnostics.",
             "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
+            "A completed upstream workflow with conclusion skipped does not start the publisher or attempt canonical artifact download.",
             "The tests remain discoverable through the canonical repository test manifest.",
             "Pre-merge behavior of a pull_request workflow is not used as proof of its replacement definition; operational proof begins after the trusted definition reaches the default branch.",
             "Job logs remain diagnostic-only and never override the canonical report."
