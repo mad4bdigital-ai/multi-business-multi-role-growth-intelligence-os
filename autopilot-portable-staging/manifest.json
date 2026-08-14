@@ -4,42 +4,23 @@
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   "required_ref": "main",
   "files": [
-    {
-      "path": "http-generic-api/docker-compose.yml",
-      "sha256": "06539f972c22dc0d60be2c5b47dcb56818d50b913e881db057dbeb6de5bb59e8"
-    },
-    {
-      "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "ee73ec7596c5f246b77e76e3942534b03c6b57bdcdf925e931f4f3ffc73b531f"
-    },
-    {
-      "path": "http-generic-api/.env.staging.example",
-      "sha256": "7d0d083625a8922dec82cd6c350bd0b4f07f3c3b515e4e2408eeaeec5f45222e"
-    },
-    {
-      "path": "http-generic-api/config/domain-family-policy.json",
-      "sha256": "cb569a2098b064d4afa378c8eea99510f5dba91f5d62376baa05e8ff29c0e629"
-    },
-    {
-      "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "50597a75e5adcf42f728fb6eaad2273b1557adb2bf67abe13ad3c7a698f251fe"
-    },
-    {
-      "path": "http-generic-api/test-domain-family-policy.mjs",
-      "sha256": "a959bcc4c0164212ae73dd284a70fc3e33ef19b763a8dac5240e9a95267b2825"
-    },
-    {
-      "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "7b50d29280436703f51e3391af0809cfcef3e55128fbac43fe3184402bc1f676"
-    },
-    {
-      "path": "autopilot-portable-staging/README.md",
-      "sha256": "7763a1025fd8afc5ee1a700f2b48a2f90df2509237bf664161e37b3c9b9b18bd"
-    },
-    {
-      "path": "STAGING-WINDOWS.md",
-      "sha256": "bfc05345044af303e9ba70e49450e1044f2b740ee4de1a90c26fbbaddcda2a68"
-    }
+    {"path": "http-generic-api/docker-compose.yml", "sha256": "06539f972c22dc0d60be2c5b47dcb56818d50b913e881db057dbeb6de5bb59e8"},
+    {"path": "http-generic-api/docker-compose.staging.yml", "sha256": "cb24ad10b6cb7c79c7baa284aaf93563c419aa9c5e01205b24bf4ff5e4bdd687"},
+    {"path": "http-generic-api/.env.staging.example", "sha256": "c9d94c4878c702e7e03851218d84de420226de5d6346456c6368c22f515be68a"},
+    {"path": "http-generic-api/config/domain-family-policy.json", "sha256": "4e1b5c2ccbadb579235ab187184cdb8f29489c64dd2daa4a6fc4dbf94afc8e85"},
+    {"path": "http-generic-api/config/deployment-branch-policy.json", "sha256": "50597a75e5adcf42f728fb6eaad2273b1557adb2bf67abe13ad3c7a698f251fe"},
+    {"path": "http-generic-api/config/staging-openapi-mcp-policy.json", "sha256": "a49eb17ba415f350fcd34625424c9fe4735bf9ce4de70badad81e4baf4fa8cdb"},
+    {"path": "http-generic-api/test-domain-family-policy.mjs", "sha256": "3260a71a2c5c7a0e427eda977248f9bba6ff0dc7ff30be2354163fc9c6c7f82e"},
+    {"path": "http-generic-api/test-staging-autopilot-closure.mjs", "sha256": "2f47f88ccabab1fe4e7c238f87b234b2047ecfcec17deedbc6aa0ce16b28879b"},
+    {"path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs", "sha256": "0d9530f22a8a3c74b748fb68e932e13506edd186856abc0a6556b152710e1e95"},
+    {"path": "autopilot-portable-staging/Start-AutoPilot.ps1", "sha256": "5878b3ca9bb910845941e2433237ce056e2047752097da62a3e4065e7e6bd72f"},
+    {"path": "autopilot-portable-staging/Clone-StagingDatabases.ps1", "sha256": "b356df436ff5e16c88b4d1b634a5a7311dc307a014b0b9865dd52dc72a34359e"},
+    {"path": "autopilot-portable-staging/README.md", "sha256": "7763a1025fd8afc5ee1a700f2b48a2f90df2509237bf664161e37b3c9b9b18bd"},
+    {"path": "STAGING-WINDOWS.md", "sha256": "bfc05345044af303e9ba70e49450e1044f2b740ee4de1a90c26fbbaddcda2a68"},
+    {"path": "docs/staging-openapi-mcp-db-copy.md", "sha256": "a2355e28d6a1a6086dcadac02b42414db8a4eba405bca29c35e5724842a67c83"},
+    {"path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", "sha256": "41b6a482a1f7e0889b66c0632b94840dd563231af7a1b2755cc3d3814974586e"},
+    {"path": "http-generic-api/scripts/build-staging-openapi.mjs", "sha256": "13d5e22bb7eec24bc1d3348b229017fe87b3e3a9a90d6cfe75746968f125cbe0"},
+    {"path": "http-generic-api/routes/rootDiscoveryRoutes.js", "sha256": "de502ed49251b1534a65395d5fd95ab1c5e0242a93a85c0f49bd34e3e3510597"}
   ],
   "safety": {
     "migration_applied": false,
