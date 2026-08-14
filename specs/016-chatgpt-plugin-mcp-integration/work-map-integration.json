@@ -3,9 +3,9 @@
   "feature_key": "016-chatgpt-plugin-mcp-integration",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "606ba8232d69b23a35f077300b6289d86c06b781efc4dcf0ec7357a3176d1751",
-    "index_source_hash": "78f9b9a42e843fde1dcc2eb8833228a016e36d0e04099f1fabb4b858d49d63ba",
-    "coverage_source_hash": "6dabc49603b31ba80b952e5ffacfb5e10565453370f50e4b6f7504a7050b01ca",
+    "fingerprint": "ac111b8c4d0c8db936c3425cd98a41fb5889d3848e898c56230c87df985a9a1f",
+    "index_source_hash": "64076dfcb85e1477af51c63b870b75f48aa268306270cf041ad7ac64393d15ea",
+    "coverage_source_hash": "1e1bceb2d095c751e749b1fc52e42e5e5838a4eed484681ea1df846da2918cb3",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
@@ -14,9 +14,9 @@
   "work_map_decisions": {
     "activation-access-map": {
       "decision": "integrate",
-      "rationale": "Client eligibility, workspace rollout, tool enablement, revocation, and disable controls must remain within the existing activation and access authority rather than a client-owned path.",
+      "rationale": "Client eligibility, rollout, tool enablement, revocation, and disable controls stay inside the existing activation and access authority.",
       "owner": "platform-team",
-      "integration_points": ["client eligibility", "workspace rollout", "tool enablement and revocation"],
+      "integration_points": ["client eligibility", "workspace rollout", "revocation"],
       "requirement_refs": ["FR-021", "FR-026", "FR-032"],
       "task_refs": ["T015", "T018", "T028", "T041"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -25,9 +25,9 @@
     },
     "activation-onboarding-map": {
       "decision": "integrate",
-      "rationale": "Account linking, consent, workspace policy, initial connection testing, and relink guidance extend the existing onboarding lifecycle without creating a second identity authority.",
+      "rationale": "Account linking, consent, workspace policy, connection testing, and relink guidance reuse the existing onboarding lifecycle.",
       "owner": "platform-team",
-      "integration_points": ["account link", "scope consent", "connection readiness", "relink guidance"],
+      "integration_points": ["account linking", "consent", "connection readiness"],
       "requirement_refs": ["FR-005", "FR-006", "FR-031"],
       "task_refs": ["T013", "T015", "T038", "T041"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -36,9 +36,9 @@
     },
     "agent-skill-plugin-map": {
       "decision": "extend",
-      "rationale": "ChatGPT, Claude, Codex, and approved generic MCP clients extend the existing agent, skill, and plugin integration surface while tool authority remains upstream and server-owned.",
+      "rationale": "Approved MCP clients extend the existing agent, skill, and plugin surface while execution authority remains upstream and server-owned.",
       "owner": "platform-team",
-      "integration_points": ["plugin package", "MCP client profiles", "tool projection metadata"],
+      "integration_points": ["MCP client profiles", "plugin package", "tool projection metadata"],
       "requirement_refs": ["FR-012", "FR-013", "FR-027", "FR-028"],
       "task_refs": ["T025", "T026", "T039", "T040"],
       "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
@@ -47,7 +47,7 @@
     },
     "asset-package-map": {
       "decision": "integrate",
-      "rationale": "Plugin manifests, package versions, icons, legal links, and review snapshots use the existing asset and package lifecycle rather than introducing an ungoverned packaging model.",
+      "rationale": "Plugin manifests, package versions, assets, legal links, and review snapshots reuse the existing governed asset and package lifecycle.",
       "owner": "platform-team",
       "integration_points": ["plugin manifest", "package version", "review snapshot"],
       "requirement_refs": ["FR-027", "FR-029", "FR-030"],
@@ -58,9 +58,9 @@
     },
     "commercial-usage-map": {
       "decision": "integrate",
-      "rationale": "Rate limits, quotas, provider costs, distribution posture, and workspace availability must continue to use existing commercial and usage governance.",
+      "rationale": "Rate limits, quotas, provider costs, distribution posture, and workspace availability continue to use existing commercial governance.",
       "owner": "platform-team",
-      "integration_points": ["rate limits", "quota", "cost attribution", "distribution policy"],
+      "integration_points": ["rate limits", "quota", "cost attribution"],
       "requirement_refs": ["FR-021", "FR-022", "NFR-005"],
       "task_refs": ["T015", "T029", "T042"],
       "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
@@ -69,9 +69,9 @@
     },
     "connector-provider-map": {
       "decision": "integrate",
-      "rationale": "External provider work remains behind existing connection ownership and provider dispatch authority; MCP and GPT surfaces receive only bounded results and no provider credentials.",
+      "rationale": "Provider work stays behind connection ownership and provider dispatch authority; MCP and GPT surfaces receive bounded results without credentials.",
       "owner": "platform-team",
-      "integration_points": ["provider dispatch", "connection ownership", "provider readback", "credential isolation"],
+      "integration_points": ["provider dispatch", "connection ownership", "credential isolation"],
       "requirement_refs": ["FR-009", "FR-020", "FR-024"],
       "task_refs": ["T009", "T027", "T032"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -80,9 +80,9 @@
     },
     "data-model-domain-map": {
       "decision": "integrate",
-      "rationale": "Client registrations, grants, tool catalogs, invocation evidence, confirmations, packages, and review snapshots require reuse-first classification against the canonical schema domains.",
+      "rationale": "Client, grant, tool, invocation, confirmation, package, and review persistence follows reuse-first canonical schema classification.",
       "owner": "platform-team",
-      "integration_points": ["logical entities", "schema reuse", "classification", "retention"],
+      "integration_points": ["schema reuse", "object classification", "retention"],
       "requirement_refs": ["FR-007", "FR-025", "FR-027"],
       "task_refs": ["T008", "T009", "T013"],
       "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
@@ -91,9 +91,9 @@
     },
     "delivery-support-map": {
       "decision": "integrate",
-      "rationale": "Connection failures, relinking, revocation, unknown outcomes, review findings, and plugin maintenance require the existing support and handoff lifecycle.",
+      "rationale": "Relinking, revocation, unknown outcomes, review findings, and plugin maintenance reuse the existing delivery and support lifecycle.",
       "owner": "platform-team",
-      "integration_points": ["support IDs", "relink", "unknown outcome", "review remediation"],
+      "integration_points": ["relink", "unknown outcome", "review remediation"],
       "requirement_refs": ["FR-024", "FR-026", "FR-032"],
       "task_refs": ["T016", "T018", "T038"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -102,9 +102,9 @@
     },
     "execution-log-evidence-map": {
       "decision": "integrate",
-      "rationale": "Initialization, discovery, authorization, denial, invocation, operation, revocation, and review require distinct no-secret lifecycle evidence and bounded diagnostic records.",
+      "rationale": "Discovery, authorization, denial, invocation, operation, revocation, and review require distinct bounded no-secret lifecycle evidence.",
       "owner": "platform-team",
-      "integration_points": ["invocation evidence", "authorization decision", "operation ID", "redaction status"],
+      "integration_points": ["invocation evidence", "authorization decision", "redaction status"],
       "requirement_refs": ["FR-018", "FR-025", "NFR-007"],
       "task_refs": ["T023", "T024", "T032"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -113,9 +113,9 @@
     },
     "migration-lifecycle-map": {
       "decision": "integrate",
-      "rationale": "Any justified client, grant, catalog, confirmation, package, or review persistence must use additive governed migration, readback, rollback, and closeout lifecycles.",
+      "rationale": "Any justified persistence must use additive governed migration, readback, rollback, and closeout lifecycles under separate authority.",
       "owner": "platform-team",
-      "integration_points": ["reuse decision", "additive migration", "readback", "rollback"],
+      "integration_points": ["additive migration", "readback", "rollback"],
       "requirement_refs": ["NFR-008", "NFR-011"],
       "task_refs": ["T007", "T008", "T013"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -124,9 +124,9 @@
     },
     "observability-release-map": {
       "decision": "integrate",
-      "rationale": "Endpoint health, metadata parity, OAuth failures, isolation denials, latency, rollout, review, revoke, and rollback require existing release observability and evidence.",
+      "rationale": "Health, metadata parity, OAuth failures, isolation denials, rollout, review, revocation, and rollback use existing release observability.",
       "owner": "platform-team",
-      "integration_points": ["health", "metadata fingerprint", "alerts", "release parity", "rollback"],
+      "integration_points": ["health", "metadata parity", "release evidence", "rollback"],
       "requirement_refs": ["FR-025", "FR-026", "FR-032", "NFR-011"],
       "task_refs": ["T023", "T024", "T041", "T042"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -135,9 +135,9 @@
     },
     "platform-resource-graph-map": {
       "decision": "integrate",
-      "rationale": "OAuth clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and review snapshots require explicit typed relationships.",
+      "rationale": "Clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and reviews retain explicit typed relationships.",
       "owner": "platform-team",
-      "integration_points": ["resource binding", "Brand selectors", "operation ownership", "package identity"],
+      "integration_points": ["resource binding", "tenant and Brand graph", "operation ownership"],
       "requirement_refs": ["FR-007", "FR-009", "FR-010", "FR-018"],
       "task_refs": ["T013", "T027", "T031"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -146,9 +146,9 @@
     },
     "platform-runtime-map": {
       "decision": "reuse",
-      "rationale": "The MCP and GPT adapters must reuse the shared context, capability, authority, durable execution, adapter, readback, and projection chain rather than create a surface-owned runtime authority.",
+      "rationale": "MCP and GPT surfaces reuse the shared context-to-authority-to-durable-execution-to-readback chain instead of creating surface authority.",
       "owner": "platform-team",
-      "integration_points": ["Context Kernel", "capability resolution", "Final Authority", "durable execution", "readback"],
+      "integration_points": ["Context Kernel", "Final Authority", "durable execution", "readback"],
       "requirement_refs": ["FR-003", "FR-017", "FR-023", "FR-024"],
       "task_refs": ["T009", "T020", "T027"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -157,9 +157,9 @@
     },
     "policy-authority-map": {
       "decision": "integrate",
-      "rationale": "Scopes, client eligibility, tool visibility, confirmation, external effects, privacy, and tenant rollout remain governed upstream authority decisions and are never granted by Track C surfaces.",
+      "rationale": "Scopes, client eligibility, tool visibility, confirmation, privacy, and tenant rollout remain upstream governed authority decisions.",
       "owner": "platform-team",
-      "integration_points": ["OAuth scopes", "tool policy", "confirmation", "tenant rollout", "privacy"],
+      "integration_points": ["OAuth scopes", "tool policy", "Final Authority", "surface projection"],
       "requirement_refs": ["FR-007", "FR-015", "FR-016", "FR-021"],
       "task_refs": ["T014", "T015", "T027", "T028"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -168,7 +168,7 @@
     },
     "repository-automation-map": {
       "decision": "integrate",
-      "rationale": "Contract validation, metadata parity, exact-head evidence, package validation, no-secret scans, and governed CI remain repository automation responsibilities.",
+      "rationale": "Contract validation, metadata parity, exact-head evidence, package validation, no-secret scans, and CI stay repository-owned automation.",
       "owner": "platform-team",
       "integration_points": ["schema validation", "metadata drift", "exact-head evidence", "secret scan"],
       "requirement_refs": ["FR-013", "FR-027", "NFR-010", "NFR-011"],
@@ -179,9 +179,9 @@
     },
     "repository-development-map": {
       "decision": "integrate",
-      "rationale": "Multi-PR delivery, SDK adoption, compatibility changes, canonical contracts, CI, review, and release evidence continue to use repository development governance.",
+      "rationale": "Multi-PR delivery, dependency pinning, canonical contracts, CI, review, and release evidence use repository development governance.",
       "owner": "platform-team",
-      "integration_points": ["multi-PR delivery", "dependency pinning", "CI", "review"],
+      "integration_points": ["multi-PR delivery", "dependency pinning", "CI review"],
       "requirement_refs": ["FR-003", "FR-004", "NFR-010"],
       "task_refs": ["T006", "T019", "T020"],
       "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
@@ -190,9 +190,9 @@
     },
     "session-memory-map": {
       "decision": "integrate",
-      "rationale": "Follow-up prompts may reuse stable identifiers, but the integration must not require or persist broad conversation transcripts, caller-injected authority, or cross-session secrets.",
+      "rationale": "Stable follow-up identifiers may be reused while broad transcripts, caller-injected authority, and cross-session secrets remain excluded.",
       "owner": "platform-team",
-      "integration_points": ["stable follow-up IDs", "bounded task context", "privacy minimization", "session boundaries"],
+      "integration_points": ["follow-up identifiers", "bounded task context", "session privacy"],
       "requirement_refs": ["FR-018", "FR-020", "NFR-003"],
       "task_refs": ["T026", "T029", "T032"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -201,7 +201,7 @@
     },
     "work-map-coverage-matrix": {
       "decision": "integrate",
-      "rationale": "The feature must classify every reused or proposed schema object and preserve zero accidental unclassified objects across the current Work Map domains.",
+      "rationale": "The feature classifies every reused or proposed schema object and preserves zero accidental unclassified objects across current domains.",
       "owner": "platform-architecture",
       "integration_points": ["domain review", "object classification", "taxonomy gap review"],
       "requirement_refs": ["NFR-010"],
@@ -212,9 +212,9 @@
     },
     "workflow-task-orchestration-map": {
       "decision": "integrate",
-      "rationale": "Durable writes, long-running operations, retries, unknown outcomes, status follow-up, compensation, and support escalation reuse governed workflow orchestration.",
+      "rationale": "Durable operations, retries, idempotency, unknown outcomes, reconciliation, compensation, and escalation reuse governed workflow orchestration.",
       "owner": "platform-team",
-      "integration_points": ["operation creation", "idempotency", "status", "reconciliation", "compensation"],
+      "integration_points": ["operation creation", "idempotency", "reconciliation", "compensation"],
       "requirement_refs": ["FR-023", "FR-024", "FR-025"],
       "task_refs": ["T009", "T027"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -224,9 +224,8 @@
   },
   "domain_decisions": {
     "activation-and-onboarding": {
-      "label": "Activation & onboarding",
       "decision": "integrate",
-      "rationale": "Account linking, consent, rollout, revocation, and readiness remain integrated with the existing activation and onboarding schema authority.",
+      "rationale": "OAuth linking, consent, rollout, revocation, and readiness integrate with the existing activation and onboarding schema authority.",
       "owner": "platform-team",
       "integration_points": ["OAuth linking", "consent", "rollout readiness"],
       "requirement_refs": ["FR-005", "FR-006", "FR-021"],
@@ -236,9 +235,8 @@
       "depends_on": []
     },
     "agents-and-intelligence": {
-      "label": "Agents & intelligence",
       "decision": "integrate",
-      "rationale": "Tool selection metadata and client-facing projections integrate with existing agent, skill, and plugin governance without adding model-owned execution authority.",
+      "rationale": "Tool metadata and client projections use existing agent, skill, and plugin governance without adding model-owned execution authority.",
       "owner": "platform-team",
       "integration_points": ["tool metadata", "client profiles", "capability projection"],
       "requirement_refs": ["FR-012", "FR-013"],
@@ -248,9 +246,8 @@
       "depends_on": []
     },
     "assets-and-packages": {
-      "label": "Assets & packages",
       "decision": "integrate",
-      "rationale": "Plugin package versions, manifests, assets, and review snapshots reuse the existing package and asset lifecycle with repository-owned validation.",
+      "rationale": "Plugin versions, manifests, assets, and review snapshots reuse the existing package and asset lifecycle with repository validation.",
       "owner": "platform-team",
       "integration_points": ["plugin package", "manifest", "review snapshot"],
       "requirement_refs": ["FR-027", "FR-029"],
@@ -260,9 +257,8 @@
       "depends_on": []
     },
     "brand-and-business": {
-      "label": "Brand & business",
       "decision": "integrate",
-      "rationale": "Brand operating context is projected only through authorized tenant and workspace context and cannot be widened by caller-supplied client arguments.",
+      "rationale": "Brand context is projected only through authorized tenant and workspace context and cannot be widened by caller-supplied arguments.",
       "owner": "platform-team",
       "integration_points": ["Brand context", "workspace binding", "tenant isolation"],
       "requirement_refs": ["FR-009", "FR-010"],
@@ -272,11 +268,10 @@
       "depends_on": []
     },
     "commercial-and-usage": {
-      "label": "Commercial & usage",
       "decision": "integrate",
-      "rationale": "Rate limits, quotas, provider cost attribution, and distribution policy reuse existing commercial and usage governance rather than client metadata.",
+      "rationale": "Rate limits, quotas, provider cost attribution, and distribution policy reuse existing commercial and usage governance.",
       "owner": "platform-team",
-      "integration_points": ["rate limit", "quota", "cost attribution"],
+      "integration_points": ["rate limits", "quota", "cost attribution"],
       "requirement_refs": ["FR-021", "FR-022"],
       "task_refs": ["T015", "T029"],
       "acceptance_refs": ["e2e-phases.json#multi-client-specification-contract-to-truthful-handoff"],
@@ -284,9 +279,8 @@
       "depends_on": []
     },
     "connectors-and-providers": {
-      "label": "Connectors & providers",
       "decision": "integrate",
-      "rationale": "Connection ownership, provider dispatch, credential isolation, and provider readback remain behind the existing connector and provider authority boundary.",
+      "rationale": "Connection ownership, provider dispatch, credential isolation, and provider readback remain behind existing connector authority.",
       "owner": "platform-team",
       "integration_points": ["connection ownership", "provider dispatch", "credential isolation"],
       "requirement_refs": ["FR-009", "FR-020", "FR-024"],
@@ -296,9 +290,8 @@
       "depends_on": []
     },
     "delivery-and-support": {
-      "label": "Delivery & support",
       "decision": "integrate",
-      "rationale": "Relinking, revocation, unknown outcomes, review remediation, and operator handoff continue through existing delivery and support lifecycle evidence.",
+      "rationale": "Relinking, revocation, unknown outcomes, review remediation, and operator handoff reuse existing support lifecycle evidence.",
       "owner": "platform-team",
       "integration_points": ["relink", "unknown outcome", "operator handoff"],
       "requirement_refs": ["FR-024", "FR-026"],
@@ -308,11 +301,10 @@
       "depends_on": []
     },
     "developer-and-api": {
-      "label": "Developer & API",
       "decision": "extend",
-      "rationale": "Standards-compliant MCP, OAuth discovery, resource metadata, and client profiles extend the existing developer and API surface while preserving canonical OpenAPI ownership.",
+      "rationale": "MCP, OAuth discovery, protected-resource metadata, and client profiles extend the existing developer API surface under canonical OpenAPI ownership.",
       "owner": "platform-team",
-      "integration_points": ["MCP transport", "OAuth metadata", "client profiles", "OpenAPI parity"],
+      "integration_points": ["MCP transport", "OAuth metadata", "OpenAPI parity"],
       "requirement_refs": ["FR-003", "FR-004", "FR-013"],
       "task_refs": ["T019", "T020", "T030"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -320,9 +312,8 @@
       "depends_on": []
     },
     "governance-and-authority": {
-      "label": "Governance & authority",
       "decision": "integrate",
-      "rationale": "Client, scope, tool, confirmation, resource, and rollout decisions remain upstream governed authority records and Track C surfaces only project their bounded result.",
+      "rationale": "Client, scope, tool, resource, confirmation, and rollout decisions remain upstream governed authority that Track C only projects.",
       "owner": "platform-team",
       "integration_points": ["scope", "tool policy", "Final Authority", "surface projection"],
       "requirement_refs": ["FR-007", "FR-015", "FR-016"],
@@ -332,9 +323,8 @@
       "depends_on": []
     },
     "migration-and-lifecycle": {
-      "label": "Migration & lifecycle",
       "decision": "integrate",
-      "rationale": "Any required persistence remains additive, governed, reversible, and separately authorized; Track C does not apply migrations or infer production readiness.",
+      "rationale": "Required persistence remains additive, governed, reversible, and separately authorized; Track C does not apply migrations.",
       "owner": "platform-team",
       "integration_points": ["migration authority", "readback", "rollback"],
       "requirement_refs": ["NFR-008", "NFR-011"],
@@ -344,9 +334,8 @@
       "depends_on": []
     },
     "observability-and-release": {
-      "label": "Observability & release",
       "decision": "integrate",
-      "rationale": "Metadata parity, endpoint health, isolation denials, invocation evidence, release review, revocation, and rollback remain observable release evidence.",
+      "rationale": "Metadata parity, endpoint health, isolation denials, release review, revocation, and rollback remain observable release evidence.",
       "owner": "platform-team",
       "integration_points": ["health", "metadata parity", "release evidence", "rollback"],
       "requirement_refs": ["FR-025", "FR-026", "NFR-011"],
@@ -356,11 +345,10 @@
       "depends_on": []
     },
     "platform-resources-and-graph": {
-      "label": "Platform resources & graph",
       "decision": "integrate",
-      "rationale": "Clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and reviews retain explicit typed graph relationships.",
+      "rationale": "Clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and reviews retain typed graph relationships.",
       "owner": "platform-team",
-      "integration_points": ["resource binding", "tenant/workspace/Brand graph", "operation ownership"],
+      "integration_points": ["resource binding", "tenant and Brand graph", "operation ownership"],
       "requirement_refs": ["FR-007", "FR-009", "FR-010"],
       "task_refs": ["T013", "T027", "T031"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -368,9 +356,8 @@
       "depends_on": []
     },
     "repository-and-development": {
-      "label": "Repository & development",
       "decision": "integrate",
-      "rationale": "Contracts, CI, exact-head evidence, package validation, dependency pinning, and multi-PR delivery remain governed through repository development automation.",
+      "rationale": "Contracts, CI, exact-head evidence, dependency pinning, package validation, and multi-PR delivery remain repository governed.",
       "owner": "platform-team",
       "integration_points": ["contracts", "CI", "exact-head evidence", "multi-PR delivery"],
       "requirement_refs": ["FR-003", "FR-004", "NFR-010"],
@@ -380,11 +367,10 @@
       "depends_on": []
     },
     "sessions-and-memory": {
-      "label": "Sessions & memory",
       "decision": "integrate",
-      "rationale": "Stable follow-up identifiers and bounded task context may be reused, while broad transcripts, caller-injected identity, and cross-session secrets remain excluded.",
+      "rationale": "Stable follow-up identifiers and bounded task context may be reused while broad transcripts and cross-session secrets stay excluded.",
       "owner": "platform-team",
-      "integration_points": ["follow-up IDs", "bounded task context", "privacy minimization"],
+      "integration_points": ["follow-up identifiers", "bounded task context", "privacy minimization"],
       "requirement_refs": ["FR-018", "FR-020", "NFR-003"],
       "task_refs": ["T026", "T029", "T032"],
       "acceptance_refs": ["e2e-phases.json#multi-client-oauth21-operational-contract-to-revocation"],
@@ -392,9 +378,8 @@
       "depends_on": []
     },
     "tenancy-and-identity": {
-      "label": "Tenancy & identity",
       "decision": "integrate",
-      "rationale": "User, tenant, workspace, Brand, client, and resource identity must be server-owned and exact; caller-provided identity cannot widen authoritative context.",
+      "rationale": "User, tenant, workspace, Brand, client, and resource identity remain server-owned and caller context cannot widen authority.",
       "owner": "platform-team",
       "integration_points": ["server-owned identity", "tenant isolation", "workspace and Brand binding"],
       "requirement_refs": ["FR-007", "FR-009", "FR-010"],
@@ -404,9 +389,8 @@
       "depends_on": []
     },
     "workflow-and-tasks": {
-      "label": "Workflow & tasks",
       "decision": "integrate",
-      "rationale": "Long-running operations, retries, idempotency, unknown outcomes, reconciliation, compensation, and support escalation remain governed workflow responsibilities.",
+      "rationale": "Long-running operations, retries, idempotency, unknown outcomes, reconciliation, compensation, and escalation remain governed workflow duties.",
       "owner": "platform-team",
       "integration_points": ["durable operation", "idempotency", "reconciliation", "compensation"],
       "requirement_refs": ["FR-023", "FR-024", "FR-025"],
@@ -417,27 +401,15 @@
     }
   },
   "cross_map_dependencies": [
-    {
-      "from": "policy-authority-map",
-      "to": "platform-runtime-map",
-      "reason": "Runtime projection must consume governed authority rather than derive it locally."
-    },
-    {
-      "from": "platform-runtime-map",
-      "to": "connector-provider-map",
-      "reason": "Provider dispatch may only occur after the authoritative runtime contract resolves the operation."
-    },
-    {
-      "from": "execution-log-evidence-map",
-      "to": "observability-release-map",
-      "reason": "Release readiness and rollback depend on bounded no-secret runtime and denial evidence."
-    }
+    {"from": "policy-authority-map", "to": "platform-runtime-map", "reason": "Runtime projection consumes governed authority instead of deriving it locally."},
+    {"from": "platform-runtime-map", "to": "connector-provider-map", "reason": "Provider dispatch follows the authoritative runtime contract."},
+    {"from": "execution-log-evidence-map", "to": "observability-release-map", "reason": "Release readiness depends on bounded no-secret runtime evidence."}
   ],
   "dimension_discovery": {
     "registry_gap_clusters": {},
     "new_dimension_candidates": [],
     "unresolved": [],
-    "no_new_dimensions_rationale": "The current generated registry reports zero uncategorized objects and zero taxonomy-gap clusters. Spec 016 composes the existing 19 Work Maps and 16 schema domains; no additional dimension is required for this Track C slice."
+    "no_new_dimensions_rationale": "The exact Track C checkout registry reports zero uncategorized objects and zero taxonomy-gap clusters; Spec 016 composes the existing maps and domains without a new dimension."
   },
   "implementation_readiness": {
     "status": "ready",
