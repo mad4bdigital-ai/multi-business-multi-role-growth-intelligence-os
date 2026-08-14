@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6824,
-    "bytes": 62017278,
-    "lines": 1455101,
+    "files": 6825,
+    "bytes": 62019707,
+    "lines": 1455164,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2051,
+      "tests-and-specs": 2052,
       "documentation": 1869,
       "api-runtime": 1370,
       "database-migrations": 778,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2473,
-      ".mjs": 1569,
+      ".mjs": 1570,
       ".js": 958,
       ".sql": 793,
       ".json": 691,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3521,
+      "http-generic-api": 3522,
       "docs": 1776,
       "specs": 841,
       ".github": 250,
@@ -2380,6 +2380,7 @@
       "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
       "http-generic-api/test-production-deployment-openapi-transition.mjs",
+      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "http-generic-api/test-production-write-authority-degradation.mjs",
@@ -4497,6 +4498,7 @@
       "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
       "http-generic-api/test-production-deployment-openapi-transition.mjs",
+      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "http-generic-api/test-production-write-authority-degradation.mjs",
@@ -9767,9 +9769,9 @@
       "path": ".github/workflows/governed-production-candidate-dispatch-request-dispatcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 19271,
-      "lines": 306,
-      "sha256": "b55f0a79b5b861bb967fea73fb213c0ce5f5b408545cf29ab11ed3eecd2c05c8",
+      "bytes": 19326,
+      "lines": 308,
+      "sha256": "d0672a809f507b299d19db45028c2b96f772c60f2ec39fc7e366cae68b21fbb9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54680,9 +54682,9 @@
       "path": "http-generic-api/scripts/test-manifest.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8230,
-      "lines": 155,
-      "sha256": "a56afdbfa38b49fd88c25530e9cc2c82e5e34425729279d8fd0d03ee36fd4c17",
+      "bytes": 8302,
+      "lines": 156,
+      "sha256": "3f5cd7c59e64365b519b23f348625e43e396cca8124307a6a14efd60b4a16bc8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -65452,6 +65454,17 @@
       "bytes": 3128,
       "lines": 31,
       "sha256": "4211458730af7b86ff198aef80adf8f75a11131c87278e7d93210ec3453201dc",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2302,
+      "lines": 60,
+      "sha256": "07d2676ebaf1a577ce8d1a613117440286f666aecb897bb8132298015af09ac4",
       "mode": "644",
       "executable": false,
       "generated": false
