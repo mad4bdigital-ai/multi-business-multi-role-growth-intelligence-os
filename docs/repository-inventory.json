@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6841,
-    "bytes": 62144135,
-    "lines": 1457509,
+    "bytes": 62144539,
+    "lines": 1457516,
     "directories": 256,
     "categories": 13
   },
@@ -12605,9 +12605,9 @@
       "path": "docs/agent-tracks/track-b-handoff.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 6185,
-      "lines": 146,
-      "sha256": "2c7d670e73fd602db6467cebf9664e66ae5b5dd4fc92421dd94a94f252332cb0",
+      "bytes": 6497,
+      "lines": 153,
+      "sha256": "eb720e937a496ea4d3165f48ebcee1ae3514ee689f6e4e92488032d1850396f4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80541,9 +80541,9 @@
       "path": "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
       "category": "tests-and-specs",
       "extension": ".md",
-      "bytes": 5553,
+      "bytes": 5645,
       "lines": 86,
-      "sha256": "6c08cfc52a40ab0de5c5625c04b16cfd195aed3284a32c091e201eed98b5db5a",
+      "sha256": "9869dddd1fd4b44757f44b38695a10a6002489e27596a82a1e0f3b841313b776",
       "mode": "644",
       "executable": false,
       "generated": false
