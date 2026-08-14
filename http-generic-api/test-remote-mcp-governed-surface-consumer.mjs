@@ -171,6 +171,56 @@ const baseContract = {
 
 {
   const result = await consumeRemoteMcpGovernedSurface({
+    toolName: "project_tenant_summary",
+    authentication: { user_id: "user-a" },
+    resolveGovernedSurface: async () => ({
+      ...baseContract,
+      surface_projection: {
+        tool_name: "project_tenant_summary",
+        effect: "read",
+        result: {
+          tenant_id: "tenant-b",
+          summary: { status: "visible" },
+        },
+      },
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "MCP_SURFACE_BINDING_MISMATCH");
+}
+
+{
+  const result = await consumeRemoteMcpGovernedSurface({
+    toolName: "project_public_safe_values",
+    authentication: { user_id: "user-a" },
+    resolveGovernedSurface: async () => ({
+      ...baseContract,
+      surface_projection: {
+        tool_name: "project_public_safe_values",
+        effect: "read_only",
+        result: {
+          tenant_id: "tenant-a",
+          header_value: "Bearer super-secret-token",
+          endpoint: "https://user:password@example.com/path?access_token=secret-token&safe=1",
+          certificate: "-----BEGIN PRIVATE KEY-----\nsecret-material\n-----END PRIVATE KEY-----",
+        },
+      },
+    }),
+  });
+  assert.equal(result.ok, true);
+  const encoded = JSON.stringify(result.result);
+  assert.equal(encoded.includes("super-secret-token"), false);
+  assert.equal(encoded.includes("user:password"), false);
+  assert.equal(encoded.includes("secret-token"), false);
+  assert.equal(encoded.includes("secret-material"), false);
+  assert.equal(result.result.header_value, "[redacted]");
+  assert.equal(result.result.certificate, "[redacted]");
+  assert.equal(result.result.endpoint.includes("safe=1"), true);
+  assert.equal(result.result.endpoint.includes("%5Bredacted%5D"), true);
+}
+
+{
+  const result = await consumeRemoteMcpGovernedSurface({
     toolName: "list_accessible_workspaces",
     authentication: { user_id: "user-a" },
     resolveGovernedSurface: async () => ({
@@ -243,9 +293,11 @@ console.log(JSON.stringify({
   authoritative_contract_required: true,
   readiness_required: true,
   tenant_binding_enforced: true,
+  authoritative_projection_binding_enforced_without_client_selector: true,
   dynamic_read_tool_projection_supported: true,
   projection_tool_binding_enforced: true,
   secret_projection_rejected: true,
+  secret_string_redaction_enforced: true,
   write_surface_disabled: true,
   local_tool_authority_catalog_created: false,
   local_authority_created: false,
