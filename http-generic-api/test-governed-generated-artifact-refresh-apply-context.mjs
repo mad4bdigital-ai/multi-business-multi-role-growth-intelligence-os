@@ -4,6 +4,7 @@ import fs from "node:fs";
 
 const workflowPath = "../.github/workflows/governed-generated-artifact-refresh.yml";
 const workflow = fs.readFileSync(workflowPath, "utf8");
+const schemaDocsGuard = fs.readFileSync("scripts/schema-docs-change-guard.mjs", "utf8");
 
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh$/mu);
 assert.match(
@@ -46,8 +47,11 @@ assert.match(workflow, /expected_head_sha/u);
 assert.match(workflow, /persist-credentials:\s*true/u);
 assert.match(workflow, /maintenance-tools\/generated-artifact-refresh\.mjs/u);
 assert.match(workflow, /--output-dir "\$\{OUTPUT_DIR\}"/u);
-assert.match(workflow, /verifier_workflow="repository-inventory\.yml"/u);
-assert.match(workflow, /verifier_workflow="pr-generated-artifact-refresh\.yml"/u);
+assert.match(workflow, /remote_mcp_write_scope_refresh/u);
+assert.match(workflow, /remote-mcp-oauth-path-format-guard\.yml/u);
+assert.match(workflow, /verifier_workflows=\("repository-inventory\.yml" "repository-evaluation\.yml"\)/u);
+assert.match(workflow, /verifier_workflows=\("remote-mcp-oauth-path-format-guard\.yml"\)/u);
+assert.match(workflow, /verifier_workflows=\("pr-generated-artifact-refresh\.yml"\)/u);
 assert.match(workflow, /actions\/workflows\/\$\{verifier_workflow\}\/dispatches/u);
 assert.match(workflow, /generated-artifact-refresh-verification-dispatch\.json/u);
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
@@ -56,15 +60,21 @@ assert.doesNotMatch(
   /\bgit\s+push[^\n]*(?:--force(?:-with-lease)?|\s-f(?:\s|$))/u,
   "workflow must not contain a force-push command",
 );
+assert.ok(
+  schemaDocsGuard.includes("^http-generic-api\\/scripts\\/test-.*\\.mjs$"),
+  "schema/docs coverage must recognize repository-maintenance tests under http-generic-api/scripts/test-*",
+);
 
 console.log(JSON.stringify({
   ok: true,
   gate: "governed_generated_artifact_refresh_apply_context",
   contract: "mad4b.governed-generated-artifact-refresh.v1",
-  cases: 21,
+  cases: 25,
   workflow_dispatch_only: true,
   exact_run_identity_visible: true,
   stale_requests_cancelled: true,
+  remote_mcp_write_scope_recipe_registered: true,
+  scripts_test_coverage_registered: true,
   jobs_level_runner_context_used: false,
   protected_branch_mutation: false,
   force_push: false,
