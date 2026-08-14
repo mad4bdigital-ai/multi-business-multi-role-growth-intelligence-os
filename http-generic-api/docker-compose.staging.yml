@@ -1,0 +1,12 @@
+services:
+  app:
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      REDIS_URL: redis://redis:6379
+      QUEUE_WORKER_ENABLED: "FALSE"
+      MIGRATION_APPLIED: "false"
+      DATABASE_MUTATED: "false"
+      PRODUCTION_MUTATION_AUTHORIZED: "false"
+      RULESET_MUTATION_AUTHORIZED: "false"

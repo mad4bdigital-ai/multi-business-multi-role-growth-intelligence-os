@@ -19,7 +19,7 @@ services:
     ports:
       - "${PORT:-8080}:8080"
     env_file:
-      - .env
+      - ${APP_ENV_FILE:-.env}
     environment:
       - REDIS_URL=redis://redis:6379
       - PORT=8080

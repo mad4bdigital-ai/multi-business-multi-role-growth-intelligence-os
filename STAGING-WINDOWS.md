@@ -1,0 +1,71 @@
+# Local Staging on Windows 10/11
+
+## Runtime contract
+
+The repository requires Node.js `>=22 <23`. The `http-generic-api` runtime declares its dependencies in `http-generic-api/package.json` and locks them in `http-generic-api/package-lock.json`. The container uses `node:22-slim` and `npm ci --omit=dev` so the Docker image follows the repository engine and the lockfile.
+
+Install WSL2/Ubuntu and Docker Desktop with the WSL2 backend on each Windows host. Keep the repository on the External SSD, for example:
+
+```text
+M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os
+```
+
+Inside Ubuntu, the path is:
+
+```text
+/mnt/m/Users/Nagy/Repo/multi-business-multi-role-growth-intelligence-os
+```
+
+## First-time preparation
+
+From Ubuntu or PowerShell in the `http-generic-api` directory:
+
+```bash
+cp .env.staging.example .env.staging
+```
+
+Fill only local values. Do not copy Production credentials, GitHub tokens, Google service-account JSON, or database passwords to the External SSD. Add `.env.staging` to the local Git exclude if it is not already ignored.
+
+Validate the Compose model without starting containers:
+
+```bash
+docker context show
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging config --quiet
+```
+
+The Docker context must be local. Do not continue if `DOCKER_HOST` or `DOCKER_CONTEXT` points to a remote daemon.
+
+## Local-only start
+
+Start Redis and the application with the staging override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
+```
+
+Check status and logs:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging ps
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging logs --tail=100 app
+```
+
+The staging override disables the queue worker and explicitly sets mutation/Production flags to false. Redis is local to the Compose project. No migration or SQL apply command is part of this procedure.
+
+Stop without deleting local data:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging stop
+```
+
+Do not use `docker compose down -v` unless you intentionally want to delete the local Redis and app volumes.
+
+## Dependencies assessment
+
+No new npm package is required for the runtime: the existing `http-generic-api/package.json` already covers `express`, `bcrypt`, `bullmq`, `google-auth-library`, `googleapis`, `ioredis`, `jsonwebtoken`, `mysql2`, and `yaml`, and its lockfile passes `npm ci --dry-run`. The necessary repository fixes are runtime/deployment dependencies rather than new JavaScript packages: Node 22 alignment, lockfile-based `npm ci`, a Docker build context ignore file, a staging Compose override, and a safe staging environment template.
+
+The root package is a separate test/governance workspace. Its `package.json` has Jest, ts-jest, and TypeScript as development dependencies and does not replace the `http-generic-api` runtime manifest.
+
+## Safety boundary
+
+This document describes local container startup only. It does not authorize database migration, SQL apply, Production deployment, GitHub writes, Ruleset changes, or use of real external credentials. For protected routes, set a local-only `BACKEND_API_KEY`; leave all external provider fields blank unless a separate local test contract authorizes them.
