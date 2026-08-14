@@ -201,7 +201,7 @@ runCheck("governed-workflow-dispatch-only", () => {
   assert.match(workflowSource, /repository_inventory_refresh/u);
   assert.match(workflowSource, /actions:\s*write/u);
   assert.match(workflowSource, /contents:\s*write/u);
-  assert.match(workflowSource, /remote-mcp-oauth-path-format-guard\.yml/u);
+  assert.match(workflowSource, /remote-mcp-write-scope-verification\.yml/u);
   assert.match(workflowSource, /pr-generated-artifact-refresh\.yml/u);
   assert.match(workflowSource, /repository-inventory\.yml/u);
   assert.match(workflowSource, /generated-artifact-refresh-verification-dispatch\.json/u);
