@@ -11,14 +11,19 @@
       ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/authorityGovernanceEvidenceGate.js",
+      "http-generic-api/authorityProjectionCompiler.js",
       "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
       "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/test-authority-governance-evidence-gate.mjs",
+      "http-generic-api/test-authority-projection-compiler.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md",
-      "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
+      "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md",
+      "specs/011-unified-effective-authority-control-plane/tasks.md"
     ]
   },
   "merge_contract": {
@@ -28,7 +33,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Build and review bounded repository authority-source candidates, bind reviewed source documents to an ancestor ref, compose them with the bounded live catalog observer, and produce no-secret evidence ready only for later human ownership review.",
+      "objective": "Build and review bounded repository authority-source candidates, compose them with the bounded live catalog observer, aggregate T001/T002 machine evidence without auto-closing either task, preserve deterministic Resource Graph safety evidence, and compile one shared no-secret projection-eligibility contract for Dynamic Tabs, Dashboard, and Tool Catalog without granting execution authority.",
       "e2e_journeys": [
         {
           "id": "build-reviewed-repository-source-candidates",
@@ -36,13 +41,15 @@
           "level": "synthetic_runtime",
           "actor": "UEACP evidence reviewer",
           "entrypoint": "A previously captured complete no-secret array of eight canonical authority source snapshots",
-          "terminal_outcome": "Eight deterministic bounded repository source candidates and one review-required index are validated or written without final manifest binding or any runtime effect.",
+          "terminal_outcome": "Eight deterministic bounded repository source candidates and one review-required index are validated or written, and the evidence gate can classify machine readiness only, without final T001/T002 closure or any runtime effect.",
           "steps": [
             "Load a source snapshot array directly or from snapshots, sources, or source_bundle.sources.",
             "Require exactly one snapshot for every registered authority source family.",
             "Validate complete pagination, bounded records, timestamps, evidence references, and explicit no-effect/no-secret markers.",
             "Reject lexical or realpath escapes, final or intermediate symlinks, unsafe existing output types, sensitive values, excessive records, and rendered outputs above 8 MiB.",
             "Render deterministic source documents and a candidate index containing paths, content hashes, record counts, and capture timestamps.",
+            "Evaluate the bounded path-inventory plus read-only catalog-census evidence through the authority governance evidence gate.",
+            "Keep T001 and T002 machine-ready only; require human review and governed same-cycle live readback before either task can close.",
             "Default to dry-run and write only when the caller explicitly supplies --write.",
             "Keep the index review-required and not dispatch-ready until a later change binds reviewed ancestor and Git blob identities."
           ],
@@ -50,11 +57,20 @@
             "The builder emits exactly eight source documents and one candidate index.",
             "The builder emits neither blob_sha nor the final repository manifest contract.",
             "The candidate index requires post-commit blob binding and human review.",
+            "The authority governance evidence gate never sets t001_complete or t002_complete true and never authorizes migration or runtime enforcement.",
+            "Missing expected source families, non-read-only census mode, premature closure claims, missing observed_at, or side-effect evidence fail closed.",
             "Dry-run creates no repository files and write mode remains inside the canonical repository real path.",
             "T001 and T002 remain open and migration_apply_authorized remains false.",
-            "No live collector, SQL, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or task closure occurs."
+            "No live collector, SQL mutation, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or automatic task closure occurs."
           ],
           "tests": [
+            {
+              "id": "authority-governance-evidence-gate",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-governance-evidence-gate.mjs",
+              "args": []
+            },
             {
               "id": "authority-evidence-repository-candidate-builder",
               "runner": "node",
@@ -66,8 +82,10 @@
           "evidence_paths": [
             ".changes/e2e/ueacp-repository-source-candidate-builder.json",
             "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
+            "http-generic-api/authorityGovernanceEvidenceGate.js",
             "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
             "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+            "http-generic-api/test-authority-governance-evidence-gate.mjs",
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
           ]
@@ -122,6 +140,93 @@
             "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+          ]
+        },
+        {
+          "id": "resource-graph-inheritance-restriction-property-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP security reviewer",
+          "entrypoint": "Bounded Resource Graph policy evaluator",
+          "terminal_outcome": "T043 is supported by deterministic property-style evidence proving inheritance and restriction invariants without enabling runtime enforcement or granting authority.",
+          "steps": [
+            "Evaluate an authoritative bounded Resource Graph fixture under deterministic input permutations and a cycle.",
+            "Verify active branch and root deny restrictions take precedence over inheritance.",
+            "Verify wildcard and operation-specific restriction semantics plus expiry and revocation handling.",
+            "Inject cross-Tenant contamination and verify fail-closed rejection.",
+            "Apply depth and inheritance-policy bounds and verify traversal cannot widen beyond the approved contract.",
+            "Confirm the evaluator emits no authority grant, runtime authority change, automatic write, provider call, credential read, or secret inclusion."
+          ],
+          "assertions": [
+            "Input row order does not alter the resolved graph projection.",
+            "Cycles do not duplicate resolved nodes.",
+            "Active deny restrictions win before inherited access reaches a descendant.",
+            "Wildcard restrictions apply to all operations while operation-specific restrictions do not leak to other operations.",
+            "Expired or revoked restrictions do not act as current denies.",
+            "Any cross-Tenant node contamination blocks the graph even when the foreign node is disconnected.",
+            "Depth bounds and inheritance-policy allowlists are hard limits.",
+            "Root restrictions terminate resolution with stable reason codes.",
+            "The test changes no runtime enforcement state and performs no mutation."
+          ],
+          "tests": [
+            {
+              "id": "ueacp-resource-graph-property-invariants",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-resource-graph-properties.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
+            "http-generic-api/contextKernel/domain/resourceGraphPolicy.js",
+            "specs/011-unified-effective-authority-control-plane/tasks.md",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
+          ]
+        },
+        {
+          "id": "shared-authority-projection-compiler-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP projection consumer",
+          "entrypoint": "Shared Authority Projection Compiler",
+          "terminal_outcome": "T032, T033, and T034 are backed by one deterministic no-secret compiler that projects Dynamic Tabs, Dashboard, and Tool Catalog visibility/action eligibility without becoming a PEP or granting execution authority.",
+          "steps": [
+            "Load a typed Effective Authority Manifest with explicit decision, timestamps, no-secret attestation, readiness, and projection eligibility.",
+            "Fail closed on missing or unsupported manifest evidence before any surface candidate is inspected.",
+            "Compile Dynamic Tabs and Dashboard visibility from the same manifest projection eligibility rather than local UI policy.",
+            "Compile Tool Catalog visibility separately from action eligibility.",
+            "Require ready or canary-ready decision plus execution projection eligibility and execution readiness before an action can be marked eligible for later PEP evaluation.",
+            "Return zero candidates and inspect no registrations for ineligible, expired, or stale surfaces.",
+            "Return deterministic secret-safe public projection metadata without emitting execution authorization or an action grant."
+          ],
+          "assertions": [
+            "Dynamic Tabs, Dashboard, and Tool Catalog consume one shared compiler rather than separate policy engines.",
+            "Ineligible, expired, or stale surfaces reveal no candidate identities, counts, malformed shapes, or duplicate-registration errors.",
+            "Visible surface registrations are deterministic and ambiguous duplicate keys fail closed.",
+            "Tool Catalog visibility is independent from action eligibility.",
+            "Shadow-ready authority can remain visible where projection policy permits it but cannot make a tool action eligible.",
+            "Action eligibility requires execution projection eligibility and execution readiness and never implies execution_authorized.",
+            "The compiler requires explicit secretsIncluded=false, evaluatedAt, expiresAt, and a supported manifest decision.",
+            "Secret-like keys, authorization values, private keys, URL credentials, and secret query parameters do not enter public projection output.",
+            "The compiler creates no authority, emits no action grant, enables no runtime enforcement, performs no provider call, and mutates no database."
+          ],
+          "tests": [
+            {
+              "id": "ueacp-shared-authority-projection-compiler",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-projection-compiler.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/authorityProjectionCompiler.js",
+            "http-generic-api/test-authority-projection-compiler.mjs",
+            "specs/011-unified-effective-authority-control-plane/architecture.md",
+            "specs/011-unified-effective-authority-control-plane/contracts/openapi.yaml",
+            "specs/011-unified-effective-authority-control-plane/tasks.md",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
           ]
         }
       ]

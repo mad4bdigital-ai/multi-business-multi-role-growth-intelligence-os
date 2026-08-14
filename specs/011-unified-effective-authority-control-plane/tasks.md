@@ -36,9 +36,9 @@
 
 - [x] T030 Implement connector readiness dimensions.
 - [x] T031 Implement Admin authority diagnostics.
-- [ ] T032 Compile Dynamic Tabs from authority projection.
-- [ ] T033 Compile Dashboard from authority projection.
-- [ ] T034 Compile Tool Catalog visibility and action eligibility.
+- [x] T032 Compile Dynamic Tabs from authority projection.
+- [x] T033 Compile Dashboard from authority projection.
+- [x] T034 Compile Tool Catalog visibility and action eligibility.
 - [x] T035 Preserve backward-compatible legacy fields.
 - [x] T036 Compare exact IDs and reasons across projections.
 
@@ -47,7 +47,7 @@
 - [x] T040 Add cross-tenant negative test matrix.
 - [x] T041 Add Admin visibility versus mutation tests.
 - [x] T042 Add support delegation and impersonation tests.
-- [ ] T043 Add graph inheritance/restriction property tests.
+- [x] T043 Add graph inheritance/restriction property tests.
 - [x] T044 Add connection ambiguity tests.
 - [x] T045 Add approval replay and manifest binding tests.
 - [x] T046 Add no-secret serialization tests.
