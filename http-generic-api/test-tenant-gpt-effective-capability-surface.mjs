@@ -96,6 +96,21 @@ const base = {
 {
   const surface = buildTenantGptEffectiveCapabilitySurface({
     ...base,
+    authority_preflight: {
+      preflight_id: "pf-denied",
+      decision: "deny",
+      allowed: false,
+    },
+  });
+  assert.equal(surface.surface_ready, false);
+  assert(surface.blockers.some((entry) => entry.code === "AUTHORITY_PREFLIGHT_DENIED"));
+  assert.equal(surface.final_authority.allowed, true);
+  assert.equal(surface.execution_grant_emitted, false);
+}
+
+{
+  const surface = buildTenantGptEffectiveCapabilitySurface({
+    ...base,
     final_authority: {
       decision: "deny",
       allowed: false,
@@ -117,6 +132,7 @@ console.log(JSON.stringify({
   gate: "tenant_gpt_effective_capability_surface",
   tenant_identity_isolation: true,
   caller_identity_widening_denied: true,
+  authority_preflight_denial_fails_closed: true,
   no_secret_projection: true,
   questionnaire_sensitive_field_filter: true,
   alternate_authority_created: false,
