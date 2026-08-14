@@ -49,8 +49,9 @@ assert.match(workflow, /maintenance-tools\/generated-artifact-refresh\.mjs/u);
 assert.match(workflow, /--output-dir "\$\{OUTPUT_DIR\}"/u);
 assert.match(workflow, /remote_mcp_write_scope_refresh/u);
 assert.match(workflow, /remote-mcp-oauth-path-format-guard\.yml/u);
-assert.match(workflow, /verifier_workflow="repository-inventory\.yml"/u);
-assert.match(workflow, /verifier_workflow="pr-generated-artifact-refresh\.yml"/u);
+assert.match(workflow, /verifier_workflows=\("repository-inventory\.yml" "repository-evaluation\.yml"\)/u);
+assert.match(workflow, /verifier_workflows=\("remote-mcp-oauth-path-format-guard\.yml"\)/u);
+assert.match(workflow, /verifier_workflows=\("pr-generated-artifact-refresh\.yml"\)/u);
 assert.match(workflow, /actions\/workflows\/\$\{verifier_workflow\}\/dispatches/u);
 assert.match(workflow, /generated-artifact-refresh-verification-dispatch\.json/u);
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
@@ -68,7 +69,7 @@ console.log(JSON.stringify({
   ok: true,
   gate: "governed_generated_artifact_refresh_apply_context",
   contract: "mad4b.governed-generated-artifact-refresh.v1",
-  cases: 24,
+  cases: 25,
   workflow_dispatch_only: true,
   exact_run_identity_visible: true,
   stale_requests_cancelled: true,
