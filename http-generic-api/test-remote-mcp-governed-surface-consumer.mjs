@@ -85,6 +85,39 @@ const baseContract = {
 }
 
 {
+  let resolverCalls = 0;
+  const result = await consumeRemoteMcpGovernedSurface({
+    toolName: "project_custom_read_model",
+    toolArguments: { workspace_id: "workspace-a" },
+    authentication: { user_id: "user-a", client_id: "client-a" },
+    resolveGovernedSurface: async (request) => {
+      resolverCalls += 1;
+      assert.equal(request.tool_name, "project_custom_read_model");
+      assert.equal(request.requested_effect, "read_only");
+      return {
+        ...baseContract,
+        surface_projection: {
+          tool_name: "project_custom_read_model",
+          effect: "read_only",
+          result: {
+            workspace_id: "workspace-a",
+            records: [{ id: "record-1", label: "Dynamic governed read" }],
+          },
+        },
+      };
+    },
+  });
+  assert.equal(resolverCalls, 1);
+  assert.equal(result.ok, true);
+  assert.equal(result.tool_name, "project_custom_read_model");
+  assert.equal(result.result.workspace_id, "workspace-a");
+  assert.equal(result.result.records[0].id, "record-1");
+  assert.equal(result.authority_created_by_surface, false);
+  assert.equal(result.connection_selected_by_surface, false);
+  assert.equal(result.provider_executed_by_surface, false);
+}
+
+{
   const result = await consumeRemoteMcpGovernedSurface({
     toolName: "list_accessible_workspaces",
     authentication: { user_id: "user-a" },
@@ -137,6 +170,39 @@ const baseContract = {
 }
 
 {
+  const result = await consumeRemoteMcpGovernedSurface({
+    toolName: "list_accessible_workspaces",
+    authentication: { user_id: "user-a" },
+    resolveGovernedSurface: async () => ({
+      ...baseContract,
+      surface_projection: {
+        tool_name: "different_tool",
+        result: { workspaces: [] },
+      },
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "MCP_SURFACE_PROJECTION_MISMATCH");
+}
+
+{
+  const result = await consumeRemoteMcpGovernedSurface({
+    toolName: "list_accessible_workspaces",
+    authentication: { user_id: "user-a" },
+    resolveGovernedSurface: async () => ({
+      ...baseContract,
+      surface_projection: {
+        tool_name: "list_accessible_workspaces",
+        secrets_included: true,
+        result: { workspaces: [] },
+      },
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "MCP_SURFACE_SECRET_PROJECTION_REJECTED");
+}
+
+{
   let resolverCalled = false;
   const result = await consumeRemoteMcpGovernedSurface({
     toolName: "apply_change",
@@ -177,6 +243,9 @@ console.log(JSON.stringify({
   authoritative_contract_required: true,
   readiness_required: true,
   tenant_binding_enforced: true,
+  dynamic_read_tool_projection_supported: true,
+  projection_tool_binding_enforced: true,
+  secret_projection_rejected: true,
   write_surface_disabled: true,
   local_tool_authority_catalog_created: false,
   local_authority_created: false,
