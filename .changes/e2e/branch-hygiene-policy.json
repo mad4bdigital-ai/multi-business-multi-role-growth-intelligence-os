@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "branch-hygiene-policy",
+  "title": "Durable governed branch hygiene and auditable cleanup",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/branch-hygiene-policy.json",
+      ".github/branch-hygiene-policy.json",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/tests/branch-hygiene-policy.test.mjs",
+      ".github/workflows/branch-hygiene.yml",
+      ".github/workflows/ci.yml",
+      "docs/branch-hygiene.md",
+      "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Evaluate branch inventory through the governed policy and produce exact-head, non-secret JSON, CSV, and Markdown triage reports while refusing unsafe deletion categories.",
+      "e2e_journeys": [
+        {
+          "id": "evaluate-and-fail-closed-branch-inventory",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "scheduled Branch Hygiene workflow or repository maintainer",
+          "entrypoint": "Branch Hygiene workflow invoking the registered maintenance tool",
+          "terminal_outcome": "A bounded report classifies merged, unmerged, open-PR, protected, excluded, and recent branches; only eligible merged branches can enter the apply path.",
+          "steps": [
+            "Load the centralized Branch Hygiene policy and bind its SHA-256 into the report.",
+            "Evaluate a representative branch inventory against the exact main SHA and open-PR/protection context.",
+            "Classify old unmerged, open-PR, protected, Spec 015, Promotion/recovery, recent, and merged eligible branches.",
+            "Emit the canonical v2 JSON report with safety flags and zero deletion in dry-run mode.",
+            "Render deterministic CSV and Markdown triage views from the same sorted branch inventory.",
+            "Require the exact APPLY_BRANCH_HYGIENE confirmation before any apply mode is permitted."
+          ],
+          "assertions": [
+            "An old merged branch with no open PR can be classified delete_eligible.",
+            "An old unmerged branch is report-only and never delete_eligible.",
+            "Open-PR, protected, Spec 015, Promotion, recovery, and evidence branches are never delete_eligible.",
+            "A recent merged branch remains inside the grace period.",
+            "The report binds the policy SHA and exact main SHA and declares all external mutation safety flags false except the bounded branch deletion capability.",
+            "Each branch exposes priority, reasonCode, recommendedAction, actionOwner, ageBand, namespace, and a deterministic triage position.",
+            "The CSV is sortable and the Markdown view contains priority/action summaries plus a bounded actionable queue.",
+            "The policy tests execute without database, provider, Production, migration, grant, or credential access."
+          ],
+          "tests": [
+            {
+              "id": "branch-hygiene-policy-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/branch-hygiene-policy.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/branch-hygiene-policy.json",
+            ".github/branch-hygiene-policy.json",
+            ".github/workflows/branch-hygiene.yml",
+            ".github/tests/branch-hygiene-policy.test.mjs",
+            "docs/branch-hygiene.md",
+            "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe weekly reports and tune only documented false positives without weakening fail-closed deletion predicates."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded recovery and archived review evidence for stale unmerged branches without automatic work loss."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe scheduled hygiene on a non-production branch inventory before extending cleanup scope."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Keep Production protected and require explicit governance before any expansion beyond merged branch cleanup."
+    }
+  ]
+}
