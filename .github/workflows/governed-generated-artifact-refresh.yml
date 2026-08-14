@@ -36,14 +36,14 @@ on:
           - "false"
           - "true"
       source_main_sha:
-        description: Exact main SHA authorizing post-merge inventory convergence
+        description: Exact main SHA authorizing post-merge generated-state convergence
         required: false
         default: ""
         type: string
 
-# This is the sole registered generated-artifact writer; all inputs remain exact-head and branch-scoped.
-# A bounded post-merge Repository State repair may create a governed work branch from exact main, but never mutates main or Production.
-# Contract: mad4b.repository-inventory-self-hosting.v2 for the repository_inventory_refresh recipe.
+# This is the sole registered generated-artifact maintenance writer; all inputs remain exact-head and branch-scoped.
+# Bounded post-merge Repository State or Work Map repair may create a governed work branch from exact main, but never mutates main or Production.
+# Contracts: mad4b.repository-inventory-self-hosting.v2 and mad4b.work-map-main-self-convergence.v1.
 env:
   GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
 
@@ -87,10 +87,14 @@ jobs:
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
           [[ "$CREATE_FROM_MAIN" == "false" || "$CREATE_FROM_MAIN" == "true" ]]
           if [[ "$CREATE_FROM_MAIN" == "true" ]]; then
-            [[ "$RECIPE" == "repository_inventory_refresh" ]]
+            [[ "$RECIPE" == "repository_inventory_refresh" || "$RECIPE" == "work_map_self_hosting_bootstrap" ]]
             [[ "$SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
             test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
-            [[ "$TARGET_REF" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
+            if [[ "$RECIPE" == "repository_inventory_refresh" ]]; then
+              [[ "$TARGET_REF" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
+            else
+              [[ "$TARGET_REF" =~ ^chore/work-map-main-sync-[0-9a-f]{12}$ ]]
+            fi
           else
             [[ -z "$SOURCE_MAIN_SHA" ]]
           fi
