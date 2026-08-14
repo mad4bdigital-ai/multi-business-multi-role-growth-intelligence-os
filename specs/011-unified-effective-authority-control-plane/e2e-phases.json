@@ -12,16 +12,14 @@
       "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
       "http-generic-api/authorityGovernanceEvidenceGate.js",
-      "http-generic-api/test-authority-governance-evidence-gate.mjs",
       "http-generic-api/authorityProjectionCompiler.js",
       "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
       "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
-            "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
-            "http-generic-api/authorityGovernanceEvidenceGate.js",
-            "http-generic-api/test-authority-governance-evidence-gate.mjs",
-            "http-generic-api/test-authority-projection-compiler.mjs",
+      "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/test-authority-governance-evidence-gate.mjs",
+      "http-generic-api/test-authority-projection-compiler.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md",
       "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md",
@@ -35,7 +33,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Build and review bounded repository authority-source candidates, compose them with the bounded live catalog observer, preserve deterministic Resource Graph safety evidence, and compile one shared no-secret projection-eligibility contract for Dynamic Tabs, Dashboard, and Tool Catalog without granting execution authority.",
+      "objective": "Build and review bounded repository authority-source candidates, compose them with the bounded live catalog observer, aggregate T001/T002 machine evidence without auto-closing either task, preserve deterministic Resource Graph safety evidence, and compile one shared no-secret projection-eligibility contract for Dynamic Tabs, Dashboard, and Tool Catalog without granting execution authority.",
       "e2e_journeys": [
         {
           "id": "build-reviewed-repository-source-candidates",
@@ -43,13 +41,15 @@
           "level": "synthetic_runtime",
           "actor": "UEACP evidence reviewer",
           "entrypoint": "A previously captured complete no-secret array of eight canonical authority source snapshots",
-          "terminal_outcome": "Eight deterministic bounded repository source candidates and one review-required index are validated or written without final manifest binding or any runtime effect.",
+          "terminal_outcome": "Eight deterministic bounded repository source candidates and one review-required index are validated or written, and the evidence gate can classify machine readiness only, without final T001/T002 closure or any runtime effect.",
           "steps": [
             "Load a source snapshot array directly or from snapshots, sources, or source_bundle.sources.",
             "Require exactly one snapshot for every registered authority source family.",
             "Validate complete pagination, bounded records, timestamps, evidence references, and explicit no-effect/no-secret markers.",
             "Reject lexical or realpath escapes, final or intermediate symlinks, unsafe existing output types, sensitive values, excessive records, and rendered outputs above 8 MiB.",
             "Render deterministic source documents and a candidate index containing paths, content hashes, record counts, and capture timestamps.",
+            "Evaluate the bounded path-inventory plus read-only catalog-census evidence through the authority governance evidence gate.",
+            "Keep T001 and T002 machine-ready only; require human review and governed same-cycle live readback before either task can close.",
             "Default to dry-run and write only when the caller explicitly supplies --write.",
             "Keep the index review-required and not dispatch-ready until a later change binds reviewed ancestor and Git blob identities."
           ],
@@ -57,9 +57,11 @@
             "The builder emits exactly eight source documents and one candidate index.",
             "The builder emits neither blob_sha nor the final repository manifest contract.",
             "The candidate index requires post-commit blob binding and human review.",
+            "The authority governance evidence gate never sets t001_complete or t002_complete true and never authorizes migration or runtime enforcement.",
+            "Missing expected source families, non-read-only census mode, premature closure claims, missing observed_at, or side-effect evidence fail closed.",
             "Dry-run creates no repository files and write mode remains inside the canonical repository real path.",
             "T001 and T002 remain open and migration_apply_authorized remains false.",
-            "No live collector, SQL, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or task closure occurs."
+            "No live collector, SQL mutation, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or automatic task closure occurs."
           ],
           "tests": [
             {
@@ -80,8 +82,10 @@
           "evidence_paths": [
             ".changes/e2e/ueacp-repository-source-candidate-builder.json",
             "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
+            "http-generic-api/authorityGovernanceEvidenceGate.js",
             "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
             "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+            "http-generic-api/test-authority-governance-evidence-gate.mjs",
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
           ]
