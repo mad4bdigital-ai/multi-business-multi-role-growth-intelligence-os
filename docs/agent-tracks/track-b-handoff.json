@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "track": "B",
+  "branch": "agent/track-b-db-lifecycle-readiness",
+  "base": "main@8e6df87643f39449f4543b5f875acadf6e60de19",
+  "scope": [
+    "018 Environment Promotion & Runtime Integrity readiness contracts",
+    "019 Governed Database Lifecycle and Pressure Relief authority/readiness foundation",
+    "012 Context Kernel persistence migration preflight contracts",
+    "017 Tenant Managed Execution migration 1043 readiness authorization and preflight"
+  ],
+  "implemented": [
+    "Deterministic SQL checksum and statement-count binding",
+    "Destructive SQL and production-environment fail-closed preflight",
+    "Same-cycle readback contract",
+    "Environment SHA/runtime immutability attestation contract",
+    "Evidence-first rollback matrix",
+    "Focused no-apply contract tests",
+    "Migration/readiness manifest generator"
+  ],
+  "required_artifacts": {
+    "readiness_manifest": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
+    "focused_test": "http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+    "readiness_module": "http-generic-api/databaseLifecycleReadiness.js",
+    "manifest_generator": "http-generic-api/scripts/database-lifecycle-readiness-track-b.mjs"
+  },
+  "evidence": {
+    "focused_tests": {
+      "status": "pass",
+      "command": "node --test http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
+      "passed": 7,
+      "failed": 0
+    },
+    "syntax_check": {
+      "status": "pass",
+      "command": "node --check http-generic-api/databaseLifecycleReadiness.js"
+    },
+    "migration_checksum_readback": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
+    "dry_run_only": true,
+    "rollback_matrix_present": true
+  },
+  "guarantees": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "runtime_consumer_enabled": false,
+    "provider_called": false,
+    "production_promotion_authorized": false,
+    "secrets_included": false
+  },
+  "deferred_until_separate_authorization": [
+    "Any migration apply or live database mutation",
+    "Mutation receipt persistence/readback against a target environment",
+    "Production promotion, deploy, or runtime consumer activation",
+    "Context ownership additive migration apply",
+    "Tenant migration 1043 apply",
+    "Response-chunk TTL pilot, repository-audit supersession, JobRunner/autopilot, archive/thin, and physical reclaim"
+  ],
+  "integration_notes": [
+    "Track A must consume readiness/readback evidence before enabling authority or runtime paths.",
+    "Track C may project only the readiness result and must not grant execution authority.",
+    "Generated artifacts and repository-wide inventories remain reserved for the integration branch."
+  ],
+  "status": "ready_for_review",
+  "secrets_included": false
+}
