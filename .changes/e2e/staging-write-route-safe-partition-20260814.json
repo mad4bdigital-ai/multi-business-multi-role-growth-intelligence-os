@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-write-route-safe-partition-20260814",
+  "title": "Staging shadow partition and guarded production promotion modes",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-write-route-safe-partition-20260814.json",
+      "docs/staging-write-route-partition-2026-08-14.json",
+      "docs/staging-production-shadow-profile-2026-08-14.json",
+      "http-generic-api/scripts/test-staging-write-route-partition.mjs",
+      "http-generic-api/scripts/test-staging-production-shadow-profile.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Cover all 652 classified write routes with an explicit staging partition and four guarded modes while keeping every mutation and promotion disabled by default.",
+      "e2e_journeys": [
+        {
+          "id": "validate-shadow-and-promotion-boundaries",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging write-route governance",
+          "entrypoint": "Shadow partition and promotion profile contract tests",
+          "terminal_outcome": "All 652 routes are uniquely partitioned, shadow and staging modes remain non-mutating, and production-canary/production-live remain disabled behind explicit promotion prerequisites.",
+          "steps": [
+            "Load the generated write-route inventory and assert that 652 classified write routes are present.",
+            "Verify each route is assigned to one safe staging bundle and one risk bucket.",
+            "Verify shadow and staging modes produce no database apply, provider call, credential payload read, or external send.",
+            "Verify production-canary and production-live are disabled and require allowlist, independent approval, TTL/quota, rollback/readback, kill switch, and production change approval before promotion.",
+            "Run both partition and profile contract tests with secrets and external mutations disabled."
+          ],
+          "assertions": [
+            "All 652 write routes are covered exactly once.",
+            "The default request is false and every route requires approval, TTL, lease, rollback, and readback.",
+            "Shadow and staging modes do not execute mutations.",
+            "Production-canary and production-live cannot be activated by this PR or by default configuration.",
+            "No migration, provider call, OAuth/DCR registration, credential read, deployment, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "staging-write-route-partition-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-staging-write-route-partition.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-production-shadow-profile-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-staging-production-shadow-profile.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/staging-write-route-partition-2026-08-14.json",
+            "docs/staging-production-shadow-profile-2026-08-14.json",
+            "http-generic-api/scripts/test-staging-write-route-partition.mjs",
+            "http-generic-api/scripts/test-staging-production-shadow-profile.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Run shadow and staging acceptance with environment-bound evidence, durable receipts, rollback rehearsal, and same-cycle readback before any promotion."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove reconciliation, kill-switch behavior, lease expiry, quota enforcement, and failure recovery in a controlled non-Production environment."
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Production-canary remains disabled until independent approval, route/resource allowlist, quota, rollback rehearsal, audit evidence, and environment authorization exist.",
+      "blockers": [
+        "independent_production_change_approval",
+        "staging_shadow_and_readback_evidence",
+        "rollback_reconciliation_rehearsal",
+        "route_resource_allowlist",
+        "environment_bound_credentials_and_audit"
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production-live remains disabled and no real mutation is authorized by this PR.",
+      "blockers": [
+        "successful_production_canary",
+        "production_change_approval",
+        "live_oauth_or_dcr_acceptance_where_applicable",
+        "durable_receipts_and_same_cycle_readback",
+        "rollback_and_reconciliation_evidence"
+      ]
+    }
+  ],
+  "secrets_included": false
+}
