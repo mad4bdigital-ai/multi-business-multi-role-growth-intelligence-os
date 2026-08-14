@@ -18,7 +18,8 @@
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md",
-      "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
+      "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md",
+      "specs/011-unified-effective-authority-control-plane/tasks.md"
     ]
   },
   "merge_contract": {
@@ -28,7 +29,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Build and review bounded repository authority-source candidates, bind reviewed source documents to an ancestor ref, compose them with the bounded live catalog observer, and produce no-secret evidence ready only for later human ownership review.",
+      "objective": "Build and review bounded repository authority-source candidates, bind reviewed source documents to an ancestor ref, compose them with the bounded live catalog observer, produce no-secret evidence ready only for later human ownership review, and preserve deterministic Resource Graph inheritance/restriction safety evidence.",
       "e2e_journeys": [
         {
           "id": "build-reviewed-repository-source-candidates",
@@ -122,6 +123,48 @@
             "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+          ]
+        },
+        {
+          "id": "resource-graph-inheritance-restriction-property-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP security reviewer",
+          "entrypoint": "Bounded Resource Graph policy evaluator",
+          "terminal_outcome": "T043 is supported by deterministic property-style evidence proving inheritance and restriction invariants without enabling runtime enforcement or granting authority.",
+          "steps": [
+            "Evaluate an authoritative bounded Resource Graph fixture under deterministic input permutations and a cycle.",
+            "Verify active branch and root deny restrictions take precedence over inheritance.",
+            "Verify wildcard and operation-specific restriction semantics plus expiry and revocation handling.",
+            "Inject cross-Tenant contamination and verify fail-closed rejection.",
+            "Apply depth and inheritance-policy bounds and verify traversal cannot widen beyond the approved contract.",
+            "Confirm the evaluator emits no authority grant, runtime authority change, automatic write, provider call, credential read, or secret inclusion."
+          ],
+          "assertions": [
+            "Input row order does not alter the resolved graph projection.",
+            "Cycles do not duplicate resolved nodes.",
+            "Active deny restrictions win before inherited access reaches a descendant.",
+            "Wildcard restrictions apply to all operations while operation-specific restrictions do not leak to other operations.",
+            "Expired or revoked restrictions do not act as current denies.",
+            "Any cross-Tenant node contamination blocks the graph even when the foreign node is disconnected.",
+            "Depth bounds and inheritance-policy allowlists are hard limits.",
+            "Root restrictions terminate resolution with stable reason codes.",
+            "The test changes no runtime enforcement state and performs no mutation."
+          ],
+          "tests": [
+            {
+              "id": "ueacp-resource-graph-property-invariants",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-resource-graph-properties.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
+            "http-generic-api/contextKernel/domain/resourceGraphPolicy.js",
+            "specs/011-unified-effective-authority-control-plane/tasks.md",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
           ]
         }
       ]
