@@ -4,6 +4,7 @@ import test from "node:test";
 
 const root = process.cwd();
 const launcher = fs.readFileSync(`${root}/.github/workflows/governed-production-promotion-request-launcher.yml`, "utf8");
+const evidenceHelper = fs.readFileSync(`${root}/.github/scripts/production-promotion-evidence.mjs`, "utf8");
 const sourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-main-source-pin-guard.yml`, "utf8");
 const schema = JSON.parse(fs.readFileSync(`${root}/.github/contracts/governed-command-parameters/production-promotion-request.v1.json`, "utf8"));
 
@@ -29,9 +30,9 @@ test("promotion launcher registers bounded human and AI policy review modes", ()
     assert.ok(launcher.includes(workflowFile), `AI policy allowlist must include ${workflowFile}`);
   }
   assert.match(launcher, /read_only_supporting_workflows_and_exact_candidate_validation/u);
-  assert.match(launcher, /deployment_executed: false/u);
-  assert.match(launcher, /migration_executed: false/u);
-  assert.match(launcher, /credential_payload_read: false/u);
+  assert.match(evidenceHelper, /deployment_executed: false/u);
+  assert.match(evidenceHelper, /migration_executed: false/u);
+  assert.match(evidenceHelper, /credential_payload_read: false/u);
 });
 
 test("promotion parameter schema fails closed outside the two registered modes", () => {
