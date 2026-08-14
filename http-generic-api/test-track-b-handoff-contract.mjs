@@ -13,7 +13,12 @@ const completion018 = readJson("../specs/018-environment-promotion-runtime-integ
 const completion019 = readJson("../specs/019-governed-database-lifecycle-pressure-relief/completion.json");
 
 assert.equal(handoff.track, "B");
-assert.equal(handoff.branch, "agent/track-b-db-lifecycle-readiness");
+assert.match(handoff.branch, /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u);
+assert.equal(handoff.branch, "fix/track-b-db-lifecycle-readiness-governed");
+assert.deepEqual(handoff.governed_successor_of, {
+  branch: "agent/track-b-db-lifecycle-readiness",
+  head_sha: "e9cbd128c7fdb17f3b650f2d48bbae02d7d7c726",
+});
 assert.equal(handoff.implementation.policy_engine_added, false);
 assert.equal(handoff.implementation.connection_selector_added, false);
 assert.equal(handoff.implementation.tenant_authority_added, false);
