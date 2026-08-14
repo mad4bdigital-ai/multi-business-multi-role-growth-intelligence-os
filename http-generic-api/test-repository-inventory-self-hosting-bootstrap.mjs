@@ -47,6 +47,8 @@ assert.match(gate, /remote_head_sha_mismatch/u);
 assert.match(gate, /branch_requires_reconciliation/u);
 assert.match(gate, /trusted_generator_or_package_changed/u);
 assert.match(gate, /self_hosting_authority_installation_not_proven/u);
+assert.match(gate, /trustedAuthorityOnMain/u);
+assert.match(gate, /trusted_authority_on_main/u);
 assert.match(gate, /dirty_set_exceeds_inventory_outputs/u);
 assert.match(gate, /worktree_dirty_set_exceeds_inventory_outputs/u);
 assert.match(gate, /bootstrap_pending/u);
@@ -91,6 +93,7 @@ console.log(JSON.stringify({
   bootstrap_pending: true,
   main_push_and_workflow_dispatch_recovery: true,
   manual_main_convergence_mode: true,
+  trusted_authority_on_main_readback: true,
   candidate_mutation_before_main_trust: false,
   protected_branch_mutation: false,
   force_push: false,

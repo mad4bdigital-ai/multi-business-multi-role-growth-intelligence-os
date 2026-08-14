@@ -244,10 +244,14 @@ if (e2eContract.feature_key !== "repository-inventory-governed-regeneration" || 
 
 const sourceChanges = new Set(lines(git(["diff", "--name-only", "origin/main...HEAD"]).stdout));
 const missingAuthority = REQUIRED_AUTHORITY_CHANGES.filter((file) => !sourceChanges.has(file));
-if (missingAuthority.length) {
+const trustedAuthorityOnMain = REQUIRED_AUTHORITY_CHANGES.every((file) =>
+  git(["cat-file", "-e", `origin/main:${file}`], { allowFailure: true }).status === 0,
+);
+if (!trustedAuthorityOnMain && missingAuthority.length) {
   fail("self_hosting_authority_installation_not_proven", `Missing required authority changes: ${missingAuthority.join(", ")}`, {
     actual_head_sha: actualHeadSha,
     trusted_main_sha: trustedMainSha,
+    trusted_authority_on_main: false,
   });
 }
 
@@ -281,6 +285,7 @@ writeEvidence(outputPath, {
   bootstrap_pending: true,
   behind_by_zero: true,
   trusted_generator_unchanged: true,
+  trusted_authority_on_main: trustedAuthorityOnMain,
   deterministic_generation_verified: true,
   output_sha256: secondHashes,
   dirty_files: actualOutputs,
