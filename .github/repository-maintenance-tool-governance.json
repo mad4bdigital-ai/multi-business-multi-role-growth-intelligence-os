@@ -103,6 +103,19 @@
       "entrypoint": "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
       "mode": "read_only",
       "allowed_changed_path_patterns": []
+    },
+    "branch-hygiene": {
+      "description": "Classify repository branches into a deterministic triage queue and delete only exact-head, merged, unprotected, no-open-PR branches after the configured grace period; unmerged branches are report-only.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs",
+      "mode": "mutating",
+      "allowed_changed_path_patterns": [
+        "^\\.github/branch-hygiene-policy\\.json$",
+        "^\\.github/workflows/branch-hygiene\\.yml$",
+        "^http-generic-api/scripts/maintenance-tools/branch-hygiene-policy\\.mjs$",
+        "^\\.github/tests/branch-hygiene-policy\\.test\\.mjs$",
+        "^docs/branch-hygiene\\.md$"
+      ],
+      "report_contract": "mad4b.branch-hygiene-report.v2"
     }
   }
 }
