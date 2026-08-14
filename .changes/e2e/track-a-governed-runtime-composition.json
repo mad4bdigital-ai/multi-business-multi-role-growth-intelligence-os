@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "track-a-governed-runtime-composition",
+  "title": "Track A governed authority and durable runtime composition",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/track-a-governed-runtime-composition.json",
+      "docs/agent-tracks/track-a-handoff.json",
+      "http-generic-api/governedExecutionRuntimeComposition.js",
+      "http-generic-api/test-governed-execution-runtime-composition.mjs",
+      "http-generic-api/test-context-kernel-integrity-regression.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Compose Context, Capability, Authority, Plan, Approval/Delegation, Track B readiness, Durable, Adapter, and Readback contracts into one fail-closed read-only runtime resolution without minting authority or executing a provider.",
+      "e2e_journeys": [
+        {
+          "id": "authoritative-read-only-runtime-composition",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed execution runtime consumer",
+          "entrypoint": "createGovernedExecutionRuntimeResolver",
+          "terminal_outcome": "A read-only operation is surface-ready only when every injected stage is explicitly ready and Final Authority is explicitly authoritative and allowed; mutation, shadow authority, context drift, missing dependencies, and side-effect evidence fail closed.",
+          "steps": [
+            "Resolve authoritative Context Kernel identity and hash",
+            "Compile capability manifest and verify context-hash binding",
+            "Resolve explicit authority preflight, plan, and approval/delegation state",
+            "Require explicit authoritative Final Authority and consume Track B readiness evidence",
+            "Resolve durable execution, adapter, and readback readiness without dispatching a provider",
+            "Project bounded secret-safe readiness evidence for downstream surface projection"
+          ],
+          "assertions": [
+            "Caller tenant/workspace fields cannot replace the resolved Context Kernel identity downstream",
+            "Shadow or legacy-authoritative evidence cannot satisfy Final Authority",
+            "Mutation cutover remains disabled even when approval and authority evidence are supplied",
+            "Context hash drift and missing dependencies fail closed",
+            "Provider-call, external-write, database-mutation, credential-read, execution, or secret-inclusion evidence blocks readiness",
+            "The composition boundary creates no authority, selects no connection, executes no provider, and emits no execution grant"
+          ],
+          "tests": [
+            {
+              "id": "governed-runtime-composition-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-execution-runtime-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "context-kernel-integrity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-integrity-regression.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/governedExecutionRuntimeComposition.js",
+            "http-generic-api/test-governed-execution-runtime-composition.mjs",
+            "http-generic-api/test-context-kernel-integrity-regression.mjs",
+            "docs/agent-tracks/track-a-handoff.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Bind the composition contract to repository-canonical live authority and durable readiness implementations after their separate evidence gates are satisfied."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove restart, invalidation, authority-revision drift, and unknown-outcome reconciliation through the same composition boundary."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run read-only composition against an authorized non-production cohort with exact rollback and parity evidence."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Enable a separately authorized production consumer only after live authority, migration/readback, and parity certification."
+    }
+  ],
+  "secrets_included": false
+}
