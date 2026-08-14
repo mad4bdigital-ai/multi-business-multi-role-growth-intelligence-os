@@ -44,13 +44,13 @@ for (const required of [
   /\.conclusion == \\"success\\"/,
   /\.conclusion == \\"action_required\\"/,
   /spec-011-delegation-mariadb-certification\.yml/,
-  /frontend-surface-dispatch\.yml[\s\S]*--ref "\$RELEASE_BRANCH"/,
-  /http-generic-api-fanout-relocation\.yml[\s\S]*--field scope=scripts[\s\S]*--field max_files=20[\s\S]*--field target_branch="\$RELEASE_BRANCH"/,
-  /custom-gpt-contract-guard\.yml[\s\S]*--ref "\$RELEASE_BRANCH"[\s\S]*--field drill_mode=none/,
-  /platform-completion-cleanup-readback\.yml[\s\S]*--ref "\$RELEASE_BRANCH"/,
-  /platform-remaining-scope-scorecard\.yml[\s\S]*--ref "\$RELEASE_BRANCH"/,
+  /dispatch_workflow_and_capture_run frontend-surface-dispatch\.yml "\$RELEASE_BRANCH"/,
+  /dispatch_workflow_and_capture_run http-generic-api-fanout-relocation\.yml "\$RELEASE_BRANCH"[\s\S]*--field scope=scripts[\s\S]*--field max_files=20[\s\S]*--field target_branch="\$RELEASE_BRANCH"/,
+  /dispatch_workflow_and_capture_run custom-gpt-contract-guard\.yml "\$RELEASE_BRANCH"[\s\S]*--field drill_mode=none/,
+  /dispatch_workflow_and_capture_run platform-completion-cleanup-readback\.yml "\$RELEASE_BRANCH"/,
+  /dispatch_workflow_and_capture_run platform-remaining-scope-scorecard\.yml "\$RELEASE_BRANCH"/,
   /Spec 011 release branch moved before supporting gate dispatch/,
-  /refusing blind dispatch retry/,
+  /Spec 011 supporting workflow dispatch failed and no exact-head run was captured/,
   /protected refs moved during validation; retrying from current refs/,
   /request_pr: \$request_pr/,
   /candidate_tree_matches_main: true/,
@@ -77,8 +77,7 @@ assert.doesNotMatch(launcher, /headRepositoryOwner/);
 for (const required of [
   /resolve_exact_validation_run\(\)/,
   /resolve_exact_validation_run\([\s\S]*workflow_dispatch/,
-  /gh workflow run production-promotion-exact-candidate-validation\.yml/,
-  /--ref "\$VALIDATION_BRANCH"/,
+  /dispatch_workflow_and_capture_run production-promotion-exact-candidate-validation\.yml "\$VALIDATION_BRANCH"/,
   /--field expected_main_sha="\$MAIN_SHA"/,
   /--field expected_head_sha="\$CANDIDATE_SHA"/,
   /--field expected_validation_base_sha="\$VALIDATION_BASE_SHA"/,
@@ -195,11 +194,11 @@ assert.match(
 );
 assert.match(
   spec011DispatchBlock,
-  /gh workflow run spec-011-delegation-mariadb-certification\.yml[\s\S]*?--ref "\$RELEASE_BRANCH"/,
+  /dispatch_workflow_and_capture_run spec-011-delegation-mariadb-certification\.yml "\$RELEASE_BRANCH"/,
   "Spec 011 dispatch must target the release branch that points at the candidate",
 );
 assert.equal(
-  (spec011DispatchBlock.match(/gh workflow run spec-011-delegation-mariadb-certification\.yml/g) ?? []).length,
+  (spec011DispatchBlock.match(/dispatch_workflow_and_capture_run spec-011-delegation-mariadb-certification\.yml/g) ?? []).length,
   1,
   "Spec 011 must have one bounded dispatch command and no blind retry loop",
 );
