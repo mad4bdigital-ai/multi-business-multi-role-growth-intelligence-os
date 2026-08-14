@@ -54,7 +54,7 @@ The staging override disables the queue worker and explicitly sets mutation/Prod
 
 ## Dev-only Cloudflare Tunnel
 
-The `cloudflared` service is intentionally placed behind the opt-in `tunnel` profile. The default staging startup does not expose the application publicly. After the local app is healthy, create or select a dedicated Cloudflare Tunnel for Dev, configure its hostname as `dev.mad4b.com`, and configure the tunnel ingress target as `http://app:8080`. Put only that Dev tunnel token in the untracked `.env.staging` as `CLOUDFLARE_TUNNEL_TOKEN`; never copy the Hostinger/Production DNS credentials or Production secrets to the External SSD.
+The `cloudflared` service is intentionally placed behind the opt-in `tunnel` profile. The default staging startup does not expose the application publicly. After the local app is healthy, create or select one dedicated Cloudflare Tunnel identity for Dev and configure three explicit ingress hostnames: `dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com`. Each Dev hostname must target the local service `http://app:8080`; configure an explicit fail-closed fallback for any unmatched hostname. Put only that Dev tunnel token in the untracked `.env.staging` as `CLOUDFLARE_TUNNEL_TOKEN`; never copy the Hostinger/Production DNS credentials, Production hostnames, or Production secrets to the External SSD. The authoritative hostname matrix is `http-generic-api/config/domain-family-policy.json`.
 
 Start the tunnel explicitly, without changing the default local safety flags:
 
@@ -68,7 +68,7 @@ The tunnel is a routing mechanism, not a deployment or migration authorization. 
 docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging --profile tunnel stop cloudflared
 ```
 
-Production remains on Hostinger Cloud and uses a separate Cloudflare DNS/CDN record and separate credentials. It must not point its DNS record at this local tunnel.
+Production remains on Hostinger Cloud and uses separate Cloudflare DNS/CDN records for `auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`, with separate Production credentials. None of those Production records may point at this local Dev tunnel, and no Dev hostname may point at the Hostinger Production origin. Staging must use `TENANT_GPT_SSO_COOKIE_MODE=host_only`; never configure a shared `.mad4b.com` cookie on the External SSD. `mcp_dev.mad4b.com` and `activation_dev.mad4b.com` remain reserved-disabled until their separate runtime flag/bundle contracts are available; exposing DNS is not evidence that either service is ready.
 
 Stop without deleting local data:
 

@@ -1,0 +1,102 @@
+{
+  "schema_version": "mad4b.domain-family-policy.v1",
+  "zone": "mad4b.com",
+  "enforcement_mode": "fail_closed",
+  "default_route": {
+    "action": "http_status",
+    "status": 404,
+    "reason": "unmatched_hostname_is_not_routable"
+  },
+  "routing_authority": {
+    "staging_ingress_source_of_truth": "cloudflare_remote_tunnel_configuration",
+    "staging_env_hostname_role": "declaration_only",
+    "staging_origin_source_of_truth": "docker_compose_app_service",
+    "production_dns_source_of_truth": "cloudflare_dns_and_hostinger_edge",
+    "provider_mutation_required_to_activate": true,
+    "mismatch_action": "deny_and_do_not_fallback"
+  },
+  "environments": {
+    "production": {
+      "source_branch": "Production",
+      "deployment_provider": "hostinger",
+      "credential_namespace": "production",
+      "tunnel_enabled": false,
+      "hostnames": {
+        "auth": {
+          "hostname": "auth.mad4b.com",
+          "service": "auth",
+          "origin_kind": "hostinger_production",
+          "dns_record_type": "CNAME",
+          "dns_proxy_required": true,
+          "credential_namespace": "production.auth"
+        },
+        "mcp": {
+          "hostname": "mcp.mad4b.com",
+          "service": "mcp",
+          "origin_kind": "hostinger_production",
+          "dns_record_type": "CNAME",
+          "dns_proxy_required": true,
+          "credential_namespace": "production.mcp"
+        },
+        "activation": {
+          "hostname": "activation.mad4b.com",
+          "service": "activation",
+          "origin_kind": "hostinger_production",
+          "dns_record_type": "CNAME",
+          "dns_proxy_required": true,
+          "credential_namespace": "production.activation"
+        }
+      }
+    },
+    "staging": {
+      "source_branch": "main",
+      "deployment_provider": "local_device",
+      "credential_namespace": "staging",
+      "tunnel_enabled": true,
+      "tunnel_token_env": "CLOUDFLARE_TUNNEL_TOKEN",
+      "tunnel_hostname_env": "CLOUDFLARE_TUNNEL_HOSTNAMES",
+      "tunnel_origin_env": "CLOUDFLARE_TUNNEL_ORIGIN_APP",
+      "hostnames": {
+        "auth": {
+          "hostname": "dev.mad4b.com",
+          "service": "auth",
+          "origin_kind": "local_staging_app",
+          "exposure_status": "planned",
+          "dns_record_type": "CNAME",
+          "dns_proxy_required": true,
+          "credential_namespace": "staging.auth"
+        },
+        "mcp": {
+          "hostname": "mcp_dev.mad4b.com",
+          "service": "mcp",
+          "origin_kind": "local_staging_app",
+          "exposure_status": "reserved_disabled",
+          "required_runtime_flag": "REMOTE_MCP_ENABLED=true",
+          "dns_record_type": "CNAME",
+          "dns_proxy_required": true,
+          "credential_namespace": "staging.mcp"
+        },
+        "activation": {
+          "hostname": "activation_dev.mad4b.com",
+          "service": "activation",
+          "origin_kind": "local_staging_app",
+          "exposure_status": "reserved_disabled",
+          "required_runtime_bundle": "dedicated_staging_activation_gateway_bundle",
+          "dns_record_type": "CNAME",
+          "dns_proxy_required": true,
+          "credential_namespace": "staging.activation"
+        }
+      }
+    }
+  },
+  "isolation_rules": [
+    "production_hostnames_must_not_route_to_local_staging",
+    "staging_hostnames_must_not_route_to_hostinger_production",
+    "production_credentials_must_not_appear_in_staging_environment",
+    "staging_tunnel_token_must_not_appear_in_production_environment",
+    "staging_env_hostname_list_is_declaration_only",
+    "cloudflare_ingress_must_match_policy_before_exposure",
+    "auto_pilot_must_not_create_or_modify_dns_records",
+    "unmatched_hostnames_must_fail_closed"
+  ]
+}
