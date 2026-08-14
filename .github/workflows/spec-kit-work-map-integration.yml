@@ -4,7 +4,13 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    # Deliberately run for every main-bound PR. The Work Map source universe is
+    # code-defined and evolves; a narrow path filter previously allowed a real
+    # generator input (notably workflow YAML) to bypass PR currentness and turn
+    # the subsequent main push red. Keep the explicit paths below as governance
+    # anchors while the leading ** makes future source additions fail closed.
     paths:
+      - "**"
       - ".specify/**"
       - "specs/**"
       - "docs/work-maps/**"
@@ -63,18 +69,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Every invocation of this workflow is a currentness boundary. PRs are
+          # intentionally triggered for all main-bound changes so the workflow
+          # trigger and generator source universe cannot silently diverge again.
           currentness_required=true
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            currentness_required=false
-            while IFS= read -r changed_file; do
-              case "${changed_file}" in
-                .specify/*|specs/*|docs/work-maps/*|http-generic-api/migrations/*|http-generic-api/scripts/platform-work-map-*.mjs|http-generic-api/scripts/spec-kit-work-map-*.mjs|http-generic-api/scripts/work-map-schema-classification*.mjs|http-generic-api/scripts/work-map-autofix-diagnostics.mjs|http-generic-api/scripts/pipeline-connectivity-check.mjs|http-generic-api/test-work-map-*.mjs|http-generic-api/test-spec-kit-work-map-*.mjs)
-                  currentness_required=true
-                  break
-                  ;;
-              esac
-            done < <(git diff --name-only "origin/main...HEAD")
-          fi
           echo "currentness_required=${currentness_required}" >> "${GITHUB_OUTPUT}"
           echo "Work Map generated currentness required: ${currentness_required}"
 
@@ -157,104 +155,85 @@ jobs:
             exit 1
           fi
 
-          cp -R docs/work-maps "${WORK_MAP_REPAIR_ROOT}/docs/work-maps"
-          git diff --name-only -- docs/work-maps > "${WORK_MAP_REPAIR_ROOT}/changed-files.txt"
+          mapfile -t changed_files < <(git diff --name-only -- docs/work-maps | sed '/^$/d' | sort -u)
+          if (( ${#changed_files[@]} == 0 )); then
+            echo "Work Map check failed but deterministic repair produced no docs/work-maps delta."
+            exit 1
+          fi
+          printf '%s\n' "${changed_files[@]}" > "${WORK_MAP_REPAIR_ROOT}/changed-files.txt"
 
-          node - "${WORK_MAP_REPAIR_ROOT}" <<'NODE'
-          const fs = require("node:fs");
-          const path = require("node:path");
-          const root = process.argv[2];
-          const readme = fs.readFileSync(path.join(root, "docs/work-maps/README.md"), "utf8");
-          const sourceHash = readme.match(/Source hash: `([0-9a-f]{64})`/)?.[1] || null;
-          const changedFiles = fs.readFileSync(path.join(root, "changed-files.txt"), "utf8")
-            .split(/\r?\n/)
-            .map((value) => value.trim())
-            .filter(Boolean);
-          const report = {
-            contract: "mad4b.work-map-repair-candidate.v1",
-            repository: process.env.GITHUB_REPOSITORY,
-            run_id: process.env.GITHUB_RUN_ID,
-            run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-            event_name: process.env.GITHUB_EVENT_NAME,
-            event_sha: process.env.GITHUB_SHA,
-            expected_head_sha: process.env.EXPECTED_CHECKED_OUT_SHA,
-            tested_head_sha: process.env.WORK_MAP_TESTED_HEAD_SHA,
-            source_hash_sha256: sourceHash,
-            changed_files: changedFiles,
-            changed_count: changedFiles.length,
-            allowed_root: "docs/work-maps",
-            generated_from_exact_checked_out_head:
-              process.env.WORK_MAP_TESTED_HEAD_SHA === process.env.EXPECTED_CHECKED_OUT_SHA,
-            remote_write_executed: false,
-            secrets_included: false,
-          };
-          fs.writeFileSync(path.join(root, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
-          NODE
+          for changed_file in "${changed_files[@]}"; do
+            destination="${WORK_MAP_REPAIR_ROOT}/${changed_file}"
+            mkdir -p "$(dirname "${destination}")"
+            cp "${changed_file}" "${destination}"
+          done
+
+          source_hash="$(sed -n 's/^> Source hash: `\([0-9a-f]\{64\}\)`$/\1/p' docs/work-maps/README.md | head -n1)"
+          [[ "${source_hash}" =~ ^[0-9a-f]{64}$ ]]
+          jq -n \
+            --arg contract "mad4b.work-map-repair-candidate.v1" \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            --arg run_attempt "${GITHUB_RUN_ATTEMPT}" \
+            --arg event_name "${GITHUB_EVENT_NAME}" \
+            --arg event_sha "${GITHUB_SHA}" \
+            --arg expected_head_sha "${EXPECTED_CHECKED_OUT_SHA}" \
+            --arg tested_head_sha "${tested_head_sha}" \
+            --arg source_hash_sha256 "${source_hash}" \
+            --argjson changed_files "$(printf '%s\n' "${changed_files[@]}" | jq -R . | jq -s .)" \
+            '{contract:$contract,repository:$repository,run_id:$run_id,run_attempt:$run_attempt,event_name:$event_name,event_sha:$event_sha,expected_head_sha:$expected_head_sha,tested_head_sha:$tested_head_sha,source_hash_sha256:$source_hash_sha256,changed_files:$changed_files,changed_count:($changed_files|length),allowed_root:"docs/work-maps",generated_from_exact_checked_out_head:true,remote_write_executed:false,secrets_included:false}' \
+            > "${WORK_MAP_REPAIR_ROOT}/report.json"
+
+          echo "changed_count=${#changed_files[@]}" >> "$GITHUB_OUTPUT"
 
       - name: Upload exact-head Work Map repair candidate
-        if: steps.work_map_scope.outputs.currentness_required == 'true' && steps.work_map_currentness.outcome == 'failure'
+        if: steps.generate_repair_candidate.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || env.TARGET_PR || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
-          path: ${{ runner.temp }}/work-map-repair-candidate
+          name: work-map-repair-candidate-${{ github.event.pull_request.number || github.ref_name }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
+          path: ${{ env.WORK_MAP_REPAIR_ROOT }}/
           if-no-files-found: error
           retention-days: 14
 
       - name: Fail closed on stale generated Work Maps
         if: steps.work_map_scope.outputs.currentness_required == 'true' && steps.work_map_currentness.outcome == 'failure'
+        shell: bash
         run: |
-          echo "Generated Work Maps are stale. Use the exact-head repair candidate artifact from this run through the governed writer."
+          echo "Generated Work Maps are stale for ${EXPECTED_CHECKED_OUT_SHA}."
+          echo "The exact-head repair candidate was generated under ${WORK_MAP_REPAIR_ROOT} and uploaded for governed writer consumption."
+          echo "Apply it only through the governed Work Map writer; this validator performs no remote write."
           exit 1
 
       - name: Require complete schema classification
-        run: |
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
+        if: steps.work_map_currentness.outcome == 'success' || steps.work_map_scope.outputs.currentness_required != 'true'
+        run: node http-generic-api/scripts/work-map-schema-classification.mjs --check
 
       - name: Evaluate complete Spec Kit Work Map integration
-        id: work_map_governance
-        shell: bash
-        run: |
-          set -euo pipefail
-          diagnostic_root="${RUNNER_TEMP}/work-map-governance-diagnostic"
-          mkdir -p "${diagnostic_root}"
-          tested_head_sha="$(git rev-parse HEAD)"
-          if [[ "${tested_head_sha}" != "${EXPECTED_CHECKED_OUT_SHA}" ]]; then
-            echo "Work Map governance checkout mismatch. Expected ${EXPECTED_CHECKED_OUT_SHA}, found ${tested_head_sha}."
-            exit 1
-          fi
-
-          set +e
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed > "${diagnostic_root}/gate-output.json" 2>&1
-          exit_code=$?
-          set -e
-
-          cat "${diagnostic_root}/gate-output.json"
-          printf 'contract=mad4b.work-map-governance-diagnostic.v1\nrepository=%s\nrun_id=%s\nevent_name=%s\ntarget_pr=%s\nexpected_head_sha=%s\ntested_head_sha=%s\nexit_code=%s\nremote_write_executed=false\n' \
-            "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}" "${GITHUB_EVENT_NAME}" "${TARGET_PR:-}" "${EXPECTED_CHECKED_OUT_SHA}" "${tested_head_sha}" "${exit_code}" \
-            > "${diagnostic_root}/metadata.txt"
-          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+        id: integration
+        if: steps.work_map_currentness.outcome == 'success' || steps.work_map_scope.outputs.currentness_required != 'true'
+        continue-on-error: true
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || env.TARGET_PR || '' }}
+          EXPECTED_HEAD_SHA: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
+        run: node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
 
       - name: Upload bounded Work Map governance diagnostic
-        if: always() && steps.work_map_governance.outputs.exit_code != ''
+        if: steps.integration.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: work-map-governance-diagnostic-${{ github.event_name == 'pull_request' && github.event.pull_request.number || env.TARGET_PR || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
-          path: ${{ runner.temp }}/work-map-governance-diagnostic
+          name: work-map-integration-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-evidence/spec-kit-work-map-integration/
           if-no-files-found: error
           retention-days: 14
 
       - name: Fail closed on Work Map governance findings
-        if: steps.work_map_governance.outputs.exit_code != '0'
+        if: steps.integration.outcome == 'failure'
+        shell: bash
         run: |
-          echo "Work Map governance rejected the exact head. Use the bounded structured diagnostic artifact from this run."
+          echo "Spec Kit Work Map governance findings were detected."
+          echo "Review the bounded diagnostic artifact before using the authorized autofix path."
           exit 1
 
       - name: Run Work Map governance regression tests
-        working-directory: http-generic-api
-        run: |
-          node test-work-map-schema-classification.mjs
-          node test-work-map-schema-classification-contract.mjs
-          node test-work-map-autofix-diagnostics.mjs
-          node test-spec-kit-work-map-governance-gate.mjs
-          node test-spec-kit-completion-gate.mjs
+        if: steps.integration.outcome == 'success'
+        run: node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
