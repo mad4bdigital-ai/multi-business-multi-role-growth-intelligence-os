@@ -78,6 +78,7 @@ const ready = compileAuthoritySurfaceProjections({ manifest: manifest(), registr
 assert.equal(ready.contract, AUTHORITY_PROJECTION_COMPILER_VERSION);
 assert.deepEqual(AUTHORITY_PROJECTION_SURFACES, ["dynamic_tabs", "dashboard", "tool_catalog"]);
 assert.equal(ready.authority_decision_id, "decision-01");
+assert.equal(ready.manifest_stale, false);
 assert.equal(ready.projection_only, true);
 assert.equal(ready.creates_authority, false);
 assert.equal(ready.runtime_enforcement_enabled, false);
@@ -167,6 +168,23 @@ for (const surface of AUTHORITY_PROJECTION_SURFACES) {
 }
 assert.equal(JSON.stringify(expired).includes("expired-secret"), false);
 
+const stale = compileAuthoritySurfaceProjections({
+  manifest: manifest({ decision: "stale" }),
+  registrations: {
+    dynamic_tabs: [{ key: "stale-secret" }, { key: "stale-secret" }],
+    dashboard: "malformed-stale-dashboard",
+    tool_catalog: [{ label: "stale-missing-key" }],
+  },
+  now: NOW,
+});
+assert.equal(stale.manifest_stale, true);
+for (const surface of AUTHORITY_PROJECTION_SURFACES) {
+  assert.equal(stale.surfaces[surface].visible, false);
+  assert.deepEqual(stale.surfaces[surface].reason_codes, ["AUTHORITY_MANIFEST_STALE"]);
+  assert.deepEqual(stale.surfaces[surface].items, []);
+}
+assert.equal(JSON.stringify(stale).includes("stale-secret"), false);
+
 const permuted = compileAuthoritySurfaceProjections({
   manifest: manifest(),
   registrations: {
@@ -197,6 +215,42 @@ assert.throws(
     now: NOW,
   }),
   (error) => error?.code === "AUTHORITY_PROJECTION_SECRET_EVIDENCE_FORBIDDEN",
+);
+
+assert.throws(
+  () => compileAuthoritySurfaceProjections({
+    manifest: manifest({ secretsIncluded: undefined }),
+    registrations,
+    now: NOW,
+  }),
+  (error) => error?.code === "AUTHORITY_PROJECTION_SECRET_ATTESTATION_REQUIRED",
+);
+
+assert.throws(
+  () => compileAuthoritySurfaceProjections({
+    manifest: manifest({ expiresAt: undefined }),
+    registrations,
+    now: NOW,
+  }),
+  (error) => error?.code === "AUTHORITY_PROJECTION_EXPIRY_REQUIRED",
+);
+
+assert.throws(
+  () => compileAuthoritySurfaceProjections({
+    manifest: manifest({ evaluatedAt: undefined }),
+    registrations,
+    now: NOW,
+  }),
+  (error) => error?.code === "AUTHORITY_PROJECTION_EVALUATED_AT_REQUIRED",
+);
+
+assert.throws(
+  () => compileAuthoritySurfaceProjections({
+    manifest: manifest({ decision: "unknown_readyish_state" }),
+    registrations,
+    now: NOW,
+  }),
+  (error) => error?.code === "AUTHORITY_PROJECTION_DECISION_INVALID",
 );
 
 console.log("shared authority projection compiler tests passed");
