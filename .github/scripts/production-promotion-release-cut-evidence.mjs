@@ -28,6 +28,8 @@ export function buildReleaseCutPromotionEvidence(input) {
   }
   if (Object.keys(normalizedRuns).length === 0) fail("supporting_runs must not be empty");
 
+  const releaseCutSha = requireString(input.release_cut_sha, "release_cut_sha", SHA);
+  const currentMainSha = requireString(input.current_main_sha, "current_main_sha", SHA);
   return {
     schema_version: "governed_production_promotion_convergence.v2",
     ok: true,
@@ -37,9 +39,10 @@ export function buildReleaseCutPromotionEvidence(input) {
     request_pr: requireString(String(input.request_pr), "request_pr", POSITIVE_INT),
     release_pr: requireString(String(input.release_pr), "release_pr", POSITIVE_INT),
     validation_pr: requireString(String(input.validation_pr), "validation_pr", POSITIVE_INT),
-    release_cut_sha: requireString(input.release_cut_sha, "release_cut_sha", SHA),
-    main_sha: requireString(input.release_cut_sha, "main_sha", SHA),
-    current_main_sha: requireString(input.current_main_sha, "current_main_sha", SHA),
+    release_cut_sha: releaseCutSha,
+    main_sha: releaseCutSha,
+    current_main_sha: currentMainSha,
+    main_advanced_after_release_cut: currentMainSha !== releaseCutSha,
     production_sha: requireString(input.production_sha, "production_sha", SHA),
     candidate_sha: requireString(input.candidate_sha, "candidate_sha", SHA),
     builder_run_id: requireString(String(input.builder_run_id), "builder_run_id", POSITIVE_INT),
@@ -47,7 +50,6 @@ export function buildReleaseCutPromotionEvidence(input) {
     certified_validation_run_id: requireString(String(input.certified_validation_run_id), "certified_validation_run_id", POSITIVE_INT),
     gate_registry_sha256: requireString(input.gate_registry_sha256, "gate_registry_sha256", SHA256),
     supporting_runs: normalizedRuns,
-    candidate_tree_matches_main: true,
     candidate_tree_matches_release_cut: true,
     release_cut_is_ancestor_of_current_main: true,
     production_is_ancestor_of_release_cut: true,
