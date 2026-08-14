@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "feature_key": "016-chatgpt-plugin-mcp-integration",
-  "review_state": "ready_for_implementation",
+  "review_state": "draft",
   "registry": {
     "fingerprint": "ac111b8c4d0c8db936c3425cd98a41fb5889d3848e898c56230c87df985a9a1f",
     "index_source_hash": "64076dfcb85e1477af51c63b870b75f48aa268306270cf041ad7ac64393d15ea",
@@ -412,8 +412,15 @@
     "no_new_dimensions_rationale": "The exact Track C checkout registry reports zero uncategorized objects and zero taxonomy-gap clusters; Spec 016 composes the existing maps and domains without a new dimension."
   },
   "implementation_readiness": {
-    "status": "ready",
-    "blocking_dimensions": [],
+    "status": "blocked",
+    "blocking_dimensions": [
+      "track_b_readiness_evidence_not_landed",
+      "track_a_runtime_contract_not_landed",
+      "remote_mcp_tools_call_not_bound_to_track_a_contract",
+      "governed_migration_not_applied",
+      "live_oauth_and_cross_client_acceptance_not_verified",
+      "production_rollout_and_rollback_evidence_missing"
+    ],
     "reviewed_by": "track-c",
     "evidence_refs": [
       "specs/016-chatgpt-plugin-mcp-integration/spec.md",
