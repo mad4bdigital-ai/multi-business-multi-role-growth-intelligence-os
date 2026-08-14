@@ -17,10 +17,13 @@
       ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".github/workflows/governed-production-release-source-pin-gate.yml",
+      ".github/workflows/production-promotion-candidate-contract.yml",
       ".github/workflows/production-promotion-candidate.yml",
       "docs/ai-policy-review-mode.md",
+      "docs/production-promotion-candidate-automation.md",
       "docs/production-promotion-release-cut-controller.md",
       "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
+      "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs"
     ]
   },
@@ -77,6 +80,13 @@
               "args": []
             },
             {
+              "id": "production-promotion-candidate-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-workflow.mjs",
+              "args": []
+            },
+            {
               "id": "production-promotion-convergence-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -96,6 +106,7 @@
             ".github/scripts/production-promotion-release-cut-evidence.mjs",
             ".github/scripts/production-promotion-supporting-gates.mjs",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/production-promotion-candidate-contract.yml",
             ".github/workflows/production-promotion-candidate.yml",
             ".github/workflows/governed-production-main-source-pin-guard.yml",
             ".github/workflows/governed-production-release-source-pin-gate.yml",
