@@ -6,9 +6,13 @@ const inventory = {
   contract: "mad4b.ueacp.authority-path-inventory.v1",
   status: "ready_for_human_closure_review",
   inventory_sha256: "sha256:inventory",
+  expected_source_keys: ["admin-tools"],
   sources: [{ source_key: "admin-tools" }],
-  summary: { source_count: 1, canonical_path_count: 2 },
-  closure_state: { t001_complete: false },
+  summary: { source_count: 1, expected_source_count: 1, canonical_path_count: 2 },
+  closure_state: {
+    t001_complete: false,
+    t001_ready_for_human_review: true,
+  },
   provider_calls: false,
   credential_payload_read: false,
   external_writes: false,
@@ -44,6 +48,8 @@ test("complete machine evidence remains human/live-review gated", () => {
     observed_at: "2026-08-14T00:00:00Z",
   });
   assert.equal(result.status, "ready_for_human_and_live_readback_review");
+  assert.deepEqual(result.expected_source_keys, ["admin-tools"]);
+  assert.deepEqual(result.inventory_expected_source_keys, ["admin-tools"]);
   assert.equal(result.t001_machine_ready, true);
   assert.equal(result.t002_machine_ready, true);
   assert.equal(result.t001_complete, false);
@@ -58,15 +64,59 @@ test("unexpected side effects block the aggregate", () => {
   const result = evaluateAuthorityGovernanceEvidence({
     path_inventory: { ...inventory, external_writes: true },
     catalog_census: census,
+    expected_source_keys: ["admin-tools"],
     observed_at: "2026-08-14T00:00:00Z",
   });
   assert.equal(result.status, "blocked");
   assert.ok(result.blockers.includes("T001_FORBIDDEN_SIDE_EFFECT_OBSERVED"));
 });
 
-test("missing expected sources remain explicit blockers", () => {
+test("expected source set is required even when the inventory otherwise looks ready", () => {
   const result = evaluateAuthorityGovernanceEvidence({
     path_inventory: inventory,
+    catalog_census: census,
+    observed_at: "2026-08-14T00:00:00Z",
+  });
+  assert.equal(result.status, "blocked");
+  assert.ok(result.blockers.includes("T001_EXPECTED_SOURCE_SET_REQUIRED"));
+});
+
+test("caller expected source set must match the inventory-bound set", () => {
+  const result = evaluateAuthorityGovernanceEvidence({
+    path_inventory: inventory,
+    catalog_census: census,
+    expected_source_keys: ["admin-tools", "tenant-routes"],
+    observed_at: "2026-08-14T00:00:00Z",
+  });
+  assert.equal(result.status, "blocked");
+  assert.ok(result.blockers.includes("T001_EXPECTED_SOURCE_SET_MISMATCH"));
+  assert.ok(result.blockers.includes("T001_EXPECTED_SOURCE_MISSING:tenant-routes"));
+});
+
+test("inventory must itself prove a non-empty expected source set", () => {
+  const result = evaluateAuthorityGovernanceEvidence({
+    path_inventory: {
+      ...inventory,
+      expected_source_keys: [],
+      closure_state: { ...inventory.closure_state, t001_ready_for_human_review: false },
+    },
+    catalog_census: census,
+    expected_source_keys: ["admin-tools"],
+    observed_at: "2026-08-14T00:00:00Z",
+  });
+  assert.equal(result.status, "blocked");
+  assert.ok(result.blockers.includes("T001_INVENTORY_EXPECTED_SOURCE_SET_MISSING"));
+  assert.ok(result.blockers.includes("T001_HUMAN_REVIEW_READINESS_NOT_PROVEN"));
+});
+
+test("missing expected sources remain explicit blockers", () => {
+  const result = evaluateAuthorityGovernanceEvidence({
+    path_inventory: {
+      ...inventory,
+      expected_source_keys: ["admin-tools", "tenant-routes"],
+      summary: { ...inventory.summary, expected_source_count: 2 },
+      closure_state: { ...inventory.closure_state, t001_ready_for_human_review: true },
+    },
     catalog_census: census,
     expected_source_keys: ["admin-tools", "tenant-routes"],
     observed_at: "2026-08-14T00:00:00Z",
