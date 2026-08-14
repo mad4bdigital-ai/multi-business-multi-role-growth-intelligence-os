@@ -72,6 +72,13 @@
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.configuration-candidate-discovery.v1"
     },
+    "configuration-drift-guard": {
+      "description": "Compare deterministic configuration candidate fingerprints against an approved baseline, verify authority and E2E contract integrity, reject unsuppressed drift, and enforce report-only safety invariants without repository, database, or Production mutation.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.configuration-drift-guard.v1"
+    },
     "generated-artifact-refresh": {
       "description": "Regenerate bounded OpenAPI/frontend, Work Map, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",

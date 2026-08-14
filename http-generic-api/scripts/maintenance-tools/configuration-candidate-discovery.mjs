@@ -14,7 +14,7 @@ const POLICY_KEY = /(?:approval|allowlist|denylist|production|live|write[_-]?sco
 const SETTING_KEY = /(?:^|[_\-.])(?:default|config|setting|feature|flag|timeout|ttl|quota|rate[_-]?limit|batch|cache|retry|concurrency|limit)(?:$|[_\-.])/iu;
 const CONFIG_SYMBOL = /(?:default|config|setting|feature|flag|timeout|ttl|quota|rate[_-]?limit|batch|cache|retry|concurrency|allowlist|denylist|policy|approval|scope|mode|environment|endpoint|base[_-]?url|host|port|generated|openapi|work[-_]?map)/iu;
 const GENERATED_PATH = /(?:generated|work[-_]?maps?|repository-inventory|repository-evaluation|openapi\.(?:yaml|yml|json))/iu;
-const EXCLUDED_PATH = /(?:^|\/)(?:node_modules|\.git|dist|build|coverage|vendor|fixtures?|snapshots?|__snapshots__|tests?|specs?)(?:\/|$)|(?:\.generated\.(?:js|mjs|json|yaml|yml)|\.lock$)/iu;
+const EXCLUDED_PATH = /(?:^|\/)(?:node_modules|\.git|\.artifacts|dist|build|coverage|vendor|fixtures?|snapshots?|__snapshots__|tests?|specs?)(?:\/|$)|(?:\.generated\.(?:js|mjs|json|yaml|yml)|\.lock$)/iu;
 const LITERAL = /(?:=|:)\s*(?:(["'`])((?:\\.|(?!\1)[^\\])*?)\1|([0-9]+(?:\.[0-9]+)?)|\b(true|false|null)\b)/iu;
 
 function parseArgs(argv) {

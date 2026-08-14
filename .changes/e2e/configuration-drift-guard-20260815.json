@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "configuration-drift-guard-20260815",
+  "title": "Central configuration drift guard with deterministic baseline",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/configuration-drift-guard-20260815.json",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      "docs/governance/configuration-drift-policy.json",
+      "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+      "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "http-generic-api/scripts/test-configuration-drift-guard.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reject unapproved configuration candidate drift and guard authority, contract, baseline, suppression, and safety invariants without mutation.",
+      "e2e_journeys": [
+        {
+          "id": "reject-configuration-drift-safely",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Central configuration drift guard",
+          "entrypoint": "configuration-drift-guard.mjs fail-on-drift CLI",
+          "terminal_outcome": "An unchanged baseline passes; a new unsuppressed candidate fails; a valid future-dated suppression passes; an expired suppression fails; and safety flags cannot authorize mutation.",
+          "steps": [
+            "Load the deterministic baseline and current candidate inventory.",
+            "Compare candidate fingerprints and classify new, suppressed, and removed entries.",
+            "Verify read-only authority registration and E2E scope coverage.",
+            "Reject invalid or expired suppressions and unsuppressed new candidates.",
+            "Verify report-only, no-migration, no-runtime-mutation, no-Production-activation, and no-secret invariants."
+          ],
+          "assertions": [
+            "The baseline comparison is deterministic and does not select a first candidate on ambiguity.",
+            "New candidates fail closed unless covered by a non-expired owner-scoped suppression.",
+            "Expired suppressions fail closed and cannot silently become accepted baseline entries.",
+            "The guard never writes repository files, database rows, protected refs, or Production state.",
+            "No raw secret value is included in drift evidence."
+          ],
+          "tests": [
+            {
+              "id": "configuration-drift-guard-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-configuration-drift-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/configuration-drift-guard-20260815.json",
+            ".github/repository-maintenance-tool-governance.json",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            "docs/governance/configuration-drift-policy.json",
+            "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+            "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/test-configuration-drift-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Require reviewed baseline refreshes and bounded suppression lifecycle changes through exact-head governance and independent Owner evidence."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "The Drift Guard cannot authorize write scopes, Production activation, or external mutations.",
+      "blockers": [
+        "independent_production_approval",
+        "successful_canary",
+        "durable_activation_evidence"
+      ]
+    }
+  ],
+  "secrets_included": false
+}
