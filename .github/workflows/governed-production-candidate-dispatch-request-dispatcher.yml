@@ -264,6 +264,7 @@ jobs:
             --repo "${REPOSITORY}" \
             --ref main \
             --field expected_main_sha="${MAIN_SHA}" \
+            --field expected_head_sha="${MAIN_SHA}" \
             --field expected_production_sha="${PRODUCTION_SHA}" \
             --field release_branch="${release_branch}" \
             --field validation_branch="${validation_branch}" \
