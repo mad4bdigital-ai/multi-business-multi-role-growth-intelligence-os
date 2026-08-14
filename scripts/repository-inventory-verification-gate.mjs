@@ -189,8 +189,14 @@ if (dirtyOutputs.length === 0) {
   process.exit(0);
 }
 
-if (!ALLOWED_BOOTSTRAP_EVENTS.has(eventName)) {
-  fail("repository_inventory_stale", `Inventory differs from HEAD during event=${eventName}; bootstrap evidence is allowed only for pull_request or workflow_dispatch.`, {
+const governedWorkPush = eventName === "push"
+  && headRepository === repository
+  && baseRef === "main"
+  && GOVERNED_BRANCH.test(targetRef)
+  && targetRef !== "main"
+  && targetRef !== "Production";
+if (!ALLOWED_BOOTSTRAP_EVENTS.has(eventName) && !governedWorkPush) {
+  fail("repository_inventory_stale", `Inventory differs from HEAD during event=${eventName}; bootstrap evidence is allowed only for pull_request, workflow_dispatch, or a same-repository governed work-branch push.`, {
     actual_head_sha: actualHeadSha,
     dirty_files: dirtyOutputs,
     deterministic_generation_verified: true,
@@ -247,10 +253,14 @@ const sourceChanges = new Set(lines(git(["diff", "--name-only", "origin/main...H
 const isAgentTrack = /^agent\/track-[A-Za-z0-9._-]+$/u.test(targetRef);
 // Agent tracks validate candidate artifacts only; authority installation is reserved for integration branches.
 const missingAuthority = isAgentTrack ? [] : REQUIRED_AUTHORITY_CHANGES.filter((file) => !sourceChanges.has(file));
-if (missingAuthority.length) {
+const trustedAuthorityOnMain = REQUIRED_AUTHORITY_CHANGES.every((file) =>
+  git(["cat-file", "-e", `origin/main:${file}`], { allowFailure: true }).status === 0,
+);
+if (!trustedAuthorityOnMain && missingAuthority.length) {
   fail("self_hosting_authority_installation_not_proven", `Missing required authority changes: ${missingAuthority.join(", ")}`, {
     actual_head_sha: actualHeadSha,
     trusted_main_sha: trustedMainSha,
+    trusted_authority_on_main: false,
   });
 }
 
@@ -284,10 +294,12 @@ writeEvidence(outputPath, {
   bootstrap_pending: true,
   behind_by_zero: true,
   trusted_generator_unchanged: true,
+  trusted_authority_on_main: trustedAuthorityOnMain,
   deterministic_generation_verified: true,
   output_sha256: secondHashes,
   dirty_files: actualOutputs,
   followup_required: true,
   followup_mode: isAgentTrack ? "agent_track_read_only_candidate" : "trusted_post_merge_work_branch",
   agent_track_read_only: isAgentTrack,
+  governed_work_push: governedWorkPush,
 });

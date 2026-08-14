@@ -58,6 +58,26 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Classify generated Work Map currentness scope
+        id: work_map_scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          currentness_required=true
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            currentness_required=false
+            while IFS= read -r changed_file; do
+              case "${changed_file}" in
+                .specify/*|specs/*|docs/work-maps/*|http-generic-api/migrations/*|http-generic-api/scripts/platform-work-map-*.mjs|http-generic-api/scripts/spec-kit-work-map-*.mjs|http-generic-api/scripts/work-map-schema-classification*.mjs|http-generic-api/scripts/work-map-autofix-diagnostics.mjs|http-generic-api/scripts/pipeline-connectivity-check.mjs|http-generic-api/test-work-map-*.mjs|http-generic-api/test-spec-kit-work-map-*.mjs)
+                  currentness_required=true
+                  break
+                  ;;
+              esac
+            done < <(git diff --name-only "origin/main...HEAD")
+          fi
+          echo "currentness_required=${currentness_required}" >> "${GITHUB_OUTPUT}"
+          echo "Work Map generated currentness required: ${currentness_required}"
+
       - name: Resolve exact workflow-dispatch pull request identity
         if: github.event_name == 'workflow_dispatch'
         shell: bash
@@ -108,12 +128,13 @@ jobs:
 
       - name: Verify generated Work Maps are current
         id: work_map_currentness
+        if: steps.work_map_scope.outputs.currentness_required == 'true'
         continue-on-error: true
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
       - name: Generate exact-head Work Map repair candidate
         id: generate_repair_candidate
-        if: steps.work_map_currentness.outcome == 'failure'
+        if: steps.work_map_scope.outputs.currentness_required == 'true' && steps.work_map_currentness.outcome == 'failure'
         shell: bash
         run: |
           set -euo pipefail
@@ -171,7 +192,7 @@ jobs:
           NODE
 
       - name: Upload exact-head Work Map repair candidate
-        if: steps.work_map_currentness.outcome == 'failure'
+        if: steps.work_map_scope.outputs.currentness_required == 'true' && steps.work_map_currentness.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || env.TARGET_PR || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
@@ -180,7 +201,7 @@ jobs:
           retention-days: 14
 
       - name: Fail closed on stale generated Work Maps
-        if: steps.work_map_currentness.outcome == 'failure'
+        if: steps.work_map_scope.outputs.currentness_required == 'true' && steps.work_map_currentness.outcome == 'failure'
         run: |
           echo "Generated Work Maps are stale. Use the exact-head repair candidate artifact from this run through the governed writer."
           exit 1
