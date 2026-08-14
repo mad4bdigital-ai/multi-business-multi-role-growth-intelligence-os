@@ -87,6 +87,71 @@ export function buildEnvironmentAttestation({ environment, branch, expectedSha, 
   });
 }
 
+const RESOURCE_URI_PATTERN = /^mysql:\/\/[^/]+\/[^*]+$/u;
+const RECIPE_KEY_PATTERN = /^database\.[a-z0-9_.-]+$/u;
+
+function validFutureDate(value, now = new Date()) {
+  const timestamp = Date.parse(String(value || ""));
+  return Number.isFinite(timestamp) && timestamp > now.getTime();
+}
+
+export function validateAuthorityBinding(binding = {}, { now = new Date(), recipeAllowlist = [] } = {}) {
+  const resourceUri = String(binding.resource_uri || "");
+  const recipeKey = String(binding.recipe_key || "");
+  const errors = [];
+  if (binding.resource_type !== "database_table") errors.push("resource_type_mismatch");
+  if (!RESOURCE_URI_PATTERN.test(resourceUri) || resourceUri.includes("..") || /%2f|%5c/iu.test(resourceUri)) errors.push("resource_uri_invalid");
+  if (!RECIPE_KEY_PATTERN.test(recipeKey)) errors.push("recipe_key_invalid");
+  if (recipeAllowlist.length > 0 && !recipeAllowlist.includes(recipeKey)) errors.push("recipe_not_allowlisted");
+  if (!binding.authority_binding_id || !binding.principal_id || !binding.policy_revision) errors.push("authority_identity_missing");
+  if (!validFutureDate(binding.expires_at, now)) errors.push("authority_expired_or_invalid");
+  return Object.freeze({ valid: errors.length === 0, errors, secrets_included: false });
+}
+
+export function validateApprovalBinding(approval = {}, { authority = {}, planFingerprint = "", now = new Date(), recipeAllowlist = [] } = {}) {
+  const errors = [];
+  if (!approval.approval_id || !approval.plan_id || !approval.approved_by) errors.push("approval_identity_missing");
+  if (!/^sha256:[a-f0-9]{64}$/u.test(String(approval.plan_fingerprint || ""))) errors.push("approval_fingerprint_invalid");
+  if (planFingerprint && approval.plan_fingerprint !== planFingerprint) errors.push("approval_plan_mismatch");
+  if (authority.resource_uri && approval.resource_uri !== authority.resource_uri) errors.push("approval_resource_mismatch");
+  if (authority.recipe_key && approval.recipe_key !== authority.recipe_key) errors.push("approval_recipe_mismatch");
+  if (!RECIPE_KEY_PATTERN.test(String(approval.recipe_key || "")) || (recipeAllowlist.length > 0 && !recipeAllowlist.includes(approval.recipe_key))) errors.push("approval_recipe_not_allowlisted");
+  if (!validFutureDate(approval.expires_at, now)) errors.push("approval_expired_or_invalid");
+  return Object.freeze({ valid: errors.length === 0, errors, secrets_included: false });
+}
+
+export function assessMutationReadiness({ authority, approval, capability, lease, planFingerprint, receiptReadback, now = new Date(), recipeAllowlist = [] } = {}) {
+  const authorityResult = validateAuthorityBinding(authority, { now, recipeAllowlist });
+  const approvalResult = validateApprovalBinding(approval, { authority, planFingerprint, now, recipeAllowlist });
+  const errors = [...authorityResult.errors, ...approvalResult.errors];
+  if (!capability || capability.enabled !== true) errors.push("capability_not_enabled");
+  if (!lease || lease.status !== "active" || !validFutureDate(lease.expires_at, now)) errors.push("lease_missing_or_expired");
+  if (!receiptReadback || receiptReadback.available !== true) errors.push("receipt_readback_unavailable");
+  return Object.freeze({
+    ready: errors.length === 0,
+    decision: errors.length === 0 ? "ready_for_governed_mutation" : "blocked",
+    errors,
+    mutation_enabled: false,
+    database_mutated: false,
+    secrets_included: false,
+  });
+}
+
+export function reconcileMutationReceipt({ receipt = {}, readback = {} } = {}) {
+  const samePlan = receipt.plan_id && receipt.plan_id === readback.plan_id && receipt.plan_fingerprint === readback.plan_fingerprint;
+  const sameIdempotency = receipt.idempotency_key && receipt.idempotency_key === readback.idempotency_key;
+  const matched = samePlan && sameIdempotency && readback.status === "matched";
+  return Object.freeze({
+    reconciliation_status: matched ? "reconciled" : "blocked",
+    same_plan: Boolean(samePlan),
+    same_idempotency_key: Boolean(sameIdempotency),
+    readback_status: readback.status || "unknown",
+    mutation_retried: false,
+    database_mutated: false,
+    secrets_included: false,
+  });
+}
+
 export function buildRollbackMatrix(entries = []) {
   return Object.freeze(entries.map((entry) => Object.freeze({
     operation: String(entry.operation),

@@ -15,6 +15,9 @@
     "Same-cycle readback contract",
     "Environment SHA/runtime immutability attestation contract",
     "Evidence-first rollback matrix",
+    "Exact database-table authority and registered recipe allowlist validation",
+    "Capability, lease, typed approval, and receipt/readback fail-closed readiness",
+    "Replay, idempotency, wildcard, and path-traversal negative checks",
     "Focused no-apply contract tests",
     "Migration/readiness manifest generator"
   ],
@@ -28,7 +31,7 @@
     "focused_tests": {
       "status": "pass",
       "command": "node --test http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
-      "passed": 7,
+      "passed": 11,
       "failed": 0
     },
     "syntax_check": {
@@ -37,7 +40,10 @@
     },
     "migration_checksum_readback": "docs/agent-tracks/track-b-migration-readiness-manifest.json",
     "dry_run_only": true,
-    "rollback_matrix_present": true
+    "rollback_matrix_present": true,
+    "authority_binding_contract": "implemented",
+    "mutation_readiness_contract": "fail_closed_without_receipt_readback",
+    "replay_and_path_safety_tests": "pass"
   },
   "guarantees": {
     "migration_applied": false,

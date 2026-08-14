@@ -7,9 +7,35 @@ import {
   buildRollbackMatrix,
   buildTrackBManifest,
   destructiveFindings,
+  assessMutationReadiness,
+  reconcileMutationReceipt,
+  validateApprovalBinding,
+  validateAuthorityBinding,
 } from "./databaseLifecycleReadiness.js";
 
 const SQL = "CREATE TABLE IF NOT EXISTS `track_b_probe` (id BIGINT PRIMARY KEY);";
+const NOW = new Date("2026-08-14T00:00:00.000Z");
+const AUTHORITY = {
+  authority_binding_id: "auth-1",
+  resource_type: "database_table",
+  resource_uri: "mysql://staging/app/response_chunks",
+  recipe_key: "database.response_chunks.ttl",
+  principal_id: "operator-1",
+  expires_at: "2026-08-15T00:00:00.000Z",
+  policy_revision: "policy-1",
+};
+const PLAN_FINGERPRINT = `sha256:${"a".repeat(64)}`;
+const APPROVAL = {
+  approval_id: "approval-1",
+  plan_id: "plan-1",
+  plan_fingerprint: PLAN_FINGERPRINT,
+  resource_uri: AUTHORITY.resource_uri,
+  recipe_key: AUTHORITY.recipe_key,
+  approved_by: "reviewer-1",
+  approved_at: "2026-08-14T00:00:00.000Z",
+  expires_at: "2026-08-15T00:00:00.000Z",
+  risk_class: "plan_only",
+};
 
 test("preflight binds checksum and statement count without applying", () => {
   const result = assessMigrationPreflight({ file: "probe.sql", sql: SQL, expectedTables: ["track_b_probe"] });
@@ -48,6 +74,30 @@ test("rollback matrix is evidence-first and non-mutating", () => {
   assert.equal(entry.pre_change_evidence_required, true);
   assert.equal(entry.rollback_status, "not_executed");
   assert.equal(entry.database_mutated, false);
+});
+
+test("exact authority and typed approval validate against the same resource and recipe", () => {
+  assert.equal(validateAuthorityBinding(AUTHORITY, { now: NOW, recipeAllowlist: [AUTHORITY.recipe_key] }).valid, true);
+  assert.equal(validateApprovalBinding(APPROVAL, { authority: AUTHORITY, planFingerprint: PLAN_FINGERPRINT, now: NOW, recipeAllowlist: [AUTHORITY.recipe_key] }).valid, true);
+});
+
+test("mutation readiness fails closed when receipt readback is unavailable", () => {
+  const result = assessMutationReadiness({ authority: AUTHORITY, approval: APPROVAL, planFingerprint: PLAN_FINGERPRINT, capability: { enabled: true }, lease: { status: "active", expires_at: "2026-08-15T00:00:00.000Z" }, receiptReadback: { available: false }, now: NOW, recipeAllowlist: [AUTHORITY.recipe_key] });
+  assert.equal(result.ready, false);
+  assert.ok(result.errors.includes("receipt_readback_unavailable"));
+  assert.equal(result.mutation_enabled, false);
+  assert.equal(result.database_mutated, false);
+});
+
+test("authority rejects path traversal and wildcard resource selectors", () => {
+  const unsafe = { ...AUTHORITY, resource_uri: "mysql://staging/app/../secrets/*" };
+  assert.equal(validateAuthorityBinding(unsafe, { now: NOW, recipeAllowlist: [AUTHORITY.recipe_key] }).valid, false);
+});
+
+test("receipt reconciliation rejects replay or mismatched idempotency", () => {
+  const receipt = { plan_id: "plan-1", plan_fingerprint: PLAN_FINGERPRINT, idempotency_key: "idem-1" };
+  assert.equal(reconcileMutationReceipt({ receipt, readback: { ...receipt, status: "matched" } }).reconciliation_status, "reconciled");
+  assert.equal(reconcileMutationReceipt({ receipt, readback: { ...receipt, idempotency_key: "idem-2", status: "matched" } }).reconciliation_status, "blocked");
 });
 
 test("manifest explicitly declares all forbidden side effects as false", () => {
