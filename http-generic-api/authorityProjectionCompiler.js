@@ -6,6 +6,17 @@ export const AUTHORITY_PROJECTION_SURFACES = Object.freeze([
   "tool_catalog",
 ]);
 
+const AUTHORITY_DECISIONS = new Set([
+  "ready",
+  "shadow_ready",
+  "canary_ready",
+  "blocked",
+  "authorization_gated",
+  "degraded",
+  "ambiguous",
+  "stale",
+  "not_applicable",
+]);
 const ACTION_READY_DECISIONS = new Set(["ready", "canary_ready"]);
 const SECRET_KEY_PATTERN = /(?:^|_)(?:authorization|cookie|password|passwd|secret|client_secret|api_key|access_key|private_key|token|access_token|refresh_token|id_token|credential|credentials|raw_row|raw_rows)(?:_|$)/iu;
 const PRIVATE_KEY_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----/u;
@@ -56,32 +67,77 @@ function text(value, maximum = 191) {
   return normalized ? normalized.slice(0, maximum) : null;
 }
 
+function contractError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function requiredTimestamp(value, field, code) {
+  if (value === null || value === undefined || value === "") {
+    throw contractError(code, `${field} is required.`);
+  }
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw contractError(code, `${field} must be a valid timestamp.`);
+  }
+  return parsed;
+}
+
 function requireManifest(manifest, now) {
   if (!isPlainObject(manifest)) throw new TypeError("manifest must be an object.");
   const decisionId = text(manifest.decisionId ?? manifest.decision_id, 191);
   if (!decisionId) throw new TypeError("manifest.decisionId is required.");
-  if (manifest.secretsIncluded === true || manifest.secrets_included === true) {
-    const error = new Error("Authority projection manifest contains secret-bearing evidence.");
-    error.code = "AUTHORITY_PROJECTION_SECRET_EVIDENCE_FORBIDDEN";
-    throw error;
+
+  const secretAttestation = manifest.secretsIncluded ?? manifest.secrets_included;
+  if (secretAttestation === true) {
+    throw contractError(
+      "AUTHORITY_PROJECTION_SECRET_EVIDENCE_FORBIDDEN",
+      "Authority projection manifest contains secret-bearing evidence.",
+    );
   }
+  if (secretAttestation !== false) {
+    throw contractError(
+      "AUTHORITY_PROJECTION_SECRET_ATTESTATION_REQUIRED",
+      "Authority projection manifest must explicitly attest secretsIncluded=false.",
+    );
+  }
+
+  const decision = text(manifest.decision, 64);
+  if (!decision || !AUTHORITY_DECISIONS.has(decision)) {
+    throw contractError(
+      "AUTHORITY_PROJECTION_DECISION_INVALID",
+      "Authority projection manifest decision is missing or unsupported.",
+    );
+  }
+
   const projectionEligibility = manifest.projectionEligibility ?? manifest.projection_eligibility;
   if (!isPlainObject(projectionEligibility)) {
     throw new TypeError("manifest.projectionEligibility must be an object.");
   }
-  const expiryValue = manifest.expiresAt ?? manifest.expires_at;
-  const expiresAt = expiryValue ? new Date(expiryValue) : null;
-  if (expiresAt && Number.isNaN(expiresAt.getTime())) throw new TypeError("manifest.expiresAt must be a valid timestamp.");
-  const expired = Boolean(expiresAt && expiresAt.getTime() <= now.getTime());
+
+  const evaluatedAt = requiredTimestamp(
+    manifest.evaluatedAt ?? manifest.evaluated_at,
+    "manifest.evaluatedAt",
+    "AUTHORITY_PROJECTION_EVALUATED_AT_REQUIRED",
+  );
+  const expiresAt = requiredTimestamp(
+    manifest.expiresAt ?? manifest.expires_at,
+    "manifest.expiresAt",
+    "AUTHORITY_PROJECTION_EXPIRY_REQUIRED",
+  );
+  const expired = expiresAt.getTime() <= now.getTime();
+
   return {
     decisionId,
-    decision: text(manifest.decision, 64) || "blocked",
+    decision,
     readiness: isPlainObject(manifest.readiness) ? manifest.readiness : {},
     projectionEligibility,
     versions: isPlainObject(manifest.versions) ? sanitize(manifest.versions) : {},
-    evaluatedAt: text(manifest.evaluatedAt ?? manifest.evaluated_at, 64),
-    expiresAt: expiresAt ? expiresAt.toISOString() : null,
+    evaluatedAt: evaluatedAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
     expired,
+    stale: decision === "stale",
   };
 }
 
@@ -122,19 +178,23 @@ function readinessIsReady(readiness, key) {
 }
 
 function toolActionEligible(manifest) {
-  if (manifest.expired) return false;
+  if (manifest.expired || manifest.stale) return false;
   if (!ACTION_READY_DECISIONS.has(String(manifest.decision).toLowerCase())) return false;
   if (manifest.projectionEligibility.execution !== true) return false;
   return readinessIsReady(manifest.readiness, "execution");
 }
 
 function compileSurface({ surface, manifest, registrations }) {
-  const surfaceEligible = !manifest.expired && manifest.projectionEligibility[surface] === true;
+  const surfaceEligible = !manifest.expired
+    && !manifest.stale
+    && manifest.projectionEligibility[surface] === true;
   const genericReason = manifest.expired
     ? "AUTHORITY_MANIFEST_EXPIRED"
-    : surfaceEligible
-      ? null
-      : "AUTHORITY_PROJECTION_NOT_ELIGIBLE";
+    : manifest.stale
+      ? "AUTHORITY_MANIFEST_STALE"
+      : surfaceEligible
+        ? null
+        : "AUTHORITY_PROJECTION_NOT_ELIGIBLE";
 
   if (!surfaceEligible) {
     return Object.freeze({
@@ -151,8 +211,9 @@ function compileSurface({ surface, manifest, registrations }) {
   }
 
   // Candidate registration validation is intentionally deferred until after
-  // visibility is established. An unauthorized surface must not reveal
-  // candidate existence through validation errors, duplicate keys, or counts.
+  // visibility is established. An unauthorized, expired, or stale surface must
+  // not reveal candidate existence through validation errors, duplicate keys,
+  // malformed registration shapes, or counts.
   const normalizedRegistrations = normalizeRegistrations(registrations, surface);
   const actionEligible = surface === "tool_catalog" && toolActionEligible(manifest);
   const items = normalizedRegistrations.map((item) => Object.freeze({
@@ -202,6 +263,7 @@ export function compileAuthoritySurfaceProjections({ manifest, registrations = {
     authority_decision_id: normalizedManifest.decisionId,
     manifest_decision: normalizedManifest.decision,
     manifest_expired: normalizedManifest.expired,
+    manifest_stale: normalizedManifest.stale,
     evaluated_at: normalizedManifest.evaluatedAt,
     expires_at: normalizedManifest.expiresAt,
     versions: normalizedManifest.versions,
