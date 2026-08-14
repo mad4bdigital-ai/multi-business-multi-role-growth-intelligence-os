@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   verify-finalized-candidate:
-    name: Verify final freshness and converge to one Release PR
+    name: Verify final release-cut freshness and converge to one Release PR
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -26,23 +26,21 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-      MAX_POST_FINALIZATION_RETRIES: 3
     steps:
       - name: Initialize bounded post-finalization evidence directory
         shell: bash
         run: |
-          set -euo pipefail
-          evidence_dir="${RUNNER_TEMP}/production-promotion-post-finalization"
-          rm -rf "${evidence_dir}"
-          mkdir -p "${evidence_dir}"
-          echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
+          set -Eeuo pipefail
+          evidence_dir="$RUNNER_TEMP/production-promotion-post-finalization"
+          rm -rf "$evidence_dir"
+          mkdir -p "$evidence_dir"
+          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
 
       - name: Download and validate convergence evidence
         id: evidence
         shell: bash
         run: |
           set -Eeuo pipefail
-          mkdir -p "$EVIDENCE_DIR"
           gh run download "$SOURCE_RUN_ID" \
             --repo "$REPOSITORY" \
             --name "governed-production-promotion-convergence-${SOURCE_RUN_ID}" \
@@ -50,8 +48,13 @@ jobs:
 
           EVIDENCE_PATH="$(find "$EVIDENCE_DIR" -type f -name '*.json' -print -quit)"
           test -n "$EVIDENCE_PATH"
+          SCHEMA_VERSION="$(jq -r '.schema_version // ""' "$EVIDENCE_PATH")"
+          case "$SCHEMA_VERSION" in
+            governed_production_promotion_convergence.v1|governed_production_promotion_convergence.v2) ;;
+            *) echo "::error::unsupported convergence evidence schema: $SCHEMA_VERSION"; exit 1 ;;
+          esac
+
           jq -e '
-            .schema_version == "governed_production_promotion_convergence.v1" and
             .ok == true and
             .candidate_tree_matches_main == true and
             .protected_refs_stable_during_validation == true and
@@ -62,36 +65,47 @@ jobs:
             .provider_call_executed == false and
             .credential_payload_read == false and
             .secrets_included == false and
-            (.request_pr | test("^[0-9]+$")) and
-            (.main_sha | test("^[0-9a-f]{40}$")) and
+            (.request_pr | tostring | test("^[1-9][0-9]*$")) and
             (.production_sha | test("^[0-9a-f]{40}$")) and
             (.candidate_sha | test("^[0-9a-f]{40}$")) and
-            (.release_pr | test("^[0-9]+$")) and
-            (.validation_pr | test("^[0-9]+$"))
+            (.release_pr | tostring | test("^[1-9][0-9]*$")) and
+            (.validation_pr | tostring | test("^[1-9][0-9]*$"))
           ' "$EVIDENCE_PATH" >/dev/null
 
-          REQUEST_PR="$(jq -r '.request_pr' "$EVIDENCE_PATH")"
-          MAIN_SHA="$(jq -r '.main_sha' "$EVIDENCE_PATH")"
-          PRODUCTION_SHA="$(jq -r '.production_sha' "$EVIDENCE_PATH")"
-          CANDIDATE_SHA="$(jq -r '.candidate_sha' "$EVIDENCE_PATH")"
-          RELEASE_PR="$(jq -r '.release_pr' "$EVIDENCE_PATH")"
-          VALIDATION_PR="$(jq -r '.validation_pr' "$EVIDENCE_PATH")"
+          RELEASE_MODE="$(jq -r '.release_mode // "legacy_exact_main"' "$EVIDENCE_PATH")"
+          RELEASE_CUT_SHA="$(jq -r '.release_cut_sha // .main_sha // ""' "$EVIDENCE_PATH")"
+          [[ "$RELEASE_CUT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release cut SHA is invalid"; exit 1; }
+          if [[ "$SCHEMA_VERSION" == governed_production_promotion_convergence.v2 ]]; then
+            [[ "$RELEASE_MODE" == certified_release_cut ]] || { echo "::error::v2 evidence must use certified_release_cut mode"; exit 1; }
+            jq -e '
+              .candidate_tree_matches_release_cut == true and
+              .release_cut_is_ancestor_of_current_main == true and
+              .production_is_ancestor_of_release_cut == true and
+              .candidate_contains_production == true and
+              .production_ref_stable_during_validation == true and
+              .supporting_gates_success == true and
+              .main_tip_may_advance == true
+            ' "$EVIDENCE_PATH" >/dev/null
+          fi
 
           {
-            echo "request_pr=$REQUEST_PR"
-            echo "main_sha=$MAIN_SHA"
-            echo "production_sha=$PRODUCTION_SHA"
-            echo "candidate_sha=$CANDIDATE_SHA"
-            echo "release_pr=$RELEASE_PR"
-            echo "validation_pr=$VALIDATION_PR"
+            echo "schema_version=$SCHEMA_VERSION"
+            echo "release_mode=$RELEASE_MODE"
+            echo "request_pr=$(jq -r '.request_pr' "$EVIDENCE_PATH")"
+            echo "release_cut_sha=$RELEASE_CUT_SHA"
+            echo "production_sha=$(jq -r '.production_sha' "$EVIDENCE_PATH")"
+            echo "candidate_sha=$(jq -r '.candidate_sha' "$EVIDENCE_PATH")"
+            echo "release_pr=$(jq -r '.release_pr' "$EVIDENCE_PATH")"
+            echo "validation_pr=$(jq -r '.validation_pr' "$EVIDENCE_PATH")"
             echo "evidence_path=$EVIDENCE_PATH"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Perform post-finalization protected-ref readback
+      - name: Perform post-finalization protected-ref and ancestry readback
         id: readback
         shell: bash
         env:
-          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          RELEASE_MODE: ${{ steps.evidence.outputs.release_mode }}
+          RELEASE_CUT_SHA: ${{ steps.evidence.outputs.release_cut_sha }}
           PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
           CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
           RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
@@ -99,38 +113,53 @@ jobs:
           set -Eeuo pipefail
           CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           CURRENT_PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-          RELEASE_JSON="$(gh pr view "$RELEASE_PR" --repo "$REPOSITORY" --json state,headRefOid,headRefName,baseRefName)"
-          RELEASE_STATE="$(jq -r '.state' <<<"$RELEASE_JSON")"
-          RELEASE_HEAD_SHA="$(jq -r '.headRefOid' <<<"$RELEASE_JSON")"
-          RELEASE_HEAD_BRANCH="$(jq -r '.headRefName' <<<"$RELEASE_JSON")"
-          RELEASE_BASE="$(jq -r '.baseRefName' <<<"$RELEASE_JSON")"
+          [[ "$CURRENT_MAIN_SHA" =~ ^[0-9a-f]{40}$ && "$CURRENT_PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]]
 
-          MAIN_COMPARE="$(gh api "/repos/${REPOSITORY}/compare/${PINNED_MAIN_SHA}...${CANDIDATE_SHA}")"
-          PRODUCTION_COMPARE="$(gh api "/repos/${REPOSITORY}/compare/${PINNED_PRODUCTION_SHA}...${CANDIDATE_SHA}")"
-          TREE_DIFF_COUNT="$(jq -r '.files | length' <<<"$MAIN_COMPARE")"
-          MAIN_BEHIND="$(jq -r '.behind_by' <<<"$MAIN_COMPARE")"
-          PRODUCTION_BEHIND="$(jq -r '.behind_by' <<<"$PRODUCTION_COMPARE")"
+          RELEASE_JSON="$RUNNER_TEMP/release-pr.json"
+          gh api "/repos/${REPOSITORY}/pulls/${RELEASE_PR}" > "$RELEASE_JSON"
+          RELEASE_STATE="$(jq -r '.state' "$RELEASE_JSON")"
+          RELEASE_HEAD_SHA="$(jq -r '.head.sha' "$RELEASE_JSON")"
+          RELEASE_HEAD_BRANCH="$(jq -r '.head.ref' "$RELEASE_JSON")"
+          RELEASE_BASE="$(jq -r '.base.ref' "$RELEASE_JSON")"
+          RELEASE_BASE_SHA="$(jq -r '.base.sha' "$RELEASE_JSON")"
+          RELEASE_HEAD_REPO="$(jq -r '.head.repo.full_name // ""' "$RELEASE_JSON")"
+
+          CUT_TO_MAIN="$RUNNER_TEMP/cut-to-main.json"
+          CUT_TO_CANDIDATE="$RUNNER_TEMP/cut-to-candidate.json"
+          PROD_TO_CANDIDATE="$RUNNER_TEMP/prod-to-candidate.json"
+          gh api "/repos/${REPOSITORY}/compare/${RELEASE_CUT_SHA}...${CURRENT_MAIN_SHA}" > "$CUT_TO_MAIN"
+          gh api "/repos/${REPOSITORY}/compare/${RELEASE_CUT_SHA}...${CANDIDATE_SHA}" > "$CUT_TO_CANDIDATE"
+          gh api "/repos/${REPOSITORY}/compare/${PINNED_PRODUCTION_SHA}...${CANDIDATE_SHA}" > "$PROD_TO_CANDIDATE"
+          CUT_MAIN_STATUS="$(jq -r '.status // ""' "$CUT_TO_MAIN")"
+          CUT_MAIN_BEHIND="$(jq -r '.behind_by // -1' "$CUT_TO_MAIN")"
+          CUT_CANDIDATE_DIFF="$(jq -r '.files | length' "$CUT_TO_CANDIDATE")"
+          CUT_CANDIDATE_BEHIND="$(jq -r '.behind_by // -1' "$CUT_TO_CANDIDATE")"
+          PROD_CANDIDATE_BEHIND="$(jq -r '.behind_by // -1' "$PROD_TO_CANDIDATE")"
+
+          CANDIDATE_COMMIT="$RUNNER_TEMP/candidate-commit.json"
+          gh api "/repos/${REPOSITORY}/commits/${CANDIDATE_SHA}" > "$CANDIDATE_COMMIT"
+          FIRST_PARENT="$(jq -r '.parents[0].sha // ""' "$CANDIDATE_COMMIT")"
 
           STABLE=true
           REASON=stable
-          if [[ "$CURRENT_MAIN_SHA" != "$PINNED_MAIN_SHA" ]]; then
-            STABLE=false
-            REASON=main_moved_after_finalization
-          elif [[ "$CURRENT_PRODUCTION_SHA" != "$PINNED_PRODUCTION_SHA" ]]; then
-            STABLE=false
-            REASON=production_moved_after_finalization
-          elif [[ "$RELEASE_STATE" != "OPEN" || "$RELEASE_BASE" != "Production" ]]; then
-            STABLE=false
-            REASON=release_surface_not_open_on_production
+          if [[ "$CURRENT_PRODUCTION_SHA" != "$PINNED_PRODUCTION_SHA" ]]; then
+            STABLE=false; REASON=production_moved_after_finalization
+          elif [[ "$RELEASE_STATE" != open || "$RELEASE_BASE" != Production || "$RELEASE_HEAD_REPO" != "$REPOSITORY" ]]; then
+            STABLE=false; REASON=release_surface_not_open_on_production
+          elif [[ "$RELEASE_BASE_SHA" != "$CURRENT_PRODUCTION_SHA" ]]; then
+            STABLE=false; REASON=release_base_stale_relative_to_production
           elif [[ "$RELEASE_HEAD_SHA" != "$CANDIDATE_SHA" ]]; then
-            STABLE=false
-            REASON=release_head_changed_after_finalization
-          elif [[ "$TREE_DIFF_COUNT" != "0" || "$MAIN_BEHIND" != "0" ]]; then
-            STABLE=false
-            REASON=candidate_no_longer_matches_or_contains_main
-          elif [[ "$PRODUCTION_BEHIND" != "0" ]]; then
-            STABLE=false
-            REASON=candidate_no_longer_contains_pinned_production
+            STABLE=false; REASON=release_head_changed_after_finalization
+          elif [[ "$RELEASE_MODE" == certified_release_cut && ( "$CUT_MAIN_BEHIND" != 0 || ( "$CUT_MAIN_STATUS" != ahead && "$CUT_MAIN_STATUS" != identical ) ) ]]; then
+            STABLE=false; REASON=release_cut_not_in_current_main
+          elif [[ "$RELEASE_MODE" != certified_release_cut && "$CURRENT_MAIN_SHA" != "$RELEASE_CUT_SHA" ]]; then
+            STABLE=false; REASON=legacy_exact_main_moved_after_finalization
+          elif [[ "$CUT_CANDIDATE_DIFF" != 0 || "$CUT_CANDIDATE_BEHIND" != 0 ]]; then
+            STABLE=false; REASON=candidate_tree_or_ancestry_differs_from_release_cut
+          elif [[ "$RELEASE_MODE" == certified_release_cut && "$FIRST_PARENT" != "$RELEASE_CUT_SHA" ]]; then
+            STABLE=false; REASON=candidate_first_parent_differs_from_release_cut
+          elif [[ "$PROD_CANDIDATE_BEHIND" != 0 ]]; then
+            STABLE=false; REASON=candidate_no_longer_contains_pinned_production
           fi
 
           {
@@ -139,39 +168,29 @@ jobs:
             echo "current_main_sha=$CURRENT_MAIN_SHA"
             echo "current_production_sha=$CURRENT_PRODUCTION_SHA"
             echo "release_head_branch=$RELEASE_HEAD_BRANCH"
+            echo "main_advanced=$([[ "$CURRENT_MAIN_SHA" != "$RELEASE_CUT_SHA" ]] && printf true || printf false)"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Fail closed and restart convergence when stale
+      - name: Mark true release-cut invalidation without blind restart
         if: steps.readback.outputs.stable != 'true'
         shell: bash
         env:
           RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
           REQUEST_PR: ${{ steps.evidence.outputs.request_pr }}
           CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
-          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          RELEASE_CUT_SHA: ${{ steps.evidence.outputs.release_cut_sha }}
           CURRENT_MAIN_SHA: ${{ steps.readback.outputs.current_main_sha }}
           PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
           CURRENT_PRODUCTION_SHA: ${{ steps.readback.outputs.current_production_sha }}
           STALE_REASON: ${{ steps.readback.outputs.reason }}
         run: |
           set -Eeuo pipefail
-          MARKER="POST_FINALIZATION_STALE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} reason=${STALE_REASON} main_before=${PINNED_MAIN_SHA} main_after=${CURRENT_MAIN_SHA} production_before=${PINNED_PRODUCTION_SHA} production_after=${CURRENT_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
-          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$MARKER" || true
-          gh pr close "$RELEASE_PR" --repo "$REPOSITORY" || true
-
-          RETRY_COUNT="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" --paginate --jq '[.[] | select(.body | startswith("POST_FINALIZATION_STALE"))] | length')"
-          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$MARKER retry_count=$RETRY_COUNT max_retries=$MAX_POST_FINALIZATION_RETRIES"
-
-          if (( RETRY_COUNT >= MAX_POST_FINALIZATION_RETRIES )); then
-            echo "::error::post-finalization convergence retry limit reached"
-            exit 1
-          fi
-
-          REQUEST_STATE="$(gh pr view "$REQUEST_PR" --repo "$REPOSITORY" --json state --jq '.state')"
-          if [[ "$REQUEST_STATE" == "OPEN" ]]; then
-            gh pr close "$REQUEST_PR" --repo "$REPOSITORY"
-          fi
-          gh pr reopen "$REQUEST_PR" --repo "$REPOSITORY"
+          MARKER="POST_FINALIZATION_INVALID release_cut=${RELEASE_CUT_SHA} current_main=${CURRENT_MAIN_SHA} candidate=${CANDIDATE_SHA} reason=${STALE_REASON} production_before=${PINNED_PRODUCTION_SHA} production_after=${CURRENT_PRODUCTION_SHA} new_authorization_required=true merge_executed=false deployment_executed=false"
+          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$MARKER" || echo "::warning::release invalidation comment transport degraded"
+          gh pr close "$RELEASE_PR" --repo "$REPOSITORY" || echo "::warning::release invalidation surface cleanup degraded"
+          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$MARKER" || echo "::warning::request invalidation comment transport degraded"
+          echo "::error::certified release cut became invalid; refusing to reuse stale authorization"
+          exit 1
 
       - name: Close superseded Production and validation surfaces
         if: steps.readback.outputs.stable == 'true'
@@ -180,48 +199,49 @@ jobs:
           RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
           VALIDATION_PR: ${{ steps.evidence.outputs.validation_pr }}
           CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
-          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          RELEASE_CUT_SHA: ${{ steps.evidence.outputs.release_cut_sha }}
+          CURRENT_MAIN_SHA: ${{ steps.readback.outputs.current_main_sha }}
           PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
+          MAIN_ADVANCED: ${{ steps.readback.outputs.main_advanced }}
         run: |
           set -Eeuo pipefail
-          FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} main=${PINNED_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} validation_pr=${VALIDATION_PR} merge_executed=false deployment_executed=false"
+          FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} release_cut=${RELEASE_CUT_SHA} current_main=${CURRENT_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} main_advanced=${MAIN_ADVANCED} main_tip_may_advance=true validation_pr=${VALIDATION_PR} merge_executed=false deployment_executed=false"
 
-          gh pr list --repo "$REPOSITORY" --state open --limit 200 \
-            --json number,title,headRefName,baseRefName \
-            --jq '.[] | select(.baseRefName == "Production" and (.title | startswith("release: promote pinned main "))) | [.number, .headRefName] | @tsv' |
+          gh pr list --repo "$REPOSITORY" --state open --limit 200 --json number,title,headRefName,baseRefName \
+            --jq '.[] | select(.baseRefName == "Production" and (.title | startswith("release: promote pinned main "))) | [.number,.headRefName] | @tsv' |
           while IFS=$'\t' read -r pr_number head_branch; do
             [[ -n "$pr_number" ]] || continue
-            if [[ "$pr_number" == "$RELEASE_PR" ]]; then
-              continue
-            fi
+            [[ "$pr_number" == "$RELEASE_PR" ]] && continue
             gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_PRODUCTION_CANDIDATE authoritative_release_pr=${RELEASE_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
             gh pr close "$pr_number" --repo "$REPOSITORY" || true
           done
 
-          gh pr list --repo "$REPOSITORY" --state open --limit 200 \
-            --json number,title,headRefName \
-            --jq '.[] | select(.title | startswith("ci: validate exact Production candidate ")) | [.number, .headRefName] | @tsv' |
+          gh pr list --repo "$REPOSITORY" --state open --limit 200 --json number,title,headRefName \
+            --jq '.[] | select((.title | startswith("ci: validate exact Production candidate ")) or (.title | startswith("test(release): certify immutable Production candidate "))) | [.number,.headRefName] | @tsv' |
           while IFS=$'\t' read -r pr_number head_branch; do
             [[ -n "$pr_number" ]] || continue
-            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_EXACT_VALIDATION authoritative_release_pr=${RELEASE_PR} authoritative_validation_pr=${VALIDATION_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
+            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_RELEASE_VALIDATION authoritative_release_pr=${RELEASE_PR} authoritative_validation_pr=${VALIDATION_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
             gh pr close "$pr_number" --repo "$REPOSITORY" || true
           done
 
-          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$FINAL_MARKER single_release_surface=true final_freshness_readback=true"
+          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$FINAL_MARKER single_release_surface=true final_freshness_readback=true" || echo "::warning::final evidence comment transport degraded"
 
       - name: Publish post-finalization summary
         if: always()
         shell: bash
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Governed Production post-finalization guard
+          ## Governed Production post-finalization release-cut guard
 
           - source convergence run: \`${SOURCE_RUN_ID}\`
+          - release mode: \`${{ steps.evidence.outputs.release_mode }}\`
+          - release cut: \`${{ steps.evidence.outputs.release_cut_sha }}\`
+          - current main: \`${{ steps.readback.outputs.current_main_sha }}\`
           - candidate: \`${{ steps.evidence.outputs.candidate_sha }}\`
           - release PR: \`${{ steps.evidence.outputs.release_pr }}\`
-          - validation PR: \`${{ steps.evidence.outputs.validation_pr }}\`
           - final freshness stable: \`${{ steps.readback.outputs.stable }}\`
           - readback reason: \`${{ steps.readback.outputs.reason }}\`
+          - main tip may advance: \`true\`
           - merge executed: false
           - deployment executed: false
           - migration executed: false
