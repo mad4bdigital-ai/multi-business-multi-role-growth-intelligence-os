@@ -94,12 +94,36 @@ check("evaluation-verifier-is-exact-head-read-only", () => {
   assert.doesNotMatch(evaluationWorkflow, /git\s+push/u);
 });
 
+check("evaluation-bootstrap-reuses-trusted-inventory-gate", () => {
+  assert.match(evaluationWorkflow, /Classify read-only repository-state bootstrap/u);
+  assert.match(evaluationWorkflow, /scripts\/repository-inventory-verification-gate\.mjs/u);
+  assert.match(evaluationWorkflow, /git diff --quiet origin\/main\.\.\.HEAD -- scripts\/repository-inventory-verification-gate\.mjs/u);
+  assert.match(evaluationWorkflow, /bootstrap_pending=true/u);
+  assert.match(evaluationWorkflow, /deterministic_generation_verified/u);
+});
+
+check("evaluation-bootstrap-proves-convergence-without-write-authority", () => {
+  assert.match(evaluationWorkflow, /Prove read-only Repository State bootstrap convergence/u);
+  assert.match(evaluationWorkflow, /scripts\/repository-evaluation\.mjs/u);
+  assert.match(evaluationWorkflow, /scripts\/test-repository-evaluation\.mjs/u);
+  assert.match(evaluationWorkflow, /npm run evaluation:write -- --enforce/u);
+  assert.match(evaluationWorkflow, /evaluation-first\.sha256/u);
+  assert.match(evaluationWorkflow, /evaluation-second\.sha256/u);
+  assert.match(evaluationWorkflow, /cmp "\$RUNNER_TEMP\/evaluation-first\.sha256" "\$RUNNER_TEMP\/evaluation-second\.sha256"/u);
+  assert.match(evaluationWorkflow, /repository-state-bootstrap-proof\.v1/u);
+  assert.match(evaluationWorkflow, /dirty_set_exact_six_outputs:true/u);
+  assert.match(evaluationWorkflow, /repository_mutation:false/u);
+  assert.match(evaluationWorkflow, /protected_branch_mutation:false/u);
+  assert.match(evaluationWorkflow, /force_push:false/u);
+});
+
 console.log(JSON.stringify({
   contract: CONTRACT,
   ok: true,
   checks,
   inventory_then_evaluation: true,
   exact_head_dual_verification: true,
+  read_only_bootstrap_convergence_proof: true,
   verification_dispatch_v1_compatible: true,
   sole_mutating_writer_preserved: true,
   protected_branch_mutation: false,
