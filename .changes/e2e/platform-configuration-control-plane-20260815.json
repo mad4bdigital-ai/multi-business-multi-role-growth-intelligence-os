@@ -22,7 +22,16 @@
       "http-generic-api/test-platform-configuration-registry-adapter.mjs",
       "http-generic-api/test-platform-legacy-configuration-adapter.mjs",
       "http-generic-api/test-tenant-ssh-cli-allowlisted-execute.mjs",
-      "http-generic-api/test-tenant-ssh-execute-runtime-config.mjs"
+      "http-generic-api/test-tenant-ssh-execute-runtime-config.mjs",
+      "http-generic-api/config/database-engine-collation-policy.json",
+      "http-generic-api/databaseCollationPolicyGuard.js",
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/governedToolResponseChunkStore.js",
+      "http-generic-api/test-database-collation-policy.mjs",
+      "http-generic-api/test-admin-control.mjs",
+      "http-generic-api/test-gpt-tools-response-chunking.mjs",
+      "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
+      "AI_Agent_Knowledge_Guide.md"
     ]
   },
   "merge_contract": {
@@ -61,7 +70,10 @@
             { "id": "platform-legacy-configuration-adapter", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-platform-legacy-configuration-adapter.mjs", "args": [] },
             { "id": "growth-control-shadow-parity", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-growth-control-shadow-parity.mjs", "args": [] },
             { "id": "tenant-ssh-cli-allowlisted-execute", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-ssh-cli-allowlisted-execute.mjs", "args": [] },
-            { "id": "tenant-ssh-execute-runtime-config", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-ssh-execute-runtime-config.mjs", "args": [] }
+            { "id": "tenant-ssh-execute-runtime-config", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-ssh-execute-runtime-config.mjs", "args": [] },
+            { "id": "database-collation-policy", "runner": "node", "working_directory": "http-generic-api", "path": "test-database-collation-policy.mjs", "args": [] },
+            { "id": "admin-control-migration-alias", "runner": "node", "working_directory": "http-generic-api", "path": "test-admin-control.mjs", "args": [] },
+            { "id": "gpt-tools-response-chunking", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-response-chunking.mjs", "args": [] }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-configuration-control-plane-20260815.json",
@@ -77,7 +89,16 @@
             "http-generic-api/test-platform-configuration-registry-adapter.mjs",
             "http-generic-api/test-platform-legacy-configuration-adapter.mjs",
       "http-generic-api/test-tenant-ssh-cli-allowlisted-execute.mjs",
-      "http-generic-api/test-tenant-ssh-execute-runtime-config.mjs"
+      "http-generic-api/test-tenant-ssh-execute-runtime-config.mjs",
+      "http-generic-api/config/database-engine-collation-policy.json",
+      "http-generic-api/databaseCollationPolicyGuard.js",
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/governedToolResponseChunkStore.js",
+      "http-generic-api/test-database-collation-policy.mjs",
+      "http-generic-api/test-admin-control.mjs",
+      "http-generic-api/test-gpt-tools-response-chunking.mjs",
+      "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
+      "AI_Agent_Knowledge_Guide.md"
           ]
         }
       ]
