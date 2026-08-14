@@ -3,6 +3,8 @@
   "track": "C",
   "branch": "agent/track-c-surfaces-mcp-gpt-frontend",
   "base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "pinned_main_sha": "4753d6904c16a30ea8bede5f329a5dca17f98bfb",
+  "source_head_before_handoff_refresh": "551650a4c428e94a1b56da701d51fea83d5494e3",
   "contract_chain": [
     "Context Kernel",
     "Capability Manifest",
@@ -15,20 +17,62 @@
     "Readback",
     "Surface Projection"
   ],
-  "track_a_dependency": "runtime contracts",
-  "track_b_dependency": "readiness evidence",
+  "dependencies": {
+    "track_a": {
+      "required_contract": "final-authority plus durable execution, adapter, readback runtime contract",
+      "pinned_head": "8e6df87643f39449f4543b5f875acadf6e60de19",
+      "state": "not_advanced_from_shared_baseline"
+    },
+    "track_b": {
+      "required_contract": "readiness evidence consumed through Track A runtime composition",
+      "pinned_head": "7ff342d7020671ace76170b8b6da7dce4d5d39ce",
+      "state": "draft_not_merged"
+    }
+  },
   "projection_only": true,
+  "creates_authority": false,
+  "selects_connection": false,
+  "executes_provider": false,
   "generated_artifacts_modified": false,
+  "reserved_inventory_or_evaluation_modified": false,
+  "runtime_wiring": {
+    "remote_mcp_tools_call_rewired": false,
+    "reason": "Track A authoritative runtime resolver has not landed. The current-main canonicalExecutionContractResolver remains a shadow candidate/preflight resolver and is not a substitute.",
+    "legacy_chatgpt_mcp_runtime_authoritative": false
+  },
   "evidence": {
     "openapi_schema_parity": "specs/005-dynamic-mcp-schema-surfaces/evidence/track-c-openapi-schema-parity-20260814.json",
-    "host_tenant_isolation": "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json"
+    "host_tenant_isolation": "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json",
+    "spec016_e2e_projection_binding": "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json"
+  },
+  "reconciliation": {
+    "current_main_direct_overlap": [
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json"
+    ],
+    "required_order": ["B", "A", "C", "integration"],
+    "early_rebase_authorized": false
   },
   "validation": {
-    "standalone_node22_ece_test": "pass",
-    "evaluation_loop": "pending_complete_checkout",
-    "schemas_guard": "pending_complete_checkout",
-    "frontend_dispatch_check": "pending_complete_checkout",
-    "path_guard": "pending_complete_checkout",
+    "previous_exact_source_head": "ea4bfc46a6118c0c6bc107f94bf58aa474290124",
+    "previous_exact_head_full_ordered_npm_test": "pass",
+    "ci_recovery_first_failure": {
+      "run_id": 31753280751,
+      "job_id": 94623815892,
+      "artifact_id": 9201793432,
+      "command": "node test-delegation-execution-policy-runtime.mjs",
+      "assertion": "Spec 011 T141 expected unchecked but shared-baseline tasks.md contained it checked",
+      "ownership": "upstream_shared_baseline_not_track_c",
+      "track_c_patch_required": false,
+      "current_main_specific_contract_consistent": true
+    },
+    "spec016_e2e_contract": "updated_with_public_capability_projection_on_551650a4c428e94a1b56da701d51fea83d5494e3",
+    "spec010_e2e_contract": "missing_normal_contents_api_create_was_blocked_before_write",
+    "e2e_phase_governance": "pending_new_head_evaluation_spec010_known_remaining_blocker",
+    "spec016_work_map": "reconciliation_debt_remains",
+    "evaluation_loop": "deferred_until_required_upstream_reconciliation_and_final_integration_for_reserved_generated_outputs",
+    "schemas_guard": "required_after_upstream_reconciliation",
+    "frontend_dispatch_check": "required_after_upstream_reconciliation",
+    "path_guard": "required_after_upstream_reconciliation",
     "merge_ready": false
   },
   "live_acceptance": {
@@ -37,5 +81,13 @@
     "oauth_client_acceptance_executed": false,
     "claim": "DCR, OAuth client acceptance, and live-client acceptance were not executed because they require separate approval and an isolated environment."
   },
-  "merge_order": ["B", "A", "C", "integration"]
+  "safety": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "production_mutated": false,
+    "hostinger_mutated": false,
+    "force_push_used": false,
+    "low_level_git_plumbing_used_to_bypass_blocked_write": false
+  }
 }
