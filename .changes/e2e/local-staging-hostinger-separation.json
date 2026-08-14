@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-staging-hostinger-separation",
+  "title": "Portable Local Staging and Hostinger Production Separation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-staging-hostinger-separation.json",
+      "STAGING-WINDOWS.md",
+      "docs/hostinger-node-deploy.md",
+      "http-generic-api/.dockerignore",
+      "http-generic-api/.env.example",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/Dockerfile",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/docker-compose.yml",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/test-staging-three-db-topology.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a portable Windows/External SSD Staging topology with three dedicated MariaDB bindings, an opt-in Dev-only Cloudflare Tunnel, Hostinger Cloud production separation, and fail-closed mutation defaults.",
+      "e2e_journeys": [
+        {
+          "id": "portable-staging-to-separated-production-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Staging operator",
+          "entrypoint": "docker-compose.staging.yml and .env.staging.example",
+          "terminal_outcome": "The repository proves the three local database services, SSD bind mounts, disabled-by-default mutation flags, optional Dev-only tunnel profile, and Hostinger deployment boundary without starting a database, applying SQL, reading credentials, or mutating Production.",
+          "steps": [
+            "Parse the staging Compose and environment templates without starting containers.",
+            "Verify runtime, governance, and persistence databases have distinct services, identities, names, and SSD bind mounts.",
+            "Verify the app depends on healthy local database services and the staging safety flags remain false.",
+            "Verify the Cloudflare service is opt-in behind the tunnel profile and targets the local app network rather than a Production hostname or credential.",
+            "Verify the Hostinger deployment documentation keeps Production on the Production branch and treats Redis as disabled or externally managed on Cloud hosting.",
+            "Run the bounded topology regression and emit only secret-free pass/fail evidence."
+          ],
+          "assertions": [
+            "The three database bindings are not conflated: DB_*, GOVERNANCE_DB_*, and RUNTIME_PERSISTENCE_DB_* remain separate.",
+            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false remain explicit defaults, and no migration or SQL apply is executed.",
+            "The Cloudflare Tunnel service is not part of the default startup path and uses only a Dev token supplied through the untracked staging environment.",
+            "Production remains on Hostinger Cloud and never reuses the Dev tunnel hostname, token, DNS record, or External SSD state.",
+            "Hostinger Cloud operation without Redis is represented as disabled queue mode; queued Production operation requires a separate external managed Redis endpoint.",
+            "No provider mutation, credential output, deployment promotion, main mutation, or Production mutation is introduced by this change."
+          ],
+          "tests": [
+            {
+              "id": "staging-three-db-topology-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-three-db-topology.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/local-staging-hostinger-separation.json",
+            "STAGING-WINDOWS.md",
+            "docs/hostinger-node-deploy.md",
+            "http-generic-api/.env.staging.example",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/test-staging-three-db-topology.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Expose Dev through a manually provisioned Cloudflare Tunnel and validate the local app externally without reusing Production credentials or authorizing SQL mutation.",
+      "blockers": [
+        "A dedicated Cloudflare Dev tunnel and dev.mad4b.com ingress must be provisioned by an authorized operator.",
+        "The Dev tunnel token is not present in the repository and must remain in the untracked local environment.",
+        "External route validation requires a running Windows/WSL2 Docker host and is not performed in repository CI."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Preserve portability and fail-closed behavior across Windows machines and External SSD reconnection without sharing state with Hostinger Production."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No external provider canary or DNS mutation is introduced by this repository change."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production remains a separately governed Hostinger release requiring exact Production promotion, Hostinger runtime readback, database capability verification, and explicit Redis/provider readiness.",
+      "blockers": [
+        "No Hostinger deployment or Production promotion is authorized by this source PR.",
+        "No Production database migration, grant, or SQL apply is authorized.",
+        "Production secrets and any external Redis credential must be configured only in the Hostinger environment and never committed."
+      ]
+    }
+  ]
+}
