@@ -10,7 +10,8 @@
       ".changes/e2e/production-promotion-direct-run-id-settlement.json",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".github/tests/production-promotion-review-mode.test.mjs",
-      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
     ]
   },
   "merge_contract": {
@@ -62,13 +63,21 @@
               "working_directory": ".",
               "path": ".github/tests/production-promotion-review-mode.test.mjs",
               "args": []
+            },
+            {
+              "id": "production-promotion-candidate-dispatch-input-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-dispatch-input-parity.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/production-promotion-direct-run-id-settlement.json",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
             ".github/tests/production-promotion-review-mode.test.mjs",
-            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
           ]
         }
       ]
