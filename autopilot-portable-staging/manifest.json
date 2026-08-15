@@ -30,11 +30,11 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "aaa1288c642096c4c9a564f0d38717bb4f8ba99e3cf9e8f80814ab686ca51a58"
+      "sha256": "520c851a8996f727c4097f01c071746dba31e1bec1c17027c70df156a34d2209"
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "1832101cf2d48e8d85783bf4f246e233bf55754bd9e0e9e80e03d916541b0860"
+      "sha256": "c7a370b6c6b149038b0c692c6f792db42160bbc022135e9ce0c5f4b4a645c8e9"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -54,7 +54,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Operations-Log.ps1",
-      "sha256": "ac5053f7772037b428621e2c27e3dbe3e311c644c2d682e5ccc593bd0a2b4153"
+      "sha256": "9ffd787a268150caa3e874fcd0c82e8793f77ff54e544f4e981485a60b604260"
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "460a4ad5f8a53148fc9849fcbaa27bbd24e8d19668ef8572cfdcdebf4db1c9a3"
+      "sha256": "432c3fd643e90abbcb8a039a2d8b9b207a4345740294c9c9993613961a7635f5"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
@@ -238,7 +238,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "c77542d79474f42860b688ac353dfeddda3daf4a030c421a5caed776aac8e7fd"
+      "sha256": "904b71b03ea6857d6af2f10ed44558874b5dcc936034b115d7ef7686de45cc95"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -246,7 +246,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "c3897343caea090b28c991585ad54fabbffb64c18412e16c80968c27e261b106"
+      "sha256": "2a5c13efdf1627e5df28835ad1aeec3016b5d25b2ea74b06a1cca969e4a4e896"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",

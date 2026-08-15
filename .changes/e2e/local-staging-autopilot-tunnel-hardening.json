@@ -121,7 +121,9 @@
             "Auto Pilot, Auto Deploy, and application operations write redacted durable JSONL events plus latest-status and last-failure snapshots on the External SSD, and the CMD launcher exposes the log path after failure.",
             "The Health Monitor writes a per-component heartbeat and health-snapshot.json, checks only local Docker services, and is installed and removed together with the Auto Deploy Task Scheduler task.",
             "Operations logs use a run_id for correlation and rotate bounded JSONL files without changing Production or provider state.",
-            "Staging-Doctor exposes Status, Repair, and Logs modes; Repair may recreate local scheduled tasks and rotate logs, but cannot delete data, apply migrations, rewrite secrets, touch Production, mutate Cloudflare DNS, or mutate Hostinger."
+            "Staging-Doctor exposes Status, Repair, and Logs modes; Repair may recreate local scheduled tasks and rotate logs, but cannot delete data, apply migrations, rewrite secrets, touch Production, mutate Cloudflare DNS, or mutate Hostinger.",
+            "The one-click launcher writes bootstrap-console.log before prerequisite checks, prints it after a non-zero CMD exit, and initializes ignored .env.staging on an existing Git checkout before dependency validation.",
+            "The shared operations logger initializes Mad4bStagingRunId through a StrictMode-safe Get-Variable lookup before the first durable log write, and the logging contract prevents regression to an unset-global read."
           ],
           "tests": [
             {
@@ -234,9 +236,11 @@
             ".github/workflows/staging-main-deploy-eligibility.yml",
             "autopilot-portable-staging/auto-deploy-policy.json",
             "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/Staging-Operations-Log.ps1",
             "autopilot-portable-staging/Install-AutoDeployTask.ps1",
             "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
             "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/test-staging-operations-logging-contract.mjs",
             "docs/staging-auto-deploy.md",
             "docs/staging-schema-contract-matrix.md",
             "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",

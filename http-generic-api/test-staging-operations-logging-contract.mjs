@@ -20,6 +20,7 @@ const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
 
 assert.match(logger, /operations\.jsonl/);
 assert.match(logger, /operations\.1\.jsonl/);
+assert.match(healthMonitor, /health-snapshot\.json/);
 assert.match(logger, /latest-status\.json/);
 assert.match(logger, /last-failure\.json/);
 assert.match(logger, /run_id/);
@@ -29,6 +30,9 @@ assert.match(logger, /SECRET\|PASSWORD\|TOKEN\|API_KEY/);
 assert.match(logger, /Bearer/);
 assert.match(logger, /Write-StagingLog/);
 assert.match(logger, /Write-StagingOperationBoundary/);
+assert.match(logger, /Get-Variable\s+-Name\s+Mad4bStagingRunId\s+-Scope\s+Global\s+-ValueOnly\s+-ErrorAction\s+SilentlyContinue/);
+assert.match(logger, /StrictMode throws when an unset global variable is read directly/);
+assert.doesNotMatch(logger, /\$global:Mad4bStagingRunId\)\)\s*\{/);
 
 for (const script of [oneClick, autoDeploy, appOperations]) {
   assert.match(script, /Staging-Operations-Log\.ps1/);
@@ -41,6 +45,8 @@ assert.match(appOperations, /health:/);
 assert.match(appOperations, /Stage "tunnel"/);
 assert.match(healthMonitor, /health-snapshot\.json/);
 assert.match(healthMonitor, /Write-StagingHeartbeat/);
+assert.match(oneClick, /bootstrap-console\.log/);
+assert.match(cmd, /bootstrap-console\.log/);
 assert.match(healthMonitor, /docker context show/);
 assert.match(doctor, /ValidateSet\("Status", "Repair", "Logs"\)/);
 assert.match(doctor, /maintenance-status\.json/);

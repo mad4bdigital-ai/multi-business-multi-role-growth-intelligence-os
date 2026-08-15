@@ -17,12 +17,32 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $OneClickScriptPath = $PSCommandPath
-. (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$BootstrapScriptRoot = Split-Path -Parent $OneClickScriptPath
+$BootstrapLogRoot = Join-Path $BootstrapScriptRoot "logs"
+$BootstrapFallbackLog = Join-Path $BootstrapLogRoot "bootstrap-console.log"
+function Write-EarlyBootstrapLog([string]$Message) {
+    try {
+        New-Item -ItemType Directory -Force -Path $BootstrapLogRoot | Out-Null
+        $safe = [string]$Message -replace '(?i)(TOKEN|SECRET|PASSWORD|API_KEY)\s*[=:]\s*[^\s,;]+', '$1=REDACTED'
+        Add-Content -LiteralPath $BootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " " + $safe)
+    } catch {
+        Write-Host "STAGING_EARLY_LOG_WRITE_FAILED: $($_.Exception.Message)" -ForegroundColor DarkYellow
+    }
+}
+Write-EarlyBootstrapLog "bootstrap entered mode=$Mode repository_path=$RepositoryPath"
+$loggerPath = Join-Path $BootstrapScriptRoot "Staging-Operations-Log.ps1"
+try { . $loggerPath } catch {
+    Write-EarlyBootstrapLog "logger import failed: $($_.Exception.Message)"
+    throw
+}
 $LogComponent = "auto-pilot"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "one-click process started" -Data @{ mode = $Mode; repository_path = $RepositoryPath }
 trap {
-    Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
-    Write-Host "AUTO_PILOT_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
+    $errorMessage = $_.Exception.Message
+    try { Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $errorMessage -Data @{ error_type = $_.Exception.GetType().FullName } } catch { }
+    Write-EarlyBootstrapLog "unhandled failure: $errorMessage"
+    Write-Host "AUTO_PILOT_FAILURE_LOGGED: $(Join-Path $BootstrapLogRoot 'operations.jsonl')" -ForegroundColor Red
+    Write-Host "AUTO_PILOT_EARLY_DIAGNOSTIC: $BootstrapFallbackLog" -ForegroundColor Yellow
     exit 1
 }
 
@@ -307,10 +327,16 @@ function Install-AutoDeploy([string]$RepoPath) {
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($Ref -ne "main") { Fail "One-click Auto Pilot is main-only" }
 if ($PollSeconds -lt 60) { Fail "PollSeconds must be at least 60" }
-Ensure-Prerequisites
 $repo = Resolve-Repository $scriptRoot
+$envFile = $null
+# On an existing checkout, create the ignored Staging env before prerequisite checks so a missing gh/docker/WSL dependency never hides the env boundary.
+if (Test-Path (Join-Path $repo ".git")) {
+    $envFile = Initialize-Environment $repo $scriptRoot
+    Write-EarlyBootstrapLog "staging environment initialized before prerequisite checks"
+}
+Ensure-Prerequisites
 Ensure-Repository $repo
-$envFile = Initialize-Environment $repo $scriptRoot
+if ([string]::IsNullOrWhiteSpace([string]$envFile)) { $envFile = Initialize-Environment $repo $scriptRoot }
 
 if ($Mode -eq "Stop") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
