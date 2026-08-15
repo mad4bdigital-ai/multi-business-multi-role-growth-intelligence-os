@@ -21,9 +21,9 @@ The rollback section is deliberately **plan-only** at this stage. It proves that
 ## Commands
 
 ```bash
-npm run write-scopes:shadow
-npm run write-scopes:shadow:check
-npm run write-scopes:shadow:test
+node scripts/write-scope-shadow-preflight.mjs
+node scripts/write-scope-shadow-preflight.mjs --check
+node scripts/test-write-scope-shadow-preflight.mjs
 ```
 
 These commands are local governance checks only. They do not connect to a provider, apply a migration, write to a database, send an external request, activate Production, or enable a Write Scope.
