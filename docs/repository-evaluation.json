@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "ac0d05a0d39a1d2614e3dbeea83c9322a74e3909e988619ad0a342b943bb2aee",
+  "inputFingerprint": "8b639857b93191f31b07d5ae2e5a8389ec59b8a79a3cbf3b8aa21c46175ff868",
   "inventory": {
     "files": 6971,
-    "bytes": 65067255,
+    "bytes": 65064160,
     "directories": 260,
     "categories": 13
   },
@@ -195,7 +195,7 @@
           },
           {
             "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-            "bytes": 3128065
+            "bytes": 3123850
           }
         ],
         "unapproved": [
