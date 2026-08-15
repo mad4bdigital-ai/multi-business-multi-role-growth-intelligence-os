@@ -15,6 +15,8 @@
       "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
       "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       ".changes/e2e/brand-root-topology-current-main-20260815.json"
     ]
   },
@@ -89,6 +91,8 @@
             "http-generic-api/dynamicContainerProjectionService.js",
             "http-generic-api/routes/workspaceResourceRoutes.js",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/test-dynamic-container-authority-runtime.mjs",
             "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
             "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
