@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7059,
-    "bytes": 67272006,
-    "lines": 1573937,
+    "files": 7063,
+    "bytes": 67687189,
+    "lines": 1585445,
     "directories": 263,
     "categories": 13
   },
@@ -16,7 +16,7 @@
       "api-runtime": 1420,
       "database-migrations": 782,
       "root-and-other": 277,
-      "api-contracts": 176,
+      "api-contracts": 180,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1653,
+      ".mjs": 1655,
       ".js": 984,
       ".sql": 797,
-      ".json": 766,
+      ".json": 768,
       ".yml": 164,
       ".yaml": 110,
       ".ps1": 16,
@@ -59,9 +59,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3641,
+      "http-generic-api": 3643,
       "docs": 1801,
-      "specs": 864,
+      "specs": 866,
       ".github": 264,
       ".changes": 254,
       "canonicals": 70,
@@ -224,8 +224,8 @@
   "surfaces": {
     "workflows": 161,
     "migrations": 782,
-    "apiContracts": 176,
-    "testSpecFiles": 2196
+    "apiContracts": 180,
+    "testSpecFiles": 2199
   },
   "largestFiles": [
     {
@@ -263,6 +263,12 @@
       "category": "api-runtime",
       "bytes": 606319,
       "lines": 11469
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
+      "category": "api-contracts",
+      "bytes": 407307,
+      "lines": 11364
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
@@ -303,8 +309,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 242148,
-      "lines": 2074
+      "bytes": 242258,
+      "lines": 2075
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
@@ -341,12 +347,6 @@
       "category": "api-runtime",
       "bytes": 149366,
       "lines": 3363
-    },
-    {
-      "path": "AI_Agent_Knowledge_Guide.md",
-      "category": "documentation",
-      "bytes": 146641,
-      "lines": 1341
     }
   ]
 }
