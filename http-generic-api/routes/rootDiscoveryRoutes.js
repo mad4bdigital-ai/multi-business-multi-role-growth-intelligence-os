@@ -63,9 +63,20 @@ const SCOPES_BY_HOST = {
     primary_paths: ["/developer-apps", "/webhooks", "/rate-limit-rules"]
   },
   "dev.mad4b.com": {
-    scope: "development",
-    schema_file: "openapi.gpt-action.dev-dispatcher.yaml",
-    primary_paths: ["/health", "/deployment-info", "/dev/db/status"]
+    scope: "staging-tenant-gpt",
+    schema_file: "openapi.tenant-gpt.staging.yaml",
+    primary_paths: ["/health", "/connect/status", "/connect/activate"],
+    schema_variants: {
+      tenant: "openapi.tenant-gpt.staging.yaml"
+    }
+  },
+  "mcp_dev.mad4b.com": {
+    scope: "staging-mcp",
+    schema_file: "openapi.tenant-gpt.staging.yaml",
+    primary_paths: ["/health", "/mcp"],
+    schema_variants: {
+      tenant: "openapi.tenant-gpt.staging.yaml"
+    }
   },
   "admin.mad4b.com": {
     scope: "admin-cli",

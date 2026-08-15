@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Tenant Core Actions
+  title: Growth Intelligence Platform - Staging Tenant Core Actions
   version: 3.0.0-platform
-  summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
-  description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+  summary: Staging-only Tenant Core Custom GPT/OpenAPI actions.
+  description: Staging artifact generated from the Tenant Core source artifact. It uses the dev.mad4b.com resource and must never be paired with a Production OAuth client or Production host.
 servers:
-  - url: https://auth.mad4b.com
-    description: tenant_core surface
+  - url: https://dev.mad4b.com
+    description: Staging Tenant Core surface
 tags:
   - name: resource-api
     description: Governed logical resources, safe projections, lifecycle operations, changes, revisions, permissions, and readback.
@@ -27,14 +27,14 @@ components:
       description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth.
       flows:
         authorizationCode:
-          authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
-          tokenUrl: https://auth.mad4b.com/auth/oauth/token
+          authorizationUrl: https://dev.mad4b.com/auth/oauth/authorize
+          tokenUrl: https://dev.mad4b.com/auth/oauth/token
           scopes:
-            https://auth.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
-            https://auth.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
-            https://auth.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
-            https://auth.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
-            https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+            https://dev.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
+            https://dev.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
+            https://dev.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
+            https://dev.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
+            https://dev.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
     backendBearerAuth:
       type: http
       scheme: bearer
@@ -526,11 +526,11 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 security:
   - userBearerAuth:
-      - https://auth.mad4b.com/scopes/tenant.links
-      - https://auth.mad4b.com/scopes/tenant.status
-      - https://auth.mad4b.com/scopes/tenant.activation
-      - https://auth.mad4b.com/scopes/tenant.install
-      - https://auth.mad4b.com/scopes/tenant.system-tools
+      - https://dev.mad4b.com/scopes/tenant.links
+      - https://dev.mad4b.com/scopes/tenant.status
+      - https://dev.mad4b.com/scopes/tenant.activation
+      - https://dev.mad4b.com/scopes/tenant.install
+      - https://dev.mad4b.com/scopes/tenant.system-tools
 paths:
   /me/workspaces/{tenant_id}/resources:
     get:
@@ -540,11 +540,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -588,11 +588,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -642,11 +642,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -691,11 +691,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -750,11 +750,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -802,11 +802,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -848,11 +848,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -901,11 +901,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -961,11 +961,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -1021,11 +1021,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -1081,11 +1081,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -1129,11 +1129,11 @@ paths:
         - resource-api
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       parameters:
         - name: tenant_id
           in: path
@@ -1166,11 +1166,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantGrowthDashboard
       x-openai-isConsequential: false
       summary: Read the tenant growth cockpit
@@ -1223,11 +1223,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantGrowthDashboardTab
       x-openai-isConsequential: false
       summary: Read one tenant dashboard tab
@@ -1280,11 +1280,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantDashboardPreferences
       x-openai-isConsequential: false
       summary: Read tenant dashboard preferences
@@ -1329,11 +1329,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: updateTenantDashboardPreferences
       x-openai-isConsequential: true
       summary: Replace tenant dashboard preferences
@@ -1438,11 +1438,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantGrowthDigest
       x-openai-isConsequential: false
       summary: Read a compact tenant growth digest
@@ -1516,11 +1516,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: previewTenantGrowthAction
       x-openai-isConsequential: false
       summary: Preview a governed growth action
@@ -1596,11 +1596,11 @@ paths:
         - growth-dashboard
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: recordTenantGrowthRecommendationFeedback
       x-openai-isConsequential: false
       summary: Record recommendation feedback or outcome
@@ -1700,177 +1700,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /local/tools:
-    get:
-      tags:
-        - local-connector
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: listLocalGatewayTools
-      summary: List tenant-safe local gateway tools
-      description: Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false.
-      parameters:
-        - name: include_planned
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-      responses:
-        "200":
-          description: Local gateway tool catalog
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - surface
-                  - public_host
-                  - caller_type
-                  - count
-                  - tools
-                properties:
-                  ok:
-                    type: boolean
-                  surface:
-                    type: string
-                    enum:
-                      - local_gateway
-                  public_host:
-                    type: string
-                  caller_type:
-                    type: string
-                  count:
-                    type: integer
-                    minimum: 0
-                  tools:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                      properties: {}
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Authenticated caller is not allowed to list the requested tool scope
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Local gateway tool list failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /system/tools:
-    get:
-      tags:
-        - system-layer
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: listTools
-      summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
-      responses:
-        "200":
-          description: System layer tools
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  protocol:
-                    type: string
-                    example: openapi-mcp-facade
-                  principal:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-                  tools:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                      properties: {}
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /system/tools/call:
-    post:
-      tags:
-        - system-layer
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: callTool
-      x-openai-isConsequential: false
-      summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Descriptor tools may declare an explicit handler_name when the public tool name does not map one-to-one to the runtime export; descriptor readiness verifies that the selected handler is callable. Repository Intelligence V2.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - name
-              properties:
-                name:
-                  type: string
-                  pattern: ^[a-z][a-z0-9_:-]{1,128}$
-                  description: Tool key returned by listTools; runtime validates registration, tenant scope, and arguments before dispatch.
-                tool_args:
-                  type: object
-                  additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Admin provider tools require admin/service auth.
-                  properties:
-                    mode:
-                      type: string
-                      enum:
-                        - managed
-                        - dedicated
-                        - hybrid
-                    integration_modes:
-                      type: array
-                      items:
-                        type: string
-                    device_id:
-                      type: string
-                      pattern: ^[a-z0-9-]{2,32}$
-      responses:
-        "200":
-          description: System tool result
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok:
-                    type: boolean
-                  name:
-                    type: string
-                  result:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Tenant scope violation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /tenant/platform/plugins/catalog:
     get:
       tags:
@@ -1918,11 +1747,11 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
   /tenant/platform/plugins/install:
     post:
       x-openai-isConsequential: true
@@ -2017,11 +1846,11 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
   /tenant/platform/plugins/credential-intake-sessions:
     post:
       x-openai-isConsequential: true
@@ -2165,11 +1994,11 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
   /tenant/platform/plugins/resolve:
     post:
       x-openai-isConsequential: false
@@ -2183,11 +2012,11 @@ paths:
       description: Checks tenant plugin readiness without executing actions or returning secrets. The exact workspace_id is mandatory and is resolved as the canonical personal or company Root Workspace. Without brand_ref, personal workspaces may resolve only the authenticated owner's personal connection and company w.
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       requestBody:
         required: true
         content:
@@ -2530,11 +2359,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: listTenantSkillApprovals
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -2845,11 +2674,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
       operationId: decideTenantSkillApproval
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -3067,192 +2896,6 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Decision readback failed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /gpt/sessions/{id}/turn:
-    post:
-      tags:
-        - session-archive
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: writeSessionTurn
-      x-openai-isConsequential: false
-      summary: Append one turn to a customer_sessions archive
-      description: Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: session_id returned by getActivationSessionContext.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - role
-                - content
-              properties:
-                role:
-                  type: string
-                  enum:
-                    - user
-                    - assistant
-                    - tool
-                content:
-                  type: string
-                action_key:
-                  type: string
-      responses:
-        "200":
-          description: Turn write result with Drive anchor and archive status
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required:
-                  - ok
-                  - session_id
-                  - turn_index
-                  - turn_id
-                  - archive_status
-                properties:
-                  ok:
-                    type: boolean
-                  session_id:
-                    type: string
-                  turn_index:
-                    type: integer
-                  turn_id:
-                    type: string
-                  drive_doc_id:
-                    type: string
-                  drive_anchor:
-                    type: string
-                  archive_status:
-                    type: string
-        "400":
-          description: Missing role/content or invalid role
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Session belongs to a different user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Session not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Cannot add turns to a closed session
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Turn write failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /gpt/sessions/{id}/end:
-    post:
-      tags:
-        - session-archive
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: endSession
-      x-openai-isConsequential: false
-      summary: Close a customer_sessions archive
-      description: Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: session_id returned by getActivationSessionContext.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                summary:
-                  type: string
-                user_email:
-                  type: string
-      responses:
-        "200":
-          description: Session close result with archive and Drive export pointers
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required:
-                  - ok
-                  - session_id
-                properties:
-                  ok:
-                    type: boolean
-                  session_id:
-                    type: string
-                  archive:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-                  drive_export:
-                    oneOf:
-                      - type: object
-                        additionalProperties: true
-                        properties:
-                          drive_file_id:
-                            type: string
-                          drive_web_url:
-                            type: string
-                      - type: "null"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Session belongs to a different user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Session not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Session is already closed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Session end failure
           content:
             application/json:
               schema:
@@ -3769,22 +3412,39 @@ x-custom-gpt-generation:
   secrets_included: false
 x-gpt-action-auth-preset:
   authentication_type: OAuth
-  schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
-  activation_schema_url: https://activation.mad4b.com/tenant-gpt/activation-openapi
-  client_id: mad4b-tenant-gpt
-  client_secret: <resolved-from-governed-platform-secret>
-  client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
+  schema_url: https://dev.mad4b.com/openapi.tenant-gpt.auth.yaml
+  activation_schema_url: https://dev.mad4b.com/tenant-gpt/activation-openapi
+  client_id: <TENANT_GPT_STAGING_OAUTH_CLIENT_ID>
+  client_secret: <TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET>
+  client_secret_ref: env:TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET
   client_secret_config_key: tenant_gpt.oauth.client
-  authorization_url: https://auth.mad4b.com/auth/oauth/authorize
-  token_url: https://auth.mad4b.com/auth/oauth/token
+  authorization_url: https://dev.mad4b.com/auth/oauth/authorize
+  token_url: https://dev.mad4b.com/auth/oauth/token
   token_exchange_method: Default (POST request)
   callback_urls_to_allow:
     - https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback
     - https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback
     - https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback
   scope_links:
-    - https://auth.mad4b.com/scopes/tenant.links
-    - https://auth.mad4b.com/scopes/tenant.status
-    - https://auth.mad4b.com/scopes/tenant.activation
-    - https://auth.mad4b.com/scopes/tenant.install
-    - https://auth.mad4b.com/scopes/tenant.system-tools
+    - https://dev.mad4b.com/scopes/tenant.links
+    - https://dev.mad4b.com/scopes/tenant.status
+    - https://dev.mad4b.com/scopes/tenant.activation
+    - https://dev.mad4b.com/scopes/tenant.install
+    - https://dev.mad4b.com/scopes/tenant.system-tools
+x-mad4b-environment: staging
+x-mad4b-staging-boundary:
+  resource: https://dev.mad4b.com
+  authorization_server: https://dev.mad4b.com/auth/oauth
+  client_id_env: TENANT_GPT_STAGING_OAUTH_CLIENT_ID
+  client_secret_env: TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET
+  production_hosts_forbidden_policy: http-generic-api/config/domain-family-policy.json
+  backend_only_paths_excluded:
+    - /local/tools
+    - /system/tools
+    - /system/tools/call
+    - /gpt/sessions/{id}/turn
+    - /gpt/sessions/{id}/end
+x-staging-generation:
+  source_artifact: http-generic-api/openapi/openapi.tenant-gpt.auth.yaml
+  production_replacement_policy: auth_and_activation_hosts_rewritten_to_dev
+  secrets_included: false

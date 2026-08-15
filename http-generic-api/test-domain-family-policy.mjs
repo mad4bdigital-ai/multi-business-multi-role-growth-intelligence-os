@@ -37,12 +37,14 @@ assert.equal(new Set([...productionNames, ...stagingNames]).size, 6);
 assert.equal(production.some((entry) => entry.origin_kind !== "hostinger_production"), false);
 assert.equal(staging.some((entry) => entry.origin_kind !== "local_staging_app"), false);
 assert.equal(policy.environments.staging.hostnames.auth.exposure_status, "planned");
-assert.equal(policy.environments.staging.hostnames.mcp.exposure_status, "reserved_disabled");
-assert.equal(policy.environments.staging.hostnames.mcp.required_runtime_flag, "REMOTE_MCP_ENABLED=true");
+assert.equal(policy.environments.staging.hostnames.mcp.exposure_status, "active_opt_in");
+assert.equal(policy.environments.staging.hostnames.mcp.required_runtime_flag, "REMOTE_MCP_ENABLED=true and REMOTE_MCP_OAUTH_ENABLED=true");
 assert.equal(policy.environments.staging.hostnames.activation.exposure_status, "reserved_disabled");
 assert.equal(policy.environments.staging.hostnames.activation.required_runtime_bundle, "dedicated_staging_activation_gateway_bundle");
 assert.equal(policy.environments.production.tunnel_enabled, false);
 assert.equal(policy.environments.staging.tunnel_enabled, true);
+assert.deepEqual(policy.environments.staging.active_tunnel_hostnames, ["dev.mad4b.com", "mcp_dev.mad4b.com"]);
+assert.deepEqual(policy.environments.staging.reserved_disabled_hostnames, ["activation_dev.mad4b.com"]);
 assert.notEqual(policy.environments.production.credential_namespace, policy.environments.staging.credential_namespace);
 
 assert.deepEqual(deployment.production.hostnames, productionNames);
@@ -51,7 +53,10 @@ assert.equal(deployment.connector_recovery.excluded_from_hostname_families, true
 
 for (const hostname of productionNames) assert.equal(env.includes(hostname), false, `staging env must not contain Production hostname ${hostname}`);
 assert.match(env, /CLOUDFLARE_TUNNEL_ENVIRONMENT=staging/);
-assert.match(env, /CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com,activation_dev\.mad4b\.com/);
+assert.match(env, /CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$/m);
+assert.doesNotMatch(env, /CLOUDFLARE_TUNNEL_HOSTNAMES=.*activation_dev/);
+assert.match(env, /REMOTE_MCP_ENABLED=true/);
+assert.match(env, /REMOTE_MCP_OAUTH_ENABLED=true/);
 assert.match(env, /CLOUDFLARE_TUNNEL_ORIGIN_APP=http:\/\/app:8080/);
 assert.match(env, /CLOUDFLARE_TUNNEL_TOKEN=\s*$/m);
 assert.match(env, /TENANT_GPT_SSO_COOKIE_MODE=host_only/);
@@ -64,7 +69,7 @@ assert.deepEqual(tunnel.profiles, ["tunnel"]);
 assert.match(String(tunnel.command), /--token/);
 assert.equal(String(tunnel.environment.TUNNEL_ENVIRONMENT), "${CLOUDFLARE_TUNNEL_ENVIRONMENT:-staging}");
 assert.equal(String(tunnel.environment.TUNNEL_ORIGIN_APP), "${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}");
-assert.equal(String(tunnel.environment.TUNNEL_HOSTNAMES), "${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com,activation_dev.mad4b.com}");
+assert.equal(String(tunnel.environment.TUNNEL_HOSTNAMES), "${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com}");
 
 // The generated Activation Gateway bundle is currently Production-only. Reusing it
 // for activation_dev would route to auth.mad4b.com and is therefore forbidden.
