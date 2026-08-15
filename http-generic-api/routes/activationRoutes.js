@@ -87,6 +87,17 @@ function asCount(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function selectUniqueRow(rows, label, fallback = null) {
+  const candidates = rowsOrEmpty(rows).filter(Boolean);
+  if (candidates.length > 1) {
+    const error = new Error(`Ambiguous ${label} query result.`);
+    error.status = 409;
+    error.code = "ambiguous_context_query_result";
+    throw error;
+  }
+  return candidates.length === 1 ? candidates[0] : fallback;
+}
+
 function readinessFromResult(result, active = true) {
   if (!result?.ok) return "degraded";
   return active ? "active" : "empty";
@@ -173,7 +184,7 @@ async function safeQuery(sql, params) {
 
 async function countQuery(surface, sql, params = [], queryFn = safeQuery) {
   const result = await queryFn(sql, params);
-  const row = result.rows[0] || {};
+  const row = selectUniqueRow(result.rows, `count:${surface}`, {});
   return {
     surface,
     result,
@@ -749,10 +760,10 @@ export function resolveSessionContextSubject(req = {}) {
   const authBrandKey = queryStringValue(auth.brand_key || auth.target_key);
   const isAdmin = auth.is_admin === true;
   const userId = requestedUserId || authUserId || (isAdmin ? "platform_admin_service" : null);
-  const tenantId = requestedTenantId || authTenantId || (isAdmin ? PLATFORM_TENANT_ID : null);
+  const tenantId = requestedTenantId || authTenantId || null;
   const workspaceId = requestedWorkspaceId || authWorkspaceId || null;
-  const workspaceKey = requestedWorkspaceKey || authWorkspaceKey || (isAdmin ? "platform_repo_governance_zero" : null);
-  const brandKey = requestedBrandKey || authBrandKey || (isAdmin ? PLATFORM_EVOLUTION_BRAND_KEY : null);
+  const workspaceKey = requestedWorkspaceKey || authWorkspaceKey || null;
+  const brandKey = requestedBrandKey || authBrandKey || null;
 
   if (!isAdmin && requestedUserId && requestedUserId !== authUserId) {
     const err = new Error("User JWT cannot inspect another user's activation session context.");
@@ -781,11 +792,6 @@ export function resolveSessionContextSubject(req = {}) {
   };
 }
 
-const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
-const PLATFORM_EVOLUTION_BRAND_KEY = "growth_intelligence_platform";
-const PLATFORM_EVOLUTION_TENANT_ID = "00000000-0000-4000-a000-000000000010";
-const PLATFORM_EVOLUTION_SCOPE_KEY = `brand:${PLATFORM_EVOLUTION_BRAND_KEY}|tenant:${PLATFORM_EVOLUTION_TENANT_ID}`;
-
 export function resolveRequestedEvolutionScope(query = {}, subject = {}) {
   const explicitScope = String(query.evolution_scope_key || query.scope_key || "").trim();
   if (explicitScope) return explicitScope;
@@ -794,7 +800,6 @@ export function resolveRequestedEvolutionScope(query = {}, subject = {}) {
   const tenantId = String(query.evolution_tenant_id || query.tenant_id || subject.tenant_id || "").trim();
   if (brandKey && tenantId) return `brand:${brandKey}|tenant:${tenantId}`;
 
-  if (subject.is_admin) return PLATFORM_EVOLUTION_SCOPE_KEY;
   return null;
 }
 
@@ -875,9 +880,9 @@ async function loadPlatformEvolutionCheckpointContext(subject = {}, query = {}) 
       available: card.rows.length > 0,
       scope_key: requestedScopeKey,
       access_state: subject.is_admin ? "admin_allowed" : "allowed",
-      card: card.rows[0] || null,
+      card: selectUniqueRow(card.rows, "platform_evolution_activation_card"),
       source: "v_platform_evolution_activation_card",
-      next_action: card.rows[0]
+      next_action: selectUniqueRow(card.rows, "platform_evolution_activation_card")
         ? "Use platform_evolution_thread_map and platform_evolution_open_evidence for detailed checkpoint drilldown."
         : "Create a platform_evolution checkpoint for this scope.",
       secrets_included: false,
@@ -1037,7 +1042,7 @@ function compactTurn(row = {}, rawMaxChars = 1200) {
 }
 
 async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
-  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const tenantId = subject.tenant_id || null;
   const userId = subject.user_id || null;
   const workspaceKey = subject.workspace_key || null;
   const brandKey = subject.brand_key || null;
@@ -1233,7 +1238,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
     };
   }
 
-  const statsRow = turnStats.rows[0] || {};
+  const statsRow = selectUniqueRow(turnStats.rows, "session_context_turn_stats", {});
   return {
     status: {
       session_context_reachable: true,
@@ -1304,7 +1309,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
 
 async function autoOpenGptSession(pool, subject, options = {}) {
   const userId = subject.user_id || null;
-  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const tenantId = subject.tenant_id || null;
   const workspaceKey = subject.workspace_key || null;
   const brandKey = subject.brand_key || null;
   const closePreviousSessions = options.close_previous_sessions === true;
@@ -1380,7 +1385,7 @@ export function shouldOpenActivationSession(query = {}) {
 
 async function readOnlyGptSessionContext(pool, subject) {
   const userId = subject.user_id || null;
-  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const tenantId = subject.tenant_id || null;
   const workspaceKey = subject.workspace_key || null;
   const brandKey = subject.brand_key || null;
   const [[activeRow]] = await pool.query(
@@ -1571,7 +1576,7 @@ export async function buildActivationSessionContext(req) {
       if (key) scopeSet.add(String(key));
     }
   }
-  const gptSessionsTenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const gptSessionsTenantId = subject.tenant_id || null;
   const includeSmokeSessions = asBoolean(req.query.include_smoke_sessions);
   const gptOriginatorWhere = includeSmokeSessions
     ? "originator IN ('gpt_action', 'gpt_action_smoke')"
