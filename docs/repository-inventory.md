@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,058 |
-| Total bytes | 67,270,495 |
-| Counted text lines | 1,573,902 |
+| Tracked files | 7,059 |
+| Total bytes | 67,271,888 |
+| Counted text lines | 1,573,932 |
 | Directories | 263 |
 | Categories | 13 |
 
@@ -21,7 +21,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `documentation` | 1,897 |
 | `api-runtime` | 1,420 |
 | `database-migrations` | 782 |
-| `root-and-other` | 276 |
+| `root-and-other` | 277 |
 | `api-contracts` | 176 |
 | `ci-workflows` | 161 |
 | `ci-config` | 103 |
@@ -42,7 +42,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.json` | 766 |
 | `.yml` | 164 |
 | `.yaml` | 110 |
-| `.ps1` | 15 |
+| `.ps1` | 16 |
 | `.ts` | 15 |
 | `.cs` | 14 |
 | `.jsx` | 9 |
