@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-configuration-entry-guard-20260815",
+  "title": "Fail-closed registration guard for new Platform Configuration entries",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "docs/platform-configuration-entry-guard.md",
+      "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs",
+      "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs",
+      ".changes/e2e/platform-configuration-entry-guard-20260815.json"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Require every new runtime configuration candidate changed in an application surface to have metadata-only Config Catalog registration with schema, owner, bounded risk, scope binding, resolver, readback, and Shadow evidence, while rejecting secrets, policies, generated artifacts, and fixed contracts.",
+      "e2e_journeys": [
+        {
+          "id": "new-runtime-setting-cannot-bypass-config-catalog",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository configuration governance evaluator",
+          "entrypoint": "repository-tool lifecycle candidate discovery followed by platform configuration entry guard",
+          "terminal_outcome": "A changed runtime setting without a registry entry fails closed; a complete metadata-only entry passes only while status remains shadow/staged and all mutation and secret flags remain false; policy and secret candidates are rejected from the general Config Catalog.",
+          "steps": [
+            "Discover hardcoded configuration candidates with redacted previews and candidate classes.",
+            "Read the metadata-only Config Catalog entry registry and verify its safety flags and entry schema.",
+            "Map changed runtime settings to normalized config keys and require an exact registry entry.",
+            "Reject new secret candidates and specialized policy candidates from the general runtime setting registry.",
+            "Validate schema, owner, risk, scope, binding, resolver, readback, Shadow evidence, and status for every registered entry.",
+            "Publish the guard report as read-only CI evidence and fail the repository-tool lifecycle when findings exist."
+          ],
+          "assertions": [
+            "The registry contract is mad4b.platform-configuration-entry-registry.v1 and contains metadata only, never configuration values or secrets.",
+            "Every registry entry has a normalized config key, schema reference, owner, bounded risk, scope types, binding reference, resolver reference, readback reference, and Shadow evidence reference.",
+            "New runtime settings changed in application surfaces fail with CONFIG_ENTRY_REGISTRATION_MISSING until registered.",
+            "Secret candidates fail with NEW_SECRET_CONFIGURATION_CANDIDATE and policy candidates fail with NEW_POLICY_CONFIGURATION_CANDIDATE.",
+            "Generated artifacts, docs, CI plumbing, migration sources, and maintenance tooling are not misclassified as runtime settings by this guard.",
+            "Only shadow or staged status is accepted; Production activation and runtime/database mutation remain disabled.",
+            "The guard is registered as a read_only maintenance tool and is executed by repository-tool lifecycle CI.",
+            "No repository mutation, database mutation, migration apply, provider call, credential read, or Production activation occurs during evaluation."
+          ],
+          "tests": [
+            {
+              "id": "platform-configuration-entry-guard-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-platform-configuration-entry-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "configuration-drift-guard-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-configuration-drift-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/platform-configuration-entry-guard-20260815.json",
+            ".github/repository-maintenance-tool-governance.json",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".specify/schemas/platform-configuration-entry-registry.schema.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "docs/platform-configuration-entry-guard.md",
+            "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs",
+            "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

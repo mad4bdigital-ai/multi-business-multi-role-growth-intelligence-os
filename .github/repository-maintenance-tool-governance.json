@@ -79,6 +79,13 @@
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.configuration-drift-guard.v1"
     },
+    "platform-configuration-entry-guard": {
+      "description": "Require every new runtime configuration candidate to have metadata-only catalog registration, schema, owner, bounded risk, scope binding, resolver, readback, and shadow evidence while rejecting secrets, policies, and fixed contracts.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.platform-configuration-entry-guard.v1"
+    },
     "generated-artifact-refresh": {
       "description": "Regenerate bounded OpenAPI/frontend, Work Map, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
