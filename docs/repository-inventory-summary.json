@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7058,
-    "bytes": 67270394,
-    "lines": 1573901,
+    "bytes": 67270495,
+    "lines": 1573902,
     "directories": 263,
     "categories": 13
   },
@@ -303,8 +303,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 242047,
-      "lines": 2073
+      "bytes": 242148,
+      "lines": 2074
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
