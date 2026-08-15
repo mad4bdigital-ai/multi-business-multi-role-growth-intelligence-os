@@ -29,3 +29,4 @@ tmp/
 /autopilot-portable-staging/auto-deploy-state.json
 /autopilot-portable-staging/one-click-state.json
 /autopilot-portable-staging/staging-db-dumps/
+/autopilot-portable-staging/logs/

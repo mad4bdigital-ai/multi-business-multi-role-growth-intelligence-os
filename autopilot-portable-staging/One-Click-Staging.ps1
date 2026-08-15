@@ -17,16 +17,30 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $OneClickScriptPath = $PSCommandPath
+. (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$LogComponent = "auto-pilot"
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "one-click process started" -Data @{ mode = $Mode; repository_path = $RepositoryPath }
+trap {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
+    Write-Host "AUTO_PILOT_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
+    exit 1
+}
 
 function Fail([string]$Message) {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message
     throw "AUTO_PILOT_ONE_CLICK_FAIL_CLOSED: $Message"
 }
 
 function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailure) {
     Write-Host ("> {0} {1}" -f $File, ($Arguments -join " "))
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "native:$File" -Outcome "start" -Message "native command started" -Data @{ command = $File; arguments = ($Arguments -join " ") }
     & $File @Arguments
     $code = $LASTEXITCODE
-    if ($code -ne 0 -and -not $AllowFailure) { Fail "$File exited with code $code" }
+    if ($code -ne 0 -and -not $AllowFailure) {
+        Write-StagingLog -Level error -Component $LogComponent -Stage "native:$File" -Message "native command failed" -Data @{ exit_code = $code; command = $File }
+        Fail "$File exited with code $code"
+    }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "native:$File" -Outcome "success" -Message "native command completed" -Data @{ exit_code = $code; command = $File }
     return $code
 }
 
@@ -100,6 +114,7 @@ function Ensure-Prerequisites {
     }
 
     $dockerContext = Get-NativeText "docker" @("context", "show")
+    Write-StagingLog -Level info -Component $LogComponent -Stage "prerequisites" -Message "local prerequisite checks started"
     if ($dockerContext -notin @("default", "desktop-linux")) { Fail "Docker context '$dockerContext' is not a local Docker Desktop context" }
     $dockerReady = $false
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
@@ -120,6 +135,7 @@ function Ensure-Prerequisites {
     }
     $auth = & gh auth status 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { Fail "GitHub CLI authentication is unavailable; Auto Deploy cannot fail open without CI eligibility" }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "prerequisites" -Outcome "success" -Message "local prerequisites are ready"
 }
 
 function Resolve-Repository([string]$ScriptRoot) {
@@ -303,8 +319,10 @@ if ($Mode -eq "Stop") {
     return
 }
 
-$sha = Get-MainSha $repo
+    $sha = Get-MainSha $repo
+Write-StagingLog -Level info -Component $LogComponent -Stage "eligibility" -Message "resolved main commit; waiting for eligibility" -Data @{ sha = $sha }
 Wait-Eligibility $sha
+Write-StagingOperationBoundary -Component $LogComponent -Stage "eligibility" -Outcome "success" -Message "Staging Main Deploy Eligibility passed" -Data @{ sha = $sha }
 if ($Mode -eq "Validate") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-Ref", $Ref, "-ExpectedCommit", $sha, "-ValidateOnly")
@@ -335,3 +353,5 @@ $statePath = Join-Path $scriptRoot "one-click-state.json"
 Write-Host "AUTO_PILOT_ONE_CLICK_COMPLETE: staging=$repo commit=$sha tunnel=$(-not $NoTunnel) auto_deploy=$(-not $NoAutoDeploy) database_seed=$databaseState"
 Write-Host "URLs: https://dev.mad4b.com | https://mcp_dev.mad4b.com"
 Write-Host "OpenAPI: Tenant/Admin on dev.mad4b.com; Remote MCP on mcp_dev.mad4b.com"
+Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "one-click staging completed" -Data @{ sha = $sha; repository_path = $repo; database_seed = $databaseState }
+Write-Host "AUTO_PILOT_LOG: $(Get-StagingLogRoot)"

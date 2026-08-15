@@ -14,6 +14,18 @@ Use `-RequireSchemaBundle` only when the local schema bundle is already present 
 
 The one-click runner records only non-secret state in the ignored `one-click-state.json`. It never creates DNS records, changes Cloudflare configuration, deploys Hostinger, runs migrations, or enables Production/provider mutation.
 
+## Persistent operations log
+
+Every run writes a durable JSONL log under `autopilot-portable-staging\logs\operations.jsonl` on the External SSD. The same log covers the Auto Pilot bootstrap, Auto Deploy watcher and eligibility decisions, and application operations such as Compose startup, service health, tunnel startup, stop, and fail-closed errors. `latest-status.json` contains the most recent event, while `last-failure.json` contains the latest redacted error snapshot and remains available after the PowerShell or CMD window closes.
+
+The CMD launcher prints the log directory and the last failure automatically. For a readable filtered view, run `Show-StagingLogs.ps1`, or use `Show-StagingLogs.ps1 -FailuresOnly`, `Show-StagingLogs.ps1 -Component auto-deploy`, or `Show-StagingLogs.ps1 -OpenFolder`. Secrets, tokens, passwords, API keys, and bearer values are redacted before they are written. The logging path is ignored by Git and never becomes part of a commit.
+
+## Maintenance without terminal expertise
+
+`Staging-Maintenance.cmd` is the maintenance entry point. Double-clicking it runs the Doctor in `Status` mode, prints a machine-readable `maintenance-status.json`, and keeps the result visible. To request the safe local repair mode, launch `Staging-Maintenance.cmd Repair`; repair can recreate the two local scheduled tasks, rotate oversized logs, and run one health check. It cannot delete data, apply migrations, rewrite local secrets, change Cloudflare DNS, touch Hostinger, or deploy Production. To inspect logs only, launch `Staging-Maintenance.cmd Logs`.
+
+The maintenance policy is versioned in `staging-maintenance-policy.json`. This prevents future updates from silently expanding repair authority. The persistent operator artifacts are `maintenance-status.json`, `health-snapshot.json`, `latest-status.json`, `last-failure.json`, and the redacted `operations.jsonl` family. The first diagnostic action after any failure is therefore to double-click `Staging-Maintenance.cmd`, not to rerun clone or delete the repository.
+
 
 The launcher is intentionally fail-closed. It requires an exact 40-character commit SHA, refuses a dirty working tree, rejects `DOCKER_HOST` and `DOCKER_CONTEXT`, accepts only local Docker contexts, validates the pinned repository files against `manifest.json`, creates only an ignored local `.env.staging`, preserves `MIGRATION_APPLIED=false` and `DATABASE_MUTATED=false`, and never creates DNS records, changes Cloudflare, deploys Hostinger, or runs migrations.
 

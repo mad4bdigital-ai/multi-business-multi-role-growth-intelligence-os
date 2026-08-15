@@ -13,8 +13,17 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$LogComponent = "auto-deploy"
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds }
+trap {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
+    Write-Host "AUTO_DEPLOY_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
+    exit 1
+}
 
 function Fail([string]$Message) {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message
     throw "AUTO_DEPLOY_FAIL_CLOSED: $Message"
 }
 
@@ -98,7 +107,9 @@ while ($true) {
     $sha = Get-RemoteMainSha $RepositoryPath $Ref
     $eligibility = Get-LatestEligibility $Policy $ExpectedRepository $sha
     $alreadyDeployed = $previous -and ([string]$previous.deployed_commit).ToLowerInvariant() -eq $sha
-    Write-Host ("AUTO_DEPLOY_OBSERVATION: ref={0} sha={1} eligibility={2} reason={3} already_deployed={4}" -f $Ref, $sha, $eligibility.state, $eligibility.reason, $alreadyDeployed)
+    $observation = ("AUTO_DEPLOY_OBSERVATION: ref={0} sha={1} eligibility={2} reason={3} already_deployed={4}" -f $Ref, $sha, $eligibility.state, $eligibility.reason, $alreadyDeployed)
+    Write-Host $observation
+    Write-StagingLog -Level info -Component $LogComponent -Stage "poll" -Message "auto-deploy observation" -Data @{ ref = $Ref; sha = $sha; eligibility = $eligibility.state; reason = $eligibility.reason; already_deployed = $alreadyDeployed }
 
     if ($alreadyDeployed) {
         if (-not $Watch) { return }
@@ -123,6 +134,7 @@ while ($true) {
             generated_at = (Get-Date).ToUniversalTime().ToString("o")
         }
         Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel=$StartTunnel"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$StartTunnel; validate_only = [bool]$ValidateOnly }
         if (-not $Watch) { return }
         $previous = Read-State $statePath
     } elseif ($eligibility.state -eq "blocked") {
@@ -132,5 +144,6 @@ while ($true) {
     }
 
     if (-not $Watch) { return }
+    Write-StagingLog -Level info -Component $LogComponent -Stage "sleep" -Message "watcher sleeping before next poll" -Data @{ seconds = $PollSeconds }
     Start-Sleep -Seconds $PollSeconds
 }
