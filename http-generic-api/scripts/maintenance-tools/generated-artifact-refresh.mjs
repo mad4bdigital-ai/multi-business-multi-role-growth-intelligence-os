@@ -18,6 +18,7 @@ const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
 const REMOTE_MCP_WRITE_SCOPE_RECIPE = "remote_mcp_write_scope_refresh";
 const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
 const TRUSTED_WRITER_AUTHORITY_MODE = "trusted_generated_artifact_writer";
+const STAGING_MANIFEST_PATH = "autopilot-portable-staging/manifest.json";
 const EXPLICIT_RECIPES = new Set([
   FRONTEND_OPENAPI_RECIPE,
   WORK_MAP_BOOTSTRAP_RECIPE,
@@ -47,6 +48,7 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
 const REMOTE_MCP_WRITE_SCOPE_OUTPUTS = new Set([
   "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
   "docs/remote-mcp-write-scope-inventory.md",
+  STAGING_MANIFEST_PATH,
 ]);
 const REPOSITORY_INVENTORY_OUTPUTS = new Set([
   "docs/repository-inventory.json",
@@ -73,7 +75,7 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^http-generic-api\/scripts\/maintenance-tools\/(?:generated-artifact-refresh|repository-tool-lifecycle-guard)\.mjs$/u,
   /^http-generic-api\/scripts\/platform-work-map-generator\.mjs$/u,
   /^http-generic-api\/scripts\/taxonomy\/automation-overlap-policy\.json$/u,
-  /^http-generic-api\/scripts\/(?:test-generated-artifact-refresh-maintenance-tool|test-repository-tool-lifecycle-guard)\.mjs$/u,
+  /^http-generic-api\/scripts\/(?:test-generated-artifact-refresh-maintenance-tool|test-repository-tool-lifecycle-guard|test-remote-mcp-write-scope-generated-refresh-recipe)\.mjs$/u,
   /^http-generic-api\/test-(?:work-map-main-self-convergence|pipeline-connectivity-check)\.mjs$/u,
   /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
@@ -345,6 +347,37 @@ function hashFile(relativePath) {
   return createHash("sha256").update(fs.readFileSync(path.join(repoRoot, relativePath))).digest("hex");
 }
 
+function updateRemoteMcpManifestHash() {
+  const manifestFilePath = path.join(repoRoot, STAGING_MANIFEST_PATH);
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestFilePath, "utf8"));
+  } catch (error) {
+    throw new ToolFailure({
+      code: "remote_mcp_manifest_invalid",
+      step: "update_remote_mcp_staging_manifest",
+      command: `parse ${STAGING_MANIFEST_PATH}`,
+      status: 1,
+      stderr: error?.message || String(error),
+    });
+  }
+  const matchingEntries = Array.isArray(manifest?.files)
+    ? manifest.files.filter((entry) => entry?.path === "http-generic-api/remote-mcp-write-scope-inventory.generated.json")
+    : [];
+  if (matchingEntries.length !== 1) {
+    throw new ToolFailure({
+      code: "remote_mcp_manifest_entry_cardinality_invalid",
+      step: "update_remote_mcp_staging_manifest",
+      command: `locate http-generic-api/remote-mcp-write-scope-inventory.generated.json in ${STAGING_MANIFEST_PATH}`,
+      status: 1,
+      stdout: `matching_entries=${matchingEntries.length}`,
+      stderr: "Portable Staging manifest must contain exactly one Remote MCP write-scope inventory entry.",
+    });
+  }
+  matchingEntries[0].sha256 = hashFile("http-generic-api/remote-mcp-write-scope-inventory.generated.json");
+  fs.writeFileSync(manifestFilePath, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
 function readRemoteMcpWriteScopeHashes() {
   return Object.fromEntries([...REMOTE_MCP_WRITE_SCOPE_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
 }
@@ -352,8 +385,10 @@ function readRemoteMcpWriteScopeHashes() {
 function runRemoteMcpWriteScopeRefresh() {
   const beforeHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_first_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  updateRemoteMcpManifestHash();
   const firstPassHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_second_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  updateRemoteMcpManifestHash();
   const secondPassHashes = readRemoteMcpWriteScopeHashes();
   if (JSON.stringify(firstPassHashes) !== JSON.stringify(secondPassHashes)) {
     throw new ToolFailure({
@@ -367,10 +402,12 @@ function runRemoteMcpWriteScopeRefresh() {
   }
   run("verify_remote_mcp_write_scope_current", "node", ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"], { cwd: repoRoot });
   run("verify_remote_mcp_write_scope_contract", "node", ["scripts/test-remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  run("verify_staging_manifest_hash_contract", "node", ["http-generic-api/test-staging-autopilot-closure.mjs"], { cwd: repoRoot });
   return {
     deterministic: true,
     currentness_check: true,
     contract_test: true,
+    staging_manifest_contract: true,
     before_hashes: beforeHashes,
     after_hashes: secondPassHashes,
     authority_mode: TRUSTED_WRITER_AUTHORITY_MODE,

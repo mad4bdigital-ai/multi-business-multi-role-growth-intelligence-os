@@ -110,6 +110,7 @@
         "^specs/019-governed-database-lifecycle-pressure-relief/work-map-integration\\.json$",
         "^http-generic-api/remote-mcp-write-scope-inventory\\.generated\\.json$",
         "^docs/remote-mcp-write-scope-inventory\\.md$",
+        "^autopilot-portable-staging/manifest\\.json$",
         "^docs/repository-inventory\\.json$",
         "^docs/repository-inventory-summary\\.json$",
         "^docs/repository-inventory\\.md$",
