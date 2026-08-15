@@ -76,7 +76,7 @@
             { "id": "spec020-openapi-detail-gap-classification", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-detail-gap-classification.mjs", "args": [] },
             { "id": "spec020-openapi-gap-closure-plan", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-gap-closure-plan.mjs", "args": [] },
             { "id": "spec020-openapi-detail-closure-batch", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-detail-closure-batch.mjs", "args": [] },
-            { "id": "spec020-openapi-connected-systems-preflight", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-connected-systems-preflight-batch.mjs", "args": [] }
+            { "id": "spec020-openapi-all-remaining-preflight", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-all-remaining-preflight-batch.mjs", "args": [] }
           ],
           "evidence_paths": [
             "specs/020-platform-resource-identity-brand-governance/spec.md",
