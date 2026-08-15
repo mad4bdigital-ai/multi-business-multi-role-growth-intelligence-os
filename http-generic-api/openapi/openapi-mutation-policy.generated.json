@@ -6,11 +6,11 @@
     "openapi/openapi.tenant-gpt.auth.yaml",
     "openapi/openapi.tenant-gpt.activation.yaml"
   ],
-  "operation_count": 35,
-  "unbound_operation_count": 35,
+  "operation_count": 34,
+  "unbound_operation_count": 34,
   "all_operations_accounted_for": true,
   "write_activation_allowed": false,
-  "source_fingerprint_sha256": "e8f34058698ebf235b6881c09a1643621d98e8d8a0bb1dc1c9eee7be9c591f0d",
+  "source_fingerprint_sha256": "86ce1f9c82cfc60f916002d7e9c118a67faf42d1ca1fde0021448bbd2fc47b9d",
   "operations": [
     {
       "surface": "openapi.tenant-gpt.auth",
@@ -308,26 +308,6 @@
       "method": "POST",
       "path": "/tenant/activation/sessions/{id}/turns",
       "operation_id": "writeGptSessionTurns",
-      "effect_class": "internal_write",
-      "declared_security_scopes": [
-        "tenant.activation",
-        "tenant.install",
-        "tenant.links",
-        "tenant.status",
-        "tenant.system-tools"
-      ],
-      "policy_status": "unbound",
-      "required_scope": null,
-      "reason": "No write scope is promoted; operation remains explicitly denied until independent resource-operation approval, capability, lease, and readback policy is reviewed.",
-      "owner": "platform-governance",
-      "review_after": "2026-09-30"
-    },
-    {
-      "surface": "openapi.tenant-gpt.auth",
-      "artifact": "openapi/openapi.tenant-gpt.auth.yaml",
-      "method": "POST",
-      "path": "/tenant/dashboard/recommendations/{recommendationId}/feedback",
-      "operation_id": "recordTenantGrowthRecommendationFeedback",
       "effect_class": "internal_write",
       "declared_security_scopes": [
         "tenant.activation",

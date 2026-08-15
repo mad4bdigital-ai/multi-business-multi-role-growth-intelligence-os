@@ -3283,9 +3283,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 6c639df49ac56549b8c6bd9e168000c1f9658082d22cb9d89243cd16b0eedc4a
+  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 5e4ffdc19e0a6fa1c022126862933be3099877f0bcf943b6a000610cbfbf1d9d
+  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
   registry_version: 2
   selector_model: marker_required
   candidate_policy:
@@ -3376,6 +3376,9 @@ x-custom-gpt-generation:
         reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
+  catalog_policy: null
+  static_operation_ids: null
+  dynamic_operation_ids: null
   operation_count: 15
   warning_operation_limit: 26
   warning_budget_exceeded: false

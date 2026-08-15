@@ -38,6 +38,21 @@ async function main() {
     new URL("./routes/operationOrchestratorRoutes.js", import.meta.url),
     "utf8",
   );
+  const gptToolsRoutes = readFileSync(
+    new URL("./routes/gptToolsRoutes.js", import.meta.url),
+    "utf8",
+  );
+  const mcpCatalogMigration = readFileSync(
+    new URL("./migrations/20260815_custom_gpt_mcp_catalog_levels.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(gptToolsRoutes, /mcp_catalog_level/);
+  assert.match(gptToolsRoutes, /catalogLevel/);
+  assert.match(gptToolsRoutes, /sqlCacheKey\("tools", callerType, "list", "v4"\)/);
+  assert.match(mcpCatalogMigration, /mcp_catalog_level/);
+  assert.match(mcpCatalogMigration, /tenant_platform_endpoint_tools/);
+  assert.doesNotMatch(mcpCatalogMigration, /(?:password|secret|token|api[_-]?key)\s*(?:['`:=]|\()/i);
+  assert.match(mcpCatalogMigration, /write.scope|write_scope|write-scope/i);
   assert.match(operationRoutes, /collectChunkedToolResponse/);
   assert.match(operationRoutes, /dispatchWithChunkCollection/);
   assert.match(operationRoutes, /recordOperationGeneratedArtifacts/);

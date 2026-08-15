@@ -603,7 +603,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
     ),
     isAdmin
       ? queryFn(
-          `SELECT tool_key, display_name, http_method, http_path, tags, is_enabled, sort_order
+          `SELECT tool_key, display_name, http_method, http_path, tags, mcp_catalog_level, is_enabled, sort_order
              FROM \`admin_platform_endpoint_tools\`
             WHERE is_enabled = 1
             ORDER BY sort_order ASC, tool_key ASC

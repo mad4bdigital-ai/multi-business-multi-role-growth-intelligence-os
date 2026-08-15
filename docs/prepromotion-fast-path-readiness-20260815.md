@@ -10,6 +10,12 @@ Known tenant and admin intents now have bounded OpenAPI operation surfaces for c
 
 The GPT tool dispatcher now supports an `Execution Capsule` scoped to one request or operation. The capsule can retain tenant manifest/schema evidence and compiled tool descriptors across internal dispatch steps. Descriptor reuse does not bypass dynamic authority, policy, approval, connection, resource, provider, expected-SHA, or readback checks.
 
+## Static schema cap and database MCP levels
+
+Every generated Custom GPT schema is governed by a hard maximum of 30 operations. The Tenant Core schema is exactly at that ceiling after retaining the bounded preview/execute/status fast path. Three long-tail tenant operations remain available through the governed database-backed MCP catalog rather than increasing the static GPT schema: tenant resource changes, tenant operation readback, and tenant growth recommendation feedback.
+
+The specialized `tenant_platform_endpoint_tools` registry now carries `mcp_catalog_level` metadata. The levels are discoverable through `listTools`/`callTool` and the System Tool Catalog, with exact filtering available through `catalog_level`. This is a discovery mechanism only; execution still requires the existing manifest, schema, authority, capability, approval, mutation, and readback gates. The migration stores no secrets and does not activate write scopes or Production authority.
+
 ## Synthetic evidence
 
 The following checks are required before merging this source change:

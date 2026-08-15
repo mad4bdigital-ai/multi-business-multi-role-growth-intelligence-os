@@ -72,6 +72,19 @@ const filtered = listSystemToolCatalog(tools, { tag: "analytics", limit: 200 });
 assert.equal(filtered.page.total_count, 125);
 assert(filtered.items.every((tool) => tool.tags.includes("analytics")));
 
+const levelTools = [
+  { name: "core_tool", catalog_level: "core", tags: ["read"] },
+  { name: "resource_tool", catalogLevel: "resource_api", tags: ["read", "resource_api"] },
+  { name: "feedback_tool", mcp_catalog_level: "growth_feedback", tags: ["mutation"] },
+];
+const resourceLevel = listSystemToolCatalog(levelTools, { catalog_level: "resource_api", limit: 10 });
+assert.equal(resourceLevel.page.total_count, 1);
+assert.equal(resourceLevel.items[0].catalog_level, "resource_api");
+assert.equal(resourceLevel.items[0].name, "resource_tool");
+const feedbackLevel = listSystemToolCatalog(levelTools, { catalogLevel: "growth_feedback", limit: 10 });
+assert.equal(feedbackLevel.page.total_count, 1);
+assert.equal(feedbackLevel.items[0].catalog_level, "growth_feedback");
+
 const staleCursor = first.page.next_cursor;
 assert.throws(
   () => listSystemToolCatalog([...tools, { name: "tool_999" }], { limit: 37, cursor: staleCursor }),

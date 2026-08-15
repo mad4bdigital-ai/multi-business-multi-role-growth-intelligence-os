@@ -14,7 +14,7 @@ surfaces:
     output_file: openapi/openapi.custom-gpt.auth-dispatcher.yaml
     server_url: https://auth.mad4b.com
     auth_profile: admin_service
-    hard_operation_limit: 36
+    hard_operation_limit: 30
     warning_operation_limit: 30
     info:
       title: Growth Intelligence Platform - Admin Core Actions
@@ -208,8 +208,28 @@ surfaces:
     output_file: openapi/openapi.tenant-gpt.auth.yaml
     server_url: https://auth.mad4b.com
     auth_profile: tenant_oauth
-    hard_operation_limit: 36
+    hard_operation_limit: 30
     warning_operation_limit: 30
+    catalog_policy:
+      mode: database_mcp_levels
+      registry_table: tenant_platform_endpoint_tools
+      level_column: mcp_catalog_level
+      fallback_operations:
+        - listTools
+        - callTool
+      demoted_operation_records:
+        - operation_id: getMeWorkspacesTenantIdResourceChanges
+          tool_key: tenant_resource_changes_list
+          level: resource_api
+          reason: Long-tail resource projection remains available through the DB-backed MCP catalog.
+        - operation_id: getMeWorkspacesTenantIdOperationsOperationId
+          tool_key: tenant_operation_get
+          level: resource_api
+          reason: Long-tail execution readback remains available through the DB-backed MCP catalog.
+        - operation_id: recordTenantGrowthRecommendationFeedback
+          tool_key: tenant_growth_recommendation_feedback
+          level: growth_feedback
+          reason: Bounded recommendation feedback remains available through the DB-backed MCP catalog.
     info:
       title: Growth Intelligence Platform - Tenant Core Actions
       summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
@@ -715,7 +735,7 @@ surfaces:
     selector:
       source_markers:
         - tenant_core
-      order_operation_ids:
+      static_operation_ids:
         - getMeWorkspacesTenantIdResources
         - getMeWorkspacesTenantIdResourcesResourceKey
         - postMeWorkspacesTenantIdResourcesResourceKey
@@ -726,15 +746,12 @@ surfaces:
         - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
         - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
         - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
-        - getMeWorkspacesTenantIdResourceChanges
-        - getMeWorkspacesTenantIdOperationsOperationId
         - getTenantGrowthDashboard
         - getTenantGrowthDashboardTab
         - getTenantDashboardPreferences
         - updateTenantDashboardPreferences
         - getTenantGrowthDigest
         - previewTenantGrowthAction
-        - recordTenantGrowthRecommendationFeedback
         - listLocalGatewayTools
         - listTools
         - callTool
@@ -746,6 +763,13 @@ surfaces:
         - decideTenantSkillApproval
         - writeSessionTurn
         - endSession
+        - previewTenantOperation
+        - executeTenantOperation
+        - getTenantOperationStatus
+      dynamic_operation_ids:
+        - getMeWorkspacesTenantIdResourceChanges
+        - getMeWorkspacesTenantIdOperationsOperationId
+        - recordTenantGrowthRecommendationFeedback
   tenant_activation:
     mode: generated_from_openapi
     output_file: openapi/openapi.tenant-gpt.activation.yaml

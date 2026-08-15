@@ -108,7 +108,7 @@ import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 import { normalizeRegistryTags } from "../registryTagParser.js";
 
 const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
-sqlCacheKey("tools", callerType, "list", "v3")
+sqlCacheKey("tools", callerType, "list", "v4")
 filterTenantToolsByManifest(rows, blockedTenantManifests)
 filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
 async function dispatchTool(callerType, toolKey, args, req) {
@@ -2552,12 +2552,12 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
 async function fetchTools(callerType, executionCapsule = null) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v3"),
+    sqlCacheKey("tools", callerType, "list", "v4"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
         `SELECT tool_key, display_name, description, http_method, http_path,
-                path_param_keys, input_schema, tags
+                path_param_keys, input_schema, tags, mcp_catalog_level
          FROM \`${table}\`
          WHERE is_enabled = 1
          ORDER BY sort_order ASC, tool_key ASC`
@@ -2584,6 +2584,8 @@ async function fetchTools(callerType, executionCapsule = null) {
     method: r.http_method,
     path: r.http_path,
     tags: normalizeRegistryTags(r.tags),
+    catalogLevel: String(r.mcp_catalog_level || "core"),
+    catalog_level: String(r.mcp_catalog_level || "core"),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
@@ -2616,7 +2618,7 @@ async function resolveToolPreflightDescriptor(callerType, toolKey, executionCaps
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
     const [rows] = await getPool().query(
-      `SELECT http_method, tags, input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
+      `SELECT http_method, tags, input_schema, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [normalizedToolKey]
     );
     if (rows.length > 1) {
@@ -2630,6 +2632,8 @@ async function resolveToolPreflightDescriptor(callerType, toolKey, executionCaps
     const descriptor = {
       method: row.http_method || "",
       tags: normalizeRegistryTags(row.tags),
+      catalogLevel: String(row.mcp_catalog_level || "core"),
+      catalog_level: String(row.mcp_catalog_level || "core"),
       inputSchema: parseJson(row.input_schema),
       source: table,
     };

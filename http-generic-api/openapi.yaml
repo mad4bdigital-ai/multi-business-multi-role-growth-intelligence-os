@@ -11745,7 +11745,14 @@ paths:
       x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible. Use catalog_level to browse database-backed MCP levels such as core, resource_api, growth_feedback, plugin_lifecycle, session_lifecycle, and activation.
+      parameters:
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: "^[a-z][a-z0-9_]{1,63}$"
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
       responses:
         "200":
           description: System layer tools
@@ -12373,6 +12380,12 @@ paths:
           schema:
             type: string
           description: Optional exact tag filter.
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: "^[a-z][a-z0-9_]{1,63}$"
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
         - name: max_chars
           in: query
           schema:

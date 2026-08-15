@@ -30,7 +30,7 @@ const ACTIVE_SCHEMAS = {
   "openapi.tenant-gpt.auth.yaml": {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "userBearerAuth",
-    maxOperations: 36,
+    maxOperations: 30,
     requiredOperations: [
       "listTools",
       "callTool",
@@ -491,6 +491,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
+  const tenantSurfaceRegistry = YAML.parse(readFileSync(resolve(__dirname, "../canonicals/openapi/custom-gpt-surfaces.yaml"), "utf8"));
+  const tenantSurface = tenantSurfaceRegistry.surfaces?.tenant_core;
+  const tenantMcpMigration = readFileSync(resolve(__dirname, "migrations/20260815_custom_gpt_mcp_catalog_levels.sql"), "utf8");
   const activateSessionOp = tenantActivationDoc.paths?.["/tenant/activation/session-context"]?.get;
   assert("tenant activateSession requires OAuth before the first API request",
     Array.isArray(activateSessionOp?.security) &&
@@ -510,6 +513,19 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     `got ${Array.from(tenantOpIds).join(",")}`);
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
+  assert("tenant static schema is exactly at the 30-operation ceiling",
+    tenantOps.length === 30 && tenantSurface?.hard_operation_limit === 30 && tenantSurface?.warning_operation_limit === 30);
+  assert("tenant long-tail operations are demoted to DB MCP catalog levels",
+    ["getMeWorkspacesTenantIdResourceChanges", "getMeWorkspacesTenantIdOperationsOperationId", "recordTenantGrowthRecommendationFeedback"]
+      .every((operationId) => !tenantOpIds.has(operationId)) &&
+    tenantSurface?.catalog_policy?.mode === "database_mcp_levels" &&
+    tenantSurface?.catalog_policy?.registry_table === "tenant_platform_endpoint_tools" &&
+    tenantSurface?.catalog_policy?.demoted_operation_records?.length === 3 &&
+    tenantMcpMigration.includes("mcp_catalog_level") &&
+    tenantMcpMigration.includes("tenant_growth_recommendation_feedback"));
+  assert("tenant dynamic MCP fallback remains explicitly available",
+    tenantSurface?.catalog_policy?.fallback_operations?.includes("listTools") &&
+    tenantSurface?.catalog_policy?.fallback_operations?.includes("callTool"));
   assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
     [
       "/tenant/platform/plugins/catalog",

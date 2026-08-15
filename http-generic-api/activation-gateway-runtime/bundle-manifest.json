@@ -3,7 +3,7 @@
   "source": "edge/activation-gateway",
   "target": "http-generic-api/activation-gateway-runtime",
   "file_count": 3,
-  "bundle_hash_sha256": "b96770cced9bfebab9c05dc87f8cf337a4c68f402ed030a53b356545c5cfeb31",
+  "bundle_hash_sha256": "d7b7c14c781968e1c034adada921d122dbf3b965c7dea4923a9999cc1be5336f",
   "files": [
     {
       "path": "src/worker.mjs",
@@ -17,7 +17,7 @@
     },
     {
       "path": "generated/route-policy.json",
-      "sha256": "0f608bd2f84c249ee8fbd28a4ceeb709a488bc3abe3ff10137722f28c30df599",
+      "sha256": "f2eeed40f59a906d3b5ae996811f37bc3e0ce9a5c059902433510b013a9eccf1",
       "bytes": 15158
     }
   ],
