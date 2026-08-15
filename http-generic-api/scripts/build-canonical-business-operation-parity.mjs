@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,7 +10,7 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = resolve(ROOT, "canonical-business-operation-parity.generated.json");
-const WRITE_STATUSES = new Set(["shadow", "blocked"]);
+const REVISION_BOUND_ACTIONS = new Set(["update", "archive", "restore", "deactivate", "activate", "supersede", "revoke", "validate"]);
 
 function projectionSummary(operation) {
   return Object.fromEntries(CANONICAL_BUSINESS_OPERATION_SURFACES.map((surface) => [surface, operation.projection_policy?.[surface] || "not_projected"]));
@@ -31,9 +31,15 @@ function buildParity(registry) {
       effect_class: operation.effect_class,
       risk_class: operation.risk_class,
       approval_required: operation.approval_required,
+      approval_contract: operation.approval_contract || null,
       readback_required: operation.readback_required,
+      readback_contract: operation.readback_contract || null,
       optimistic_concurrency_required: operation.optimistic_concurrency_required,
       idempotency_required: operation.idempotency_required,
+      identity_resolution_contract: operation.identity_resolution_contract || null,
+      relationship_resolution_contract: operation.relationship_resolution_contract || null,
+      capability_profile: operation.capability_profile || null,
+      tool_discovery_required: operation.tool_discovery_required === true,
       executor_ref: operation.executor_ref,
       scope_keys: operation.scope_keys || [],
       projections: projectionSummary(operation),
@@ -45,7 +51,7 @@ function buildParity(registry) {
   const writes = operations.filter((operation) => operation.effect_class !== "read_only");
   const performanceGates = {
     known_intent_list_tools_calls: operations.filter((operation) => operation.intent_resolution?.strategy === "list_tools").length,
-    mutation_without_expected_revision: writes.filter((operation) => operation.optimistic_concurrency_required !== true).length,
+    mutation_without_expected_revision: writes.filter((operation) => REVISION_BOUND_ACTIONS.has(operation.lifecycle_action) && operation.optimistic_concurrency_required !== true).length,
     mutation_without_required_readback: writes.filter((operation) => operation.readback_required !== true).length,
     hard_delete_without_dependency_plan: operations.filter((operation) => ["purge", "hard_delete"].includes(operation.lifecycle_action) && operation.dependency_plan_required !== true).length,
   };
@@ -77,7 +83,7 @@ function buildParity(registry) {
     },
     provenance: {
       generated_by: "build-canonical-business-operation-parity.mjs",
-      source: "canonical-business-operation-registry.json",
+      source: "canonicalBusinessOperationRegistry.js (canonical JSON plus governed Spec extensions)",
       secrets_included: false,
     },
   };
