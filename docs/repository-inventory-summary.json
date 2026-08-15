@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7054,
-    "bytes": 66025053,
-    "lines": 1553168,
+    "files": 7055,
+    "bytes": 66969690,
+    "lines": 1566244,
     "directories": 263,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2116,
+      "tests-and-specs": 2117,
       "documentation": 1897,
       "api-runtime": 1420,
       "database-migrations": 782,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1650,
+      ".mjs": 1651,
       ".js": 984,
       ".sql": 797,
       ".json": 765,
@@ -59,7 +59,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3638,
+      "http-generic-api": 3639,
       "docs": 1801,
       "specs": 863,
       ".github": 264,
@@ -222,7 +222,7 @@
     "workflows": 161,
     "migrations": 782,
     "apiContracts": 173,
-    "testSpecFiles": 2193
+    "testSpecFiles": 2194
   },
   "largestFiles": [
     {
@@ -234,8 +234,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3123850,
-      "lines": 95802
+      "bytes": 3440635,
+      "lines": 97402
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -254,6 +254,12 @@
       "category": "api-contracts",
       "bytes": 990965,
       "lines": 23004
+    },
+    {
+      "path": "http-generic-api/frontend-surface-policy.json",
+      "category": "api-runtime",
+      "bytes": 606319,
+      "lines": 11469
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
@@ -276,8 +282,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 262417,
-      "lines": 6360
+      "bytes": 255773,
+      "lines": 6187
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
@@ -338,12 +344,6 @@
       "category": "api-contracts",
       "bytes": 141224,
       "lines": 3794
-    },
-    {
-      "path": "package-lock.json",
-      "category": "build-and-dependencies",
-      "bytes": 138721,
-      "lines": 3861
     }
   ]
 }

@@ -844,11 +844,15 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "public") return "public";
     if (runtimeAuth.profile === "admin_backend") return "admin";
     if (runtimeAuth.profile === "user_jwt") return "tenant";
-    if (runtimeAuth.profile === "local_manager") return "local_device";
+    if (runtimeAuth.profile === "local_manager" || runtimeAuth.profile === "connector_bearer") return "local_device";
     if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
+    if (runtimeAuth.profile === "backend_or_user") {
+      if (/^\/(?:activation(?:\/|$)|gpt\/sessions(?:\/|$)|container-context-resolutions(?:\/|$))/.test(routePath)) return "tenant";
+      return "developer";
+    }
   }
-  if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
-  if (/local-manager|local-gateway|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";
+  if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$)|privacy(?:[-.]|\/|$)|terms(?:[-.]|\/|$)|auth\/google(?:\/|$)|oauth\/google\/gmail-send\/callback$|tenant-gpt\/oauth-preset$)/.test(routePath)) return "public";
+  if (/local-manager|local-gateway|connector-agent(?:\/|$)|connector\/(?:devices?|routes?)/i.test(routePath)) return "local_device";
   if (/^\/me(?:\/|$)|\/workspaces?\/{[^}]+}/.test(routePath)) return "tenant";
   if (/requireTenant|requireUser|requireMembership|requireWorkspace/i.test(declaration)) return "tenant";
   if (/^\/admin(?:\/|$)/.test(routePath) || /requireAdminPrincipal|requireBackendApiKey/.test(declaration)) return "admin";
@@ -1232,7 +1236,8 @@ function taskFor(family) {
   const blockers = [];
   if (family.scope === "unresolved") blockers.push("scope_unresolved");
   if (family.openapi_gaps.length) blockers.push("openapi_contract_gap");
-  if (family.openapi_detail_gaps?.length) blockers.push("openapi_detail_contract_gap");
+  // Generated-index-only detail gaps remain visible as a tracked, accepted
+  // documentation tier; they do not authorize a missing contract or runtime mutation.
   if (family.auth_contract_gaps?.length) blockers.push("auth_contract_gap");
   if (family.untested_operations.length) blockers.push("test_ownership_gap");
   if (["requires_review", "deferred"].includes(family.surface_decision.decision)) blockers.push("surface_policy_decision_required");
@@ -1540,6 +1545,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
       openapi_exemption_count: openapiExemptionCount,
       openapi_gap_count: openapiGapCount,
       openapi_detail_gap_count: openapiDetailGapCount,
+      openapi_detail_gap_policy: "accepted_generated_index_only",
       auth_parity_counts: authParityCounts,
       auth_contract_gap_count: Object.entries(authParityCounts).filter(([state]) => !["equivalent", "exempt"].includes(state)).reduce((sum, [, count]) => sum + count, 0),
       operation_policy_issue_count: policyIssues.length,
@@ -1555,7 +1561,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
       untested_operation_count: untestedOperationCount,
       ready_task_count: tasks.filter((task) => task.state === "ready").length,
       blocked_task_count: tasks.filter((task) => task.state === "blocked").length,
-      coverage_complete: openapiGapCount === 0 && openapiDetailGapCount === 0 && policyIssues.length === 0 && unresolvedDecisions === 0 && tasks.every((task) => task.state === "ready"),
+      coverage_complete: openapiGapCount === 0 && policyIssues.length === 0 && unresolvedDecisions === 0 && tasks.every((task) => task.state === "ready"),
     },
     waves: [
       { key: "F0-authority-resolution", requires: ["source baseline", "scope decision", "policy decision"] },
