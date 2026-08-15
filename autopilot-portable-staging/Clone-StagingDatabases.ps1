@@ -15,6 +15,16 @@ $ComposeStaging = Join-Path $ApiPath "docker-compose.staging.yml"
 
 function Fail([string]$Message) { throw "FAIL-CLOSED: $Message" }
 function Require([bool]$Condition, [string]$Message) { if (-not $Condition) { Fail $Message } }
+function Assert-UniqueEnvKeys([string]$Path) {
+  $seen = @{}
+  foreach ($line in Get-Content -LiteralPath $Path) {
+    if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=') {
+      $key = $Matches[1]
+      if ($seen.ContainsKey($key)) { Fail "Duplicate environment key is forbidden: $key" }
+      $seen[$key] = $true
+    }
+  }
+}
 
 Require (Test-Path -LiteralPath $EnvFile) "Missing local .env.staging; run Start-AutoPilot.ps1 first."
 Require (Test-Path -LiteralPath $ComposeBase) "Missing base Compose file."
@@ -23,6 +33,7 @@ Require (Test-Path -LiteralPath $DumpDirectory -PathType Container) "DumpDirecto
 Require (-not ($DumpDirectory -match '(?i)(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com|hostinger|production)')) "Production/provider paths are forbidden as dump sources."
 Require ($env:DOCKER_HOST -eq $null -or $env:DOCKER_HOST -eq "") "DOCKER_HOST is forbidden."
 Require ($env:DOCKER_CONTEXT -eq $null -or $env:DOCKER_CONTEXT -eq "") "DOCKER_CONTEXT is forbidden."
+Assert-UniqueEnvKeys $EnvFile
 
 function Read-Env([string]$Name) {
   $line = Get-Content -LiteralPath $EnvFile | Where-Object { $_ -match "^$([regex]::Escape($Name))=(.*)$" } | Select-Object -First 1

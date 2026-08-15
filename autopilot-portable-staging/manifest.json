@@ -14,7 +14,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "7f9240ba869df1eef87a620699feb25d461f75471193375cae751a82ffb73f4d"
+      "sha256": "8dfea088838c9121091b84ca7473a525cc988c8ecd2dc441a5a74a147b3f6bca"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -38,15 +38,19 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "26014b234efa34223b2ab9336e3f7f1ffd62dafef25e64e3fd84beeb68f621e3"
+      "sha256": "89f419ef5973652a96640015f421569f860dfae388f1eafa58298a984fed4d33"
+    },
+    {
+      "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
+      "sha256": "e33f3cf1539e078f3fc6e466af3c1581ce8304973f38d9aaaa822603d5e491e1"
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "5878b3ca9bb910845941e2433237ce056e2047752097da62a3e4065e7e6bd72f"
+      "sha256": "0feb99c75049ff3797bb289ade85df1a95cc3d793a8008be98cee2c740865319"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "sha256": "39ad63332f54073bf45c048ab1873f31d49682f986987070392bb2533344143f"
+      "sha256": "3953490bcad7aaa7301e3dbc9bfd3ade603de062b985c660c497d286d73d1937"
     },
     {
       "path": "autopilot-portable-staging/README.md",
