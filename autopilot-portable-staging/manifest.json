@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "848f0c755bf55cfd7401598583fb17ec03fed4a70d875c675d6e8e0b65dece29"
+      "sha256": "e534dbbad3aa3974624d0858316d44c3dc9f2f3b1d8b5bf2711a81f4507bfd35"
     }
   ],
   "safety": {
