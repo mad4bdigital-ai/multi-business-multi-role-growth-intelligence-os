@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
       "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
       "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs"
     ]

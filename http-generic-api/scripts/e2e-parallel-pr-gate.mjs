@@ -231,7 +231,7 @@ function delegateLegacy(argv) {
 }
 
 function invokeCertifiedReleaseCutAdapter(options, validation) {
-  const temporaryRoot = fs.mkdtempSync(path.ojoin(os.tmpdir(), "e2e-certified-release-cut-"));
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-certified-release-cut-"));
   try {
     execFileSync("git", ["clone", "--quiet", "--shared", "--no-checkout", options.root, temporaryRoot], {
       cwd: options.root,
