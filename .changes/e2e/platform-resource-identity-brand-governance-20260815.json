@@ -15,6 +15,7 @@
       "http-generic-api/brandClaimService.js",
       "http-generic-api/context-kernel-hardcoding-scan.config.json",
       "http-generic-api/platformOperationGovernanceContract.js",
+      "http-generic-api/canonicalBusinessOperationRegistry.js",
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/workspaceBrandReadAuthority.js",
       "http-generic-api/workspaceCanonicalBrandReference.js",
@@ -233,6 +234,39 @@
             "http-generic-api/test-workspace-brand-read-authority.mjs",
             "http-generic-api/test-workspace-canonical-brand-reference.mjs",
             "http-generic-api/test-workspace-global-brand-create-adapter.mjs",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "operation-governance-shadow",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Canonical operation registry reviewer",
+          "entrypoint": "canonicalBusinessOperationRegistry/platformOperationGovernanceContract",
+          "terminal_outcome": "Brand and platform operation governance decisions remain deterministic registry evidence; no route execution, grant, provider dispatch, or Production mutation is performed.",
+          "steps": [
+            "Resolve the canonical operation registry entry and compare it with the governed operation contract.",
+            "Require explicit shadow-only execution metadata and fail closed on missing or conflicting governance.",
+            "Emit structured operation evidence without executing a route, applying a grant, reading credentials, or invoking a provider."
+          ],
+          "assertions": [
+            "The canonical registry and operation governance contract tests pass.",
+            "Registry evidence does not become runtime route wiring or execution authority in Spec 020.",
+            "No database connection, migration apply, grant, credential read, provider call, external send, or Production mutation occurs in the synthetic tests."
+          ],
+          "tests": [
+            {
+              "id": "platform-operation-governance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-operation-governance-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/canonicalBusinessOperationRegistry.js",
+            "http-generic-api/platformOperationGovernanceContract.js",
+            "http-generic-api/test-platform-operation-governance-contract.mjs",
             "specs/020-platform-resource-identity-brand-governance/completion.json"
           ]
         },
