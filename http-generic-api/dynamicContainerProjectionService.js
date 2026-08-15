@@ -626,24 +626,31 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
   const brandContainerIds = [...desiredParentByBrand.keys()];
   if (!brandContainerIds.length) return 0;
   const [rows] = await connection.query(
-    `SELECT r.relationship_id, r.from_container_id, r.to_container_id, r.created_by,
+    `SELECT r.relationship_id, r.from_container_id, r.to_container_id, r.created_by, r.status,
+            r.valid_from, r.valid_until,
             p.canonical_subject_type AS parent_subject_type,
             p.canonical_subject_ref AS parent_subject_ref,
             wr.workspace_type AS parent_workspace_type,
-            wr.workspace_ownership_type AS parent_workspace_ownership_type
+            wr.workspace_ownership_type AS parent_workspace_ownership_type,
+            CASE
+              WHEN r.status='active'
+               AND (r.valid_from IS NULL OR r.valid_from<=UTC_TIMESTAMP())
+               AND (r.valid_until IS NULL OR r.valid_until>UTC_TIMESTAMP())
+               AND rt.status='active'
+               AND rt.contributes_to_ancestry=1
+               AND rt.contributes_to_inheritance=1
+               AND p.status='active'
+              THEN 1 ELSE 0
+            END AS currently_effective
        FROM container_relationships r
-       JOIN container_relationship_type_registry rt
+       LEFT JOIN container_relationship_type_registry rt
          ON rt.relationship_type_key=r.relationship_type_key
-        AND rt.status='active'
-        AND rt.contributes_to_ancestry=1
-        AND rt.contributes_to_inheritance=1
-       JOIN containers p ON p.container_id=r.from_container_id AND p.status='active'
+       LEFT JOIN containers p ON p.container_id=r.from_container_id
        LEFT JOIN workspace_registry wr
          ON p.canonical_subject_type='workspace'
         AND BINARY wr.workspace_id <=> BINARY p.canonical_subject_ref
       WHERE r.tenant_id=?
         AND r.relationship_type_key='contains'
-        AND r.status='active'
         AND r.to_container_id IN (?)
       FOR UPDATE`,
     [tenantId,brandContainerIds]
@@ -653,22 +660,23 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
     const desiredParent = desiredParentByBrand.get(String(row.to_container_id));
     const desiredParentId = desiredParent?.parentContainerId;
     if (!desiredParentId) continue;
-    if (String(row.from_container_id) === desiredParentId) {
-      if (String(row.relationship_id) !== String(desiredParent.relationshipId)) {
-        const error = new Error("Brand projection found a Root-to-Brand relationship with a non-canonical deterministic identity.");
-        error.code = "container_projection_brand_relationship_noncanonical";
-        error.status = 409;
-        error.details = [{
-          tenant_id:tenantId,
-          relationship_id:row.relationship_id,
-          expected_relationship_id:desiredParent.relationshipId,
-          brand_container_id:row.to_container_id,
-          parent_container_id:row.from_container_id,
-        }];
-        throw error;
-      }
-      continue;
+    const sameDesiredEndpoints = String(row.from_container_id) === desiredParentId;
+    if (sameDesiredEndpoints && String(row.relationship_id) !== String(desiredParent.relationshipId)) {
+      const error = new Error("Brand projection found a Root-to-Brand relationship with a non-canonical deterministic identity.");
+      error.code = "container_projection_brand_relationship_noncanonical";
+      error.status = 409;
+      error.details = [{
+        tenant_id:tenantId,
+        relationship_id:row.relationship_id,
+        relationship_status:row.status || null,
+        expected_relationship_id:desiredParent.relationshipId,
+        brand_container_id:row.to_container_id,
+        parent_container_id:row.from_container_id,
+      }];
+      throw error;
     }
+    if (Number(row.currently_effective || 0) !== 1) continue;
+    if (sameDesiredEndpoints) continue;
     const isLegacyOperationalParent =
       row.created_by === "legacy_projection" &&
       String(row.parent_subject_type || "") === "workspace" &&
