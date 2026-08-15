@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "certified-release-cut-production-classifier-adapter",
+  "title": "Certified release-cut Production classifier compatibility adapter",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
+      "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
+      "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve the existing fail-closed E2E Production classifier while adapting the immutable release-cut branch identity emitted by the governed promotion controller to the already-reviewed reconciliation evaluator without mutating remote refs or requiring current main to remain equal to the certified cut.",
+      "e2e_journeys": [
+        {
+          "id": "classify-certified-release-cut-candidate-after-main-advances",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "E2E Phase Governance runner",
+          "entrypoint": "A governed Production candidate uses release/production-candidate-<release-cut-12>-<Production-12>-<launcher-run>-<attempt> and targets the exact pinned Production SHA.",
+          "terminal_outcome": "The candidate is accepted only when it is the exact two-parent immutable release-cut candidate, its tree equals the release-cut tree, pinned Production remains exact, Production is contained by the release cut, and the release cut remains an ancestor of current main even when main has advanced.",
+          "steps": [
+            "Parse only the controller-owned four-component release-cut candidate namespace with positive launcher run and attempt identifiers.",
+            "Read current main and Production through the same authenticated read-only protected-ref transport used by the existing classifier, or tokenless git ls-remote only in synthetic/local execution.",
+            "Require current Production to equal the PR base exactly and to match the embedded Production prefix.",
+            "Require exactly two candidate parents: certified release cut first and pinned Production second.",
+            "Require the first parent to match the embedded release-cut prefix and require the candidate tree to equal the first-parent tree byte-for-byte.",
+            "Require pinned Production to be an ancestor of the certified release cut.",
+            "Allow current main to advance only while the certified release cut remains its ancestor.",
+            "Evaluate the candidate through an isolated temporary Git clone whose local canonical-main ref is pinned to the certified release cut, preserving the reviewed legacy evaluator without altering remote refs.",
+            "Reject stale Production, release-cut ancestry loss, wrong trees, malformed prefixes, wrong parent order/count, and malformed branch identities fail closed."
+          ],
+          "assertions": [
+            "The new adapter does not broaden legacy SHA-bound or bridge candidate namespaces.",
+            "Remote main, Production, candidate, and protected refs are never mutated.",
+            "Current main equality with the release cut is not required; release-cut ancestry is required instead.",
+            "Production must remain exactly equal to the pinned base SHA.",
+            "The candidate tree must remain byte-identical to the certified release cut.",
+            "The candidate must preserve Production as its exact second parent and the release cut as its exact first parent.",
+            "Legacy classifier behavior remains delegated unchanged for every non-release-cut branch identity.",
+            "No deployment, SQL, migration Apply, grant, provider call, credential payload read, external send, protected-ref write, or force update occurs.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "certified-release-cut-candidate-classifier-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-certified-release-cut-candidate-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+            "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
+            "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the compatibility adapter on governed Production candidate PR events while preserving exact protected-ref readback."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain fail-closed diagnostics for protected-ref transport failure, ancestry loss, malformed candidate identity, parent drift, and tree drift."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate one release-cut candidate with advanced current main and explicit negative stale-Production and spoof cases before Production promotion."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require exact classifier evidence on the fresh governed Production candidate without granting merge or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
