@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7055,
-    "bytes": 66969690,
-    "lines": 1566244,
+    "bytes": 66970442,
+    "lines": 1566260,
     "directories": 263,
     "categories": 13
   },
@@ -7126,9 +7126,9 @@
       "path": ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 21449,
-      "lines": 376,
-      "sha256": "05dc6f7ed221237988e3135655251a83844c3ba03e9206f2b4998dedefd43fae",
+      "bytes": 21825,
+      "lines": 384,
+      "sha256": "512939b70030c0b4f97712117fbe81183bb5a8b71f3fb76775107b3e018b791e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12397,7 +12397,7 @@
       "extension": ".json",
       "bytes": 10780,
       "lines": 273,
-      "sha256": "b553485c268a31f7029cc5ce70b900320c2c8b5ef6f6f946644cf9cb677de05c",
+      "sha256": "1ff722c0211d803213148da3e6e6001e3d14556f74f20af50d94c63ac809184a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83048,9 +83048,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 6485,
-      "lines": 98,
-      "sha256": "5b7d9b29095cc28b55ad2dae5afb318015b62369aa1b6e628c1437bf23303d49",
+      "bytes": 6861,
+      "lines": 106,
+      "sha256": "a248ce162d4ecc1541d650f79415d88b117e1f3806d1c7f40f269e8530025c84",
       "mode": "644",
       "executable": false,
       "generated": false
