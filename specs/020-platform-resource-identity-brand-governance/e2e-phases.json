@@ -62,7 +62,7 @@
         }
       ]
     },
-    { "id": "staging", "status": "planned", "objective": "Run separately authorized shadow parity and repository readback." },
+    { "id": "resilient", "status": "planned", "objective": "Run separately authorized shadow parity and repository readback before any runtime authority." },
     { "id": "production", "status": "planned", "objective": "Promote only after explicit authority, migration, security, canary, and exact runtime readback." }
   ]
 }

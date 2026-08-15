@@ -39,7 +39,7 @@ const EFFECT_APPROVAL_MINIMUMS = Object.freeze({
   commercial_effect: "explicit",
 });
 
-const APPROVAL_RANK = Object.freeze({ none: 0, policy_resolved: 1, explicit: 2, typed_confirmation: 3 });
+const LEVEL_ORDER = Object.freeze({ none: 0, policy_resolved: 1, explicit: 2, typed_confirmation: 3 });
 
 function text(value, max = 2048) {
   return String(value ?? "").normalize("NFKC").trim().slice(0, max);
@@ -54,7 +54,7 @@ function minimumRisk(a, b) {
 }
 
 function minimumApproval(a, b) {
-  return APPROVAL_RANK[a] >= APPROVAL_RANK[b] ? a : b;
+  return LEVEL_ORDER[a] >= LEVEL_ORDER[b] ? a : b;
 }
 
 function approvalRequired(approvalContract) {
@@ -102,7 +102,7 @@ export function validateOperationDescriptor(descriptor = {}) {
   if (EFFECT_CLASSES.includes(effectClass) && RISK_CLASSES.includes(riskClass) && RISK_RANK[riskClass] < RISK_RANK[EFFECT_MINIMUMS[effectClass]]) {
     errors.push("risk_below_effect_floor");
   }
-  if (EFFECT_CLASSES.includes(effectClass) && APPROVAL_CONTRACTS.includes(approvalContract) && APPROVAL_RANK[approvalContract] < APPROVAL_RANK[EFFECT_APPROVAL_MINIMUMS[effectClass]]) {
+  if (EFFECT_CLASSES.includes(effectClass) && APPROVAL_CONTRACTS.includes(approvalContract) && LEVEL_ORDER[approvalContract] < LEVEL_ORDER[EFFECT_APPROVAL_MINIMUMS[effectClass]]) {
     errors.push("approval_below_effect_floor");
   }
   if (EFFECT_CLASSES.includes(effectClass) && READBACK_CONTRACTS.includes(readbackContract) && READBACK_CONTRACTS.indexOf(readbackContract) < READBACK_CONTRACTS.indexOf(effectMinimumReadback(effectClass))) {
@@ -138,14 +138,14 @@ export function resolveOperationGovernance({ descriptor, policy = {}, caller = {
     return Object.freeze({ status: "blocked", reason_codes: descriptorResult.errors, descriptor: null });
   }
   const canonical = descriptorResult.normalized;
-  const policyRisk = RISK_CLASSES.includes(lower(policy.minimum_risk, 32)) ? lower(policy.minimum_risk, 32) : "low";
-  const policyApproval = APPROVAL_CONTRACTS.includes(lower(policy.approval_contract, 32)) ? lower(policy.approval_contract, 32) : "none";
-  const effectiveRisk = minimumRisk(canonical.risk_class, policyRisk);
-  const effectiveApproval = minimumApproval(canonical.approval_contract, policyApproval);
+  const requestedFloor = RISK_CLASSES.includes(lower(policy.minimum_risk, 32)) ? lower(policy.minimum_risk, 32) : "low";
+  const requiredFloor = APPROVAL_CONTRACTS.includes(lower(policy.approval_contract, 32)) ? lower(policy.approval_contract, 32) : "none";
+  const effectiveRisk = minimumRisk(canonical.risk_class, requestedFloor);
+  const effectiveApproval = minimumApproval(canonical.approval_contract, requiredFloor);
   const callerRisk = lower(caller.risk_class, 32);
   const callerApproval = lower(caller.approval_contract, 32);
   const callerAttemptedLowering = (RISK_CLASSES.includes(callerRisk) && RISK_RANK[callerRisk] < RISK_RANK[effectiveRisk])
-    || (APPROVAL_CONTRACTS.includes(callerApproval) && APPROVAL_RANK[callerApproval] < APPROVAL_RANK[effectiveApproval]);
+    || (APPROVAL_CONTRACTS.includes(callerApproval) && LEVEL_ORDER[callerApproval] < LEVEL_ORDER[effectiveApproval]);
   return Object.freeze({
     status: "ready",
     operation_key: canonical.operation_key,
@@ -176,4 +176,4 @@ export function conservativeFallbackOperationInference(operationKey = "") {
   });
 }
 
-export const _testingPlatformOperationGovernance = Object.freeze({ RISK_RANK, APPROVAL_RANK, minimumRisk, minimumApproval });
+export const _testingPlatformOperationGovernance = Object.freeze({ RISK_RANK, LEVEL_ORDER, minimumRisk, minimumApproval });
