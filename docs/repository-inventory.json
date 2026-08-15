@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6998,
-    "bytes": 65311460,
-    "lines": 1536515,
+    "bytes": 65311656,
+    "lines": 1536516,
     "directories": 260,
     "categories": 13
   },
@@ -8686,9 +8686,9 @@
       "path": ".changes/e2e/write-scope-shadow-preflight-20260815.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5389,
-      "lines": 93,
-      "sha256": "aa0baa04538aa3834c3c9f84de4007e28445bab6b647a9b2a6595ca43ea7cdfe",
+      "bytes": 5585,
+      "lines": 94,
+      "sha256": "fd52ab106f4cbd9ebbb97ad20c02bb89cf1e38d3cf5decafc8e7495fd57d8770",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12241,7 +12241,7 @@
       "extension": ".json",
       "bytes": 9492,
       "lines": 241,
-      "sha256": "1fd71ef613f95ddd685e0594cafe48d9919e9c536bfb3db7cfa5c8aa66d7610d",
+      "sha256": "73236dc5bc6bc147a3078d41c5bfcc8e2d96de03d2e4fef4dda325234cd1df20",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31216,7 +31216,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "632d2f3e12ae76cd56f5d3dc46a61192dc821f230f51e0c4120a943d8d845125",
+      "sha256": "2fc2b3c081f664abe1720e71eda1aa0eeab502c6dde392007952c509f657f019",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50389,7 +50389,7 @@
       "extension": ".json",
       "bytes": 1931059,
       "lines": 58392,
-      "sha256": "b2f976526b829c326eb3960504fafb1261b9e8741694850888841d9342b0d438",
+      "sha256": "5c18b455262532cb9bff99e44926a026aff713ad5f86273164008d9eac15b8e8",
       "mode": "644",
       "executable": false,
       "generated": false
