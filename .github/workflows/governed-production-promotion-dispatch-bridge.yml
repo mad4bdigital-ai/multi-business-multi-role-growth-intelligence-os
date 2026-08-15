@@ -1,0 +1,240 @@
+name: Governed Production Promotion Dispatch Bridge
+run-name: Governed Production Promotion Dispatch · ${{ github.event.issue.number || inputs.request_pr || github.run_id }}
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      request_pr:
+        description: Open same-repository Production synchronization request PR
+        required: true
+        type: string
+      expected_request_head_sha:
+        description: Exact current tree-identical request PR head SHA
+        required: true
+        type: string
+      review_mode:
+        description: Review mode for read-only promotion gates
+        required: true
+        default: ai_policy
+        type: choice
+        options: [human, ai_policy]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: governed-production-promotion-dispatch-${{ github.event.issue.number || inputs.request_pr || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: github.event_name == 'issue_comment' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REQUEST_PR: ${{ github.event_name == 'workflow_dispatch' && inputs.request_pr || github.event.issue.number }}
+      MANUAL_EXPECTED_REQUEST_HEAD_SHA: ${{ inputs.expected_request_head_sha || '' }}
+      REVIEW_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.review_mode || 'ai_policy' }}
+      COMMENT_BODY: ${{ github.event.comment.body || '' }}
+      AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association || '' }}
+      HAS_PULL_REQUEST: ${{ github.event.issue.pull_request != null }}
+      REPORT_DIR: /tmp/governed-production-promotion-dispatch
+    steps:
+      - name: Checkout exact trusted main workflow source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve exact governed promotion request
+        id: request
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf "${REPORT_DIR}"
+          mkdir -p "${REPORT_DIR}"
+          [[ "${REQUEST_PR}" =~ ^[1-9][0-9]*$ ]]
+          case "${REVIEW_MODE}" in human|ai_policy) ;; *) echo "::error::invalid review mode"; exit 1 ;; esac
+
+          outcome="eligible"
+          reason=""
+          if [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
+            if [[ "${HAS_PULL_REQUEST}" != "true" ]]; then
+              outcome="skipped"; reason="comment_is_not_on_pull_request"
+            elif [[ "${COMMENT_BODY}" != "DISPATCH_GOVERNED_PRODUCTION_PROMOTION" ]]; then
+              outcome="skipped"; reason="promotion_dispatch_token_absent"
+            else
+              case "${AUTHOR_ASSOCIATION}" in
+                OWNER|MEMBER|COLLABORATOR) ;;
+                *) outcome="blocked"; reason="untrusted_comment_author" ;;
+              esac
+            fi
+          elif [[ ! "${MANUAL_EXPECTED_REQUEST_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            outcome="blocked"; reason="invalid_manual_expected_request_head_sha"
+          fi
+
+          request_head_sha=""
+          request_head_branch=""
+          main_sha=""
+          production_sha=""
+          if [[ "${outcome}" == "eligible" ]]; then
+            pr="$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
+            title="$(jq -r '.title' <<<"${pr}")"
+            state="$(jq -r '.state' <<<"${pr}")"
+            draft="$(jq -r '.draft' <<<"${pr}")"
+            base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+            head_repository="$(jq -r '.head.repo.full_name // ""' <<<"${pr}")"
+            request_head_branch="$(jq -r '.head.ref' <<<"${pr}")"
+            request_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+            main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+
+            if [[ "${title}" != "ops: request governed Production synchronization" ]]; then
+              outcome="blocked"; reason="unexpected_request_title"
+            elif [[ "${state}" != "open" || "${draft}" == "true" ]]; then
+              outcome="blocked"; reason="request_pr_not_ready"
+            elif [[ "${base_ref}" != "main" ]]; then
+              outcome="blocked"; reason="unexpected_base_branch"
+            elif [[ "${head_repository}" != "${REPOSITORY}" ]]; then
+              outcome="blocked"; reason="cross_repository_request_forbidden"
+            elif [[ ! "${request_head_branch}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+              outcome="blocked"; reason="invalid_governed_request_branch"
+            elif [[ "${request_head_branch}" == "main" || "${request_head_branch}" == "Production" ]]; then
+              outcome="blocked"; reason="protected_request_branch_forbidden"
+            elif [[ ! "${request_head_sha}" =~ ^[0-9a-f]{40}$ || ! "${main_sha}" =~ ^[0-9a-f]{40}$ || ! "${production_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+              outcome="blocked"; reason="invalid_exact_ref_identity"
+            elif [[ "${GITHUB_SHA}" != "${main_sha}" ]]; then
+              outcome="blocked"; reason="main_moved_before_bridge_execution"
+            elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${request_head_sha}" != "${MANUAL_EXPECTED_REQUEST_HEAD_SHA}" ]]; then
+              outcome="blocked"; reason="request_head_mismatch"
+            fi
+          fi
+
+          if [[ "${outcome}" == "eligible" ]]; then
+            git fetch --no-tags origin \
+              "+refs/heads/${request_head_branch}:refs/remotes/origin/${request_head_branch}" \
+              '+refs/heads/Production:refs/remotes/origin/Production'
+            request_readback="$(git rev-parse "refs/remotes/origin/${request_head_branch}")"
+            production_readback="$(git rev-parse refs/remotes/origin/Production)"
+            if [[ "${request_readback}" != "${request_head_sha}" ]]; then
+              outcome="blocked"; reason="request_branch_moved_after_api_readback"
+            elif [[ "${production_readback}" != "${production_sha}" ]]; then
+              outcome="blocked"; reason="production_moved_after_api_readback"
+            elif ! git merge-base --is-ancestor "${main_sha}" "${request_head_sha}"; then
+              outcome="blocked"; reason="request_head_does_not_descend_from_current_main"
+            elif ! git diff --quiet "${main_sha}" "${request_head_sha}"; then
+              outcome="blocked"; reason="request_head_tree_differs_from_current_main"
+            elif ! git merge-base --is-ancestor "${production_sha}" "${main_sha}"; then
+              outcome="blocked"; reason="production_not_contained_by_current_main"
+            fi
+          fi
+
+          jq -n \
+            --arg contract "mad4b.governed-production-promotion-dispatch.v1" \
+            --arg outcome "${outcome}" \
+            --arg reason "${reason}" \
+            --arg request_head_branch "${request_head_branch}" \
+            --arg request_head_sha "${request_head_sha}" \
+            --arg main_sha "${main_sha}" \
+            --arg production_sha "${production_sha}" \
+            --arg review_mode "${REVIEW_MODE}" \
+            --argjson request_pr "${REQUEST_PR}" \
+            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,request_head_branch:(if ($request_head_branch|length)>0 then $request_head_branch else null end),request_head_sha:(if ($request_head_sha|length)>0 then $request_head_sha else null end),main_sha:(if ($main_sha|length)>0 then $main_sha else null end),production_sha:(if ($production_sha|length)>0 then $production_sha else null end),review_mode:$review_mode,dispatch_requested:false,launcher_run_id:null,evidence_comment_written:false,production_merge:false,deployment:false,migration_apply:false,grant_apply:false,provider_mutation:false,credential_payload_read:false,secrets_included:false}' \
+            > "${REPORT_DIR}/decision.json"
+
+          if [[ "${outcome}" == "eligible" ]]; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+            echo "request_head_sha=${request_head_sha}" >> "$GITHUB_OUTPUT"
+            echo "main_sha=${main_sha}" >> "$GITHUB_OUTPUT"
+            echo "production_sha=${production_sha}" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Suppress duplicate or dispatch full promotion launcher
+        if: steps.request.outputs.eligible == 'true'
+        shell: bash
+        env:
+          REQUEST_HEAD_SHA: ${{ steps.request.outputs.request_head_sha }}
+          MAIN_SHA: ${{ steps.request.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.request.outputs.production_sha }}
+        run: |
+          set -Eeuo pipefail
+          current_main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          current_production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          current_request_head="$(gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}" --jq '.head.sha')"
+          [[ "${current_main_sha}" == "${MAIN_SHA}" ]] || { echo "::error::main moved before launcher dispatch"; exit 1; }
+          [[ "${current_production_sha}" == "${PRODUCTION_SHA}" ]] || { echo "::error::Production moved before launcher dispatch"; exit 1; }
+          [[ "${current_request_head}" == "${REQUEST_HEAD_SHA}" ]] || { echo "::error::request head moved before launcher dispatch"; exit 1; }
+
+          existing_body="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments?per_page=100" \
+            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_PROMOTION_LAUNCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\"))] | last.body // empty")"
+          if [[ -n "${existing_body}" ]]; then
+            existing_run_id="$(sed -n 's/.*launcher_run_id=\([0-9][0-9]*\).*/\1/p' <<<"${existing_body}")"
+            if [[ -n "${existing_run_id}" ]]; then
+              run_json="$(gh run view "${existing_run_id}" --repo "${REPOSITORY}" --json status,conclusion 2>/dev/null || true)"
+              if [[ -n "${run_json}" ]]; then
+                run_status="$(jq -r '.status // ""' <<<"${run_json}")"
+                run_conclusion="$(jq -r '.conclusion // ""' <<<"${run_json}")"
+                if [[ "${run_status}" != "completed" || "${run_conclusion}" == "success" ]]; then
+                  jq '.outcome="duplicate_suppressed" | .reason="matching_launcher_run_already_active_or_successful"' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
+                  mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
+                  exit 0
+                fi
+              fi
+            fi
+          fi
+
+          before_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?event=workflow_dispatch&branch=main&per_page=20" --jq '[.workflow_runs[].id] | max // 0')"
+          gh workflow run governed-production-promotion-request-launcher.yml \
+            --repo "${REPOSITORY}" \
+            --ref main \
+            --field request_pr="${REQUEST_PR}" \
+            --field expected_head_sha="${MAIN_SHA}" \
+            --field expected_request_head_sha="${REQUEST_HEAD_SHA}" \
+            --field release_branch_prefix="release/production-candidate" \
+            --field validation_branch_prefix="gpt/validate-production-candidate" \
+            --field validation_base_branch_prefix="gpt/validate-production-base" \
+            --field review_mode="${REVIEW_MODE}" \
+            --field confirmation="AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST"
+
+          launcher_run_id=""
+          for _ in $(seq 1 60); do
+            launcher_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?event=workflow_dispatch&branch=main&per_page=20" \
+              --jq ".workflow_runs | map(select(.id > ${before_run_id} and .head_sha == \"${MAIN_SHA}\")) | sort_by(.id) | .[0].id // empty")"
+            [[ -n "${launcher_run_id}" ]] && break
+            sleep 5
+          done
+          [[ -n "${launcher_run_id}" ]]
+
+          jq --argjson launcher_run_id "${launcher_run_id}" \
+            '.outcome="dispatched" | .dispatch_requested=true | .launcher_run_id=$launcher_run_id' \
+            "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
+          mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
+
+          body="GOVERNED_PRODUCTION_PROMOTION_LAUNCH request_pr=${REQUEST_PR} launcher_run_id=${launcher_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} review_mode=${REVIEW_MODE} production_merge=false deployment=false migration_apply=false grant_apply=false provider_mutation=false credential_payload_read=false"
+          if gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${body}" >/dev/null 2>&1; then
+            jq '.evidence_comment_written=true' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
+            mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
+          else
+            echo "::warning::launcher was dispatched successfully but optional PR receipt comment could not be written"
+            jq '.reason="optional_receipt_comment_transport_failed"' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
+            mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
+          fi
+
+      - name: Upload canonical promotion dispatch decision
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: governed-production-promotion-dispatch-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/decision.json
+          if-no-files-found: error
+          retention-days: 30
