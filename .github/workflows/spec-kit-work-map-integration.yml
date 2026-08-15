@@ -181,7 +181,7 @@ jobs:
             --arg tested_head_sha "${tested_head_sha}" \
             --arg source_hash_sha256 "${source_hash}" \
             --argjson changed_files "$(printf '%s\n' "${changed_files[@]}" | jq -R . | jq -s .)" \
-            '{contract:$contract,repository:$repository,run_id:$run_id,run_attempt:$run_attempt,event_name:$event_name,event_sha:$event_sha,expected_head_sha:$expected_head_sha,tested_head_sha:$tested_head_sha,source_hash_sha256:$source_hash,changed_files:$changed_files,changed_count:($changed_files|length),allowed_root:"docs/work-maps",generated_from_exact_checked_out_head: true, remote_write_executed: false, secrets_included: false}' \
+            '{contract:$contract,repository:$repository,run_id:$run_id,run_attempt:$run_attempt,event_name:$event_name,event_sha:$event_sha,expected_head_sha:$expected_head_sha,tested_head_sha:$tested_head_sha,source_hash_sha256:$source_hash_sha256,changed_files:$changed_files,changed_count:($changed_files|length),allowed_root:"docs/work-maps",generated_from_exact_checked_out_head: true, remote_write_executed: false, secrets_included: false}' \
             > "${WORK_MAP_REPAIR_ROOT}/report.json"
 
           echo "changed_count=${#changed_files[@]}" >> "$GITHUB_OUTPUT"
