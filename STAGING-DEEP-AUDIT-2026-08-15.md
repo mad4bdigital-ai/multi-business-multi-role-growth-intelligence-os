@@ -158,3 +158,32 @@ The Linux sandbox does not have Docker, PowerShell, or WSL installed, so the mer
 Microsoft's current WSL documentation requires Windows 10 version 2004/build 19041 or later for the one-command installer, while Docker's current Windows WSL2 backend requirements identify supported Windows 10 22H2 build 19045, WSL 2.1.5 or later, 8 GB RAM, SLAT, hardware virtualization, and the `LanmanServer` service enabled. Docker recommends WSL integration for the selected Ubuntu distribution and warns against installing a second Docker Engine inside WSL.
 
 References: [Microsoft WSL installation](https://learn.microsoft.com/en-us/windows/wsl/install), [Microsoft manual WSL installation](https://learn.microsoft.com/en-us/windows/wsl/install-manual), [Docker WSL 2 backend](https://docs.docker.com/desktop/features/wsl/), and [Docker Desktop Windows installation](https://docs.docker.com/desktop/setup/install/windows-install/).
+
+
+## Canonical Business Operation parity extension
+
+The attached architecture audit identified a cross-surface capability fragmentation risk: Resource API, System Layer, Custom GPT, Remote MCP, REST, Frontend, and Growth Control Plane did not share one explicit operation descriptor. This PR now adds a bounded, read-only canonical registry and deterministic parity projection rather than activating a new mutation path.
+
+The registry contains **26 operation descriptors**: **10 active**, **9 shadow**, and **7 blocked**. Each descriptor records its domain, lifecycle action, resource type, principal scopes, effect/risk class, environment, executor reference, approval requirement, readback requirement, idempotency requirement, optimistic-concurrency requirement, scope keys, and projection status for Custom GPT, System Layer, Remote MCP, REST, Frontend, and internal agents.
+
+The generated parity artifact makes intentional gaps visible instead of silently presenting them as capabilities. For example, `workspaces:list` and `brands:list` are active Remote MCP projections, while `assets:create`, `assets:update`, and `approvals:request` remain shadow. Brand update/archive/restore, policy activation, and growth execution remain blocked because the typed executor, dependency plan, immutable revision/readback, or Execution Capsule cutover is not yet complete. Hostinger deployment and Production resources are blocked across every surface.
+
+The registry validator and parity regression enforce the following boundaries:
+
+| Boundary | Contract result |
+|---|---|
+| Production mutation | Always false |
+| Provider mutation | Always false |
+| Remote MCP shadow-write activation | Forbidden |
+| Purge | Always blocked |
+| Update/archive/restore/activate/supersede without optimistic concurrency | Rejected |
+| Write operation without readback/idempotency | Rejected |
+| `activation_dev.mad4b.com` or Production host leakage | Rejected |
+| Raw secrets in registry, parity, or evidence | Rejected |
+| Deterministic parity generation | Required and tested |
+
+The implementation deliberately does not yet add typed Brand mutation executors, activate Remote MCP writes, replace the Custom GPT tool-navigation contract, cut over Execution Capsules, or mutate Policy/Growth/Workflow/Integration data. Those are separate slices requiring their own executor, approval bundle, revision CAS, same-cycle readback, and E2E contract.
+
+The portable Staging manifest now protects **36 files**, including the canonical registry, loader, generated parity artifact, generator, and regression test. The E2E phase contract covers these files and the existing Staging/OpenAPI/MCP/DB boundaries. The local canonical registry test passed with `secrets_included=false`, `production_mutation_allowed=false`, and `active_remote_mcp_operation_count=2`.
+
+The PR branch is synchronized with `origin/main` at merge base `12e570273c64450ecab6adb57774c1873d91b9d1`; the current branch head after this extension is recorded in GitHub. All technical CI failures observed during the extension were resolved, including E2E coverage, generated Remote MCP inventory, Frontend deterministic output, and configuration-drift baseline. The remaining gate is the exact-head Single Owner Review Gate, which requires the repository owner to attest to the current PR head.
