@@ -64,7 +64,15 @@
     "**/package-lock.json",
     "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
     "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
-    "specs/**/work-map-integration.json"
+    "specs/**/work-map-integration.json",
+    "autopilot-portable-staging/manifest.json",
+    "http-generic-api/frontend-surface-policy.json",
+    "http-generic-api/frontend-operation-governance.generated.json",
+    "http-generic-api/frontend-surface-dispatch.generated.json",
+    "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+    "http-generic-api/scripts/frontend-surface-dispatch.mjs",
+    "http-generic-api/scripts/test-manifest.mjs",
+    "http-generic-api/test-frontend-surface-coverage-claims.mjs"
   ],
   "ignored_patterns": [
     ".gitignore",
