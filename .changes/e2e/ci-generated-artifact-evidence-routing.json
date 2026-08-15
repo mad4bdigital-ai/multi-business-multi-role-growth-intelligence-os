@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-generated-artifact-evidence-routing",
-  "title": "Canonical evidence and governed apply for generated artifacts",
+  "title": "Canonical evidence, governed apply, and non-success upstream skip safety for generated artifacts",
   "delivery_mode": "single_pr",
   "current_phase": "operational",
   "scope": {
@@ -15,6 +15,8 @@
       ".github/workflows/pr-generated-artifact-refresh.yml",
       "docs/ci-evidence-routing.md",
       "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+      "http-generic-api/scripts/ci-evidence-pr-comment.mjs",
+      "http-generic-api/scripts/test-ci-evidence-pr-comment.mjs",
       "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
       "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
       "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
@@ -58,6 +60,7 @@
             "A workflow_dispatch run is accepted only for PR Generated Artifact Refresh and an exact current work-branch head.",
             "The report declares secrets_included=false and bounded redacted diagnostics.",
             "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
+            "When an upstream workflow is cancelled or otherwise non-successful while its artifact claims passed, the publisher performs a safe no-publication skip and never publishes passed canonical evidence.",
             "A completed upstream workflow with conclusion skipped does not start the publisher or attempt canonical artifact download.",
             "The tests remain discoverable through the canonical repository test manifest.",
             "Pre-merge behavior of a pull_request workflow is not used as proof of its replacement definition; operational proof begins after the trusted definition reaches the default branch.",
@@ -70,6 +73,13 @@
               "working_directory": "http-generic-api",
               "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
               "args": []
+            },
+            {
+              "id": "ci-evidence-publisher-non-success-skip-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-ci-evidence-pr-comment.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -77,6 +87,8 @@
             ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/workflows/pr-generated-artifact-refresh.yml",
             "docs/ci-evidence-routing.md",
+            "http-generic-api/scripts/ci-evidence-pr-comment.mjs",
+            "http-generic-api/scripts/test-ci-evidence-pr-comment.mjs",
             "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
             "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",

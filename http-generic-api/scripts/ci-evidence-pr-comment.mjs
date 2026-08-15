@@ -290,6 +290,9 @@ export function classifyExpectedPublicationSkip(error) {
   if (error?.message === "Refusing to publish diagnostic evidence for a stale or substituted merge candidate.") {
     return "stale_merge_candidate";
   }
+  if (error?.message === "Non-successful workflow_run cannot publish a passed canonical outcome.") {
+    return "non_successful_workflow_run";
+  }
   return null;
 }
 
