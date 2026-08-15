@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "remote-mcp-manifest-refresh-contract-20260815",
+  "title": "Remote MCP write-scope refresh and portable Staging manifest convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/remote-mcp-manifest-refresh-contract-20260815.json",
+      ".github/repository-maintenance-tool-governance.json",
+      "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the Remote MCP write-scope inventory and its portable Staging manifest checksum convergent under the existing exact-head governed writer without widening mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "refresh-remote-mcp-write-scope-with-manifest-convergence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed generated-artifact refresh",
+          "entrypoint": "remote_mcp_write_scope_refresh recipe",
+          "terminal_outcome": "The bounded writer treats the inventory JSON, Markdown, and portable Staging manifest as one deterministic output set and verifies the manifest checksum contract before any governed commit.",
+          "steps": [
+            "Generate the Remote MCP write-scope inventory.",
+            "Update exactly one portable Staging manifest entry for the generated inventory JSON.",
+            "Repeat generation and manifest update to prove deterministic SHA-256 convergence.",
+            "Verify inventory currentness, inventory contract, and Staging manifest checksum closure.",
+            "Enforce the registered three-file generated write set and preserve exact-head and protected-branch guards."
+          ],
+          "assertions": [
+            "The Remote MCP refresh recipe is explicit and bounded to exactly three generated outputs.",
+            "The portable Staging manifest contains exactly one entry for the generated Remote MCP write-scope inventory.",
+            "The manifest checksum is recomputed from the generated inventory and is stable across two passes.",
+            "The existing exact-head CAS and main/Production mutation prohibitions remain unchanged.",
+            "No force-push, database mutation, provider mutation, deployment, or secret capture is introduced."
+          ],
+          "tests": [
+            {
+              "id": "remote-mcp-write-scope-refresh-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/remote-mcp-manifest-refresh-contract-20260815.json",
+            ".github/repository-maintenance-tool-governance.json",
+            "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retain canonical evidence for exact-head generated-artifact refreshes and detect future writer/output drift without manual hash repair."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This contract does not authorize Production promotion or external mutation.",
+      "blockers": [
+        "independent_production_approval",
+        "successful_governance_checks"
+      ]
+    }
+  ],
+  "secrets_included": false
+}
