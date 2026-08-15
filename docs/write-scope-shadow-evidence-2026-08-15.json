@@ -1,0 +1,460 @@
+{
+  "contract": "mad4b.write-scope-shadow-evidence.v1",
+  "schema_version": 1,
+  "environment": "staging",
+  "mode": "shadow",
+  "source": {
+    "inventory_source_revision": "acbfb1351fdf2fb4932d85fc1a034917d06c574c",
+    "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
+    "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
+    "write_scope_count": 6,
+    "route_count": 652
+  },
+  "scope_selection": [
+    "approvals.request",
+    "assets.create",
+    "assets.update",
+    "cloudflare.write",
+    "github.write",
+    "hostinger.deploy"
+  ],
+  "scopes": [
+    {
+      "scope_key": "approvals.request",
+      "effect_class": "internal_write",
+      "risk_class": "medium",
+      "status": "shadow",
+      "default_request": false,
+      "tool_bound": false,
+      "route_evidence": {
+        "route_count": 21,
+        "route_ids": [
+          "http-generic-api/routes/activationAwarenessRoutes.js#POST:/tenant/resolution/skill-approvals/:approvalKey/decision:20",
+          "http-generic-api/routes/agentSkillRoutes.js#POST:/agent-skill-grant-requests/:request_id/decision:6",
+          "http-generic-api/routes/appIntegrationRoutes.js#PATCH:/app-connections/:id/grant-requests/:rid:17",
+          "http-generic-api/routes/appIntegrationRoutes.js#POST:/app-connections/:id/grant-requests:15",
+          "http-generic-api/routes/dynamicContainerAuthorityRoutes.js#POST:/container-overrides/:overrideId/approvals:8",
+          "http-generic-api/routes/dynamicGrowthControlPlaneRoutes.js#POST:/admin/control-plane/configurations/:configKey/versions/:configVersionId/approval-holds:6",
+          "http-generic-api/routes/managedExecutionRoutes.js#POST:/approval-holds/:id/decide:15",
+          "http-generic-api/routes/platformEngineRoutes.js#POST:/platform/engines/database-lifecycle/scheduler-approval-metadata:17",
+          "http-generic-api/routes/platformEngineRoutes.js#POST:/platform/engines/database-lifecycle/scheduler-approval-readback:18",
+          "http-generic-api/routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js#POST:/platform/session-insight-promotions/capability-envelope-approvals/decision:0",
+          "http-generic-api/routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js#POST:/platform/session-insight-promotions/capability-envelope-approvals/list:1",
+          "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/approval-hold/decision:62",
+          "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/approval-hold:58",
+          "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/external-delivery/approval/decision:44",
+          "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/external-delivery/approval/request:43",
+          "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/new-brand-ref-approval/approve:66",
+          "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/new-brand-ref-approval/request:65",
+          "http-generic-api/routes/tenantInfrastructureRoutes.js#POST:/me/infrastructure/ssh/cli/approval-requests/:request_id/decision:7",
+          "http-generic-api/routes/tenantInfrastructureRoutes.js#POST:/me/infrastructure/ssh/connections/:connection_id/cli/approval-request:10",
+          "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js#POST:/approval-holds/:id/decide:5",
+          "http-generic-api/routes/workflowOrchestrationRoutes.js#POST:/approval-holds/:id/decide:5"
+        ],
+        "classification_counts": {
+          "shadow_candidate": 21
+        },
+        "prerequisites": [
+          "approval_policy_evidence",
+          "capability_envelope_evidence",
+          "explicit_resource_operation_scope_binding",
+          "lease_evidence",
+          "live_resource_authority_binding",
+          "provider_adapter_allowlist",
+          "provider_idempotency",
+          "provider_rollback_or_compensation",
+          "same_cycle_readback_contract",
+          "staging_environment"
+        ],
+        "all_static_only": true,
+        "all_promotion_blocked": true,
+        "all_activation_disabled": false,
+        "all_provider_mutations_disabled": true,
+        "all_migration_apply_disabled": false,
+        "all_non_authorizing": true
+      },
+      "preflight": {
+        "decision": "deny_shadow_execution",
+        "code": "WRITE_SCOPE_SHADOW_ONLY",
+        "authorization_checked": true,
+        "resource_authority_required": true,
+        "approval_required": true,
+        "capability_envelope_required": true,
+        "execution_lease_required": true,
+        "same_cycle_readback_required": true,
+        "kill_switch_required": true
+      },
+      "execution": {
+        "attempted": false,
+        "mutation_execution": false,
+        "provider_calls": false,
+        "database_writes": false,
+        "migration_apply": false,
+        "external_send": false
+      },
+      "rollback": {
+        "required": true,
+        "plan_validated": true,
+        "compensation_executed": false,
+        "rollback_executed": false,
+        "mode": "plan_only"
+      },
+      "audit_receipt": {
+        "event_type": "write_scope_shadow_preflight",
+        "outcome": "denied_before_execution",
+        "durable_receipt_required": true,
+        "secrets_included": false
+      }
+    },
+    {
+      "scope_key": "assets.create",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "status": "shadow",
+      "default_request": false,
+      "tool_bound": false,
+      "route_evidence": {
+        "route_count": 1,
+        "route_ids": [
+          "http-generic-api/routes/resourceApiRoutes.js#POST:/me/workspaces/:workspace_id/brands/:brand_key/assets/materialize-brand-core:15"
+        ],
+        "classification_counts": {
+          "shadow_candidate": 1
+        },
+        "prerequisites": [
+          "approval_policy_evidence",
+          "capability_envelope_evidence",
+          "explicit_resource_operation_scope_binding",
+          "lease_evidence",
+          "live_resource_authority_binding",
+          "same_cycle_readback_contract",
+          "staging_environment"
+        ],
+        "all_static_only": true,
+        "all_promotion_blocked": true,
+        "all_activation_disabled": false,
+        "all_provider_mutations_disabled": true,
+        "all_migration_apply_disabled": false,
+        "all_non_authorizing": true
+      },
+      "preflight": {
+        "decision": "deny_shadow_execution",
+        "code": "WRITE_SCOPE_SHADOW_ONLY",
+        "authorization_checked": true,
+        "resource_authority_required": true,
+        "approval_required": true,
+        "capability_envelope_required": true,
+        "execution_lease_required": true,
+        "same_cycle_readback_required": true,
+        "kill_switch_required": true
+      },
+      "execution": {
+        "attempted": false,
+        "mutation_execution": false,
+        "provider_calls": false,
+        "database_writes": false,
+        "migration_apply": false,
+        "external_send": false
+      },
+      "rollback": {
+        "required": true,
+        "plan_validated": true,
+        "compensation_executed": false,
+        "rollback_executed": false,
+        "mode": "plan_only"
+      },
+      "audit_receipt": {
+        "event_type": "write_scope_shadow_preflight",
+        "outcome": "denied_before_execution",
+        "durable_receipt_required": true,
+        "secrets_included": false
+      }
+    },
+    {
+      "scope_key": "assets.update",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "status": "shadow",
+      "default_request": false,
+      "tool_bound": false,
+      "route_evidence": {
+        "route_count": 0,
+        "route_ids": [],
+        "classification_counts": {},
+        "prerequisites": [],
+        "all_static_only": true,
+        "all_promotion_blocked": true,
+        "all_activation_disabled": true,
+        "all_provider_mutations_disabled": true,
+        "all_migration_apply_disabled": true,
+        "all_non_authorizing": true
+      },
+      "preflight": {
+        "decision": "deny_shadow_execution",
+        "code": "WRITE_SCOPE_SHADOW_ONLY",
+        "authorization_checked": true,
+        "resource_authority_required": true,
+        "approval_required": true,
+        "capability_envelope_required": true,
+        "execution_lease_required": true,
+        "same_cycle_readback_required": true,
+        "kill_switch_required": true
+      },
+      "execution": {
+        "attempted": false,
+        "mutation_execution": false,
+        "provider_calls": false,
+        "database_writes": false,
+        "migration_apply": false,
+        "external_send": false
+      },
+      "rollback": {
+        "required": true,
+        "plan_validated": true,
+        "compensation_executed": false,
+        "rollback_executed": false,
+        "mode": "plan_only"
+      },
+      "audit_receipt": {
+        "event_type": "write_scope_shadow_preflight",
+        "outcome": "denied_before_execution",
+        "durable_receipt_required": true,
+        "secrets_included": false
+      }
+    },
+    {
+      "scope_key": "cloudflare.write",
+      "effect_class": "external_write",
+      "risk_class": "high",
+      "status": "shadow",
+      "default_request": false,
+      "tool_bound": false,
+      "route_evidence": {
+        "route_count": 1,
+        "route_ids": [
+          "http-generic-api/routes/adminCliRoutes.js#POST:/cloudflare:7"
+        ],
+        "classification_counts": {
+          "shadow_candidate": 1
+        },
+        "prerequisites": [
+          "approval_policy_evidence",
+          "capability_envelope_evidence",
+          "explicit_resource_operation_scope_binding",
+          "lease_evidence",
+          "live_resource_authority_binding",
+          "provider_adapter_allowlist",
+          "provider_idempotency",
+          "provider_rollback_or_compensation",
+          "same_cycle_readback_contract",
+          "staging_environment"
+        ],
+        "all_static_only": true,
+        "all_promotion_blocked": true,
+        "all_activation_disabled": false,
+        "all_provider_mutations_disabled": true,
+        "all_migration_apply_disabled": false,
+        "all_non_authorizing": true
+      },
+      "preflight": {
+        "decision": "deny_shadow_execution",
+        "code": "WRITE_SCOPE_SHADOW_ONLY",
+        "authorization_checked": true,
+        "resource_authority_required": true,
+        "approval_required": true,
+        "capability_envelope_required": true,
+        "execution_lease_required": true,
+        "same_cycle_readback_required": true,
+        "kill_switch_required": true
+      },
+      "execution": {
+        "attempted": false,
+        "mutation_execution": false,
+        "provider_calls": false,
+        "database_writes": false,
+        "migration_apply": false,
+        "external_send": false
+      },
+      "rollback": {
+        "required": true,
+        "plan_validated": true,
+        "compensation_executed": false,
+        "rollback_executed": false,
+        "mode": "plan_only"
+      },
+      "audit_receipt": {
+        "event_type": "write_scope_shadow_preflight",
+        "outcome": "denied_before_execution",
+        "durable_receipt_required": true,
+        "secrets_included": false
+      }
+    },
+    {
+      "scope_key": "github.write",
+      "effect_class": "external_write",
+      "risk_class": "high",
+      "status": "shadow",
+      "default_request": false,
+      "tool_bound": false,
+      "route_evidence": {
+        "route_count": 8,
+        "route_ids": [
+          "http-generic-api/routes/adminCliRoutes.js#POST:/github:1",
+          "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/github:17",
+          "http-generic-api/routes/githubRoutes.js#POST:/github/apply-file-updates:0",
+          "http-generic-api/routes/githubRoutes.js#POST:/github/comment-on-pr:5",
+          "http-generic-api/routes/githubRoutes.js#POST:/github/merge-pr:3",
+          "http-generic-api/routes/githubRoutes.js#POST:/github/preview-file-updates:4",
+          "http-generic-api/routes/githubRoutes.js#POST:/github/validated-apply-file-updates:1",
+          "http-generic-api/routes/repositoryMainMovedTriggerRoutes.js#POST:/webhooks/github/repository-main-moved:0"
+        ],
+        "classification_counts": {
+          "shadow_candidate": 8
+        },
+        "prerequisites": [
+          "approval_policy_evidence",
+          "capability_envelope_evidence",
+          "explicit_resource_operation_scope_binding",
+          "lease_evidence",
+          "live_resource_authority_binding",
+          "provider_adapter_allowlist",
+          "provider_idempotency",
+          "provider_rollback_or_compensation",
+          "same_cycle_readback_contract",
+          "staging_environment"
+        ],
+        "all_static_only": true,
+        "all_promotion_blocked": true,
+        "all_activation_disabled": false,
+        "all_provider_mutations_disabled": true,
+        "all_migration_apply_disabled": false,
+        "all_non_authorizing": true
+      },
+      "preflight": {
+        "decision": "deny_shadow_execution",
+        "code": "WRITE_SCOPE_SHADOW_ONLY",
+        "authorization_checked": true,
+        "resource_authority_required": true,
+        "approval_required": true,
+        "capability_envelope_required": true,
+        "execution_lease_required": true,
+        "same_cycle_readback_required": true,
+        "kill_switch_required": true
+      },
+      "execution": {
+        "attempted": false,
+        "mutation_execution": false,
+        "provider_calls": false,
+        "database_writes": false,
+        "migration_apply": false,
+        "external_send": false
+      },
+      "rollback": {
+        "required": true,
+        "plan_validated": true,
+        "compensation_executed": false,
+        "rollback_executed": false,
+        "mode": "plan_only"
+      },
+      "audit_receipt": {
+        "event_type": "write_scope_shadow_preflight",
+        "outcome": "denied_before_execution",
+        "durable_receipt_required": true,
+        "secrets_included": false
+      }
+    },
+    {
+      "scope_key": "hostinger.deploy",
+      "effect_class": "external_write",
+      "risk_class": "critical",
+      "status": "shadow",
+      "default_request": false,
+      "tool_bound": false,
+      "route_evidence": {
+        "route_count": 7,
+        "route_ids": [
+          "http-generic-api/routes/adminCliRoutes.js#POST:/hostinger:6",
+          "http-generic-api/routes/agentSurfaceRoutes.js#PUT:/me/agent-surfaces/:surface_key/deployment:4",
+          "http-generic-api/routes/asyncReleaseDeployRoutes.js#POST:/admin/release-operations/:operationId/async-deploy/readback:2",
+          "http-generic-api/routes/asyncReleaseDeployRoutes.js#POST:/admin/release-operations/:operationId/async-deploy:0",
+          "http-generic-api/routes/governanceRoutes.js#POST:/hostinger/ssh-runtime-read:4",
+          "http-generic-api/routes/hostingerStorageTenantRoutes.js#POST:/tenant/storage-operations/apply-plan:0",
+          "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28"
+        ],
+        "classification_counts": {
+          "shadow_candidate": 7
+        },
+        "prerequisites": [
+          "approval_policy_evidence",
+          "capability_envelope_evidence",
+          "explicit_resource_operation_scope_binding",
+          "lease_evidence",
+          "live_resource_authority_binding",
+          "provider_adapter_allowlist",
+          "provider_idempotency",
+          "provider_rollback_or_compensation",
+          "same_cycle_readback_contract",
+          "staging_environment"
+        ],
+        "all_static_only": true,
+        "all_promotion_blocked": true,
+        "all_activation_disabled": false,
+        "all_provider_mutations_disabled": true,
+        "all_migration_apply_disabled": false,
+        "all_non_authorizing": true
+      },
+      "preflight": {
+        "decision": "deny_shadow_execution",
+        "code": "WRITE_SCOPE_SHADOW_ONLY",
+        "authorization_checked": true,
+        "resource_authority_required": true,
+        "approval_required": true,
+        "capability_envelope_required": true,
+        "execution_lease_required": true,
+        "same_cycle_readback_required": true,
+        "kill_switch_required": true
+      },
+      "execution": {
+        "attempted": false,
+        "mutation_execution": false,
+        "provider_calls": false,
+        "database_writes": false,
+        "migration_apply": false,
+        "external_send": false
+      },
+      "rollback": {
+        "required": true,
+        "plan_validated": true,
+        "compensation_executed": false,
+        "rollback_executed": false,
+        "mode": "plan_only"
+      },
+      "audit_receipt": {
+        "event_type": "write_scope_shadow_preflight",
+        "outcome": "denied_before_execution",
+        "durable_receipt_required": true,
+        "secrets_included": false
+      }
+    }
+  ],
+  "summary": {
+    "scope_count": 6,
+    "route_count": 38,
+    "all_preflight_decisions_denied": true,
+    "all_execution_attempts_false": true,
+    "all_rollback_plans_validated": true
+  },
+  "safety": {
+    "production_allowed": false,
+    "write_activation_allowed": false,
+    "provider_mutation_allowed": false,
+    "migration_apply_allowed": false,
+    "mutation_execution": false,
+    "provider_calls": false,
+    "database_writes": false,
+    "external_send": false,
+    "credential_payload_reads": false,
+    "secrets_included": false
+  },
+  "evidence_fingerprint": "ed76a8b5a0b5dfb8c2f47bfcf250cae922760844d0ff02ced09af46babb554b1"
+}
