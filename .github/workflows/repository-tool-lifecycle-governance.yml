@@ -70,6 +70,22 @@ jobs:
       - name: Run configuration drift guard regression
         run: node http-generic-api/scripts/test-configuration-drift-guard.mjs
 
+      - name: Run platform configuration entry guard regression
+        run: node http-generic-api/scripts/test-platform-configuration-entry-guard.mjs
+
+      - name: Evaluate platform configuration entry governance
+        id: platform_configuration_entry
+        continue-on-error: true
+        env:
+          CHANGED_FILES_FILE: /tmp/repository-tool-changes.tsv
+        run: |
+          node http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs \
+            --registry docs/governance/platform-configuration-entry-registry.json \
+            --candidates .artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.json \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --output .artifacts/repository-tool-lifecycle/platform-configuration-entry-guard.json \
+            --fail-on-findings
+
       - name: Run platform configuration control plane regression
         id: platform_configuration
         run: |
@@ -127,10 +143,14 @@ jobs:
             cat .artifacts/repository-tool-lifecycle/configuration-drift/configuration-drift-guard.md >> "$GITHUB_STEP_SUMMARY"
             printf '\n' >> "$GITHUB_STEP_SUMMARY"
           fi
+          if [[ -f .artifacts/repository-tool-lifecycle/platform-configuration-entry-guard.json ]]; then
+            cat .artifacts/repository-tool-lifecycle/platform-configuration-entry-guard.json >> "$GITHUB_STEP_SUMMARY"
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
           cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce repository tool lifecycle
-        if: steps.discovery.outcome != 'success' || steps.configuration_discovery.outcome != 'success' || steps.platform_configuration.outcome != 'success' || steps.configuration_drift.outcome != 'success' || steps.governance.outcome != 'success'
+        if: steps.discovery.outcome != 'success' || steps.configuration_discovery.outcome != 'success' || steps.platform_configuration_entry.outcome != 'success' || steps.platform_configuration.outcome != 'success' || steps.configuration_drift.outcome != 'success' || steps.governance.outcome != 'success'
         run: |
           echo "Repository tool discovery or lifecycle governance failed. Read the canonical artifact first."
           exit 1

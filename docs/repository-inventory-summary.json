@@ -3,39 +3,39 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6981,
-    "bytes": 65157619,
-    "lines": 1533359,
+    "files": 6995,
+    "bytes": 65278856,
+    "lines": 1535834,
     "directories": 260,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2092,
-      "documentation": 1894,
-      "api-runtime": 1404,
+      "tests-and-specs": 2096,
+      "documentation": 1896,
+      "api-runtime": 1406,
       "database-migrations": 781,
-      "root-and-other": 262,
+      "root-and-other": 267,
       "api-contracts": 162,
       "ci-workflows": 161,
       "ci-config": 103,
-      "schemas-and-data": 66,
+      "schemas-and-data": 67,
       "connectors-and-edge": 23,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2488,
-      ".mjs": 1629,
-      ".js": 974,
+      ".md": 2489,
+      ".mjs": 1634,
+      ".js": 975,
       ".sql": 796,
-      ".json": 737,
+      ".json": 742,
       ".yml": 164,
       ".yaml": 110,
       ".ts": 15,
       ".cs": 14,
-      ".ps1": 10,
+      ".ps1": 11,
       ".jsx": 9,
       ".txt": 7,
       ".py": 5,
@@ -47,6 +47,7 @@
       ".gitignore": 1,
       ".nvmrc": 1,
       ".manifest": 1,
+      ".cmd": 1,
       ".jsonl": 1,
       ".htaccess": 1,
       ".dockerignore": 1,
@@ -58,20 +59,20 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3603,
-      "docs": 1798,
+      "http-generic-api": 3609,
+      "docs": 1800,
       "specs": 846,
       ".github": 264,
-      ".changes": 249,
+      ".changes": 251,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
-      ".specify": 14,
+      ".specify": 15,
       "schemas": 14,
       "src": 12,
+      "autopilot-portable-staging": 11,
       "scripts": 11,
       "edge": 9,
-      "autopilot-portable-staging": 8,
       "tests": 3,
       ".gitattributes": 1,
       ".gitignore": 1,
@@ -217,7 +218,7 @@
     "workflows": 161,
     "migrations": 781,
     "apiContracts": 162,
-    "testSpecFiles": 2160
+    "testSpecFiles": 2164
   },
   "largestFiles": [
     {
@@ -235,8 +236,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1930977,
-      "lines": 58388
+      "bytes": 1931059,
+      "lines": 58392
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -277,8 +278,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 241420,
-      "lines": 2068
+      "bytes": 241968,
+      "lines": 2072
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",

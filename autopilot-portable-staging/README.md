@@ -2,6 +2,19 @@
 
 This folder contains the reusable Windows PowerShell launcher for local Staging on an NTFS External SSD. It is designed for Windows 10 with WSL2 and Docker Desktop using a local Docker context.
 
+## Recommended one-click operation
+
+For the normal operator workflow, double-click `Start-Staging-One-Click.cmd`. It automatically requests Administrator elevation, installs or verifies Git, GitHub CLI, Docker Desktop, and WSL2, clones the repository when it is absent, authenticates GitHub CLI when required, waits for the exact `main` commit to pass the Staging eligibility check, creates local-only secrets, starts the three local databases and application, starts the explicitly allowed Dev Tunnel, seeds an approved local schema-only bundle when present, and installs the logon Auto Deploy task.
+
+The first run may ask for two unavoidable credentials: GitHub CLI device/browser authentication and the dedicated Staging Cloudflare Tunnel token. These are entered inside the launcher; no separate Terminal command is required. They are not committed to GitHub. Subsequent runs reuse the ignored local `.env.staging` and normally require no additional input.
+
+The launcher is intentionally safe when a schema bundle is absent. It starts fresh local databases and does not apply migrations or copy data. To seed schemas automatically, place the approved local files `runtime.schema.sql.gz`, `governance.schema.sql.gz`, and `persistence.schema.sql.gz` in `autopilot-portable-staging\staging-db-dumps\`; the one-click runner consumes them only as `schema_only`. Production dumps and sanitized data are never accepted by this path.
+
+Use `-RequireSchemaBundle` only when the local schema bundle is already present and the run must fail closed if it is missing.
+
+The one-click runner records only non-secret state in the ignored `one-click-state.json`. It never creates DNS records, changes Cloudflare configuration, deploys Hostinger, runs migrations, or enables Production/provider mutation.
+
+
 The launcher is intentionally fail-closed. It requires an exact 40-character commit SHA, refuses a dirty working tree, rejects `DOCKER_HOST` and `DOCKER_CONTEXT`, accepts only local Docker contexts, validates the pinned repository files against `manifest.json`, creates only an ignored local `.env.staging`, preserves `MIGRATION_APPLIED=false` and `DATABASE_MUTATED=false`, and never creates DNS records, changes Cloudflare, deploys Hostinger, or runs migrations.
 
 ## First run

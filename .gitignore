@@ -27,3 +27,5 @@ tmp/
 # Portable Staging Auto Deploy runtime state
 /autopilot-portable-staging/autopilot-state.json
 /autopilot-portable-staging/auto-deploy-state.json
+/autopilot-portable-staging/one-click-state.json
+/autopilot-portable-staging/staging-db-dumps/

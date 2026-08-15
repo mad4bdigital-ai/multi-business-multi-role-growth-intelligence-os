@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,981 |
-| Total bytes | 65,157,619 |
-| Counted text lines | 1,533,359 |
+| Tracked files | 6,995 |
+| Total bytes | 65,278,856 |
+| Counted text lines | 1,535,834 |
 | Directories | 260 |
 | Categories | 13 |
 
@@ -17,15 +17,15 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,092 |
-| `documentation` | 1,894 |
-| `api-runtime` | 1,404 |
+| `tests-and-specs` | 2,096 |
+| `documentation` | 1,896 |
+| `api-runtime` | 1,406 |
 | `database-migrations` | 781 |
-| `root-and-other` | 262 |
+| `root-and-other` | 267 |
 | `api-contracts` | 162 |
 | `ci-workflows` | 161 |
 | `ci-config` | 103 |
-| `schemas-and-data` | 66 |
+| `schemas-and-data` | 67 |
 | `connectors-and-edge` | 23 |
 | `applications` | 19 |
 | `source` | 12 |
@@ -35,16 +35,16 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,488 |
-| `.mjs` | 1,629 |
-| `.js` | 974 |
+| `.md` | 2,489 |
+| `.mjs` | 1,634 |
+| `.js` | 975 |
 | `.sql` | 796 |
-| `.json` | 737 |
+| `.json` | 742 |
 | `.yml` | 164 |
 | `.yaml` | 110 |
 | `.ts` | 15 |
 | `.cs` | 14 |
-| `.ps1` | 10 |
+| `.ps1` | 11 |
 | `.jsx` | 9 |
 | `.txt` | 7 |
 | `.py` | 5 |
@@ -56,6 +56,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.gitignore` | 1 |
 | `.nvmrc` | 1 |
 | `.manifest` | 1 |
+| `.cmd` | 1 |
 | `.jsonl` | 1 |
 | `.htaccess` | 1 |
 | `.dockerignore` | 1 |
@@ -73,7 +74,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 161 |
 | Database migrations | 781 |
 | API/OpenAPI contracts | 162 |
-| Test/spec files (paths) | 2,160 |
+| Test/spec files (paths) | 2,164 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -89,14 +90,14 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,123,850 | 95802 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,930,977 | 58388 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,931,059 | 58392 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 990,965 | 23004 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 241,420 | 2068 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 241,968 | 2072 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 212,668 | 4536 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
 | `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
