@@ -17,6 +17,8 @@ export const ALLOWED_GENERATED_ARTIFACT_PATHS = Object.freeze([
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
+  "docs/remote-mcp-write-scope-inventory.md",
+  "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
 ]);
 const ALLOWED_CHANGED_FILES = new Set(ALLOWED_GENERATED_ARTIFACT_PATHS);
 const scriptPath = fileURLToPath(import.meta.url);
