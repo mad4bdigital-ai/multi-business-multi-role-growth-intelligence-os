@@ -14,6 +14,8 @@ The current PR is a local Staging and governance PR. The safe extension is there
 4. Preserve `activation_dev.mad4b.com` as blocked and keep Production hostnames and Hostinger outside the Staging projection.
 5. Add structural performance gates as contract assertions, not unverified latency claims: known intents must be able to resolve without mandatory `listTools`; no mutation may omit expected revision or required readback; no hard delete may bypass a dependency plan.
 6. Add E2E and integrity coverage for deterministic registry/projection generation and no-secret/no-Production leakage.
+7. Declare `brand.context.read` as a read-only shadow descriptor and expose a bounded `next_operations` continuation array from the existing Brand create executor without activating a new write path.
+8. Record Asset create/readback evidence separately from the missing update/archive/restore CAS contract, so the parity artifact reports the lifecycle gap rather than hiding it behind generic CRUD.
 
 ## Deferred scope requiring separate reviewed slices
 
@@ -25,4 +27,4 @@ The common lifecycle vocabulary should be `create`, `configure`, `validate`, `ac
 
 ## Acceptance criteria for the safe extension
 
-The generated registry is deterministic, contains no secrets, does not activate shadow operations, produces an explicit parity matrix, records intentional exclusions with evidence, keeps Production and `activation_dev` excluded, and passes the existing fail-closed E2E, configuration-drift, Remote MCP inventory, OpenAPI, and Staging boundary gates.
+The generated registry is deterministic, uses dot-notation keys, contains no secrets, does not activate shadow operations, produces an explicit parity matrix, records intentional exclusions with evidence, exposes `brand.context.read` only as read-only shadow metadata, and reports zero structural performance-gate violations. It keeps Production and `activation_dev` excluded and passes the existing fail-closed E2E, configuration-drift, Remote MCP inventory, OpenAPI, and Staging boundary gates.

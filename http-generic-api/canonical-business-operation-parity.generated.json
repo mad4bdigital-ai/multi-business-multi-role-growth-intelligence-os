@@ -1,7 +1,7 @@
 {
   "schema_version": "canonical-business-operation-parity-v1",
   "revision": "staging-safe-2026-08-15",
-  "registry_fingerprint": "04ad1bbe974e4bf5df2e64a48d0ec6f152da6338b51ab70748e411224f226ef0",
+  "registry_fingerprint": "9bf5a16ea417fa4223b6aa534b4083dcaec5bb5e8debb6b714fee34bc979b262",
   "environment_policy": {
     "active_environment": "staging",
     "allowed_public_hosts": [
@@ -27,18 +27,18 @@
     "internal_agent"
   ],
   "counts": {
-    "operation_count": 26,
+    "operation_count": 27,
     "active_operation_count": 10,
-    "shadow_operation_count": 9,
+    "shadow_operation_count": 10,
     "blocked_operation_count": 7,
-    "read_only_operation_count": 11,
-    "write_or_shadow_operation_count": 16,
+    "read_only_operation_count": 12,
+    "write_or_shadow_operation_count": 15,
     "active_remote_mcp_operation_count": 2,
     "active_custom_gpt_operation_count": 10
   },
   "operations": [
     {
-      "operation_key": "approvals:read",
+      "operation_key": "approvals.read",
       "domain": "approval",
       "lifecycle_action": "read",
       "resource_type": "approval",
@@ -71,7 +71,7 @@
       ]
     },
     {
-      "operation_key": "approvals:request",
+      "operation_key": "approvals.request",
       "domain": "approval",
       "lifecycle_action": "create",
       "resource_type": "approval",
@@ -81,7 +81,7 @@
       "risk_class": "medium",
       "approval_required": false,
       "readback_required": true,
-      "optimistic_concurrency_required": false,
+      "optimistic_concurrency_required": true,
       "idempotency_required": true,
       "executor_ref": "approval_hold_request",
       "scope_keys": [
@@ -98,7 +98,7 @@
       "intentional_exclusions": []
     },
     {
-      "operation_key": "assets:archive",
+      "operation_key": "assets.archive",
       "domain": "asset",
       "lifecycle_action": "archive",
       "resource_type": "asset",
@@ -129,7 +129,7 @@
       ]
     },
     {
-      "operation_key": "assets:create",
+      "operation_key": "assets.create",
       "domain": "asset",
       "lifecycle_action": "create",
       "resource_type": "asset",
@@ -139,7 +139,7 @@
       "risk_class": "high",
       "approval_required": true,
       "readback_required": true,
-      "optimistic_concurrency_required": false,
+      "optimistic_concurrency_required": true,
       "idempotency_required": true,
       "executor_ref": "resource_api_assets_create",
       "scope_keys": [
@@ -156,7 +156,7 @@
       "intentional_exclusions": []
     },
     {
-      "operation_key": "assets:read",
+      "operation_key": "assets.read",
       "domain": "asset",
       "lifecycle_action": "read",
       "resource_type": "asset",
@@ -189,7 +189,7 @@
       ]
     },
     {
-      "operation_key": "assets:restore",
+      "operation_key": "assets.restore",
       "domain": "asset",
       "lifecycle_action": "restore",
       "resource_type": "asset",
@@ -220,7 +220,7 @@
       ]
     },
     {
-      "operation_key": "assets:update",
+      "operation_key": "assets.update",
       "domain": "asset",
       "lifecycle_action": "update",
       "resource_type": "asset",
@@ -247,7 +247,7 @@
       "intentional_exclusions": []
     },
     {
-      "operation_key": "brand:archive",
+      "operation_key": "brand.archive",
       "domain": "brand",
       "lifecycle_action": "archive",
       "resource_type": "brand",
@@ -303,7 +303,38 @@
       ]
     },
     {
-      "operation_key": "brand:create",
+      "operation_key": "brand.context.read",
+      "domain": "brand",
+      "lifecycle_action": "read",
+      "resource_type": "brand_context",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Dedicated Brand context read contract is declared for parity planning; no separate transport binding is activated in this PR."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.create",
       "domain": "brand",
       "lifecycle_action": "create",
       "resource_type": "brand",
@@ -313,7 +344,7 @@
       "risk_class": "high",
       "approval_required": true,
       "readback_required": true,
-      "optimistic_concurrency_required": false,
+      "optimistic_concurrency_required": true,
       "idempotency_required": true,
       "executor_ref": "createWorkspaceBrand",
       "scope_keys": [],
@@ -328,7 +359,7 @@
       "intentional_exclusions": []
     },
     {
-      "operation_key": "brand:restore",
+      "operation_key": "brand.restore",
       "domain": "brand",
       "lifecycle_action": "restore",
       "resource_type": "brand",
@@ -384,7 +415,7 @@
       ]
     },
     {
-      "operation_key": "brand:update",
+      "operation_key": "brand.update",
       "domain": "brand",
       "lifecycle_action": "update",
       "resource_type": "brand",
@@ -440,7 +471,7 @@
       ]
     },
     {
-      "operation_key": "brands:list",
+      "operation_key": "brands.list",
       "domain": "brand",
       "lifecycle_action": "read",
       "resource_type": "brand",
@@ -467,7 +498,7 @@
       "intentional_exclusions": []
     },
     {
-      "operation_key": "cloudflare:read",
+      "operation_key": "cloudflare.read",
       "domain": "cloudflare",
       "lifecycle_action": "read",
       "resource_type": "cloudflare",
@@ -505,7 +536,7 @@
       ]
     },
     {
-      "operation_key": "cloudflare:write",
+      "operation_key": "cloudflare.write",
       "domain": "cloudflare",
       "lifecycle_action": "update",
       "resource_type": "cloudflare",
@@ -538,7 +569,7 @@
       ]
     },
     {
-      "operation_key": "connections:read",
+      "operation_key": "connections.read",
       "domain": "connection",
       "lifecycle_action": "read",
       "resource_type": "connection",
@@ -576,7 +607,7 @@
       ]
     },
     {
-      "operation_key": "github:read",
+      "operation_key": "github.read",
       "domain": "repository",
       "lifecycle_action": "read",
       "resource_type": "repository",
@@ -614,7 +645,7 @@
       ]
     },
     {
-      "operation_key": "github:write",
+      "operation_key": "github.write",
       "domain": "repository",
       "lifecycle_action": "update",
       "resource_type": "repository",
@@ -647,7 +678,7 @@
       ]
     },
     {
-      "operation_key": "growth:execute",
+      "operation_key": "growth.execute",
       "domain": "growth",
       "lifecycle_action": "execute",
       "resource_type": "growth_plan",
@@ -703,7 +734,7 @@
       ]
     },
     {
-      "operation_key": "growth:plan",
+      "operation_key": "growth.plan",
       "domain": "growth",
       "lifecycle_action": "plan",
       "resource_type": "growth_plan",
@@ -734,7 +765,7 @@
       ]
     },
     {
-      "operation_key": "hostinger:deploy",
+      "operation_key": "hostinger.deploy",
       "domain": "hosting",
       "lifecycle_action": "activate",
       "resource_type": "hostinger",
@@ -792,7 +823,7 @@
       ]
     },
     {
-      "operation_key": "hostinger:read",
+      "operation_key": "hostinger.read",
       "domain": "hosting",
       "lifecycle_action": "read",
       "resource_type": "hostinger",
@@ -922,7 +953,7 @@
       ]
     },
     {
-      "operation_key": "permissions:read",
+      "operation_key": "permissions.read",
       "domain": "authorization",
       "lifecycle_action": "read",
       "resource_type": "permission",
@@ -960,7 +991,7 @@
       ]
     },
     {
-      "operation_key": "policy:activate",
+      "operation_key": "policy.activate",
       "domain": "policy",
       "lifecycle_action": "activate",
       "resource_type": "execution_policy",
@@ -1016,7 +1047,7 @@
       ]
     },
     {
-      "operation_key": "workspaces:list",
+      "operation_key": "workspaces.list",
       "domain": "workspace",
       "lifecycle_action": "read",
       "resource_type": "workspace",
@@ -1043,6 +1074,12 @@
       "intentional_exclusions": []
     }
   ],
+  "performance_gates": {
+    "known_intent_list_tools_calls": 0,
+    "mutation_without_expected_revision": 0,
+    "mutation_without_required_readback": 0,
+    "hard_delete_without_dependency_plan": 0
+  },
   "safety": {
     "shadow_writes_activated": false,
     "blocked_hosts_projected": false,

@@ -26,12 +26,15 @@ assert.equal(parity.safety.purge_allowed, false);
 assert.equal(parity.safety.secrets_included, false);
 assert.equal(parity.counts.operation_count, CANONICAL_BUSINESS_OPERATION_REGISTRY.operations.length);
 assert.equal(parity.counts.active_remote_mcp_operation_count, 2);
-assert.equal(resolveCanonicalBusinessOperation("assets:update")?.optimistic_concurrency_required, true);
-assert.equal(resolveCanonicalBusinessOperation("brand:update")?.status, "blocked");
-assert.equal(resolveCanonicalBusinessOperation("hostinger:deploy")?.projection_policy.remote_mcp, "blocked");
-assert.equal(resolveCanonicalBusinessOperation("assets:archive")?.projection_policy.remote_mcp, "blocked");
-assert.equal(resolveCanonicalBusinessOperation("workspaces:list")?.projection_policy.remote_mcp, "active");
-assert.equal(listCanonicalBusinessOperations({ status: "shadow" }).every((operation) => operation.approval_required || operation.operation_key === "approvals:request"), true);
+assert.equal(resolveCanonicalBusinessOperation("assets.update")?.optimistic_concurrency_required, true);
+assert.equal(resolveCanonicalBusinessOperation("brand.update")?.status, "blocked");
+assert.equal(resolveCanonicalBusinessOperation("hostinger.deploy")?.projection_policy.remote_mcp, "blocked");
+assert.equal(resolveCanonicalBusinessOperation("assets.archive")?.projection_policy.remote_mcp, "blocked");
+assert.equal(resolveCanonicalBusinessOperation("workspaces.list")?.projection_policy.remote_mcp, "active");
+assert.equal(resolveCanonicalBusinessOperation("brand.context.read")?.effect_class, "read_only");
+assert.equal(resolveCanonicalBusinessOperation("brand.context.read")?.status, "shadow");
+assert.equal(resolveCanonicalBusinessOperation("brand.create")?.response_contract?.next_operations?.items?.read_only, true);
+assert.equal(listCanonicalBusinessOperations({ status: "shadow" }).every((operation) => operation.effect_class === "read_only" || operation.approval_required || operation.operation_key === "approvals.request"), true);
 assert.equal(listCanonicalBusinessOperations().every((operation) => {
   const serialized = JSON.stringify(operation);
   return !serialized.includes("auth.mad4b.com")
@@ -39,7 +42,11 @@ assert.equal(listCanonicalBusinessOperations().every((operation) => {
     && !serialized.includes("activation.mad4b.com")
     && !serialized.includes("activation_dev.mad4b.com");
 }), true);
-assert.equal(listCanonicalBusinessOperations().filter((operation) => operation.effect_class !== "read_only").every((operation) => operation.readback_required === true && operation.idempotency_required === true), true);
+assert.equal(listCanonicalBusinessOperations().filter((operation) => operation.effect_class !== "read_only").every((operation) => operation.readback_required === true && operation.idempotency_required === true && operation.optimistic_concurrency_required === true), true);
+assert.equal(parity.performance_gates.known_intent_list_tools_calls, 0);
+assert.equal(parity.performance_gates.mutation_without_expected_revision, 0);
+assert.equal(parity.performance_gates.mutation_without_required_readback, 0);
+assert.equal(parity.performance_gates.hard_delete_without_dependency_plan, 0);
 assert.equal(parity.operations.every((operation) => operation.intentional_exclusions.every((exclusion) => ["blocked", "not_projected"].includes(exclusion.status))), true);
 console.log(JSON.stringify({
   ok: true,

@@ -35,6 +35,7 @@ export function validateCanonicalBusinessOperationRegistry(registry = REGISTRY) 
   for (const operation of operations) {
     const operationKey = String(operation?.operation_key || "").trim();
     if (!operationKey) addError(errors, "operation_key_missing");
+    if (operationKey && !/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/u.test(operationKey)) addError(errors, "operation_key_must_use_dot_notation", { operation_key: operationKey });
     if (keys.has(operationKey)) addError(errors, "duplicate_operation_key", { operation_key: operationKey });
     keys.add(operationKey);
     if (!operation?.domain || !operation?.lifecycle_action || !operation?.resource_type) {
@@ -46,7 +47,7 @@ export function validateCanonicalBusinessOperationRegistry(registry = REGISTRY) 
     }
     if (WRITE_EFFECTS.has(operation?.effect_class)) {
       if (operation.status === "active") addError(errors, "write_operation_must_not_be_active", { operation_key: operationKey });
-      if (operation.operation_key !== "approvals:request" && operation.approval_required !== true) addError(errors, "write_operation_approval_required", { operation_key: operationKey });
+      if (operation.operation_key !== "approvals.request" && operation.approval_required !== true) addError(errors, "write_operation_approval_required", { operation_key: operationKey });
       if (operation.readback_required !== true) addError(errors, "write_operation_readback_required", { operation_key: operationKey });
       if (operation.idempotency_required !== true) addError(errors, "write_operation_idempotency_required", { operation_key: operationKey });
       if (["update", "archive", "restore", "deactivate", "activate", "supersede"].includes(operation.lifecycle_action)
@@ -66,6 +67,19 @@ export function validateCanonicalBusinessOperationRegistry(registry = REGISTRY) 
     }
     if (operation.lifecycle_action === "purge" && operation.status !== "blocked") {
       addError(errors, "purge_must_remain_blocked", { operation_key: operationKey || null });
+    }
+    if (operationKey === "brand.create") {
+      const nextOperations = operation.response_contract?.next_operations;
+      if (
+        nextOperations?.type !== "array"
+        || nextOperations?.items?.type !== "object"
+        || nextOperations?.items?.read_only !== true
+        || nextOperations?.items?.operation_key_format !== "dot_notation"
+        || !Array.isArray(nextOperations?.items?.required)
+        || !["operation_key", "status", "reason"].every((field) => nextOperations.items.required.includes(field))
+      ) {
+        addError(errors, "brand_create_next_operations_contract_missing", { operation_key: operationKey });
+      }
     }
   }
   if (registry?.environment_policy?.production_mutation_allowed !== false) addError(errors, "production_mutation_policy_must_be_false");

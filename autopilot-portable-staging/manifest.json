@@ -130,23 +130,39 @@
     },
     {
       "path": "http-generic-api/canonical-business-operation-registry.json",
-      "sha256": "33f9925af8afc18402431bcc2f3efdadaafaf9b6897bd7df036514a643cd1926"
+      "sha256": "7e847bc49d56642f5204945888bd8a54510629cfc0c3232f9aa812af79fbdf2d"
     },
     {
       "path": "http-generic-api/canonicalBusinessOperationRegistry.js",
-      "sha256": "5201f5d602d27c92e633b52c488e136a2237d2c6b2e60912a942041727cd6138"
+      "sha256": "1b94980b31413477546f7c96cef87770595ce23b19d862236d96baf60b8dc982"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
-      "sha256": "72d1292c3660db831117f093fc58ef82fe1600ca61cfcdbdffd6a1a4446cba78"
+      "sha256": "519fab676b55df4ed37f3a89ec479d4c91f846228f2477c0f90cb48ae40d9af3"
     },
     {
       "path": "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
-      "sha256": "e0009fcbf282248ee6c016e7b6590f04971ced79bb7cf71ccc501f449fd9ee36"
+      "sha256": "da21e24fa7ddc5325ff9d0a7b5d6429ca332c33733b99b727f6dd7414bf36ab0"
     },
     {
       "path": "http-generic-api/test-canonical-business-operation-registry.mjs",
-      "sha256": "191c028501a061138fca35a27e17bdf186bdee52c31b0eab1c7c5170cf70c79f"
+      "sha256": "7b965c65791783a21e08d04613e2609d460e400f819452c036cc73be4acbc321"
+    },
+    {
+      "path": "http-generic-api/workspaceBrandLifecycle.js",
+      "sha256": "5f114a3002ee6fd7b34b5467122a0e4af05c6bababa42595b5dcd9adf74e7bbb"
+    },
+    {
+      "path": "http-generic-api/routes/workspaceResourceRoutes.js",
+      "sha256": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99"
+    },
+    {
+      "path": "http-generic-api/test-workspace-brand-create.mjs",
+      "sha256": "a9cf6e7167b65c0b1cee889b67122be1b1167dd4f70c1851d27a2e58203c7c82"
+    },
+    {
+      "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "sha256": "a2e5547d630fb159df496d4af484a114a834e20171224b629f51e74bed789898"
     }
   ],
   "safety": {

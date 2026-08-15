@@ -42,7 +42,13 @@ function buildParity(registry) {
         .map(([surface, status]) => ({ surface, status, reason: operation.projection_notes?.[surface] || operation.projection_notes?.all || "No projection binding is active." })),
     }));
   const active = operations.filter((operation) => operation.status === "active");
-  const writes = operations.filter((operation) => WRITE_STATUSES.has(operation.status) || operation.effect_class !== "read_only");
+  const writes = operations.filter((operation) => operation.effect_class !== "read_only");
+  const performanceGates = {
+    known_intent_list_tools_calls: operations.filter((operation) => operation.intent_resolution?.strategy === "list_tools").length,
+    mutation_without_expected_revision: writes.filter((operation) => operation.optimistic_concurrency_required !== true).length,
+    mutation_without_required_readback: writes.filter((operation) => operation.readback_required !== true).length,
+    hard_delete_without_dependency_plan: operations.filter((operation) => ["purge", "hard_delete"].includes(operation.lifecycle_action) && operation.dependency_plan_required !== true).length,
+  };
   return {
     schema_version: "canonical-business-operation-parity-v1",
     revision: registry.revision,
@@ -60,6 +66,7 @@ function buildParity(registry) {
       active_custom_gpt_operation_count: operations.filter((operation) => ["active", "compatibility"].includes(operation.projections.custom_gpt)).length,
     },
     operations,
+    performance_gates: performanceGates,
     safety: {
       shadow_writes_activated: false,
       blocked_hosts_projected: false,

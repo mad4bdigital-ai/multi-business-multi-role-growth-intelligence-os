@@ -9733,8 +9733,8 @@
     },
     {
       "route_id": "http-generic-api/routes/workspaceResourceRoutes.js#GET:/me/workspaces/:tenant_id/brands:5",
-      "source_line": 252,
-      "source_offset": 14373,
+      "source_line": 253,
+      "source_offset": 14422,
       "method": "GET",
       "path": "/me/workspaces/:tenant_id/brands",
       "file": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -9742,8 +9742,8 @@
     },
     {
       "route_id": "http-generic-api/routes/workspaceResourceRoutes.js#GET:/me/workspaces/:tenant_id/vaults:6",
-      "source_line": 366,
-      "source_offset": 19140,
+      "source_line": 367,
+      "source_offset": 19189,
       "method": "GET",
       "path": "/me/workspaces/:tenant_id/vaults",
       "file": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -51893,7 +51893,7 @@
         "source_line": 223,
         "handler_window_lines": [
           223,
-          251
+          252
         ],
         "evidence_flags": {
           "handler_window_present": true,

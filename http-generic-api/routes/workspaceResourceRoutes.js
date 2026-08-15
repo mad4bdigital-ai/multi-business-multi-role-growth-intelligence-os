@@ -238,6 +238,7 @@ export function buildWorkspaceResourceRoutes() {
         creator_grant: result.grant,
         idempotent_reuse: !result.created,
         next_steps: result.next_steps,
+        next_operations: result.next_operations,
         secrets_included: false,
       });
     } catch (err) {
