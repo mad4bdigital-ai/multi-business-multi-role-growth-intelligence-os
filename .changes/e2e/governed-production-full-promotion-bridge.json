@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-production-full-promotion-bridge",
+  "title": "Governed Production full promotion dispatch bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-production-full-promotion-bridge.json",
+      ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Route an explicit governed Production promotion request through the authoritative convergence launcher rather than the legacy candidate-builder-only path.",
+      "e2e_journeys": [
+        {
+          "id": "request-marker-to-authoritative-promotion-launcher",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository promotion operator",
+          "entrypoint": "An authorized same-repository request PR receives DISPATCH_GOVERNED_PRODUCTION_PROMOTION or the bridge is manually dispatched with an exact request-head SHA.",
+          "terminal_outcome": "The bridge proves current-main/request-tree parity and Production ancestry, dispatches the authoritative promotion launcher with exact pins and typed confirmation, and emits canonical evidence without directly mutating Production.",
+          "steps": [
+            "Validate trusted commenter or typed manual request identity.",
+            "Read and pin current main, current Production, and the exact request PR head.",
+            "Require the request head to descend from and be tree-identical to current main.",
+            "Re-read all exact refs immediately before dispatch.",
+            "Dispatch governed-production-promotion-request-launcher.yml with exact main and request-head pins.",
+            "Persist the canonical dispatch decision before attempting the optional PR receipt comment.",
+            "Treat receipt-comment transport failure as non-fatal after a launcher run has been captured."
+          ],
+          "assertions": [
+            "The full bridge never dispatches production-promotion-candidate.yml directly.",
+            "The launcher receives AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST.",
+            "The launcher receives exact current main and exact tree-identical request-head SHAs.",
+            "The bridge uses bounded human or ai_policy review mode only.",
+            "A moved main, Production ref, or request head fails closed before launcher dispatch.",
+            "Canonical dispatch evidence exists independently of optional issue-comment transport.",
+            "No Production merge, deployment, migration, grant, provider mutation, credential payload read, protected-ref mutation, or force push is performed by the bridge."
+          ],
+          "tests": [
+            {
+              "id": "production-full-promotion-bridge-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-dispatch-input-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governed-production-full-promotion-bridge.json",
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Keep exact protected-ref and request-head currentness checks adjacent to launcher dispatch."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on ref races and preserve successful dispatch evidence when optional receipt transport is unavailable."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This bridge grants no provider, deployment, or database mutation authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Final Production mutation remains outside this bridge and subject to the downstream governed release PR gates."
+    }
+  ],
+  "secrets_included": false
+}
