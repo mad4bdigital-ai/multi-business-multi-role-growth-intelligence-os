@@ -115,7 +115,7 @@ function Install-WingetPackage([string]$Id) {
 
 function Test-Wsl2DistributionReady([string]$WslList) {
     if ([string]::IsNullOrWhiteSpace($WslList)) { return $false }
-    $normalized = $WslList.Replace([char]0, "")
+    $normalized = $WslList -replace "\x00", ""
     return $normalized -match '(?im)^\s*\*?\s*\S+\s+\S+\s+2\s*$'
 }
 
