@@ -1,0 +1,70 @@
+-- Additive governed catalog only. No backfill, runtime cutover, write-scope activation, or Production mutation.
+
+CREATE TABLE IF NOT EXISTS platform_configuration_catalog (
+  config_key VARCHAR(191) NOT NULL,
+  namespace VARCHAR(80) NOT NULL,
+  value_type ENUM('boolean','integer','decimal','string','json','secret_ref') NOT NULL,
+  schema_version INT UNSIGNED NOT NULL DEFAULT 1,
+  schema_json JSON NOT NULL,
+  allowed_scope_types_json JSON NOT NULL,
+  merge_operator ENUM('priority_replace','deny_wins','strict_intersection','minimum','maximum','guarded_union','append_unique','block_on_ambiguity') NOT NULL DEFAULT 'priority_replace',
+  risk_class ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+  mutability ENUM('immutable','runtime_reloadable','promotion_only') NOT NULL DEFAULT 'promotion_only',
+  fallback_policy ENUM('deny','safe_floor','startup_block','env_bootstrap_only','legacy_compatibility') NOT NULL DEFAULT 'deny',
+  owner_domain VARCHAR(128) NOT NULL,
+  status ENUM('draft','active','deprecated','blocked') NOT NULL DEFAULT 'draft',
+  revision BIGINT UNSIGNED NOT NULL DEFAULT 1,
+  source_contract VARCHAR(512) NULL,
+  created_by VARCHAR(128) NOT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  secrets_included TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (config_key),
+  KEY idx_platform_catalog_namespace_status (namespace, status),
+  CONSTRAINT chk_platform_catalog_no_secrets CHECK (secrets_included = 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_configuration_bindings (
+  binding_id CHAR(36) NOT NULL,
+  config_key VARCHAR(191) NOT NULL,
+  source_registry ENUM('platform_catalog','platform_runtime_config','growth_control','write_route_policy','governed_policy') NOT NULL,
+  source_ref VARCHAR(191) NULL,
+  scope_type ENUM('platform','tenant','workspace','brand','app','repository','environment','role','route','resource') NOT NULL,
+  scope_ref VARCHAR(191) NOT NULL,
+  precedence INT UNSIGNED NOT NULL,
+  payload_json JSON NOT NULL,
+  schema_version INT UNSIGNED NOT NULL DEFAULT 1,
+  lifecycle ENUM('draft','validating','ready','active','blocked','deprecated','rolled_back') NOT NULL DEFAULT 'draft',
+  revision BIGINT UNSIGNED NOT NULL DEFAULT 1,
+  checksum_sha256 CHAR(64) NOT NULL,
+  approval_ref VARCHAR(255) NULL,
+  effective_from DATETIME(3) NULL,
+  effective_to DATETIME(3) NULL,
+  created_by VARCHAR(128) NOT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  secrets_included TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (binding_id),
+  KEY idx_platform_binding_lookup (config_key, scope_type, scope_ref, lifecycle, precedence),
+  KEY idx_platform_binding_source (source_registry, source_ref),
+  CONSTRAINT chk_platform_binding_no_secrets CHECK (secrets_included = 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_configuration_resolution_evidence (
+  evidence_id CHAR(36) NOT NULL,
+  config_key VARCHAR(191) NOT NULL,
+  context_hash CHAR(64) NOT NULL,
+  resolved_checksum CHAR(64) NULL,
+  decision ENUM('resolved','not_found','ambiguous','invalid_schema','unauthorized_scope','expired') NOT NULL,
+  lineage_json JSON NOT NULL,
+  conflicts_json JSON NOT NULL,
+  resolver_version VARCHAR(64) NOT NULL,
+  observed_at TIMESTAMP(3) NOT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  secrets_included TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (evidence_id),
+  KEY idx_platform_resolution_key_time (config_key, observed_at),
+  KEY idx_platform_resolution_context (context_hash),
+  KEY idx_platform_resolution_decision (decision, observed_at),
+  CONSTRAINT chk_platform_resolution_no_secrets CHECK (secrets_included = 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

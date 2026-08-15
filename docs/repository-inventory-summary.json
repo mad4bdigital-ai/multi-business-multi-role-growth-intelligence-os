@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6925,
-    "bytes": 64405841,
-    "lines": 1520615,
+    "files": 6945,
+    "bytes": 64776292,
+    "lines": 1525124,
     "directories": 260,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2080,
-      "documentation": 1886,
-      "api-runtime": 1392,
-      "database-migrations": 778,
-      "root-and-other": 248,
+      "tests-and-specs": 2086,
+      "documentation": 1887,
+      "api-runtime": 1399,
+      "database-migrations": 780,
+      "root-and-other": 252,
       "ci-workflows": 159,
       "api-contracts": 157,
       "ci-config": 103,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2482,
-      ".mjs": 1609,
-      ".js": 969,
-      ".sql": 793,
-      ".json": 722,
+      ".mjs": 1617,
+      ".js": 973,
+      ".sql": 795,
+      ".json": 728,
       ".yml": 162,
       ".yaml": 108,
       ".ts": 15,
@@ -58,11 +58,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3572,
-      "docs": 1792,
+      "http-generic-api": 3587,
+      "docs": 1793,
       "specs": 846,
       ".github": 262,
-      ".changes": 240,
+      ".changes": 244,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -213,9 +213,9 @@
   ],
   "surfaces": {
     "workflows": 159,
-    "migrations": 778,
+    "migrations": 780,
     "apiContracts": 157,
-    "testSpecFiles": 2148
+    "testSpecFiles": 2154
   },
   "largestFiles": [
     {
@@ -227,8 +227,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3122440,
-      "lines": 95782
+      "bytes": 3121096,
+      "lines": 95769
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -273,6 +273,12 @@
       "lines": 7657
     },
     {
+      "path": "docs/governance/configuration-drift-policy.json",
+      "category": "documentation",
+      "bytes": 238054,
+      "lines": 2043
+    },
+    {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
       "category": "documentation",
       "bytes": 210893,
@@ -305,14 +311,14 @@
     {
       "path": "http-generic-api/routes/adminCliRoutes.js",
       "category": "api-runtime",
-      "bytes": 149339,
-      "lines": 3362
+      "bytes": 149366,
+      "lines": 3363
     },
     {
       "path": "AI_Agent_Knowledge_Guide.md",
       "category": "documentation",
-      "bytes": 145911,
-      "lines": 1339
+      "bytes": 146641,
+      "lines": 1341
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
@@ -331,12 +337,6 @@
       "category": "api-runtime",
       "bytes": 135154,
       "lines": 2593
-    },
-    {
-      "path": "schemas/operations.schema.json",
-      "category": "schemas-and-data",
-      "bytes": 134568,
-      "lines": 3397
     }
   ]
 }

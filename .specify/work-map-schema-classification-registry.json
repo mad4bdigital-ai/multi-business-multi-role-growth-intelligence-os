@@ -17,6 +17,24 @@
   ],
   "rules": [
     {
+      "rule_key": "platform_configuration_control_plane_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "platform_configuration_catalog",
+          "platform_configuration_bindings"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "platform-resource-graph-map",
+        "observability-release-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Typed platform configuration catalog definitions and federated bindings are governed control-plane authority records with scoped precedence, immutable resolution evidence, and fail-closed activation semantics."
+    },
+    {
       "rule_key": "remote_mcp_scope_catalog_governance",
       "scope": "bounded_exact",
       "match": {

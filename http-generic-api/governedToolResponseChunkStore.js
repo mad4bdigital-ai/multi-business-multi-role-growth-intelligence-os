@@ -11,6 +11,8 @@ import {
 } from "./governedToolResponseChunkOwnership.js";
 
 export const GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY = "utf16_code_unit_cursor_v1";
+const GOVERNED_RESPONSE_CHUNK_BASE_MIGRATION_FILE = "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql";
+const GOVERNED_RESPONSE_CHUNK_RECOVERY_MIGRATION_FILE = "1048_transport_response_chunk_schema_recovery.sql";
 const GOVERNED_RESPONSE_CHUNK_TABLE = "governed_tool_response_chunks";
 export const GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS = Object.freeze([
   "chunk_id", "source_tool_key", "response_sha256", "response_bytes", "response_json",
@@ -128,7 +130,9 @@ export async function inspectGovernedResponseChunkSchema(deps = {}) {
       required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
       present_column_count: requiredPresent.length,
       missing_columns: missing,
-      migration_file: "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      migration_file: GOVERNED_RESPONSE_CHUNK_BASE_MIGRATION_FILE,
+      base_migration_file: GOVERNED_RESPONSE_CHUNK_BASE_MIGRATION_FILE,
+      recovery_migration_file: GOVERNED_RESPONSE_CHUNK_RECOVERY_MIGRATION_FILE,
       secrets_included: false,
     };
   } catch (cause) {
@@ -140,7 +144,9 @@ export async function inspectGovernedResponseChunkSchema(deps = {}) {
       present_column_count: 0,
       missing_columns: [...GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS],
       cause_code: cause?.code || null,
-      migration_file: "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      migration_file: GOVERNED_RESPONSE_CHUNK_BASE_MIGRATION_FILE,
+      base_migration_file: GOVERNED_RESPONSE_CHUNK_BASE_MIGRATION_FILE,
+      recovery_migration_file: GOVERNED_RESPONSE_CHUNK_RECOVERY_MIGRATION_FILE,
       secrets_included: false,
     };
   }

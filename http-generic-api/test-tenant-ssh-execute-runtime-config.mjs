@@ -5,8 +5,10 @@ const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/203_sprint66_tenant_ssh_execute_runtime_config.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
-assert(routes.includes('loadSshCliExecuteRuntimeConfig'), "SSH execute must load runtime config from SQL");
-assert(routes.includes('platform_runtime_config'), "SSH execute runtime gate must use platform_runtime_config");
+assert(routes.includes('loadSshCliExecuteRuntimeConfig'), "SSH execute must load runtime config through the governed legacy adapter");
+assert(routes.includes('createPlatformLegacyConfigurationAdapter'), "SSH execute runtime gate must use the governed legacy adapter");
+const legacyAdapter = readFileSync("platformLegacyConfigurationAdapter.js", "utf8");
+assert(legacyAdapter.includes("platform_runtime_config"), "legacy adapter must retain SQL-primary compatibility source");
 assert(routes.includes("tenant_ssh_cli_execute_runtime"), "SSH execute runtime gate must use stable config key");
 assert(routes.includes('ssh_cli_execute_driver_blocked_on_web_host'), "host_ssh_spawn must be blocked on the web runtime after live 502 validation");
 assert(routes.includes('host_ssh_spawn_caused_cloudflare_502_on_web_host'), "blocked host driver response must record the live 502 reason");

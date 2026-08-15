@@ -1,4 +1,5 @@
 import { getPool } from "../../../db.js";
+import { createPlatformLegacyConfigurationAdapter } from "../../../platformLegacyConfigurationAdapter.js";
 
 function parseJson(value, fallback = null) {
   if (value == null) return fallback;
@@ -10,8 +11,22 @@ function parseJson(value, fallback = null) {
   }
 }
 
+function uniqueRow(rows, code) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (rows.length > 1) {
+    const error = new Error(`${code}: multiple rows matched a unique lookup`);
+    error.code = code;
+    throw error;
+  }
+  return rows.reduce((selected, candidate) => {
+    if (selected !== undefined) throw new Error(`${code}: unique lookup proof failed`);
+    return candidate;
+  }, undefined);
+}
+
 export function createGrowthControlShadowParityRepository({
   pool = null,
+  legacyAdapter = null,
   resolvePool = async () => getPool()
 } = {}) {
   if (pool != null && typeof pool.query !== "function") {
@@ -38,11 +53,10 @@ export function createGrowthControlShadowParityRepository({
          expected_difference AS expectedDifference
        FROM growth_control_shadow_parity_mappings
        WHERE growth_config_key = ?
-         AND status = 'active'
-       LIMIT 1`,
+         AND status = 'active'`,
       [growthConfigKey]
     );
-    const row = rows?.[0];
+    const row = uniqueRow(rows, "GROWTH_CONTROL_MAPPING_AMBIGUOUS");
     if (!row) return null;
     return Object.freeze({
       growthConfigKey: row.growthConfigKey,
@@ -58,19 +72,10 @@ export function createGrowthControlShadowParityRepository({
 
   async function readLegacyRuntimeConfig(legacyConfigKey) {
     const db = await executor();
-    const [rows] = await db.query(
-      `SELECT config_json AS configJson, updated_at AS updatedAt
-       FROM platform_runtime_config
-       WHERE config_key = ?
-         AND status = 'active'
-       LIMIT 1`,
-      [legacyConfigKey]
-    );
-    const row = rows?.[0];
-    if (!row) return null;
-    const value = parseJson(row.configJson, undefined);
-    if (value === undefined) return null;
-    return Object.freeze({ value, updatedAt: row.updatedAt || null });
+    const adapter = legacyAdapter || createPlatformLegacyConfigurationAdapter({ pool: db });
+    const legacy = await adapter.read(legacyConfigKey);
+    if (!legacy.present) return null;
+    return Object.freeze({ value: legacy.value, updatedAt: legacy.updated_at || null });
   }
 
   async function recordEvidence(evidence) {

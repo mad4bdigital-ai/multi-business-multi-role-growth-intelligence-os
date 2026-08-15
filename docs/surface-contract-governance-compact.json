@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.68,
+  "docs_completion_percent": 97.48,
   "docs_complete_count": 464,
-  "docs_gap_count": 11,
-  "queue_items": 13,
-  "blocking_new_item_count": 11,
+  "docs_gap_count": 12,
+  "queue_items": 14,
+  "blocking_new_item_count": 12,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -35,7 +35,7 @@
     {
       "migration_file": "20260811_runtime_break_glass_authority_metadata_v1.sql",
       "queue_class": "high_review",
-      "score": 512,
+      "score": 511,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
@@ -47,8 +47,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 11,
-    "warning_new_item_count": 11
+    "blocking_new_item_count": 12,
+    "warning_new_item_count": 12
   },
   "safety": {
     "executes_provider_calls": false,
