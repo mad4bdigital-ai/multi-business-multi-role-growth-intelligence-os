@@ -151,9 +151,9 @@ assert.equal(assetByContent.identity.identity_scope, "content_addressed");
 assert.equal(assetByContent.rights.authority_implied, false);
 assert.equal(assetByContent.identifiers[0].type, "content_sha256");
 
-const assetByScope = adaptAssetIdentity({ asset_id: "asset_b", tenant_id: "tenant_a" });
-assert.equal(assetByScope.identity.identity_scope, "tenant");
-assert.equal(assetByScope.rights.tenant_id, "tenant_a");
+const tenantAsset = adaptAssetIdentity({ asset_id: "asset_b", tenant_id: "tenant_a" });
+assert.equal(tenantAsset.identity.identity_scope, "tenant");
+assert.equal(tenantAsset.rights.tenant_id, "tenant_a");
 
 const providerAccount = adaptProviderAccountIdentity({
   provider_family: "Meta",
