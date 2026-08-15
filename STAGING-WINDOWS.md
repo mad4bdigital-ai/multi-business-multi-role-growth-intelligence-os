@@ -4,7 +4,11 @@
 
 The repository requires Node.js `>=22 <23`. The `http-generic-api` runtime declares its dependencies in `http-generic-api/package.json` and locks them in `http-generic-api/package-lock.json`. The container uses `node:22-slim` and `npm ci --omit=dev` so the Docker image follows the repository engine and the lockfile.
 
-Install WSL2/Ubuntu and Docker Desktop with the WSL2 backend on each Windows host. Keep the repository on the External SSD, for example:
+For Windows 10, use a supported 64-bit 22H2 build (Docker's current WSL2 backend requirements identify build 19045), at least 8 GB RAM, SLAT-capable hardware, BIOS/UEFI virtualization enabled, WSL2, and the Windows `LanmanServer` service enabled and set to Automatic. Microsoft documents `wsl.exe --list --verbose` as the verification command and Docker documents WSL 2.1.5 as the minimum WSL version for the Docker Desktop WSL backend; use the latest available WSL update instead of pinning an old kernel. Sources: https://learn.microsoft.com/en-us/windows/wsl/install and https://docs.docker.com/desktop/setup/install/windows-install/.
+
+Install one Ubuntu distribution as WSL2 and Docker Desktop with the WSL2 backend on each Windows host. In Docker Desktop, use Linux containers, enable the WSL 2 based engine, and enable WSL Integration for the selected Ubuntu distribution. Do not install a second Docker Engine inside Ubuntu; Docker documents that running both engines can cause conflicts. The repository and `.staging-data` are portable on the SSD, but Docker Desktop's WSL distribution, image cache, and build cache remain machine-local and must be rebuilt or pulled on another computer.
+
+Keep the repository on the External SSD, for example:
 
 ```text
 M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os
@@ -17,6 +21,14 @@ Inside Ubuntu, the path is:
 ```
 
 ## First-time preparation
+
+Confirm the SSD is mounted as NTFS and has a stable drive letter before starting. In elevated PowerShell, inspect it with:
+
+```powershell
+Get-Volume -DriveLetter M | Format-List DriveLetter,FileSystem,HealthStatus,SizeRemaining
+```
+
+If another computer assigns a different letter, pass the actual repository path to Auto Pilot with `-RepositoryPath`; do not edit the manifest or hard-code the old drive letter. Git attributes pin PowerShell and env files to LF so Auto Pilot's manifest hashes remain stable when Git is configured with Windows line endings.
 
 From Ubuntu or PowerShell in the `http-generic-api` directory:
 
@@ -33,7 +45,17 @@ docker context show
 docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging config --quiet
 ```
 
-The Docker context must be local. Do not continue if `DOCKER_HOST` or `DOCKER_CONTEXT` points to a remote daemon.
+The Docker context must be local. Do not continue if `DOCKER_HOST` or `DOCKER_CONTEXT` points to a remote daemon. Confirm WSL2 and Docker integration with:
+
+```powershell
+wsl.exe --status
+wsl.exe --list --verbose
+wsl.exe --version
+docker context show
+docker info --format '{{.ServerVersion}}'
+```
+
+The selected Ubuntu row must show version `2`, Docker must be in Linux-container mode, and the context must be `default` or `desktop-linux`. Auto Pilot performs these checks and also refuses a remote `DOCKER_HOST` or `DOCKER_CONTEXT`.
 
 ## Local-only start
 
@@ -76,7 +98,7 @@ Stop without deleting local data:
 docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging stop
 ```
 
-Do not use `docker compose down -v` unless you intentionally want to delete the local Redis and app volumes.
+Do not use `docker compose down -v` unless you intentionally want to delete the local Redis and app volumes. Before physically ejecting the SSD, stop the Compose project, stop the tunnel separately, run `wsl.exe --shutdown`, wait for Docker Desktop disk activity to finish, and then use Windows Safely Remove Hardware. This prevents partial writes to MariaDB bind mounts.
 
 ## Dependencies assessment
 

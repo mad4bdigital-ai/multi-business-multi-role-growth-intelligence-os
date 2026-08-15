@@ -15,6 +15,12 @@ $ComposeStaging = Join-Path $ApiPath "docker-compose.staging.yml"
 
 function Fail([string]$Message) { throw "FAIL-CLOSED: $Message" }
 function Require([bool]$Condition, [string]$Message) { if (-not $Condition) { Fail $Message } }
+function Require-Command([string]$Name) { if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { Fail "Required command is missing: $Name" } }
+function Native-Text([string]$File, [string[]]$Arguments) {
+  $text = & $File @Arguments 2>$null
+  if ($LASTEXITCODE -ne 0) { Fail "$File failed while reading local state" }
+  return (($text | Out-String).Trim())
+}
 function Assert-UniqueEnvKeys([string]$Path) {
   $seen = @{}
   foreach ($line in Get-Content -LiteralPath $Path) {
@@ -33,6 +39,10 @@ Require (Test-Path -LiteralPath $DumpDirectory -PathType Container) "DumpDirecto
 Require (-not ($DumpDirectory -match '(?i)(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com|hostinger|production)')) "Production/provider paths are forbidden as dump sources."
 Require ($env:DOCKER_HOST -eq $null -or $env:DOCKER_HOST -eq "") "DOCKER_HOST is forbidden."
 Require ($env:DOCKER_CONTEXT -eq $null -or $env:DOCKER_CONTEXT -eq "") "DOCKER_CONTEXT is forbidden."
+Require-Command "docker"
+$dockerContext = Native-Text "docker" @("context", "show")
+Require ($dockerContext -in @("default", "desktop-linux")) "Docker context must be local; received '$dockerContext'."
+Require (-not [string]::IsNullOrWhiteSpace((Native-Text "docker" @("info", "--format", "{{.ServerVersion}}")))) "Docker daemon is not reachable."
 Assert-UniqueEnvKeys $EnvFile
 
 function Read-Env([string]$Name) {
@@ -58,6 +68,8 @@ $services = @(
 )
 
 $compose = @("-f", $ComposeBase, "-f", $ComposeStaging, "--env-file", $EnvFile)
+& docker compose @compose config --quiet
+Require ($LASTEXITCODE -eq 0) "Staging Compose model is invalid."
 $plan = @()
 foreach ($item in $services) {
   $fileName = if ($Mode -eq "schema_only") { $item.File } else { $item.File -replace '\.schema\.sql\.gz$', '.sanitized.sql.gz' }
@@ -70,6 +82,13 @@ $plan | ConvertTo-Json -Depth 4
 if (-not $Apply) {
   Write-Host "DRY-RUN only. No database or file mutation was performed. Re-run with -Apply after reviewing the plan."
   exit 0
+}
+
+foreach ($item in $services) {
+  $containerId = Native-Text "docker" ( @("compose") + $compose + @("ps", "-q", $item.Service) )
+  Require (-not [string]::IsNullOrWhiteSpace($containerId)) "Missing local container for $($item.Service); run Auto Pilot first."
+  $health = Native-Text "docker" @("inspect", "--format", "{{.State.Health.Status}}", $containerId)
+  Require ($health -eq "healthy") "Database service is not healthy: $($item.Service)"
 }
 
 Require ((Read-Env "MIGRATION_APPLIED") -eq "false") "MIGRATION_APPLIED must remain false during staging copy."
