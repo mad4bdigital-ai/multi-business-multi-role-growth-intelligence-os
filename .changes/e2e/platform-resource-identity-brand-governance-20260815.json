@@ -2,23 +2,32 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "platform-resource-identity-brand-governance-20260815",
-  "title": "Platform Resource Identity and Brand Governance shadow contract",
-  "delivery_mode": "single_pr",
+  "title": "Platform Resource Identity and Brand Governance shadow and governed-foundation contract",
+  "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       "http-generic-api/platformResourceIdentityContract.js",
       "http-generic-api/brandIdentityResolver.js",
+      "http-generic-api/brandClaimVerification.js",
       "http-generic-api/platformOperationGovernanceContract.js",
       "http-generic-api/test-platform-resource-identity-contract.mjs",
       "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "http-generic-api/test-brand-claim-verification.mjs",
+      "http-generic-api/test-brand-identity-persistence.mjs",
+      "http-generic-api/test-global-brand-identity-migration-contract.mjs",
+      "http-generic-api/migrations/20260815_platform_resource_global_brand_identity.sql",
       "schemas/platform-resource-identity-contract.schema.json",
-      "schemas/canonical-operation-governance.schema.json",
       "schemas/brand-identity-resolution.schema.json",
+      "schemas/canonical-operation-governance.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/manifest.json",
       "specs/020-platform-resource-identity-brand-governance/spec.md",
       "specs/020-platform-resource-identity-brand-governance/plan.md",
       "specs/020-platform-resource-identity-brand-governance/tasks.md",
       "specs/020-platform-resource-identity-brand-governance/completion.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/checklists/requirements.md",
       ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
     ]
   },
@@ -29,7 +38,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Define and test a deterministic no-secret Platform Resource Identity contract and Brand shadow resolver while keeping identity, relationship, authority, grant, credential, and Production mutation separate.",
+      "objective": "Define and test deterministic identity, Brand resolution, claim verification, and operation governance contracts while keeping relationship, authority, grant, credential, migration apply, and Production mutation separate.",
       "e2e_journeys": [
         {
           "id": "brand-identity-resolution-shadow",
@@ -51,7 +60,7 @@
             "Multiple hard matches resolve CONFLICT and do not merge.",
             "No candidate tenant_id appears in resolver output.",
             "Relationship validation never creates a grant and always sets authority_implied=false.",
-            "No database connection, migration, credential read, provider call, external send, or Production mutation occurs in this slice."
+            "No database connection, migration apply, credential read, provider call, external send, or Production mutation occurs in this slice."
           ],
           "tests": [
             {
@@ -65,14 +74,92 @@
           "evidence_paths": [
             ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
             "http-generic-api/platformResourceIdentityContract.js",
-      "http-generic-api/brandIdentityResolver.js",
-      "http-generic-api/platformOperationGovernanceContract.js",
-      "http-generic-api/test-platform-resource-identity-contract.mjs",
-      "http-generic-api/test-platform-operation-governance-contract.mjs",
-      "schemas/platform-resource-identity-contract.schema.json",
-      "schemas/canonical-operation-governance.schema.json",
+            "http-generic-api/brandIdentityResolver.js",
+            "http-generic-api/platformOperationGovernanceContract.js",
+            "schemas/platform-resource-identity-contract.schema.json",
             "schemas/brand-identity-resolution.schema.json",
+            "schemas/canonical-operation-governance.schema.json",
             "specs/020-platform-resource-identity-brand-governance/spec.md",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "brand-claim-verification-library",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed verification worker with explicit expected revision",
+          "entrypoint": "prepareBrandVerificationChallenge/recordBrandVerificationEvidence/verifyBrandClaim",
+          "terminal_outcome": "Verification evidence is recorded and a claim relationship is updated only with expected-revision control; no authority grant is created.",
+          "steps": [
+            "Create a deterministic challenge reference without including secrets.",
+            "Record evidence using a hash and safe metadata filtering.",
+            "Verify the claim only when current evidence is verified and expected_revision matches.",
+            "Activate only the tenant-to-Brand relationship represented by the claim.",
+            "Return authority_grant_mutated=false and fail closed on stale revisions."
+          ],
+          "assertions": [
+            "Secret-like metadata keys are excluded from persisted metadata.",
+            "A stale expected revision returns a conflict and does not update the claim.",
+            "Relationship verification does not imply or create an authority grant.",
+            "The mocked regression path performs no database connection, migration apply, provider call, credential read, or Production mutation."
+          ],
+          "tests": [
+            {
+              "id": "brand-claim-verification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-claim-verification.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-identity-persistence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-identity-persistence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/brandClaimVerification.js",
+            "http-generic-api/test-brand-claim-verification.mjs",
+            "http-generic-api/test-brand-identity-persistence.mjs",
+            "specs/020-platform-resource-identity-brand-governance/manifest.json",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "migration-collation-contract",
+          "end_to_end": true,
+          "level": "static_governance",
+          "actor": "Migration readiness reviewer",
+          "entrypoint": "mariadb-collation-ci-guard.mjs",
+          "terminal_outcome": "The authored SQL migration satisfies the repository MariaDB collation contract and remains unapplied.",
+          "steps": [
+            "Inspect only changed migration SQL against the current MariaDB policy.",
+            "Require explicit utf8mb4 charset and utf8mb4_uca1400_ai_ci collation for all projected tables and columns.",
+            "Emit a no-apply readiness report with database_connection_performed=false and sql_mutation_performed=false.",
+            "Keep migration apply, backfill, grants, and Production promotion behind separate authority."
+          ],
+          "assertions": [
+            "The migration passes the MariaDB collation guard.",
+            "No database connection or SQL apply occurs.",
+            "No credentials, provider writes, grants, or Production mutations occur.",
+            "The migration contract test passes independently of live database state."
+          ],
+          "tests": [
+            {
+              "id": "global-brand-identity-migration-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-global-brand-identity-migration-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/20260815_platform_resource_global_brand_identity.sql",
+            "http-generic-api/config/database-engine-collation-policy.json",
+            "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
             "specs/020-platform-resource-identity-brand-governance/completion.json"
           ]
         }

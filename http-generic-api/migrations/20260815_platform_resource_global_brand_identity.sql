@@ -15,7 +15,7 @@
 SET NAMES utf8mb4;
 
 ALTER TABLE `brands`
-  ADD COLUMN IF NOT EXISTS `brand_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER `id`,
+  ADD COLUMN IF NOT EXISTS `brand_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL AFTER `id`,
   ADD COLUMN IF NOT EXISTS `identity_status` enum('provisional','verified','disputed','superseded','archived') NOT NULL DEFAULT 'provisional' AFTER `target_key`,
   ADD COLUMN IF NOT EXISTS `resource_revision` bigint unsigned NOT NULL DEFAULT 1 AFTER `identity_status`;
 
@@ -48,11 +48,11 @@ EXECUTE brand_id_unique_stmt;
 DEALLOCATE PREPARE brand_id_unique_stmt;
 
 CREATE TABLE IF NOT EXISTS `brand_identifiers` (
-  `identifier_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  `brand_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `identifier_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  `brand_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `identifier_type` varchar(64) NOT NULL,
   `normalized_value` varchar(512) NOT NULL,
-  `normalized_value_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `normalized_value_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `provider_family` varchar(64) NOT NULL DEFAULT '',
   `verification_status` enum('unverified','pending','verified','rejected','revoked','expired') NOT NULL DEFAULT 'unverified',
   `verification_method` varchar(64) DEFAULT NULL,
@@ -74,14 +74,14 @@ CREATE TABLE IF NOT EXISTS `brand_identifiers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `brand_identity_aliases` (
-  `alias_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `alias_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `alias_type` varchar(64) NOT NULL,
   `alias_value` varchar(512) NOT NULL,
-  `alias_value_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  `brand_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `alias_value_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  `brand_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `status` enum('active','inactive','superseded','revoked') NOT NULL DEFAULT 'active',
   `source` varchar(64) NOT NULL,
-  `superseded_by_alias_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+  `superseded_by_alias_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
   `created_by` varchar(64) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS `brand_identity_aliases` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `brand_claims` (
-  `claim_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  `brand_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `claim_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  `brand_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `claimant_tenant_id` varchar(36) NOT NULL,
   `claim_type` varchar(32) NOT NULL,
   `requested_relationship` varchar(32) NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS `brand_claims` (
   `expires_at` timestamp NULL DEFAULT NULL,
   `verified_at` timestamp NULL DEFAULT NULL,
   `revoked_at` timestamp NULL DEFAULT NULL,
-  `superseded_by` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+  `superseded_by` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
   `revision` bigint unsigned NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -112,14 +112,14 @@ CREATE TABLE IF NOT EXISTS `brand_claims` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `brand_verification_evidence` (
-  `evidence_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  `claim_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  `brand_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `evidence_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  `claim_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  `brand_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `tenant_id` varchar(36) NOT NULL,
   `verification_method` varchar(64) NOT NULL,
   `evidence_type` varchar(64) NOT NULL,
   `evidence_ref` varchar(191) DEFAULT NULL,
-  `evidence_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `evidence_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `verification_status` enum('pending','verified','rejected','revoked','expired') NOT NULL DEFAULT 'pending',
   `metadata_json` json DEFAULT NULL,
   `valid_from` timestamp NULL DEFAULT NULL,
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS `brand_verification_evidence` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `tenant_relationships` (
-  `relationship_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `relationship_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `from_tenant_id` varchar(36) NOT NULL,
   `to_tenant_id` varchar(36) NOT NULL,
   `relationship_type` varchar(64) NOT NULL,
@@ -155,11 +155,11 @@ CREATE TABLE IF NOT EXISTS `tenant_relationships` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 ALTER TABLE `tenant_brand_links`
-  ADD COLUMN IF NOT EXISTS `brand_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER `tenant_id`,
+  ADD COLUMN IF NOT EXISTS `brand_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL AFTER `tenant_id`,
   ADD COLUMN IF NOT EXISTS `relationship_type` varchar(32) NOT NULL DEFAULT 'operator' AFTER `brand_target_key`,
   ADD COLUMN IF NOT EXISTS `relationship_status` enum('pending_verification','active','inactive','revoked','expired','superseded') NOT NULL DEFAULT 'active' AFTER `relationship_type`,
   ADD COLUMN IF NOT EXISTS `verification_status` enum('unverified','pending','verified','rejected','revoked','expired') NOT NULL DEFAULT 'unverified' AFTER `relationship_status`,
-  ADD COLUMN IF NOT EXISTS `claim_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER `verification_status`,
+  ADD COLUMN IF NOT EXISTS `claim_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL AFTER `verification_status`,
   ADD COLUMN IF NOT EXISTS `relationship_source` varchar(64) NOT NULL DEFAULT 'legacy_tenant_brand_link' AFTER `claim_id`,
   ADD COLUMN IF NOT EXISTS `authority_policy_ref` varchar(191) DEFAULT NULL AFTER `relationship_source`,
   ADD COLUMN IF NOT EXISTS `effective_from` timestamp NULL DEFAULT NULL AFTER `authority_policy_ref`,

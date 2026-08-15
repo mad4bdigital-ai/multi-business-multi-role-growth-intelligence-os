@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "spec_key": "020-platform-resource-identity-brand-governance",
-  "spec_version": "0.1.0",
+  "spec_version": "0.2.0",
   "status": "implementation_in_progress",
   "scope": "platform_identity_and_brand_governance",
   "created_at": "2026-08-15",
@@ -26,6 +26,8 @@
     "tenant_filter_before_disclosure",
     "caller_cannot_lower_operation_floor",
     "same_cycle_readback_for_internal_write",
+    "claim_verification_requires_expected_revision",
+    "verification_does_not_create_authority_grant",
     "no_secret_output",
     "production_mutation_default_off"
   ],
@@ -35,6 +37,7 @@
     "plan.md",
     "tasks.md",
     "e2e-phases.json",
+    "work-map-integration.json",
     "completion.json",
     "checklists/requirements.md",
     "contracts/platform-resource-identity.schema.json",
@@ -45,8 +48,13 @@
     "http-generic-api/platformResourceIdentityContract.js",
     "http-generic-api/brandIdentityResolver.js",
     "http-generic-api/platformOperationGovernanceContract.js",
+    "http-generic-api/brandClaimVerification.js",
+    "http-generic-api/migrations/20260815_platform_resource_global_brand_identity.sql",
     "http-generic-api/test-platform-resource-identity-contract.mjs",
     "http-generic-api/test-platform-operation-governance-contract.mjs",
+    "http-generic-api/test-brand-claim-verification.mjs",
+    "http-generic-api/test-brand-identity-persistence.mjs",
+    "http-generic-api/test-global-brand-identity-migration-contract.mjs",
     "schemas/platform-resource-identity-contract.schema.json",
     "schemas/brand-identity-resolution.schema.json",
     "schemas/canonical-operation-governance.schema.json",
@@ -56,24 +64,28 @@
     "pure_identity_contract": "implemented_shadow_only",
     "brand_shadow_resolver": "implemented_no_secret",
     "operation_governance_contract": "implemented_shadow_only",
+    "brand_claim_verification": "implemented_library_contract_with_mocked_regression_tests",
     "mariadb_repository_adapter": "planned",
-    "identifier_claims_and_verification": "planned",
-    "revision_bound_lifecycle": "planned",
+    "revision_bound_lifecycle": "implemented_in_claim_contract_not_route_wired",
+    "migration_file": "authored_collation_guard_passed_not_applied",
     "migration_dry_run": "planned",
     "live_apply_dispatch": "disabled"
   },
   "public_api_boundary": {
-    "status": "pure_library_contract_no_route",
+    "status": "library_contracts_no_route_or_dispatch",
     "runtime_authority": false,
     "provider_dispatch": false,
     "credential_read": false,
-    "grant_mutation": false
+    "grant_mutation": false,
+    "database_write_route": false
   },
   "migration_boundary": {
-    "schema_design": "contract_only",
-    "sql_files": "not_created",
+    "schema_design": "authored_contract_only",
+    "sql_files": "authored_not_applied",
+    "collation_policy": "mariadb_utf8mb4_uca1400_ai_ci",
     "migration_apply": false,
-    "backfill": false
+    "backfill": false,
+    "readback_only": true
   },
   "deployment_boundary": {
     "main_merge": false,
