@@ -68,12 +68,90 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Keep exact protected-ref and request-head currentness checks adjacent to launcher dispatch."
+      "objective": "Keep exact protected-ref and request-head currentness checks adjacent to launcher dispatch.",
+      "e2e_journeys": [
+        {
+          "id": "exact-ref-currentness-adjacent-to-launcher-dispatch",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository promotion operator",
+          "entrypoint": "The bridge has accepted an eligible governed promotion request and pinned exact main, Production, and request-head SHAs.",
+          "terminal_outcome": "The launcher is dispatched only while all three protected/request refs still equal their pinned identities; any intervening movement fails closed before dispatch.",
+          "steps": [
+            "Pin exact current main, Production, and request-head SHAs during request resolution.",
+            "Prove the request head descends from and is tree-identical to current main, and current Production is contained by main.",
+            "Immediately before launcher dispatch, independently re-read main, Production, and request-head identities.",
+            "Abort before launcher dispatch if any re-read differs from its pinned SHA.",
+            "Dispatch the authoritative launcher only with the exact pinned main and request-head values."
+          ],
+          "assertions": [
+            "Main currentness is checked both against the trusted workflow source and immediately before launcher dispatch.",
+            "Production and request-head identities are re-read immediately before launcher dispatch.",
+            "Request-head ancestry and tree identity are proven before promotion orchestration proceeds.",
+            "The launcher receives exact main and request-head pins rather than floating branch identity.",
+            "No direct Production mutation is performed by the bridge."
+          ],
+          "tests": [
+            {
+              "id": "production-full-promotion-operational-currentness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-dispatch-input-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governed-production-full-promotion-bridge.json",
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on ref races and preserve successful dispatch evidence when optional receipt transport is unavailable."
+      "objective": "Fail closed on ref races and preserve successful dispatch evidence when optional receipt transport is unavailable.",
+      "e2e_journeys": [
+        {
+          "id": "fail-closed-ref-races-with-durable-dispatch-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository promotion operator",
+          "entrypoint": "A governed promotion request encounters protected-ref movement, request-head movement, a duplicate matching launcher run, or unavailable optional PR receipt-comment transport.",
+          "terminal_outcome": "Ref races fail closed before a new launcher dispatch, duplicate active/successful launcher work is suppressed, and a successful new dispatch remains canonically recorded even if the optional receipt comment cannot be written.",
+          "steps": [
+            "Re-read pinned main, Production, and request-head identities immediately before dispatch and fail closed on any mismatch.",
+            "Inspect canonical prior launch receipts and suppress a duplicate when a matching launcher run is active or already successful.",
+            "Capture the newly dispatched authoritative launcher run ID before attempting optional receipt transport.",
+            "Persist outcome=dispatched and launcher_run_id in decision.json before posting the optional PR receipt comment.",
+            "Downgrade receipt-comment transport failure to a warning without erasing successful launcher dispatch evidence."
+          ],
+          "assertions": [
+            "A moved main, Production ref, or request head cannot race through to launcher dispatch.",
+            "A matching active or successful launcher run is duplicate-suppressed rather than dispatched again.",
+            "Canonical dispatch evidence is persisted before optional receipt-comment transport.",
+            "Receipt-comment transport failure is non-fatal only after a launcher run has been captured and recorded.",
+            "The resilient path does not merge or directly mutate Production."
+          ],
+          "tests": [
+            {
+              "id": "production-full-promotion-resilience-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-dispatch-input-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governed-production-full-promotion-bridge.json",
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
