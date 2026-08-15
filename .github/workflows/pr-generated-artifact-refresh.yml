@@ -90,7 +90,7 @@ jobs:
         id: derived_state_closure
         continue-on-error: true
         run: >-
-          node .github/scripts/derived-state-closure.mjs
+          node http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs
           --expected-sha "$CI_CLOSURE_CANDIDATE_SHA"
           --candidate-kind "$CLOSURE_CANDIDATE_KIND"
           --report-file "$CLOSURE_REPORT_PATH"

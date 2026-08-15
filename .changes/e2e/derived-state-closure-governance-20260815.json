@@ -8,11 +8,12 @@
   "scope": {
     "include": [
       ".github/derived-state-governance.json",
-      ".github/scripts/derived-state-closure.mjs",
+      ".github/repository-maintenance-tool-governance.json",
       ".github/tests/derived-state-closure.test.mjs",
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/staging-main-deploy-eligibility.yml",
+      "http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs",
       ".changes/e2e/derived-state-closure-governance-20260815.json"
     ]
   },
@@ -36,6 +37,7 @@
             "Checkout github.sha for the pull-request merge candidate with persist-credentials disabled.",
             "Use the already-trusted PR Generated Artifact Refresh workflow as the bootstrap carrier so the closure policy is exercised before the new standalone workflow reaches main.",
             "Validate the machine-readable derived-state registry and unique artifact identities.",
+            "Resolve the closure evaluator only through the repository maintenance-tool authority registry as an explicit read-only tool under the governed tool root.",
             "Run every registered verifier from a hardcoded verifier allowlist rather than executable commands supplied by configuration.",
             "After each verifier, prove the worktree remains clean; any verifier write is a blocking safety failure.",
             "Collect all reached stale or failed artifact families and their governed recipe identities.",
@@ -48,8 +50,9 @@
             "The existing PR Generated Artifact Refresh workflow has no path filter and no branch-prefix dependency routing.",
             "Branch prefixes are not used as a dependency signal.",
             "The workflow permission is contents:read and checkout credentials are not persisted.",
+            "The closure evaluator is a registered read-only maintenance tool and cannot bypass repository-tool lifecycle governance merely because it is a CI helper.",
             "The Remote MCP registry explicitly declares git_index_shape while the current generator materializes tracked file_count.",
-            "Each derived-state family maps to one existing governed recipe.",
+            "Each derived-state family maps to one existing governed repair identity.",
             "Configuration cannot inject arbitrary verifier commands; verifier IDs resolve through code-owned allowlists.",
             "Any verifier-created worktree change fails closed.",
             "Protected branches and force push remain forbidden mutation targets.",
@@ -67,7 +70,8 @@
           ],
           "evidence_paths": [
             ".github/derived-state-governance.json",
-            ".github/scripts/derived-state-closure.mjs",
+            ".github/repository-maintenance-tool-governance.json",
+            "http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs",
             ".github/tests/derived-state-closure.test.mjs",
             ".github/workflows/pr-generated-artifact-refresh.yml",
             ".github/workflows/derived-state-closure.yml",

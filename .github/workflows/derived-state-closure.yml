@@ -59,7 +59,7 @@ jobs:
 
       - name: Verify all registered derived state at the exact candidate
         run: >-
-          node .github/scripts/derived-state-closure.mjs
+          node http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs
           --expected-sha "$DERIVED_STATE_EXPECTED_SHA"
           --candidate-kind "$DERIVED_STATE_CANDIDATE_KIND"
           --report-file "$DERIVED_STATE_REPORT_FILE"
