@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-generated-artifact-evidence-routing",
-  "title": "Canonical evidence, governed apply, and non-success upstream skip safety for generated artifacts",
+  "title": "Canonical evidence, governed apply, and upstream artifact-missing safety for generated artifacts",
   "delivery_mode": "single_pr",
   "current_phase": "operational",
   "scope": {
@@ -61,6 +61,7 @@
             "The report declares secrets_included=false and bounded redacted diagnostics.",
             "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
             "When an upstream workflow is cancelled or otherwise non-successful while its artifact claims passed, the publisher performs a safe no-publication skip and never publishes passed canonical evidence.",
+            "When the canonical artifact is unavailable, download failure is tolerated for the publisher job, the report selector records exists=false, and no authoritative evidence comment is upserted.",
             "A completed upstream workflow with conclusion skipped does not start the publisher or attempt canonical artifact download.",
             "The tests remain discoverable through the canonical repository test manifest.",
             "Pre-merge behavior of a pull_request workflow is not used as proof of its replacement definition; operational proof begins after the trusted definition reaches the default branch.",
