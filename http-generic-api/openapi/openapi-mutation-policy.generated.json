@@ -10,7 +10,7 @@
   "unbound_operation_count": 29,
   "all_operations_accounted_for": true,
   "write_activation_allowed": false,
-  "source_fingerprint_sha256": "238c31af4fc36b5e532cae7ab14d5849e9e3f320d31afccdc053f7a96584fcd5",
+  "source_fingerprint_sha256": "c3e344e3082272471a50a80db3b0d033a8248f850342c41400ce5b107c654d75",
   "operations": [
     {
       "surface": "openapi.tenant-gpt.auth",
@@ -143,13 +143,7 @@
       "path": "/gpt/sessions/{id}/end",
       "operation_id": "endSession",
       "effect_class": "internal_write",
-      "declared_security_scopes": [
-        "tenant.activation",
-        "tenant.install",
-        "tenant.links",
-        "tenant.status",
-        "tenant.system-tools"
-      ],
+      "declared_security_scopes": [],
       "policy_status": "unbound",
       "required_scope": null,
       "reason": "No write scope is promoted; operation remains explicitly denied until independent resource-operation approval, capability, lease, and readback policy is reviewed.",
@@ -163,13 +157,7 @@
       "path": "/gpt/sessions/{id}/turn",
       "operation_id": "writeSessionTurn",
       "effect_class": "internal_write",
-      "declared_security_scopes": [
-        "tenant.activation",
-        "tenant.install",
-        "tenant.links",
-        "tenant.status",
-        "tenant.system-tools"
-      ],
+      "declared_security_scopes": [],
       "policy_status": "unbound",
       "required_scope": null,
       "reason": "No write scope is promoted; operation remains explicitly denied until independent resource-operation approval, capability, lease, and readback policy is reviewed.",
@@ -265,13 +253,7 @@
       "path": "/system/tools/call",
       "operation_id": "callTool",
       "effect_class": "internal_write",
-      "declared_security_scopes": [
-        "tenant.activation",
-        "tenant.install",
-        "tenant.links",
-        "tenant.status",
-        "tenant.system-tools"
-      ],
+      "declared_security_scopes": [],
       "policy_status": "unbound",
       "required_scope": null,
       "reason": "No write scope is promoted; operation remains explicitly denied until independent resource-operation approval, capability, lease, and readback policy is reviewed.",
