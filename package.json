@@ -18,6 +18,9 @@
     "write-scopes:inventory": "node scripts/remote-mcp-write-scope-inventory.mjs",
     "write-scopes:inventory:check": "node scripts/remote-mcp-write-scope-inventory.mjs --check",
     "write-scopes:inventory:test": "node scripts/test-remote-mcp-write-scope-inventory.mjs",
+    "write-scopes:shadow": "node scripts/write-scope-shadow-preflight.mjs",
+    "write-scopes:shadow:check": "node scripts/write-scope-shadow-preflight.mjs --check",
+    "write-scopes:shadow:test": "node scripts/test-write-scope-shadow-preflight.mjs",
     "remote-mcp:architecture:test": "node http-generic-api/test-remote-mcp-reference-architecture.mjs",
     "evaluation:write": "node scripts/repository-evaluation.mjs",
     "evaluation:enforce": "node scripts/repository-evaluation.mjs --enforce",
@@ -25,7 +28,7 @@
     "evaluation:test": "node scripts/test-repository-evaluation.mjs",
     "evaluation:network": "node scripts/repository-evaluation.mjs --include-network",
     "evaluation:environment": "node scripts/repository-evaluation.mjs --include-environment",
-    "evaluation:loop": "npm run inventory:check && npm run inventory:test && npm run write-scopes:inventory:check && npm run write-scopes:inventory:test && npm run remote-mcp:architecture:test && npm run evaluation:enforce && npm run evaluation:test && npm run evaluation:check -- --enforce"
+    "evaluation:loop": "npm run inventory:check && npm run inventory:test && npm run write-scopes:inventory:check && npm run write-scopes:inventory:test && npm run write-scopes:shadow:check && npm run write-scopes:shadow:test && npm run remote-mcp:architecture:test && npm run evaluation:enforce && npm run evaluation:test && npm run evaluation:check -- --enforce"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

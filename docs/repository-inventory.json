@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6976,
-    "bytes": 65121042,
-    "lines": 1532518,
+    "bytes": 65121367,
+    "lines": 1532521,
     "directories": 260,
     "categories": 13
   },
@@ -462,6 +462,9 @@
         "write-scopes:inventory",
         "write-scopes:inventory:check",
         "write-scopes:inventory:test",
+        "write-scopes:shadow",
+        "write-scopes:shadow:check",
+        "write-scopes:shadow:test",
         "remote-mcp:architecture:test",
         "evaluation:write",
         "evaluation:enforce",
@@ -72827,9 +72830,9 @@
       "path": "package.json",
       "category": "build-and-dependencies",
       "extension": ".json",
-      "bytes": 2078,
-      "lines": 47,
-      "sha256": "e98d1058c863e9b44db29405eba161c9dae3e7d63bc766a53ce49f93d48964c1",
+      "bytes": 2403,
+      "lines": 50,
+      "sha256": "b759d3da74fe0f63a4203a9bbf4149b404743af7b7fe2c647a0ce0d95b7c1630",
       "mode": "644",
       "executable": false,
       "generated": false
