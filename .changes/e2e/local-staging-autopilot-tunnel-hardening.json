@@ -41,6 +41,13 @@
       "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "docs/staging-auto-deploy.md",
+      "docs/staging-schema-contract-matrix.md",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+      "http-generic-api/scripts/build-staging-admin-openapi.mjs",
+      "http-generic-api/scripts/build-staging-openapi.mjs",
+      "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
+      "http-generic-api/test-staging-independent-schema-contract.mjs",
       ".gitignore"
     ],
     "exclude": [
@@ -94,7 +101,10 @@
             "The Windows watcher refuses missing, running, or failed eligibility checks and never deploys the same SHA twice.",
             "Task Scheduler installation uses the interactive Windows user and does not expose an inbound webhook or store deployment secrets.",
             "Auto Deploy policy and workflow contain no Production hostnames or secrets and keep all mutation safety flags false.",
-            "Auto Pilot and Auto Deploy runtime state files are ignored so a prior deployment does not make the Git worktree dirty."
+            "Auto Pilot and Auto Deploy runtime state files are ignored so a prior deployment does not make the Git worktree dirty.",
+            "Tenant and Admin Staging Custom GPT schemas are independent documents with one server URI each; Remote MCP has a separate mcp_dev protocol document.",
+            "dev.mad4b.com exposes Tenant and Admin schema variants while mcp_dev.mad4b.com exposes only the independent Remote MCP schema; cross-surface schema requests return 404.",
+            "The Staging Admin schema is GET-only and the Remote MCP schema keeps write activation false."
           ],
           "tests": [
             {
@@ -159,6 +169,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-auto-deploy-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-independent-schema-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-independent-schema-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -190,6 +207,13 @@
             "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
             "http-generic-api/test-staging-auto-deploy-contract.mjs",
             "docs/staging-auto-deploy.md",
+            "docs/staging-schema-contract-matrix.md",
+            "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+            "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+            "http-generic-api/scripts/build-staging-admin-openapi.mjs",
+            "http-generic-api/scripts/build-staging-openapi.mjs",
+            "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
+            "http-generic-api/test-staging-independent-schema-contract.mjs",
             ".gitignore"
           ]
         }

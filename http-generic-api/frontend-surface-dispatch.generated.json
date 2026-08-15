@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "4c1127df835b2276a0948e68026a9f81a94538afaf518a199380ba64277d745b",
+    "ref": null,
+    "source_digest": "f8653af6b1b9fe3e2e7f01da6b27f4ac47ec490b69418deddc361777e0d920e1",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -125,6 +125,11 @@
         "present": true
       },
       {
+        "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "sha256": "4397d57c9b3c85138f96499a7666c1bfa031ad0fb30ae0de26eb9395ad2b99ce",
+        "present": true
+      },
+      {
         "file": "openapi/openapi.gpt-action.dev-diagnostics.yaml",
         "sha256": "f2f55ec4f4a8084f07edd504dd9e1e5bdf5f8cc61d226daf08b64a34a395f22a",
         "present": true
@@ -140,8 +145,13 @@
         "present": true
       },
       {
+        "file": "openapi/openapi.remote-mcp.staging.yaml",
+        "sha256": "abc55c8befc40af3ddde9c3f412435689b6900645372bdf2a9e914fd323eb99b",
+        "present": true
+      },
+      {
         "file": "openapi/openapi.tenant-gpt.staging.yaml",
-        "sha256": "988badee22d3b8801b759241cd9b9ad957aae54195de7efba9fb83b130445316",
+        "sha256": "0b968260740ce858fe6fdd4bf6ea8e0556e72919a46ba349f5a36e235eaad8aa",
         "present": true
       },
       {
@@ -801,7 +811,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+        "sha256": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
         "present": true
       },
       {
@@ -1107,10 +1117,11 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 315,
     "auth_parity_counts": {
-      "equivalent": 1023,
-      "exempt": 16
+      "equivalent": 1009,
+      "exempt": 16,
+      "mismatch": 14
     },
-    "auth_contract_gap_count": 0,
+    "auth_contract_gap_count": 14,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 630,
     "unresolved_operation_class_count": 568,
@@ -6753,7 +6764,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+      "source_digest": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -6947,7 +6958,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+      "source_digest": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -7295,7 +7306,7 @@
       "family_key": "root-discovery.unresolved",
       "label": "root discovery (unresolved)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+      "source_digest": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -9619,21 +9630,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9687,21 +9698,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9755,21 +9766,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9823,21 +9834,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9961,21 +9972,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10029,21 +10040,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10167,21 +10178,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10278,7 +10289,64 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /system/tools/catalog-observability",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /admin/system/connectors",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /admin/system/connectors/{system_id}",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /admin/system/tools",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /admin/apis-services/google-auth-platform",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /admin/apis-services/google-auth-platform/{tab}",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /admin/apis-services/credentials",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -10306,6 +10374,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -10343,7 +10412,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -10391,12 +10460,9 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
@@ -10404,8 +10470,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10458,12 +10527,9 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
@@ -10471,8 +10537,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10663,12 +10732,9 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
@@ -10676,8 +10742,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10730,12 +10799,9 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
@@ -10743,8 +10809,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -10771,7 +10840,40 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /system/tools",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /system/tools/{toolName}",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /system/connectors",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /system/connectors/{system_id}",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendBearerAuth"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -10795,6 +10897,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -10826,7 +10929,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F0-authority-resolution"
@@ -44037,12 +44140,9 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
@@ -44050,8 +44150,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -44147,7 +44250,16 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /gpt/tools",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendBearerAuth"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -44173,6 +44285,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -44198,7 +44311,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -72830,21 +72943,21 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -72941,7 +73054,16 @@
       "openapi_detail_gaps": [
         "POST /admin/schema-import/action-ref"
       ],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /admin/schema-import/jobs",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendBearerAuth"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -72966,6 +73088,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -73009,7 +73132,7 @@
         }
       ],
       "risk": {
-        "score": 12,
+        "score": 14,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -85671,12 +85794,9 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
@@ -85684,8 +85804,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -85781,7 +85904,16 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /device/tools",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendBearerAuth"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -85801,6 +85933,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -85826,7 +85959,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -87376,6 +87509,7 @@
       "state": "blocked",
       "blockers": [
         "scope_unresolved",
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -87394,6 +87528,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -91228,6 +91363,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -91247,6 +91383,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -91691,6 +91828,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -91710,6 +91848,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -93398,6 +93537,7 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -93418,6 +93558,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -94873,6 +95014,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -94892,6 +95034,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",

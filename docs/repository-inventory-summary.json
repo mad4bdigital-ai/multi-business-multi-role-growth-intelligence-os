@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6945,
-    "bytes": 64776292,
-    "lines": 1525124,
+    "files": 6963,
+    "bytes": 64976682,
+    "lines": 1529286,
     "directories": 260,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2086,
-      "documentation": 1887,
-      "api-runtime": 1399,
+      "tests-and-specs": 2089,
+      "documentation": 1890,
+      "api-runtime": 1404,
       "database-migrations": 780,
-      "root-and-other": 252,
-      "ci-workflows": 159,
+      "root-and-other": 258,
+      "ci-workflows": 160,
       "api-contracts": 157,
       "ci-config": 103,
       "schemas-and-data": 66,
@@ -26,18 +26,18 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2482,
-      ".mjs": 1617,
-      ".js": 973,
+      ".md": 2485,
+      ".mjs": 1622,
+      ".js": 974,
       ".sql": 795,
-      ".json": 728,
-      ".yml": 162,
+      ".json": 733,
+      ".yml": 163,
       ".yaml": 108,
       ".ts": 15,
       ".cs": 14,
+      ".ps1": 10,
       ".jsx": 9,
       ".txt": 7,
-      ".ps1": 7,
       ".py": 5,
       ".example": 3,
       ".css": 3,
@@ -58,11 +58,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3587,
-      "docs": 1793,
+      "http-generic-api": 3595,
+      "docs": 1794,
       "specs": 846,
-      ".github": 262,
-      ".changes": 244,
+      ".github": 263,
+      ".changes": 246,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -71,7 +71,7 @@
       "src": 12,
       "edge": 9,
       "scripts": 9,
-      "autopilot-portable-staging": 4,
+      "autopilot-portable-staging": 8,
       "tests": 3,
       ".gitattributes": 1,
       ".gitignore": 1,
@@ -82,6 +82,8 @@
       "GPT_Tenant_Connector_Instructions.md": 1,
       "GPT_Tenant_Connector_Knowledge.md": 1,
       "README.md": 1,
+      "STAGING-DEEP-AUDIT-2026-08-15.md": 1,
+      "STAGING-PR7264-EXTENSION-SCOPE.md": 1,
       "STAGING-WINDOWS.md": 1,
       "Top Level Instructions.md": 1,
       "Updating Registry Patch Index.md": 1,
@@ -212,10 +214,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 159,
+    "workflows": 160,
     "migrations": 780,
     "apiContracts": 157,
-    "testSpecFiles": 2154
+    "testSpecFiles": 2157
   },
   "largestFiles": [
     {
@@ -227,8 +229,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3121096,
-      "lines": 95769
+      "bytes": 3128065,
+      "lines": 95925
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -275,8 +277,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 238054,
-      "lines": 2043
+      "bytes": 240269,
+      "lines": 2060
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
