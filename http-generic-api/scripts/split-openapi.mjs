@@ -401,14 +401,22 @@ function applySecurityProfile(doc, sourceDoc, surface) {
       throw new Error("x-tenant-gpt-auth security configuration missing from source OpenAPI");
     }
     const schemeName = String(tenantConfig.security_scheme_name || "userBearerAuth");
+    const backendSchemeNames = ["backendBearerAuth", "backendApiKeyAuth"];
     doc.components.securitySchemes = { [schemeName]: clone(tenantConfig.security_scheme) };
+    for (const backendSchemeName of backendSchemeNames) {
+      const sourceScheme = sourceDoc.components?.securitySchemes?.[backendSchemeName];
+      if (sourceScheme) doc.components.securitySchemes[backendSchemeName] = clone(sourceScheme);
+    }
     doc.security = clone(tenantConfig.security);
     if (tenantConfig.action_auth_preset) doc["x-gpt-action-auth-preset"] = clone(tenantConfig.action_auth_preset);
     applyTenantOAuthEndpointOverride(doc, surface);
-    for (const item of Object.values(doc.paths || {})) {
+    for (const [pathKey, item] of Object.entries(doc.paths || {})) {
       for (const [method, operation] of Object.entries(item || {})) {
         if (!METHOD_NAMES.has(method)) continue;
-        operation.security = clone(tenantConfig.security);
+        const sourceSecurity = sourceDoc.paths?.[pathKey]?.[method]?.security;
+        const usesBackendSecurity = Array.isArray(sourceSecurity)
+          && sourceSecurity.some((requirement) => Object.keys(requirement || {}).some((name) => backendSchemeNames.includes(name)));
+        operation.security = usesBackendSecurity ? clone(sourceSecurity) : clone(tenantConfig.security);
         normalizeTenantToolCallBody(operation);
       }
     }

@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6914,
-    "bytes": 64232021,
-    "lines": 1516409,
-    "directories": 259,
+    "files": 6925,
+    "bytes": 64416287,
+    "lines": 1520945,
+    "directories": 260,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2079,
-      "documentation": 1885,
+      "tests-and-specs": 2080,
+      "documentation": 1886,
       "api-runtime": 1392,
       "database-migrations": 778,
-      "root-and-other": 244,
+      "root-and-other": 248,
       "ci-workflows": 159,
-      "api-contracts": 152,
+      "api-contracts": 157,
       "ci-config": 103,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
@@ -26,19 +26,19 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2480,
-      ".mjs": 1606,
+      ".md": 2482,
+      ".mjs": 1609,
       ".js": 969,
       ".sql": 793,
-      ".json": 719,
+      ".json": 722,
       ".yml": 162,
-      ".yaml": 107,
+      ".yaml": 108,
       ".ts": 15,
       ".cs": 14,
       ".jsx": 9,
       ".txt": 7,
+      ".ps1": 7,
       ".py": 5,
-      ".ps1": 5,
       ".example": 3,
       ".css": 3,
       ".csproj": 2,
@@ -58,11 +58,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3567,
-      "docs": 1791,
+      "http-generic-api": 3572,
+      "docs": 1792,
       "specs": 846,
       ".github": 262,
-      ".changes": 239,
+      ".changes": 240,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -71,6 +71,7 @@
       "src": 12,
       "edge": 9,
       "scripts": 9,
+      "autopilot-portable-staging": 4,
       "tests": 3,
       ".gitattributes": 1,
       ".gitignore": 1,
@@ -213,8 +214,8 @@
   "surfaces": {
     "workflows": 159,
     "migrations": 778,
-    "apiContracts": 152,
-    "testSpecFiles": 2146
+    "apiContracts": 157,
+    "testSpecFiles": 2148
   },
   "largestFiles": [
     {
@@ -314,6 +315,12 @@
       "lines": 1339
     },
     {
+      "path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+      "category": "api-contracts",
+      "bytes": 141068,
+      "lines": 3810
+    },
+    {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
       "category": "api-contracts",
       "bytes": 140742,
@@ -330,12 +337,6 @@
       "category": "api-runtime",
       "bytes": 135154,
       "lines": 2593
-    },
-    {
-      "path": "schemas/operations.schema.json",
-      "category": "schemas-and-data",
-      "bytes": 134568,
-      "lines": 3397
     }
   ]
 }

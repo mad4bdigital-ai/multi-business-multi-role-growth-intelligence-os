@@ -7,23 +7,23 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,914 |
-| Total bytes | 64,232,021 |
-| Counted text lines | 1,516,409 |
-| Directories | 259 |
+| Tracked files | 6,925 |
+| Total bytes | 64,416,287 |
+| Counted text lines | 1,520,945 |
+| Directories | 260 |
 | Categories | 13 |
 
 ## Files by category
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,079 |
-| `documentation` | 1,885 |
+| `tests-and-specs` | 2,080 |
+| `documentation` | 1,886 |
 | `api-runtime` | 1,392 |
 | `database-migrations` | 778 |
-| `root-and-other` | 244 |
+| `root-and-other` | 248 |
 | `ci-workflows` | 159 |
-| `api-contracts` | 152 |
+| `api-contracts` | 157 |
 | `ci-config` | 103 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
@@ -35,19 +35,19 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,480 |
-| `.mjs` | 1,606 |
+| `.md` | 2,482 |
+| `.mjs` | 1,609 |
 | `.js` | 969 |
 | `.sql` | 793 |
-| `.json` | 719 |
+| `.json` | 722 |
 | `.yml` | 162 |
-| `.yaml` | 107 |
+| `.yaml` | 108 |
 | `.ts` | 15 |
 | `.cs` | 14 |
 | `.jsx` | 9 |
 | `.txt` | 7 |
+| `.ps1` | 7 |
 | `.py` | 5 |
-| `.ps1` | 5 |
 | `.example` | 3 |
 | `.css` | 3 |
 | `.csproj` | 2 |
@@ -72,8 +72,8 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | GitHub Actions workflows | 159 |
 | Database migrations | 778 |
-| API/OpenAPI contracts | 152 |
-| Test/spec files (paths) | 2,146 |
+| API/OpenAPI contracts | 157 |
+| Test/spec files (paths) | 2,148 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -103,6 +103,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 145,911 | 1339 |
+| `http-generic-api/openapi/openapi.tenant-gpt.staging.yaml` | api-contracts | 141,068 | 3810 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 140,742 | 3799 |
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
@@ -116,7 +117,6 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/server.js` | api-runtime | 107,240 | 3308 |
 | `http-generic-api/routes/systemLayerRoutes.js` | api-runtime | 103,931 | 2644 |
 | `docs/change-documentation-governance.md` | documentation | 102,373 | 533 |
-| `http-generic-api/openapi/session-insight-promotion-read-models.yaml` | api-contracts | 101,333 | 1743 |
 
 ## Complete machine-readable inventory
 

@@ -35,6 +35,18 @@ components:
             https://dev.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
             https://dev.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
             https://dev.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
   schemas:
     SecurityDecisionTraceEventPublic:
       type: object
@@ -1688,189 +1700,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /local/tools:
-    get:
-      tags:
-        - local-connector
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      operationId: listLocalGatewayTools
-      summary: List tenant-safe local gateway tools
-      description: Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false.
-      parameters:
-        - name: include_planned
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-      responses:
-        "200":
-          description: Local gateway tool catalog
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - surface
-                  - public_host
-                  - caller_type
-                  - count
-                  - tools
-                properties:
-                  ok:
-                    type: boolean
-                  surface:
-                    type: string
-                    enum:
-                      - local_gateway
-                  public_host:
-                    type: string
-                  caller_type:
-                    type: string
-                  count:
-                    type: integer
-                    minimum: 0
-                  tools:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                      properties: {}
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Authenticated caller is not allowed to list the requested tool scope
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Local gateway tool list failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /system/tools:
-    get:
-      tags:
-        - system-layer
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      operationId: listTools
-      summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
-      responses:
-        "200":
-          description: System layer tools
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  protocol:
-                    type: string
-                    example: openapi-mcp-facade
-                  principal:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-                  tools:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                      properties: {}
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /system/tools/call:
-    post:
-      tags:
-        - system-layer
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      operationId: callTool
-      x-openai-isConsequential: false
-      summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Descriptor tools may declare an explicit handler_name when the public tool name does not map one-to-one to the runtime export; descriptor readiness verifies that the selected handler is callable. Repository Intelligence V2.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - name
-              properties:
-                name:
-                  type: string
-                  pattern: ^[a-z][a-z0-9_:-]{1,128}$
-                  description: Tool key returned by listTools; runtime validates registration, tenant scope, and arguments before dispatch.
-                tool_args:
-                  type: object
-                  additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Admin provider tools require admin/service auth.
-                  properties:
-                    mode:
-                      type: string
-                      enum:
-                        - managed
-                        - dedicated
-                        - hybrid
-                    integration_modes:
-                      type: array
-                      items:
-                        type: string
-                    device_id:
-                      type: string
-                      pattern: ^[a-z0-9-]{2,32}$
-      responses:
-        "200":
-          description: System tool result
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok:
-                    type: boolean
-                  name:
-                    type: string
-                  result:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Tenant scope violation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /tenant/platform/plugins/catalog:
     get:
       tags:
@@ -3071,200 +2900,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /gpt/sessions/{id}/turn:
-    post:
-      tags:
-        - session-archive
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      operationId: writeSessionTurn
-      x-openai-isConsequential: false
-      summary: Append one turn to a customer_sessions archive
-      description: Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: session_id returned by getActivationSessionContext.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - role
-                - content
-              properties:
-                role:
-                  type: string
-                  enum:
-                    - user
-                    - assistant
-                    - tool
-                content:
-                  type: string
-                action_key:
-                  type: string
-      responses:
-        "200":
-          description: Turn write result with Drive anchor and archive status
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required:
-                  - ok
-                  - session_id
-                  - turn_index
-                  - turn_id
-                  - archive_status
-                properties:
-                  ok:
-                    type: boolean
-                  session_id:
-                    type: string
-                  turn_index:
-                    type: integer
-                  turn_id:
-                    type: string
-                  drive_doc_id:
-                    type: string
-                  drive_anchor:
-                    type: string
-                  archive_status:
-                    type: string
-        "400":
-          description: Missing role/content or invalid role
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Session belongs to a different user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Session not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Cannot add turns to a closed session
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Turn write failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /gpt/sessions/{id}/end:
-    post:
-      tags:
-        - session-archive
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      operationId: endSession
-      x-openai-isConsequential: false
-      summary: Close a customer_sessions archive
-      description: Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: session_id returned by getActivationSessionContext.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                summary:
-                  type: string
-                user_email:
-                  type: string
-      responses:
-        "200":
-          description: Session close result with archive and Drive export pointers
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                required:
-                  - ok
-                  - session_id
-                properties:
-                  ok:
-                    type: boolean
-                  session_id:
-                    type: string
-                  archive:
-                    type: object
-                    additionalProperties: true
-                    properties: {}
-                  drive_export:
-                    oneOf:
-                      - type: object
-                        additionalProperties: true
-                        properties:
-                          drive_file_id:
-                            type: string
-                          drive_web_url:
-                            type: string
-                      - type: "null"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Session belongs to a different user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Session not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Session is already closed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Session end failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
@@ -3803,6 +3438,12 @@ x-mad4b-staging-boundary:
   client_id_env: TENANT_GPT_STAGING_OAUTH_CLIENT_ID
   client_secret_env: TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET
   production_hosts_forbidden_policy: http-generic-api/config/domain-family-policy.json
+  backend_only_paths_excluded:
+    - /local/tools
+    - /system/tools
+    - /system/tools/call
+    - /gpt/sessions/{id}/turn
+    - /gpt/sessions/{id}/end
 x-staging-generation:
   source_artifact: http-generic-api/openapi/openapi.tenant-gpt.auth.yaml
   production_replacement_policy: auth_and_activation_hosts_rewritten_to_dev

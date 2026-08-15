@@ -9,6 +9,13 @@ const source = path.join(apiRoot, "openapi", "openapi.tenant-gpt.auth.yaml");
 const target = path.join(apiRoot, "openapi", "openapi.tenant-gpt.staging.yaml");
 const productionHosts = [/https:\/\/auth\.mad4b\.com/gu, /https:\/\/activation\.mad4b\.com/gu];
 const stagingHost = "https://dev.mad4b.com";
+const BACKEND_ONLY_PATHS = new Set([
+  "/local/tools",
+  "/system/tools",
+  "/system/tools/call",
+  "/gpt/sessions/{id}/turn",
+  "/gpt/sessions/{id}/end"
+]);
 
 function replaceHostname(value) {
   return String(value)
@@ -31,6 +38,7 @@ function replaceDeep(value) {
 
 if (!fs.existsSync(source)) throw new Error(`Missing generated Tenant Core source: ${source}`);
 const document = replaceDeep(YAML.parse(fs.readFileSync(source, "utf8")));
+for (const pathKey of BACKEND_ONLY_PATHS) delete document.paths?.[pathKey];
 document.servers = [{ url: stagingHost, description: "Staging Tenant Core surface" }];
 document.info = {
   ...document.info,
@@ -44,7 +52,8 @@ document["x-mad4b-staging-boundary"] = {
   authorization_server: `${stagingHost}/auth/oauth`,
   client_id_env: "TENANT_GPT_STAGING_OAUTH_CLIENT_ID",
   client_secret_env: "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET",
-  production_hosts_forbidden_policy: "http-generic-api/config/domain-family-policy.json"
+  production_hosts_forbidden_policy: "http-generic-api/config/domain-family-policy.json",
+  backend_only_paths_excluded: [...BACKEND_ONLY_PATHS]
 };
 if (document["x-gpt-action-auth-preset"]) {
   document["x-gpt-action-auth-preset"].authorization_url = `${stagingHost}/auth/oauth/authorize`;

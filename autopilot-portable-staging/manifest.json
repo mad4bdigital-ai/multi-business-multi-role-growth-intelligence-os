@@ -18,8 +18,9 @@
     {"path": "autopilot-portable-staging/README.md", "sha256": "7763a1025fd8afc5ee1a700f2b48a2f90df2509237bf664161e37b3c9b9b18bd"},
     {"path": "STAGING-WINDOWS.md", "sha256": "bfc05345044af303e9ba70e49450e1044f2b740ee4de1a90c26fbbaddcda2a68"},
     {"path": "docs/staging-openapi-mcp-db-copy.md", "sha256": "a2355e28d6a1a6086dcadac02b42414db8a4eba405bca29c35e5724842a67c83"},
-    {"path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", "sha256": "41b6a482a1f7e0889b66c0632b94840dd563231af7a1b2755cc3d3814974586e"},
-    {"path": "http-generic-api/scripts/build-staging-openapi.mjs", "sha256": "13d5e22bb7eec24bc1d3348b229017fe87b3e3a9a90d6cfe75746968f125cbe0"},
+    {"path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", "sha256": "807fd289aa4636a95ff2cfbec39923ddbc0a686c520b100b714cafc532ec3fc1"},
+    {"path": "http-generic-api/scripts/build-staging-openapi.mjs", "sha256": "44fc4528e0ba9a3f2f4bf00ec4f02a63e5f271a1c916760733910e6e2174922f"},
+    {"path": "http-generic-api/scripts/split-openapi.mjs", "sha256": "6b0de296ad86fa307d8c163415e9377e14b05f53d7e767e586b9574eb7f9132a"},
     {"path": "http-generic-api/routes/rootDiscoveryRoutes.js", "sha256": "de502ed49251b1534a65395d5fd95ab1c5e0242a93a85c0f49bd34e3e3510597"}
   ],
   "safety": {
