@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
 import {
+  REMOTE_MCP_AUTHORIZATION_SERVER,
+  REMOTE_MCP_RESOURCE,
+} from "./remoteMcpOAuthProfile.js";
+import {
   REMOTE_MCP_SCOPES,
   REMOTE_MCP_SUPPORTED_SCOPES,
 } from "./remoteMcpScopeCatalog.js";
@@ -13,8 +17,8 @@ export const CHATGPT_MCP_SUPPORTED_PROTOCOL_VERSIONS = Object.freeze([
   "2025-03-26",
 ]);
 
-const DEFAULT_RESOURCE = "https://mcp.mad4b.com";
-const DEFAULT_AUTHORIZATION_SERVER = "https://auth.mad4b.com";
+const DEFAULT_RESOURCE = REMOTE_MCP_RESOURCE;
+const DEFAULT_AUTHORIZATION_SERVER = new URL(REMOTE_MCP_AUTHORIZATION_SERVER).origin;
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
   "https://chatgpt.com",
   "https://www.chatgpt.com",
@@ -684,7 +688,7 @@ export async function handleChatGptMcpRequest({
       };
     } catch (error) {
       const code = normalizedString(error?.code, 128) || "MCP_DEPENDENCY_UNAVAILABLE";
-      const retryable = error?.retryable ?? code === "MCP_DEPENDENCY_UNAVAILABLE";
+      const transientFailure = error?.retryable ?? code === "MCP_DEPENDENCY_UNAVAILABLE";
       const message = code === "MCP_CONTEXT_DENIED"
         ? "The selected resource is not accessible to the signed-in user."
         : "The platform could not complete the read-only tool call.";
@@ -694,7 +698,7 @@ export async function handleChatGptMcpRequest({
         body: jsonRpcSuccess(id, toolErrorResult({
           code,
           message,
-          retryable,
+          retryable: transientFailure,
           requestId,
         })),
       };
