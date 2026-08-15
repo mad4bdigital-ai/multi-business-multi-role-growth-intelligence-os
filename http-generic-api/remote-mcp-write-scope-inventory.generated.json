@@ -337,8 +337,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/env-bootstrap:0",
-      "source_line": 1734,
-      "source_offset": 67006,
+      "source_line": 1735,
+      "source_offset": 67039,
       "method": "GET",
       "path": "/activation/env-bootstrap",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -346,8 +346,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/bootstrap-config:1",
-      "source_line": 1788,
-      "source_offset": 70247,
+      "source_line": 1789,
+      "source_offset": 70280,
       "method": "GET",
       "path": "/activation/bootstrap-config",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -355,8 +355,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#POST:/activation/hard-run/legacy-full:2",
-      "source_line": 1870,
-      "source_offset": 74401,
+      "source_line": 1871,
+      "source_offset": 74434,
       "method": "POST",
       "path": "/activation/hard-run/legacy-full",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -364,8 +364,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context/read-only:3",
-      "source_line": 1941,
-      "source_offset": 78261,
+      "source_line": 1942,
+      "source_offset": 78294,
       "method": "GET",
       "path": "/activation/session-context/read-only",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -373,8 +373,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context:4",
-      "source_line": 1967,
-      "source_offset": 78934,
+      "source_line": 1968,
+      "source_offset": 78967,
       "method": "GET",
       "path": "/activation/session-context",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -382,8 +382,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/platform-access:5",
-      "source_line": 1996,
-      "source_offset": 79905,
+      "source_line": 1997,
+      "source_offset": 79938,
       "method": "GET",
       "path": "/activation/platform-access",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -10941,10 +10941,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/activationRoutes.js",
-        "source_line": 1870,
+        "source_line": 1871,
         "handler_window_lines": [
-          1870,
-          1939
+          1871,
+          1940
         ],
         "evidence_flags": {
           "handler_window_present": true,

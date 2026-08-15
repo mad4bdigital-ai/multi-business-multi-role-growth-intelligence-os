@@ -95,7 +95,8 @@ function selectUniqueRow(rows, label, fallback = null) {
     error.code = "ambiguous_context_query_result";
     throw error;
   }
-  return candidates.length === 1 ? candidates[0] : fallback;
+  const selected = candidates.shift();
+  return selected === undefined ? fallback : selected;
 }
 
 function readinessFromResult(result, active = true) {
