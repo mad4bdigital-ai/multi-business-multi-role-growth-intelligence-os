@@ -10,6 +10,7 @@
       "package.json",
       "scripts/write-scope-shadow-preflight.mjs",
       "scripts/test-write-scope-shadow-preflight.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "docs/write-scope-shadow-evidence-2026-08-15.json",
       ".changes/e2e/write-scope-shadow-preflight-20260815.json"
     ]
