@@ -100,6 +100,21 @@
         "provider_call": false,
         "credential_read": false,
         "production_activation": false
+      },
+      {
+        "role": "openapi_projection_readiness_contract",
+        "status": "implemented_readiness_only",
+        "route_wiring": false,
+        "runtime_authority": false,
+        "rest_projection": false,
+        "custom_gpt_projection": false,
+        "remote_mcp_projection": false,
+        "frontend_projection": false,
+        "database_write": false,
+        "migration_applied": false,
+        "provider_call": false,
+        "credential_read": false,
+        "production_activation": false
       }
     ]
   },
@@ -108,6 +123,7 @@
     "json_schema_validation": "implemented_pending_exact_head_ci",
     "pure_contract_tests": "expanded_pending_exact_head_ci",
     "canonical_operation_registry_tests": "expanded_pending_generated_parity_refresh_and_exact_head_ci",
+    "openapi_projection_readiness_tests": "implemented_pending_exact_head_ci",
     "brand_claim_verification_tests": "implemented_pending_exact_head_ci",
     "brand_identity_reconciliation_tests": "implemented_pending_exact_head_ci",
     "asset_provider_identity_tests": "implemented_pending_exact_head_ci",
@@ -138,6 +154,7 @@
       "http-generic-api/test-platform-operation-governance-contract.mjs",
       "http-generic-api/test-canonical-business-operation-registry.mjs",
       "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+      "http-generic-api/test-openapi-projection-readiness.mjs",
       "http-generic-api/test-brand-claim-verification.mjs",
       "http-generic-api/test-brand-identity-persistence.mjs",
       "http-generic-api/test-global-brand-identity-migration-contract.mjs"
@@ -152,7 +169,8 @@
     "schemas": [
       "schemas/platform-resource-identity-contract.schema.json",
       "schemas/brand-identity-resolution.schema.json",
-      "schemas/canonical-operation-governance.schema.json"
+      "schemas/canonical-operation-governance.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json"
     ],
     "migration_collation_evidence": [
       "http-generic-api/config/database-engine-collation-policy.json",
@@ -176,6 +194,7 @@
     "The Canonical Business Operation Registry is the source consumed by platformOperationGovernanceContract; brand.create is no longer redefined by a parallel hardcoded descriptor.",
     "New identity and claim operations are registered as shadow/library-only and do not activate new REST/GPT/MCP mutation surfaces.",
     "The existing read-only Brand list now dual-reads canonical brand_id and legacy compatibility references on the branch; it does not alter grant semantics.",
+    "OpenAPI projection readiness is documented and guarded as read-only traceability; it does not activate REST, Custom GPT, Remote MCP, or frontend projections.",
     "Identity does not imply relationship, authority, grant, credential access, or provider readiness.",
     "Claim verification requires explicit expected_revision and does not mutate authority grants.",
     "Reconciliation is SELECT-only and reports conflicts without destructive repair or automatic merge.",

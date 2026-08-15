@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec020/openapi-projection-readiness.schema.json",
+  "title": "Spec 020 OpenAPI Projection Readiness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "feature_key", "status", "review_state", "source_authority", "scope_boundary", "repository_openapi_baseline", "operations", "existing_surface_parity", "readiness_gates", "safety"],
+  "properties": {
+    "$schema": { "type": "string", "const": "./contracts/openapi-projection-readiness.schema.json" },
+    "schema_version": { "type": "string", "const": "spec020-openapi-projection-readiness-v1" },
+    "feature_key": { "type": "string", "const": "020-platform-resource-identity-brand-governance" },
+    "status": { "type": "string", "const": "readiness_only" },
+    "review_state": { "type": "string", "const": "requires_separate_surface_activation_decision" },
+    "source_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_registry", "canonical_openapi", "runtime_dispatch_plan", "surface_policy", "custom_gpt_surface_policy", "presence_allowlist"],
+      "properties": {
+        "canonical_registry": { "type": "string", "const": "http-generic-api/canonicalBusinessOperationRegistry.js" },
+        "canonical_openapi": { "type": "string", "const": "http-generic-api/openapi.yaml" },
+        "runtime_dispatch_plan": { "type": "string", "const": "http-generic-api/frontend-surface-dispatch.generated.json" },
+        "surface_policy": { "type": "string", "const": "http-generic-api/frontend-surface-policy.json" },
+        "custom_gpt_surface_policy": { "type": "string", "const": "canonicals/openapi/custom-gpt-surfaces.yaml" },
+        "presence_allowlist": { "type": "string", "const": "http-generic-api/openapi-route-coverage.allowlist.json" }
+      }
+    },
+    "scope_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route_wiring_allowed", "runtime_authority_allowed", "rest_projection_allowed", "custom_gpt_projection_allowed", "remote_mcp_projection_allowed", "frontend_projection_allowed", "migration_apply_allowed", "database_mutation_allowed", "provider_call_allowed", "credential_read_allowed", "production_activation_allowed"],
+      "properties": {
+        "route_wiring_allowed": { "const": false },
+        "runtime_authority_allowed": { "const": false },
+        "rest_projection_allowed": { "const": false },
+        "custom_gpt_projection_allowed": { "const": false },
+        "remote_mcp_projection_allowed": { "const": false },
+        "frontend_projection_allowed": { "const": false },
+        "migration_apply_allowed": { "const": false },
+        "database_mutation_allowed": { "const": false },
+        "provider_call_allowed": { "const": false },
+        "credential_read_allowed": { "const": false },
+        "production_activation_allowed": { "const": false }
+      }
+    },
+    "repository_openapi_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_count", "openapi_documented_count", "openapi_canonical_documented_count", "openapi_generated_index_count", "openapi_exemption_count", "openapi_gap_count", "openapi_detail_gap_count", "auth_contract_gap_count", "unresolved_operation_class_count", "unresolved_surface_decision_count", "untested_operation_count", "blocked_task_count", "coverage_complete", "captured_from"],
+      "properties": {
+        "operation_count": { "type": "integer", "minimum": 0 },
+        "openapi_documented_count": { "type": "integer", "minimum": 0 },
+        "openapi_canonical_documented_count": { "type": "integer", "minimum": 0 },
+        "openapi_generated_index_count": { "type": "integer", "minimum": 0 },
+        "openapi_exemption_count": { "type": "integer", "minimum": 0 },
+        "openapi_gap_count": { "type": "integer", "minimum": 0, "const": 0 },
+        "openapi_detail_gap_count": { "type": "integer", "minimum": 0 },
+        "auth_contract_gap_count": { "type": "integer", "minimum": 0, "const": 0 },
+        "unresolved_operation_class_count": { "type": "integer", "minimum": 0 },
+        "unresolved_surface_decision_count": { "type": "integer", "minimum": 0 },
+        "untested_operation_count": { "type": "integer", "minimum": 0 },
+        "blocked_task_count": { "type": "integer", "minimum": 0 },
+        "coverage_complete": { "const": false },
+        "captured_from": { "type": "string", "const": "http-generic-api/frontend-surface-dispatch.generated.json" }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_key", "status", "effect_class", "projection_decision", "existing_surface", "candidate_openapi_operation_id", "required_before_projection"],
+        "properties": {
+          "operation_key": { "type": "string", "pattern": "^(brand\\.(identity|claim)\\.|asset\\.identity\\.|provider_account\\.identity\\.)" },
+          "status": { "const": "shadow" },
+          "effect_class": { "enum": ["read_only", "internal_write"] },
+          "projection_decision": { "type": "string", "pattern": "^(not_projected|blocked)_" },
+          "existing_surface": { "const": "library_only" },
+          "candidate_openapi_operation_id": { "type": ["string", "null"] },
+          "required_before_projection": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        }
+      }
+    },
+    "existing_surface_parity": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["surface", "operation_id", "state", "evidence", "route_change_in_this_readiness_slice"],
+        "properties": {
+          "surface": { "type": "string" },
+          "operation_id": { "type": "string" },
+          "state": { "type": "string" },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "route_change_in_this_readiness_slice": { "const": false }
+        }
+      }
+    },
+    "readiness_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["presence_gaps_must_be_zero", "auth_contract_gaps_must_be_zero", "detail_gaps_must_not_be_mislabeled_as_canonical", "allowlist_is_presence_only", "surface_policy_default_requires_review", "shadow_operations_must_not_become_active"],
+      "properties": {
+        "presence_gaps_must_be_zero": { "const": true },
+        "auth_contract_gaps_must_be_zero": { "const": true },
+        "detail_gaps_must_not_be_mislabeled_as_canonical": { "const": true },
+        "allowlist_is_presence_only": { "const": true },
+        "surface_policy_default_requires_review": { "const": true },
+        "shadow_operations_must_not_become_active": { "const": true }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database_connection_performed", "database_write_performed", "migration_applied", "provider_call_performed", "credential_read_performed", "route_wiring_performed", "production_activation_performed", "secrets_included"],
+      "properties": {
+        "database_connection_performed": { "const": false },
+        "database_write_performed": { "const": false },
+        "migration_applied": { "const": false },
+        "provider_call_performed": { "const": false },
+        "credential_read_performed": { "const": false },
+        "route_wiring_performed": { "const": false },
+        "production_activation_performed": { "const": false },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}
