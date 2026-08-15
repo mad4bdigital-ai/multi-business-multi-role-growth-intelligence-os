@@ -43,4 +43,23 @@ assert.match(
   "runner.temp remains allowed in step-level action inputs",
 );
 
+assert.match(
+  workflow,
+  /diagnostic_root="\.ci-evidence\/spec-kit-work-map-integration"/u,
+  "the integration gate must materialize its bounded diagnostic root before it can fail",
+);
+assert.match(workflow, /mkdir -p "\$\{diagnostic_root\}"/u);
+assert.match(workflow, /> "\$\{diagnostic_root\}\/stdout\.log"/u);
+assert.match(workflow, /2> "\$\{diagnostic_root\}\/stderr\.log"/u);
+assert.match(workflow, /> "\$\{diagnostic_root\}\/exit-code\.txt"/u);
+assert.match(workflow, /> "\$\{diagnostic_root\}\/report\.json"/u);
+assert.match(workflow, /exit "\$\{exit_code\}"/u);
+assert.match(workflow, /path: \.ci-evidence\/spec-kit-work-map-integration\//u);
+assert.match(workflow, /if-no-files-found: error/u);
+assert.equal(
+  (workflow.match(/if: always\(\) && steps\.integration\.outcome == 'failure'/gu) || []).length,
+  2,
+  "both diagnostic upload and final fail-closed must survive the integration gate failure status",
+);
+
 console.log("Spec Kit Work Map Integration registration boundary passed");
