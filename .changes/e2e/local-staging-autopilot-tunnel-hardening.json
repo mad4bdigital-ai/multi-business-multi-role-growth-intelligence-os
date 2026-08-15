@@ -12,6 +12,7 @@
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/config/staging-openapi-mcp-policy.json",
       "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/rootDiscoveryRoutes.js",
@@ -117,6 +118,7 @@
           "evidence_paths": [
             "http-generic-api/.env.staging.example",
             "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
             "http-generic-api/routes/rootDiscoveryRoutes.js",
             "http-generic-api/scripts/build-staging-openapi.mjs",
