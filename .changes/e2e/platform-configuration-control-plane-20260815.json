@@ -31,7 +31,13 @@
       "http-generic-api/test-admin-control.mjs",
       "http-generic-api/test-gpt-tools-response-chunking.mjs",
       "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
-      "AI_Agent_Knowledge_Guide.md"
+      "AI_Agent_Knowledge_Guide.md",
+      "http-generic-api/migrations/20260810_github_issue_comment_exact_response_parity.sql",
+      "http-generic-api/test-github-issue-comment-exact-response-parity.mjs",
+      "http-generic-api/executionResponse.js",
+      "http-generic-api/runtimePersistenceWriteAuthority.js",
+      "http-generic-api/test-runtime-persistence-write-authority.mjs",
+      "http-generic-api/schemas/github/github_rest.yaml"
     ]
   },
   "merge_contract": {
@@ -73,7 +79,9 @@
             { "id": "tenant-ssh-execute-runtime-config", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-ssh-execute-runtime-config.mjs", "args": [] },
             { "id": "database-collation-policy", "runner": "node", "working_directory": "http-generic-api", "path": "test-database-collation-policy.mjs", "args": [] },
             { "id": "admin-control-migration-alias", "runner": "node", "working_directory": "http-generic-api", "path": "test-admin-control.mjs", "args": [] },
-            { "id": "gpt-tools-response-chunking", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-response-chunking.mjs", "args": [] }
+            { "id": "gpt-tools-response-chunking", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-response-chunking.mjs", "args": [] },
+            { "id": "github-issue-comment-exact-response-parity", "runner": "node", "working_directory": "http-generic-api", "path": "test-github-issue-comment-exact-response-parity.mjs", "args": [] },
+            { "id": "runtime-persistence-write-authority", "runner": "node", "working_directory": "http-generic-api", "path": "test-runtime-persistence-write-authority.mjs", "args": [] }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-configuration-control-plane-20260815.json",
@@ -98,7 +106,13 @@
       "http-generic-api/test-admin-control.mjs",
       "http-generic-api/test-gpt-tools-response-chunking.mjs",
       "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
-      "AI_Agent_Knowledge_Guide.md"
+      "AI_Agent_Knowledge_Guide.md",
+      "http-generic-api/migrations/20260810_github_issue_comment_exact_response_parity.sql",
+      "http-generic-api/test-github-issue-comment-exact-response-parity.mjs",
+      "http-generic-api/executionResponse.js",
+      "http-generic-api/runtimePersistenceWriteAuthority.js",
+      "http-generic-api/test-runtime-persistence-write-authority.mjs",
+      "http-generic-api/schemas/github/github_rest.yaml"
           ]
         }
       ]
