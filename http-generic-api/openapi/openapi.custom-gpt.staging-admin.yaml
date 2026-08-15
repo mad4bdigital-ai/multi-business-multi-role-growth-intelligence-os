@@ -14,6 +14,17 @@ tags:
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
 components:
   securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
     backendBearerAuth:
       type: http
       scheme: bearer
@@ -291,6 +302,7 @@ paths:
         - system-layer
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listSystemConnectors
       summary: List connector systems visible to the current principal
       description: Principal-aware facade over connected_systems. Tenant users are automatically scoped to their tenant; admin principals can inspect all tenants.
@@ -358,6 +370,7 @@ paths:
         - system-layer
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getSystemConnector
       summary: Get one connector system visible to the current principal
       description: Principal-aware connector registry read. Tenant users can only read systems in their tenant; admins can read any system.
@@ -401,6 +414,7 @@ paths:
         - system-layer
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listSystemTools
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
@@ -435,7 +449,8 @@ paths:
       tags:
         - system-layer
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getSystemToolCatalogObservability
       x-openai-isConsequential: false
       summary: Read System Tool Catalog V2 observability and descriptor parity
@@ -492,6 +507,7 @@ paths:
         - system-layer
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getSystemToolDescriptor
       x-openai-isConsequential: false
       summary: Read one visible System Layer tool descriptor
@@ -556,7 +572,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listAdminSystemConnectors
       summary: List connector systems from the system registry
       description: Read-only admin facade over the connected_systems table. Use this before choosing connector-specific actions or MCP-style tool calls.
@@ -616,7 +633,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getAdminSystemConnector
       summary: Get one connector system from the system registry
       description: Returns one connected_systems row plus its installation summary. This is a governed alternative to raw DB inspection for connector inventory.
@@ -653,7 +671,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listAdminSystemTools
       summary: List MCP-style system layer tools
       description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and.
@@ -683,7 +702,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getAdminGoogleAuthPlatformTabs
       summary: Read simulated Google Auth Platform tabs
       description: Returns governed DB-backed tab state for the platform-controlled Google Auth Platform and APIs & Services console simulation.
@@ -733,7 +753,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getAdminGoogleAuthPlatformTab
       summary: Read one simulated Google Auth Platform tab
       description: Returns one governed tab state, such as overview, branding, audience, clients, data_access, verification_center, settings, or api_credentials.
@@ -773,7 +794,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getAdminApisServicesCredentials
       summary: Read simulated APIs & Services Credentials tab
       description: Returns the governed APIs & Services Credentials tab and linked platform credential-client registry records.
@@ -798,6 +820,7 @@ paths:
         - admin-control
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
       description: Returns paginated DB-backed and virtual Admin tools. Use limit/cursor/q/tag for bounded discovery; clients unable to send query parameters should call admin_tool_catalog_search through callAdminTool. Read all response chunks before fallback. Repository lifecycle mutations remain capability-gated an.
@@ -962,6 +985,7 @@ paths:
         - admin-control
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listDeviceTools
       summary: List device-tagged tools (MCP-style local device control surface)
       description: Returns the device-tagged subset of the admin or tenant tool registry. Use this MCP-style facade to control local device apps (n8n, browser, files, Windows, Cloudflare) primarily from dev.mad4b.com instead of the direct connector.mad4b.com schema.
@@ -1026,7 +1050,8 @@ paths:
       tags:
         - admin-control
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listSchemaImportJobs
       summary: List schema import jobs with optional action_key filter
       parameters:

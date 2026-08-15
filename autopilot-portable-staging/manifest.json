@@ -190,7 +190,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "4397d57c9b3c85138f96499a7666c1bfa031ad0fb30ae0de26eb9395ad2b99ce"
+      "sha256": "7d7dd7432f37487176a8b1390fadd7c935ddd9927d074fee7301308d357b8f87"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
