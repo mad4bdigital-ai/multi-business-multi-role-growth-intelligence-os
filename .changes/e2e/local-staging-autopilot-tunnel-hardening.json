@@ -39,6 +39,10 @@
       "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "autopilot-portable-staging/Install-AutoDeployTask.ps1",
       "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "docs/staging-auto-deploy.md",
       "docs/staging-schema-contract-matrix.md",
@@ -104,7 +108,9 @@
             "Auto Pilot and Auto Deploy runtime state files are ignored so a prior deployment does not make the Git worktree dirty.",
             "Tenant and Admin Staging Custom GPT schemas are independent documents with one server URI each; Remote MCP has a separate mcp_dev protocol document.",
             "dev.mad4b.com exposes Tenant and Admin schema variants while mcp_dev.mad4b.com exposes only the independent Remote MCP schema; cross-surface schema requests return 404.",
-            "The Staging Admin schema is GET-only and the Remote MCP schema keeps write activation false."
+            "The Staging Admin schema is GET-only and the Remote MCP schema keeps write activation false.",
+            "The one-click Windows launcher bootstraps Git, GitHub CLI, Docker Desktop, WSL2, local secrets, CI eligibility, Staging startup, optional schema-only seed, and Task Scheduler without Production or provider mutation.",
+            "Missing Cloudflare credentials are requested only inside the launcher and are stored only in ignored local environment state; no secret is committed or included in evidence."
           ],
           "tests": [
             {
@@ -161,6 +167,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-workspace-brand-create.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
               "args": []
             },
             {
