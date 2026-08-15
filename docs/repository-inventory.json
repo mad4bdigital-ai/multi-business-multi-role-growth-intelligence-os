@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7055,
-    "bytes": 66969465,
-    "lines": 1566242,
+    "bytes": 66969690,
+    "lines": 1566244,
     "directories": 263,
     "categories": 13
   },
@@ -7027,9 +7027,9 @@
       "path": ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 18639,
-      "lines": 291,
-      "sha256": "02290dd2ef0ba0155adb86cbc403532c59372eab9b2ba0ebef29e9196b2dfacd",
+      "bytes": 18819,
+      "lines": 292,
+      "sha256": "bac1fc8f38d3076bb136cd25242e68d166c004100e159cfd7b905dde2d842d68",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12263,9 +12263,9 @@
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
       "category": "root-and-other",
       "extension": ".ps1",
-      "bytes": 21633,
+      "bytes": 21632,
       "lines": 400,
-      "sha256": "663e10a8155c69b305dccfd62a660d3b95b977b735814face3b95a550099513f",
+      "sha256": "998f929d11a7fe46cdad63691e51b3e5a847e0abac775395bb74dbf44a096d43",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12397,7 +12397,7 @@
       "extension": ".json",
       "bytes": 10780,
       "lines": 273,
-      "sha256": "39e6f5e500d54b30e7953eb6363f88cb0bd8694330f456d8f148b6b99a7f34dd",
+      "sha256": "b553485c268a31f7029cc5ce70b900320c2c8b5ef6f6f946644cf9cb677de05c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70046,9 +70046,9 @@
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3920,
-      "lines": 83,
-      "sha256": "7e3b4e29740c93d55c99b55a3531fbc98b1896b15e207b918f8b764a25a966dc",
+      "bytes": 3966,
+      "lines": 84,
+      "sha256": "972c90ffc2523c89c352351e614ee2affcbf8011fd7e5dbaa702c857e968df19",
       "mode": "644",
       "executable": false,
       "generated": false

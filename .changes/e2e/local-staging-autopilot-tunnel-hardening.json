@@ -125,7 +125,8 @@
             "The one-click launcher writes bootstrap-console.log before prerequisite checks, prints it after a non-zero CMD exit, and initializes ignored .env.staging on an existing Git checkout before dependency validation.",
             "The shared operations logger initializes Mad4bStagingRunId through a StrictMode-safe Get-Variable lookup before the first durable log write, and the logging contract prevents regression to an unset-global read.",
             "The one-click launcher parses WSL2 readiness independently and retries wsl.exe --list --verbose with bounded backoff after installation or reboot instead of failing on a single transient probe.",
-            "The WSL2 readiness parser normalizes NUL-padded output and treats a valid Ubuntu version-2 row as authoritative even when the probe exit code is transiently nonzero."
+            "The WSL2 readiness parser normalizes NUL-padded output and treats a valid Ubuntu version-2 row as authoritative even when the probe exit code is transiently nonzero.",
+            "The WSL2 output normalization uses PowerShell 5.1-compatible regex replacement and does not rely on a [char]0 conversion that can throw before readiness evaluation."
           ],
           "tests": [
             {
