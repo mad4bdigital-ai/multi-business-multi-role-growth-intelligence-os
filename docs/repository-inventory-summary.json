@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7045,
-    "bytes": 65694314,
-    "lines": 1545011,
+    "files": 7049,
+    "bytes": 65735742,
+    "lines": 1546293,
     "directories": 263,
     "categories": 13
   },
@@ -16,7 +16,7 @@
       "api-runtime": 1420,
       "database-migrations": 782,
       "root-and-other": 275,
-      "api-contracts": 165,
+      "api-contracts": 169,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1646,
+      ".mjs": 1648,
       ".js": 984,
       ".sql": 797,
-      ".json": 760,
+      ".json": 762,
       ".yml": 164,
       ".yaml": 110,
       ".ps1": 15,
@@ -59,9 +59,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3634,
+      "http-generic-api": 3636,
       "docs": 1801,
-      "specs": 859,
+      "specs": 861,
       ".github": 264,
       ".changes": 253,
       "canonicals": 70,
@@ -136,6 +136,8 @@
         "frontend:governance:check",
         "frontend:dispatch:generate",
         "frontend:dispatch:check",
+        "openapi:detail-gaps:generate",
+        "openapi:detail-gaps:check",
         "openapi:auth:write",
         "openapi:auth:check",
         "schemas:generate",
@@ -217,8 +219,8 @@
   "surfaces": {
     "workflows": 161,
     "migrations": 782,
-    "apiContracts": 165,
-    "testSpecFiles": 2187
+    "apiContracts": 169,
+    "testSpecFiles": 2190
   },
   "largestFiles": [
     {
