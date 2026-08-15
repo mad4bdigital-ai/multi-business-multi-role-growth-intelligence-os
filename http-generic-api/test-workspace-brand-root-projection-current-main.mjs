@@ -67,6 +67,26 @@ function workspaceToBrandEdges(plan) {
   });
 }
 
+function persistenceFixture() {
+  return {
+    containers: [
+      { container_id: "root-container", container_type_key: "workspace" },
+      { container_id: "brand-container", container_type_key: "brand" },
+    ],
+    relationships: [
+      {
+        relationship_id: "canonical-root-brand",
+        tenant_id: "tenant-1",
+        from_container_id: "root-container",
+        to_container_id: "brand-container",
+        relationship_type_key: "contains",
+        status: "active",
+        metadata_json: JSON.stringify({ operational_workspace_id: "brand-workspace-1" }),
+      },
+    ],
+  };
+}
+
 {
   const plan = await buildLegacyContainerProjectionPlan({ sourceRows: sourceRows() });
   const edges = workspaceToBrandEdges(plan);
@@ -116,6 +136,94 @@ function workspaceToBrandEdges(plan) {
     "multiple operational Brand workspaces for one Brand must be held",
   );
   assert.equal(workspaceToBrandEdges(plan).length, 0, "ambiguous operational workspace evidence must remove the planned Brand parent edge");
+}
+
+{
+  const fixture = persistenceFixture();
+  const calls = [];
+  const connection = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return [[{
+        relationship_id: "historical-noncanonical-root-brand",
+        from_container_id: "root-container",
+        to_container_id: "brand-container",
+        created_by: "legacy_projection",
+        status: "disabled",
+        currently_effective: 0,
+      }]];
+    },
+  };
+  await assert.rejects(
+    () => _testingDynamicContainerProjectionService.archiveSupersededLegacyBrandEdges(
+      connection,
+      fixture.containers,
+      fixture.relationships,
+      "tenant-1",
+    ),
+    (error) => error?.code === "container_projection_brand_relationship_noncanonical" && error?.status === 409,
+    "inactive same-endpoint noncanonical identity must block creation of a second deterministic relationship",
+  );
+  assert.equal(calls.length, 1, "identity conflict must fail before any mutation query");
+  assert.match(calls[0].sql, /END AS currently_effective/, "relationship scan must compute effective authority independently from identity");
+  assert.match(calls[0].sql, /valid_from IS NULL OR r\.valid_from<=UTC_TIMESTAMP\(\)/, "effective scan must honor valid_from");
+  assert.match(calls[0].sql, /valid_until IS NULL OR r\.valid_until>UTC_TIMESTAMP\(\)/, "effective scan must honor valid_until");
+}
+
+{
+  const fixture = persistenceFixture();
+  const calls = [];
+  const connection = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return [[{
+        relationship_id: "expired-unrelated-parent",
+        from_container_id: "other-root-container",
+        to_container_id: "brand-container",
+        created_by: "manual_governance",
+        status: "active",
+        currently_effective: 0,
+      }]];
+    },
+  };
+  const archived = await _testingDynamicContainerProjectionService.archiveSupersededLegacyBrandEdges(
+    connection,
+    fixture.containers,
+    fixture.relationships,
+    "tenant-1",
+  );
+  assert.equal(archived, 0, "expired or future unrelated parent must not be treated as current authority");
+  assert.equal(calls.length, 1, "temporally ineffective parent must not trigger archive or graph mutation");
+}
+
+{
+  const fixture = persistenceFixture();
+  const connection = {
+    async query() {
+      return [[{
+        relationship_id: "effective-unrelated-parent",
+        from_container_id: "other-root-container",
+        to_container_id: "brand-container",
+        created_by: "manual_governance",
+        status: "active",
+        currently_effective: 1,
+        parent_subject_type: "workspace",
+        parent_subject_ref: "other-root",
+        parent_workspace_type: "workspace",
+        parent_workspace_ownership_type: "company",
+      }]];
+    },
+  };
+  await assert.rejects(
+    () => _testingDynamicContainerProjectionService.archiveSupersededLegacyBrandEdges(
+      connection,
+      fixture.containers,
+      fixture.relationships,
+      "tenant-1",
+    ),
+    (error) => error?.code === "container_projection_brand_root_conflict" && error?.status === 409,
+    "currently effective unrelated parent must remain fail-closed",
+  );
 }
 
 console.log("workspace Brand Root projection current-main regressions: ok");
