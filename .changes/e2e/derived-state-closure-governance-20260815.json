@@ -11,6 +11,7 @@
       ".github/scripts/derived-state-closure.mjs",
       ".github/tests/derived-state-closure.test.mjs",
       ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/staging-main-deploy-eligibility.yml",
       ".changes/e2e/derived-state-closure-governance-20260815.json"
     ]
@@ -33,6 +34,7 @@
           "terminal_outcome": "Derived State Closure reports zero stale registered artifacts for the GitHub merge candidate, or fails closed with the exact governed repair recipe set and no repository mutation.",
           "steps": [
             "Checkout github.sha for the pull-request merge candidate with persist-credentials disabled.",
+            "Use the already-trusted PR Generated Artifact Refresh workflow as the bootstrap carrier so the closure policy is exercised before the new standalone workflow reaches main.",
             "Validate the machine-readable derived-state registry and unique artifact identities.",
             "Run every registered verifier from a hardcoded verifier allowlist rather than executable commands supplied by configuration.",
             "After each verifier, prove the worktree remains clean; any verifier write is a blocking safety failure.",
@@ -43,6 +45,7 @@
           ],
           "assertions": [
             "The closure workflow has no path filter, so repository-wide dependencies such as git_index_shape cannot escape detection.",
+            "The existing PR Generated Artifact Refresh workflow has no path filter and no branch-prefix dependency routing.",
             "Branch prefixes are not used as a dependency signal.",
             "The workflow permission is contents:read and checkout credentials are not persisted.",
             "The Remote MCP registry explicitly declares git_index_shape while the current generator materializes tracked file_count.",
@@ -66,6 +69,7 @@
             ".github/derived-state-governance.json",
             ".github/scripts/derived-state-closure.mjs",
             ".github/tests/derived-state-closure.test.mjs",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
             ".github/workflows/derived-state-closure.yml",
             ".github/workflows/staging-main-deploy-eligibility.yml"
           ]

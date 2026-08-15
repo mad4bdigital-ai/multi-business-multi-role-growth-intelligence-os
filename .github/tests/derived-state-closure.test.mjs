@@ -8,6 +8,7 @@ const registry = JSON.parse(fs.readFileSync(path.join(root, ".github/derived-sta
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/derived-state-closure.yml"), "utf8");
 const script = fs.readFileSync(path.join(root, ".github/scripts/derived-state-closure.mjs"), "utf8");
 const stagingWorkflow = fs.readFileSync(path.join(root, ".github/workflows/staging-main-deploy-eligibility.yml"), "utf8");
+const prRefreshWorkflow = fs.readFileSync(path.join(root, ".github/workflows/pr-generated-artifact-refresh.yml"), "utf8");
 
 assert.equal(registry.contract, "mad4b.repository-derived-state-governance.v1");
 assert.equal(registry.policy.all_pull_requests_to_main_must_be_checked, true);
@@ -37,6 +38,14 @@ assert.doesNotMatch(workflow, /contents:\s*write/u);
 assert.doesNotMatch(workflow, /git\s+push/u);
 assert.match(workflow, /DERIVED_STATE_EXPECTED_SHA/u);
 assert.match(workflow, /github\.sha/u);
+
+assert.match(prRefreshWorkflow, /branches:\s*\[main\]/u);
+assert.doesNotMatch(prRefreshWorkflow, /\n\s*paths:/u);
+assert.doesNotMatch(prRefreshWorkflow, /startsWith\([^\n]*head\.ref/u);
+assert.match(prRefreshWorkflow, /CI_CLOSURE_CANDIDATE_SHA/u);
+assert.match(prRefreshWorkflow, /github\.sha/u);
+assert.match(prRefreshWorkflow, /persist-credentials:\s*false/u);
+assert.doesNotMatch(prRefreshWorkflow, /contents:\s*write/u);
 
 assert.match(stagingWorkflow, /Verify repository derived-state closure/u);
 assert.match(stagingWorkflow, /--candidate-kind "exact_main"/u);
