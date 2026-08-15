@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "2a8224c6cef83056a6110225320f2fcd71169c7f55866dd08679e3eefa9f2903",
+  "inputFingerprint": "780c96bea996046ce8d0dec4656fd78bf34fb2b57e3c90675060c3bc4cd0d5a6",
   "inventory": {
-    "files": 6945,
-    "bytes": 64776292,
+    "files": 6971,
+    "bytes": 65067013,
     "directories": 260,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 159,
-      "explicitPermissions": 159,
+      "workflowCount": 161,
+      "explicitPermissions": 161,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -20,11 +20,11 @@
       "budget": {
         "max": 160,
         "warning": 155,
-        "status": "near-limit"
+        "status": "exceeded"
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6913,
+      "trackedTextFilesScanned": 6939,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -50,7 +50,7 @@
     "maintainability": {
       "workflowBudget": 160,
       "workflowBudgetWarning": 155,
-      "workflowBudgetStatus": "near-limit",
+      "workflowBudgetStatus": "exceeded",
       "totalLargeFiles": 4,
       "approvedLargeFiles": 2,
       "unapprovedLargeFiles": 2
@@ -166,6 +166,21 @@
   ],
   "gaps": [
     {
+      "gapId": "AUTO-CI-SURFACE-SIZE",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "workflowCount": 161,
+        "maxWorkflowCount": 160,
+        "overlapCheck": "passed"
+      },
+      "impact": "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
+      "recommendation": "Keep the workflow count within the declared budget and maintain a passing automation overlap check.",
+      "lifecycle": "new"
+    },
+    {
       "gapId": "MAINT-LARGE-TRACKED-FILES",
       "domain": "maintainability",
       "severity": "low",
@@ -180,7 +195,7 @@
           },
           {
             "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-            "bytes": 3121096
+            "bytes": 3128065
           }
         ],
         "unapproved": [
@@ -203,6 +218,7 @@
     "decision": "warn",
     "blockingGapIds": [],
     "warningGapIds": [
+      "AUTO-CI-SURFACE-SIZE",
       "MAINT-LARGE-TRACKED-FILES"
     ]
   },
