@@ -43,6 +43,7 @@ const staticDiscoveryCommands = [
   "node test-chatgpt-mcp-readonly-runtime.mjs",
   "node test-openapi-projection-readiness.mjs",
   "node test-openapi-detail-gap-classification.mjs",
+  "node test-openapi-detail-closure-batch.mjs",
   "node test-openapi-gap-closure-plan.mjs",
   "node test-cms-authority-reconciliation.mjs",
   "node test-remote-mcp-multi-client-profiles.mjs",
