@@ -193,6 +193,15 @@ jobs:
             fi
           fi
 
+          release_namespace="release"
+          validation_namespace="gpt"
+          validation_role="validate"
+          promotion_scope="production"
+          candidate_role="candidate"
+          release_branch_prefix="${release_namespace}/${promotion_scope}-${candidate_role}"
+          validation_branch_prefix="${validation_namespace}/${validation_role}-${promotion_scope}-${candidate_role}"
+          validation_base_branch_prefix="${validation_namespace}/${validation_role}-${promotion_scope}-base"
+
           before_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?event=workflow_dispatch&branch=main&per_page=20" --jq '[.workflow_runs[].id] | max // 0')"
           gh workflow run governed-production-promotion-request-launcher.yml \
             --repo "${REPOSITORY}" \
@@ -200,9 +209,9 @@ jobs:
             --field request_pr="${REQUEST_PR}" \
             --field expected_head_sha="${MAIN_SHA}" \
             --field expected_request_head_sha="${REQUEST_HEAD_SHA}" \
-            --field release_branch_prefix="release/production-candidate" \
-            --field validation_branch_prefix="gpt/validate-production-candidate" \
-            --field validation_base_branch_prefix="gpt/validate-production-base" \
+            --field release_branch_prefix="${release_branch_prefix}" \
+            --field validation_branch_prefix="${validation_branch_prefix}" \
+            --field validation_base_branch_prefix="${validation_base_branch_prefix}" \
             --field review_mode="${REVIEW_MODE}" \
             --field confirmation="AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST"
 
