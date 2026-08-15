@@ -107,9 +107,9 @@ function validateRegistry(registry) {
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
 validateRegistry(registry);
 
-const expectedSha = arg("expected-sha", process.env.DERIVED_STATE_EXPECTED_SHA || headSha());
-const candidateKind = arg("candidate-kind", process.env.DERIVED_STATE_CANDIDATE_KIND || "exact_sha");
-const reportFile = path.resolve(arg("report-file", process.env.DERIVED_STATE_REPORT_FILE || path.join(repoRoot, ".artifacts/derived-state-closure/report.json")));
+const expectedSha = arg("expected-sha", headSha());
+const candidateKind = arg("candidate-kind", "exact_sha");
+const reportFile = path.resolve(arg("report-file", path.join(repoRoot, ".artifacts/derived-state-closure/report.json")));
 if (!SHA_RE.test(expectedSha)) throw new Error("expected SHA must be an exact lowercase 40-character Git SHA");
 const observedHead = headSha();
 if (observedHead !== expectedSha) throw new Error(`exact candidate mismatch: expected=${expectedSha} observed=${observedHead}`);
