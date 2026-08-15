@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "aece814829b3211bc7995189918f8d0615b7dff2e2af0e7f2782aabedfe742b9"
+      "sha256": "ecef4036a45ad5d1a1ef60a574af39b1122504cf3839a804a19f6f823a23527f"
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
