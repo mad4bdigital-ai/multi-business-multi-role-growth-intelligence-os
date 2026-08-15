@@ -149,11 +149,11 @@ export function normalizeBrandUrl(value) {
   const host = normalizeHost(parsed.hostname);
   if (!host) return "";
   const protocol = parsed.protocol === "http:" ? "http:" : "https:";
-  const port = parsed.port && !((protocol === "https:" && parsed.port === "443") || (protocol === "http:" && parsed.port === "80"))
+  const authoritySuffix = parsed.port && !((protocol === "https:" && parsed.port === "443") || (protocol === "http:" && parsed.port === "80"))
     ? `:${parsed.port}`
     : "";
   const pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/u, "");
-  return `${protocol}//${host}${port}${pathname}${parsed.search}`;
+  return `${protocol}//${host}${authoritySuffix}${pathname}${parsed.search}`;
 }
 
 function persistentIdentifierClass(identifierType) {

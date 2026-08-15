@@ -424,6 +424,7 @@
     "http-generic-api/authorityPathInventoryCompiler.js|MAX_CONFIGURED_LIMIT|literal_declaration|max.configured.limit",
     "http-generic-api/authorityScopeShadowBridge.js|defaultService|literal_declaration|defaultservice",
     "http-generic-api/authorityScopeShadowEvidence.js|defaultRepository|literal_declaration|defaultrepository",
+    "http-generic-api/brandIdentityResolver.js|port|literal_declaration|port",
     "http-generic-api/brandSkillActivationService.js|hasConfiguredMaximum|literal_declaration|hasconfiguredmaximum",
     "http-generic-api/brandWorkspaceContextResolver.js|CACHE_TTL_MS|literal_declaration|cache.ttl.ms",
     "http-generic-api/browser4InspectionAdapter.js|BACKEND_API_KEY|environment_reference|backend.api.key",
