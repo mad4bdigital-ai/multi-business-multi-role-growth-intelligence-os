@@ -223,6 +223,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs`
 - `http-generic-api/scripts/generate-openapi-mutation-policy.mjs`
 - `http-generic-api/scripts/generate-resource-surface-openapi.mjs`
+- `http-generic-api/scripts/openapi-all-remaining-preflight-batch.mjs`
 - `http-generic-api/scripts/openapi-autofill-missing-routes.mjs`
 - `http-generic-api/scripts/openapi-builder-schema-guard.mjs`
 - `http-generic-api/scripts/openapi-detail-closure-batch.mjs`
@@ -267,6 +268,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-promotion-readiness.mjs`
 - `http-generic-api/test-hostinger-storage-root-openapi-parity.mjs`
 - `http-generic-api/test-hostinger-storage-schema-verification.mjs`
+- `http-generic-api/test-openapi-all-remaining-preflight-batch.mjs`
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
 - `http-generic-api/test-openapi-builder-schema-guard.mjs`
 - `http-generic-api/test-openapi-detail-closure-batch.mjs`
@@ -327,8 +329,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
 - `http-generic-api/test-tenant-database-schema-read.mjs`
 - `http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs`
-- `http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs`
-- ...and 11 more
+- ...and 12 more
 
 ## Maintenance Contract
 
