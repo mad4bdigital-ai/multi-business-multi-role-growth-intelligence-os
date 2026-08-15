@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6995,
-    "bytes": 65279563,
-    "lines": 1535840,
+    "files": 6998,
+    "bytes": 65309359,
+    "lines": 1536477,
     "directories": 260,
     "categories": 13
   },
@@ -13,9 +13,9 @@
     "byCategory": {
       "tests-and-specs": 2096,
       "documentation": 1896,
-      "api-runtime": 1406,
+      "api-runtime": 1408,
       "database-migrations": 781,
-      "root-and-other": 267,
+      "root-and-other": 268,
       "api-contracts": 162,
       "ci-workflows": 161,
       "ci-config": 103,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2489,
-      ".mjs": 1634,
+      ".mjs": 1636,
       ".js": 975,
       ".sql": 796,
-      ".json": 742,
+      ".json": 743,
       ".yml": 164,
       ".yaml": 110,
       ".ts": 15,
@@ -59,11 +59,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3609,
+      "http-generic-api": 3611,
       "docs": 1800,
       "specs": 846,
       ".github": 264,
-      ".changes": 251,
+      ".changes": 252,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -6071,6 +6071,17 @@
       "bytes": 8842,
       "lines": 153,
       "sha256": "41e975ed636f73580708b693725d968a8b17d035e8fc0238dde1fd04bb0a8ec5",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 6961,
+      "lines": 109,
+      "sha256": "f5cb32af3fd89265d2d3829ef6ad83708253b6de2b84e6e8e619884f6a8c5ea7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54135,6 +54146,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 8139,
+      "lines": 170,
+      "sha256": "57c419934de16176ce4d6bfcabf375532c2838ec29cc97993d168e70cd933021",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/scripts/e2e-contract-git-index-integrity.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
@@ -54201,12 +54223,23 @@
       "generated": false
     },
     {
-      "path": "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "path": "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
       "bytes": 21147,
       "lines": 544,
       "sha256": "2374480b7bafb6bcbdbdac47e1950f0c20123b05ded62bf394db7d2f49c6a425",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 13573,
+      "lines": 341,
+      "sha256": "4567c9f05c32f00b2c21979187d431cb0587144011c2869531f115dc6b1a5e16",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54886,9 +54919,9 @@
       "path": "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 14623,
-      "lines": 242,
-      "sha256": "10e7590c0ccead46d6d92a67f5a25c1063c0dced86f1836f0f182f74b40c76ee",
+      "bytes": 15098,
+      "lines": 251,
+      "sha256": "f04bcc4dd7d3e274a6648787a2a78a7b842f3d66ccfed43e89bf76e2a915f80b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -55865,9 +55898,9 @@
       "path": "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 2028,
-      "lines": 52,
-      "sha256": "9847650b4bbeb86b23590fbad61205e85c0c49d482c4b7314002c8e6e7232901",
+      "bytes": 2676,
+      "lines": 60,
+      "sha256": "7f09b03a9d3f831ba728cea954328e110f8e9cf214784b89e974ce5c37b07426",
       "mode": "644",
       "executable": false,
       "generated": false
