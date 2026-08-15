@@ -5,7 +5,7 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 
 | Metric | Value |
 |---|---:|
-| Tracked files scanned | 7001 |
+| Tracked files scanned | 7004 |
 | Routes discovered | 1074 |
 | Write routes discovered | 652 |
 | Classified write-surface candidates | 38 |
@@ -49,4 +49,3 @@ The generated artifact includes a static-only evidence graph connecting each rou
 
 The inventory explicitly keeps provider mutation, migration application, and Production activation disabled.
  A write scope is not eligible merely because it exists in the catalog; it requires an explicit resource-operation binding, tool binding, approval policy, capability envelope, lease, staging environment, and same-cycle readback.
-
