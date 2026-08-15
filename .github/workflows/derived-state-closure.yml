@@ -1,0 +1,74 @@
+name: Derived State Closure
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: derived-state-closure-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  closure:
+    name: Derived State Closure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DERIVED_STATE_EXPECTED_SHA: ${{ github.sha }}
+      DERIVED_STATE_CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'github_merge_candidate' || 'exact_sha' }}
+      DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/derived-state-closure/report.json
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$DERIVED_STATE_EXPECTED_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Install root dependencies without lifecycle side effects
+        run: npm ci --ignore-scripts
+
+      - name: Install API dependencies without lifecycle side effects
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Validate derived-state governance contract
+        run: node .github/tests/derived-state-closure.test.mjs
+
+      - name: Verify all registered derived state at the exact candidate
+        run: >-
+          node .github/scripts/derived-state-closure.mjs
+          --expected-sha "$DERIVED_STATE_EXPECTED_SHA"
+          --candidate-kind "$DERIVED_STATE_CANDIDATE_KIND"
+          --report-file "$DERIVED_STATE_REPORT_FILE"
+
+      - name: Upload canonical closure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: derived-state-closure-${{ github.sha }}
+          path: ${{ env.DERIVED_STATE_REPORT_FILE }}
+          if-no-files-found: error
+          retention-days: 30
