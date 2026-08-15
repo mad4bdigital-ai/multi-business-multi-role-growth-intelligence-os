@@ -9,12 +9,16 @@
       "sha256": "2896742ce2b2641c2830b9ded6a6f60617da0f8097e584f000064508dabad598"
     },
     {
+      "path": ".gitignore",
+      "sha256": "2d9ced5ef0c35f272984b057fd68853d689a284b3b2eb43c7c1e512e8fc83523"
+    },
+    {
       "path": "STAGING-WINDOWS.md",
       "sha256": "6f837d5a402c510c60d9b8eaceb723ad64f90a45346946b19075d3d1283c7287"
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "63c27e9f07d542e4e588d222d542cf5e2a03d4c6f549a9d595e625404ab2330c"
+      "sha256": "94d1072f9c51b516e6e7436139d632d6600da68c25d101a6989f2022dcaab4b0"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -22,27 +26,47 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "94cc4a0fabd287cefce07b3bd87f184c75c3bf1df3f5ac625b0ebfda897cdbe1"
+      "sha256": "828df3e84de4c22ec681a476464a46ff54dc5a41f42811fe9e2c6bdb75c1813a"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "45bd748f041164027639868619b26ebcfde465837bd62f9cf060f36dcce24f35"
+      "sha256": "aaa1288c642096c4c9a564f0d38717bb4f8ba99e3cf9e8f80814ab686ca51a58"
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "3be958c34372d4482589666bf33dbaae3862991ef07cd48c7a54d3967b83e463"
+      "sha256": "1832101cf2d48e8d85783bf4f246e233bf55754bd9e0e9e80e03d916541b0860"
+    },
+    {
+      "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
+      "sha256": "2a5e9f9b0628c043220803cc61563c02d896871992d42adec66668b70ebccd4e"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-Doctor.ps1",
+      "sha256": "3492dfd997068c783f83b3bee3f2a5f83859435b284e09d8ac94636774e45bdc"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
+      "sha256": "d987c084391663997a7e24e50e6d4be2928497c94c3ebc4065d2129726bca7dd"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-Maintenance.cmd",
+      "sha256": "eb028547c728b0d0c481ed1a6853068a46916e373138bde8a3b5ef52b505bbd4"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-Operations-Log.ps1",
+      "sha256": "ac5053f7772037b428621e2c27e3dbe3e311c644c2d682e5ccc593bd0a2b4153"
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "e51df70bbfd9a3655757849d6f561dcb4971aef427e64d31681516c70b8bba94"
+      "sha256": "6ab01bb1134dcc111ef9d50b086c91a3ef4e68a88a6dab2bdf5337ff5ff00566"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "2e34b3ed5d9417318026d3d9bd0b2f7475c9fecd2f6f1b6a680fe7bdcaf72bb5"
+      "sha256": "460a4ad5f8a53148fc9849fcbaa27bbd24e8d19668ef8572cfdcdebf4db1c9a3"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
-      "sha256": "7689dcc205812face756cf8c3e28d5c3524e9d98f9e394c61ef2d807ebd37d7a"
+      "sha256": "8dd751eadac44215c2dbe150cc19564f9fafedada3b3b67191742de178d52885"
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
@@ -51,6 +75,10 @@
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
       "sha256": "03800cc9365ed815041b2bfc85b34a1f76cc2b01bb7b285f002fc4392bba2f8b"
+    },
+    {
+      "path": "autopilot-portable-staging/staging-maintenance-policy.json",
+      "sha256": "fba9016e853092520ea3183478dc4579587bd365eb36c1e9627a45f0335b15eb"
     },
     {
       "path": "docs/staging-openapi-mcp-db-copy.md",
@@ -134,7 +162,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "5c18b455262532cb9bff99e44926a026aff713ad5f86273164008d9eac15b8e8"
+      "sha256": "26f1774cdd3a9201ecd903bcc7deb2467ed5d24c197d2befe9446bd25df0dd8f"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -215,6 +243,10 @@
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "sha256": "97a3447402367f7decac927708e51e075d4e0d529129b5012fa00808fe7ff2c5"
+    },
+    {
+      "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
+      "sha256": "c3897343caea090b28c991585ad54fabbffb64c18412e16c80968c27e261b106"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",

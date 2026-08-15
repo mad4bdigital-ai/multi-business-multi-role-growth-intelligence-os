@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$TaskName = "MAD4B Staging Auto Deploy",
+    [string]$HealthTaskName = "MAD4B Staging Health Monitor",
     [switch]$StopStaging
 )
 
@@ -13,6 +14,13 @@ if ($task) {
     Write-Host "AUTO_DEPLOY_TASK_REMOVED: task=$TaskName"
 } else {
     Write-Host "AUTO_DEPLOY_TASK_NOT_FOUND: task=$TaskName"
+}
+$healthTask = Get-ScheduledTask -TaskName $HealthTaskName -ErrorAction SilentlyContinue
+if ($healthTask) {
+    Unregister-ScheduledTask -TaskName $HealthTaskName -Confirm:$false
+    Write-Host "STAGING_HEALTH_TASK_REMOVED: task=$HealthTaskName"
+} else {
+    Write-Host "STAGING_HEALTH_TASK_NOT_FOUND: task=$HealthTaskName"
 }
 
 if ($StopStaging) {
