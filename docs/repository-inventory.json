@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6976,
-    "bytes": 65112415,
-    "lines": 1532322,
+    "bytes": 65113320,
+    "lines": 1532328,
     "directories": 260,
     "categories": 13
   },
@@ -38014,7 +38014,7 @@
       "extension": ".json",
       "bytes": 3123850,
       "lines": 95802,
-      "sha256": "c62bdd2f2472ea09218c622fc4c82db5256921db03dde45c219d1e0f82bc7df1",
+      "sha256": "1c95072e3756fe156b858a12c69277c79b282652adc2a7123938915f454037a4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50246,7 +50246,7 @@
       "extension": ".json",
       "bytes": 1930977,
       "lines": 58388,
-      "sha256": "9523e561b7edf67aa0bfadf4b9be900f66e5b1fec36f594abae15f530984a208",
+      "sha256": "b742f30c67c3f0f1b4faa7efdb2de4d86734cf2fe736307c48ace12a8ffb42c3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50893,9 +50893,9 @@
       "path": "http-generic-api/routes/activationRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 80480,
-      "lines": 2018,
-      "sha256": "cbf07d954c687a91469ccec5b2308cf111517e2857ed6b55c3d92fe7886ce49d",
+      "bytes": 81385,
+      "lines": 2024,
+      "sha256": "d77d5684f04a1331535e9040171ec05e7dd021a34b5c1c763045c7aaefe98aa6",
       "mode": "644",
       "executable": false,
       "generated": false
