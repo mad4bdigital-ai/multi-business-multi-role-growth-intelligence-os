@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "write-scope-shadow-preflight-20260815",
-  "title": "Governed Write Scope shadow preflight and evidence receipt",
+  "title": "Governed Write Scope shadow preflight, evidence receipt, and inventory reconciliation",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -11,6 +11,8 @@
       "scripts/write-scope-shadow-preflight.mjs",
       "scripts/test-write-scope-shadow-preflight.mjs",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "autopilot-portable-staging/manifest.json",
       "docs/write-scope-shadow-evidence-2026-08-15.json",
       ".changes/e2e/write-scope-shadow-preflight-20260815.json"
     ]
@@ -20,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Run a deterministic shadow-only preflight for every catalogued Write Scope, emit durable-shaped audit and rollback evidence, and keep all provider, database, migration, external-send, Production, and write activation effects disabled.",
+      "objective": "Run a deterministic shadow-only preflight for every catalogued Write Scope, emit durable-shaped audit and rollback evidence, reconcile generated inventory and portable Staging manifest readbacks, and keep all provider, database, migration, external-send, Production, and write activation effects disabled.",
       "e2e_journeys": [
         {
           "id": "all-write-scopes-deny-before-execution",
@@ -28,13 +30,14 @@
           "level": "synthetic_runtime",
           "actor": "Governed staging shadow evaluator",
           "entrypoint": "write-scopes:shadow runner and generated shadow evidence receipt",
-          "terminal_outcome": "All six catalogued Write Scopes remain shadow-only; preflight decisions deny execution before any provider, database, migration, external-send, credential, or Production effect; rollback plans and audit receipt shapes are validated.",
+          "terminal_outcome": "All six catalogued Write Scopes remain shadow-only; preflight decisions deny execution before any provider, database, migration, external-send, credential, or Production effect; rollback plans and audit receipt shapes are validated; generated inventory documentation and portable Staging manifest hashes match their source artifacts.",
           "steps": [
             "Load the generated Remote MCP Write Scope inventory and scope catalog without network or database access.",
             "Validate write activation, provider mutation, Production, migration apply, and secrets flags are all false.",
             "Resolve every catalogued Write Scope and associate any statically classified route evidence without authorizing a route.",
             "Produce a deterministic shadow receipt with deny-before-execution decisions, preflight prerequisites, rollback plan validation, and audit receipt shape.",
-            "Re-run the generated evidence check and self-test to reject drift or unknown scope selection."
+            "Re-run the generated evidence check and self-test to reject drift or unknown scope selection.",
+            "Reconcile the generated inventory documentation and portable Staging manifest hashes, then verify the readback is deterministic and fail-closed."
           ],
           "assertions": [
             "The contract is mad4b.write-scope-shadow-evidence.v1 and mode=shadow.",
@@ -44,7 +47,8 @@
             "Every scope has rollback required=true, plan_validated=true, and compensation/rollback executed=false.",
             "Audit receipt shapes are durable-required and secrets_included=false.",
             "The evidence fingerprint is deterministic and generated artifact drift fails closed.",
-            "No database migration, provider call, credential payload read, external send, Production activation, or live mutation occurs."
+            "No database migration, provider call, credential payload read, external send, Production activation, or live mutation occurs.",
+            "The generated Remote MCP inventory, its documentation readback, and the portable Staging manifest hash are synchronized."
           ],
           "tests": [
             {
@@ -71,6 +75,8 @@
           ],
           "evidence_paths": [
             ".changes/e2e/write-scope-shadow-preflight-20260815.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
             "docs/write-scope-shadow-evidence-2026-08-15.json",
             "docs/staging-production-shadow-profile-2026-08-14.json",
             "docs/staging-write-route-partition-2026-08-14.json",
