@@ -78,6 +78,32 @@ assert.match(
   "candidate builder must independently prove request-head/release-cut tree parity",
 );
 
+const legacyDuplicateDecisionWrite = dispatcher.indexOf('outcome:"duplicate_suppressed"');
+const legacyDuplicateReceipt = dispatcher.indexOf("status=duplicate_suppressed");
+const legacyDispatchedDecisionWrite = dispatcher.indexOf('outcome:"dispatched"');
+const legacyDispatchedReceipt = dispatcher.indexOf("GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=");
+assert.ok(legacyDuplicateDecisionWrite >= 0, "legacy dispatcher must persist duplicate-suppressed canonical evidence");
+assert.ok(
+  legacyDuplicateReceipt > legacyDuplicateDecisionWrite,
+  "legacy duplicate-suppressed evidence must be persisted before the optional PR receipt",
+);
+assert.ok(legacyDispatchedDecisionWrite >= 0, "legacy dispatcher must persist successful dispatch canonical evidence");
+assert.ok(
+  legacyDispatchedReceipt > legacyDispatchedDecisionWrite,
+  "legacy successful dispatch evidence must be persisted before the optional PR receipt",
+);
+assert.match(
+  dispatcher,
+  /if gh api --method POST "\/repos\/\$\{REPOSITORY\}\/issues\/\$\{REQUEST_PR\}\/comments" -f body="\$\{BODY\}" >\/dev\/null; then/u,
+  "legacy dispatcher PR receipts must be best-effort after canonical evidence exists",
+);
+assert.ok(
+  [...dispatcher.matchAll(/optional PR receipt comment could not be written; canonical dispatch decision artifact remains authoritative/gu)].length >= 2,
+  "legacy dispatcher must preserve canonical evidence when either receipt path cannot write a comment",
+);
+assert.match(dispatcher, /pull-requests: read/u, "legacy dispatcher must retain read-only pull-request permission");
+assert.doesNotMatch(dispatcher, /pull-requests: write/u, "receipt durability must not require broader pull-request permission");
+
 assert.match(
   fullPromotionBridge,
   /DISPATCH_GOVERNED_PRODUCTION_PROMOTION/u,
@@ -139,4 +165,4 @@ assert.doesNotMatch(
   "full promotion bridge must not merge or directly mutate Production",
 );
 
-console.log(`Production candidate dispatch input parity passed (${requiredInputs.join(", ")}); full promotion bridge routes through the authoritative launcher`);
+console.log(`Production candidate dispatch input parity passed (${requiredInputs.join(", ")}); both dispatch bridges preserve canonical evidence before optional PR receipts`);
