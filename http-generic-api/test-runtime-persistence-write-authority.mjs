@@ -18,6 +18,14 @@ assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.identity_env, "RUNTIME_PERSIS
 assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.mode, "dedicated_runtime_persistence_writer");
 assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.separated_identity_required, true);
 assert.deepEqual(RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX[table], ["SELECT", "INSERT", "UPDATE", "DELETE"]);
+assert.deepEqual(Object.keys(RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX), ["governed_tool_response_chunks"]);
+for (const unboundTable of ["actions", "dynamic_audit_scheduler_runs", "gpt_session_turns", "customer_sessions", "execution_log", "json_assets", "tenant_gpt_oauth_authorization_codes"]) {
+  assert.throws(
+    () => evaluateRuntimePersistencePrivilegeReadiness({ database, table: unboundTable, requiredOperations: ["INSERT"] }),
+    (error) => error.code === "RUNTIME_PERSISTENCE_TABLE_NOT_BOUND",
+    `${unboundTable} must use a separate authority contract rather than the chunk writer matrix`,
+  );
+}
 
 const exact = evaluateRuntimePersistencePrivilegeReadiness({
   database,

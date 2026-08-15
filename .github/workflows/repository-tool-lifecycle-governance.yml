@@ -53,6 +53,39 @@ jobs:
             --inventory docs/repository-inventory.json \
             --output-dir .artifacts/repository-tool-lifecycle
 
+      - name: Run configuration candidate discovery regression
+        run: node http-generic-api/scripts/test-configuration-candidate-discovery.mjs
+
+      - name: Discover hardcoded configuration candidates
+        id: configuration_discovery
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs \
+            --inventory docs/repository-inventory.json \
+            --output-dir .artifacts/repository-tool-lifecycle/configuration-candidates
+
+      - name: Run configuration drift guard regression
+        run: node http-generic-api/scripts/test-configuration-drift-guard.mjs
+
+      - name: Run platform configuration control plane regression
+        id: platform_configuration
+        run: |
+          node http-generic-api/test-platform-configuration-resolver.mjs
+          node http-generic-api/test-platform-configuration-registry-adapter.mjs
+          node http-generic-api/test-platform-legacy-configuration-adapter.mjs
+
+      - name: Evaluate configuration drift
+        id: configuration_drift
+        continue-on-error: true
+        run: |
+          node http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs \
+            --policy docs/governance/configuration-drift-policy.json \
+            --output-dir .artifacts/repository-tool-lifecycle/configuration-drift \
+            --fail-on-drift
+
       - name: Run repository-tool lifecycle regression
         run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
 
@@ -86,10 +119,18 @@ jobs:
             cat .artifacts/repository-tool-lifecycle/repository-tool-discovery.md >> "$GITHUB_STEP_SUMMARY"
             printf '\n' >> "$GITHUB_STEP_SUMMARY"
           fi
+          if [[ -f .artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.md ]]; then
+            cat .artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.md >> "$GITHUB_STEP_SUMMARY"
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -f .artifacts/repository-tool-lifecycle/configuration-drift/configuration-drift-guard.md ]]; then
+            cat .artifacts/repository-tool-lifecycle/configuration-drift/configuration-drift-guard.md >> "$GITHUB_STEP_SUMMARY"
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
           cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce repository tool lifecycle
-        if: steps.discovery.outcome != 'success' || steps.governance.outcome != 'success'
+        if: steps.discovery.outcome != 'success' || steps.configuration_discovery.outcome != 'success' || steps.platform_configuration.outcome != 'success' || steps.configuration_drift.outcome != 'success' || steps.governance.outcome != 'success'
         run: |
           echo "Repository tool discovery or lifecycle governance failed. Read the canonical artifact first."
           exit 1

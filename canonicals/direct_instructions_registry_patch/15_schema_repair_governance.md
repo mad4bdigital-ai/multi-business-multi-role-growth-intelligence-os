@@ -33,18 +33,22 @@ Required evidence:
 
 New schema DDL must satisfy the engine-aware policy in
 `http-generic-api/config/database-engine-collation-policy.json` and must pass
-`databaseCollationPolicyGuard.js` before a governed migration can apply. For
-MariaDB and MySQL, the required default remains:
+`databaseCollationPolicyGuard.js` before a governed migration can apply. The
+semantic default is resolved from the observed engine and version: MariaDB
+10.10+ uses `utf8mb4_uca1400_ai_ci`, MySQL 8+ uses `utf8mb4_0900_ai_ci`, and
+PostgreSQL 16+ uses the ICU `und` profile. `utf8mb4_unicode_ci` remains only a
+legacy-compatible warning profile and is not a future default.
 
-```sql
-DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-```
-
-JSON-like longtext columns may use `utf8mb4_bin` only when the policy explicitly
-permits it. PostgreSQL and any future engine require a provider-specific policy
-entry; an unknown or undetected engine is blocked. Cross-table join keys must
-not use mixed collations. Existing legacy mismatches must be tracked as
-expiring exceptions in `database_collation_policy_exception_registry`; future
+The guard must inspect cross-table JOIN equality keys against live
+`information_schema.columns` before SQL apply. If a new table or column is not
+yet visible, it may use projected `CREATE TABLE` DDL as a bounded fallback. A
+missing or incompatible pair is fail-closed with `join_collation_incompatible`
+or `join_schema_metadata_missing`, and the result must contain
+`applies_sql: false`. JSON-like longtext columns may use `utf8mb4_bin` only when
+the policy explicitly permits it. PostgreSQL and any future engine require a
+provider-specific policy entry; an unknown or undetected engine is blocked.
+Cross-engine collations are blocked, and existing legacy mismatches must be
+tracked as expiring exceptions in `database_collation_policy_exception_registry`; future
 unregistered mismatches are actionable drift.
 
 Guard surfaces:

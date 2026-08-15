@@ -1,0 +1,8 @@
+{
+  "source_table": "platform_configuration_bindings",
+  "owner": "platform-configuration-governance",
+  "reason": "This table stores typed configuration bindings consumed by the read-only context resolver. It is not an activation surface, external provider surface, write-scope grant, or Production mutation boundary; activation remains governed by specialized policy registries and the existing Governance Kernel.",
+  "authority": "read_only_configuration_resolution",
+  "production_activation_allowed": false,
+  "external_write_allowed": false
+}

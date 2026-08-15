@@ -10,6 +10,7 @@ import mysql from "mysql2/promise";
 import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { getPool } from "../db.js";
 import { decryptCredentials } from "../tokenEncryption.js";
+import { createPlatformLegacyConfigurationAdapter } from "../platformLegacyConfigurationAdapter.js";
 
 const requireUserJwt = createUserJwtMiddleware();
 
@@ -172,16 +173,13 @@ function assertApprovedSshCliExecution(row, approvalRow, commandKey) {
 }
 
 async function loadSshCliExecuteRuntimeConfig(pool) {
-  const [rows] = await pool.query(
-    `SELECT config_json, status FROM platform_runtime_config WHERE config_key = 'tenant_ssh_cli_execute_runtime' LIMIT 1`
-  );
-  const row = rows?.[0];
-  if (!row || row.status !== "active") return { enabled: false, driver: "disabled" };
-  try {
-    return JSON.parse(row.config_json || "{}");
-  } catch {
+  const legacyAdapter = createPlatformLegacyConfigurationAdapter({ pool });
+  const legacy = await legacyAdapter.read("tenant_ssh_cli_execute_runtime");
+  if (!legacy.present) return { enabled: false, driver: "disabled" };
+  if (!legacy.value || typeof legacy.value !== "object" || Array.isArray(legacy.value)) {
     return { enabled: false, driver: "invalid_config" };
   }
+  return legacy.value;
 }
 
 async function assertSshCliExecuteRuntimeEnabled(pool) {

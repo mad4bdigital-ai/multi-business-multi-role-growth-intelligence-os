@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS } from "./governedToolResponseChunkStore.js";
+import { GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS, inspectGovernedResponseChunkSchema } from "./governedToolResponseChunkStore.js";
 import {
   CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,
   evictToolResponseChunkMemoryCache,
@@ -13,6 +13,20 @@ import {
   resolveToolResponseChunkTtlMs,
   shouldChunkDispatchedToolResponse,
 } from "./routes/gptToolsRoutes.js";
+
+const diagnosticPool = {
+  async query(sql) {
+    if (sql.includes("information_schema.columns")) return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
+    throw new Error(`Unexpected diagnostic SQL: ${sql}`);
+  },
+};
+const diagnostic = await inspectGovernedResponseChunkSchema({ pool: diagnosticPool });
+if (diagnostic.base_migration_file !== "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql"
+  || diagnostic.recovery_migration_file !== "1048_transport_response_chunk_schema_recovery.sql"
+  || diagnostic.migration_file !== diagnostic.base_migration_file
+  || diagnostic.secrets_included !== false) {
+  throw new Error(`chunk migration diagnostics are incomplete: ${JSON.stringify(diagnostic)}`);
+}
 
 function createFakeChunkPool() {
   const rows = new Map();

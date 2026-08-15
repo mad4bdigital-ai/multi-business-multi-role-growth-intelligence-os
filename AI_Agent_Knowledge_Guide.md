@@ -505,6 +505,8 @@ Deployment evidence rule: a current Hostinger checkout is not proof that the run
 
 Tenant validation repair rule: when a tenant-safe status route fails with a platform collation/schema/query error, classify it as platform-gated validation rather than tenant credential failure. For runtime join-key collation repairs, prefer narrow, governed fixes to named non-secret join columns plus same-cycle readback of the failing query shape. Do not use permanent `BINARY` joins, broad table conversion, or secret-payload alteration as a shortcut. See `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
 
+Database collation authority flow is deterministic: resolve the semantic policy, observe the live database engine and version, resolve its engine profile, inspect migration DDL, inspect live JOIN key columns through `information_schema.columns`, and fail closed before SQL apply when metadata is missing or incompatible. Projected `CREATE TABLE` DDL may be used only as a bounded fallback for objects created in the same migration. Engine detection never authorizes automatic conversion. Any MariaDB/MySQL/PostgreSQL semantic migration requires a compatibility report, migration plan, dry-run, typed approval, apply, and same-cycle readback. Legacy `utf8mb4_unicode_ci` is warning-only compatibility evidence, not a new default.
+
 ### External endpoint credential selection
 
 External endpoint auth is governed at the parent action level. `actions.runtime_binding_profile.auth_strategy` is the default policy for all child endpoints. Endpoints inherit it unless `endpoints.runtime_binding_profile.auth_strategy_override` is explicitly defined for a narrower operation.

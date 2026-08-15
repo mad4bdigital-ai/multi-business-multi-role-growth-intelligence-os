@@ -34,6 +34,8 @@ try {
 
   const adminCliSource = fs.readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
   const gptToolsSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+  assert("migration runner aliases use module-relative absolute path", adminCliSource.includes("GOVERNED_MIGRATION_RUNNER_PATH") && adminCliSource.includes("fileURLToPath(new URL(\"../scripts/governed-migration-runner.mjs\", import.meta.url))"), "migration aliases must not depend on process cwd");
+  assert("migration runner aliases do not duplicate http-generic-api path", !adminCliSource.includes("http-generic-api/scripts/governed-migration-runner.mjs"), "relative path would resolve incorrectly when cwd is http-generic-api");
   assert("local connector JSON responses omit inline installer secrets",
     !adminCliSource.includes("script_content: batContent"),
     "JSON action responses must not expose generated .bat content with live credentials");
