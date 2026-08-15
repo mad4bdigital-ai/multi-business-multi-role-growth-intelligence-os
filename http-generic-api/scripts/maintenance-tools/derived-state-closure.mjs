@@ -76,6 +76,20 @@ function headSha() {
   return String(result.stdout || "").trim();
 }
 
+function resolveRepairAuthority(artifact) {
+  if (artifact?.repair_authority) {
+    const authority = artifact.repair_authority;
+    if (!authority.id || !authority.kind) throw new Error(`invalid repair_authority for ${artifact.artifact_id}`);
+    if (authority.kind === "delegated_work_map_writer") {
+      if (!authority.workflow || !authority.writer_workflow) throw new Error(`delegated Work Map authority requires recovery and writer workflows for ${artifact.artifact_id}`);
+      return { id: authority.id, kind: authority.kind, workflow: authority.workflow, writer_workflow: authority.writer_workflow };
+    }
+    throw new Error(`unregistered repair authority kind for ${artifact.artifact_id}: ${authority.kind}`);
+  }
+  if (!artifact?.recipe) throw new Error(`missing repair authority for ${artifact?.artifact_id || "unknown"}`);
+  return { id: artifact.recipe, kind: "generated_artifact_recipe", recipe: artifact.recipe };
+}
+
 function validateRegistry(registry) {
   if (registry?.contract !== "mad4b.repository-derived-state-governance.v1") throw new Error("derived-state registry contract mismatch");
   if (!Array.isArray(registry.artifacts) || registry.artifacts.length === 0) throw new Error("derived-state registry has no artifacts");
@@ -84,7 +98,7 @@ function validateRegistry(registry) {
     if (!artifact?.artifact_id || ids.has(artifact.artifact_id)) throw new Error(`duplicate or missing artifact_id: ${artifact?.artifact_id || "missing"}`);
     ids.add(artifact.artifact_id);
     if (!VERIFIERS[artifact.verifier_id]) throw new Error(`unregistered verifier_id: ${artifact.verifier_id}`);
-    if (!artifact.recipe) throw new Error(`missing recipe for ${artifact.artifact_id}`);
+    resolveRepairAuthority(artifact);
     if (!Array.isArray(artifact.outputs) || artifact.outputs.length === 0) throw new Error(`missing outputs for ${artifact.artifact_id}`);
     if (!Array.isArray(artifact.dependency_scope) || artifact.dependency_scope.length === 0) throw new Error(`missing dependency_scope for ${artifact.artifact_id}`);
   }
@@ -117,10 +131,12 @@ for (const artifact of registry.artifacts) {
     }
     if (!result.ok) break;
   }
+  const repairAuthority = resolveRepairAuthority(artifact);
   const current = !verifierMutation && commandResults.length > 0 && commandResults.every((entry) => entry.ok);
   results.push({
     artifact_id: artifact.artifact_id,
-    recipe: artifact.recipe,
+    recipe: repairAuthority.recipe || null,
+    repair_authority: repairAuthority,
     verifier_id: artifact.verifier_id,
     current,
     dependency_scope: artifact.dependency_scope,
@@ -131,7 +147,10 @@ for (const artifact of registry.artifacts) {
 }
 
 const failed = results.filter((entry) => !entry.current);
-const repairRecipes = [...new Set(failed.map((entry) => entry.recipe))];
+const repairAuthorities = [...new Map(failed.map((entry) => [entry.repair_authority.id, entry.repair_authority])).values()];
+const repairRecipes = repairAuthorities
+  .filter((entry) => entry.kind === "generated_artifact_recipe")
+  .map((entry) => entry.recipe);
 const converged = failed.length === 0 && !verifierMutation && results.length === registry.artifacts.length;
 const report = {
   contract: CONTRACT,
@@ -147,6 +166,7 @@ const report = {
   current_artifact_count: results.filter((entry) => entry.current).length,
   stale_or_failed_artifact_count: failed.length,
   converged,
+  repair_authorities: repairAuthorities,
   repair_recipes: repairRecipes,
   artifacts: results,
   verifier_mutation: verifierMutation,
@@ -162,5 +182,5 @@ const report = {
 };
 fs.mkdirSync(path.dirname(reportFile), { recursive: true });
 fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
-process.stdout.write(`${JSON.stringify({ contract: report.contract, candidate_sha: observedHead, converged, stale_or_failed_artifact_count: failed.length, repair_recipes: repairRecipes, verifier_mutation: Boolean(verifierMutation), secrets_included: false })}\n`);
+process.stdout.write(`${JSON.stringify({ contract: report.contract, candidate_sha: observedHead, converged, stale_or_failed_artifact_count: failed.length, repair_authority_ids: repairAuthorities.map((entry) => entry.id), repair_recipes: repairRecipes, verifier_mutation: Boolean(verifierMutation), secrets_included: false })}\n`);
 if (!converged) process.exitCode = 1;
