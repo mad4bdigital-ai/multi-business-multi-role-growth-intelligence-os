@@ -2,11 +2,11 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "95e5efb3da14acfe770a19b73e250906678603a73de04d7a0674a78f735dcebc",
+    "source_digest": "13792fee8c5a36168889b3f7d184963107720fc667f7b05501bbc2579ca2ac9f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748",
+        "sha256": "1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62",
+        "sha256": "9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f",
         "present": true
       },
       {
@@ -376,7 +376,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
+        "sha256": "3e8246c2a71c7ea01c089d25d6a9bb43822ad1b06288301f8e419bb458a93eb6",
         "present": true
       },
       {
@@ -606,7 +606,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "e1bea9e921d2fb973d920b4f98bcc3e2cf2c9106f6e5dc11dbbbe7bbc83d1706",
+        "sha256": "8519ebab02396f165e55e2a88d3faf961285f8b2fe76c5be820c52b2d5d36fa2",
         "present": true
       },
       {
@@ -711,7 +711,7 @@
       },
       {
         "file": "routes/operationOrchestratorRoutes.js",
-        "sha256": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
+        "sha256": "e0609a04b0739a2b1d2beefc45c5ffe16f41a7f1a045dc2e3d36df3c4cd96270",
         "present": true
       },
       {
@@ -15186,7 +15186,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
+      "source_digest": "3e8246c2a71c7ea01c089d25d6a9bb43822ad1b06288301f8e419bb458a93eb6",
       "mount_prefix": "/",
       "mount_order": 14540,
       "split_from_mixed_scope_file": false,
@@ -29338,7 +29338,7 @@
       "family_key": "operation-orchestrator.admin",
       "label": "operation orchestrator (admin)",
       "source_file": "routes/operationOrchestratorRoutes.js",
-      "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
+      "source_digest": "e0609a04b0739a2b1d2beefc45c5ffe16f41a7f1a045dc2e3d36df3c4cd96270",
       "mount_prefix": "/",
       "mount_order": 16855,
       "split_from_mixed_scope_file": true,
@@ -29996,7 +29996,7 @@
       "family_key": "operation-orchestrator.tenant",
       "label": "operation orchestrator (tenant)",
       "source_file": "routes/operationOrchestratorRoutes.js",
-      "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
+      "source_digest": "e0609a04b0739a2b1d2beefc45c5ffe16f41a7f1a045dc2e3d36df3c4cd96270",
       "mount_prefix": "/",
       "mount_order": 16855,
       "split_from_mixed_scope_file": true,
@@ -44010,7 +44010,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "e1bea9e921d2fb973d920b4f98bcc3e2cf2c9106f6e5dc11dbbbe7bbc83d1706",
+      "source_digest": "8519ebab02396f165e55e2a88d3faf961285f8b2fe76c5be820c52b2d5d36fa2",
       "mount_prefix": "/",
       "mount_order": 17677,
       "split_from_mixed_scope_file": false,
