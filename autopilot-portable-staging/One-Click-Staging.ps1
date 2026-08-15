@@ -113,6 +113,21 @@ function Install-WingetPackage([string]$Id) {
     Refresh-Path
 }
 
+function Test-Wsl2DistributionReady([string]$WslList) {
+    if ([string]::IsNullOrWhiteSpace($WslList)) { return $false }
+    return $WslList -match '(?im)^\s*\*?\s*\S+\s+\S+\s+2\s*$'
+}
+
+function Wait-Wsl2Distribution([int]$Attempts = 12, [int]$DelaySeconds = 5) {
+    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
+        $wslList = (& wsl.exe --list --verbose 2>$null | Out-String)
+        $wslExitCode = $LASTEXITCODE
+        if ($wslExitCode -eq 0 -and (Test-Wsl2DistributionReady $wslList)) { return $true }
+        if ($attempt -lt ($Attempts - 1)) { Start-Sleep -Seconds $DelaySeconds }
+    }
+    return $false
+}
+
 function Ensure-Prerequisites {
     Refresh-Path
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Install-WingetPackage "Git.Git" }
@@ -124,13 +139,11 @@ function Ensure-Prerequisites {
     Require-Command "docker"
     Require-Command "wsl"
 
-    $wslList = (& wsl.exe --list --verbose 2>$null | Out-String)
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($wslList) -or $wslList -notmatch '(?m)\s2\s*$') {
-        Write-Host "WSL2 distribution is missing; requesting the standard Windows installation now."
+    if (-not (Wait-Wsl2Distribution -Attempts 3 -DelaySeconds 5)) {
+        Write-Host "WSL2 distribution is missing or still starting; requesting the standard Windows installation now."
         & wsl.exe --install -d Ubuntu --no-launch 2>$null
         if ($LASTEXITCODE -ne 0) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
-        $wslList = (& wsl.exe --list --verbose 2>$null | Out-String)
-        if ($wslList -notmatch '(?m)\s2\s*$') { Fail "WSL2 installation completed but no version-2 distribution is available; rerun after the requested Windows reboot." }
+        if (-not (Wait-Wsl2Distribution -Attempts 24 -DelaySeconds 5)) { Fail "WSL2 installation completed but no version-2 distribution became ready after waiting; rerun after the requested Windows reboot." }
     }
 
     $dockerContext = Get-NativeText "docker" @("context", "show")
