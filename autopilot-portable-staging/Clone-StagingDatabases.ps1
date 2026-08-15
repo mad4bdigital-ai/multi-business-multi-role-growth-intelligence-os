@@ -24,6 +24,17 @@ Require (-not ($DumpDirectory -match '(?i)(auth\.mad4b\.com|mcp\.mad4b\.com|acti
 Require ($env:DOCKER_HOST -eq $null -or $env:DOCKER_HOST -eq "") "DOCKER_HOST is forbidden."
 Require ($env:DOCKER_CONTEXT -eq $null -or $env:DOCKER_CONTEXT -eq "") "DOCKER_CONTEXT is forbidden."
 
+function Read-Env([string]$Name) {
+  $line = Get-Content -LiteralPath $EnvFile | Where-Object { $_ -match "^$([regex]::Escape($Name))=(.*)$" } | Select-Object -First 1
+  if (-not $line) { Fail "Missing $Name in .env.staging" }
+  return $line -replace "^$([regex]::Escape($Name))=", ""
+}
+
+$stagingMigrationApplied = Read-Env "MIGRATION_APPLIED"
+$stagingDatabaseMutated = Read-Env "DATABASE_MUTATED"
+Require ($stagingMigrationApplied -eq "false") "MIGRATION_APPLIED must be exactly false in .env.staging."
+Require ($stagingDatabaseMutated -eq "false") "DATABASE_MUTATED must be exactly false in .env.staging."
+
 if ($Mode -eq "sanitized_data") {
   Require $AllowSanitizedData.IsPresent "sanitized_data requires -AllowSanitizedData."
   Require ($env:STAGING_DB_COPY_APPROVED -eq "true") "Set STAGING_DB_COPY_APPROVED=true only after independent review."
@@ -34,12 +45,6 @@ $services = @(
   @{ Key = "governance"; Service = "governance-db"; Database = "GOVERNANCE_DB_NAME"; User = "GOVERNANCE_DB_USER"; Password = "GOVERNANCE_DB_PASSWORD"; File = "governance.schema.sql.gz" },
   @{ Key = "persistence"; Service = "persistence-db"; Database = "RUNTIME_PERSISTENCE_DB_NAME"; User = "RUNTIME_PERSISTENCE_DB_USER"; Password = "RUNTIME_PERSISTENCE_DB_PASSWORD"; File = "persistence.schema.sql.gz" }
 )
-
-function Read-Env([string]$Name) {
-  $line = Get-Content -LiteralPath $EnvFile | Where-Object { $_ -match "^$([regex]::Escape($Name))=(.*)$" } | Select-Object -First 1
-  if (-not $line) { Fail "Missing $Name in .env.staging" }
-  return $line -replace "^$([regex]::Escape($Name))=", ""
-}
 
 $compose = @("-f", $ComposeBase, "-f", $ComposeStaging, "--env-file", $EnvFile)
 $plan = @()
@@ -56,8 +61,8 @@ if (-not $Apply) {
   exit 0
 }
 
-Require ($env:MIGRATION_APPLIED -ne "true") "MIGRATION_APPLIED=true is forbidden by the staging copy tool."
-Require ($env:DATABASE_MUTATED -ne "true") "DATABASE_MUTATED=true is forbidden before explicit staging copy completion."
+Require ((Read-Env "MIGRATION_APPLIED") -eq "false") "MIGRATION_APPLIED must remain false during staging copy."
+Require ((Read-Env "DATABASE_MUTATED") -eq "false") "DATABASE_MUTATED must remain false before explicit staging copy completion."
 
 foreach ($item in $services) {
   $fileName = if ($Mode -eq "schema_only") { $item.File } else { $item.File -replace '\.schema\.sql\.gz$', '.sanitized.sql.gz' }

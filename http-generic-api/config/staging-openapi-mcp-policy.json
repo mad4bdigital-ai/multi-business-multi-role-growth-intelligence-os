@@ -30,9 +30,9 @@
     "source": "local_staging_only_or_operator_supplied_sanitized_dump",
     "production_connection_forbidden": true,
     "schemas": [
-      {"key": "runtime", "database_env": "DB_NAME", "container": "runtime-db", "dump_file": "runtime.sql.gz"},
-      {"key": "governance", "database_env": "GOVERNANCE_DB_NAME", "container": "governance-db", "dump_file": "governance.sql.gz"},
-      {"key": "persistence", "database_env": "RUNTIME_PERSISTENCE_DB_NAME", "container": "persistence-db", "dump_file": "persistence.sql.gz"}
+      {"key": "runtime", "database_env": "DB_NAME", "container": "runtime-db", "schema_dump_file": "runtime.schema.sql.gz", "sanitized_data_dump_file": "runtime.sanitized.sql.gz"},
+      {"key": "governance", "database_env": "GOVERNANCE_DB_NAME", "container": "governance-db", "schema_dump_file": "governance.schema.sql.gz", "sanitized_data_dump_file": "governance.sanitized.sql.gz"},
+      {"key": "persistence", "database_env": "RUNTIME_PERSISTENCE_DB_NAME", "container": "persistence-db", "schema_dump_file": "persistence.schema.sql.gz", "sanitized_data_dump_file": "persistence.sanitized.sql.gz"}
     ],
     "default_mode": "schema_only",
     "data_mode_requires_explicit_flag": true,
