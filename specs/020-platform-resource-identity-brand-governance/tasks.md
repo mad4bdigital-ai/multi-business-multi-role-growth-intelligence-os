@@ -34,6 +34,7 @@
 ## Readiness and rollout
 
 - [x] Add OpenAPI projection readiness mapping and fail-closed coverage test without route activation.
+- [x] Add dynamic OpenAPI detail-gap classification artifact and fail-closed read-only test without claiming canonical coverage.
 - [ ] Regenerate canonical operation parity on the final source head and pass exact-head CI.
 - [ ] Add staging parity evidence for the new shadow operations and Brand-list dual-read.
 - [ ] Add migration dry-run and rollback evidence.
