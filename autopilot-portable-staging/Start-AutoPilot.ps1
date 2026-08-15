@@ -12,16 +12,30 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$LogComponent = "app-operations"
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel }
+trap {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
+    Write-Host "APP_OPERATIONS_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
+    exit 1
+}
 
 function Fail([string]$Message) {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message
     throw "AUTO_PILOT_FAIL_CLOSED: $Message"
 }
 
 function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailure) {
     Write-Host ("> {0} {1}" -f $File, ($Arguments -join " "))
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "native:$File" -Outcome "start" -Message "application command started" -Data @{ command = $File; arguments = ($Arguments -join " ") }
     & $File @Arguments
     $code = $LASTEXITCODE
-    if ($code -ne 0 -and -not $AllowFailure) { Fail "$File exited with code $code" }
+    if ($code -ne 0 -and -not $AllowFailure) {
+        Write-StagingLog -Level error -Component $LogComponent -Stage "native:$File" -Message "application command failed" -Data @{ command = $File; exit_code = $code }
+        Fail "$File exited with code $code"
+    }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "native:$File" -Outcome "success" -Message "application command completed" -Data @{ command = $File; exit_code = $code }
     return $code
 }
 
@@ -40,7 +54,10 @@ function Wait-ServiceHealthy([string[]]$ComposeArgs, [string]$Service) {
     if ([string]::IsNullOrWhiteSpace($containerId)) { Fail "Compose did not create the expected service container: $Service" }
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
         $health = Get-NativeText "docker" @("inspect", "--format", "{{.State.Health.Status}}", $containerId)
-        if ($health -eq "healthy") { return }
+        if ($health -eq "healthy") {
+            Write-StagingLog -Level info -Component $LogComponent -Stage "health:$Service" -Message "service became healthy" -Data @{ service = $Service }
+            return
+        }
         if ($health -eq "unhealthy") { Fail "Service healthcheck failed: $Service" }
         Start-Sleep -Seconds 2
     }
@@ -189,17 +206,26 @@ try {
         return
     }
     if ($Stop) {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "stop" -Message "stopping local Staging services"
         Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop"))
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services stopped"
         return
     }
     $upArgs = $composeArgs + @("up", "-d")
     if (-not $SkipBuild) { $upArgs += "--build" }
+    Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
     Invoke-Native "docker" $upArgs
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
-    if ($StartTunnel) { Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "up", "-d", "cloudflared")) }
+    if ($StartTunnel) {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "starting explicitly enabled Staging tunnel"
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "up", "-d", "cloudflared"))
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel started" -Data @{ hostnames = "dev.mad4b.com,mcp_dev.mad4b.com" }
+    }
     Invoke-Native "docker" ($composeArgs + @("ps"))
     Set-Content -Encoding utf8 $StateFile (@{ commit=$ExpectedCommit; ref=$Ref; docker_context=$context; tunnel_started=[bool]$StartTunnel; migration_applied=$false; database_mutated=$false; generated_at=(Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json)
     Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel=$StartTunnel; commit=$ExpectedCommit"
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$StartTunnel; services = "redis,runtime-db,governance-db,persistence-db,app" }
+    Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
 } finally {
     Pop-Location
 }

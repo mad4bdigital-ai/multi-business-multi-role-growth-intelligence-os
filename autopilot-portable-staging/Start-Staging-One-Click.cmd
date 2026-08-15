@@ -8,9 +8,17 @@ if not exist "%SCRIPT%" (
 )
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%SCRIPT%'; exit $p.ExitCode"
 set "CODE=%ERRORLEVEL%"
+echo.
+echo Auto Pilot log directory: "%~dp0logs"
+if exist "%~dp0logs\last-failure.json" (
+  echo --- Last recorded failure ---
+  type "%~dp0logs\last-failure.json"
+  echo --- End failure ---
+)
 if not "%CODE%"=="0" (
   echo.
   echo Auto Pilot stopped with code %CODE%. No Production or provider mutation was performed.
-  pause
+  echo The full diagnostic remains in "%~dp0logs\operations.jsonl"
 )
+pause
 exit /b %CODE%
