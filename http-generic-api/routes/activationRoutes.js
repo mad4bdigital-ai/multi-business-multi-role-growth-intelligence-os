@@ -793,7 +793,8 @@ export function resolveSessionContextSubject(req = {}) {
   };
 }
 
-const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000"; // context-kernel-scan: allow zero_scope_fallback -- governed admin compatibility sentinel; authenticated tenant context always takes precedence.
+// context-kernel-scan: allow zero_scope_fallback -- governed admin compatibility sentinel; authenticated tenant context always takes precedence.
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const PLATFORM_EVOLUTION_BRAND_KEY = "growth_intelligence_platform";
 const PLATFORM_EVOLUTION_TENANT_ID = "00000000-0000-4000-a000-000000000010"; // context-kernel-scan: allow fixed_customer_identifier -- governed platform evolution fixture retained for explicit admin compatibility tests.
 const PLATFORM_EVOLUTION_SCOPE_KEY = `brand:${PLATFORM_EVOLUTION_BRAND_KEY}|tenant:${PLATFORM_EVOLUTION_TENANT_ID}`;

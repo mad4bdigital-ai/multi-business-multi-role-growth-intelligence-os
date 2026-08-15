@@ -337,7 +337,7 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/env-bootstrap:0",
-      "source_line": 1741,
+      "source_line": 1742,
       "source_offset": 67944,
       "method": "GET",
       "path": "/activation/env-bootstrap",
@@ -346,7 +346,7 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/bootstrap-config:1",
-      "source_line": 1795,
+      "source_line": 1796,
       "source_offset": 71185,
       "method": "GET",
       "path": "/activation/bootstrap-config",
@@ -355,7 +355,7 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#POST:/activation/hard-run/legacy-full:2",
-      "source_line": 1877,
+      "source_line": 1878,
       "source_offset": 75339,
       "method": "POST",
       "path": "/activation/hard-run/legacy-full",
@@ -364,7 +364,7 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context/read-only:3",
-      "source_line": 1948,
+      "source_line": 1949,
       "source_offset": 79199,
       "method": "GET",
       "path": "/activation/session-context/read-only",
@@ -373,7 +373,7 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context:4",
-      "source_line": 1974,
+      "source_line": 1975,
       "source_offset": 79872,
       "method": "GET",
       "path": "/activation/session-context",
@@ -382,7 +382,7 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/platform-access:5",
-      "source_line": 2003,
+      "source_line": 2004,
       "source_offset": 80843,
       "method": "GET",
       "path": "/activation/platform-access",
@@ -10941,10 +10941,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/activationRoutes.js",
-        "source_line": 1877,
+        "source_line": 1878,
         "handler_window_lines": [
-          1877,
-          1946
+          1878,
+          1947
         ],
         "evidence_flags": {
           "handler_window_present": true,

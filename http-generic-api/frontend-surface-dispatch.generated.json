@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ce6c41d2bb05b4474be1e68d7b656049cad8f6dfb63ec46bbd9e897f17e0aa44",
+    "source_digest": "21a49f4298baff9786706d4ea1677a158a70f8569cadbecf588b2562c61a9cbc",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -376,7 +376,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "d77d5684f04a1331535e9040171ec05e7dd021a34b5c1c763045c7aaefe98aa6",
+        "sha256": "bab8a557125c0e0293d96d5e4b8a89b07cd99e80a45c39d47f7de8d7bd111ece",
         "present": true
       },
       {
@@ -15186,7 +15186,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "d77d5684f04a1331535e9040171ec05e7dd021a34b5c1c763045c7aaefe98aa6",
+      "source_digest": "bab8a557125c0e0293d96d5e4b8a89b07cd99e80a45c39d47f7de8d7bd111ece",
       "mount_prefix": "/",
       "mount_order": 14540,
       "split_from_mixed_scope_file": false,
