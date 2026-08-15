@@ -72,7 +72,9 @@
     "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
     "http-generic-api/scripts/frontend-surface-dispatch.mjs",
     "http-generic-api/scripts/test-manifest.mjs",
-    "http-generic-api/test-frontend-surface-coverage-claims.mjs"
+    "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+    "http-generic-api/test-openapi-projection-readiness.mjs",
+    "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
   ],
   "ignored_patterns": [
     ".gitignore",
