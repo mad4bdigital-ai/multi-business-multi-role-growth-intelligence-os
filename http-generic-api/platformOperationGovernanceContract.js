@@ -1,3 +1,5 @@
+import { resolveCanonicalBusinessOperation } from "./canonicalBusinessOperationRegistry.js";
+
 const RISK_RANK = Object.freeze({ low: 1, medium: 2, high: 3, critical: 4 });
 
 export const EFFECT_CLASSES = Object.freeze([
@@ -67,22 +69,51 @@ function effectMinimumReadback(effectClass) {
     : effectClass === "internal_write" ? "same_cycle_required" : "none";
 }
 
-export function canonicalBrandCreateOperation() {
+function defaultApprovalContract(operation) {
+  if (operation?.approval_contract) return operation.approval_contract;
+  if (operation?.approval_required !== true) return "none";
+  if (operation?.effect_class === "external_write") return "explicit";
+  if (["destructive", "destructive_write"].includes(operation?.effect_class)) return "typed_confirmation";
+  return "policy_resolved";
+}
+
+function defaultReadbackContract(operation) {
+  if (operation?.readback_contract) return operation.readback_contract;
+  if (operation?.readback_required !== true) return "none";
+  return operation?.effect_class === "external_write" ? "provider_verified" : "same_cycle_required";
+}
+
+function canonicalEffectClass(value) {
+  return value === "destructive" ? "destructive_write" : value;
+}
+
+export function canonicalOperationDescriptor(operationKey) {
+  const operation = resolveCanonicalBusinessOperation(operationKey);
+  if (!operation) return null;
   return Object.freeze({
-    operation_key: "brand.create",
-    resource_type: "brand",
-    effect_class: "internal_write",
-    risk_class: "medium",
-    approval_contract: "policy_resolved",
-    readback_contract: "same_cycle_required",
-    identity_resolution_contract: "brand_identity_v2",
-    relationship_resolution_contract: "tenant_brand_claim_v1",
-    expected_revision_required: false,
-    idempotency_required: true,
+    operation_key: operation.operation_key,
+    resource_type: operation.resource_type,
+    effect_class: canonicalEffectClass(operation.effect_class),
+    risk_class: operation.risk_class,
+    approval_contract: defaultApprovalContract(operation),
+    readback_contract: defaultReadbackContract(operation),
+    identity_resolution_contract: operation.identity_resolution_contract || null,
+    relationship_resolution_contract: operation.relationship_resolution_contract || null,
+    capability_profile: operation.capability_profile || null,
+    expected_revision_required: operation.optimistic_concurrency_required === true,
+    idempotency_required: operation.idempotency_required === true,
     authority_required: true,
-    executor_ref: "workspaceBrandRootTopology.createWorkspaceBrandWithRootTopology",
-    tool_discovery_required: false,
+    executor_ref: operation.executor_ref || null,
+    tool_discovery_required: operation.tool_discovery_required === true,
+    canonical_registry_status: operation.status,
+    canonical_registry_revision_bound: true,
   });
+}
+
+export function canonicalBrandCreateOperation() {
+  const operation = canonicalOperationDescriptor("brand.create");
+  if (!operation) throw new Error("Canonical brand.create operation is not registered.");
+  return operation;
 }
 
 export function validateOperationDescriptor(descriptor = {}) {
@@ -123,11 +154,13 @@ export function validateOperationDescriptor(descriptor = {}) {
       readback_contract: readbackContract,
       identity_resolution_contract: text(descriptor.identity_resolution_contract, 128) || null,
       relationship_resolution_contract: text(descriptor.relationship_resolution_contract, 128) || null,
+      capability_profile: text(descriptor.capability_profile, 128) || null,
       expected_revision_required: descriptor.expected_revision_required === true,
       idempotency_required: descriptor.idempotency_required === true,
       authority_required: true,
       tool_discovery_required: descriptor.tool_discovery_required === true,
       executor_ref: text(descriptor.executor_ref, 255) || null,
+      canonical_registry_status: text(descriptor.canonical_registry_status, 32) || null,
     }) : null,
   });
 }
@@ -157,10 +190,12 @@ export function resolveOperationGovernance({ descriptor, policy = {}, caller = {
     readback_contract: canonical.readback_contract,
     identity_resolution_contract: canonical.identity_resolution_contract,
     relationship_resolution_contract: canonical.relationship_resolution_contract,
+    capability_profile: canonical.capability_profile,
     caller_attempted_lowering: callerAttemptedLowering,
     tool_discovery_required: canonical.tool_discovery_required,
     authority_required: canonical.authority_required,
     idempotency_required: canonical.idempotency_required,
+    canonical_registry_status: canonical.canonical_registry_status,
   });
 }
 
@@ -176,4 +211,12 @@ export function conservativeFallbackOperationInference(operationKey = "") {
   });
 }
 
-export const _testingPlatformOperationGovernance = Object.freeze({ RISK_RANK, LEVEL_ORDER, minimumRisk, minimumApproval });
+export const _testingPlatformOperationGovernance = Object.freeze({
+  RISK_RANK,
+  LEVEL_ORDER,
+  minimumRisk,
+  minimumApproval,
+  defaultApprovalContract,
+  defaultReadbackContract,
+  canonicalEffectClass,
+});
