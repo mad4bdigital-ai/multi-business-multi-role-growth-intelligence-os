@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "ad9799133765c8d5278c37ddec939b8998bfa1ccfbaab5e608f3a4349ac273cb",
-    "dispatch_artifact_sha256": "2410f62039bff84290ffca2fab8fd82a8926038af7f9a9898f853b57735cfb74"
+    "dispatch_source_digest": "dbcd79d979901771c6a5d21f6b97e62f4b33f21062ff56098840dbddea4a30eb",
+    "dispatch_artifact_sha256": "0e60414f3a3d723947a4990a5999d45d1f03577ae360393f32c404f81368653d"
   },
   "coverage": {
     "operation_count": 1039,
@@ -17,26 +17,26 @@
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
-    "unresolved_surface_decision_count": 162,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "coverage_complete": true
   },
   "distributions": {
     "surface_decisions_by_family": [
       {
-        "decision": "requires_review",
-        "count": 162
+        "decision": "internal_only",
+        "count": 116
       },
       {
         "decision": "api_only",
-        "count": 7
+        "count": 38
+      },
+      {
+        "decision": "embedded_ui",
+        "count": 6
       },
       {
         "decision": "legacy_compatibility",
         "count": 6
-      },
-      {
-        "decision": "embedded_ui",
-        "count": 1
       },
       {
         "decision": "unified_ui",
@@ -45,12 +45,12 @@
     ],
     "detail_gap_entries_by_surface_decision": [
       {
-        "decision": "requires_review",
-        "count": 302
+        "decision": "internal_only",
+        "count": 272
       },
       {
         "decision": "api_only",
-        "count": 8
+        "count": 37
       },
       {
         "decision": "legacy_compatibility",
@@ -58,7 +58,7 @@
       },
       {
         "decision": "embedded_ui",
-        "count": 1
+        "count": 2
       }
     ],
     "detail_gap_entries_by_method": [
@@ -383,7 +383,11 @@
         "count": 8
       },
       {
-        "family_key": "agent-skill",
+        "family_key": "agent-skill.developer",
+        "count": 7
+      },
+      {
+        "family_key": "observability",
         "count": 7
       },
       {
@@ -431,10 +435,6 @@
         "count": 4
       },
       {
-        "family_key": "observability.admin",
-        "count": 4
-      },
-      {
         "family_key": "release",
         "count": 4
       },
@@ -447,15 +447,15 @@
         "count": 3
       },
       {
-        "family_key": "gpt-session.admin",
+        "family_key": "gpt-session",
+        "count": 3
+      },
+      {
+        "family_key": "local-connector",
         "count": 3
       },
       {
         "family_key": "local-connector-device-route",
-        "count": 3
-      },
-      {
-        "family_key": "local-connector.admin",
         "count": 3
       },
       {
@@ -464,10 +464,6 @@
       },
       {
         "family_key": "n8n-workflow-runtime",
-        "count": 3
-      },
-      {
-        "family_key": "observability.tenant",
         "count": 3
       },
       {
@@ -491,11 +487,7 @@
         "count": 2
       },
       {
-        "family_key": "job",
-        "count": 2
-      },
-      {
-        "family_key": "local-connector-install.admin",
+        "family_key": "local-connector-install.developer",
         "count": 2
       },
       {
@@ -527,11 +519,19 @@
         "count": 1
       },
       {
-        "family_key": "connector-proxy.admin",
+        "family_key": "connector-proxy.developer",
         "count": 1
       },
       {
         "family_key": "dev-db-restore",
+        "count": 1
+      },
+      {
+        "family_key": "job.admin",
+        "count": 1
+      },
+      {
+        "family_key": "job.developer",
         "count": 1
       },
       {
@@ -646,160 +646,9 @@
   ],
   "priority_summary": {
     "blocking_contract_gap_count": 0,
-    "surface_decision_required_family_count": 162,
+    "surface_decision_required_family_count": 0,
     "documentation_only_detail_gap_count": 315,
-    "top_surface_decision_families": [
-      {
-        "family_key": "dev-agent",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 31
-      },
-      {
-        "family_key": "customer",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 17
-      },
-      {
-        "family_key": "planner",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 12
-      },
-      {
-        "family_key": "session",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 12
-      },
-      {
-        "family_key": "browser-runtime",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 11
-      },
-      {
-        "family_key": "connected-systems",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 10
-      },
-      {
-        "family_key": "output-sink",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 10
-      },
-      {
-        "family_key": "tenant-commercial",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 10
-      },
-      {
-        "family_key": "identity",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 9
-      },
-      {
-        "family_key": "agent-registry",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 8
-      },
-      {
-        "family_key": "developer-api",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 8
-      },
-      {
-        "family_key": "logic",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 8
-      },
-      {
-        "family_key": "tenant-lifecycle",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 8
-      },
-      {
-        "family_key": "upload",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 8
-      },
-      {
-        "family_key": "agent-skill",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 7
-      },
-      {
-        "family_key": "tenant-infrastructure",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 7
-      },
-      {
-        "family_key": "admin-onboarding",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 6
-      },
-      {
-        "family_key": "github",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 6
-      },
-      {
-        "family_key": "registry-data-management.admin",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 6
-      },
-      {
-        "family_key": "registry-data-management.tenant",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 6
-      },
-      {
-        "family_key": "tenants",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 6
-      },
-      {
-        "family_key": "workspace-resource",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 6
-      },
-      {
-        "family_key": "sql-endpoint-registry",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 5
-      },
-      {
-        "family_key": "workflow-orchestration",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 5
-      },
-      {
-        "family_key": "governance",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 4
-      },
-      {
-        "family_key": "observability.admin",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 4
-      },
-      {
-        "family_key": "release",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 4
-      },
-      {
-        "family_key": "security",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 4
-      },
-      {
-        "family_key": "auth-email-targeted-delivery",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 3
-      },
-      {
-        "family_key": "local-connector-device-route",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 3
-      }
-    ]
+    "top_surface_decision_families": []
   },
   "scope_boundary": {
     "route_wiring": false,

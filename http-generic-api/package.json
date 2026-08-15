@@ -23,6 +23,8 @@
     "frontend:dispatch:check": "node scripts/frontend-operation-governance-generator.mjs --check && node scripts/frontend-surface-dispatch.mjs --check",
     "openapi:detail-gaps:generate": "node scripts/openapi-detail-gap-classification.mjs --write",
     "openapi:detail-gaps:check": "node scripts/openapi-detail-gap-classification.mjs --check",
+    "openapi:gap-closure-plan:generate": "node scripts/openapi-gap-closure-plan.mjs --write",
+    "openapi:gap-closure-plan:check": "node scripts/openapi-gap-closure-plan.mjs --check",
     "openapi:auth:write": "node scripts/openapi-runtime-auth-sync.mjs --write",
     "openapi:auth:check": "node scripts/openapi-runtime-auth-sync.mjs --check",
     "schemas:generate": "npm run resources:openapi:generate && node scripts/generate-custom-gpt-schemas.mjs --write",

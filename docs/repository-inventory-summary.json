@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7042,
-    "bytes": 65670259,
-    "lines": 1544570,
+    "files": 7055,
+    "bytes": 66970442,
+    "lines": 1566260,
     "directories": 263,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2116,
+      "tests-and-specs": 2117,
       "documentation": 1897,
       "api-runtime": 1420,
       "database-migrations": 782,
-      "root-and-other": 275,
-      "api-contracts": 162,
+      "root-and-other": 276,
+      "api-contracts": 173,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1645,
+      ".mjs": 1651,
       ".js": 984,
       ".sql": 797,
-      ".json": 758,
+      ".json": 765,
       ".yml": 164,
       ".yaml": 110,
       ".ps1": 15,
@@ -59,11 +59,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3633,
+      "http-generic-api": 3639,
       "docs": 1801,
-      "specs": 857,
+      "specs": 863,
       ".github": 264,
-      ".changes": 253,
+      ".changes": 254,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -136,6 +136,10 @@
         "frontend:governance:check",
         "frontend:dispatch:generate",
         "frontend:dispatch:check",
+        "openapi:detail-gaps:generate",
+        "openapi:detail-gaps:check",
+        "openapi:gap-closure-plan:generate",
+        "openapi:gap-closure-plan:check",
         "openapi:auth:write",
         "openapi:auth:check",
         "schemas:generate",
@@ -217,8 +221,8 @@
   "surfaces": {
     "workflows": 161,
     "migrations": 782,
-    "apiContracts": 162,
-    "testSpecFiles": 2184
+    "apiContracts": 173,
+    "testSpecFiles": 2194
   },
   "largestFiles": [
     {
@@ -230,8 +234,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3123850,
-      "lines": 95802
+      "bytes": 3440635,
+      "lines": 97402
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -252,6 +256,12 @@
       "lines": 23004
     },
     {
+      "path": "http-generic-api/frontend-surface-policy.json",
+      "category": "api-runtime",
+      "bytes": 606319,
+      "lines": 11469
+    },
+    {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
       "bytes": 325509,
@@ -268,6 +278,12 @@
       "category": "documentation",
       "bytes": 265603,
       "lines": 7914
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "category": "api-contracts",
+      "bytes": 255773,
+      "lines": 6187
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
@@ -328,18 +344,6 @@
       "category": "api-contracts",
       "bytes": 141224,
       "lines": 3794
-    },
-    {
-      "path": "package-lock.json",
-      "category": "build-and-dependencies",
-      "bytes": 138721,
-      "lines": 3861
-    },
-    {
-      "path": "http-generic-api/releaseReadiness.js",
-      "category": "api-runtime",
-      "bytes": 135154,
-      "lines": 2593
     }
   ]
 }
