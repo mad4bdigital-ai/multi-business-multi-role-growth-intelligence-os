@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7042,
-    "bytes": 65670259,
-    "lines": 1544570,
+    "files": 7053,
+    "bytes": 66016569,
+    "lines": 1553007,
     "directories": 263,
     "categories": 13
   },
@@ -16,7 +16,7 @@
       "api-runtime": 1420,
       "database-migrations": 782,
       "root-and-other": 275,
-      "api-contracts": 162,
+      "api-contracts": 173,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1645,
+      ".mjs": 1650,
       ".js": 984,
       ".sql": 797,
-      ".json": 758,
+      ".json": 764,
       ".yml": 164,
       ".yaml": 110,
       ".ps1": 15,
@@ -59,9 +59,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3633,
+      "http-generic-api": 3638,
       "docs": 1801,
-      "specs": 857,
+      "specs": 863,
       ".github": 264,
       ".changes": 253,
       "canonicals": 70,
@@ -136,6 +136,10 @@
         "frontend:governance:check",
         "frontend:dispatch:generate",
         "frontend:dispatch:check",
+        "openapi:detail-gaps:generate",
+        "openapi:detail-gaps:check",
+        "openapi:gap-closure-plan:generate",
+        "openapi:gap-closure-plan:check",
         "openapi:auth:write",
         "openapi:auth:check",
         "schemas:generate",
@@ -217,8 +221,8 @@
   "surfaces": {
     "workflows": 161,
     "migrations": 782,
-    "apiContracts": 162,
-    "testSpecFiles": 2184
+    "apiContracts": 173,
+    "testSpecFiles": 2193
   },
   "largestFiles": [
     {
@@ -230,7 +234,7 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3123850,
+      "bytes": 3123848,
       "lines": 95802
     },
     {
@@ -268,6 +272,12 @@
       "category": "documentation",
       "bytes": 265603,
       "lines": 7914
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "category": "api-contracts",
+      "bytes": 262417,
+      "lines": 6360
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
@@ -334,12 +344,6 @@
       "category": "build-and-dependencies",
       "bytes": 138721,
       "lines": 3861
-    },
-    {
-      "path": "http-generic-api/releaseReadiness.js",
-      "category": "api-runtime",
-      "bytes": 135154,
-      "lines": 2593
     }
   ]
 }
