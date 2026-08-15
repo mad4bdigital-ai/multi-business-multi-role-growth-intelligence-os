@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "cfe043e8996133491c8513ec085fbd1ab44fc7393be31f0088d71e84d590245b",
+    "source_digest": "0d8c9d5119810a0ea43755204829faa5fc9ec30f4f6a868a87ee8b0d9f9318ef",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "6aa5d0fe7fb37eaf2a6056800e9c3a3595c3263c10871cac6dc9028556e68207",
+        "sha256": "a8a4238dd522263f83acff435bd5e9f6b73467a0a16c6d891d8319e785925fe2",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "1d97711876c7018106ddfaa29962965334421c1aa54ab790de7d728488411d7a",
+        "sha256": "759ab752d5eb5fff4568d48fa931794dd0f584224380927c5ba2c5865af4f67b",
         "present": true
       },
       {
@@ -466,7 +466,7 @@
       },
       {
         "file": "routes/brandSkillRoutes.js",
-        "sha256": "68a5dc8a68e4d3269881385c5093934f68c9b110b8a4ee915f122a1ad2ce0544",
+        "sha256": "59f5c5e6fedf036ea654d8117379fd7b64e468dcda95638a139a297693f4fe54",
         "present": true
       },
       {
@@ -1109,21 +1109,21 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 139,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1039,
-    "openapi_documented_count": 1023,
+    "operation_count": 1044,
+    "openapi_documented_count": 1028,
     "openapi_canonical_documented_count": 708,
-    "openapi_generated_index_count": 315,
+    "openapi_generated_index_count": 320,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 315,
+    "openapi_detail_gap_count": 320,
     "auth_parity_counts": {
-      "equivalent": 1023,
+      "equivalent": 1028,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 630,
-    "unresolved_operation_class_count": 568,
+    "non_get_candidate_count": 634,
+    "unresolved_operation_class_count": 572,
     "classified_mutation_count": 13,
     "governed_mutation_operation_count": 13,
     "embedded_ui_family_count": 7,
@@ -1131,7 +1131,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 177,
     "test_owned_operation_count": 4,
-    "untested_operation_count": 1035,
+    "untested_operation_count": 1040,
     "ready_task_count": 0,
     "blocked_task_count": 177,
     "coverage_complete": false
@@ -31154,7 +31154,7 @@
       "family_key": "brand-skill",
       "label": "brand skill",
       "source_file": "routes/brandSkillRoutes.js",
-      "source_digest": "68a5dc8a68e4d3269881385c5093934f68c9b110b8a4ee915f122a1ad2ce0544",
+      "source_digest": "59f5c5e6fedf036ea654d8117379fd7b64e468dcda95638a139a297693f4fe54",
       "mount_prefix": "/",
       "mount_order": 16979,
       "split_from_mixed_scope_file": false,
@@ -31163,6 +31163,314 @@
       "group": "resources",
       "scope": "tenant",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/me/workspaces/{tenant_id}/brand-claims",
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims",
+          "source_file": "routes/brandSkillRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/me/workspaces/{tenant_id}/brand-claims",
+          "signature": "GET /me/workspaces/{tenant_id}/brand-claims",
+          "source_file": "routes/brandSkillRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges",
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges",
+          "source_file": "routes/brandSkillRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence",
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence",
+          "source_file": "routes/brandSkillRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke",
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke",
+          "source_file": "routes/brandSkillRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/me/workspaces/{tenant_id}/brands/{brand_key}/skills",
@@ -31350,11 +31658,24 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /me/workspaces/{tenant_id}/brand-claims",
+        "GET /me/workspaces/{tenant_id}/brand-claims",
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges",
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence",
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke"
+      ],
       "auth_contract_gaps": [],
-      "evidence_routes": [],
+      "evidence_routes": [
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence"
+      ],
       "tests": [],
       "untested_operations": [
+        "POST /me/workspaces/{tenant_id}/brand-claims",
+        "GET /me/workspaces/{tenant_id}/brand-claims",
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges",
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence",
+        "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke",
         "GET /me/workspaces/{tenant_id}/brands/{brand_key}/skills",
         "POST /me/workspaces/{tenant_id}/brands/{brand_key}/skills/{skill_key}/activate",
         "DELETE /me/workspaces/{tenant_id}/brands/{brand_key}/skills/{skill_key}/activation"
@@ -31371,6 +31692,7 @@
         "openapi/brand-skill-activation.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
@@ -31391,6 +31713,30 @@
       },
       "operation_blockers": [
         {
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
           "signature": "POST /me/workspaces/{tenant_id}/brands/{brand_key}/skills/{skill_key}/activate",
           "blockers": [
             "operation_classification_gap"
@@ -31404,7 +31750,7 @@
         }
       ],
       "risk": {
-        "score": 6,
+        "score": 7,
         "class": "high"
       },
       "wave": "F1-tenant-shell"
@@ -87789,6 +88135,7 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
+        "openapi_detail_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -87807,6 +88154,7 @@
         "openapi/brand-skill-activation.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",

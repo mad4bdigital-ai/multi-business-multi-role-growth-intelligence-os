@@ -3177,6 +3177,61 @@ paths:
           - requireUserJwt
         configuration_dependencies:
           - JWT_SECRET
+  /me/workspaces/{tenant_id}/brand-claims:
+    get:
+      operationId: getMeWorkspacesByTenantIdBrandClaimsee53eb1b
+      summary: GET /me/workspaces/{tenant_id}/brand-claims (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/brandSkillRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+    post:
+      operationId: postMeWorkspacesByTenantIdBrandClaims993a323d
+      summary: POST /me/workspaces/{tenant_id}/brand-claims (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/brandSkillRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
   /me/workspaces/{tenant_id}/data-tables:
     get:
       operationId: getMeWorkspacesByTenantIdDataTablese6df4fd8
@@ -6973,6 +7028,108 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireTenantUserJwt
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+  /me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges:
+    post:
+      operationId: postMeWorkspacesByTenantIdBrandClaimsByClaimIdChallenges0c8d6a73
+      summary: POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/challenges (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: claim_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/brandSkillRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+  /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence:
+    post:
+      operationId: postMeWorkspacesByTenantIdBrandClaimsByClaimIdEvidence57b8ae8a
+      summary: POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/evidence (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: claim_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/brandSkillRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+  /me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke:
+    post:
+      operationId: postMeWorkspacesByTenantIdBrandClaimsByClaimIdRevoked8ffbba5
+      summary: POST /me/workspaces/{tenant_id}/brand-claims/{claim_id}/revoke (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: claim_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/brandSkillRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
           - requireUserJwt
         configuration_dependencies:
           - JWT_SECRET
