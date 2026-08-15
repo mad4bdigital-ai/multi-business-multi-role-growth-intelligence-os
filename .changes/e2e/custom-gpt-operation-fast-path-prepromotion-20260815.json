@@ -18,7 +18,13 @@
       "http-generic-api/routes/operationOrchestratorRoutes.js",
       "http-generic-api/test-gpt-execution-capsule.mjs",
       "http-generic-api/test-operation-orchestrator-route-registration.mjs",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-custom-gpt-schemas.mjs",
       "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/validate-custom-gpt-operation-openapi.mjs",
       "docs/prepromotion-fast-path-readiness-20260815.md"
     ]
@@ -69,6 +75,12 @@
             "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
             "http-generic-api/routes/gptToolsRoutes.js",
             "http-generic-api/routes/operationOrchestratorRoutes.js",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/test-connect-routes.mjs",
+            "http-generic-api/test-custom-gpt-schemas.mjs",
             "http-generic-api/test-gpt-execution-capsule.mjs",
             "http-generic-api/scripts/validate-custom-gpt-operation-openapi.mjs",
             "docs/prepromotion-fast-path-readiness-20260815.md"
