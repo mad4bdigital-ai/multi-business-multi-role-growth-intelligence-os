@@ -83,7 +83,12 @@
     },
     {
       "artifact_id": "work_maps",
-      "recipe": "work_map_self_hosting_bootstrap",
+      "repair_authority": {
+        "id": "spec_kit_work_map_autofix",
+        "kind": "delegated_work_map_writer",
+        "workflow": ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+        "writer_workflow": ".github/workflows/spec-kit-work-map-autofix.yml"
+      },
       "verifier_id": "work_map_currentness",
       "dependency_scope": [
         {"type": "registered_work_map_source_universe"}
