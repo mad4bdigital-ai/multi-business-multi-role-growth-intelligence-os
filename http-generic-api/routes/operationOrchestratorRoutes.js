@@ -70,10 +70,17 @@ async function tenantMembership(userId, requestedTenantId = null) {
       WHERE m.user_id = ? AND m.status = 'active' AND t.status = 'active'
         ${tenantClause}
       ORDER BY m.granted_at ASC
-      LIMIT 1`,
+      LIMIT 2`,
     params,
   );
-  return rows[0] || null;
+  if (rows.length > 1) {
+    const error = new Error("Tenant membership lookup was ambiguous.");
+    error.status = 409;
+    error.code = "TENANT_MEMBERSHIP_AMBIGUOUS";
+    throw error;
+  }
+  const [membership] = rows;
+  return membership || null;
 }
 
 async function requireTenantOperationPrincipal(req, res, next) {

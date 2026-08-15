@@ -356,16 +356,23 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
         AND tenant_id = ?
         AND (user_id <=> ?)
         AND session_status NOT IN ('completed', 'closed')
-      LIMIT 1`,
+      LIMIT 2`,
       [pinnedSessionId, tenantId, userId]
     );
-    if (!rows[0]) return null;
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (rows.length > 1) {
+      const error = new Error("Pinned GPT session lookup was ambiguous.");
+      error.status = 409;
+      error.code = "GPT_SESSION_LOOKUP_AMBIGUOUS";
+      throw error;
+    }
+    const [pinnedSession] = rows;
+    if (!pinnedSession) return null;
+    const counts = await countConversationTurns(pool, pinnedSession.session_id);
     if (counts.conversation_turns > 0 || allowUncapturedConversation) {
-      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+      return { ...pinnedSession, archive_binding: "explicit_session_pin", turn_counts: counts };
     }
     return {
-      ...rows[0],
+      ...pinnedSession,
       archive_binding: "explicit_session_pin_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -388,10 +395,11 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
       return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
     }
   }
-  if (rows?.[0]) {
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+  const [fallbackSession] = rows || [];
+  if (fallbackSession) {
+    const counts = await countConversationTurns(pool, fallbackSession.session_id);
     return {
-      ...rows[0],
+      ...fallbackSession,
       archive_binding: "latest_active_session_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -3537,9 +3545,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
 
   if (callerType === "tenant") {
     const [tenantRowExists] = await getPool().query(
-      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [toolKey]
     );
+    if (tenantRowExists.length > 1) {
+      return {
+        status: 409,
+        body: { ok: false, error: { code: "tenant_tool_registry_ambiguous", message: "Tenant tool registry lookup was ambiguous." } },
+      };
+    }
     if (!tenantRowExists.length) {
       const tenantId = req?.auth?.tenant_id || null;
       const userId = req?.auth?.user_id || null;
@@ -3571,15 +3585,22 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
     `SELECT http_method, http_path, path_param_keys, fixed_body
      FROM \`${table}\`
      WHERE tool_key = ? AND is_enabled = 1
-     LIMIT 1`,
+     LIMIT 2`,
     [toolKey]
   );
 
-  if (!rows[0]) {
+  if (rows.length > 1) {
+    return {
+      status: 409,
+      body: { ok: false, error: { code: "tool_registry_ambiguous", message: `Tool '${toolKey}' has ambiguous active descriptors.` } },
+    };
+  }
+  const [toolDescriptor] = rows;
+  if (!toolDescriptor) {
     return { status: 404, body: { ok: false, error: { code: "tool_not_found", message: `Tool '${toolKey}' not found.` } } };
   }
 
-  const { http_method: method, http_path: pathTemplate } = rows[0];
+  const { http_method: method, http_path: pathTemplate } = toolDescriptor;
   if (callerType === "tenant" && (isTenantBlockedToolPath(pathTemplate) || isTenantBlockedToolName(toolKey))) {
     return {
       status: 403,
@@ -3593,8 +3614,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
       },
     };
   }
-  const pathParamKeys = parseJson(rows[0].path_param_keys) || [];
-  const fixedBody = parseJson(rows[0].fixed_body) || {};
+  const pathParamKeys = parseJson(toolDescriptor.path_param_keys) || [];
+  const fixedBody = parseJson(toolDescriptor.fixed_body) || {};
   const remaining = { ...args };
 
   // Substitute path parameters
