@@ -130,6 +130,21 @@
         "provider_call": false,
         "credential_read": false,
         "production_activation": false
+      },
+      {
+        "role": "openapi_comprehensive_gap_closure_plan",
+        "status": "implemented_bounded_readiness_only",
+        "route_wiring": false,
+        "runtime_authority": false,
+        "rest_projection": false,
+        "custom_gpt_projection": false,
+        "remote_mcp_projection": false,
+        "frontend_projection": false,
+        "database_write": false,
+        "migration_applied": false,
+        "provider_call": false,
+        "credential_read": false,
+        "production_activation": false
       }
     ]
   },
@@ -140,6 +155,7 @@
     "canonical_operation_registry_tests": "expanded_pending_generated_parity_refresh_and_exact_head_ci",
     "openapi_projection_readiness_tests": "implemented_pending_exact_head_ci",
     "openapi_detail_gap_classification_tests": "implemented_pending_exact_head_ci",
+    "openapi_gap_closure_plan_tests": "implemented_pending_exact_head_ci",
     "brand_claim_verification_tests": "implemented_pending_exact_head_ci",
     "brand_identity_reconciliation_tests": "implemented_pending_exact_head_ci",
     "asset_provider_identity_tests": "implemented_pending_exact_head_ci",
@@ -172,6 +188,7 @@
       "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
       "http-generic-api/test-openapi-projection-readiness.mjs",
       "http-generic-api/test-openapi-detail-gap-classification.mjs",
+      "http-generic-api/test-openapi-gap-closure-plan.mjs",
       "http-generic-api/test-brand-claim-verification.mjs",
       "http-generic-api/test-brand-identity-persistence.mjs",
       "http-generic-api/test-global-brand-identity-migration-contract.mjs"
@@ -186,14 +203,17 @@
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
       "http-generic-api/package.json",
-      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
     ],
     "schemas": [
       "schemas/platform-resource-identity-contract.schema.json",
       "schemas/brand-identity-resolution.schema.json",
       "schemas/canonical-operation-governance.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
-      "specs/020-platform-resource-identity-brand-governance/contracts/openapi-detail-gap-classification.schema.json"
+      "specs/020-platform-resource-identity-brand-governance/contracts/openapi-detail-gap-classification.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json"
     ],
     "migration_collation_evidence": [
       "http-generic-api/config/database-engine-collation-policy.json",
@@ -219,6 +239,7 @@
     "The existing read-only Brand list now dual-reads canonical brand_id and legacy compatibility references on the branch; it does not alter grant semantics.",
     "OpenAPI projection readiness is documented and guarded as read-only traceability; it does not activate REST, Custom GPT, Remote MCP, or frontend projections.",
     "OpenAPI detail gaps are classified dynamically by decision, family, method, and path segment; detail gaps do not count as canonical coverage and no projection is activated.",
+    "The comprehensive gap-closure plan records every mounted family, closes zero-gap contract workstreams, classifies remaining review/test ownership work, and keeps projection/runtime authority explicitly separate.",
     "Identity does not imply relationship, authority, grant, credential access, or provider readiness.",
     "Claim verification requires explicit expected_revision and does not mutate authority grants.",
     "Reconciliation is SELECT-only and reports conflicts without destructive repair or automatic merge.",
