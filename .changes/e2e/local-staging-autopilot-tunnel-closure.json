@@ -27,6 +27,7 @@
       "http-generic-api/scripts/split-openapi.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "docs/staging-openapi-mcp-db-copy.md"
@@ -109,6 +110,7 @@
             "http-generic-api/scripts/split-openapi.mjs",
             "http-generic-api/test-domain-family-policy.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
             "docs/staging-openapi-mcp-db-copy.md"
