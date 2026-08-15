@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 
 const root = new URL('../../', import.meta.url).pathname;
 const dispatchPath = `${root}http-generic-api/frontend-surface-dispatch.generated.json`;
-const outputPath = `${root}specs/020-platform-resource-identity-brand-governance/openapi-connected-systems-preflight-batch.json`;
+const outputPath = `${root}specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json`;
 const dispatch = JSON.parse(fs.readFileSync(dispatchPath, 'utf8'));
 
 function sha256(value) {
@@ -17,7 +17,7 @@ function collect(value, result = []) {
     return result;
   }
   if (value && typeof value === 'object') {
-    if (value.source_file === 'routes/connectedSystemsRoutes.js' && value.openapi_contract_level === 'operation-index-only') result.push({ ...value, family_key: 'connected-systems' });
+    if (value.openapi_contract_level === 'operation-index-only') result.push(value);
     for (const child of Object.values(value)) collect(child, result);
   }
   return result;
@@ -28,7 +28,7 @@ const dispatchHash = sha256(fs.readFileSync(dispatchPath));
 const prepared = operations.map((operation) => {
   const mutation = operation.mutation_candidate === true || operation.governance?.classification === 'disabled';
   return {
-    family_key: operation.family_key,
+    family_key: operation.family_key ?? null,
     method: operation.method,
     path: operation.path,
     signature: operation.signature,
@@ -56,27 +56,27 @@ const prepared = operations.map((operation) => {
     evidence_refs: [
       'http-generic-api/frontend-surface-dispatch.generated.json',
       'http-generic-api/test-frontend-surface-coverage-claims.mjs',
-      'routes/connectedSystemsRoutes.js',
+      operation.source_file,
       'specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json'
     ]
   };
 });
 
 const artifact = {
-  $schema: './contracts/openapi-connected-systems-preflight-batch.schema.json',
+  $schema: './contracts/openapi-all-remaining-preflight-batch.schema.json',
   schema_version: 1,
-  contract: 'spec020-openapi-connected-systems-preflight-batch-v1',
-  batch_id: 'spec020-openapi-connected-systems-preflight-batch-02',
+  contract: 'spec020-openapi-all-remaining-preflight-batch-v1',
+  batch_id: 'spec020-openapi-all-remaining-preflight-batch-03',
   source: {
     dispatch_path: 'http-generic-api/frontend-surface-dispatch.generated.json',
     dispatch_sha256: dispatchHash,
-    family_key: 'connected-systems',
-    contract_level: 'operation-index-only'
+    contract_level: 'operation-index-only',
+    detail_gap_scope: 'all_remaining'
   },
   coverage: {
     operation_count: prepared.length,
-    expected_detail_gap_count: 10,
-    operation_count_matches_expected: prepared.length === 10,
+    expected_detail_gap_count: 315,
+    operation_count_matches_expected: prepared.length === 315,
     all_operations_prepared_only: prepared.every((item) => item.prepared_contract.mode === 'prepared_only'),
     route_wiring: false,
     runtime_authority: false,
@@ -90,7 +90,7 @@ if (process.argv.includes('--check')) {
   const expected = JSON.stringify(artifact, null, 2) + '\n';
   const actual = JSON.stringify(current, null, 2) + '\n';
   if (expected !== actual) throw new Error(`artifact is stale: ${outputPath}`);
-  if (!artifact.coverage.operation_count_matches_expected) throw new Error(`expected 10 connected-systems detail gaps, got ${prepared.length}`);
+  if (!artifact.coverage.operation_count_matches_expected) throw new Error(`expected 315 remaining detail gaps, got ${prepared.length}`);
   console.log(JSON.stringify({ ok: true, mode: 'check', batch_id: artifact.batch_id, operation_count: prepared.length, route_wiring: false, runtime_authority: false, production_activation: false }));
 } else {
   fs.writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`);
