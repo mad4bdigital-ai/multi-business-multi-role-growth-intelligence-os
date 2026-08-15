@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-candidate-dispatch-input-parity",
-  "title": "Governed Production candidate dispatch input parity",
+  "title": "Governed Production candidate dispatch input parity and evidence durability",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -22,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep every required Production candidate workflow_dispatch input supplied by both governed callers and bind expected_head_sha to the exact trusted main SHA in the request dispatcher.",
+      "objective": "Keep every required Production candidate workflow_dispatch input supplied by both governed callers, bind expected_head_sha to the exact trusted main SHA in the request dispatcher, and preserve canonical dispatch evidence before optional PR receipts without broadening permissions.",
       "e2e_journeys": [
         {
           "id": "governed-candidate-callers-preserve-required-input-parity",
@@ -30,20 +30,25 @@
           "level": "synthetic_runtime",
           "actor": "Governed Production promotion workflow dispatcher",
           "entrypoint": "The regression test reads the Production candidate workflow and both governed caller workflows from the repository checkout.",
-          "terminal_outcome": "Both callers supply every required candidate workflow_dispatch input, the request dispatcher binds expected_head_sha to MAIN_SHA, and the trusted generated frontend governance/dispatch projections remain covered by the same feature contract before any candidate dispatch can be requested.",
+          "terminal_outcome": "Both callers supply every required candidate workflow_dispatch input, the request dispatcher binds expected_head_sha to MAIN_SHA, canonical dispatch decisions are persisted before optional PR receipts, receipt transport failure cannot erase successful dispatch evidence, and the trusted generated frontend governance/dispatch projections remain covered by the same feature contract before any candidate dispatch can be requested.",
           "steps": [
             "Parse required workflow_dispatch inputs from production-promotion-candidate.yml.",
             "Inspect the governed dispatch request dispatcher and Production promotion launcher call sites.",
             "Require both callers to pass every required candidate input.",
             "Require the dispatch request dispatcher to pass expected_head_sha from the exact trusted MAIN_SHA pin.",
+            "Require both duplicate-suppressed and dispatched paths to persist decision.json before attempting an optional PR receipt.",
+            "Require optional PR receipt failures to degrade to warnings while preserving canonical evidence and read-only pull-request permission.",
             "Treat frontend operation-governance and surface-dispatch generated outputs refreshed by the registered writer as derived runtime evidence of this feature.",
-            "Fail the regression test on any caller/callee input drift before governed Production candidate execution."
+            "Fail the regression test on caller/callee input drift, evidence-order regression, or permission broadening before governed Production candidate execution."
           ],
           "assertions": [
             "The candidate workflow exposes at least one required workflow_dispatch input.",
             "The dispatch request dispatcher supplies every required candidate input.",
             "The Production promotion launcher supplies every required candidate input.",
             "The dispatch request dispatcher binds expected_head_sha to MAIN_SHA.",
+            "Both duplicate-suppressed and dispatched paths persist their canonical decision before attempting the optional PR receipt.",
+            "A PR receipt transport failure preserves the canonical decision artifact and is downgraded to a warning rather than invalidating an otherwise successful dispatch decision.",
+            "Evidence durability does not require pull-requests: write and retains the dispatcher's read-only pull-request permission.",
             "The trusted writer-owned frontend operation-governance and surface-dispatch generated outputs are covered by this feature contract rather than edited manually.",
             "No Production merge, deployment, migration, provider call, credential read, protected-ref mutation, or force push is performed by this test contract."
           ],
@@ -72,12 +77,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Retain exact input-parity evidence across future governed candidate caller changes."
+      "objective": "Retain exact input-parity and evidence-durability proof across future governed candidate caller changes."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Detect future caller/callee workflow_dispatch contract drift before it can reach candidate dispatch."
+      "objective": "Detect future caller/callee workflow_dispatch drift, evidence-order regressions, or unnecessary permission broadening before they can reach candidate dispatch."
     },
     {
       "id": "canary",
