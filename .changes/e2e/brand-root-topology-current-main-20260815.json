@@ -10,6 +10,7 @@
       "http-generic-api/workspaceBrandRootTopology.js",
       "http-generic-api/dynamicContainerProjectionService.js",
       "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/test-dynamic-container-authority-runtime.mjs",
       "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
       "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
       "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
@@ -67,6 +68,13 @@
               "args": []
             },
             {
+              "id": "dynamic-container-authority-runtime-root-fixture",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-dynamic-container-authority-runtime.mjs",
+              "args": []
+            },
+            {
               "id": "brand-create-operation-governance-current-main",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -79,6 +87,7 @@
             "http-generic-api/workspaceBrandRootTopology.js",
             "http-generic-api/dynamicContainerProjectionService.js",
             "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/test-dynamic-container-authority-runtime.mjs",
             "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
             "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
             "http-generic-api/test-workspace-brand-create-operation-governance.mjs"
