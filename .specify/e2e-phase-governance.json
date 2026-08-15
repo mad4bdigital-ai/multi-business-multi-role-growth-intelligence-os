@@ -76,7 +76,9 @@
     "http-generic-api/test-openapi-projection-readiness.mjs",
     "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
     "http-generic-api/test-openapi-detail-gap-classification.mjs",
-    "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json"
+    "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+    "http-generic-api/test-openapi-gap-closure-plan.mjs",
+    "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
   ],
   "ignored_patterns": [
     ".gitignore",
