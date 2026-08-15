@@ -1,0 +1,33 @@
+{
+  "contract": "mad4b.staging-one-click-autopilot.v1",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "ref": "main",
+  "requires_exact_commit": true,
+  "requires_ci_eligibility": true,
+  "deployment_mode": "local_windows_task_scheduler",
+  "bootstrap": {
+    "clone_if_missing": true,
+    "install_git_gh_docker": true,
+    "install_or_verify_wsl2": true,
+    "start_docker_desktop": true,
+    "prompt_only_for_missing_credentials": true,
+    "never_store_secrets_in_repository": true
+  },
+  "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation_dev.mad4b.com"],
+  "database_seed": {
+    "default_mode": "schema_only_if_local_bundle_exists",
+    "required_files": ["runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz"],
+    "sanitized_data_default": false,
+    "migration_apply": false
+  },
+  "safety": {
+    "production_deploy": false,
+    "hostinger_mutation": false,
+    "cloudflare_dns_mutation": false,
+    "database_mutation": false,
+    "migration_applied": false,
+    "provider_mutation": false,
+    "secrets_included": false
+  }
+}
