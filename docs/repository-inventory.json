@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6971,
-    "bytes": 65067255,
-    "lines": 1531457,
+    "bytes": 65064160,
+    "lines": 1531362,
     "directories": 260,
     "categories": 13
   },
@@ -12127,7 +12127,7 @@
       "extension": ".json",
       "bytes": 8814,
       "lines": 225,
-      "sha256": "1dab18cfc138946f66d79d1a0aa79d487c681bae40041cdf82f3a3d17a7ac4f7",
+      "sha256": "d8a7c281cf379aaae66c4ad322ab0a7160046826e6488eec1f855a584746863b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31111,9 +31111,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 20068,
-      "lines": 334,
-      "sha256": "995b83a0a7cbb855ca77bf6adb5904540bec24289a96e54f69132478de78b791",
+      "bytes": 20259,
+      "lines": 337,
+      "sha256": "94534604cd36bc5abeaa48d6b471b62004eba662a4dddb38c3fe46082ddf6199",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32224,7 +32224,7 @@
       "extension": ".json",
       "bytes": 42665,
       "lines": 2,
-      "sha256": "f36658f97b439da364e49e61395453b4ce790e8a5e242e3ccc235c2c47c97692",
+      "sha256": "9d4b2f955538188ad1231090bea046667f550b9fe41e80afed78d66e7d0c4056",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32235,7 +32235,7 @@
       "extension": ".md",
       "bytes": 75164,
       "lines": 1420,
-      "sha256": "891e943a8899040449d34e8002209d4b03defd5f0a9fe07e26658c215653a9c5",
+      "sha256": "dad841e20f4b55c2197a2ddb2e9668fea8f49809ea08ee05f4f3d589d6df5df2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37986,9 +37986,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3128065,
-      "lines": 95925,
-      "sha256": "aece814829b3211bc7995189918f8d0615b7dff2e2af0e7f2782aabedfe742b9",
+      "bytes": 3123850,
+      "lines": 95802,
+      "sha256": "ecef4036a45ad5d1a1ef60a574af39b1122504cf3839a804a19f6f823a23527f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48546,9 +48546,9 @@
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 41883,
-      "lines": 1240,
-      "sha256": "4397d57c9b3c85138f96499a7666c1bfa031ad0fb30ae0de26eb9395ad2b99ce",
+      "bytes": 42812,
+      "lines": 1265,
+      "sha256": "7d7dd7432f37487176a8b1390fadd7c935ddd9927d074fee7301308d357b8f87",
       "mode": "644",
       "executable": false,
       "generated": false
