@@ -18,6 +18,8 @@
       "http-generic-api/test-openapi-gap-closure-plan.mjs",
       "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
       "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
+      "http-generic-api/scripts/openapi-detail-closure-batch.mjs",
+      "http-generic-api/test-openapi-detail-closure-batch.mjs",
       "http-generic-api/package.json",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -30,6 +32,7 @@
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
       "schemas/platform-resource-identity-contract.schema.json",
       "schemas/brand-identity-resolution.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "schemas/canonical-operation-governance.schema.json",
       ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
     ]
@@ -66,7 +69,8 @@
             { "id": "spec020-operation-governance-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-operation-governance-contract.mjs", "args": [] },
             { "id": "spec020-openapi-projection-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-projection-readiness.mjs", "args": [] },
             { "id": "spec020-openapi-detail-gap-classification", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-detail-gap-classification.mjs", "args": [] },
-            { "id": "spec020-openapi-gap-closure-plan", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-gap-closure-plan.mjs", "args": [] }
+            { "id": "spec020-openapi-gap-closure-plan", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-gap-closure-plan.mjs", "args": [] },
+            { "id": "spec020-openapi-detail-closure-batch", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-detail-closure-batch.mjs", "args": [] }
           ],
           "evidence_paths": [
             "specs/020-platform-resource-identity-brand-governance/spec.md",
@@ -82,11 +86,14 @@
             "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
             "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
             "http-generic-api/package.json",
-            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
+            "http-generic-api/scripts/openapi-detail-closure-batch.mjs",
+            "http-generic-api/test-openapi-detail-closure-batch.mjs",
             "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
             "specs/020-platform-resource-identity-brand-governance/contracts/openapi-detail-gap-classification.schema.json",
             "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
             "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "autopilot-portable-staging/manifest.json",
             "docs/repository-inventory-summary.json",

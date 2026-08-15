@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7055,
-    "bytes": 66970869,
-    "lines": 1566264,
+    "files": 7058,
+    "bytes": 67270240,
+    "lines": 1573899,
     "directories": 263,
     "categories": 13
   },
@@ -16,7 +16,7 @@
       "api-runtime": 1420,
       "database-migrations": 782,
       "root-and-other": 276,
-      "api-contracts": 173,
+      "api-contracts": 176,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1651,
+      ".mjs": 1653,
       ".js": 984,
       ".sql": 797,
-      ".json": 765,
+      ".json": 766,
       ".yml": 164,
       ".yaml": 110,
       ".ps1": 15,
@@ -59,9 +59,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3639,
+      "http-generic-api": 3641,
       "docs": 1801,
-      "specs": 863,
+      "specs": 864,
       ".github": 264,
       ".changes": 254,
       "canonicals": 70,
@@ -224,8 +224,8 @@
   "surfaces": {
     "workflows": 161,
     "migrations": 782,
-    "apiContracts": 173,
-    "testSpecFiles": 2194
+    "apiContracts": 176,
+    "testSpecFiles": 2196
   },
   "largestFiles": [
     {
@@ -269,6 +269,12 @@
       "category": "api-contracts",
       "bytes": 325509,
       "lines": 8484
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "category": "api-contracts",
+      "bytes": 291182,
+      "lines": 7445
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -341,12 +347,6 @@
       "category": "documentation",
       "bytes": 146641,
       "lines": 1341
-    },
-    {
-      "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
-      "category": "api-contracts",
-      "bytes": 141224,
-      "lines": 3794
     }
   ]
 }
