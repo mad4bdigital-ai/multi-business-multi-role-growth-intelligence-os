@@ -238,6 +238,10 @@ assert.equal(
   null
 );
 assert.equal(classifyExpectedPublicationSkip(new Error("Unexpected canonical contract.")), null);
+assert.equal(
+  classifyExpectedPublicationSkip(new Error("Non-successful workflow_run cannot publish a passed canonical outcome.")),
+  "non_successful_workflow_run"
+);
 
 const sanitized = renderEvidenceSection({
   ...e2e,
@@ -259,7 +263,7 @@ assert.doesNotMatch(publisherWorkflow, /^\s*pull-requests:\s*read\s*$/mu);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 36,
-  gate: "ci_evidence_stale_head_and_merge_candidate_safe_skip_and_comment_permission",
+  tests: 37,
+  gate: "ci_evidence_stale_head_merge_candidate_and_non_success_skip_safety",
   secrets_included: false
 }));
