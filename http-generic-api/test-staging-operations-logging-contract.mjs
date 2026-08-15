@@ -20,6 +20,7 @@ const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
 
 assert.match(logger, /operations\.jsonl/);
 assert.match(logger, /operations\.1\.jsonl/);
+assert.match(healthMonitor, /health-snapshot\.json/);
 assert.match(logger, /latest-status\.json/);
 assert.match(logger, /last-failure\.json/);
 assert.match(logger, /run_id/);
@@ -41,6 +42,8 @@ assert.match(appOperations, /health:/);
 assert.match(appOperations, /Stage "tunnel"/);
 assert.match(healthMonitor, /health-snapshot\.json/);
 assert.match(healthMonitor, /Write-StagingHeartbeat/);
+assert.match(oneClick, /bootstrap-console\.log/);
+assert.match(cmd, /bootstrap-console\.log/);
 assert.match(healthMonitor, /docker context show/);
 assert.match(doctor, /ValidateSet\("Status", "Repair", "Logs"\)/);
 assert.match(doctor, /maintenance-status\.json/);
