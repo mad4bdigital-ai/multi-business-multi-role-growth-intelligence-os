@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,963 |
-| Total bytes | 64,976,682 |
-| Counted text lines | 1,529,286 |
+| Tracked files | 6,971 |
+| Total bytes | 65,067,013 |
+| Counted text lines | 1,531,454 |
 | Directories | 260 |
 | Categories | 13 |
 
@@ -17,13 +17,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,089 |
-| `documentation` | 1,890 |
+| `tests-and-specs` | 2,090 |
+| `documentation` | 1,891 |
 | `api-runtime` | 1,404 |
 | `database-migrations` | 780 |
-| `root-and-other` | 258 |
-| `ci-workflows` | 160 |
-| `api-contracts` | 157 |
+| `root-and-other` | 259 |
+| `api-contracts` | 161 |
+| `ci-workflows` | 161 |
 | `ci-config` | 103 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
@@ -35,13 +35,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,485 |
-| `.mjs` | 1,622 |
+| `.md` | 2,486 |
+| `.mjs` | 1,625 |
 | `.js` | 974 |
 | `.sql` | 795 |
-| `.json` | 733 |
-| `.yml` | 163 |
-| `.yaml` | 108 |
+| `.json` | 734 |
+| `.yml` | 164 |
+| `.yaml` | 110 |
 | `.ts` | 15 |
 | `.cs` | 14 |
 | `.ps1` | 10 |
@@ -70,10 +70,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 160 |
+| GitHub Actions workflows | 161 |
 | Database migrations | 780 |
-| API/OpenAPI contracts | 157 |
-| Test/spec files (paths) | 2,157 |
+| API/OpenAPI contracts | 161 |
+| Test/spec files (paths) | 2,158 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -96,7 +96,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 240,269 | 2060 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 241,420 | 2068 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 209,252 | 4457 |
 | `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
