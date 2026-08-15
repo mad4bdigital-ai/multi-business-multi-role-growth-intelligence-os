@@ -14,6 +14,7 @@
       "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
       "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
       "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+      "http-generic-api/test-workspace-brand-create.mjs",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -83,6 +84,13 @@
               "working_directory": "http-generic-api",
               "path": "test-workspace-brand-create-operation-governance.mjs",
               "args": []
+            },
+            {
+              "id": "brand-create-legacy-contract-current-main",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -96,7 +104,8 @@
             "http-generic-api/test-dynamic-container-authority-runtime.mjs",
             "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
             "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
-            "http-generic-api/test-workspace-brand-create-operation-governance.mjs"
+            "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+            "http-generic-api/test-workspace-brand-create.mjs"
           ]
         }
       ]
