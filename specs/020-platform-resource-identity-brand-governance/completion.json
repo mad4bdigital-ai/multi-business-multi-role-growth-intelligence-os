@@ -28,6 +28,27 @@
         "production_activation": false
       },
       {
+        "role": "canonical_operation_registry_binding",
+        "status": "implemented_on_current_branch",
+        "operations": [
+          "brand.create",
+          "brand.identity.resolve",
+          "brand.identity.reconcile",
+          "brand.claim.list",
+          "brand.claim.request",
+          "brand.claim.challenge.prepare",
+          "brand.claim.evidence.submit",
+          "brand.claim.verify",
+          "brand.claim.revoke",
+          "asset.identity.resolve",
+          "provider_account.identity.resolve"
+        ],
+        "shadow_only": true,
+        "tool_discovery_required_for_known_spec020_operations": false,
+        "runtime_authority": false,
+        "production_activation": false
+      },
+      {
         "role": "brand_claim_verification_library_contract",
         "status": "implemented_with_mocked_regression_tests",
         "runtime_authority": false,
@@ -37,6 +58,38 @@
         "credential_read": false,
         "production_activation": false,
         "authority_grant_mutated": false
+      },
+      {
+        "role": "brand_identity_reconciliation_diagnostics",
+        "status": "implemented_select_only",
+        "detects": [
+          "missing_brand_id",
+          "target_key_to_multiple_brand_ids",
+          "tenant_brand_link_identity_drift",
+          "alias_collision",
+          "verified_hard_identifier_collision"
+        ],
+        "database_write": false,
+        "destructive_repair": false,
+        "production_activation": false
+      },
+      {
+        "role": "asset_and_provider_account_identity_adapters",
+        "status": "implemented_on_current_branch",
+        "asset_identity_separated_from_rights": true,
+        "provider_identity_separated_from_credentials": true,
+        "credential_material_included": false,
+        "authority_implied": false,
+        "production_activation": false
+      },
+      {
+        "role": "brand_list_dual_read",
+        "status": "implemented_on_current_branch_pending_exact_head_ci",
+        "canonical_read_key": "brand_id",
+        "compatibility_read_keys": ["target_key", "normalized_brand_name", "brand_name", "brand:prefixed_ref"],
+        "read_only": true,
+        "grant_semantics_changed": false,
+        "production_activation": false
       },
       {
         "role": "global_brand_identity_migration_file",
@@ -51,12 +104,16 @@
     ]
   },
   "verification": {
-    "json_parse": "implemented_pending_ci",
-    "json_schema_validation": "implemented_pending_ci",
-    "pure_contract_tests": "implemented_pending_ci",
-    "brand_claim_verification_tests": "implemented_pending_ci",
+    "json_parse": "implemented_pending_exact_head_ci",
+    "json_schema_validation": "implemented_pending_exact_head_ci",
+    "pure_contract_tests": "expanded_pending_exact_head_ci",
+    "canonical_operation_registry_tests": "expanded_pending_generated_parity_refresh_and_exact_head_ci",
+    "brand_claim_verification_tests": "implemented_pending_exact_head_ci",
+    "brand_identity_reconciliation_tests": "implemented_pending_exact_head_ci",
+    "asset_provider_identity_tests": "implemented_pending_exact_head_ci",
+    "brand_list_dual_read_tests": "implemented_pending_exact_head_ci",
     "migration_collation_guard": "passed_local_not_applied",
-    "cross_tenant_disclosure_tests": "implemented_pending_ci",
+    "cross_tenant_disclosure_tests": "implemented_pending_exact_head_ci",
     "traceability_review": "pending_pr_review",
     "security_review": "pending_pr_review",
     "architecture_review": "pending_pr_review"
@@ -67,9 +124,11 @@
     "migrations_authored": true,
     "migrations_applied": false,
     "runtime_deployed": false,
-    "tenant_projection_changed": false,
+    "tenant_projection_changed_on_branch": true,
+    "tenant_projection_change_kind": "read_only_brand_identity_dual_read",
     "grant_mutation_performed": false,
     "provider_write_performed": false,
+    "credential_read_performed": false,
     "external_send_performed": false,
     "production_activated": false
   },
@@ -77,9 +136,18 @@
     "tests": [
       "http-generic-api/test-platform-resource-identity-contract.mjs",
       "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "http-generic-api/test-canonical-business-operation-registry.mjs",
+      "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
       "http-generic-api/test-brand-claim-verification.mjs",
       "http-generic-api/test-brand-identity-persistence.mjs",
       "http-generic-api/test-global-brand-identity-migration-contract.mjs"
+    ],
+    "implementation_files": [
+      "http-generic-api/canonicalBusinessOperationRegistry.js",
+      "http-generic-api/platformOperationGovernanceContract.js",
+      "http-generic-api/brandIdentityReconciliation.js",
+      "http-generic-api/platformResourceIdentityAdapters.js",
+      "http-generic-api/chatgptMcpRuntime.js"
     ],
     "schemas": [
       "schemas/platform-resource-identity-contract.schema.json",
@@ -97,6 +165,7 @@
     "resource_identity_registry_mapping",
     "brand_identifier_and_claim_reconciliation",
     "operation_registry_integration",
+    "canonical_operation_parity_refresh",
     "migration_dry_run_and_readback",
     "shadow_parity",
     "staging_verification",
@@ -104,9 +173,13 @@
     "post_merge_audit"
   ],
   "notes": [
-    "This bundle is additive and shadow/library-only; no route wiring or runtime authority is enabled.",
+    "The Canonical Business Operation Registry is the source consumed by platformOperationGovernanceContract; brand.create is no longer redefined by a parallel hardcoded descriptor.",
+    "New identity and claim operations are registered as shadow/library-only and do not activate new REST/GPT/MCP mutation surfaces.",
+    "The existing read-only Brand list now dual-reads canonical brand_id and legacy compatibility references on the branch; it does not alter grant semantics.",
     "Identity does not imply relationship, authority, grant, credential access, or provider readiness.",
     "Claim verification requires explicit expected_revision and does not mutate authority grants.",
+    "Reconciliation is SELECT-only and reports conflicts without destructive repair or automatic merge.",
+    "Asset identity is separate from rights; Provider Account identity is separate from credential binding and credential material.",
     "The migration file is authored for governed future execution, passes the MariaDB collation guard locally, and has not been applied.",
     "Existing target_key references remain compatibility inputs until a separately authorized migration.",
     "Spec 015 and 014-gemini-evidence-intake-automation are excluded.",

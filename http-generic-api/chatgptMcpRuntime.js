@@ -433,20 +433,21 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
   let brandRows = [];
   if (lookupValues.length) {
     [brandRows] = await pool.query(
-      `SELECT brand_name, normalized_brand_name, brand_domain, target_key,
+      `SELECT brand_id, brand_name, normalized_brand_name, brand_domain, target_key,
               base_url, status, brand_core_ready
          FROM brands
-        WHERE target_key IN (?)
+        WHERE brand_id IN (?)
+           OR target_key IN (?)
            OR normalized_brand_name IN (?)
            OR brand_name IN (?)
         LIMIT ?`,
-      [lookupValues, lookupValues, lookupValues, Math.min(lookupValues.length * 3, 300)],
+      [lookupValues, lookupValues, lookupValues, lookupValues, Math.min(lookupValues.length * 4, 400)],
     );
   }
 
   const metadataByKey = new Map();
   for (const row of brandRows) {
-    for (const value of [row.target_key, row.normalized_brand_name, row.brand_name]) {
+    for (const value of [row.brand_id, row.target_key, row.normalized_brand_name, row.brand_name]) {
       for (const key of brandLookupKeys(value)) metadataByKey.set(key.toLowerCase(), row);
     }
   }
@@ -459,12 +460,14 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
         .find(Boolean);
       return {
         ...grant,
+        brand_id: metadata?.brand_id || null,
         display_name: metadata?.brand_name || grant.brand_ref.replace(/^brand:/iu, ""),
         target_key: metadata?.target_key || null,
         brand_domain: metadata?.brand_domain || null,
         base_url: metadata?.base_url || null,
         status: metadata?.status || null,
         brand_core_ready: metadata?.brand_core_ready ?? null,
+        identity_read_mode: metadata?.brand_id ? "canonical_brand_id_with_legacy_compatibility" : "legacy_resource_ref_only",
       };
     }),
   };
@@ -511,7 +514,7 @@ async function executeTool({ name, args, principal, pool, requestId }) {
         count: result.brands.length,
       },
       requestId,
-      evidenceSource: "v_workspace_resource_grant_effective_plus_brands",
+      evidenceSource: "v_workspace_resource_grant_effective_plus_brands_dual_identity",
     });
   }
 
