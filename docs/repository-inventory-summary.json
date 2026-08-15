@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6925,
-    "bytes": 64416287,
-    "lines": 1520945,
+    "bytes": 64405841,
+    "lines": 1520615,
     "directories": 260,
     "categories": 13
   },
@@ -227,8 +227,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3121096,
-      "lines": 95769
+      "bytes": 3122440,
+      "lines": 95782
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -315,16 +315,10 @@
       "lines": 1339
     },
     {
-      "path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
-      "category": "api-contracts",
-      "bytes": 141068,
-      "lines": 3810
-    },
-    {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
       "category": "api-contracts",
-      "bytes": 140742,
-      "lines": 3799
+      "bytes": 139965,
+      "lines": 3791
     },
     {
       "path": "package-lock.json",
@@ -337,6 +331,12 @@
       "category": "api-runtime",
       "bytes": 135154,
       "lines": 2593
+    },
+    {
+      "path": "schemas/operations.schema.json",
+      "category": "schemas-and-data",
+      "bytes": 134568,
+      "lines": 3397
     }
   ]
 }
