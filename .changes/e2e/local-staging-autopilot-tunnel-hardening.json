@@ -123,7 +123,8 @@
             "Operations logs use a run_id for correlation and rotate bounded JSONL files without changing Production or provider state.",
             "Staging-Doctor exposes Status, Repair, and Logs modes; Repair may recreate local scheduled tasks and rotate logs, but cannot delete data, apply migrations, rewrite secrets, touch Production, mutate Cloudflare DNS, or mutate Hostinger.",
             "The one-click launcher writes bootstrap-console.log before prerequisite checks, prints it after a non-zero CMD exit, and initializes ignored .env.staging on an existing Git checkout before dependency validation.",
-            "The shared operations logger initializes Mad4bStagingRunId through a StrictMode-safe Get-Variable lookup before the first durable log write, and the logging contract prevents regression to an unset-global read."
+            "The shared operations logger initializes Mad4bStagingRunId through a StrictMode-safe Get-Variable lookup before the first durable log write, and the logging contract prevents regression to an unset-global read.",
+            "The one-click launcher parses WSL2 readiness independently and retries wsl.exe --list --verbose with bounded backoff after installation or reboot instead of failing on a single transient probe."
           ],
           "tests": [
             {

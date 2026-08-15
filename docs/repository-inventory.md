@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,042 |
-| Total bytes | 65,670,259 |
-| Counted text lines | 1,544,570 |
+| Tracked files | 7,045 |
+| Total bytes | 65,694,314 |
+| Counted text lines | 1,545,011 |
 | Directories | 263 |
 | Categories | 13 |
 
@@ -22,7 +22,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `api-runtime` | 1,420 |
 | `database-migrations` | 782 |
 | `root-and-other` | 275 |
-| `api-contracts` | 162 |
+| `api-contracts` | 165 |
 | `ci-workflows` | 161 |
 | `ci-config` | 103 |
 | `schemas-and-data` | 70 |
@@ -36,10 +36,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,494 |
-| `.mjs` | 1,645 |
+| `.mjs` | 1,646 |
 | `.js` | 984 |
 | `.sql` | 797 |
-| `.json` | 758 |
+| `.json` | 760 |
 | `.yml` | 164 |
 | `.yaml` | 110 |
 | `.ps1` | 15 |
@@ -73,8 +73,8 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | GitHub Actions workflows | 161 |
 | Database migrations | 782 |
-| API/OpenAPI contracts | 162 |
-| Test/spec files (paths) | 2,184 |
+| API/OpenAPI contracts | 165 |
+| Test/spec files (paths) | 2,187 |
 | package.json manifests | 2 |
 
 ## Package manifests
