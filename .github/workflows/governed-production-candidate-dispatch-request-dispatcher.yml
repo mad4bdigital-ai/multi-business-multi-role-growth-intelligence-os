@@ -236,8 +236,6 @@ jobs:
           fi
 
           if [[ "${dispatch_required}" != "true" ]]; then
-            BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} merge_executed=false deployment_executed=false"
-            gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${BODY}" >/dev/null
             jq -n \
               --arg contract "mad4b.governed-production-candidate-dispatch-decision.v1" \
               --arg target_ref "${TARGET_REF}" \
@@ -245,8 +243,16 @@ jobs:
               --arg expected_main_sha "${MAIN_SHA}" \
               --arg expected_production_sha "${PRODUCTION_SHA}" \
               --argjson request_pr "${REQUEST_PR}" \
-              '{contract:$contract,outcome:"duplicate_suppressed",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,dispatch_requested:false,evidence_comment_written:true,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+              '{contract:$contract,outcome:"duplicate_suppressed",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,dispatch_requested:false,evidence_comment_written:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
               > "${REPORT_DIR}/decision.json"
+
+            BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+            if gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${BODY}" >/dev/null; then
+              jq '.evidence_comment_written=true' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
+              mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
+            else
+              echo "::warning::optional PR receipt comment could not be written; canonical dispatch decision artifact remains authoritative"
+            fi
             exit 0
           fi
 
@@ -280,9 +286,6 @@ jobs:
           done
           test -n "${builder_run_id}"
 
-          BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} dispatcher_run_id=${GITHUB_RUN_ID} builder_run_id=${builder_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${release_branch} validation_branch=${validation_branch} validation_base_branch=${validation_base_branch} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
-          gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${BODY}" >/dev/null
-
           jq -n \
             --arg contract "mad4b.governed-production-candidate-dispatch-decision.v1" \
             --arg target_ref "${TARGET_REF}" \
@@ -294,8 +297,16 @@ jobs:
             --arg validation_base_branch "${validation_base_branch}" \
             --argjson request_pr "${REQUEST_PR}" \
             --argjson builder_run_id "${builder_run_id}" \
-            '{contract:$contract,outcome:"dispatched",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,dispatch_requested:true,builder_run_id:$builder_run_id,evidence_comment_written:true,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            '{contract:$contract,outcome:"dispatched",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,dispatch_requested:true,builder_run_id:$builder_run_id,evidence_comment_written:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "${REPORT_DIR}/decision.json"
+
+          BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} dispatcher_run_id=${GITHUB_RUN_ID} builder_run_id=${builder_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${release_branch} validation_branch=${validation_branch} validation_base_branch=${validation_base_branch} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+          if gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${BODY}" >/dev/null; then
+            jq '.evidence_comment_written=true' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
+            mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
+          else
+            echo "::warning::optional PR receipt comment could not be written; canonical dispatch decision artifact remains authoritative"
+          fi
 
       - name: Upload canonical dispatch decision
         if: always()
