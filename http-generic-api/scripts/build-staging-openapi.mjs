@@ -47,13 +47,16 @@ document.info = {
   description: "Staging artifact generated from the Tenant Core source artifact. It uses the dev.mad4b.com resource and must never be paired with a Production OAuth client or Production host."
 };
 document["x-mad4b-environment"] = "staging";
+document["x-mad4b-surface"] = "tenant-custom-gpt";
 document["x-mad4b-staging-boundary"] = {
   resource: stagingHost,
+  server_uri_count: 1,
   authorization_server: `${stagingHost}/auth/oauth`,
   client_id_env: "TENANT_GPT_STAGING_OAUTH_CLIENT_ID",
   client_secret_env: "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET",
   production_hosts_forbidden_policy: "http-generic-api/config/domain-family-policy.json",
-  backend_only_paths_excluded: [...BACKEND_ONLY_PATHS]
+  backend_only_paths_excluded: [...BACKEND_ONLY_PATHS],
+  secrets_included: false
 };
 if (document["x-gpt-action-auth-preset"]) {
   document["x-gpt-action-auth-preset"].schema_url = `${stagingHost}/openapi.tenant-gpt.staging.yaml`;

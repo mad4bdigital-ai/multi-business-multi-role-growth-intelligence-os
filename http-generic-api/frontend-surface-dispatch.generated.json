@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "4c1127df835b2276a0948e68026a9f81a94538afaf518a199380ba64277d745b",
+    "source_digest": "95e5efb3da14acfe770a19b73e250906678603a73de04d7a0674a78f735dcebc",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -125,6 +125,11 @@
         "present": true
       },
       {
+        "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "sha256": "7d7dd7432f37487176a8b1390fadd7c935ddd9927d074fee7301308d357b8f87",
+        "present": true
+      },
+      {
         "file": "openapi/openapi.gpt-action.dev-diagnostics.yaml",
         "sha256": "f2f55ec4f4a8084f07edd504dd9e1e5bdf5f8cc61d226daf08b64a34a395f22a",
         "present": true
@@ -140,8 +145,13 @@
         "present": true
       },
       {
+        "file": "openapi/openapi.remote-mcp.staging.yaml",
+        "sha256": "abc55c8befc40af3ddde9c3f412435689b6900645372bdf2a9e914fd323eb99b",
+        "present": true
+      },
+      {
         "file": "openapi/openapi.tenant-gpt.staging.yaml",
-        "sha256": "988badee22d3b8801b759241cd9b9ad957aae54195de7efba9fb83b130445316",
+        "sha256": "0b968260740ce858fe6fdd4bf6ea8e0556e72919a46ba349f5a36e235eaad8aa",
         "present": true
       },
       {
@@ -801,7 +811,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+        "sha256": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
         "present": true
       },
       {
@@ -6753,7 +6763,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+      "source_digest": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -6947,7 +6957,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+      "source_digest": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -7295,7 +7305,7 @@
       "family_key": "root-discovery.unresolved",
       "label": "root discovery (unresolved)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
+      "source_digest": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -9619,7 +9629,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -9687,7 +9697,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -9755,7 +9765,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -9823,7 +9833,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -9961,7 +9971,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10029,7 +10039,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10167,7 +10177,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10306,6 +10316,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -10391,7 +10402,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10458,7 +10469,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10663,7 +10674,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10730,7 +10741,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -10795,6 +10806,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -44037,7 +44049,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -44173,6 +44185,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -72830,7 +72843,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -72966,6 +72979,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -85671,7 +85685,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -85801,6 +85815,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -87394,6 +87409,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -91247,6 +91263,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -91710,6 +91727,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -93418,6 +93436,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -94892,6 +94911,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",

@@ -3432,8 +3432,10 @@ x-gpt-action-auth-preset:
     - https://dev.mad4b.com/scopes/tenant.install
     - https://dev.mad4b.com/scopes/tenant.system-tools
 x-mad4b-environment: staging
+x-mad4b-surface: tenant-custom-gpt
 x-mad4b-staging-boundary:
   resource: https://dev.mad4b.com
+  server_uri_count: 1
   authorization_server: https://dev.mad4b.com/auth/oauth
   client_id_env: TENANT_GPT_STAGING_OAUTH_CLIENT_ID
   client_secret_env: TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET
@@ -3444,6 +3446,7 @@ x-mad4b-staging-boundary:
     - /system/tools/call
     - /gpt/sessions/{id}/turn
     - /gpt/sessions/{id}/end
+  secrets_included: false
 x-staging-generation:
   source_artifact: http-generic-api/openapi/openapi.tenant-gpt.auth.yaml
   production_replacement_policy: auth_and_activation_hosts_rewritten_to_dev
