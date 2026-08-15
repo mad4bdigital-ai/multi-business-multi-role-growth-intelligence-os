@@ -24,6 +24,10 @@
       "http-generic-api/canonical-business-operation-parity.generated.json",
       "http-generic-api/test-canonical-business-operation-registry.mjs",
       "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+      "http-generic-api/test-openapi-projection-readiness.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/workspaceBrandReadAuthority.js",
       "http-generic-api/workspaceCanonicalBrandReference.js",
@@ -283,6 +287,13 @@
               "working_directory": "http-generic-api",
               "path": "test-chatgpt-mcp-readonly-runtime.mjs",
               "args": []
+            },
+            {
+              "id": "openapi-projection-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-projection-readiness.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -294,6 +305,10 @@
             "http-generic-api/test-platform-operation-governance-contract.mjs",
             "http-generic-api/test-canonical-business-operation-registry.mjs",
             "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+            "http-generic-api/test-openapi-projection-readiness.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/activation-surfaces/exclusions/brand_claims.json",
             "http-generic-api/activation-surfaces/exclusions/brand_verification_evidence.json",
             "http-generic-api/activation-surfaces/exclusions/tenant_relationships.json",
