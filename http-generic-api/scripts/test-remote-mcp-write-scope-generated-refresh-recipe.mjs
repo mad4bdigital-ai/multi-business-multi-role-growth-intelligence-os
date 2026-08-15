@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateRepository } from "./e2e-phase-governance.mjs";
 
-const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v3";
+const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v4";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const readRepositoryFile = (...parts) => fs.readFileSync(path.join(repositoryRoot, ...parts), "utf8");
 const toolSource = readRepositoryFile("http-generic-api", "scripts", "maintenance-tools", "generated-artifact-refresh.mjs");
@@ -12,6 +12,7 @@ const generatorSource = readRepositoryFile("scripts", "remote-mcp-write-scope-in
 const contractSource = readRepositoryFile("scripts", "test-remote-mcp-write-scope-inventory.mjs");
 const writerWorkflowSource = readRepositoryFile(".github", "workflows", "governed-generated-artifact-refresh.yml");
 const verifierWorkflowSource = readRepositoryFile(".github", "workflows", "remote-mcp-write-scope-verification.yml");
+const stagingClosureSource = readRepositoryFile("http-generic-api", "test-staging-autopilot-closure.mjs");
 const governance = JSON.parse(readRepositoryFile(".github", "repository-maintenance-tool-governance.json"));
 const e2ePolicy = JSON.parse(readRepositoryFile(".specify", "e2e-phase-governance.json"));
 
@@ -29,6 +30,7 @@ check("recipe-is-explicit-and-bounded", () => {
   assert.match(toolSource, /REMOTE_MCP_WRITE_SCOPE_OUTPUTS = new Set/u);
   assert.match(toolSource, /http-generic-api\/remote-mcp-write-scope-inventory\.generated\.json/u);
   assert.match(toolSource, /docs\/remote-mcp-write-scope-inventory\.md/u);
+  assert.match(toolSource, /autopilot-portable-staging\/manifest\.json/u);
   assert.match(toolSource, /recipe === REMOTE_MCP_WRITE_SCOPE_RECIPE\) return REMOTE_MCP_WRITE_SCOPE_OUTPUTS\.has\(file\)/u);
 });
 
@@ -48,15 +50,21 @@ check("canonical-root-sources-and-contract-test-are-present", () => {
   assert.match(contractSource, /secrets_included, false/u);
 });
 
-check("remote-recipe-proves-determinism-and-currentness", () => {
+check("remote-recipe-proves-determinism-currentness-and-manifest-convergence", () => {
   assert.match(toolSource, /generate_remote_mcp_write_scope_first_pass/u);
   assert.match(toolSource, /generate_remote_mcp_write_scope_second_pass/u);
   assert.match(toolSource, /remote_mcp_write_scope_not_deterministic/u);
+  assert.match(toolSource, /updateRemoteMcpManifestHash/u);
+  assert.match(toolSource, /remote_mcp_manifest_entry_cardinality_invalid/u);
   assert.match(toolSource, /verify_remote_mcp_write_scope_current/u);
   assert.match(toolSource, /scripts\/remote-mcp-write-scope-inventory\.mjs", "--check"/u);
   assert.match(toolSource, /verify_remote_mcp_write_scope_contract/u);
   assert.match(toolSource, /scripts\/test-remote-mcp-write-scope-inventory\.mjs/u);
+  assert.match(toolSource, /verify_staging_manifest_hash_contract/u);
+  assert.match(toolSource, /http-generic-api\/test-staging-autopilot-closure\.mjs/u);
   assert.match(toolSource, /docs\(remote-mcp\): regenerate write-scope inventory/u);
+  assert.match(stagingClosureSource, /for \(const entry of manifest\.files\)/u);
+  assert.match(stagingClosureSource, /manifest hash mismatch/u);
 });
 
 check("writer-dispatch-registers-recipe-and-dedicated-verifier", () => {
@@ -82,17 +90,20 @@ check("remote-verifier-is-read-only-exact-head-and-root-scoped", () => {
   assert.doesNotMatch(verifierWorkflowSource, /working-directory:\s*http-generic-api/u);
 });
 
-check("maintenance-governance-registers-only-two-remote-outputs", () => {
+check("maintenance-governance-registers-exact-three-remote-refresh-outputs", () => {
   const patterns = governance.tools?.["generated-artifact-refresh"]?.allowed_changed_path_patterns || [];
-  assert.ok(patterns.includes("^http-generic-api/remote-mcp-write-scope-inventory\\.generated\\.json$"));
-  assert.ok(patterns.includes("^docs/remote-mcp-write-scope-inventory\\.md$"));
-  const remotePatterns = patterns.filter((pattern) => pattern.includes("remote-mcp-write-scope-inventory"));
-  assert.equal(remotePatterns.length, 2);
+  const expectedPatterns = [
+    "^http-generic-api/remote-mcp-write-scope-inventory\\.generated\\.json$",
+    "^docs/remote-mcp-write-scope-inventory\\.md$",
+    "^autopilot-portable-staging/manifest\\.json$",
+  ];
+  for (const pattern of expectedPatterns) assert.ok(patterns.includes(pattern), `missing governed Remote MCP refresh output: ${pattern}`);
 });
 
 check("e2e-phase-classifies-bounded-refresh-tooling-as-governance-only", () => {
   const governanceOnlyFiles = [
     ".github/workflows/remote-mcp-write-scope-verification.yml",
+    ".github/repository-maintenance-tool-governance.json",
     "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
     "scripts/remote-mcp-write-scope-inventory.mjs",
     "scripts/schema-docs-change-guard.mjs",
