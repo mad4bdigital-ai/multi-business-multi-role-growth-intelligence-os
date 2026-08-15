@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7054,
-    "bytes": 66024873,
-    "lines": 1553167,
+    "bytes": 66025053,
+    "lines": 1553168,
     "directories": 263,
     "categories": 13
   },
@@ -7025,9 +7025,9 @@
       "path": ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 18639,
-      "lines": 291,
-      "sha256": "02290dd2ef0ba0155adb86cbc403532c59372eab9b2ba0ebef29e9196b2dfacd",
+      "bytes": 18819,
+      "lines": 292,
+      "sha256": "bac1fc8f38d3076bb136cd25242e68d166c004100e159cfd7b905dde2d842d68",
       "mode": "644",
       "executable": false,
       "generated": false
