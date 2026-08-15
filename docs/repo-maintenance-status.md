@@ -10,9 +10,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 616
-- Operations: 567
-- Top-level tags: 36
+- Paths: 622
+- Operations: 573
+- Top-level tags: 38
 
 ## Virtual Admin Tool Contract Notes
 
@@ -241,6 +241,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/surface-contract-gap-triage.mjs`
 - `http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs`
 - `http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs`
+- `http-generic-api/scripts/validate-custom-gpt-operation-openapi.mjs`
 
 ## Schema / Plugin / OpenAPI Tests
 
