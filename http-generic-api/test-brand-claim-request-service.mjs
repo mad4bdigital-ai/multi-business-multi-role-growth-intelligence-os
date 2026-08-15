@@ -81,10 +81,9 @@ assert.equal(queries.some((entry) => /container_authority_epochs/.test(entry.sql
 assert.equal(queries.some((entry) => /^COMMIT$/.test(entry.sql)), true);
 
 const routeSource = await fs.readFile(new URL("./routes/brandSkillRoutes.js", import.meta.url), "utf8");
-assert.match(routeSource, /workspace_brand_claim_request/);
-assert.match(routeSource, /\/me\/workspaces\/:tenant_id\/brand-claims/);
-assert.match(routeSource, /submitClaimEvidence/);
-assert.match(routeSource, /revokeWorkspaceBrandClaim/);
-assert.doesNotMatch(routeSource, /verifyBrandClaim\(/, "tenant route must not directly self-verify a claim");
+assert.doesNotMatch(routeSource, /workspace_brand_claim_request/, "Spec 020 claim service remains library-only");
+assert.doesNotMatch(routeSource, /\/me\/workspaces\/:tenant_id\/brand-claims/, "Spec 020 claim routes remain disabled");
+assert.doesNotMatch(routeSource, /from \"\.\.\/brandClaimService\.js\"/, "Spec 020 claim service is not wired into runtime routes");
+assert.doesNotMatch(routeSource, /requestBrandClaim|listBrandClaims|prepareClaimChallenge|submitClaimEvidence|revokeWorkspaceBrandClaim/, "Spec 020 claim operations remain shadow-only");
 
 console.log("Brand claim request service tests passed");
