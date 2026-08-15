@@ -89,7 +89,54 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Keep inherited secrets, stale branch metadata, invalid startup-test contracts, and runtime startup failures fail-closed with deterministic classification and bounded evidence."
+      "objective": "Keep inherited secrets, stale branch metadata, invalid startup-test contracts, and runtime startup failures fail-closed with deterministic classification and bounded evidence.",
+      "e2e_journeys": [
+        {
+          "id": "fail-closed-on-contaminated-environment-or-invalid-startup-proof",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions release certification",
+          "entrypoint": "The startup evidence harness receives inherited secret-like environment values, stale deployment branch metadata, or an invalid startup-test environment contract.",
+          "terminal_outcome": "Unsafe inherited values are excluded or replaced, stale branch metadata cannot override authoritative Production provenance, and invalid startup certification fails closed with bounded classified evidence before any Production mutation.",
+          "steps": [
+            "Construct the repository-owned startup-test environment from the explicit inherited-variable allowlist.",
+            "Reject or replace inherited credential and branch-lock payloads while retaining required process execution context such as PATH.",
+            "Exercise invalid startup-test contract and runtime startup failure paths.",
+            "Exercise stale inherited branch metadata through the Hostinger-compatible root startup path.",
+            "Verify deterministic failure classification, bounded diagnostics, and authoritative Production provenance."
+          ],
+          "assertions": [
+            "Inherited provider, database, GitHub, persistence, authentication, and Production branch-lock secret payloads do not cross the test-environment boundary.",
+            "PATH remains a safe execution-context allowlist entry and does not select staging or Production.",
+            "An invalid startup-test environment contract prevents runtime stages from executing and is classified as certification_contract_error.",
+            "A runtime startup failure is classified without exposing inherited secret payloads.",
+            "Stale inherited main or feature branch metadata cannot replace the authoritative Production provenance established by the root entrypoint.",
+            "No Production deployment, SQL, migration, provider mutation, grant, or credential payload read is authorized or executed by this journey."
+          ],
+          "tests": [
+            {
+              "id": "runtime-startup-deployment-fail-closed-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-runtime-startup-deployment-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "server-startup-stale-branch-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-startup-smoke.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/scripts/runtime-startup-test-environment.mjs",
+            "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/test-server-startup-smoke.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
