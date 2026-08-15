@@ -47,7 +47,7 @@ function collectDetailGapRows(families) {
 }
 
 function buildClassification() {
-  const baselineRef = process.env.CANONICAL_BASELINE_REF || "main";
+  const baselineRef = "main";
   const plan = buildDispatchPlan({ apiRoot: API_ROOT, baselineRef });
   const rows = collectDetailGapRows(plan.families);
   const familyDecisions = (plan.families || []).map((family) => ({
