@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-resource-identity-brand-governance-20260815",
+  "title": "Platform Resource Identity and Brand Governance shadow contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/platformResourceIdentityContract.js",
+      "http-generic-api/brandIdentityResolver.js",
+      "http-generic-api/platformOperationGovernanceContract.js",
+      "http-generic-api/test-platform-resource-identity-contract.mjs",
+      "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "schemas/platform-resource-identity-contract.schema.json",
+      "schemas/canonical-operation-governance.schema.json",
+      "schemas/brand-identity-resolution.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/spec.md",
+      "specs/020-platform-resource-identity-brand-governance/plan.md",
+      "specs/020-platform-resource-identity-brand-governance/tasks.md",
+      "specs/020-platform-resource-identity-brand-governance/completion.json",
+      ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define and test a deterministic no-secret Platform Resource Identity contract and Brand shadow resolver while keeping identity, relationship, authority, grant, credential, and Production mutation separate.",
+      "e2e_journeys": [
+        {
+          "id": "brand-identity-resolution-shadow",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant-scoped signed principal context",
+          "entrypoint": "resolveVisibleBrandIdentity({ tenantId, identifiers, candidates })",
+          "terminal_outcome": "The resolver returns an identity-safe EXACT/PROBABLE/NONE/CONFLICT/AMBIGUOUS decision without exposing candidate tenant ownership or creating authority.",
+          "steps": [
+            "Normalize the submitted identifiers using the registered identifier type.",
+            "Filter candidate rows to the requested tenant scope before resolution output.",
+            "Apply hard identifier, probable identifier, and ambiguity rules deterministically.",
+            "Return only brand_id, matched identifier types, evidence readiness, reasons, and disclosure policy.",
+            "Require separate authority resolution for any future relationship or mutation operation."
+          ],
+          "assertions": [
+            "A unique fresh verified hard identifier resolves EXACT.",
+            "Name-only matching resolves PROBABLE or AMBIGUOUS and never EXACT.",
+            "Multiple hard matches resolve CONFLICT and do not merge.",
+            "No candidate tenant_id appears in resolver output.",
+            "Relationship validation never creates a grant and always sets authority_implied=false.",
+            "No database connection, migration, credential read, provider call, external send, or Production mutation occurs in this slice."
+          ],
+          "tests": [
+            {
+              "id": "platform-resource-identity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-identity-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
+            "http-generic-api/platformResourceIdentityContract.js",
+      "http-generic-api/brandIdentityResolver.js",
+      "http-generic-api/platformOperationGovernanceContract.js",
+      "http-generic-api/test-platform-resource-identity-contract.mjs",
+      "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "schemas/platform-resource-identity-contract.schema.json",
+      "schemas/canonical-operation-governance.schema.json",
+            "schemas/brand-identity-resolution.schema.json",
+            "specs/020-platform-resource-identity-brand-governance/spec.md",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

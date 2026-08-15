@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://growth-intelligence-os.invalid/schemas/platform-resource-identity-contract.schema.json",
+  "title": "Platform Resource Identity Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["resource_type", "identity_scope", "canonical_id", "revision", "status", "authority_implied"],
+  "properties": {
+    "resource_type": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_.-]*$" },
+    "identity_scope": { "enum": ["global", "provider_native", "tenant", "workspace", "content_addressed", "ephemeral"] },
+    "canonical_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "provider_family": { "type": ["string", "null"], "maxLength": 128 },
+    "tenant_id": { "type": ["string", "null"], "maxLength": 64 },
+    "workspace_id": { "type": ["string", "null"], "maxLength": 64 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["draft", "active", "superseded", "archived", "disabled"] },
+    "authority_implied": { "const": false },
+    "identifiers": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "value", "verification_status", "is_exclusive"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "value": { "type": "string", "minLength": 1, "maxLength": 2048 },
+          "verification_status": { "enum": ["unverified", "probable", "verified", "revoked", "expired", "conflict"] },
+          "is_exclusive": { "type": "boolean" },
+          "evidence_ref": { "type": ["string", "null"], "maxLength": 128 },
+          "evidence_fresh": { "type": "boolean" }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "maxLength": 128 },
+        "provenance_ref": { "type": ["string", "null"], "maxLength": 128 },
+        "secrets_included": { "const": false }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "identity_scope": { "const": "global" } } },
+      "then": { "properties": { "tenant_id": { "type": "null" }, "workspace_id": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "identity_scope": { "const": "provider_native" } } },
+      "then": { "required": ["provider_family"] }
+    }
+  ]
+}

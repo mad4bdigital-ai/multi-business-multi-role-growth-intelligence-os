@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "spec_key": "020-platform-resource-identity-brand-governance",
+  "spec_version": "0.1.0",
+  "status": "implementation_in_progress",
+  "scope": "platform_identity_and_brand_governance",
+  "created_at": "2026-08-15",
+  "owner": "platform-team",
+  "delivery_mode": "multi_pr",
+  "principal_coverage": [
+    "platform_admin",
+    "tenant_owner",
+    "workspace_owner",
+    "brand_manager",
+    "operation_governance_reviewer",
+    "security_reviewer",
+    "reconciliation_worker"
+  ],
+  "ownership_scopes": ["platform", "global_brand", "tenant_relationship", "workspace_projection"],
+  "invariants": [
+    "global_identity_is_tenant_independent",
+    "relationship_does_not_imply_authority",
+    "projection_does_not_become_identity",
+    "hard_identifier_exact_only",
+    "ambiguity_and_conflict_fail_closed",
+    "tenant_filter_before_disclosure",
+    "caller_cannot_lower_operation_floor",
+    "same_cycle_readback_for_internal_write",
+    "no_secret_output",
+    "production_mutation_default_off"
+  ],
+  "artifacts": [
+    "manifest.json",
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "e2e-phases.json",
+    "completion.json",
+    "checklists/requirements.md",
+    "contracts/platform-resource-identity.schema.json",
+    "contracts/brand-identity-resolution.schema.json",
+    "contracts/canonical-operation-governance.schema.json"
+  ],
+  "implementation_artifacts": [
+    "http-generic-api/platformResourceIdentityContract.js",
+    "http-generic-api/brandIdentityResolver.js",
+    "http-generic-api/platformOperationGovernanceContract.js",
+    "http-generic-api/test-platform-resource-identity-contract.mjs",
+    "http-generic-api/test-platform-operation-governance-contract.mjs",
+    "schemas/platform-resource-identity-contract.schema.json",
+    "schemas/brand-identity-resolution.schema.json",
+    "schemas/canonical-operation-governance.schema.json",
+    ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
+  ],
+  "implementation_state": {
+    "pure_identity_contract": "implemented_shadow_only",
+    "brand_shadow_resolver": "implemented_no_secret",
+    "operation_governance_contract": "implemented_shadow_only",
+    "mariadb_repository_adapter": "planned",
+    "identifier_claims_and_verification": "planned",
+    "revision_bound_lifecycle": "planned",
+    "migration_dry_run": "planned",
+    "live_apply_dispatch": "disabled"
+  },
+  "public_api_boundary": {
+    "status": "pure_library_contract_no_route",
+    "runtime_authority": false,
+    "provider_dispatch": false,
+    "credential_read": false,
+    "grant_mutation": false
+  },
+  "migration_boundary": {
+    "schema_design": "contract_only",
+    "sql_files": "not_created",
+    "migration_apply": false,
+    "backfill": false
+  },
+  "deployment_boundary": {
+    "main_merge": false,
+    "production_promotion": false,
+    "hostinger_auto_deploy": false,
+    "live_database_execution": false
+  },
+  "secrets_included": false,
+  "production_mutation": false,
+  "provider_write": false,
+  "credential_read": false,
+  "protected_branch_write": false
+}

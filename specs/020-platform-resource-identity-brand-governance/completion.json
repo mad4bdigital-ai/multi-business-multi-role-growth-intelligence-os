@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "feature_key": "020-platform-resource-identity-brand-governance",
+  "title": "Platform Resource Identity, Relationships, and Brand Governance",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "security_review": true,
+    "openapi_3_1": true
+  },
+  "delivery": {
+    "specification": {
+      "status": "current_branch",
+      "role": "platform_contract_and_brand_adapter"
+    },
+    "implementation_slices": [
+      {
+        "role": "pure_identity_contract_and_brand_shadow_resolver",
+        "status": "implemented_on_current_branch",
+        "runtime_authority": false,
+        "database_write": false,
+        "migration_applied": false,
+        "provider_call": false,
+        "credential_read": false,
+        "production_activation": false
+      }
+    ],
+    "future_slices": [
+      "read_only_repository_adapter",
+      "claim_and_verification_shadow",
+      "canonical_operation_registry_integration",
+      "revision_bound_lifecycle",
+      "migration_dry_run_and_reconciliation",
+      "staging_parity",
+      "production_verification"
+    ]
+  },
+  "verification": {
+    "json_parse": "pending_ci",
+    "json_schema_validation": "pending_ci",
+    "pure_contract_tests": "implemented_pending_ci",
+    "cross_tenant_disclosure_tests": "implemented_pending_ci",
+    "traceability_review": "pending_pr_review",
+    "security_review": "pending_pr_review",
+    "architecture_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": true,
+    "runtime_enforcement_enabled": false,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "tenant_projection_changed": false,
+    "grant_mutation_performed": false,
+    "provider_write_performed": false,
+    "external_send_performed": false,
+    "production_activated": false
+  },
+  "evidence": {
+    "tests": [
+      "http-generic-api/test-platform-resource-identity-contract.mjs"
+    ],
+    "schemas": [
+      "schemas/platform-resource-identity-contract.schema.json",
+      "schemas/brand-identity-resolution.schema.json"
+    ],
+    "secrets_included": false,
+    "sensitive_values_included": false
+  },
+  "required_closeout_evidence": [
+    "resource_identity_registry_mapping",
+    "brand_identifier_and_claim_reconciliation",
+    "operation_registry_integration",
+    "migration_dry_run_and_readback",
+    "shadow_parity",
+    "staging_verification",
+    "production_canary_approval_and_readback",
+    "post_merge_audit"
+  ],
+  "notes": [
+    "This slice is additive, pure, and shadow-only.",
+    "Identity does not imply relationship, authority, grant, credential access, or provider readiness.",
+    "Existing target_key references remain compatibility inputs until a separately authorized migration.",
+    "Spec 015 and 014-gemini-evidence-intake-automation are excluded.",
+    "Completion of this manifest does not authorize migration Apply, grants, deployment, or Production promotion."
+  ]
+}
