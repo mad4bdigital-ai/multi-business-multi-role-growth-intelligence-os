@@ -25,7 +25,10 @@
     "evaluation:test": "node scripts/test-repository-evaluation.mjs",
     "evaluation:network": "node scripts/repository-evaluation.mjs --include-network",
     "evaluation:environment": "node scripts/repository-evaluation.mjs --include-environment",
-    "evaluation:loop": "npm run inventory:check && npm run inventory:test && npm run write-scopes:inventory:check && npm run write-scopes:inventory:test && npm run remote-mcp:architecture:test && npm run evaluation:enforce && npm run evaluation:test && npm run evaluation:check -- --enforce"
+    "openapi:detail-batch:write": "node http-generic-api/scripts/openapi-detail-closure-batch.mjs",
+    "openapi:detail-batch:check": "node http-generic-api/scripts/openapi-detail-closure-batch.mjs --check",
+    "openapi:detail-batch:test": "node http-generic-api/test-openapi-detail-closure-batch.mjs",
+    "evaluation:loop": "npm run inventory:check && npm run inventory:test && npm run write-scopes:inventory:check && npm run write-scopes:inventory:test && npm run remote-mcp:architecture:test && npm run openapi:detail-batch:check && npm run openapi:detail-batch:test && npm run evaluation:enforce && npm run evaluation:test && npm run evaluation:check -- --enforce"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

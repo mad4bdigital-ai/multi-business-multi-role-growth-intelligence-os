@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7055,
-    "bytes": 66970442,
-    "lines": 1566260,
+    "bytes": 66970869,
+    "lines": 1566264,
     "directories": 263,
     "categories": 13
   },
@@ -212,6 +212,9 @@
         "evaluation:test",
         "evaluation:network",
         "evaluation:environment",
+        "openapi:detail-batch:write",
+        "openapi:detail-batch:check",
+        "openapi:detail-batch:test",
         "evaluation:loop"
       ],
       "dependencies": 0,
