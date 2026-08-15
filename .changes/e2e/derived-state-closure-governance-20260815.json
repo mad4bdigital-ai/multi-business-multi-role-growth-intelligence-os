@@ -13,6 +13,9 @@
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/staging-main-deploy-eligibility.yml",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs",
       ".changes/e2e/derived-state-closure-governance-20260815.json"
     ]
@@ -40,8 +43,9 @@
             "Resolve the closure evaluator only through the repository maintenance-tool authority registry as an explicit read-only tool under the governed tool root.",
             "Run every registered verifier from a hardcoded verifier allowlist rather than executable commands supplied by configuration.",
             "After each verifier, prove the worktree remains clean; any verifier write is a blocking safety failure.",
-            "Collect all reached stale or failed artifact families and their governed recipe identities.",
+            "Collect all reached stale or failed artifact families and their governed repair identities.",
             "Publish canonical JSON evidence bound to the exact candidate SHA.",
+            "Treat governed generated outputs changed by reconciliation as explicit E2E scope rather than exempting runtime-adjacent generated state from coverage.",
             "Perform no push, provider mutation, database mutation, Production mutation, or force update.",
             "Require Staging Main Deploy Eligibility to rerun the same closure on the exact main SHA before it may emit eligible evidence."
           ],
@@ -55,6 +59,7 @@
             "Each derived-state family maps to one existing governed repair identity.",
             "Configuration cannot inject arbitrary verifier commands; verifier IDs resolve through code-owned allowlists.",
             "Any verifier-created worktree change fails closed.",
+            "Governed Remote MCP generated output remains covered by the E2E contract when reconciliation changes it; the classifier is not weakened to hide generated runtime-adjacent files.",
             "Protected branches and force push remain forbidden mutation targets.",
             "Production requires same-SHA closure in addition to Staging eligibility, source pin, and explicit authorization.",
             "Staging eligibility cannot report eligible unless exact-main Derived State Closure has passed in the same job."
@@ -71,6 +76,9 @@
           "evidence_paths": [
             ".github/derived-state-governance.json",
             ".github/repository-maintenance-tool-governance.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs",
             ".github/tests/derived-state-closure.test.mjs",
             ".github/workflows/pr-generated-artifact-refresh.yml",
