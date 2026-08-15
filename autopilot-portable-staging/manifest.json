@@ -54,7 +54,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Operations-Log.ps1",
-      "sha256": "ac5053f7772037b428621e2c27e3dbe3e311c644c2d682e5ccc593bd0a2b4153"
+      "sha256": "9ffd787a268150caa3e874fcd0c82e8793f77ff54e544f4e981485a60b604260"
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
@@ -246,7 +246,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "e4d900615d5d8ff11bf19a39d2413246ec49378512c80e1841457c3bdba5b79c"
+      "sha256": "2a5c13efdf1627e5df28835ad1aeec3016b5d25b2ea74b06a1cca969e4a4e896"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",

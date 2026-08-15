@@ -2,10 +2,14 @@ Set-StrictMode -Version Latest
 $script:StagingLogSchemaVersion = 1
 
 function Get-StagingRunId {
-    if ([string]::IsNullOrWhiteSpace([string]$global:Mad4bStagingRunId)) {
+    # PowerShell StrictMode throws when an unset global variable is read directly.
+    # Read through Get-Variable so the first durable log record can initialize its ID.
+    $current = Get-Variable -Name Mad4bStagingRunId -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace([string]$current)) {
         $global:Mad4bStagingRunId = [guid]::NewGuid().ToString("N")
+        $current = $global:Mad4bStagingRunId
     }
-    return [string]$global:Mad4bStagingRunId
+    return [string]$current
 }
 
 function Get-StagingLogRoot {
