@@ -130,7 +130,7 @@
         {
           "id": "migration-collation-contract",
           "end_to_end": true,
-          "level": "static_governance",
+          "level": "synthetic_runtime",
           "actor": "Migration readiness reviewer",
           "entrypoint": "mariadb-collation-ci-guard.mjs",
           "terminal_outcome": "The authored SQL migration satisfies the repository MariaDB collation contract and remains unapplied.",

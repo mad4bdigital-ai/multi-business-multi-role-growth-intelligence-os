@@ -36,16 +36,17 @@ flowchart TD
   n_external_delivery_provider_adapter_readiness_decisions["external_delivery_provider_adapter_readiness_decisions<br/>table"]
   n_local_connector_device_aliases["local_connector_device_aliases<br/>table"]
   n_local_connector_shell_allowlists["local_connector_shell_allowlists<br/>table"]
+  n_provider_authorization_states["provider_authorization_states<br/>table"]
   n_remote_mcp_oauth_authorization_codes["remote_mcp_oauth_authorization_codes<br/>table"]
   n_remote_mcp_oauth_grants["remote_mcp_oauth_grants<br/>table"]
   n_storage_cleanup_runs["storage_cleanup_runs<br/>table"]
+  n_connection_ownership_scopes["connection_ownership_scopes<br/>table"]
   n_external_delivery_provider_adapter_readiness_checklists["external_delivery_provider_adapter_readiness_checklists<br/>table"]
   n_local_connector_device_routes["local_connector_device_routes<br/>table"]
   n_local_connector_file_access_rules["local_connector_file_access_rules<br/>table"]
   n_local_connector_recovery_events["local_connector_recovery_events<br/>table"]
   n_local_gateway_tools["local_gateway_tools<br/>table"]
   n_local_manager_device_link_sessions["local_manager_device_link_sessions<br/>table"]
-  n_provider_authorization_states["provider_authorization_states<br/>table"]
   n_storage_targets["storage_targets<br/>table"]
   n_tenant_gpt_oauth_authorization_codes["tenant_gpt_oauth_authorization_codes<br/>table"]
   n_tenant_gpt_oauth_grants["tenant_gpt_oauth_grants<br/>table"]
@@ -53,7 +54,6 @@ flowchart TD
   n_activation_connector_pack_component_registry["activation_connector_pack_component_registry<br/>table"]
   n_api_credentials["api_credentials<br/>table"]
   n_connected_systems["connected_systems<br/>table"]
-  n_connection_ownership_scopes["connection_ownership_scopes<br/>table"]
   n_external_delivery_provider_adapter_contract_registry["external_delivery_provider_adapter_contract_registry<br/>table"]
   n_external_delivery_provider_adapter_enablement_proposals["external_delivery_provider_adapter_enablement_proposals<br/>table"]
   n_external_delivery_provider_send_mode_policy_registry["external_delivery_provider_send_mode_policy_registry<br/>table"]
@@ -107,7 +107,7 @@ flowchart TD
 | `app_integration_tool_bindings` | table | Connectors & providers | generated_domain_rule | - | 1 | 12 | - |
 | `app_integrations` | table | Connectors & providers | generated_domain_rule | - | 5 | 16 | - |
 | `connected_systems` | table | Connectors & providers | generated_domain_rule | - | 1 | 17 | `tenants` |
-| `connection_ownership_scopes` | table | Connectors & providers | registry:connection_ownership_context | `connector-provider-map`, `data-model-domain-map`, `policy-authority-map` | 1 | 19 | `tenants` |
+| `connection_ownership_scopes` | table | Connectors & providers | registry:connection_ownership_context | `connector-provider-map`, `data-model-domain-map`, `policy-authority-map` | 1 | 19 | `brands`, `tenants` |
 | `connector_family_registry` | table | Connectors & providers | generated_domain_rule | - | 1 | 14 | - |
 | `credential_bindings` | table | Connectors & providers | generated_domain_rule | - | 2 | 20 | `installations`, `tenants`, `users` |
 | `credential_intake_sessions` | table | Connectors & providers | generated_domain_rule | - | 4 | 21 | `tenants`, `users` |
@@ -141,7 +141,7 @@ flowchart TD
 | `local_manager_device_link_sessions` | table | Connectors & providers | generated_domain_rule | - | 1 | 17 | `tenants`, `users` |
 | `platform_capability_provider_bindings` | table | Platform resources & graph | generated_domain_rule | - | 1 | 16 | - |
 | `platform_oauth_scope_registry` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `provider_authorization_states` | table | Connectors & providers | generated_domain_rule | - | 1 | 31 | `tenants`, `users` |
+| `provider_authorization_states` | table | Connectors & providers | generated_domain_rule | - | 1 | 31 | `brands`, `tenants`, `users` |
 | `remote_mcp_oauth_authorization_codes` | table | Connectors & providers | generated_domain_rule | - | 1 | 13 | `remote_mcp_oauth_clients`, `tenants`, `users` |
 | `remote_mcp_oauth_clients` | table | Connectors & providers | generated_domain_rule | - | 1 | 12 | - |
 | `remote_mcp_oauth_grants` | table | Connectors & providers | generated_domain_rule | - | 1 | 15 | `remote_mcp_oauth_clients`, `tenants`, `users` |
