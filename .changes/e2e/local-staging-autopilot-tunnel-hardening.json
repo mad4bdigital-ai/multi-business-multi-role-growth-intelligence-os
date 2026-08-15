@@ -1,0 +1,162 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-staging-autopilot-tunnel-hardening",
+  "title": "Portable Local Staging Auto Pilot, Tunnel, OAuth, and Database Isolation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/config/staging-openapi-mcp-policy.json",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+      "http-generic-api/routes/rootDiscoveryRoutes.js",
+      "http-generic-api/scripts/build-staging-openapi.mjs",
+      "http-generic-api/tenantGptOAuthClientConfig.js",
+      "http-generic-api/tenantGptOAuthPreset.js",
+      "http-generic-api/tenantGptOAuthResourceProfile.js",
+      "http-generic-api/test-domain-family-policy.mjs",
+      "http-generic-api/test-openapi-schema-output-paths.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-staging-runtime-oauth-profile.mjs",
+      "http-generic-api/test-staging-three-db-topology.mjs"
+    ],
+    "exclude": [
+      "auth.mad4b.com",
+      "activation.mad4b.com",
+      "mcp.mad4b.com",
+      "activation_dev.mad4b.com",
+      "Hostinger Production deployment",
+      "Cloudflare provider mutation"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a portable Windows/External-SSD Staging topology with fail-closed environment isolation, local three-database readiness, loopback-only origin exposure, health-gated Cloudflare ingress, and environment-aware OAuth/MCP/OpenAPI discovery.",
+      "e2e_journeys": [
+        {
+          "id": "portable-staging-governance-and-runtime-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator and governed runtime verifier",
+          "entrypoint": "Start-AutoPilot.ps1 and Staging runtime contract suite",
+          "terminal_outcome": "The verifier proves that Staging uses only dev.mad4b.com and mcp_dev.mad4b.com, rejects Production and activation_dev hostnames, keeps origins loopback/local-network isolated, requires healthy Redis/API/three MariaDB services before tunnel startup, rejects unsafe or duplicate env values, and exposes no secrets in generated OpenAPI or bounded evidence.",
+          "steps": [
+            "Load the Staging policy, env template, Compose overlay, OpenAPI artifact, Auto Pilot, and database-copy contracts.",
+            "Verify the two active tunnel hostnames and the reserved-disabled activation_dev hostname against the domain-family policy.",
+            "Verify that the remote MCP resource uses mcp_dev.mad4b.com and that Tenant GPT OAuth uses the dedicated Staging client namespace and dev.mad4b.com issuer/resource.",
+            "Verify that the generated Staging OAuth preset points to openapi.tenant-gpt.staging.yaml, has no activation schema, and returns 404 on mcp_dev and activation_dev discovery hosts.",
+            "Verify that Compose binds the origin to loopback, keeps Redis unexposed, gates cloudflared on app health, and requires health status rather than HTTP 200 alone.",
+            "Verify that Auto Pilot and database cloning enforce WSL2 presence, local Docker context, valid Compose model, healthy services, duplicate-key rejection, and mutation flags read from .env.staging.",
+            "Verify the manifest hashes the complete Staging operational scope while migration_applied, database_mutated, production_deploy, provider_mutation, cloudflare_dns_mutation, and hostinger_mutation remain false."
+          ],
+          "assertions": [
+            "Staging active hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com.",
+            "activation_dev.mad4b.com and all Production hostnames are excluded from Staging OAuth, MCP, DNS, and tunnel contracts.",
+            "The Staging OpenAPI artifact server, OAuth URLs, schema_url, scope links, and boundary metadata use dev.mad4b.com; activation_schema_url is empty.",
+            "The runtime discovery endpoint returns the Staging preset only for dev.mad4b.com and returns 404 for mcp_dev.mad4b.com and activation_dev.mad4b.com.",
+            "No raw OAuth, tunnel, database, JWT, or MCP secret is included in policy, OpenAPI, manifest, or test evidence.",
+            "The API and Redis are not LAN-published, and cloudflared depends on app health.",
+            "Database cloning remains schema_only by default and rejects unsafe production/provider paths and non-local Docker contexts.",
+            "The manifest safety flags remain false and the operational file scope is hash-protected."
+          ],
+          "tests": [
+            {
+              "id": "staging-openapi-mcp-db-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-openapi-mcp-db-boundary.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-runtime-oauth-discovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-runtime-oauth-profile.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-three-database-topology",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-three-db-topology.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-domain-family-policy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-domain-family-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-openapi-output-paths",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-schema-output-paths.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/.env.staging.example",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+            "http-generic-api/routes/rootDiscoveryRoutes.js",
+            "http-generic-api/scripts/build-staging-openapi.mjs",
+            "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/test-staging-runtime-oauth-profile.mjs",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+            "autopilot-portable-staging/manifest.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Run the portable Staging stack on the operator's Windows 10 host, validate WSL2/Docker/NTFS behavior, provision local schemas, and establish the Cloudflare connector without importing Production data or credentials.",
+      "blockers": [
+        "The Windows host has not yet run the authoritative PowerShell -ValidateOnly preflight.",
+        "The operator must supply the dedicated Staging OAuth client secret and Cloudflare tunnel token manually in the ignored local env file.",
+        "Docker Desktop, WSL2 integration, the three local MariaDB services, Redis, and the API have not been executed in this Linux sandbox.",
+        "Schema provisioning requires an operator-reviewed local dump directory and explicit Apply authorization."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add repeatable local backup/restore drills, connector reconnection checks, and device-migration verification without copying Production credentials or unsanitized data."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No external provider write canary or Production traffic canary is introduced by this local Staging change."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production remains on Hostinger and is outside this local Staging delivery.",
+      "blockers": [
+        "No Hostinger deployment, Production database mutation, Production OAuth change, or Production Cloudflare DNS change is authorized by this contract.",
+        "Production readiness is not inferred from local Staging success."
+      ]
+    }
+  ]
+}
