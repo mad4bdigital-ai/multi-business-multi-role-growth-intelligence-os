@@ -8,6 +8,11 @@ const mainSourcePinGuard = read(".github/workflows/governed-production-main-sour
 const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
 const postFinalizationGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
 const certifiedReleaseCut = read(".github/workflows/production-certified-release-cut-validation.yml");
+const ci = read(".github/workflows/ci.yml");
+const runtimeStartupWorkflow = read(".github/workflows/runtime-startup-deployment-evidence.yml");
+const startupSmoke = read("http-generic-api/test-server-startup-smoke.mjs");
+const runtimeStartupEvidence = read("http-generic-api/scripts/runtime-startup-deployment-evidence.mjs");
+const runtimeStartupEnvironment = read("http-generic-api/scripts/runtime-startup-test-environment.mjs");
 const gateResolver = read(".github/scripts/production-promotion-supporting-gates.mjs");
 const evidenceHelper = read(".github/scripts/production-promotion-release-cut-evidence.mjs");
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
@@ -117,6 +122,36 @@ for (const required of [
   /name: Architecture Drift Detection/u,
 ]) assert.match(certifiedReleaseCut, required);
 assert.doesNotMatch(certifiedReleaseCut, /contents:\s*write/u);
+assert.doesNotMatch(certifiedReleaseCut, /JWT_SECRET\s*:|TENANT_GPT_SSO_SIGNING_SECRET\s*:/u);
+
+// Startup proof must remain hermetic even when CI and Certified use different
+// orchestration surfaces. Both direct callers reach the same smoke harness, and
+// the structured workflow reaches the same environment helper through the
+// structured evidence reporter. This prevents workflow-level auth-env drift
+// from reintroducing false-negative certification failures.
+for (const directCaller of [ci, certifiedReleaseCut]) {
+  assert.match(directCaller, /node test-server-startup-smoke\.mjs/u);
+}
+assert.match(runtimeStartupWorkflow, /node scripts\/runtime-startup-deployment-evidence\.mjs/u);
+for (const implementation of [startupSmoke, runtimeStartupEvidence]) {
+  assert.match(implementation, /runtime-startup-test-environment\.mjs/u);
+  assert.match(implementation, /buildRuntimeStartupTestEnvironment/u);
+}
+for (const required of [
+  /mad4b\.runtime-startup-test-environment\.v1/u,
+  /JWT_SECRET/u,
+  /TENANT_GPT_SSO_SIGNING_SECRET/u,
+  /inherited_values_overridden: true/u,
+  /credential_payload_read: false/u,
+  /production_secret_source_used: false/u,
+  /production_mutation_executed: false/u,
+]) assert.match(runtimeStartupEnvironment, required);
+for (const required of [
+  /startup_test_environment_contract/u,
+  /certification_contract_error/u,
+  /runtime_startup_failure/u,
+  /credential_payload_read: false/u,
+]) assert.match(runtimeStartupEvidence, required);
 
 for (const required of [
   /production-promotion-supporting-gates\.v1/u,
@@ -154,6 +189,8 @@ console.log(JSON.stringify({
   supporting_gate_source: "declarative_registry",
   supporting_gate_count: registry.gates.length,
   supporting_gate_dispatch: "parallel_dispatch_then_wait",
+  startup_test_environment: "hermetic_repository_local_fixture",
+  inherited_startup_secret_values_overridden: true,
   comment_transport_authoritative: false,
   merge_executed: false,
   deployment_executed: false,
