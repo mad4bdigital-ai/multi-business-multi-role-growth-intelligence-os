@@ -30,6 +30,9 @@ assert.match(logger, /SECRET\|PASSWORD\|TOKEN\|API_KEY/);
 assert.match(logger, /Bearer/);
 assert.match(logger, /Write-StagingLog/);
 assert.match(logger, /Write-StagingOperationBoundary/);
+assert.match(logger, /Get-Variable\s+-Name\s+Mad4bStagingRunId\s+-Scope\s+Global\s+-ValueOnly\s+-ErrorAction\s+SilentlyContinue/);
+assert.match(logger, /StrictMode throws when an unset global variable is read directly/);
+assert.doesNotMatch(logger, /\$global:Mad4bStagingRunId\)\)\s*\{/);
 
 for (const script of [oneClick, autoDeploy, appOperations]) {
   assert.match(script, /Staging-Operations-Log\.ps1/);

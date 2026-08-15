@@ -13,6 +13,12 @@
       "http-generic-api/platformOperationGovernanceContract.js",
       "http-generic-api/test-platform-resource-identity-contract.mjs",
       "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "http-generic-api/test-openapi-projection-readiness.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
       "schemas/platform-resource-identity-contract.schema.json",
       "schemas/brand-identity-resolution.schema.json",
       "schemas/canonical-operation-governance.schema.json",
@@ -48,7 +54,8 @@
           ],
           "tests": [
             { "id": "spec020-identity-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-resource-identity-contract.mjs", "args": [] },
-            { "id": "spec020-operation-governance-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-operation-governance-contract.mjs", "args": [] }
+            { "id": "spec020-operation-governance-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-operation-governance-contract.mjs", "args": [] },
+            { "id": "spec020-openapi-projection-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-projection-readiness.mjs", "args": [] }
           ],
           "evidence_paths": [
             "specs/020-platform-resource-identity-brand-governance/spec.md",
@@ -57,7 +64,13 @@
             "http-generic-api/brandIdentityResolver.js",
             "http-generic-api/platformOperationGovernanceContract.js",
             "http-generic-api/test-platform-resource-identity-contract.mjs",
-            "http-generic-api/test-platform-operation-governance-contract.mjs"
+            "http-generic-api/test-platform-operation-governance-contract.mjs",
+            "http-generic-api/test-openapi-projection-readiness.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json"
           ]
         }
       ]
