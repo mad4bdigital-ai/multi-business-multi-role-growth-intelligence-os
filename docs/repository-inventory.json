@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7059,
-    "bytes": 67271844,
-    "lines": 1573931,
+    "bytes": 67271888,
+    "lines": 1573932,
     "directories": 263,
     "categories": 13
   },
@@ -12418,7 +12418,7 @@
       "extension": ".json",
       "bytes": 10780,
       "lines": 273,
-      "sha256": "0f61168b14f6716dd50aba2743160ff7b2d81728a08ba6bc15a24aed707a56d4",
+      "sha256": "8a8d026ddcfd42198d50db6c06a1660214153cefe9378b9ea3bc45b77dc7a6d1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31457,9 +31457,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 20428,
-      "lines": 340,
-      "sha256": "7039d767e6cb6f9295e15074d19df18d6d79732ad32801c0992e48d1fca311de",
+      "bytes": 20472,
+      "lines": 341,
+      "sha256": "e636e5a5441988b4a9daf262f16c960240ad30365027e611e4ef6156db0593b0",
       "mode": "644",
       "executable": false,
       "generated": false
