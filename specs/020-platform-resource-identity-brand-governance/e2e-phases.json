@@ -1,0 +1,68 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "020-platform-resource-identity-brand-governance",
+  "title": "Platform Resource Identity and Brand Governance shadow contracts",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/020-platform-resource-identity-brand-governance/**",
+      "http-generic-api/platformResourceIdentityContract.js",
+      "http-generic-api/brandIdentityResolver.js",
+      "http-generic-api/platformOperationGovernanceContract.js",
+      "http-generic-api/test-platform-resource-identity-contract.mjs",
+      "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "schemas/platform-resource-identity-contract.schema.json",
+      "schemas/brand-identity-resolution.schema.json",
+      "schemas/canonical-operation-governance.schema.json",
+      ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Publish deterministic no-secret identity and operation contracts with a Brand shadow resolver while keeping authority, grants, credentials, migration, provider calls, and Production disabled.",
+      "e2e_journeys": [
+        {
+          "id": "spec020-pure-shadow-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec Kit contract maintainer",
+          "entrypoint": "Node pure contract tests",
+          "terminal_outcome": "Identity and operation governance decisions are deterministic, privacy-safe, and fail closed on ambiguity or unsafe effect floors.",
+          "steps": [
+            "Load the identity, Brand resolution, and operation governance schemas.",
+            "Resolve exact, probable, none, conflict, and ambiguous Brand candidates.",
+            "Validate tenant filtering and identity-only disclosure.",
+            "Validate internal, external, destructive, and commercial operation effect floors.",
+            "Verify caller input cannot lower registered risk or approval."
+          ],
+          "assertions": [
+            "No identity or relationship result implies authority.",
+            "Known Brand Create does not require tool discovery.",
+            "External and destructive effects retain their risk, approval, and readback floors.",
+            "No DB connection, migration, credential read, provider call, external send, or Production mutation occurs."
+          ],
+          "tests": [
+            { "id": "spec020-identity-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-resource-identity-contract.mjs", "args": [] },
+            { "id": "spec020-operation-governance-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-operation-governance-contract.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            "specs/020-platform-resource-identity-brand-governance/spec.md",
+            "specs/020-platform-resource-identity-brand-governance/completion.json",
+            "http-generic-api/platformResourceIdentityContract.js",
+            "http-generic-api/brandIdentityResolver.js",
+            "http-generic-api/platformOperationGovernanceContract.js",
+            "http-generic-api/test-platform-resource-identity-contract.mjs",
+            "http-generic-api/test-platform-operation-governance-contract.mjs"
+          ]
+        }
+      ]
+    },
+    { "id": "resilient", "status": "planned", "objective": "Run separately authorized shadow parity and repository readback before any runtime authority." },
+    { "id": "production", "status": "planned", "objective": "Promote only after explicit authority, migration, security, canary, and exact runtime readback." }
+  ]
+}

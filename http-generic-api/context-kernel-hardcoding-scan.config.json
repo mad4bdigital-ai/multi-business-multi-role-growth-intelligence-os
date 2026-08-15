@@ -56,6 +56,66 @@
       "reason": "oneOrNull returns a row only when the candidate count is exactly one; zero and multiple candidates return null and are surfaced as explicit structural contradictions."
     },
     {
+      "path": "http-generic-api/brandClaimService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 55,
+      "reason": "requireWorkspaceOwner rejects zero or multiple membership rows before reading the sole tenant/user membership; the bounded query and exact cardinality gate prevent silent fallback or cross-tenant selection."
+    },
+    {
+      "path": "http-generic-api/brandClaimService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 90,
+      "reason": "readBrandById rejects zero or multiple canonical Brand rows and inactive status before returning the sole exact brand row."
+    },
+    {
+      "path": "http-generic-api/brandClaimService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 93,
+      "reason": "readBrandById returns the sole row only after the exact one-row and active-status gate for the locked brand_id lookup."
+    },
+    {
+      "path": "http-generic-api/brandClaimService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 137,
+      "reason": "readActiveTenantRelationship explicitly rejects multiple active relationships and returns null for none or the sole exact tenant/brand relationship."
+    },
+    {
+      "path": "http-generic-api/brandClaimService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 331,
+      "reason": "prepareClaimChallenge rejects zero or multiple claimant-tenant rows and validates the sole claim status before preparing a challenge."
+    },
+    {
+      "path": "http-generic-api/brandClaimService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 363,
+      "reason": "submitClaimEvidence rejects zero or multiple claimant-tenant rows and validates the sole claim status before recording evidence."
+    },
+    {
+      "path": "http-generic-api/brandClaimVerification.js",
+      "rule_id": "first_candidate_selection",
+      "line": 54,
+      "reason": "lockClaim rejects zero or multiple rows before returning the sole claim locked by claim_id."
+    },
+    {
+      "path": "http-generic-api/brandClaimVerification.js",
+      "rule_id": "first_candidate_selection",
+      "line": 166,
+      "reason": "evidence readback rejects zero or multiple rows before returning the sole evidence record with secrets excluded."
+    },
+    {
+      "path": "http-generic-api/workspaceCanonicalBrandReference.js",
+      "rule_id": "first_candidate_selection",
+      "line": 35,
+      "reason": "readV2Brand rejects zero or multiple canonical Brand rows before checking the sole row's active status."
+    },
+    {
+      "path": "http-generic-api/workspaceCanonicalBrandReference.js",
+      "rule_id": "first_candidate_selection",
+      "line": 38,
+      "reason": "readV2Brand returns the sole canonical Brand row only after the exact one-row and active-status gates."
+    },
+    {
       "path": "http-generic-api/repositoryReconciliationOrchestrator.js",
       "rule_id": "first_candidate_selection",
       "line": 375,

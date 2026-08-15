@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
 import {
+  REMOTE_MCP_AUTHORIZATION_SERVER,
+  REMOTE_MCP_RESOURCE,
+} from "./remoteMcpOAuthProfile.js";
+import {
   REMOTE_MCP_SCOPES,
   REMOTE_MCP_SUPPORTED_SCOPES,
 } from "./remoteMcpScopeCatalog.js";
@@ -13,8 +17,8 @@ export const CHATGPT_MCP_SUPPORTED_PROTOCOL_VERSIONS = Object.freeze([
   "2025-03-26",
 ]);
 
-const DEFAULT_RESOURCE = "https://mcp.mad4b.com";
-const DEFAULT_AUTHORIZATION_SERVER = "https://auth.mad4b.com";
+const DEFAULT_RESOURCE = REMOTE_MCP_RESOURCE;
+const DEFAULT_AUTHORIZATION_SERVER = REMOTE_MCP_AUTHORIZATION_SERVER;
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
   "https://chatgpt.com",
   "https://www.chatgpt.com",
@@ -379,8 +383,10 @@ async function activeWorkspaceMembership({ pool, userId, workspaceId }) {
       LIMIT 2`,
     [userId, workspaceId],
   );
+  if (!Array.isArray(rows) || rows.length === 0) return null;
   if (rows.length > 1) throw Object.assign(new Error("Workspace membership authority is ambiguous."), { code: "MCP_CONTEXT_AMBIGUOUS", retryable: false });
-  return rows[0] || null;
+  const [membership] = rows;
+  return membership || null;
 }
 
 function brandLookupKeys(value) {
@@ -433,20 +439,21 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
   let brandRows = [];
   if (lookupValues.length) {
     [brandRows] = await pool.query(
-      `SELECT brand_name, normalized_brand_name, brand_domain, target_key,
+      `SELECT brand_id, brand_name, normalized_brand_name, brand_domain, target_key,
               base_url, status, brand_core_ready
          FROM brands
-        WHERE target_key IN (?)
+        WHERE brand_id IN (?)
+           OR target_key IN (?)
            OR normalized_brand_name IN (?)
            OR brand_name IN (?)
         LIMIT ?`,
-      [lookupValues, lookupValues, lookupValues, Math.min(lookupValues.length * 3, 300)],
+      [lookupValues, lookupValues, lookupValues, lookupValues, Math.min(lookupValues.length * 4, 400)],
     );
   }
 
   const metadataByKey = new Map();
   for (const row of brandRows) {
-    for (const value of [row.target_key, row.normalized_brand_name, row.brand_name]) {
+    for (const value of [row.brand_id, row.target_key, row.normalized_brand_name, row.brand_name]) {
       for (const key of brandLookupKeys(value)) metadataByKey.set(key.toLowerCase(), row);
     }
   }
@@ -459,12 +466,14 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
         .find(Boolean);
       return {
         ...grant,
+        brand_id: metadata?.brand_id || null,
         display_name: metadata?.brand_name || grant.brand_ref.replace(/^brand:/iu, ""),
         target_key: metadata?.target_key || null,
         brand_domain: metadata?.brand_domain || null,
         base_url: metadata?.base_url || null,
         status: metadata?.status || null,
         brand_core_ready: metadata?.brand_core_ready ?? null,
+        identity_read_mode: metadata?.brand_id ? "canonical_brand_id_with_legacy_compatibility" : "legacy_resource_ref_only",
       };
     }),
   };
@@ -511,7 +520,7 @@ async function executeTool({ name, args, principal, pool, requestId }) {
         count: result.brands.length,
       },
       requestId,
-      evidenceSource: "v_workspace_resource_grant_effective_plus_brands",
+      evidenceSource: "v_workspace_resource_grant_effective_plus_brands_dual_identity",
     });
   }
 
@@ -681,7 +690,7 @@ export async function handleChatGptMcpRequest({
       };
     } catch (error) {
       const code = normalizedString(error?.code, 128) || "MCP_DEPENDENCY_UNAVAILABLE";
-      const retryable = error?.retryable ?? code === "MCP_DEPENDENCY_UNAVAILABLE";
+      const transientFailure = error?.retryable ?? code === "MCP_DEPENDENCY_UNAVAILABLE";
       const message = code === "MCP_CONTEXT_DENIED"
         ? "The selected resource is not accessible to the signed-in user."
         : "The platform could not complete the read-only tool call.";
@@ -691,7 +700,7 @@ export async function handleChatGptMcpRequest({
         body: jsonRpcSuccess(id, toolErrorResult({
           code,
           message,
-          retryable,
+          retryable: transientFailure,
           requestId,
         })),
       };

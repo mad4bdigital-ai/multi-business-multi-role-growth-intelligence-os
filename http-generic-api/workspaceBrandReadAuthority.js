@@ -1,3 +1,5 @@
+import { resolveWorkspaceCanonicalBrandReference } from "./workspaceCanonicalBrandReference.js";
+
 const BRAND_READ_PERMISSIONS = new Set([
   "owner",
   "admin",
@@ -18,7 +20,9 @@ function denied(status, details = {}) {
     authorized: false,
     status,
     authority_source: null,
+    canonical_brand_id: details.canonical_brand_id || null,
     canonical_brand_ref: details.canonical_brand_ref || null,
+    identity_mode: details.identity_mode || null,
     membership: details.membership || null,
     workspace: details.workspace || null,
     resource_grant_present: false,
@@ -26,6 +30,21 @@ function denied(status, details = {}) {
     permission: null,
     secrets_included: false,
   };
+}
+
+function identityDenial(error, fallbackRef) {
+  const code = String(error?.code || "");
+  const mapping = {
+    workspace_brand_not_found: "tenant_brand_link_missing",
+    workspace_brand_identity_none: "tenant_brand_link_missing",
+    workspace_brand_identity_conflict: "tenant_brand_link_ambiguous",
+    workspace_brand_identity_ambiguous: "tenant_brand_link_ambiguous",
+    workspace_brand_relationship_required: "tenant_brand_link_missing",
+    workspace_brand_relationship_not_active: "tenant_brand_link_inactive",
+    workspace_brand_relationship_ambiguous: "tenant_brand_link_ambiguous",
+    workspace_brand_inactive: "tenant_brand_link_inactive",
+  };
+  return denied(mapping[code] || "tenant_brand_identity_unavailable", { canonical_brand_ref: fallbackRef });
 }
 
 export async function resolveWorkspaceBrandReadAuthority(executor, {
@@ -43,15 +62,17 @@ export async function resolveWorkspaceBrandReadAuthority(executor, {
 
   const tenant = String(tenantId || "").trim();
   const user = String(userId || "").trim();
-  const canonicalBrandRef = String(brandRef || "").trim();
-  if (!canonicalBrandRef) return denied("brand_reference_required");
+  const requestedBrandRef = String(brandRef || "").trim();
+  if (!requestedBrandRef) return denied("brand_reference_required");
 
   if (isAdmin) {
     return {
       authorized: true,
       status: "admin_authorized",
       authority_source: "platform_admin",
-      canonical_brand_ref: canonicalBrandRef,
+      canonical_brand_id: null,
+      canonical_brand_ref: requestedBrandRef,
+      identity_mode: "platform_admin_passthrough",
       membership: null,
       workspace: null,
       resource_grant_present: true,
@@ -61,29 +82,27 @@ export async function resolveWorkspaceBrandReadAuthority(executor, {
     };
   }
   if (!tenant || !user) {
-    return denied("tenant_context_required", { canonical_brand_ref: canonicalBrandRef });
+    return denied("tenant_context_required", { canonical_brand_ref: requestedBrandRef });
   }
 
-  const [linkRowsRaw] = await executor.query(
-    `SELECT link_id, tenant_id, brand_target_key, status
-       FROM tenant_brand_links
-      WHERE tenant_id=?
-        AND BINARY brand_target_key <=> BINARY ?
-      ORDER BY updated_at DESC, link_id ASC
-      LIMIT 3`,
-    [tenant, canonicalBrandRef]
-  );
-  const linkRows = Array.isArray(linkRowsRaw) ? linkRowsRaw : [];
-  if (linkRows.length !== 1) {
-    return denied(
-      linkRows.length ? "tenant_brand_link_ambiguous" : "tenant_brand_link_missing",
-      { canonical_brand_ref: canonicalBrandRef }
-    );
+  let canonical;
+  try {
+    canonical = await resolveWorkspaceCanonicalBrandReference(executor, {
+      tenantId: tenant,
+      resourceRef: requestedBrandRef,
+      lock: false,
+    });
+  } catch (error) {
+    return identityDenial(error, requestedBrandRef);
   }
-  const link = linkRows[0];
-  if (normalize(link.status) !== "active") {
-    return denied("tenant_brand_link_inactive", { canonical_brand_ref: canonicalBrandRef });
-  }
+
+  const canonicalBrandRef = canonical.target_key;
+  const canonicalBrandId = canonical.brand_id || null;
+  const identityDetails = {
+    canonical_brand_id: canonicalBrandId,
+    canonical_brand_ref: canonicalBrandRef,
+    identity_mode: canonical.identity_mode,
+  };
 
   const [membershipRowsRaw] = await executor.query(
     `SELECT m.user_id, m.tenant_id, m.role, m.status, t.status AS tenant_status
@@ -95,15 +114,12 @@ export async function resolveWorkspaceBrandReadAuthority(executor, {
   );
   const membershipRows = Array.isArray(membershipRowsRaw) ? membershipRowsRaw : [];
   if (membershipRows.length !== 1) {
-    return denied("workspace_membership_required", { canonical_brand_ref: canonicalBrandRef });
+    return denied("workspace_membership_required", identityDetails);
   }
   const membership = membershipRows[0];
   const publicMembership = { role: membership.role, status: membership.status };
   if (normalize(membership.status) !== "active" || normalize(membership.tenant_status) !== "active") {
-    return denied("workspace_membership_required", {
-      canonical_brand_ref: canonicalBrandRef,
-      membership: publicMembership,
-    });
+    return denied("workspace_membership_required", { ...identityDetails, membership: publicMembership });
   }
 
   const [workspaceRowsRaw] = await executor.query(
@@ -132,7 +148,7 @@ export async function resolveWorkspaceBrandReadAuthority(executor, {
       authorized: true,
       status: "tenant_brand_authorized",
       authority_source: "tenant_owner_membership",
-      canonical_brand_ref: canonicalBrandRef,
+      ...identityDetails,
       membership: publicMembership,
       workspace,
       resource_grant_present: false,
@@ -159,7 +175,7 @@ export async function resolveWorkspaceBrandReadAuthority(executor, {
   const grant = grantRows.find((row) => BRAND_READ_PERMISSIONS.has(normalize(row.permission))) || null;
   if (!grant) {
     return denied("tenant_brand_authority_missing", {
-      canonical_brand_ref: canonicalBrandRef,
+      ...identityDetails,
       membership: publicMembership,
       workspace,
     });
@@ -169,7 +185,7 @@ export async function resolveWorkspaceBrandReadAuthority(executor, {
     authorized: true,
     status: "tenant_brand_authorized",
     authority_source: "workspace_resource_grant",
-    canonical_brand_ref: canonicalBrandRef,
+    ...identityDetails,
     membership: publicMembership,
     workspace,
     resource_grant_present: true,
@@ -183,4 +199,5 @@ export const _testingWorkspaceBrandReadAuthority = Object.freeze({
   BRAND_READ_PERMISSIONS,
   WORKSPACE_OWNER_ROLES,
   normalize,
+  identityDenial,
 });

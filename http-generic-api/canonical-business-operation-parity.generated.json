@@ -1,7 +1,7 @@
 {
   "schema_version": "canonical-business-operation-parity-v1",
-  "revision": "staging-safe-2026-08-15",
-  "registry_fingerprint": "9bf5a16ea417fa4223b6aa534b4083dcaec5bb5e8debb6b714fee34bc979b262",
+  "revision": "staging-safe-2026-08-15-spec020-r2",
+  "registry_fingerprint": "c7b6522a22996808a31c8910462421a9ff8f09d6dc754b4a8b889a632a2e48d1",
   "environment_policy": {
     "active_environment": "staging",
     "allowed_public_hosts": [
@@ -27,12 +27,12 @@
     "internal_agent"
   ],
   "counts": {
-    "operation_count": 27,
+    "operation_count": 37,
     "active_operation_count": 10,
-    "shadow_operation_count": 10,
+    "shadow_operation_count": 20,
     "blocked_operation_count": 7,
-    "read_only_operation_count": 12,
-    "write_or_shadow_operation_count": 15,
+    "read_only_operation_count": 18,
+    "write_or_shadow_operation_count": 19,
     "active_remote_mcp_operation_count": 2,
     "active_custom_gpt_operation_count": 10
   },
@@ -47,9 +47,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "resource_api_approvals_read",
       "scope_keys": [
         "approvals.read"
@@ -80,9 +86,15 @@
       "effect_class": "internal_write",
       "risk_class": "medium",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "approval_hold_request",
       "scope_keys": [
         "approvals.request"
@@ -98,6 +110,43 @@
       "intentional_exclusions": []
     },
     {
+      "operation_key": "asset.identity.resolve",
+      "domain": "asset",
+      "lifecycle_action": "read",
+      "resource_type": "asset_identity",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "approval_contract": "none",
+      "readback_required": false,
+      "readback_contract": "none",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "identity_resolution_contract": "asset_identity_v1",
+      "relationship_resolution_contract": "asset_rights_separate_v1",
+      "capability_profile": "asset_identity_read",
+      "tool_discovery_required": false,
+      "executor_ref": "platformResourceIdentityAdapters.adaptAssetIdentity",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Content identity is distinct from Tenant rights, visibility, and authority."
+        }
+      ]
+    },
+    {
       "operation_key": "assets.archive",
       "domain": "asset",
       "lifecycle_action": "archive",
@@ -107,9 +156,15 @@
       "effect_class": "internal_write",
       "risk_class": "medium",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "resource_api_assets_archive",
       "scope_keys": [],
       "projections": {
@@ -138,9 +193,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "resource_api_assets_create",
       "scope_keys": [
         "assets.create"
@@ -165,9 +226,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "resource_api_assets_read",
       "scope_keys": [
         "assets.read"
@@ -198,9 +265,15 @@
       "effect_class": "internal_write",
       "risk_class": "medium",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "resource_api_assets_restore",
       "scope_keys": [],
       "projections": {
@@ -229,9 +302,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "resource_api_assets_update",
       "scope_keys": [
         "assets.update"
@@ -256,9 +335,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": null,
       "scope_keys": [],
       "projections": {
@@ -303,6 +388,228 @@
       ]
     },
     {
+      "operation_key": "brand.claim.challenge.prepare",
+      "domain": "brand",
+      "lifecycle_action": "validate",
+      "resource_type": "brand_claim",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "approval_contract": "none",
+      "readback_required": false,
+      "readback_contract": "none",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_claim_challenge",
+      "tool_discovery_required": false,
+      "executor_ref": "brandClaimService.prepareClaimChallenge",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Prepares bounded verification challenge metadata without granting or verifying authority."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.claim.evidence.submit",
+      "domain": "brand",
+      "lifecycle_action": "create",
+      "resource_type": "brand_verification_evidence",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "approval_contract": "policy_resolved",
+      "readback_required": true,
+      "readback_contract": "same_cycle_required",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": true,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_claim_evidence",
+      "tool_discovery_required": false,
+      "executor_ref": "brandClaimService.submitClaimEvidence",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Evidence submission remains pending and cannot self-verify a claim."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.claim.list",
+      "domain": "brand",
+      "lifecycle_action": "read",
+      "resource_type": "brand_claim",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "approval_contract": "none",
+      "readback_required": false,
+      "readback_contract": "none",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_claim_read",
+      "tool_discovery_required": false,
+      "executor_ref": "brandClaimService.listBrandClaims",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Claim state is separate from effective resource authority and remains library-only in Spec 020."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.claim.request",
+      "domain": "brand",
+      "lifecycle_action": "create",
+      "resource_type": "brand_claim",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "approval_contract": "policy_resolved",
+      "readback_required": true,
+      "readback_contract": "same_cycle_required",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": true,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_claim_request",
+      "tool_discovery_required": false,
+      "executor_ref": "brandClaimService.requestBrandClaim",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Creates a pending claim/relationship only; it never creates an authority grant."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.claim.revoke",
+      "domain": "brand",
+      "lifecycle_action": "revoke",
+      "resource_type": "brand_claim",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "approval_contract": "explicit",
+      "readback_required": true,
+      "readback_contract": "same_cycle_required",
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_claim_revocation",
+      "tool_discovery_required": false,
+      "executor_ref": "brandClaimService.revokeWorkspaceBrandClaim",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Revokes the relationship claim but does not silently revoke or mutate separate authority grants."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.claim.verify",
+      "domain": "brand",
+      "lifecycle_action": "validate",
+      "resource_type": "brand_claim",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "approval_contract": "explicit",
+      "readback_required": true,
+      "readback_contract": "same_cycle_required",
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_claim_verification",
+      "tool_discovery_required": false,
+      "executor_ref": "brandClaimVerification.verifyBrandClaim",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Verification activates only the Tenant-to-Brand relationship; authority grants remain a separate subsystem."
+        }
+      ]
+    },
+    {
       "operation_key": "brand.context.read",
       "domain": "brand",
       "lifecycle_action": "read",
@@ -312,9 +619,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": null,
       "scope_keys": [],
       "projections": {
@@ -343,9 +656,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": "policy_resolved",
       "readback_required": true,
+      "readback_contract": "same_cycle_required",
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_claim_v1",
+      "capability_profile": "brand_identity_mutation",
+      "tool_discovery_required": false,
       "executor_ref": "createWorkspaceBrand",
       "scope_keys": [],
       "projections": {
@@ -359,6 +678,80 @@
       "intentional_exclusions": []
     },
     {
+      "operation_key": "brand.identity.reconcile",
+      "domain": "brand",
+      "lifecycle_action": "read",
+      "resource_type": "brand_identity_reconciliation",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "approval_contract": "none",
+      "readback_required": false,
+      "readback_contract": "none",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_relationship_v1",
+      "capability_profile": "brand_identity_diagnostics",
+      "tool_discovery_required": false,
+      "executor_ref": "brandIdentityReconciliation.readBrandIdentityReconciliationDiagnostics",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "SELECT-only reconciliation diagnostics. Destructive auto-merge or repair is forbidden."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.identity.resolve",
+      "domain": "brand",
+      "lifecycle_action": "read",
+      "resource_type": "brand_identity",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "approval_contract": "none",
+      "readback_required": false,
+      "readback_contract": "none",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "identity_resolution_contract": "brand_identity_v2",
+      "relationship_resolution_contract": "tenant_brand_relationship_v1",
+      "capability_profile": "brand_identity_read",
+      "tool_discovery_required": false,
+      "executor_ref": "brandIdentityResolver.resolvePersistentBrandIdentity",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Shadow-only canonical Brand identity resolution; no relationship, grant, or authority is implied by identity."
+        }
+      ]
+    },
+    {
       "operation_key": "brand.restore",
       "domain": "brand",
       "lifecycle_action": "restore",
@@ -368,9 +761,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": null,
       "scope_keys": [],
       "projections": {
@@ -424,9 +823,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": null,
       "scope_keys": [],
       "projections": {
@@ -480,9 +885,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "list_accessible_brands",
       "scope_keys": [
         "brands.read"
@@ -507,9 +918,15 @@
       "effect_class": "read_only",
       "risk_class": "medium",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "cloudflare_read_connector",
       "scope_keys": [
         "cloudflare.read"
@@ -545,9 +962,15 @@
       "effect_class": "external_write",
       "risk_class": "critical",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "governed_cloudflare_mutation",
       "scope_keys": [
         "cloudflare.write"
@@ -578,9 +1001,15 @@
       "effect_class": "read_only",
       "risk_class": "medium",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "connection_metadata_read",
       "scope_keys": [
         "connections.read"
@@ -616,9 +1045,15 @@
       "effect_class": "read_only",
       "risk_class": "medium",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "github_read_connector",
       "scope_keys": [
         "github.read"
@@ -654,9 +1089,15 @@
       "effect_class": "external_write",
       "risk_class": "critical",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "governed_github_mutation",
       "scope_keys": [
         "github.write"
@@ -687,9 +1128,15 @@
       "effect_class": "internal_write",
       "risk_class": "critical",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": null,
       "scope_keys": [],
       "projections": {
@@ -743,9 +1190,15 @@
       "effect_class": "internal_write",
       "risk_class": "high",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "growth_control_plane_plan",
       "scope_keys": [],
       "projections": {
@@ -774,9 +1227,15 @@
       "effect_class": "external_write",
       "risk_class": "critical",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "hostinger_governed_deploy",
       "scope_keys": [
         "hostinger.deploy"
@@ -832,9 +1291,15 @@
       "effect_class": "read_only",
       "risk_class": "medium",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "hostinger_read_connector",
       "scope_keys": [
         "hostinger.read"
@@ -890,9 +1355,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "remote_mcp_identity_read",
       "scope_keys": [],
       "projections": {
@@ -926,9 +1397,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "operation_status_get",
       "scope_keys": [],
       "projections": {
@@ -962,9 +1439,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "remote_mcp_permissions_read",
       "scope_keys": [
         "permissions.read"
@@ -1000,9 +1483,15 @@
       "effect_class": "internal_write",
       "risk_class": "critical",
       "approval_required": true,
+      "approval_contract": null,
       "readback_required": true,
+      "readback_contract": null,
       "optimistic_concurrency_required": true,
       "idempotency_required": true,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": null,
       "scope_keys": [],
       "projections": {
@@ -1047,6 +1536,43 @@
       ]
     },
     {
+      "operation_key": "provider_account.identity.resolve",
+      "domain": "provider",
+      "lifecycle_action": "read",
+      "resource_type": "provider_account_identity",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "approval_contract": "none",
+      "readback_required": false,
+      "readback_contract": "none",
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "identity_resolution_contract": "provider_account_identity_v1",
+      "relationship_resolution_contract": "credential_binding_separate_v1",
+      "capability_profile": "provider_account_identity_read",
+      "tool_discovery_required": false,
+      "executor_ref": "platformResourceIdentityAdapters.adaptProviderAccountIdentity",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Provider-native account identity excludes credential material and does not imply execution authority."
+        }
+      ]
+    },
+    {
       "operation_key": "workspaces.list",
       "domain": "workspace",
       "lifecycle_action": "read",
@@ -1056,9 +1582,15 @@
       "effect_class": "read_only",
       "risk_class": "low",
       "approval_required": false,
+      "approval_contract": null,
       "readback_required": false,
+      "readback_contract": null,
       "optimistic_concurrency_required": false,
       "idempotency_required": false,
+      "identity_resolution_contract": null,
+      "relationship_resolution_contract": null,
+      "capability_profile": null,
+      "tool_discovery_required": false,
       "executor_ref": "list_accessible_workspaces",
       "scope_keys": [
         "workspaces.read"
@@ -1090,7 +1622,7 @@
   },
   "provenance": {
     "generated_by": "build-canonical-business-operation-parity.mjs",
-    "source": "canonical-business-operation-registry.json",
+    "source": "canonicalBusinessOperationRegistry.js (canonical JSON plus governed Spec extensions)",
     "secrets_included": false
   }
 }

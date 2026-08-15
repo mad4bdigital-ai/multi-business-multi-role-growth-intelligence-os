@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://growth-intelligence-os.invalid/schemas/brand-identity-resolution.schema.json",
+  "title": "Brand Identity Resolution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "brand_id", "candidates", "reasons", "tenant_scope", "disclosure_policy", "authority_required"],
+  "properties": {
+    "status": { "enum": ["EXACT", "PROBABLE", "NONE", "CONFLICT", "AMBIGUOUS"] },
+    "brand_id": { "type": ["string", "null"], "maxLength": 128 },
+    "candidates": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["brand_id", "matched_identifier_types", "evidence_ready"],
+        "properties": {
+          "brand_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "matched_identifier_types": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 64 } },
+          "evidence_ready": { "type": "boolean" }
+        }
+      }
+    },
+    "reasons": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "string", "maxLength": 128 } },
+    "tenant_scope": { "type": ["string", "null"], "maxLength": 64 },
+    "disclosure_policy": { "const": "identity_result_only" },
+    "authority_required": { "const": true }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["NONE", "CONFLICT", "AMBIGUOUS"] } } },
+      "then": { "properties": { "brand_id": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "EXACT" } } },
+      "then": { "required": ["brand_id"] }
+    }
+  ]
+}
