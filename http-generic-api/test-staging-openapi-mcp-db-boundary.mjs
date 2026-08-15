@@ -9,6 +9,7 @@ const domain = JSON.parse(read("http-generic-api/config/domain-family-policy.jso
 const env = read("http-generic-api/.env.staging.example");
 const cloneScript = read("autopilot-portable-staging/Clone-StagingDatabases.ps1");
 const autopilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const windowsPreflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1");
 const runtimeOAuthTest = read("http-generic-api/test-staging-runtime-oauth-profile.mjs");
 const openapi = read("http-generic-api/openapi/openapi.tenant-gpt.staging.yaml");
 const discovery = read("http-generic-api/routes/rootDiscoveryRoutes.js");
@@ -82,7 +83,7 @@ assert.match(autopilotScript, /StartTunnel requires REMOTE_MCP_OAUTH_SIGNING_SEC
 assert.match(autopilotScript, /tunnel loglevel must remain info/);
 assert.match(autopilotScript, /tunnel grace period must remain 30s/);
 assert.match(autopilotScript, /Wait-ServiceHealthy/);
-assert.match(autopilotScript, /--list.*--verbose/);
+assert.match(windowsPreflight, /--list.*--verbose/);
 assert.match(runtimeOAuthTest, /staging_runtime_oauth_profile=PASS/);
 assert.match(cloneScript, /Assert-UniqueEnvKeys/);
 assert.match(cloneScript, /Require-Command "docker"/);

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec020/openapi-all-remaining-preflight-batch.schema.json",
+  "title": "Spec 020 all remaining OpenAPI preflight batch",
+  "type": "object",
+  "required": ["schema_version", "contract", "batch_id", "source", "coverage", "operations"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "contract": { "const": "spec020-openapi-all-remaining-preflight-batch-v1" },
+    "batch_id": { "const": "spec020-openapi-all-remaining-preflight-batch-03" },
+    "coverage": { "type": "object" },
+    "operations": { "type": "array", "minItems": 315, "maxItems": 315 }
+  },
+  "additionalProperties": true
+}

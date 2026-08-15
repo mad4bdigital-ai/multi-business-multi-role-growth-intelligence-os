@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "2896742ce2b2641c2830b9ded6a6f60617da0f8097e584f000064508dabad598"
+      "sha256": "ad2ebc820c5e245bfaf2ae028f3626740a421d57024a1575102d0e2b7cd203b5"
     },
     {
       "path": ".gitignore",
@@ -30,7 +30,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "998f929d11a7fe46cdad63691e51b3e5a847e0abac775395bb74dbf44a096d43"
+      "sha256": "5ab253f02d0333ced4cf189f49a74898d7380ddfc986df9b1651b7d7ef0b4207"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "6ab01bb1134dcc111ef9d50b086c91a3ef4e68a88a6dab2bdf5337ff5ff00566"
+      "sha256": "121280b21df782251e89384f6b12d6606ebb9130411727688bc39484cbff54ae"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -138,11 +138,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "3aa78905022bbbc8b6b7f655cca34302cf79cae05fbbe786e4a7f1c6c75d7d5a"
+      "sha256": "417d4fbdc0bf56b1d62c53ec33b279e93b643c9c6590a91dc52e5d71aba231fc"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "0e60414f3a3d723947a4990a5999d45d1f03577ae360393f32c404f81368653d"
+      "sha256": "eca0928fa06f3970f06041265226b683f1d726d8794c9de4ea5213786fb99460"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -162,7 +162,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "0a17b4b276bead68af873dea8008bf508ea24131388a6991818f342c186a3d70"
+      "sha256": "28fe7d8287201dd3b26ca6c86339a67c9a343c9bae0b0f35fd711e2fd3386560"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -230,7 +230,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "83b169d7698170923613165a907f99e2a1850525588c9bc47dcd312f9473663a"
+      "sha256": "b20d8ec8457d2409864e9c3bab6718b2c90fe396a888ff970dd991250b224606"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
@@ -238,11 +238,11 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "972c90ffc2523c89c352351e614ee2affcbf8011fd7e5dbaa702c857e968df19"
+      "sha256": "54accf75ecf629ba1f575459aed35834dac4825a0dbc2e39796a16e850ee18a5"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "97a3447402367f7decac927708e51e075d4e0d529129b5012fa00808fe7ff2c5"
+      "sha256": "ef68c0af2f0f2e57e7fbf97ca920001a202f102be39c9ff347da3025e952a6c8"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
