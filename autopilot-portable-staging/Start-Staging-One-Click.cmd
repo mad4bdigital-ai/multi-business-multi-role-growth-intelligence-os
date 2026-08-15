@@ -15,6 +15,11 @@ if exist "%~dp0logs\last-failure.json" (
   type "%~dp0logs\last-failure.json"
   echo --- End failure ---
 )
+if exist "%~dp0logs\bootstrap-console.log" (
+  echo --- Bootstrap diagnostic ---
+  type "%~dp0logs\bootstrap-console.log"
+  echo --- End bootstrap diagnostic ---
+)
 if not "%CODE%"=="0" (
   echo.
   echo Auto Pilot stopped with code %CODE%. No Production or provider mutation was performed.
