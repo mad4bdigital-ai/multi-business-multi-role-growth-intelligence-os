@@ -9,7 +9,17 @@
     "authorization_server": "https://dev.mad4b.com",
     "resource": "https://dev.mad4b.com",
     "schema_url": "https://dev.mad4b.com/openapi.tenant-gpt.staging.yaml",
-    "production_resources_forbidden": ["https://auth.mad4b.com", "https://activation.mad4b.com"]
+    "server_uri_count": 1,
+    "surface": "tenant-custom-gpt",
+    "production_resources_forbidden": ["https://auth.mad4b.com", "https://activation.mad4b.com"],
+    "admin_read_only": {
+      "schema_url": "https://dev.mad4b.com/openapi.custom-gpt.staging-admin.yaml",
+      "resource": "https://dev.mad4b.com",
+      "server_uri_count": 1,
+      "authorization_mode": "backend_bearer_or_user_jwt",
+      "write_activation": false,
+      "secrets_included": false
+    }
   },
   "remote_mcp": {
     "enabled_env": "REMOTE_MCP_ENABLED",
@@ -18,6 +28,8 @@
     "resource": "https://mcp_dev.mad4b.com",
     "authorization_server": "https://dev.mad4b.com/auth/mcp",
     "documentation_url": "https://mcp_dev.mad4b.com/docs",
+    "schema_url": "https://mcp_dev.mad4b.com/openapi.remote-mcp.staging.yaml",
+    "server_uri_count": 1,
     "production_resources_forbidden": ["https://mcp.mad4b.com", "https://auth.mad4b.com/auth/mcp"]
   },
   "tunnel": {

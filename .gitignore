@@ -23,3 +23,7 @@ apps/local-manager-sidecar-certification/obj/
 
 local-connector/.env
 tmp/
+
+# Portable Staging Auto Deploy runtime state
+/autopilot-portable-staging/autopilot-state.json
+/autopilot-portable-staging/auto-deploy-state.json

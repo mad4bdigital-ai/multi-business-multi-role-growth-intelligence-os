@@ -1,0 +1,111 @@
+name: Staging Main Deploy Eligibility
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-main-deploy-eligibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eligibility:
+    name: Staging Main Deploy Eligibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.sha }}
+      EXPECTED_REF: ${{ github.ref_name }}
+      EXPECTED_REPOSITORY: ${{ github.repository }}
+      STAGING_DEPLOY_ONLY: "true"
+    steps:
+      - name: Checkout exact main event commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install root dependencies without lifecycle side effects
+        run: npm ci --ignore-scripts
+
+      - name: Install API dependencies without lifecycle side effects
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Verify exact main-only deployment identity
+        run: |
+          test "$EXPECTED_REF" = "main"
+          test "$EXPECTED_REPOSITORY" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$STAGING_DEPLOY_ONLY" = "true"
+
+      - name: Verify canonical and Brand read-only contracts
+        run: |
+          node http-generic-api/test-canonical-business-operation-registry.mjs
+          node http-generic-api/test-workspace-brand-create.mjs
+          node http-generic-api/test-workspace-brand-create-operation-governance.mjs
+
+      - name: Verify Staging topology and environment isolation
+        run: |
+          node http-generic-api/test-staging-autopilot-closure.mjs
+          node http-generic-api/test-staging-openapi-mcp-db-boundary.mjs
+          node http-generic-api/test-staging-runtime-oauth-profile.mjs
+          node http-generic-api/test-staging-three-db-topology.mjs
+          node http-generic-api/test-domain-family-policy.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/scripts/test-configuration-drift-guard.mjs
+
+      - name: Verify generated artifacts are current
+        working-directory: http-generic-api
+        run: |
+          npm run frontend:dispatch:check
+          npm run ci:path-guard
+
+      - name: Verify remote MCP inventory is current
+        run: |
+          npm run write-scopes:inventory:check
+          npm run write-scopes:inventory:test
+
+      - name: Publish fail-closed eligibility evidence
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const registry = JSON.parse(fs.readFileSync("http-generic-api/canonical-business-operation-registry.json", "utf8"));
+          const parity = JSON.parse(fs.readFileSync("http-generic-api/canonical-business-operation-parity.generated.json", "utf8"));
+          if (parity.safety?.production_mutation_allowed !== false) throw new Error("Production mutation safety gate is not false");
+          const evidence = {
+            contract: "mad4b.staging-main-deploy-eligibility.v1",
+            repository: process.env.EXPECTED_REPOSITORY,
+            ref: process.env.EXPECTED_REF,
+            exact_head_sha: process.env.EXPECTED_HEAD_SHA,
+            staging_deploy_only: true,
+            production_deploy: false,
+            database_mutation: false,
+            provider_mutation: false,
+            secrets_included: false,
+            canonical_operation_count: registry.operations.length,
+            parity_performance_gates: parity.performance_gates,
+            outcome: "eligible"
+          };
+          fs.mkdirSync(".artifacts/staging-main-deploy-eligibility", { recursive: true });
+          fs.writeFileSync(".artifacts/staging-main-deploy-eligibility/evidence.json", `${JSON.stringify(evidence, null, 2)}\n`);
+          console.log(JSON.stringify(evidence));
+          NODE
+
+      - name: Upload eligibility evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-main-deploy-eligibility-${{ github.sha }}
+          path: .artifacts/staging-main-deploy-eligibility/evidence.json
+          if-no-files-found: error
+          retention-days: 30

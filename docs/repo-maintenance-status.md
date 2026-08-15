@@ -200,6 +200,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/sprint69-1043-repository-readiness.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`
+- `.github/workflows/staging-main-deploy-eligibility.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance-alert.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
@@ -217,7 +218,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Maintenance Scripts
 
+- `http-generic-api/scripts/build-staging-admin-openapi.mjs`
 - `http-generic-api/scripts/build-staging-openapi.mjs`
+- `http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs`
 - `http-generic-api/scripts/generate-openapi-mutation-policy.mjs`
 - `http-generic-api/scripts/generate-resource-surface-openapi.mjs`
 - `http-generic-api/scripts/openapi-autofill-missing-routes.mjs`
@@ -308,6 +311,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs`
 - `http-generic-api/test-spec011-goal-filtered-operational-intelligence-schema.mjs`
 - `http-generic-api/test-spec011-t141-readiness-canary-schema.mjs`
+- `http-generic-api/test-staging-independent-schema-contract.mjs`
 - `http-generic-api/test-staging-openapi-mcp-db-boundary.mjs`
 - `http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs`
 - `http-generic-api/test-support-ticket-admin-remaining-openapi-contracts.mjs`
@@ -320,8 +324,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-platform-plugin-managed-repair-run-mode.mjs`
 - `http-generic-api/test-tenant-platform-plugin-managed-repair.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
-- `http-generic-api/test-tenant-platform-plugin-routes.mjs`
-- ...and 6 more
+- ...and 7 more
 
 ## Maintenance Contract
 

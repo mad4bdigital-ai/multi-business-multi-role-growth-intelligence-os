@@ -26,7 +26,7 @@
     },
     {
       "path": "http-generic-api/config/staging-openapi-mcp-policy.json",
-      "sha256": "fd1137d7f269d1e235e1feb82269558abf9da89e7255b744825ce9cca16b1eed"
+      "sha256": "bb155aa1db82e0c7eaf3c8118feb83173d695bec1822ab9e5b9615fd438d4384"
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
@@ -38,7 +38,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "ce14ef7cced4c63029d188948c4e181234cc01ad18765430796d1ae3587aeb53"
+      "sha256": "97a3447402367f7decac927708e51e075d4e0d529129b5012fa00808fe7ff2c5"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -54,7 +54,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "17b0ad1b8f12ce1ab2289e0c5aceb90192c7a8f513a58e201e607f86d24686c4"
+      "sha256": "42fc3bc079e356467975cc397027588b38ce59d7780d7f63b7c38b9ea647c566"
     },
     {
       "path": "STAGING-WINDOWS.md",
@@ -66,11 +66,11 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
-      "sha256": "988badee22d3b8801b759241cd9b9ad957aae54195de7efba9fb83b130445316"
+      "sha256": "0b968260740ce858fe6fdd4bf6ea8e0556e72919a46ba349f5a36e235eaad8aa"
     },
     {
       "path": "http-generic-api/scripts/build-staging-openapi.mjs",
-      "sha256": "30b78d6efca8e464a3859714c6a6278a2889b4056bab2065bdeaaf55a02011d7"
+      "sha256": "d3fb4b312c44cea78246d62b930819b2ee3c50a28721eb28b66e2d3219209507"
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
@@ -78,7 +78,7 @@
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c"
+      "sha256": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6"
     },
     {
       "path": ".gitattributes",
@@ -162,7 +162,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "3d57e38c80cda3bd7885ef8c3dc494bf685d1917dce634ee7e79d5cb8bdddef1"
+      "sha256": "5b3c9876fa8e351e6cbfe71283b7e56adb3abb83b0742d2c87187795b5a2fcaa"
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
@@ -170,7 +170,47 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "e534dbbad3aa3974624d0858316d44c3dc9f2f3b1d8b5bf2711a81f4507bfd35"
+      "sha256": "ecef4036a45ad5d1a1ef60a574af39b1122504cf3839a804a19f6f823a23527f"
+    },
+    {
+      "path": "autopilot-portable-staging/auto-deploy-policy.json",
+      "sha256": "b120ff9330f5ca20e338c7bd2050ed937a6b751d79a29913e59447768a929341"
+    },
+    {
+      "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "sha256": "63c27e9f07d542e4e588d222d542cf5e2a03d4c6f549a9d595e625404ab2330c"
+    },
+    {
+      "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "sha256": "94cc4a0fabd287cefce07b3bd87f184c75c3bf1df3f5ac625b0ebfda897cdbe1"
+    },
+    {
+      "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+      "sha256": "7689dcc205812face756cf8c3e28d5c3524e9d98f9e394c61ef2d807ebd37d7a"
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "sha256": "7d7dd7432f37487176a8b1390fadd7c935ddd9927d074fee7301308d357b8f87"
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+      "sha256": "abc55c8befc40af3ddde9c3f412435689b6900645372bdf2a9e914fd323eb99b"
+    },
+    {
+      "path": "http-generic-api/scripts/build-staging-admin-openapi.mjs",
+      "sha256": "8c80ba88ee0185ff0e62f3e8fe2df9c5446c2328b61c310ae598670e804b5250"
+    },
+    {
+      "path": "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
+      "sha256": "fca913a857512d0f983621f42c0875fa985a8c52d95cb27821dca37b41d97ef2"
+    },
+    {
+      "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
+      "sha256": "8cbdb8abdf29236c91d606e85c6c771001f284dbfc4966b2229f3976f0e025b3"
+    },
+    {
+      "path": "docs/staging-schema-contract-matrix.md",
+      "sha256": "f6762190d7cb67cf5c5f050cd254eee6e9984687e1d6b3b402bc1d8a632e324c"
     }
   ],
   "safety": {

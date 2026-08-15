@@ -1,0 +1,1264 @@
+openapi: 3.1.0
+info:
+  title: Growth Intelligence Platform - Staging Admin Read-only Actions
+  version: 3.0.0-staging-admin
+  summary: Independent Staging Admin Custom GPT/OpenAPI read-only contract.
+  description: A separately generated Staging Admin schema. It has one server URI, advertises only GET operations, and is never paired with Production hosts or credentials. Admin writes remain shadow/blocked outside this read-only contract.
+servers:
+  - url: https://dev.mad4b.com
+    description: Staging Admin read-only Custom GPT surface
+tags:
+  - name: admin-control
+    description: Personal administrator control surface for CLI, database, and runtime environment operations.
+  - name: system-layer
+    description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+  schemas:
+    GoogleAuthPlatformConfigResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - project_key
+        - console_root
+        - tabs
+      properties:
+        ok:
+          type: boolean
+        project_key:
+          type: string
+        console_root:
+          type: string
+        tabs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required:
+              - config_key
+              - status
+              - config
+            properties:
+              config_key:
+                type: string
+              status:
+                type: string
+              note:
+                type:
+                  - string
+                  - "null"
+              updated_at:
+                type:
+                  - string
+                  - "null"
+              config:
+                type: object
+                additionalProperties: true
+                properties:
+                  owner_type:
+                    type: string
+                  tenant_id:
+                    type:
+                      - string
+                      - "null"
+                  project_key:
+                    type: string
+                  project_id:
+                    type:
+                      - string
+                      - "null"
+                  project_display_name:
+                    type: string
+                  tab:
+                    type: string
+                  path:
+                    type: string
+                  state:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  notes:
+                    type:
+                      - string
+                      - "null"
+                  updated_at:
+                    type: string
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    ToolDispatchResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        ok:
+          type: boolean
+        name:
+          type: string
+        tool:
+          type: string
+        status:
+          oneOf:
+            - type: string
+            - type: integer
+        result:
+          type: object
+          additionalProperties: true
+          properties:
+            ok:
+              type: boolean
+            classification:
+              type: string
+            secrets_included:
+              type: boolean
+              enum:
+                - false
+        error:
+          type: object
+          additionalProperties: true
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+              properties: {}
+        response_chunked:
+          type: boolean
+        chunk_id:
+          type: string
+        continuation:
+          type: object
+          additionalProperties: true
+          properties:
+            policy:
+              type: string
+            required_tool:
+              type: string
+            required_before_fallback:
+              type: boolean
+        page:
+          type: object
+          additionalProperties: true
+          properties:
+            cursor:
+              type: integer
+              minimum: 0
+            next_cursor:
+              type:
+                - integer
+                - "null"
+              minimum: 0
+            has_more:
+              type: boolean
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    SchemaImportJob:
+      type: object
+      additionalProperties: true
+      properties:
+        job_id:
+          type: string
+        action_key:
+          type: string
+        source_type:
+          type: string
+          enum:
+            - upload
+            - repo_link
+            - rollback
+        source_url:
+          type: string
+          nullable: true
+        source_ref:
+          type: string
+          nullable: true
+        source_filename:
+          type: string
+          nullable: true
+        endpoints_upserted:
+          type: integer
+        endpoints_deprecated:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - pending
+            - completed
+            - failed
+        error_message:
+          type: string
+          nullable: true
+        imported_by:
+          type: string
+          nullable: true
+        imported_at:
+          type: string
+          format: date-time
+    ErrorObject:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        status:
+          type: integer
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+              properties: {}
+            - type: "null"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          $ref: "#/components/schemas/ErrorObject"
+        execution_guardrail:
+          type: boolean
+  responses:
+    BadRequest:
+      description: Invalid request body or missing required field
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource state conflicts with the requested operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Unexpected internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+security:
+  - backendBearerAuth: []
+paths:
+  /system/connectors:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listSystemConnectors
+      summary: List connector systems visible to the current principal
+      description: Principal-aware facade over connected_systems. Tenant users are automatically scoped to their tenant; admin principals can inspect all tenants.
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+          description: Admin-only filter. Tenant principals are always forced to their own tenant_id.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - pending
+              - error
+              - archived
+        - name: connector_family
+          in: query
+          schema:
+            type: string
+        - name: provider_family
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Principal-scoped connector registry list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  connectors:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Tenant scope violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /system/connectors/{system_id}:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getSystemConnector
+      summary: Get one connector system visible to the current principal
+      description: Principal-aware connector registry read. Tenant users can only read systems in their tenant; admins can read any system.
+      parameters:
+        - name: system_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Principal-scoped connector registry record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  connector:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Tenant scope violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Connector system not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /system/tools:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listSystemTools
+      x-tenant-gpt-operationId: listTools
+      summary: List MCP-style system tools visible to the current principal
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
+      responses:
+        "200":
+          description: System layer tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  protocol:
+                    type: string
+                    example: openapi-mcp-facade
+                  principal:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /system/tools/catalog-observability:
+    get:
+      tags:
+        - system-layer
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getSystemToolCatalogObservability
+      x-openai-isConsequential: false
+      summary: Read System Tool Catalog V2 observability and descriptor parity
+      description: Returns bounded no-secret Catalog V2 counters and descriptor/runtime handler parity evidence. Admin/service authentication is required.
+      responses:
+        "200":
+          description: Catalog observability and parity evidence.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - counters
+                  - observed_at
+                  - descriptor_parity
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  counters:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      minimum: 0
+                    properties: {}
+                  observed_at:
+                    type: string
+                    format: date-time
+                  descriptor_parity:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Catalog observability failed unexpectedly.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /system/tools/{toolName}:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getSystemToolDescriptor
+      x-openai-isConsequential: false
+      summary: Read one visible System Layer tool descriptor
+      description: Resolves one stable tool name against the principal-scoped Catalog V2 projection. A hidden tool is indistinguishable from an absent tool.
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 191
+      responses:
+        "200":
+          description: Visible System Layer descriptor.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - tool
+                  - catalog_version
+                  - snapshot_id
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  tool:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  catalog_version:
+                    type: string
+                    pattern: ^[a-f0-9]{64}$
+                  snapshot_id:
+                    type: string
+                    pattern: ^[a-f0-9]{64}$
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Tool is absent or not visible to this principal.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Catalog lookup failed unexpectedly.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/system/connectors:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listAdminSystemConnectors
+      summary: List connector systems from the system registry
+      description: Read-only admin facade over the connected_systems table. Use this before choosing connector-specific actions or MCP-style tool calls.
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - pending
+              - error
+              - archived
+        - name: connector_family
+          in: query
+          schema:
+            type: string
+        - name: provider_family
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Connector registry list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  connectors:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /admin/system/connectors/{system_id}:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getAdminSystemConnector
+      summary: Get one connector system from the system registry
+      description: Returns one connected_systems row plus its installation summary. This is a governed alternative to raw DB inspection for connector inventory.
+      parameters:
+        - name: system_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Connector registry record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  connector:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Connector system not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/system/tools:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listAdminSystemTools
+      summary: List MCP-style system layer tools
+      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and.
+      responses:
+        "200":
+          description: System layer tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  protocol:
+                    type: string
+                    example: openapi-mcp-facade
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /admin/apis-services/google-auth-platform:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getAdminGoogleAuthPlatformTabs
+      summary: Read simulated Google Auth Platform tabs
+      description: Returns governed DB-backed tab state for the platform-controlled Google Auth Platform and APIs & Services console simulation.
+      parameters:
+        - in: query
+          name: project_key
+          schema:
+            type: string
+            default: growth-intelligence-os
+        - in: query
+          name: owner_type
+          schema:
+            type: string
+            enum:
+              - platform
+              - tenant
+            default: platform
+        - in: query
+          name: tenant_id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Google Auth Platform tab state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  project_key:
+                    type: string
+                  console_root:
+                    type: string
+                  tabs:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /admin/apis-services/google-auth-platform/{tab}:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getAdminGoogleAuthPlatformTab
+      summary: Read one simulated Google Auth Platform tab
+      description: Returns one governed tab state, such as overview, branding, audience, clients, data_access, verification_center, settings, or api_credentials.
+      parameters:
+        - in: path
+          name: tab
+          required: true
+          schema:
+            type: string
+            enum:
+              - overview
+              - branding
+              - audience
+              - clients
+              - data_access
+              - verification_center
+              - settings
+              - api_credentials
+        - in: query
+          name: project_key
+          schema:
+            type: string
+            default: growth-intelligence-os
+      responses:
+        "200":
+          description: Google Auth Platform tab state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleAuthPlatformConfigResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /admin/apis-services/credentials:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getAdminApisServicesCredentials
+      summary: Read simulated APIs & Services Credentials tab
+      description: Returns the governed APIs & Services Credentials tab and linked platform credential-client registry records.
+      parameters:
+        - in: query
+          name: project_key
+          schema:
+            type: string
+            default: growth-intelligence-os
+      responses:
+        "200":
+          description: APIs & Services Credentials state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleAuthPlatformConfigResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /gpt/tools:
+    get:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listAdminTools
+      summary: List admin platform tools from the governed registry
+      description: Returns paginated DB-backed and virtual Admin tools. Use limit/cursor/q/tag for bounded discovery; clients unable to send query parameters should call admin_tool_catalog_search through callAdminTool. Read all response chunks before fallback. Repository lifecycle mutations remain capability-gated an.
+      x-runtime-governance:
+        admin_branch_reconcile_continuation:
+          policy: admin_branch_reconcile_continuation_contract
+          virtual_tool: admin_branch_reconcile
+          adapter: runAdminBranchReconcile
+          adapter_version: admin-branch-reconciliation-v1
+          apply_supported: false
+          github_ref_update_force: false
+          requires_confirmation_for_future_apply: RECONCILE_BRANCH_<BRANCH_SLUG>
+          shared_reconciliation_checkpoint: true
+          secrets_included: false
+        github_branch_fast_forward_to_base:
+          policy: capability_envelope_gated_ref_update
+          virtual_tool: github_branch_fast_forward_to_base
+          adapter: runGithubBranchFastForwardToBase
+          recipe_key: github.branch.fast_forward_to_base
+          requires_prior_dry_run_tool: admin_branch_reconcile
+          requires_expected_base_sha: true
+          requires_expected_branch_sha: true
+          applies_only_when_classification: behind_only
+          requires_capability_envelope: true
+          requires_confirmation: RECONCILE_BRANCH_<BRANCH_SLUG>
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
+          secrets_included: false
+        github_branch_merge_commit_create:
+          policy: capability_envelope_gated_multi_parent_merge_commit
+          virtual_tool: github_branch_merge_commit_create
+          adapter: runGithubBranchMergeCommitCreate
+          recipe_key: github.branch.create_multi_parent_merge_commit
+          requires_prior_dry_run_tool: admin_branch_reconcile
+          applies_only_when_classification:
+            - diverged_no_overlap
+            - diverged_same_files
+          requires_expected_base_sha: true
+          requires_expected_branch_sha: true
+          requires_resolution_commit_sha: true
+          resolution_commit_sole_parent: expected_base_sha
+          resolution_commit_changed_files_must_match_branch_scope: true
+          resolution_commit_max_files: 50
+          requires_capability_envelope: true
+          requires_confirmation: CREATE_MERGE_COMMIT_<BRANCH_SLUG>
+          merge_commit_parent_order:
+            - expected_branch_sha
+            - expected_base_sha
+          merge_commit_tree_source: validated_resolution_commit_tree
+          github_ref_update_force: false
+          protected_branch_update_allowed: false
+          requires_same_cycle_ref_readback: true
+          requires_same_cycle_parent_readback: true
+          requires_same_cycle_tree_readback: true
+          expected_readback_classification: ahead_only
+          expected_readback_behind_by: 0
+          secrets_included: false
+        github_branch_fast_forward_smoke:
+          policy: disposable_branch_smoke_with_cleanup
+          virtual_tool: github_branch_fast_forward_smoke
+          adapter: runGithubBranchFastForwardSmoke
+          recipe_key: github.branch.fast_forward_smoke
+          creates_branch_prefix: gpt/fast-forward-smoke-
+          creates_branch_at: default_branch_parent_commit
+          requires_capability_envelope: true
+          requires_dry_run_classification: behind_only
+          delegates_apply_to: github_branch_fast_forward_to_base
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
+          cleanup_required: true
+          cleanup_in_finally: true
+          secrets_included: false
+        chunked_tool_response_continuation:
+          policy: chunk_read_before_alternative_surface
+          required_tool: response_chunk_read
+          required_before_fallback: true
+          applies_to: any_governed_tool_response
+          secrets_included: false
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Maximum tools to return in this page.
+        - name: cursor
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based list cursor for the next page.
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Optional text filter over name, displayName, description, and path.
+        - name: tag
+          in: query
+          schema:
+            type: string
+          description: Optional exact tag filter.
+        - name: max_chars
+          in: query
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 45000
+          description: Maximum JSON characters before returning an automatic response chunk.
+      responses:
+        "200":
+          description: Admin tool catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - tools
+                properties:
+                  ok:
+                    type: boolean
+                  caller_type:
+                    type: string
+                  count:
+                    type: integer
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        name:
+                          type: string
+                        displayName:
+                          type: string
+                        description:
+                          type: string
+                        method:
+                          type: string
+                        path:
+                          type: string
+                        inputSchema:
+                          type: object
+                          additionalProperties: true
+                          properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Tool list failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /device/tools:
+    get:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listDeviceTools
+      summary: List device-tagged tools (MCP-style local device control surface)
+      description: Returns the device-tagged subset of the admin or tenant tool registry. Use this MCP-style facade to control local device apps (n8n, browser, files, Windows, Cloudflare) primarily from dev.mad4b.com instead of the direct connector.mad4b.com schema.
+      responses:
+        "200":
+          description: Device tool catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - tools
+                properties:
+                  ok:
+                    type: boolean
+                  protocol:
+                    type: string
+                    example: openapi-mcp-facade
+                  surface:
+                    type: string
+                    example: device
+                  caller_type:
+                    type: string
+                  count:
+                    type: integer
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        name:
+                          type: string
+                        displayName:
+                          type: string
+                        description:
+                          type: string
+                        method:
+                          type: string
+                        path:
+                          type: string
+                        tags:
+                          type: array
+                          items:
+                            type: string
+                        inputSchema:
+                          type: object
+                          additionalProperties: true
+                          properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Device tool list failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/schema-import/jobs:
+    get:
+      tags:
+        - admin-control
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listSchemaImportJobs
+      summary: List schema import jobs with optional action_key filter
+      parameters:
+        - name: action_key
+          in: query
+          schema:
+            type: string
+          description: Filter by action_key. Omit to list all jobs.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Job list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  jobs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SchemaImportJob"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /admin/cli/data-source/census:
+    get:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+      operationId: getPlatformDataSourceCensus
+      summary: SQL data-source census across platform tables
+      description: Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration.
+      responses:
+        "200":
+          description: Per-table census with summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - data_source
+                  - summary
+                  - tables
+                properties:
+                  ok:
+                    type: boolean
+                  data_source:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      runtime_authority:
+                        type: string
+                        enum:
+                          - sql
+                      mode:
+                        type: string
+                      sheets_role:
+                        type: string
+                      sheets_mirror_configured:
+                        type: boolean
+                  summary:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      total_tables:
+                        type: integer
+                      seeded_tables:
+                        type: integer
+                      empty_tables:
+                        type: integer
+                  tables:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        sql_table:
+                          type: string
+                        sheet_name:
+                          type: string
+                        sql_row_count:
+                          oneOf:
+                            - type: integer
+                            - type: "null"
+                        sql_last_write_at:
+                          oneOf:
+                            - type: string
+                            - type: "null"
+                        sql_seeded:
+                          type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Census query failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+x-custom-gpt-generation:
+  generator: http-generic-api/scripts/split-openapi.mjs
+  source_openapi: http-generic-api/openapi.yaml
+  source_openapi_sha256: a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62
+  registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
+  registry_sha256: a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748
+  registry_version: 2
+  selector_model: marker_required
+  candidate_policy:
+    mode: marker_required
+    required_marker: admin_core
+    candidate_tags:
+      - admin-control
+      - system-layer
+    omission: fail
+    exclusion_records:
+      - operation_id: revokeAuthOAuthSsoSession
+        reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
+        owner: identity-platform
+        review_after: 2026-09-30
+      - operation_id: sessionInsightTargetWriteReadbackCreate
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: sessionInsightTargetWriteReadbackList
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: createAdminScopeGrant
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listAdminScopeGrants
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: revokeAdminScopeGrant
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomySummary
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyAppMap
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyToolMap
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyFamilyCoverage
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+  operation_count: 23
+  warning_operation_limit: 24
+  warning_budget_exceeded: false
+  hard_operation_limit: 30
+  secrets_included: false
+x-mad4b-environment: staging
+x-mad4b-surface: admin-custom-gpt-read-only
+x-mad4b-staging-boundary:
+  resource: https://dev.mad4b.com
+  server_uri_count: 1
+  authorization_mode: backend_bearer_or_user_jwt
+  production_hosts_forbidden_policy: http-generic-api/config/domain-family-policy.json
+  mutation_contract: read_only_schema_only
+  admin_write_activation: false
+  remote_mcp_write_activation: false
+  database_mutation: false
+  secrets_included: false
+x-staging-generation:
+  source_artifact: http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml
+  source_surface: admin_core
+  path_policy: GET_only_allowlist
+  allowed_paths:
+    - /system/connectors
+    - /system/connectors/{system_id}
+    - /system/tools
+    - /system/tools/catalog-observability
+    - /system/tools/{toolName}
+    - /admin/system/connectors
+    - /admin/system/connectors/{system_id}
+    - /admin/system/tools
+    - /admin/apis-services/google-auth-platform
+    - /admin/apis-services/google-auth-platform/{tab}
+    - /admin/apis-services/credentials
+    - /gpt/tools
+    - /device/tools
+    - /admin/schema-import/jobs
+    - /admin/cli/data-source/census
+  secrets_included: false

@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,945 |
-| Total bytes | 64,776,292 |
-| Counted text lines | 1,525,124 |
+| Tracked files | 6,971 |
+| Total bytes | 65,067,255 |
+| Counted text lines | 1,531,457 |
 | Directories | 260 |
 | Categories | 13 |
 
@@ -17,13 +17,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,086 |
-| `documentation` | 1,887 |
-| `api-runtime` | 1,399 |
+| `tests-and-specs` | 2,090 |
+| `documentation` | 1,891 |
+| `api-runtime` | 1,404 |
 | `database-migrations` | 780 |
-| `root-and-other` | 252 |
-| `ci-workflows` | 159 |
-| `api-contracts` | 157 |
+| `root-and-other` | 259 |
+| `api-contracts` | 161 |
+| `ci-workflows` | 161 |
 | `ci-config` | 103 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
@@ -35,18 +35,18 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,482 |
-| `.mjs` | 1,617 |
-| `.js` | 973 |
+| `.md` | 2,486 |
+| `.mjs` | 1,625 |
+| `.js` | 974 |
 | `.sql` | 795 |
-| `.json` | 728 |
-| `.yml` | 162 |
-| `.yaml` | 108 |
+| `.json` | 734 |
+| `.yml` | 164 |
+| `.yaml` | 110 |
 | `.ts` | 15 |
 | `.cs` | 14 |
+| `.ps1` | 10 |
 | `.jsx` | 9 |
 | `.txt` | 7 |
-| `.ps1` | 7 |
 | `.py` | 5 |
 | `.example` | 3 |
 | `.css` | 3 |
@@ -70,10 +70,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 159 |
+| GitHub Actions workflows | 161 |
 | Database migrations | 780 |
-| API/OpenAPI contracts | 157 |
-| Test/spec files (paths) | 2,154 |
+| API/OpenAPI contracts | 161 |
+| Test/spec files (paths) | 2,158 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -88,7 +88,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,121,096 | 95769 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,128,065 | 95925 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,930,662 | 58377 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 984,031 | 22830 |
@@ -96,7 +96,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 238,054 | 2043 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 241,420 | 2068 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 209,252 | 4457 |
 | `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
@@ -108,7 +108,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
-| `http-generic-api/openapi/openapi.tenant-gpt.staging.yaml` | api-contracts | 128,026 | 3451 |
+| `http-generic-api/openapi/openapi.tenant-gpt.staging.yaml` | api-contracts | 128,063 | 3454 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
 | `docs/work-maps/data-model-domain-map.md` | documentation | 120,034 | 866 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
