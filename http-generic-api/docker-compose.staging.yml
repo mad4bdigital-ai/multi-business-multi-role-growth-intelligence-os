@@ -1,5 +1,7 @@
 services:
   redis:
+    # Base compose publishes Redis; Staging must never expose it to the host LAN.
+    ports: []
     volumes:
       - ${STAGING_DATA_ROOT:-./.staging-data}/redis:/data
 
@@ -52,6 +54,9 @@ services:
       retries: 20
 
   app:
+    # Bind the local API to loopback only; public access is exclusively through cloudflared.
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
     env_file:
       - .env.staging
     volumes:
@@ -79,6 +84,12 @@ services:
       DATABASE_MUTATED: "false"
       PRODUCTION_MUTATION_AUTHORIZED: "false"
       RULESET_MUTATION_AUTHORIZED: "false"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(async r => { const body = await r.json(); process.exit(r.ok && body.status === 'healthy' ? 0 : 1); }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     depends_on:
       runtime-db:
         condition: service_healthy
@@ -99,6 +110,8 @@ services:
       TUNNEL_HOSTNAMES: ${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com}
       TUNNEL_ORIGIN_APP: ${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}
       TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
+      TUNNEL_LOGLEVEL: ${CLOUDFLARE_TUNNEL_LOGLEVEL:-info}
+      TUNNEL_GRACE_PERIOD: ${CLOUDFLARE_TUNNEL_GRACE_PERIOD:-30s}
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy

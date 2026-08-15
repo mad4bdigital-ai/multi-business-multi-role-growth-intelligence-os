@@ -36,7 +36,8 @@ assert.deepEqual(stagingNames, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activatio
 assert.equal(new Set([...productionNames, ...stagingNames]).size, 6);
 assert.equal(production.some((entry) => entry.origin_kind !== "hostinger_production"), false);
 assert.equal(staging.some((entry) => entry.origin_kind !== "local_staging_app"), false);
-assert.equal(policy.environments.staging.hostnames.auth.exposure_status, "planned");
+assert.equal(policy.environments.staging.hostnames.auth.exposure_status, "active_opt_in");
+assert.equal(policy.environments.staging.hostnames.auth.required_runtime_flag, "TENANT_GPT_STAGING_ENABLED=true");
 assert.equal(policy.environments.staging.hostnames.mcp.exposure_status, "active_opt_in");
 assert.equal(policy.environments.staging.hostnames.mcp.required_runtime_flag, "REMOTE_MCP_ENABLED=true and REMOTE_MCP_OAUTH_ENABLED=true");
 assert.equal(policy.environments.staging.hostnames.activation.exposure_status, "reserved_disabled");

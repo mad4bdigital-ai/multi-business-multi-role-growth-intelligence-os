@@ -1,14 +1,26 @@
-export const TENANT_GPT_OAUTH_CLIENT_ID =
-  process.env.TENANT_GPT_OAUTH_CLIENT_ID || "mad4b-tenant-gpt";
+const STAGING_RUNTIME = String(process.env.NODE_ENV || "").trim().toLowerCase() === "staging"
+  || String(process.env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase() === "staging";
 
-export const TENANT_GPT_SCOPE_LINKS = [
-  "https://auth.mad4b.com/scopes/tenant.links",
-  "https://auth.mad4b.com/scopes/tenant.status",
-  "https://auth.mad4b.com/scopes/tenant.activation",
-  "https://auth.mad4b.com/scopes/tenant.install",
-  "https://auth.mad4b.com/scopes/tenant.system-tools",
+export const TENANT_GPT_IS_STAGING_RUNTIME = STAGING_RUNTIME;
+export const TENANT_GPT_BASE_URL = String(
+  STAGING_RUNTIME
+    ? process.env.TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL || "https://dev.mad4b.com"
+    : process.env.TENANT_GPT_AUTHORIZATION_SERVER_URL || "https://auth.mad4b.com",
+).replace(/\/+$/, "");
+
+export const TENANT_GPT_OAUTH_CLIENT_ID = STAGING_RUNTIME
+  ? (process.env.TENANT_GPT_STAGING_OAUTH_CLIENT_ID || "mad4b-tenant-gpt-staging")
+  : (process.env.TENANT_GPT_OAUTH_CLIENT_ID || "mad4b-tenant-gpt");
+
+const TENANT_GPT_SCOPE_KEYS = [
+  "tenant.links",
+  "tenant.status",
+  "tenant.activation",
+  "tenant.install",
+  "tenant.system-tools",
 ];
 
+export const TENANT_GPT_SCOPE_LINKS = TENANT_GPT_SCOPE_KEYS.map((key) => `${TENANT_GPT_BASE_URL}/scopes/${key}`);
 export const TENANT_GPT_SCOPE = TENANT_GPT_SCOPE_LINKS.join(" ");
 
 export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [
@@ -19,9 +31,9 @@ export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [
 ];
 
 export function buildTenantGptOAuthPreset({
-  baseUrl = "https://auth.mad4b.com",
-  schemaUrl = "https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml",
-  activationSchemaUrl = "https://activation.mad4b.com/tenant-gpt/activation-openapi",
+  baseUrl = TENANT_GPT_BASE_URL,
+  schemaUrl = `${TENANT_GPT_BASE_URL}/openapi.tenant-gpt.${STAGING_RUNTIME ? "staging" : "auth"}.yaml`,
+  activationSchemaUrl = STAGING_RUNTIME ? "" : "https://activation.mad4b.com/tenant-gpt/activation-openapi",
   callbackUrlsToAllow = TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
 } = {}) {
   return {
@@ -30,11 +42,11 @@ export function buildTenantGptOAuthPreset({
     activation_schema_url: activationSchemaUrl,
     schema_urls: {
       tenant_core: schemaUrl,
-      tenant_activation: activationSchemaUrl,
+      ...(activationSchemaUrl ? { tenant_activation: activationSchemaUrl } : {}),
     },
     client_id: TENANT_GPT_OAUTH_CLIENT_ID,
     client_secret: "<resolved-from-governed-platform-secret>",
-    client_secret_ref: "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET",
+    client_secret_ref: `platform_secret:${STAGING_RUNTIME ? "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET" : "TENANT_GPT_OAUTH_CLIENT_SECRET"}`,
     client_secret_config_key: "tenant_gpt.oauth.client",
     authorization_url: `${baseUrl}/auth/oauth/authorize`,
     token_url: `${baseUrl}/auth/oauth/token`,
@@ -43,8 +55,9 @@ export function buildTenantGptOAuthPreset({
     token_exchange_method: "default_post_request",
     callback_urls_to_allow: callbackUrlsToAllow,
     notes: [
-      "Configure both Tenant Core and Tenant Activation Custom GPT Actions with the same governed OAuth client.",
-      "Tenant Core uses auth.mad4b.com; Tenant Activation uses activation.mad4b.com and forwards to auth.mad4b.com.",
+      STAGING_RUNTIME
+        ? "Staging Tenant Core uses dev.mad4b.com and a dedicated staging OAuth client; it must never be paired with Production hosts or credentials."
+        : "Configure both Tenant Core and Tenant Activation Custom GPT Actions with the same governed OAuth client.",
       "Reconnect OAuth after changing an Action server host so ChatGPT attaches the tenant access token to the new Action configuration.",
       "Use the governed client_secret_ref stored under platform_runtime_config config_key=tenant_gpt.oauth.client.",
       "The public preset endpoint does not reveal the raw client secret.",

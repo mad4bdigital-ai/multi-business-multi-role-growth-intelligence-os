@@ -63,7 +63,8 @@
           "hostname": "dev.mad4b.com",
           "service": "auth",
           "origin_kind": "local_staging_app",
-          "exposure_status": "planned",
+          "exposure_status": "active_opt_in",
+          "required_runtime_flag": "TENANT_GPT_STAGING_ENABLED=true",
           "dns_record_type": "CNAME",
           "dns_proxy_required": true,
           "credential_namespace": "staging.auth"

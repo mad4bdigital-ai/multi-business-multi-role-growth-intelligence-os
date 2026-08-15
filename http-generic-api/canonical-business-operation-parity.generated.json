@@ -1,0 +1,1096 @@
+{
+  "schema_version": "canonical-business-operation-parity-v1",
+  "revision": "staging-safe-2026-08-15",
+  "registry_fingerprint": "9bf5a16ea417fa4223b6aa534b4083dcaec5bb5e8debb6b714fee34bc979b262",
+  "environment_policy": {
+    "active_environment": "staging",
+    "allowed_public_hosts": [
+      "dev.mad4b.com",
+      "mcp_dev.mad4b.com"
+    ],
+    "blocked_public_hosts": [
+      "activation_dev.mad4b.com",
+      "auth.mad4b.com",
+      "mcp.mad4b.com",
+      "activation.mad4b.com"
+    ],
+    "production_mutation_allowed": false,
+    "provider_mutation_allowed": false,
+    "secrets_included": false
+  },
+  "surfaces": [
+    "custom_gpt",
+    "system_layer",
+    "remote_mcp",
+    "rest",
+    "frontend",
+    "internal_agent"
+  ],
+  "counts": {
+    "operation_count": 27,
+    "active_operation_count": 10,
+    "shadow_operation_count": 10,
+    "blocked_operation_count": 7,
+    "read_only_operation_count": 12,
+    "write_or_shadow_operation_count": 15,
+    "active_remote_mcp_operation_count": 2,
+    "active_custom_gpt_operation_count": 10
+  },
+  "operations": [
+    {
+      "operation_key": "approvals.read",
+      "domain": "approval",
+      "lifecycle_action": "read",
+      "resource_type": "approval",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "resource_api_approvals_read",
+      "scope_keys": [
+        "approvals.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "active",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Scope is active but no active tool binding is exported."
+        }
+      ]
+    },
+    {
+      "operation_key": "approvals.request",
+      "domain": "approval",
+      "lifecycle_action": "create",
+      "resource_type": "approval",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "medium",
+      "approval_required": false,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "approval_hold_request",
+      "scope_keys": [
+        "approvals.request"
+      ],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "shadow",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": []
+    },
+    {
+      "operation_key": "assets.archive",
+      "domain": "asset",
+      "lifecycle_action": "archive",
+      "resource_type": "asset",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "medium",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "resource_api_assets_archive",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "blocked",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "No active MCP binding; archive is intentionally not exported."
+        }
+      ]
+    },
+    {
+      "operation_key": "assets.create",
+      "domain": "asset",
+      "lifecycle_action": "create",
+      "resource_type": "asset",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "resource_api_assets_create",
+      "scope_keys": [
+        "assets.create"
+      ],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "shadow",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": []
+    },
+    {
+      "operation_key": "assets.read",
+      "domain": "asset",
+      "lifecycle_action": "read",
+      "resource_type": "asset",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "resource_api_assets_read",
+      "scope_keys": [
+        "assets.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "active",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Active assets.read scope exists, but no active resource-operation/tool binding is exported."
+        }
+      ]
+    },
+    {
+      "operation_key": "assets.restore",
+      "domain": "asset",
+      "lifecycle_action": "restore",
+      "resource_type": "asset",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "medium",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "resource_api_assets_restore",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "blocked",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "No active MCP binding; restore is intentionally not exported."
+        }
+      ]
+    },
+    {
+      "operation_key": "assets.update",
+      "domain": "asset",
+      "lifecycle_action": "update",
+      "resource_type": "asset",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "resource_api_assets_update",
+      "scope_keys": [
+        "assets.update"
+      ],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "shadow",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": []
+    },
+    {
+      "operation_key": "brand.archive",
+      "domain": "brand",
+      "lifecycle_action": "archive",
+      "resource_type": "brand",
+      "environment": "staging",
+      "status": "blocked",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "Archive requires dependency planning, immutable evidence, and a typed lifecycle executor."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "Archive requires dependency planning, immutable evidence, and a typed lifecycle executor."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Archive requires dependency planning, immutable evidence, and a typed lifecycle executor."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "Archive requires dependency planning, immutable evidence, and a typed lifecycle executor."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "Archive requires dependency planning, immutable evidence, and a typed lifecycle executor."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "Archive requires dependency planning, immutable evidence, and a typed lifecycle executor."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.context.read",
+      "domain": "brand",
+      "lifecycle_action": "read",
+      "resource_type": "brand_context",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "not_projected",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Dedicated Brand context read contract is declared for parity planning; no separate transport binding is activated in this PR."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.create",
+      "domain": "brand",
+      "lifecycle_action": "create",
+      "resource_type": "brand",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "createWorkspaceBrand",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "shadow",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": []
+    },
+    {
+      "operation_key": "brand.restore",
+      "domain": "brand",
+      "lifecycle_action": "restore",
+      "resource_type": "brand",
+      "environment": "staging",
+      "status": "blocked",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "Restore requires explicit revalidation of retained dependencies and revision state."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "Restore requires explicit revalidation of retained dependencies and revision state."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Restore requires explicit revalidation of retained dependencies and revision state."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "Restore requires explicit revalidation of retained dependencies and revision state."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "Restore requires explicit revalidation of retained dependencies and revision state."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "Restore requires explicit revalidation of retained dependencies and revision state."
+        }
+      ]
+    },
+    {
+      "operation_key": "brand.update",
+      "domain": "brand",
+      "lifecycle_action": "update",
+      "resource_type": "brand",
+      "environment": "staging",
+      "status": "blocked",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "No canonical typed update executor is registered; do not fall back to generic CRUD."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "No canonical typed update executor is registered; do not fall back to generic CRUD."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "No canonical typed update executor is registered; do not fall back to generic CRUD."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "No canonical typed update executor is registered; do not fall back to generic CRUD."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "No canonical typed update executor is registered; do not fall back to generic CRUD."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "No canonical typed update executor is registered; do not fall back to generic CRUD."
+        }
+      ]
+    },
+    {
+      "operation_key": "brands.list",
+      "domain": "brand",
+      "lifecycle_action": "read",
+      "resource_type": "brand",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "list_accessible_brands",
+      "scope_keys": [
+        "brands.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "active",
+        "rest": "active",
+        "frontend": "active",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": []
+    },
+    {
+      "operation_key": "cloudflare.read",
+      "domain": "cloudflare",
+      "lifecycle_action": "read",
+      "resource_type": "cloudflare",
+      "environment": "staging",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "cloudflare_read_connector",
+      "scope_keys": [
+        "cloudflare.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "not_projected",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Active read scope exists but no active tool binding is exported."
+        },
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        }
+      ]
+    },
+    {
+      "operation_key": "cloudflare.write",
+      "domain": "cloudflare",
+      "lifecycle_action": "update",
+      "resource_type": "cloudflare",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "external_write",
+      "risk_class": "critical",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "governed_cloudflare_mutation",
+      "scope_keys": [
+        "cloudflare.write"
+      ],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "shadow",
+        "rest": "shadow",
+        "frontend": "not_projected",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "Cloudflare provider mutation is not activated by this local Staging PR."
+        }
+      ]
+    },
+    {
+      "operation_key": "connections.read",
+      "domain": "connection",
+      "lifecycle_action": "read",
+      "resource_type": "connection",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "connection_metadata_read",
+      "scope_keys": [
+        "connections.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "not_projected",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Metadata-only scope is active but not exported as a tool."
+        },
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        }
+      ]
+    },
+    {
+      "operation_key": "github.read",
+      "domain": "repository",
+      "lifecycle_action": "read",
+      "resource_type": "repository",
+      "environment": "staging",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "github_read_connector",
+      "scope_keys": [
+        "github.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "not_projected",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Active read scope exists but no active tool binding is exported."
+        },
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        }
+      ]
+    },
+    {
+      "operation_key": "github.write",
+      "domain": "repository",
+      "lifecycle_action": "update",
+      "resource_type": "repository",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "external_write",
+      "risk_class": "critical",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "governed_github_mutation",
+      "scope_keys": [
+        "github.write"
+      ],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "shadow",
+        "rest": "shadow",
+        "frontend": "not_projected",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "External write remains shadow and requires exact-head approval, dry-run, readback, and provider-specific governance."
+        }
+      ]
+    },
+    {
+      "operation_key": "growth.execute",
+      "domain": "growth",
+      "lifecycle_action": "execute",
+      "resource_type": "growth_plan",
+      "environment": "staging",
+      "status": "blocked",
+      "effect_class": "internal_write",
+      "risk_class": "critical",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "Execution Capsule runtime cutover and plan-bound approval are prerequisites; no generic per-step fallback is allowed by this contract."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "Execution Capsule runtime cutover and plan-bound approval are prerequisites; no generic per-step fallback is allowed by this contract."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Execution Capsule runtime cutover and plan-bound approval are prerequisites; no generic per-step fallback is allowed by this contract."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "Execution Capsule runtime cutover and plan-bound approval are prerequisites; no generic per-step fallback is allowed by this contract."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "Execution Capsule runtime cutover and plan-bound approval are prerequisites; no generic per-step fallback is allowed by this contract."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "Execution Capsule runtime cutover and plan-bound approval are prerequisites; no generic per-step fallback is allowed by this contract."
+        }
+      ]
+    },
+    {
+      "operation_key": "growth.plan",
+      "domain": "growth",
+      "lifecycle_action": "plan",
+      "resource_type": "growth_plan",
+      "environment": "staging",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "risk_class": "high",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "growth_control_plane_plan",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "shadow",
+        "system_layer": "shadow",
+        "remote_mcp": "blocked",
+        "rest": "shadow",
+        "frontend": "shadow",
+        "internal_agent": "shadow"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Activity Binding readiness and plan-bound approval must be bound before activation."
+        }
+      ]
+    },
+    {
+      "operation_key": "hostinger.deploy",
+      "domain": "hosting",
+      "lifecycle_action": "activate",
+      "resource_type": "hostinger",
+      "environment": "production",
+      "status": "blocked",
+      "effect_class": "external_write",
+      "risk_class": "critical",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": "hostinger_governed_deploy",
+      "scope_keys": [
+        "hostinger.deploy"
+      ],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "Hostinger Production remains outside Staging and cannot be projected from this PR."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "Hostinger Production remains outside Staging and cannot be projected from this PR."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Hostinger Production remains outside Staging and cannot be projected from this PR."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "Hostinger Production remains outside Staging and cannot be projected from this PR."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "Hostinger Production remains outside Staging and cannot be projected from this PR."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "Hostinger Production remains outside Staging and cannot be projected from this PR."
+        }
+      ]
+    },
+    {
+      "operation_key": "hostinger.read",
+      "domain": "hosting",
+      "lifecycle_action": "read",
+      "resource_type": "hostinger",
+      "environment": "production",
+      "status": "blocked",
+      "effect_class": "read_only",
+      "risk_class": "medium",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "hostinger_read_connector",
+      "scope_keys": [
+        "hostinger.read"
+      ],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "Production Hostinger remains outside local Staging projections."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "Production Hostinger remains outside local Staging projections."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Production Hostinger remains outside local Staging projections."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "Production Hostinger remains outside local Staging projections."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "Production Hostinger remains outside local Staging projections."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "Production Hostinger remains outside local Staging projections."
+        }
+      ]
+    },
+    {
+      "operation_key": "identity.read",
+      "domain": "identity",
+      "lifecycle_action": "read",
+      "resource_type": "identity",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "remote_mcp_identity_read",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "not_projected",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Active scope exists but no active tool binding is exported."
+        },
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        }
+      ]
+    },
+    {
+      "operation_key": "operation.status.get",
+      "domain": "operation",
+      "lifecycle_action": "read",
+      "resource_type": "operation",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "operation_status_get",
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "not_projected",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        },
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        }
+      ]
+    },
+    {
+      "operation_key": "permissions.read",
+      "domain": "authorization",
+      "lifecycle_action": "read",
+      "resource_type": "permission",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "remote_mcp_permissions_read",
+      "scope_keys": [
+        "permissions.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "not_projected",
+        "rest": "active",
+        "frontend": "not_projected",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "remote_mcp",
+          "status": "not_projected",
+          "reason": "Scope is active but is not currently bound to an exported tool."
+        },
+        {
+          "surface": "frontend",
+          "status": "not_projected",
+          "reason": "No projection binding is active."
+        }
+      ]
+    },
+    {
+      "operation_key": "policy.activate",
+      "domain": "policy",
+      "lifecycle_action": "activate",
+      "resource_type": "execution_policy",
+      "environment": "staging",
+      "status": "blocked",
+      "effect_class": "internal_write",
+      "risk_class": "critical",
+      "approval_required": true,
+      "readback_required": true,
+      "optimistic_concurrency_required": true,
+      "idempotency_required": true,
+      "executor_ref": null,
+      "scope_keys": [],
+      "projections": {
+        "custom_gpt": "blocked",
+        "system_layer": "blocked",
+        "remote_mcp": "blocked",
+        "rest": "blocked",
+        "frontend": "blocked",
+        "internal_agent": "blocked"
+      },
+      "intentional_exclusions": [
+        {
+          "surface": "custom_gpt",
+          "status": "blocked",
+          "reason": "Policy activation must create and validate an immutable revision before superseding the prior revision."
+        },
+        {
+          "surface": "system_layer",
+          "status": "blocked",
+          "reason": "Policy activation must create and validate an immutable revision before superseding the prior revision."
+        },
+        {
+          "surface": "remote_mcp",
+          "status": "blocked",
+          "reason": "Policy activation must create and validate an immutable revision before superseding the prior revision."
+        },
+        {
+          "surface": "rest",
+          "status": "blocked",
+          "reason": "Policy activation must create and validate an immutable revision before superseding the prior revision."
+        },
+        {
+          "surface": "frontend",
+          "status": "blocked",
+          "reason": "Policy activation must create and validate an immutable revision before superseding the prior revision."
+        },
+        {
+          "surface": "internal_agent",
+          "status": "blocked",
+          "reason": "Policy activation must create and validate an immutable revision before superseding the prior revision."
+        }
+      ]
+    },
+    {
+      "operation_key": "workspaces.list",
+      "domain": "workspace",
+      "lifecycle_action": "read",
+      "resource_type": "workspace",
+      "environment": "all",
+      "status": "active",
+      "effect_class": "read_only",
+      "risk_class": "low",
+      "approval_required": false,
+      "readback_required": false,
+      "optimistic_concurrency_required": false,
+      "idempotency_required": false,
+      "executor_ref": "list_accessible_workspaces",
+      "scope_keys": [
+        "workspaces.read"
+      ],
+      "projections": {
+        "custom_gpt": "compatibility",
+        "system_layer": "active",
+        "remote_mcp": "active",
+        "rest": "active",
+        "frontend": "active",
+        "internal_agent": "active"
+      },
+      "intentional_exclusions": []
+    }
+  ],
+  "performance_gates": {
+    "known_intent_list_tools_calls": 0,
+    "mutation_without_expected_revision": 0,
+    "mutation_without_required_readback": 0,
+    "hard_delete_without_dependency_plan": 0
+  },
+  "safety": {
+    "shadow_writes_activated": false,
+    "blocked_hosts_projected": false,
+    "production_mutation_allowed": false,
+    "provider_mutation_allowed": false,
+    "purge_allowed": false,
+    "secrets_included": false
+  },
+  "provenance": {
+    "generated_by": "build-canonical-business-operation-parity.mjs",
+    "source": "canonical-business-operation-registry.json",
+    "secrets_included": false
+  }
+}

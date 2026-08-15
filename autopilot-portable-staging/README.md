@@ -18,9 +18,9 @@ The first normal run creates `http-generic-api\.env.staging` with local-only dat
 
 ## Dev Tunnel
 
-Before exposing anything publicly, configure one dedicated Cloudflare Tunnel identity for Staging and one active remote ingress for `dev.mad4b.com` targeting `http://app:8080`. The remote configuration must have an explicit unmatched-hostname fallback that denies traffic. Do not create ingress for `mcp_dev.mad4b.com` or `activation_dev.mad4b.com`; those hostnames remain reserved-disabled until their independent service contracts are implemented.
+Before exposing anything publicly, configure one dedicated Cloudflare Tunnel identity for Staging with two active opt-in ingress hostnames: `dev.mad4b.com` and `mcp_dev.mad4b.com`, both targeting `http://app:8080`. The remote configuration must have an explicit unmatched-hostname fallback that denies traffic. Do not create ingress for `activation_dev.mad4b.com`; it remains reserved-disabled until its independent gateway bundle exists.
 
-After the remote configuration has been reviewed, put only the Dev tunnel token in the ignored `.env.staging`, then run:
+After the remote configuration has been reviewed, put only the Staging tunnel token in the ignored `.env.staging`, then run:
 
 ```powershell
 .\Start-AutoPilot.ps1 -ExpectedCommit <exact-main-sha> -StartTunnel
@@ -38,4 +38,4 @@ Stop the local services without deleting SSD data:
 
 Do not use `docker compose down -v` unless you intentionally want to delete the bind-mounted Redis, app, Runtime DB, Governance DB, and Persistence DB data. If the SSD is moved to another Windows machine, run `-ValidateOnly` first; the launcher will stop on Docker/WSL2/context/commit/manifest mismatch instead of modifying the environment.
 
-Production remains on Hostinger Cloud and never uses the local `.env.staging`, local bind mounts, Dev tunnel token, or Dev Tunnel identity. `mcp.mad4b.com`, `activation.mad4b.com`, and `auth.mad4b.com` are not valid local targets.
+Production remains on Hostinger Cloud and never uses the local `.env.staging`, local bind mounts, Staging tunnel token, or Staging Tunnel identity. `mcp.mad4b.com`, `activation.mad4b.com`, and `auth.mad4b.com` are not valid local targets. `activation_dev.mad4b.com` is also not a valid target until its independent gateway bundle exists.

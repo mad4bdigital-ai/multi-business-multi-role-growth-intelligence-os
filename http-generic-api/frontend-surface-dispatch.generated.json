@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "27dd4636ce6ac318af892211a9c912fe97cd547dd2991e29b8c85dc99dd6d71b",
+    "source_digest": "4c1127df835b2276a0948e68026a9f81a94538afaf518a199380ba64277d745b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "f2fe73cf7e247b3f2e0e856d5b36b39e5812316d4128a9be46caead84499c547",
+        "sha256": "93fa3472b9f09c6bf8443006314d5b7868957005151540807f4010f1ba53a5b5",
         "present": true
       },
       {
@@ -141,7 +141,7 @@
       },
       {
         "file": "openapi/openapi.tenant-gpt.staging.yaml",
-        "sha256": "807fd289aa4636a95ff2cfbec39923ddbc0a686c520b100b714cafc532ec3fc1",
+        "sha256": "988badee22d3b8801b759241cd9b9ad957aae54195de7efba9fb83b130445316",
         "present": true
       },
       {
@@ -801,7 +801,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "de502ed49251b1534a65395d5fd95ab1c5e0242a93a85c0f49bd34e3e3510597",
+        "sha256": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
         "present": true
       },
       {
@@ -1031,7 +1031,7 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+        "sha256": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99",
         "present": true
       },
       {
@@ -6753,7 +6753,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "de502ed49251b1534a65395d5fd95ab1c5e0242a93a85c0f49bd34e3e3510597",
+      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -6947,7 +6947,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "de502ed49251b1534a65395d5fd95ab1c5e0242a93a85c0f49bd34e3e3510597",
+      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -7295,7 +7295,7 @@
       "family_key": "root-discovery.unresolved",
       "label": "root discovery (unresolved)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "de502ed49251b1534a65395d5fd95ab1c5e0242a93a85c0f49bd34e3e3510597",
+      "source_digest": "1c97b0c91ac1a2dd381893590fa4ee3e5c31a6367860e4ccaa6eb660d1d44c4c",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -30578,7 +30578,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+      "source_digest": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99",
       "mount_prefix": "/",
       "mount_order": 16936,
       "split_from_mixed_scope_file": false,

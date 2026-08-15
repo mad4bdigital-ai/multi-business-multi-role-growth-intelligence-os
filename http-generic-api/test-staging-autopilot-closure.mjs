@@ -22,7 +22,7 @@ const tunnel = compose.services.cloudflared;
 
 assert.deepEqual(tunnel.profiles, ["tunnel"]);
 assert.match(String(tunnel.image), /@sha256:/);
-assert.equal(tunnel.depends_on.app.condition, "service_started");
+assert.equal(tunnel.depends_on.app.condition, "service_healthy");
 assert.match(String(tunnel.command), /\$\{CLOUDFLARE_TUNNEL_TOKEN:-\}/);
 assert.match(env, /^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$/m);
 assert.doesNotMatch(env, /^CLOUDFLARE_TUNNEL_HOSTNAMES=.*activation_dev/m);

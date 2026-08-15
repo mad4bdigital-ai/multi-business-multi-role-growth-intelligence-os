@@ -296,6 +296,23 @@ async function ensureCreatorBrandGrant(connection, { tenantId, targetKey, actorU
   return requireExactlyOne(rows, "workspace_brand_owner_grant_readback_invalid", "Brand creator grant did not resolve exactly once.");
 }
 
+function buildBrandNextOperations(brandCoreReady) {
+  return [
+    {
+      operation_key: "brand.context.read",
+      status: "shadow",
+      reason: "Dedicated Brand context read projection is declared but not activated in this PR.",
+    },
+    {
+      operation_key: "assets.create",
+      status: "shadow",
+      reason: brandCoreReady
+        ? "Asset attachment remains approval-gated and is not activated by Brand create."
+        : "Complete the Brand Core profile before requesting the approval-gated asset attachment operation.",
+    },
+  ];
+}
+
 export async function createWorkspaceBrand(connection, { tenantId, actorUserId, displayName }) {
   const tenant = String(tenantId || "").trim();
   const actor = String(actorUserId || "").trim();
@@ -349,6 +366,7 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
       asset_attachment_available: false,
       member_invitation_available: false,
     },
+    next_operations: buildBrandNextOperations(brandCoreReady),
   };
 }
 
@@ -357,5 +375,6 @@ export const _testingWorkspaceBrandLifecycle = {
   requireDisplayName,
   isBrandCoreReady,
   validateBrandWorkspaceRow,
+  buildBrandNextOperations,
   findExistingTenantBrand,
 };

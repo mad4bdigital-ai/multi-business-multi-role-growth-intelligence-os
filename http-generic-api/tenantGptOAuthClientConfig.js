@@ -4,13 +4,17 @@ import { resolveCredentialReference } from "./credentialResolver.js";
 import { encryptToken } from "./tokenEncryption.js";
 import {
   TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
+  TENANT_GPT_IS_STAGING_RUNTIME,
   TENANT_GPT_OAUTH_CLIENT_ID,
   TENANT_GPT_SCOPE,
   TENANT_GPT_SCOPE_LINKS,
 } from "./tenantGptOAuthPreset.js";
 
 export const TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY = "tenant_gpt.oauth.client";
-export const TENANT_GPT_OAUTH_CLIENT_SECRET_REF = "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET";
+export const TENANT_GPT_OAUTH_CLIENT_SECRET_ENV = TENANT_GPT_IS_STAGING_RUNTIME
+  ? "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"
+  : "TENANT_GPT_OAUTH_CLIENT_SECRET";
+export const TENANT_GPT_OAUTH_CLIENT_SECRET_REF = `platform_secret:${TENANT_GPT_OAUTH_CLIENT_SECRET_ENV}`;
 
 function parseJsonConfig(value) {
   if (!value) return null;
@@ -250,7 +254,7 @@ export async function getTenantGptOAuthClientConfigStatus(options = {}) {
 }
 
 export function readTenantGptOAuthClientConfigFromEnv() {
-  const clientSecret = cleanSecret(process.env.TENANT_GPT_OAUTH_CLIENT_SECRET);
+  const clientSecret = cleanSecret(process.env[TENANT_GPT_OAUTH_CLIENT_SECRET_ENV]);
   if (!clientSecret) {
     return {
       ok: false,
@@ -264,7 +268,7 @@ export function readTenantGptOAuthClientConfigFromEnv() {
     source: "server_env",
     config: sanitizeTenantGptOAuthClientConfig(
       {
-        client_id: process.env.TENANT_GPT_OAUTH_CLIENT_ID || TENANT_GPT_OAUTH_CLIENT_ID,
+        client_id: process.env[TENANT_GPT_IS_STAGING_RUNTIME ? "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" : "TENANT_GPT_OAUTH_CLIENT_ID"] || TENANT_GPT_OAUTH_CLIENT_ID,
         client_secret: clientSecret,
         callback_urls_to_allow: TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
       },
@@ -274,10 +278,20 @@ export function readTenantGptOAuthClientConfigFromEnv() {
 }
 
 export async function resolveTenantGptOAuthClientConfig(options = {}) {
+  const envConfig = readTenantGptOAuthClientConfigFromEnv();
+  if (TENANT_GPT_IS_STAGING_RUNTIME) {
+    if (envConfig.ok) return envConfig;
+    return {
+      ok: false,
+      source: "staging_env_only",
+      error: "staging_oauth_client_secret_env_missing",
+      env_error: envConfig,
+    };
+  }
+
   const dbConfig = await readTenantGptOAuthClientConfig(options);
   if (dbConfig.ok) return dbConfig;
 
-  const envConfig = readTenantGptOAuthClientConfigFromEnv();
   if (envConfig.ok) return envConfig;
 
   const compatibilityErrors = new Set([
@@ -325,13 +339,13 @@ export async function validateTenantGptOAuthClientCredentials(credentials = {}, 
   }
 
   // Reject token exchange when running in compatibility mode (no secret configured).
-  // Set TENANT_GPT_OAUTH_CLIENT_SECRET env var or seed platform_runtime_config to enable.
+  // Set the environment-selected secret namespace or seed platform_runtime_config to enable.
   if (resolved.source === "default_unconfigured") {
     return {
       ok: false,
       status: 401,
       error: "invalid_client",
-      message: "OAuth client secret is not configured. Set TENANT_GPT_OAUTH_CLIENT_SECRET or run migration 045 to seed the config.",
+      message: `OAuth client secret is not configured. Set ${TENANT_GPT_OAUTH_CLIENT_SECRET_ENV} or seed the governed platform config.`,
       source: resolved.source,
     };
   }

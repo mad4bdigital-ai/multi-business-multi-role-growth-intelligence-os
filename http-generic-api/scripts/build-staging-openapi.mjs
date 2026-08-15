@@ -56,6 +56,8 @@ document["x-mad4b-staging-boundary"] = {
   backend_only_paths_excluded: [...BACKEND_ONLY_PATHS]
 };
 if (document["x-gpt-action-auth-preset"]) {
+  document["x-gpt-action-auth-preset"].schema_url = `${stagingHost}/openapi.tenant-gpt.staging.yaml`;
+  document["x-gpt-action-auth-preset"].activation_schema_url = "";
   document["x-gpt-action-auth-preset"].authorization_url = `${stagingHost}/auth/oauth/authorize`;
   document["x-gpt-action-auth-preset"].token_url = `${stagingHost}/auth/oauth/token`;
   document["x-gpt-action-auth-preset"].client_id = "<TENANT_GPT_STAGING_OAUTH_CLIENT_ID>";

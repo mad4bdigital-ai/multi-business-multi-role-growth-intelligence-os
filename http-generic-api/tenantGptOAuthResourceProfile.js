@@ -1,15 +1,21 @@
-import { TENANT_GPT_OAUTH_CLIENT_ID } from "./tenantGptOAuthPreset.js";
+import {
+  TENANT_GPT_BASE_URL,
+  TENANT_GPT_IS_STAGING_RUNTIME,
+  TENANT_GPT_OAUTH_CLIENT_ID,
+} from "./tenantGptOAuthPreset.js";
 
-export const TENANT_GPT_AUTHORIZATION_SERVER = "https://auth.mad4b.com";
-export const TENANT_GPT_CORE_RESOURCE = "https://auth.mad4b.com";
-export const TENANT_GPT_ACTIVATION_RESOURCE = "https://activation.mad4b.com";
+export const TENANT_GPT_AUTHORIZATION_SERVER = TENANT_GPT_BASE_URL;
+export const TENANT_GPT_CORE_RESOURCE = TENANT_GPT_BASE_URL;
+export const TENANT_GPT_ACTIVATION_RESOURCE = TENANT_GPT_IS_STAGING_RUNTIME ? "" : "https://activation.mad4b.com";
 export const TENANT_GPT_LEGACY_AUDIENCE = "mad4b-tenant-gpt";
 export const TENANT_GPT_ACTIVATION_LEGACY_AUDIENCE_CUTOFF =
   process.env.TENANT_GPT_ACTIVATION_LEGACY_AUDIENCE_CUTOFF || "2026-10-31T23:59:59.000Z";
 
 const RESOURCE_BY_HOST = new Map([
-  ["auth.mad4b.com", TENANT_GPT_CORE_RESOURCE],
-  ["activation.mad4b.com", TENANT_GPT_ACTIVATION_RESOURCE],
+  [new URL(TENANT_GPT_CORE_RESOURCE).hostname, TENANT_GPT_CORE_RESOURCE],
+  ...(TENANT_GPT_ACTIVATION_RESOURCE
+    ? [[new URL(TENANT_GPT_ACTIVATION_RESOURCE).hostname, TENANT_GPT_ACTIVATION_RESOURCE]]
+    : []),
 ]);
 
 export function normalizeTenantGptRequestHost(value) {

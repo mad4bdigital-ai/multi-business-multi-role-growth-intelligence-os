@@ -2,7 +2,7 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildTenantGptOAuthPreset } from "../tenantGptOAuthPreset.js";
+import { buildTenantGptOAuthPreset, TENANT_GPT_BASE_URL, TENANT_GPT_IS_STAGING_RUNTIME } from "../tenantGptOAuthPreset.js";
 import { resolveTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -243,7 +243,8 @@ export function buildRootDiscoveryRoutes() {
 
   router.get("/tenant-gpt/oauth-preset", async (req, res) => {
     const host = requestHost(req);
-    if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com") {
+    const stagingPresetHost = TENANT_GPT_IS_STAGING_RUNTIME && host === "dev.mad4b.com";
+    if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com" && !stagingPresetHost) {
       return res.status(404).json({
         ok: false,
         error: {
@@ -265,6 +266,8 @@ export function buildRootDiscoveryRoutes() {
         callbackUrlsToAllow,
         ...(host === "activation.mad4b.com" ? {
           baseUrl: "https://activation.mad4b.com",
+        } : stagingPresetHost ? {
+          baseUrl: TENANT_GPT_BASE_URL,
         } : {}),
       }),
     });

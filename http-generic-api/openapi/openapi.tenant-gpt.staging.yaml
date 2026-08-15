@@ -3412,8 +3412,8 @@ x-custom-gpt-generation:
   secrets_included: false
 x-gpt-action-auth-preset:
   authentication_type: OAuth
-  schema_url: https://dev.mad4b.com/openapi.tenant-gpt.auth.yaml
-  activation_schema_url: https://dev.mad4b.com/tenant-gpt/activation-openapi
+  schema_url: https://dev.mad4b.com/openapi.tenant-gpt.staging.yaml
+  activation_schema_url: ""
   client_id: <TENANT_GPT_STAGING_OAUTH_CLIENT_ID>
   client_secret: <TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET>
   client_secret_ref: env:TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET
