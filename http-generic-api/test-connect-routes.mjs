@@ -24,6 +24,13 @@ const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.install",
   "https://auth.mad4b.com/scopes/tenant.system-tools",
 ];
+const BACKEND_AUTH_PATHS = new Set([
+  "/local/tools",
+  "/system/tools",
+  "/system/tools/call",
+  "/gpt/sessions/{id}/turn",
+  "/gpt/sessions/{id}/end",
+]);
 
 let passed = 0;
 let failed = 0;
@@ -151,9 +158,21 @@ try {
     // MCP schema: scopes are declared in the flows object; individual operations use userBearerAuth: []
     // (no per-operation scope arrays — authentication is enforced, scope grant is in the OAuth consent)
     assert("tenant GPT schema root security uses userBearerAuth", "userBearerAuth" in (doc.security?.[0] ?? {}), JSON.stringify(doc.security));
-    assert("tenant GPT schema all operations require userBearerAuth",
-      allOperations.every(({ operation }) => "userBearerAuth" in (operation.security?.[0] ?? {})),
-      allOperations.filter(({ operation }) => !("userBearerAuth" in (operation.security?.[0] ?? {}))).map(({ pathKey }) => pathKey).join(", "));
+    assert("tenant GPT schema operations use their governed auth profile",
+      allOperations.every(({ pathKey, operation }) => {
+        const security = operation.security || [];
+        const schemeNames = new Set(security.flatMap((requirement) => Object.keys(requirement || {})));
+        return BACKEND_AUTH_PATHS.has(pathKey)
+          ? schemeNames.has("backendBearerAuth") && schemeNames.has("backendApiKeyAuth")
+          : schemeNames.has("userBearerAuth");
+      }),
+      allOperations.filter(({ pathKey, operation }) => {
+        const security = operation.security || [];
+        const schemeNames = new Set(security.flatMap((requirement) => Object.keys(requirement || {})));
+        return BACKEND_AUTH_PATHS.has(pathKey)
+          ? !(schemeNames.has("backendBearerAuth") && schemeNames.has("backendApiKeyAuth"))
+          : !schemeNames.has("userBearerAuth");
+      }).map(({ pathKey }) => pathKey).join(", "));
 
     assert("tenant GPT schema carries action auth preset", doc["x-gpt-action-auth-preset"]?.client_id === "mad4b-tenant-gpt", JSON.stringify(securityScheme));
     assert("tenant GPT schema preset carries scope links", TENANT_SCOPE_LINKS.every((scope) => doc["x-gpt-action-auth-preset"]?.scope_links?.includes(scope)), JSON.stringify(doc["x-gpt-action-auth-preset"]));
