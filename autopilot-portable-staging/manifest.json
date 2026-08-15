@@ -127,6 +127,26 @@
     {
       "path": "http-generic-api/remoteMcpRequestHost.js",
       "sha256": "a3c27fcad649811c5f6b8e89fe3f2dc8b7771b005ca2e2eb24e6e735c894d6b6"
+    },
+    {
+      "path": "http-generic-api/canonical-business-operation-registry.json",
+      "sha256": "33f9925af8afc18402431bcc2f3efdadaafaf9b6897bd7df036514a643cd1926"
+    },
+    {
+      "path": "http-generic-api/canonicalBusinessOperationRegistry.js",
+      "sha256": "5201f5d602d27c92e633b52c488e136a2237d2c6b2e60912a942041727cd6138"
+    },
+    {
+      "path": "http-generic-api/canonical-business-operation-parity.generated.json",
+      "sha256": "72d1292c3660db831117f093fc58ef82fe1600ca61cfcdbdffd6a1a4446cba78"
+    },
+    {
+      "path": "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
+      "sha256": "e0009fcbf282248ee6c016e7b6590f04971ced79bb7cf71ccc501f449fd9ee36"
+    },
+    {
+      "path": "http-generic-api/test-canonical-business-operation-registry.mjs",
+      "sha256": "191c028501a061138fca35a27e17bdf186bdee52c31b0eab1c7c5170cf70c79f"
     }
   ],
   "safety": {
