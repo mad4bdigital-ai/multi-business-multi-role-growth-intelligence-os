@@ -115,14 +115,16 @@ function Install-WingetPackage([string]$Id) {
 
 function Test-Wsl2DistributionReady([string]$WslList) {
     if ([string]::IsNullOrWhiteSpace($WslList)) { return $false }
-    return $WslList -match '(?im)^\s*\*?\s*\S+\s+\S+\s+2\s*$'
+    $normalized = $WslList.Replace([char]0, "")
+    return $normalized -match '(?im)^\s*\*?\s*\S+\s+\S+\s+2\s*$'
 }
 
 function Wait-Wsl2Distribution([int]$Attempts = 12, [int]$DelaySeconds = 5) {
     for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
         $wslList = (& wsl.exe --list --verbose 2>$null | Out-String)
-        $wslExitCode = $LASTEXITCODE
-        if ($wslExitCode -eq 0 -and (Test-Wsl2DistributionReady $wslList)) { return $true }
+        # Some WSL startup states return a transient nonzero code or NUL-padded text;
+        # the normalized distribution/version row is the readiness authority.
+        if (Test-Wsl2DistributionReady $wslList) { return $true }
         if ($attempt -lt ($Attempts - 1)) { Start-Sleep -Seconds $DelaySeconds }
     }
     return $false
@@ -142,7 +144,8 @@ function Ensure-Prerequisites {
     if (-not (Wait-Wsl2Distribution -Attempts 3 -DelaySeconds 5)) {
         Write-Host "WSL2 distribution is missing or still starting; requesting the standard Windows installation now."
         & wsl.exe --install -d Ubuntu --no-launch 2>$null
-        if ($LASTEXITCODE -ne 0) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
+        $installExitCode = $LASTEXITCODE
+        if ($installExitCode -ne 0 -and -not (Wait-Wsl2Distribution -Attempts 12 -DelaySeconds 5)) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
         if (-not (Wait-Wsl2Distribution -Attempts 24 -DelaySeconds 5)) { Fail "WSL2 installation completed but no version-2 distribution became ready after waiting; rerun after the requested Windows reboot." }
     }
 

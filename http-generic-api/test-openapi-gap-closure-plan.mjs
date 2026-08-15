@@ -17,7 +17,7 @@ assert.deepEqual(artifact, generated, "gap-closure plan must be deterministic");
 assert.equal(schema.$id, "https://schemas.mad4b.com/spec020/openapi-gap-closure-plan.schema.json");
 assert.equal(artifact.coverage.openapi_gap_count, 0);
 assert.equal(artifact.coverage.auth_contract_gap_count, 0);
-assert.equal(artifact.coverage.coverage_complete, false);
+assert.equal(artifact.coverage.coverage_complete, true);
 assert.equal(artifact.closure_summary.blocking_contract_gaps, 0);
 assert.equal(artifact.closure_summary.all_safe_closures_included, true);
 assert.equal(artifact.closure_summary.activation_remains_separate, true);
