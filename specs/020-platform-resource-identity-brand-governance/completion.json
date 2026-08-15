@@ -164,7 +164,9 @@
       "http-generic-api/platformOperationGovernanceContract.js",
       "http-generic-api/brandIdentityReconciliation.js",
       "http-generic-api/platformResourceIdentityAdapters.js",
-      "http-generic-api/chatgptMcpRuntime.js"
+      "http-generic-api/chatgptMcpRuntime.js",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
     ],
     "schemas": [
       "schemas/platform-resource-identity-contract.schema.json",

@@ -16,6 +16,7 @@
       "http-generic-api/test-openapi-projection-readiness.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
       "schemas/platform-resource-identity-contract.schema.json",
@@ -67,6 +68,7 @@
             "http-generic-api/test-openapi-projection-readiness.mjs",
             "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
             "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
             "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json"
           ]
