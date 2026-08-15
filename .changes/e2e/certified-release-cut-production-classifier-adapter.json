@@ -10,7 +10,9 @@
       ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
       "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
       "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
-      "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs"
+      "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
+      "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
     ]
   },
   "merge_contract": {
@@ -38,7 +40,8 @@
             "Require pinned Production to be an ancestor of the certified release cut.",
             "Allow current main to advance only while the certified release cut remains its ancestor.",
             "Evaluate the candidate through an isolated temporary Git clone whose local canonical-main ref is pinned to the certified release cut, preserving the reviewed legacy evaluator without altering remote refs.",
-            "Reject stale Production, release-cut ancestry loss, wrong trees, malformed prefixes, wrong parent order/count, and malformed branch identities fail closed."
+            "Treat the preserved legacy gate as an already-reviewed configuration source only while its exact SHA-256 content hash remains pinned; any content drift re-enters configuration candidate discovery fail closed.",
+            "Reject stale Production, release-cut ancestry loss, wrong trees, malformed prefixes, wrong parent order/count, malformed branch identities, and legacy mirror content drift fail closed."
           ],
           "assertions": [
             "The new adapter does not broaden legacy SHA-bound or bridge candidate namespaces.",
@@ -48,6 +51,8 @@
             "The candidate tree must remain byte-identical to the certified release cut.",
             "The candidate must preserve Production as its exact second parent and the release cut as its exact first parent.",
             "Legacy classifier behavior remains delegated unchanged for every non-release-cut branch identity.",
+            "The legacy configuration mirror is excluded from duplicate discovery only for its reviewed SHA-256; changing any byte removes that exemption automatically.",
+            "The adapter reuses one protected-ref read context instead of introducing duplicate secret-candidate declarations.",
             "No deployment, SQL, migration Apply, grant, provider call, credential payload read, external send, protected-ref write, or force update occurs.",
             "secrets_included is false."
           ],
@@ -58,13 +63,22 @@
               "working_directory": "http-generic-api",
               "path": "scripts/e2e-certified-release-cut-candidate-self-test.mjs",
               "args": []
+            },
+            {
+              "id": "reviewed-immutable-legacy-mirror-discovery-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-configuration-candidate-discovery.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
             "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
             "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
-            "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs"
+            "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
+            "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
           ]
         }
       ]
