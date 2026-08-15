@@ -1,0 +1,22 @@
+{
+  "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
+  "contract": "mad4b.platform-configuration-entry-registry.v1",
+  "schema_version": 1,
+  "entries": [],
+  "ignored_changed_path_prefixes": [
+    ".changes/",
+    ".github/",
+    "docs/",
+    "scripts/",
+    "http-generic-api/scripts/",
+    "http-generic-api/test-",
+    "http-generic-api/migrations/"
+  ],
+  "safety": {
+    "values_included": false,
+    "secrets_included": false,
+    "runtime_mutation_allowed": false,
+    "database_mutation_allowed": false,
+    "production_activation_allowed": false
+  }
+}
