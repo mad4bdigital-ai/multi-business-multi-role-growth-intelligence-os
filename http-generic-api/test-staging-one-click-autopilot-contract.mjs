@@ -46,12 +46,17 @@ assert.ok(launcher.includes("https://mcp_dev.mad4b.com"));
 assert.doesNotMatch(launcher, /CLOUDFLARE_TUNNEL_HOSTNAMES.*auth\.mad4b\.com/);
 assert.doesNotMatch(launcher, /activation_dev\.mad4b\.com/);
 assert.match(launcher, /AUTO_PILOT_ONE_CLICK_FAIL_CLOSED/);
+assert.match(launcher, /Write-EarlyBootstrapLog/);
+assert.match(launcher, /bootstrap-console\.log/);
+assert.match(launcher, /staging environment initialized before prerequisite checks/);
+assert.match(launcher, /if \(Test-Path \(Join-Path \$repo "\.git"\)\)/);
 assert.match(launcher, /production_deploy = \$false/);
 assert.match(launcher, /cloudflare_dns_mutation = \$false/);
 assert.match(launcher, /hostinger_mutation = \$false/);
 
 assert.match(cmd, /Start-Process powershell\.exe -Verb RunAs/);
 assert.match(cmd, /ExecutionPolicy/);
+assert.match(cmd, /bootstrap-console\.log/);
 assert.match(gitignore, /autopilot-portable-staging\/one-click-state\.json/);
 assert.match(gitignore, /autopilot-portable-staging\/staging-db-dumps\//);
 
