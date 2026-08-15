@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { extractCandidates, registryMatches } from "./maintenance-tools/configuration-candidate-discovery.mjs";
+import { readFileSync } from "node:fs";
+import { extractCandidates, isReviewedImmutableSourceMirror, registryMatches } from "./maintenance-tools/configuration-candidate-discovery.mjs";
 
 const fixture = `
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -43,9 +44,16 @@ assert.deepEqual(
   [],
 );
 
+const reviewedMirrorPath = "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs";
+const reviewedMirrorContent = readFileSync(new URL("./e2e-parallel-pr-gate-legacy.mjs", import.meta.url), "utf8");
+assert.equal(isReviewedImmutableSourceMirror(reviewedMirrorPath, reviewedMirrorContent), true);
+assert.equal(isReviewedImmutableSourceMirror(reviewedMirrorPath, `${reviewedMirrorContent}\n// drift`), false);
+assert.equal(isReviewedImmutableSourceMirror("http-generic-api/scripts/unreviewed-legacy.mjs", reviewedMirrorContent), false);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.configuration-candidate-discovery-regression.v1",
   fixture_candidates: candidates.length,
+  immutable_mirror_hash_bound: true,
   secrets_included: false,
 }));
