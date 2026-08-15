@@ -95,16 +95,25 @@ function isAncestor(root, ancestor, descendant) {
   return !result.error && result.status === 0;
 }
 
-function resolveLiveProtectedSha(root, name) {
+function resolveGitHubReadContext() {
   const token = String(process.env.GITHUB_TOKEN_FOR_REF_LOOKUP || "").trim();
-  if (token) {
-    const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
-    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return null;
-    const childEnv = { ...process.env, GH_TOKEN: token };
+  const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
+  return Object.freeze({
+    token,
+    repository,
+    repositoryValid: /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
+  });
+}
+
+function resolveLiveProtectedSha(root, name) {
+  const githubReadContext = resolveGitHubReadContext();
+  if (githubReadContext.token) {
+    if (!githubReadContext.repositoryValid) return null;
+    const childEnv = { ...process.env, GH_TOKEN: githubReadContext.token };
     delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
     const result = spawnSync(
       "gh",
-      ["api", `repos/${repository}/git/ref/heads/${name}`, "--jq", ".object.sha"],
+      ["api", `repos/${githubReadContext.repository}/git/ref/heads/${name}`, "--jq", ".object.sha"],
       {
         cwd: root,
         encoding: "utf8",
@@ -135,15 +144,14 @@ function remoteAncestorProof(root, ancestor, descendant) {
   if (ancestor === descendant) return true;
   if (isAncestor(root, ancestor, descendant)) return true;
 
-  const token = String(process.env.GITHUB_TOKEN_FOR_REF_LOOKUP || "").trim();
-  const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
-  if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return false;
+  const githubReadContext = resolveGitHubReadContext();
+  if (!githubReadContext.token || !githubReadContext.repositoryValid) return false;
 
-  const childEnv = { ...process.env, GH_TOKEN: token };
+  const childEnv = { ...process.env, GH_TOKEN: githubReadContext.token };
   delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
   const result = spawnSync(
     "gh",
-    ["api", `repos/${repository}/compare/${ancestor}...${descendant}`],
+    ["api", `repos/${githubReadContext.repository}/compare/${ancestor}...${descendant}`],
     {
       cwd: root,
       encoding: "utf8",
