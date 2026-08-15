@@ -35,7 +35,11 @@ import {
   releaseManagedGitRepositoryCredentialBinding,
 } from "../managedGitRepositoryCredentialBinding.js";
 import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
-import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
+import {
+  createGptExecutionCapsule,
+  dispatchToolForCaller,
+  resolveCallerTypeForRequest,
+} from "./gptToolsRoutes.js";
 
 function bodyOf(req) {
   return req.body && typeof req.body === "object" && !Array.isArray(req.body)
@@ -66,10 +70,17 @@ async function tenantMembership(userId, requestedTenantId = null) {
       WHERE m.user_id = ? AND m.status = 'active' AND t.status = 'active'
         ${tenantClause}
       ORDER BY m.granted_at ASC
-      LIMIT 1`,
+      LIMIT 2`,
     params,
   );
-  return rows[0] || null;
+  if (rows.length > 1) {
+    const error = new Error("Tenant membership lookup was ambiguous.");
+    error.status = 409;
+    error.code = "TENANT_MEMBERSHIP_AMBIGUOUS";
+    throw error;
+  }
+  const [membership] = rows;
+  return membership || null;
 }
 
 async function requireTenantOperationPrincipal(req, res, next) {
@@ -123,13 +134,15 @@ async function dispatchWithChunkCollection(dispatch, toolKey, args) {
   return collectChunkedToolResponse(initial, { dispatch });
 }
 
-function depsFor(req) {
+function depsFor(req, operationKey = null) {
   const callerType = resolveCallerTypeForRequest(req);
+  const executionCapsule = createGptExecutionCapsule({ operation_key: operationKey });
   const dispatch = (toolKey, args) =>
-    dispatchToolForCaller(callerType, toolKey, args, req);
+    dispatchToolForCaller(callerType, toolKey, args, req, { executionCapsule });
   return {
     pool: getPool(),
     auth: req.auth || {},
+    executionCapsule,
     dispatch: (toolKey, args) =>
       dispatchWithChunkCollection(dispatch, toolKey, args),
   };
@@ -355,6 +368,15 @@ async function recordOwnershipSafely({ req, input, result, operationKey }) {
   }
 }
 
+function executionCapsuleEvidence(capsule) {
+  return {
+    contract: capsule?.contract || "gpt.execution_capsule.v1",
+    operation_key: capsule?.operation_key || null,
+    metrics: { ...(capsule?.metrics || {}) },
+    secrets_included: false,
+  };
+}
+
 function operationLifecycleNeedsAttention({
   workerResult,
   lifecycleResult,
@@ -433,7 +455,7 @@ function mountOperationRoutes(router, { prefix }) {
     try {
       return res
         .status(200)
-        .json(await previewOperation(bodyOf(req), depsFor(req)));
+        .json(await previewOperation(bodyOf(req), depsFor(req, bodyOf(req).operation_key || bodyOf(req).operation || bodyOf(req).intent)));
     } catch (error) {
       return errorResponse(res, error, "OPERATION_PREVIEW_FAILED");
     }
@@ -462,7 +484,7 @@ function mountOperationRoutes(router, { prefix }) {
           || requestedInput.operation
           || requestedInput.intent,
       );
-      operationDeps = depsFor(req);
+      operationDeps = depsFor(req, operationKey);
       capabilityLifecycle = await prepareOperationCapabilityLifecycle({
         pool: getPool(),
         auth: req.auth,
@@ -559,6 +581,7 @@ function mountOperationRoutes(router, { prefix }) {
           managed_worker: workerResult,
           ownership,
           artifact_registry: artifactRegistry,
+          execution_capsule: executionCapsuleEvidence(operationDeps?.executionCapsule),
         });
     } catch (error) {
       const failureResult = {
@@ -620,7 +643,7 @@ function mountOperationRoutes(router, { prefix }) {
       });
       return res
         .status(200)
-        .json(await getOperationStatus(input, depsFor(req)));
+        .json(await getOperationStatus(input, depsFor(req, "operation.status.get")));
     } catch (error) {
       return errorResponse(res, error, "OPERATION_STATUS_FAILED");
     }
@@ -674,7 +697,7 @@ function mountOperationRoutes(router, { prefix }) {
     try {
       return res
         .status(200)
-        .json(await diagnoseCi(bodyOf(req), depsFor(req)));
+        .json(await diagnoseCi(bodyOf(req), depsFor(req, "repo.ci.diagnose")));
     } catch (error) {
       return errorResponse(res, error, "CI_DIAGNOSIS_FAILED");
     }
@@ -694,5 +717,6 @@ export const _testingOperationOrchestratorRoutes = {
   finalizeCapabilitySafely,
   finalizeWorkerSafely,
   operationLifecycleNeedsAttention,
+  executionCapsuleEvidence,
   requireSecurityMiddleware,
 };

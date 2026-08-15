@@ -31,7 +31,19 @@ const router = buildOperationOrchestratorRoutes({
 });
 assert.equal(typeof router, "function");
 
-const { operationLifecycleNeedsAttention } = _testingOperationOrchestratorRoutes;
+const { operationLifecycleNeedsAttention, executionCapsuleEvidence } = _testingOperationOrchestratorRoutes;
+const capsuleEvidence = executionCapsuleEvidence({
+  contract: "gpt.execution_capsule.v1",
+  operation_key: "repo.change.execute",
+  metrics: { manifest_schema_loads: 1, descriptor_cache_hits: 2 },
+  descriptor_cache: new Map([["tenant:repo.change.execute", { secret: "must-not-serialize" }]]),
+});
+assert.deepEqual(capsuleEvidence, {
+  contract: "gpt.execution_capsule.v1",
+  operation_key: "repo.change.execute",
+  metrics: { manifest_schema_loads: 1, descriptor_cache_hits: 2 },
+  secrets_included: false,
+});
 assert.equal(operationLifecycleNeedsAttention({ workerResult: { status: "cleanup_failed" } }), true);
 assert.equal(operationLifecycleNeedsAttention({ lifecycleResult: { status: "consume_failed" } }), true);
 assert.equal(operationLifecycleNeedsAttention({ ownership: { status: "unavailable" } }), true);

@@ -92,11 +92,19 @@ export function normalizeSystemToolDescriptor(tool = {}) {
       || "",
     191,
   ) || null;
+  const catalogLevel = text(
+    tool.catalog_level
+      || tool.catalogLevel
+      || tool.mcp_catalog_level
+      || "core",
+    64,
+  ) || "core";
   const descriptor = {
     name,
     description: text(tool.description, 4000),
     source_key: sourceKey,
     capability_key: capabilityKey,
+    catalog_level: catalogLevel,
     tags: normalizeTags(tool.tags),
     aliases: normalizeAliases(tool.aliases),
     requires_admin: tool.requires_admin === true,
@@ -156,6 +164,7 @@ function queryFilters(query = {}) {
     tag: normalizedText(query.tag),
     source_key: text(query.source_key || query.sourceKey, 191),
     capability_key: text(query.capability_key || query.capabilityKey, 191),
+    catalog_level: text(query.catalog_level || query.catalogLevel || query.mcp_catalog_level, 64),
   };
 }
 
@@ -163,6 +172,7 @@ function filterDescriptors(descriptors, filters) {
   return descriptors.filter((descriptor) => {
     if (filters.source_key && descriptor.source_key !== filters.source_key) return false;
     if (filters.capability_key && descriptor.capability_key !== filters.capability_key) return false;
+    if (filters.catalog_level && descriptor.catalog_level !== filters.catalog_level) return false;
     if (filters.tag && !descriptor.tags.includes(filters.tag)) return false;
     if (!filters.q) return true;
     const haystack = normalizedText([
@@ -170,6 +180,7 @@ function filterDescriptors(descriptors, filters) {
       descriptor.description,
       descriptor.source_key,
       descriptor.capability_key,
+      descriptor.catalog_level,
       ...descriptor.tags,
       ...descriptor.aliases,
     ].filter(Boolean).join(" "));
@@ -205,7 +216,7 @@ function decodeCursor(cursor) {
 }
 
 function hasExplicitCatalogWindow(query = {}) {
-  return ["limit", "cursor", "offset", "q", "query", "tag", "source_key", "sourceKey", "capability_key", "capabilityKey"]
+  return ["limit", "cursor", "offset", "q", "query", "tag", "source_key", "sourceKey", "capability_key", "capabilityKey", "catalog_level", "catalogLevel", "mcp_catalog_level"]
     .some((key) => Object.prototype.hasOwnProperty.call(query, key)
       && String(query[key] ?? "").trim() !== "");
 }

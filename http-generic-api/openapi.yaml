@@ -72,6 +72,10 @@ tags:
     description: Personal administrator control surface for CLI, database, and runtime environment operations.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+  - name: tenant-operations
+    description: Tenant Custom GPT bounded operation preview, execution, and status surfaces.
+  - name: admin-operations
+    description: Admin Custom GPT bounded operation preview, execution, and status surfaces.
   - name: release
     description: Release readiness checks, history, and entity classification inventory.
   - name: runtime-verification
@@ -3836,7 +3840,7 @@ x-tenant-gpt-auth:
     title: Mad4B Growth Intelligence - Tenant Core MCP Actions
     version: 2.0.2-platform-plugins
     summary: Tenant Core schema with SQL-driven MCP facades, resource routes, and tenant self-serve Platform Plugin routes.
-    description: Tenant Core transport only. Use listTools then callTool for SQL-registered tools such as connect_activate. Activation reads use the separate Tenant Activation schema on activation.mad4b.com.
+    description: Tenant Core transport only. For known intents prefer bounded operation preview/execute/status paths so context and descriptors can be reused once per operation. Use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args. Activation reads use the separate Tenant Activation schema on activation.mad4b.com.
   server_description: Mad4B platform auth subdomain
   security_scheme_name: userBearerAuth
   action_auth_preset:
@@ -3882,6 +3886,163 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /tenant/operations/preview:
+    post:
+      operationId: previewTenantOperation
+      tags: [tenant-operations]
+      x-custom-gpt-surfaces: [tenant_core]
+      x-openai-isConsequential: false
+      summary: Preview a bounded tenant operation
+      description: Previews a known tenant operation without provider mutation. Use this when intent or risk is ambiguous.
+      security:
+        - userJwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Operation preview
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenant/operations/execute:
+    post:
+      operationId: executeTenantOperation
+      tags: [tenant-operations]
+      x-custom-gpt-surfaces: [tenant_core]
+      x-openai-isConsequential: true
+      summary: Execute a bounded tenant operation
+      description: Executes a registered operation through existing context, capability, authority, policy, approval, and readback gates. It does not grant Production or write authority.
+      security:
+        - userJwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '202':
+          description: Operation awaiting governed input
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenant/operations/status:
+    post:
+      operationId: getTenantOperationStatus
+      tags: [tenant-operations]
+      x-custom-gpt-surfaces: [tenant_core]
+      x-openai-isConsequential: false
+      summary: Read tenant operation status
+      security:
+        - userJwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [run_id]
+              properties:
+                run_id: { type: string, minLength: 1, maxLength: 191 }
+      responses:
+        '200':
+          description: Operation status
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/operations/preview:
+    post:
+      operationId: previewAdminOperation
+      tags: [admin-operations]
+      x-custom-gpt-surfaces: [admin_core]
+      x-openai-isConsequential: false
+      summary: Preview a bounded admin operation
+      description: Preview-first admin operation path; no provider mutation is authorized by preview.
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Operation preview
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/operations/execute:
+    post:
+      operationId: executeAdminOperation
+      tags: [admin-operations]
+      x-custom-gpt-surfaces: [admin_core]
+      x-openai-isConsequential: true
+      summary: Execute a bounded admin operation
+      description: Executes a registered operation through existing capability, authority, approval, and readback gates. It does not activate Production or write scopes by itself.
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Operation result
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '202':
+          description: Operation awaiting governed input
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/operations/status:
+    post:
+      operationId: getAdminOperationStatus
+      tags: [admin-operations]
+      x-custom-gpt-surfaces: [admin_core]
+      x-openai-isConsequential: false
+      summary: Read admin operation status
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [run_id]
+              properties:
+                run_id: { type: string, minLength: 1, maxLength: 191 }
+      responses:
+        '200':
+          description: Operation status
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /platform:
     get:
       operationId: getPlatformFrontend
@@ -11584,7 +11745,14 @@ paths:
       x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible. Use catalog_level to browse database-backed MCP levels such as core, resource_api, growth_feedback, plugin_lifecycle, session_lifecycle, and activation.
+      parameters:
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: "^[a-z][a-z0-9_]{1,63}$"
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
       responses:
         "200":
           description: System layer tools
@@ -12212,6 +12380,12 @@ paths:
           schema:
             type: string
           description: Optional exact tag filter.
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: "^[a-z][a-z0-9_]{1,63}$"
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
         - name: max_chars
           in: query
           schema:

@@ -1697,9 +1697,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62
+  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748
+  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
   registry_version: 2
   selector_model: marker_required
   candidate_policy:
@@ -1818,6 +1818,9 @@ x-custom-gpt-generation:
         reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
+  catalog_policy: null
+  static_operation_ids: null
+  dynamic_operation_ids: null
   operation_count: 9
   warning_operation_limit: 16
   warning_budget_exceeded: false

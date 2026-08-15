@@ -99,7 +99,7 @@ assert.match(observedSql, /tenant_platform_endpoint_tools/);
 assert.match(observedSql, /WHERE is_enabled = 1/);
 
 const routeSource = fs.readFileSync("./routes/gptToolsRoutes.js", "utf8");
-assert.match(routeSource, /sqlCacheKey\("tools", callerType, "list", "v3"\)/);
+assert.match(routeSource, /sqlCacheKey\("tools", callerType, "list", "v4"\)/);
 assert.doesNotMatch(routeSource, /sqlCacheKey\("tools", callerType, "list", "v2"\)/);
 assert.match(routeSource, /filterTenantToolsByStrictSchema\(/);
 assert.match(routeSource, /assertTenantToolSchemaAllows\(callerType, toolKey, blockedTenantSchemas\)/);

@@ -343,6 +343,28 @@ function validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface) {
 
 function selectOperations(sourceOperations, surfaceKey, surface) {
   const selector = surface.selector || {};
+  if (Array.isArray(selector.static_operation_ids)) {
+    validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface);
+    const byId = new Map(sourceOperations.map((entry) => [tenantOperationId(entry.operation), entry]));
+    const staticIds = selector.static_operation_ids.map((id) => String(id).trim()).filter(Boolean);
+    const dynamicIds = new Set((selector.dynamic_operation_ids || []).map((id) => String(id).trim()).filter(Boolean));
+    const duplicateIds = staticIds.filter((id, index) => staticIds.indexOf(id) !== index);
+    if (duplicateIds.length > 0) throw new Error(`${surfaceKey}: duplicate static operationIds: ${[...new Set(duplicateIds)].join(", ")}`);
+    const missing = staticIds.filter((id) => !byId.has(id));
+    if (missing.length > 0) throw new Error(`${surfaceKey}: static operationIds missing: ${missing.join(", ")}`);
+    const unknownDynamic = [...dynamicIds].filter((id) => !byId.has(id));
+    if (unknownDynamic.length > 0) throw new Error(`${surfaceKey}: dynamic operationIds missing: ${unknownDynamic.join(", ")}`);
+    const overlap = staticIds.filter((id) => dynamicIds.has(id));
+    if (overlap.length > 0) throw new Error(`${surfaceKey}: static and dynamic operationIds overlap: ${overlap.join(", ")}`);
+    const markedIds = new Set(sourceOperations
+      .filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(surfaceKey))
+      .map((entry) => tenantOperationId(entry.operation))
+      .filter(Boolean));
+    const accountedIds = new Set([...staticIds, ...dynamicIds]);
+    const unaccounted = [...markedIds].filter((id) => !accountedIds.has(id));
+    if (unaccounted.length > 0) throw new Error(`${surfaceKey}: static/dynamic operation coverage gap: ${unaccounted.join(", ")}`);
+    return cloneOperationEntries(staticIds.map((id) => ({ ...byId.get(id), operation: clone(byId.get(id).operation) })), surface);
+  }
   if (Array.isArray(selector.source_markers)) {
     validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface);
     const markerSet = new Set(selector.source_markers);
@@ -454,6 +476,9 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     registry_version: Number(registry.version || 1),
     selector_model: surface.candidate_policy?.mode || "unspecified",
     candidate_policy: surface.candidate_policy || null,
+    catalog_policy: surface.catalog_policy || null,
+    static_operation_ids: Array.isArray(surface.selector?.static_operation_ids) ? [...surface.selector.static_operation_ids] : null,
+    dynamic_operation_ids: Array.isArray(surface.selector?.dynamic_operation_ids) ? [...surface.selector.dynamic_operation_ids] : null,
     operation_count: operationCount,
     warning_operation_limit: warningLimit,
     warning_budget_exceeded: operationCount > warningLimit,

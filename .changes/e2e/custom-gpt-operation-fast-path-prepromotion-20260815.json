@@ -1,0 +1,144 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "custom-gpt-operation-fast-path-prepromotion-20260815",
+  "title": "Custom GPT bounded operation fast path and per-operation execution capsule",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/custom-gpt-operation-fast-path-prepromotion-20260815.json",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/activationRoutes.js",
+      "http-generic-api/routes/operationOrchestratorRoutes.js",
+      "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/scripts/resource-api-coverage-audit.mjs",
+      "http-generic-api/test-resource-api-coverage.mjs",
+      "http-generic-api/test-tenant-growth-dashboard.mjs",
+      "http-generic-api/systemToolCatalogV2.js",
+      "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
+      "http-generic-api/test-gpt-execution-capsule.mjs",
+      "http-generic-api/test-operation-orchestrator-route-registration.mjs",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-custom-gpt-schemas.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+      "http-generic-api/test-system-tool-catalog-v2.mjs",
+      "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+      "http-generic-api/test-tenant-activation-session-alias.mjs",
+      "http-generic-api/test-tenant-tool-manifest-guard.mjs",
+      "http-generic-api/test-tenant-tool-schema-strictness.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/validate-custom-gpt-operation-openapi.mjs",
+      "docs/prepromotion-fast-path-readiness-20260815.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+          "objective": "Expose bounded tenant/admin operation endpoints for known intents and reuse a single execution capsule for manifest, schema, and descriptor resolution within an operation while retaining generic tool fallback and all dynamic governance checks. Keep every generated Custom GPT schema at or below 30 operations and place long-tail tenant operations in the governed database-backed MCP catalog levels.",
+      "e2e_journeys": [
+        {
+          "id": "known-intent-operation-fast-path",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant or admin Custom GPT",
+          "entrypoint": "/tenant/operations/execute or /admin/operations/execute",
+          "terminal_outcome": "A known operation uses bounded preview/execute/status contracts and one per-operation execution capsule; unknown intents retain listTools/callTool fallback; no Production authority or write scope is returned.",
+          "steps": [
+            "Resolve the bounded operation contract for the caller scope.",
+            "Use preview when intent or risk is ambiguous.",
+            "Execute through the existing capability, authority, policy, approval, and readback gates.",
+            "Reuse manifest/schema/descriptor evidence within internal dispatch steps.",
+            "Return bounded status and evidence without secrets or Production activation."
+          ],
+          "assertions": [
+            "Known tenant intents do not require listTools before operation preview or execute.",
+            "Operation dispatch carries one execution capsule across internal steps.",
+            "Generic listTools/callTool remains available only as fallback and remains governed.",
+            "Dynamic authority checks are not skipped or downgraded by descriptor reuse.",
+            "Production activation, write scopes, and live mutations remain false."
+          ],
+          "tests": [
+            { "id": "gpt-execution-capsule", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-execution-capsule.mjs", "args": [] },
+            { "id": "operation-orchestrator-route-registration", "runner": "node", "working_directory": "http-generic-api", "path": "test-operation-orchestrator-route-registration.mjs", "args": [] },
+            { "id": "tenant-gpt-operational-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-gpt-operational-readiness.mjs", "args": [] },
+            { "id": "custom-gpt-operation-openapi", "runner": "node", "working_directory": "http-generic-api", "path": "scripts/validate-custom-gpt-operation-openapi.mjs", "args": [] },
+            { "id": "system-tool-catalog-v2", "runner": "node", "working_directory": "http-generic-api", "path": "test-system-tool-catalog-v2.mjs", "args": [] },
+            { "id": "gpt-tools-route-syntax-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-route-syntax-regression.mjs", "args": [] },
+            { "id": "resource-api-coverage", "runner": "node", "working_directory": "http-generic-api", "path": "test-resource-api-coverage.mjs", "args": [] },
+            { "id": "tenant-growth-dashboard", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-growth-dashboard.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/custom-gpt-operation-fast-path-prepromotion-20260815.json",
+            "canonicals/openapi/custom-gpt-surfaces.yaml",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/routes/activationRoutes.js",
+            "http-generic-api/routes/operationOrchestratorRoutes.js",
+            "http-generic-api/scripts/split-openapi.mjs",
+            "http-generic-api/scripts/resource-api-coverage-audit.mjs",
+            "http-generic-api/test-resource-api-coverage.mjs",
+            "http-generic-api/test-tenant-growth-dashboard.mjs",
+            "http-generic-api/systemToolCatalogV2.js",
+            "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-connect-routes.mjs",
+            "http-generic-api/test-custom-gpt-schemas.mjs",
+            "http-generic-api/test-system-tool-catalog-v2.mjs",
+            "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+            "http-generic-api/test-tenant-activation-session-alias.mjs",
+            "http-generic-api/test-tenant-tool-manifest-guard.mjs",
+            "http-generic-api/test-tenant-tool-schema-strictness.mjs",
+            "http-generic-api/test-gpt-execution-capsule.mjs",
+            "http-generic-api/scripts/validate-custom-gpt-operation-openapi.mjs",
+            "docs/prepromotion-fast-path-readiness-20260815.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Instrument the real GPT runtime, validate capsule reuse and round-trip reduction in a controlled environment, and mount canary gates only after matched evidence.",
+      "blockers": [
+        "real_gpt_runtime_fixture",
+        "matched_x0_telemetry",
+        "canary_approval"
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production cutover is not authorized by this contract.",
+      "blockers": [
+        "independent_owner_attestation",
+        "runtime_parity_evidence",
+        "explicit_production_promotion",
+        "durable_activation_receipt"
+      ]
+    }
+  ],
+  "secrets_included": false
+}

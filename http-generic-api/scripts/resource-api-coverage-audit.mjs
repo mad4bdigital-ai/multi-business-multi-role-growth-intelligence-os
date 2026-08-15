@@ -225,8 +225,10 @@ for (const resource of manifest.resources || []) {
 for (const signature of manifest.route_operations || []) {
   const normalized = normalizeRouteSignature(signature);
   if (!routes.has(normalized)) findings.push({ type: "manifest_route_not_implemented", signature: normalized });
-  const targetSpec = normalized.includes("/me/") ? tenantOpenapi : openapi;
-  if (!openApiHas(targetSpec, normalized)) findings.push({ type: "route_missing_openapi_contract", signature: normalized });
+  const targetSpecs = normalized.includes("/me/") ? [tenantOpenapi, openapi] : [openapi];
+  // Dynamic MCP-catalog operations may be omitted from the static Tenant GPT schema,
+  // but they must remain present in the canonical OpenAPI source contract.
+  if (!targetSpecs.some((spec) => openApiHas(spec, normalized))) findings.push({ type: "route_missing_openapi_contract", signature: normalized });
 }
 
 const changeContext = args.has("--changed") || args.has("--ci") ? gitChangeContext() : { files: [], range: null, base_ref: null, base_sha: null, repo_prefix: "" };
