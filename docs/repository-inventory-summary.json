@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7058,
-    "bytes": 67270495,
-    "lines": 1573902,
+    "bytes": 67272107,
+    "lines": 1573916,
     "directories": 263,
     "categories": 13
   },
@@ -215,6 +215,9 @@
         "openapi:detail-batch:write",
         "openapi:detail-batch:check",
         "openapi:detail-batch:test",
+        "openapi:connected-systems:preflight:write",
+        "openapi:connected-systems:preflight:check",
+        "openapi:connected-systems:preflight:test",
         "evaluation:loop"
       ],
       "dependencies": 0,
