@@ -14,6 +14,9 @@
       "http-generic-api/brandClaimVerification.js",
       "http-generic-api/brandClaimService.js",
       "http-generic-api/context-kernel-hardcoding-scan.config.json",
+      "http-generic-api/activation-surfaces/exclusions/brand_claims.json",
+      "http-generic-api/activation-surfaces/exclusions/brand_verification_evidence.json",
+      "http-generic-api/activation-surfaces/exclusions/tenant_relationships.json",
       "http-generic-api/platformOperationGovernanceContract.js",
       "http-generic-api/canonicalBusinessOperationRegistry.js",
       "http-generic-api/chatgptMcpRuntime.js",
@@ -291,6 +294,9 @@
             "http-generic-api/test-platform-operation-governance-contract.mjs",
             "http-generic-api/test-canonical-business-operation-registry.mjs",
             "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+            "http-generic-api/activation-surfaces/exclusions/brand_claims.json",
+            "http-generic-api/activation-surfaces/exclusions/brand_verification_evidence.json",
+            "http-generic-api/activation-surfaces/exclusions/tenant_relationships.json",
             "specs/020-platform-resource-identity-brand-governance/completion.json"
           ]
         },

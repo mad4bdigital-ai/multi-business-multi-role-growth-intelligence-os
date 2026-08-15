@@ -383,8 +383,10 @@ async function activeWorkspaceMembership({ pool, userId, workspaceId }) {
       LIMIT 2`,
     [userId, workspaceId],
   );
+  if (!Array.isArray(rows) || rows.length === 0) return null;
   if (rows.length > 1) throw Object.assign(new Error("Workspace membership authority is ambiguous."), { code: "MCP_CONTEXT_AMBIGUOUS", retryable: false });
-  return rows[0] || null;
+  const [membership] = rows;
+  return membership || null;
 }
 
 function brandLookupKeys(value) {
