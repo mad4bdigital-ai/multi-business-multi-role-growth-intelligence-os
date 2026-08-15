@@ -2608,14 +2608,21 @@ async function resolveToolPreflightDescriptor(callerType, toolKey, executionCaps
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
     const [rows] = await getPool().query(
-      `SELECT http_method, tags, input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT http_method, tags, input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [normalizedToolKey]
     );
-    if (!rows?.[0]) continue;
+    if (rows.length > 1) {
+      const error = new Error("Tool descriptor lookup is ambiguous.");
+      error.code = "TOOL_DESCRIPTOR_LOOKUP_AMBIGUOUS";
+      error.status = 409;
+      throw error;
+    }
+    const [row] = rows;
+    if (!row) continue;
     const descriptor = {
-      method: rows[0].http_method || "",
-      tags: normalizeRegistryTags(rows[0].tags),
-      inputSchema: parseJson(rows[0].input_schema),
+      method: row.http_method || "",
+      tags: normalizeRegistryTags(row.tags),
+      inputSchema: parseJson(row.input_schema),
       source: table,
     };
     executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
