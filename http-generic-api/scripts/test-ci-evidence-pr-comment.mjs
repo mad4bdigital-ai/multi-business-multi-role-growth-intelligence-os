@@ -260,10 +260,13 @@ assert.match(publisherWorkflow, /^\s*issues:\s*write\s*$/mu);
 assert.match(publisherWorkflow, /^\s*pull-requests:\s*write\s*$/mu);
 assert.match(publisherWorkflow, /^\s*persist-credentials:\s*false\s*$/mu);
 assert.doesNotMatch(publisherWorkflow, /^\s*pull-requests:\s*read\s*$/mu);
+assert.match(publisherWorkflow, /^\s*continue-on-error:\s*true\s*$/mu);
+assert.match(publisherWorkflow, /Canonical artifact unavailable; refusing publication\./u);
+assert.match(publisherWorkflow, /if: steps\.report\.outputs\.exists == 'true'/u);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 37,
-  gate: "ci_evidence_stale_head_merge_candidate_and_non_success_skip_safety",
+  tests: 40,
+  gate: "ci_evidence_stale_head_non_success_skip_and_missing_artifact_safety",
   secrets_included: false
 }));

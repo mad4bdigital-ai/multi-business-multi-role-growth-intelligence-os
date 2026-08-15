@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "write-scope-shadow-preflight-20260815",
-  "title": "Governed Write Scope shadow preflight, evidence receipt, and inventory reconciliation",
+  "title": "Governed Write Scope shadow preflight, evidence receipt, and readback reconciliation",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -48,7 +48,8 @@
             "Audit receipt shapes are durable-required and secrets_included=false.",
             "The evidence fingerprint is deterministic and generated artifact drift fails closed.",
             "No database migration, provider call, credential payload read, external send, Production activation, or live mutation occurs.",
-            "The generated Remote MCP inventory, its documentation readback, and the portable Staging manifest hash are synchronized."
+            "The generated Remote MCP inventory, its documentation readback, and the portable Staging manifest hash are synchronized.",
+            "A post-merge write-scope inventory readback refresh is governed as metadata-only reconciliation and does not activate scopes, grant privileges, call providers, or mutate Production."
           ],
           "tests": [
             {

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7042,
-    "bytes": 65668113,
-    "lines": 1544540,
+    "bytes": 65669310,
+    "lines": 1544560,
     "directories": 263,
     "categories": 13
   },
@@ -6156,9 +6156,9 @@
       "path": ".changes/e2e/ci-generated-artifact-evidence-routing.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 20051,
-      "lines": 272,
-      "sha256": "5eb5ac482a0205830076fa5110524c50327d166d828fd69745955ae0e1c17145",
+      "bytes": 20256,
+      "lines": 273,
+      "sha256": "c20bc098ca1ae4a39d5d979c55dce0ccdc921c12a88eb8cbf4855befb900a86c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8741,9 +8741,9 @@
       "path": ".changes/e2e/write-scope-shadow-preflight-20260815.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5389,
-      "lines": 93,
-      "sha256": "aa0baa04538aa3834c3c9f84de4007e28445bab6b647a9b2a6595ca43ea7cdfe",
+      "bytes": 5585,
+      "lines": 94,
+      "sha256": "fd52ab106f4cbd9ebbb97ad20c02bb89cf1e38d3cf5decafc8e7495fd57d8770",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9973,9 +9973,9 @@
       "path": ".github/workflows/ci-evidence-pr-publisher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 13606,
-      "lines": 275,
-      "sha256": "dd3fed0b9077378fc5812d007b589ccb82777fce5a2a0fa138492d61c5149ead",
+      "bytes": 14155,
+      "lines": 290,
+      "sha256": "564d0d045ac2852404cc18348e245b48bf331957e4226513c5013dbcee3f79ab",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32778,7 +32778,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "ee7b1c0f8e8c24c684b0516d1b7e56f99d8667ced70a3e285dd55c69f6dba0fc",
+      "sha256": "474e6d3cc6a8fb9e9a2943113bd164b3ee98a01fecb6ba3d8e92b5ddd842ffa9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32943,7 +32943,7 @@
       "extension": ".md",
       "bytes": 47762,
       "lines": 514,
-      "sha256": "ab01a3f3d0f70d234c36cb16157e0525440a1b1ea34c0d3e7eab966c5ce0566e",
+      "sha256": "41b5fbe00bc8e2d57270c9f9a6005b25b643258246c3a828d6ee3955dbffc64d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -56118,9 +56118,9 @@
       "path": "http-generic-api/scripts/test-ci-evidence-pr-comment.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8656,
-      "lines": 269,
-      "sha256": "a6793cfb2e228619b2d56017ec7b66e4e54fd70ff9e822f17dde73170d211dfb",
+      "bytes": 8903,
+      "lines": 272,
+      "sha256": "9f681d95e07354fb7da19b5596af02eb3f1ade9d05569f8dc83196d1650f631f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80892,7 +80892,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "1e4350b132110135e52c2f647e3a6e8c273fec9c59f2b5696d5d350f17619ef4",
+      "sha256": "35421fdb17619a7b597494f6bd5af9f93ea7003e1dee9a6ce2e7e976781a5b5f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81453,7 +81453,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "6e602c8364d1dcc463693eb712fbc00f29a400b648d0020ae4fc156318b38b52",
+      "sha256": "c77c43a02494192da3c7a24eb2c8cc46e62d67aa32fed2dc2e3a00c02f2e1507",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82289,7 +82289,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "93474064434f7ef0eb95496331477d7e8d506ea2cdcbe7033931c8db1a3dedc2",
+      "sha256": "e10676b1bf91c61ebf72e28658637668a7f457cb7fcf5bd772d9bd23f69b0187",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82520,7 +82520,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "a4116d832f5f69c56cfcd1274ef65a9290ab3f31ee49aa1d1718892ba60ca6a8",
+      "sha256": "0153d3230b8e6281b08da150ec57e7adb0ce580fde7752a2d40f844b2dccc706",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82839,7 +82839,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "a9461704f905e76ac522b774d505ee7ffbf3d99af941503823b53fa77eaa9bb9",
+      "sha256": "708b79aaf0295bed8c5db3186799d705acddaf0a1cfaf9ae3b5e9763291207ac",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82960,7 +82960,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "4e17651153a06a11906bcff3335e9c351f9f5dbe44665d76876846a9e760ab83",
+      "sha256": "eeaf41adb4ba50d88165c8574ac79bbb948f7681eb32910972e3d2760d00646d",
       "mode": "644",
       "executable": false,
       "generated": false
