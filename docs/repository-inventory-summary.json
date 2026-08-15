@@ -3,34 +3,34 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6981,
-    "bytes": 65159470,
-    "lines": 1533387,
+    "files": 6987,
+    "bytes": 65185911,
+    "lines": 1533881,
     "directories": 260,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2092,
-      "documentation": 1894,
-      "api-runtime": 1404,
+      "tests-and-specs": 2093,
+      "documentation": 1896,
+      "api-runtime": 1405,
       "database-migrations": 781,
-      "root-and-other": 262,
+      "root-and-other": 263,
       "api-contracts": 162,
       "ci-workflows": 161,
       "ci-config": 103,
-      "schemas-and-data": 66,
+      "schemas-and-data": 67,
       "connectors-and-edge": 23,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2488,
-      ".mjs": 1629,
+      ".md": 2489,
+      ".mjs": 1631,
       ".js": 974,
       ".sql": 796,
-      ".json": 737,
+      ".json": 740,
       ".yml": 164,
       ".yaml": 110,
       ".ts": 15,
@@ -58,15 +58,15 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3603,
-      "docs": 1798,
+      "http-generic-api": 3605,
+      "docs": 1800,
       "specs": 846,
       ".github": 264,
-      ".changes": 249,
+      ".changes": 250,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
-      ".specify": 14,
+      ".specify": 15,
       "schemas": 14,
       "src": 12,
       "scripts": 11,
@@ -217,7 +217,7 @@
     "workflows": 161,
     "migrations": 781,
     "apiContracts": 162,
-    "testSpecFiles": 2160
+    "testSpecFiles": 2161
   },
   "largestFiles": [
     {
@@ -277,8 +277,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 241420,
-      "lines": 2068
+      "bytes": 241968,
+      "lines": 2072
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",

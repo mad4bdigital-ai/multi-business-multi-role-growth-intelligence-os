@@ -2032,7 +2032,11 @@
     "http-generic-api/test-staging-independent-schema-contract.mjs|TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL|environment_reference|tenant.gpt.staging.authorization.server.url",
     "http-generic-api/test-staging-independent-schema-contract.mjs|TENANT_GPT_STAGING_OAUTH_CLIENT_ID|environment_reference|tenant.gpt.staging.oauth.client.id",
     "http-generic-api/test-staging-independent-schema-contract.mjs|TENANT_GPT_STAGING_RESOURCE_URL|environment_reference|tenant.gpt.staging.resource.url",
-    "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker"
+    "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker",
+    "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|DEFAULT_CANDIDATES|literal_declaration|candidates",
+    "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|DEFAULT_OUTPUT|literal_declaration|output",
+    "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|DEFAULT_REGISTRY|literal_declaration|registry",
+    "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|changedFiles|environment_reference|changed.files.file"
   ],
   "max_existing_secret_candidates": 341,
   "fail_on_removed_candidates": false,
