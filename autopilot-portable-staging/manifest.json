@@ -74,7 +74,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "6b0de296ad86fa307d8c163415e9377e14b05f53d7e767e586b9574eb7f9132a"
+      "sha256": "3363dfc74b11f5b27707aabb4f897fc5fb2f64b258767892df2897cf01a7dfdc"
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
@@ -154,23 +154,23 @@
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
-      "sha256": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99"
+      "sha256": "8c3f4c459ab2f7429f54773533ae4936ca6d83326424e0c6d35ec643420ff8e5"
     },
     {
       "path": "http-generic-api/test-workspace-brand-create.mjs",
-      "sha256": "a9cf6e7167b65c0b1cee889b67122be1b1167dd4f70c1851d27a2e58203c7c82"
+      "sha256": "1b2b78a7006e61ec596218c055351fd718294bb8cac7078319a2f7d4bb93f5c3"
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "5b3c9876fa8e351e6cbfe71283b7e56adb3abb83b0742d2c87187795b5a2fcaa"
+      "sha256": "dfa72e88ff549a768f8535f093962f2ecf362eb229942eb3f897870cf6d1ccb9"
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "93fa3472b9f09c6bf8443006314d5b7868957005151540807f4010f1ba53a5b5"
+      "sha256": "6aa5d0fe7fb37eaf2a6056800e9c3a3595c3263c10871cac6dc9028556e68207"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "ecef4036a45ad5d1a1ef60a574af39b1122504cf3839a804a19f6f823a23527f"
+      "sha256": "fc7058dc1c3fb29dfe723fd9a561f23e9ff8fcbac1f9ed57269660083584017f"
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
