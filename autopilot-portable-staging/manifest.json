@@ -102,7 +102,7 @@
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
-      "sha256": "519fab676b55df4ed37f3a89ec479d4c91f846228f2477c0f90cb48ae40d9af3"
+      "sha256": "d52501a05aaff45351f3f9f8fb388d57509e77cbb615be18594d8c54af314c37"
     },
     {
       "path": "http-generic-api/canonical-business-operation-registry.json",
@@ -110,7 +110,7 @@
     },
     {
       "path": "http-generic-api/canonicalBusinessOperationRegistry.js",
-      "sha256": "1b94980b31413477546f7c96cef87770595ce23b19d862236d96baf60b8dc982"
+      "sha256": "a9dc8da6474b253100cadb2f89b02d1c662c1ec7ef2a6264bc6a73b84a4ece57"
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
@@ -138,11 +138,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "6aa5d0fe7fb37eaf2a6056800e9c3a3595c3263c10871cac6dc9028556e68207"
+      "sha256": "a8a4238dd522263f83acff435bd5e9f6b73467a0a16c6d891d8319e785925fe2"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "fc7058dc1c3fb29dfe723fd9a561f23e9ff8fcbac1f9ed57269660083584017f"
+      "sha256": "d984641caea87f9164a183cef4060de73c271efe5d9db4bd4a4e4e5ef3a8ca7a"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -162,7 +162,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "5c18b455262532cb9bff99e44926a026aff713ad5f86273164008d9eac15b8e8"
+      "sha256": "c9cb9e4a4d34e282801d3d246b1bdddb653123fa5673a3e32e8a1c6f93efe415"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -190,7 +190,7 @@
     },
     {
       "path": "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
-      "sha256": "da21e24fa7ddc5325ff9d0a7b5d6429ca332c33733b99b727f6dd7414bf36ab0"
+      "sha256": "e5dcc3b400786043b29c92b2d42025fc253164958890853d966f0461f0f13212"
     },
     {
       "path": "http-generic-api/scripts/build-staging-admin-openapi.mjs",
@@ -222,7 +222,7 @@
     },
     {
       "path": "http-generic-api/test-canonical-business-operation-registry.mjs",
-      "sha256": "7b965c65791783a21e08d04613e2609d460e400f819452c036cc73be4acbc321"
+      "sha256": "b5fb6542c15bb661fa0b212985ddd3bc9b785aba69892d8d80602580e5559d58"
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
@@ -258,7 +258,7 @@
     },
     {
       "path": "http-generic-api/workspaceBrandLifecycle.js",
-      "sha256": "5f114a3002ee6fd7b34b5467122a0e4af05c6bababa42595b5dcd9adf74e7bbb"
+      "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337"
     }
   ],
   "safety": {
