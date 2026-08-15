@@ -16,6 +16,9 @@ const CONFIG_SYMBOL = /(?:default|config|setting|feature|flag|timeout|ttl|quota|
 const GENERATED_PATH = /(?:generated|work[-_]?maps?|repository-inventory|repository-evaluation|openapi\.(?:yaml|yml|json))/iu;
 const EXCLUDED_PATH = /(?:^|\/)(?:node_modules|\.git|\.artifacts|dist|build|coverage|vendor|fixtures?|snapshots?|__snapshots__|tests?|specs?)(?:\/|$)|(?:\.generated\.(?:js|mjs|json|yaml|yml)|\.lock$)/iu;
 const LITERAL = /(?:=|:)\s*(?:(["'`])((?:\\.|(?!\1)[^\\])*?)\1|([0-9]+(?:\.[0-9]+)?)|\b(true|false|null)\b)/iu;
+const REVIEWED_IMMUTABLE_SOURCE_MIRRORS = new Map([
+  ["http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs", "2374480b7bafb6bcbdbdac47e1950f0c20123b05ded62bf394db7d2f49c6a425"],
+]);
 
 function parseArgs(argv) {
   const args = {};
@@ -36,6 +39,11 @@ function normalizePath(value) {
 
 function sha256(value) {
   return createHash("sha256").update(String(value)).digest("hex");
+}
+
+export function isReviewedImmutableSourceMirror(path, content) {
+  const expectedHash = REVIEWED_IMMUTABLE_SOURCE_MIRRORS.get(normalizePath(path));
+  return Boolean(expectedHash) && sha256(content) === expectedHash;
 }
 
 function redact(value) {
@@ -168,6 +176,7 @@ export async function discoverConfigurationCandidates({ repositoryRoot = process
     const inventorySet = Array.isArray(inventory?.files) ? new Set(inventory.files.map((file) => normalizePath(file.path))) : null;
     const candidates = [];
     for (const { path, content } of records) {
+      if (isReviewedImmutableSourceMirror(path, content)) continue;
       for (const candidate of extractCandidates(path, content)) {
         const matches = registryMatches({ path, content: candidate.evidence, suggestedConfigKey: candidate.suggested_config_key, registryKeys });
         candidates.push({ ...candidate, registry_matches: matches, confidence: confidenceFor({ candidateClass: candidate.candidate_class, registryMatches: matches, expressionKind: candidate.expression_kind }) });
