@@ -26,7 +26,7 @@ on:
       - '!docs/repository-inventory.md'
 
 # This verifier is read-only; generated-artifact writes remain delegated to the trusted writer workflow.
-# Contract: mad4b.repository-inventory-self-hosting.v2; stale main remains failing until a governed sync PR converges the generated outputs.
+# Contract: mad4b.repository-inventory-self-hosting.v2; stale state is a failing detector signal so the trusted workflow_run dispatcher can repair it.
 env:
   INVENTORY_AUTHORITY_MODE: read_only_verifier
 
@@ -104,6 +104,19 @@ jobs:
               " | current=" + ((.current // false) | tostring) +
               " | followup_required=" + ((.followup_required // false) | tostring)
             ' repository-inventory-verification.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Enforce repair-required Inventory state
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f repository-inventory-verification.json
+          current="$(jq -r '.current // false' repository-inventory-verification.json)"
+          outcome="$(jq -r '.outcome // "unknown"' repository-inventory-verification.json)"
+          if [[ "$current" != "true" ]]; then
+            echo "::error::Repository Inventory is not current; outcome=${outcome}. The trusted workflow_run dispatcher must perform the bounded repair."
+            exit 1
           fi
 
       - name: Upload inventory artifacts
