@@ -18,7 +18,6 @@ const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
 const REMOTE_MCP_WRITE_SCOPE_RECIPE = "remote_mcp_write_scope_refresh";
 const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
 const TRUSTED_WRITER_AUTHORITY_MODE = "trusted_generated_artifact_writer";
-const REMOTE_MCP_WRITE_SCOPE_INVENTORY_PATH = "http-generic-api/remote-mcp-write-scope-inventory.generated.json";
 const STAGING_MANIFEST_PATH = "autopilot-portable-staging/manifest.json";
 const EXPLICIT_RECIPES = new Set([
   FRONTEND_OPENAPI_RECIPE,
@@ -47,7 +46,7 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
 ]);
 const REMOTE_MCP_WRITE_SCOPE_OUTPUTS = new Set([
-  REMOTE_MCP_WRITE_SCOPE_INVENTORY_PATH,
+  "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
   "docs/remote-mcp-write-scope-inventory.md",
   STAGING_MANIFEST_PATH,
 ]);
@@ -363,19 +362,19 @@ function updateRemoteMcpManifestHash() {
     });
   }
   const matchingEntries = Array.isArray(manifest?.files)
-    ? manifest.files.filter((entry) => entry?.path === REMOTE_MCP_WRITE_SCOPE_INVENTORY_PATH)
+    ? manifest.files.filter((entry) => entry?.path === "http-generic-api/remote-mcp-write-scope-inventory.generated.json")
     : [];
   if (matchingEntries.length !== 1) {
     throw new ToolFailure({
       code: "remote_mcp_manifest_entry_cardinality_invalid",
       step: "update_remote_mcp_staging_manifest",
-      command: `locate ${REMOTE_MCP_WRITE_SCOPE_INVENTORY_PATH} in ${STAGING_MANIFEST_PATH}`,
+      command: `locate http-generic-api/remote-mcp-write-scope-inventory.generated.json in ${STAGING_MANIFEST_PATH}`,
       status: 1,
       stdout: `matching_entries=${matchingEntries.length}`,
       stderr: "Portable Staging manifest must contain exactly one Remote MCP write-scope inventory entry.",
     });
   }
-  matchingEntries[0].sha256 = hashFile(REMOTE_MCP_WRITE_SCOPE_INVENTORY_PATH);
+  matchingEntries[0].sha256 = hashFile("http-generic-api/remote-mcp-write-scope-inventory.generated.json");
   fs.writeFileSync(manifestFilePath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
