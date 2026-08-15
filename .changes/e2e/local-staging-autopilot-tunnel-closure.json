@@ -13,6 +13,7 @@
       "autopilot-portable-staging/manifest.json",
       "STAGING-WINDOWS.md",
       "http-generic-api/.env.staging.example",
+      "http-generic-api/docker-compose.staging.yml",
       "docs/governance/configuration-drift-policy.json",
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/config/staging-openapi-mcp-policy.json",
