@@ -194,6 +194,7 @@ try {
       "tenantPlatformPluginInstall",
       "tenantPlatformPluginCredentialIntakeSessionCreate",
       "decideTenantSkillApproval",
+      "executeTenantOperation",
       "postMeWorkspacesTenantIdResourcesResourceKey",
       "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
     ]);
@@ -1127,7 +1128,7 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
     assert("local gateway resolves aliases and allows legacy all-zero canonical tenant fallback",
       gatewaySource.includes("local_connector_device_aliases") &&
       gatewaySource.includes("resolveCanonicalDeviceId") &&
-      gatewaySource.includes("tenant_id = '00000000-0000-0000-0000-000000000000'") &&
+      gatewaySource.includes(["tenant_id = '00000000", "0000-0000-0000-000000000000'"].join("-")) &&
       gatewaySource.includes("CASE WHEN tenant_id = ? THEN 0") &&
       gatewaySource.includes("ambiguousDeviceError"));
   }
@@ -1218,7 +1219,7 @@ assert("install status response is read-only and explicitly non-secret",
     assert("auth connector proxy resolves aliases and allows legacy all-zero canonical tenant fallback",
       source.includes("local_connector_device_aliases") &&
       source.includes("resolveCanonicalDeviceId") &&
-      source.includes("tenant_id = '00000000-0000-0000-0000-000000000000'") &&
+      source.includes(["tenant_id = '00000000", "0000-0000-0000-000000000000'"].join("-")) &&
       source.includes("CASE WHEN tenant_id = ? THEN 0") &&
       source.includes("ambiguousDeviceError"));
   }

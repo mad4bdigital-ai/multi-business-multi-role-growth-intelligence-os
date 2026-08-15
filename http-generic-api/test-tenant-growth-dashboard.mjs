@@ -152,6 +152,7 @@ const routeSource = read("routes/tenantGrowthDashboardRoutes.js");
 const overlaySource = read("routes/tenantActivationOverlayRoutes.js");
 const indexSource = read("routes/index.js");
 const migration = read("migrations/20260615_tenant_growth_dashboard_product.sql");
+const mcpCatalogMigration = read("migrations/20260815_custom_gpt_mcp_catalog_levels.sql");
 const responseService = read("activationHardResponseService.js");
 const openapiText = read("openapi.tenant-gpt.auth.yaml");
 const openapi = YAML.parse(openapiText);
@@ -200,14 +201,20 @@ const dashboardPaths = [
   "/tenant/dashboard/recommendations/{recommendationId}/feedback",
 ];
 for (const path of dashboardPaths) {
-  assert.ok(openapi.paths[path], `Tenant GPT OpenAPI path missing: ${path}`);
+  if (path === "/tenant/dashboard/recommendations/{recommendationId}/feedback") {
+    assert.equal(openapi.paths[path], undefined, "long-tail feedback must remain outside the static Tenant GPT schema");
+  } else {
+    assert.ok(openapi.paths[path], `Tenant GPT OpenAPI path missing: ${path}`);
+  }
   assert.ok(primaryOpenapi.paths[path], `Primary OpenAPI path missing: ${path}`);
   assertLocalRefsResolve(primaryOpenapi, primaryOpenapi.paths[path]);
 }
+assert.match(mcpCatalogMigration, /tenant_growth_recommendation_feedback/);
+assert.match(mcpCatalogMigration, /mcp_catalog_level/);
 assert.equal(openapi.openapi, "3.1.0");
 assert.equal(openapi.paths["/tenant/dashboard"].get.operationId, "getTenantGrowthDashboard");
 assert.equal(openapi.paths["/tenant/dashboard/preferences"].put["x-openai-isConsequential"], true);
-assert.equal(openapi.paths["/tenant/dashboard/recommendations/{recommendationId}/feedback"].post.responses["201"] !== undefined, true);
+assert.equal(primaryOpenapi.paths["/tenant/dashboard/recommendations/{recommendationId}/feedback"].post.responses["201"] !== undefined, true);
 assert.ok(openapi.components.schemas.GrowthDashboardResponse);
 assert.ok(openapi.components.schemas.GrowthDashboardCard);
 assert.ok(openapi.components.schemas.GrowthDashboardPreferences);

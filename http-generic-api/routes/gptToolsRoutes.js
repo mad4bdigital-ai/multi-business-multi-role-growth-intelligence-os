@@ -108,7 +108,7 @@ import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 import { normalizeRegistryTags } from "../registryTagParser.js";
 
 const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
-sqlCacheKey("tools", callerType, "list", "v3")
+sqlCacheKey("tools", callerType, "list", "v4")
 filterTenantToolsByManifest(rows, blockedTenantManifests)
 filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
 async function dispatchTool(callerType, toolKey, args, req) {
@@ -144,6 +144,41 @@ const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
+
+export function createGptExecutionCapsule({ operation_key = null } = {}) {
+  return {
+    contract: "gpt.execution_capsule.v1",
+    operation_key,
+    manifest_schema_promise: null,
+    descriptor_cache: new Map(),
+    metrics: {
+      manifest_schema_loads: 0,
+      descriptor_resolutions: 0,
+      descriptor_cache_hits: 0,
+      duplicate_schema_queries: 0,
+    },
+    secrets_included: false,
+  };
+}
+
+async function loadTenantExecutionGuards(capsule) {
+  if (!capsule || typeof capsule !== "object") {
+    return Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+  }
+  if (!capsule.manifest_schema_promise) {
+    capsule.metrics.manifest_schema_loads += 1;
+    capsule.manifest_schema_promise = Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+  } else {
+    capsule.metrics.duplicate_schema_queries += 0;
+  }
+  return capsule.manifest_schema_promise;
+}
 
 const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
   status: "required",
@@ -321,16 +356,23 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
         AND tenant_id = ?
         AND (user_id <=> ?)
         AND session_status NOT IN ('completed', 'closed')
-      LIMIT 1`,
+      LIMIT 2`,
       [pinnedSessionId, tenantId, userId]
     );
-    if (!rows[0]) return null;
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (rows.length > 1) {
+      const error = new Error("Pinned GPT session lookup was ambiguous.");
+      error.status = 409;
+      error.code = "GPT_SESSION_LOOKUP_AMBIGUOUS";
+      throw error;
+    }
+    const [pinnedSession] = rows;
+    if (!pinnedSession) return null;
+    const counts = await countConversationTurns(pool, pinnedSession.session_id);
     if (counts.conversation_turns > 0 || allowUncapturedConversation) {
-      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+      return { ...pinnedSession, archive_binding: "explicit_session_pin", turn_counts: counts };
     }
     return {
-      ...rows[0],
+      ...pinnedSession,
       archive_binding: "explicit_session_pin_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -353,10 +395,11 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
       return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
     }
   }
-  if (rows?.[0]) {
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+  const [fallbackSession] = rows || [];
+  if (fallbackSession) {
+    const counts = await countConversationTurns(pool, fallbackSession.session_id);
     return {
-      ...rows[0],
+      ...fallbackSession,
       archive_binding: "latest_active_session_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -2495,8 +2538,8 @@ export function resolveCallerTypeForRequest(req) {
   return resolveCallerType(req);
 }
 
-export async function fetchToolsForCaller(callerType) {
-  return fetchTools(callerType);
+export async function fetchToolsForCaller(callerType, runtimeDeps = {}) {
+  return fetchTools(callerType, runtimeDeps.executionCapsule || null);
 }
 
 export async function dispatchToolForCaller(callerType, toolKey, args, req, runtimeDeps = {}) {
@@ -2506,15 +2549,15 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
   });
 }
 
-async function fetchTools(callerType) {
+async function fetchTools(callerType, executionCapsule = null) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v3"),
+    sqlCacheKey("tools", callerType, "list", "v4"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
         `SELECT tool_key, display_name, description, http_method, http_path,
-                path_param_keys, input_schema, tags
+                path_param_keys, input_schema, tags, mcp_catalog_level
          FROM \`${table}\`
          WHERE is_enabled = 1
          ORDER BY sort_order ASC, tool_key ASC`
@@ -2523,10 +2566,7 @@ async function fetchTools(callerType) {
     }
   );
   const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
-    ? await Promise.all([
-        loadTenantToolManifestBlocks(getPool()),
-        loadTenantToolSchemaBlocks(getPool()),
-      ])
+    ? await loadTenantExecutionGuards(executionCapsule)
     : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
     ? filterTenantToolsByStrictSchema(
@@ -2544,22 +2584,32 @@ async function fetchTools(callerType) {
     method: r.http_method,
     path: r.http_path,
     tags: normalizeRegistryTags(r.tags),
+    catalogLevel: String(r.mcp_catalog_level || "core"),
+    catalog_level: String(r.mcp_catalog_level || "core"),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
 }
 
-async function resolveToolPreflightDescriptor(callerType, toolKey) {
+async function resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule = null) {
   const normalizedToolKey = String(toolKey || "").trim();
   if (!normalizedToolKey) return null;
+  const descriptorLookupKey = `${callerType}:${normalizedToolKey}`;
+  if (executionCapsule?.descriptor_cache?.has(descriptorLookupKey)) {
+    executionCapsule.metrics.descriptor_cache_hits += 1;
+    return executionCapsule.descriptor_cache.get(descriptorLookupKey);
+  }
   if (callerType === "admin") {
     const virtualTool = VIRTUAL_ADMIN_TOOLS.find((tool) => tool.name === normalizedToolKey);
     if (virtualTool) {
-      return {
+      const descriptor = {
         method: virtualTool.method || "VIRTUAL",
         tags: Array.isArray(virtualTool.tags) ? virtualTool.tags : [],
+        inputSchema: virtualTool.inputSchema || virtualTool.input_schema || null,
         source: "virtual_admin_tool_catalog",
       };
+      executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
+      return descriptor;
     }
   }
 
@@ -2568,19 +2618,32 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
     const [rows] = await getPool().query(
-      `SELECT http_method, tags FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT http_method, tags, input_schema, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [normalizedToolKey]
     );
-    if (!rows?.[0]) continue;
-    return {
-      method: rows[0].http_method || "",
-      tags: normalizeRegistryTags(rows[0].tags),
+    if (rows.length > 1) {
+      const error = new Error("Tool descriptor lookup is ambiguous.");
+      error.code = "TOOL_DESCRIPTOR_LOOKUP_AMBIGUOUS";
+      error.status = 409;
+      throw error;
+    }
+    const [row] = rows;
+    if (!row) continue;
+    const descriptor = {
+      method: row.http_method || "",
+      tags: normalizeRegistryTags(row.tags),
+      catalogLevel: String(row.mcp_catalog_level || "core"),
+      catalog_level: String(row.mcp_catalog_level || "core"),
+      inputSchema: parseJson(row.input_schema),
       source: table,
     };
+    executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
+    if (executionCapsule) executionCapsule.metrics.descriptor_resolutions += 1;
+    return descriptor;
   }
   return null;
 }
-async function detectMissingRequiredArgs(callerType, toolKey, args) {
+async function detectMissingRequiredArgs(callerType, toolKey, args, executionCapsule = null) {
   // Virtual admin tools enforce their own schemas inside dispatchToolImpl;
   // skip up-front validation for them.
   if (callerType === "admin" && VIRTUAL_ADMIN_TOOLS.some((t) => t.name === toolKey)) {
@@ -2588,11 +2651,8 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   try {
-    const [rows] = await getPool().query(
-      `SELECT input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
-      [toolKey]
-    );
-    const schema = parseJson(rows?.[0]?.input_schema);
+    const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
+    const schema = descriptor?.inputSchema || null;
     const required = Array.isArray(schema?.required) ? schema.required : [];
     if (!required.length) return null;
     const provided = args && typeof args === "object" ? args : {};
@@ -2610,15 +2670,13 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
+  const executionCapsule = runtimeDeps.executionCapsule || null;
   if (callerType === "tenant") {
-    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
-      loadTenantToolManifestBlocks(getPool()),
-      loadTenantToolSchemaBlocks(getPool()),
-    ]);
+    const [blockedTenantManifests, blockedTenantSchemas] = await loadTenantExecutionGuards(executionCapsule);
     assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
     assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
-  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
+  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
       callerType,
@@ -3491,9 +3549,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
 
   if (callerType === "tenant") {
     const [tenantRowExists] = await getPool().query(
-      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [toolKey]
     );
+    if (tenantRowExists.length > 1) {
+      return {
+        status: 409,
+        body: { ok: false, error: { code: "tenant_tool_registry_ambiguous", message: "Tenant tool registry lookup was ambiguous." } },
+      };
+    }
     if (!tenantRowExists.length) {
       const tenantId = req?.auth?.tenant_id || null;
       const userId = req?.auth?.user_id || null;
@@ -3525,15 +3589,22 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
     `SELECT http_method, http_path, path_param_keys, fixed_body
      FROM \`${table}\`
      WHERE tool_key = ? AND is_enabled = 1
-     LIMIT 1`,
+     LIMIT 2`,
     [toolKey]
   );
 
-  if (!rows[0]) {
+  if (rows.length > 1) {
+    return {
+      status: 409,
+      body: { ok: false, error: { code: "tool_registry_ambiguous", message: `Tool '${toolKey}' has ambiguous active descriptors.` } },
+    };
+  }
+  const [toolDescriptor] = rows;
+  if (!toolDescriptor) {
     return { status: 404, body: { ok: false, error: { code: "tool_not_found", message: `Tool '${toolKey}' not found.` } } };
   }
 
-  const { http_method: method, http_path: pathTemplate } = rows[0];
+  const { http_method: method, http_path: pathTemplate } = toolDescriptor;
   if (callerType === "tenant" && (isTenantBlockedToolPath(pathTemplate) || isTenantBlockedToolName(toolKey))) {
     return {
       status: 403,
@@ -3547,8 +3618,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
       },
     };
   }
-  const pathParamKeys = parseJson(rows[0].path_param_keys) || [];
-  const fixedBody = parseJson(rows[0].fixed_body) || {};
+  const pathParamKeys = parseJson(toolDescriptor.path_param_keys) || [];
+  const fixedBody = parseJson(toolDescriptor.fixed_body) || {};
   const remaining = { ...args };
 
   // Substitute path parameters
@@ -4382,7 +4453,11 @@ export function buildGptToolsRoutes(deps) {
   router.get("/gpt/tools", requireBackendApiKey, async (req, res) => {
     try {
       const callerType = resolveCallerType(req);
-      const tools = await fetchTools(callerType);
+      const requestRuntimeDeps = {
+        ...runtimeDeps,
+        executionCapsule: createGptExecutionCapsule({ operation_key: "gpt_tools.list" }),
+      };
+      const tools = await fetchTools(callerType, requestRuntimeDeps.executionCapsule);
       const { items, page } = paginateItems(tools, req.query || {});
       const body = {
         ok: true,
@@ -4398,7 +4473,7 @@ export function buildGptToolsRoutes(deps) {
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
                   request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, runtimeDeps));
+        }, requestRuntimeDeps));
 
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
@@ -4420,12 +4495,16 @@ export function buildGptToolsRoutes(deps) {
       }
 
       const callerType = resolveCallerType(req);
+      const requestRuntimeDeps = {
+        ...runtimeDeps,
+        executionCapsule: createGptExecutionCapsule({ operation_key: name }),
+      };
 
       // Up-front required-args check so the GPT gets a clear retry signal
       // instead of a downstream HTTP error when its schema cache forgot to
       // attach tool_args/arguments. Skips for virtual tools (their schemas
       // are exposed via VIRTUAL_ADMIN_TOOLS and enforced inline).
-      const missingArgs = await detectMissingRequiredArgs(callerType, name, args);
+      const missingArgs = await detectMissingRequiredArgs(callerType, name, args, requestRuntimeDeps.executionCapsule);
       if (missingArgs) {
         return res.status(400).json({
           ok: false,
@@ -4437,7 +4516,7 @@ export function buildGptToolsRoutes(deps) {
         });
       }
 
-      const result = await dispatchTool(callerType, name, args, req, runtimeDeps);
+      const result = await dispatchTool(callerType, name, args, req, requestRuntimeDeps);
       return res.status(result.status).json(result.body);
     } catch (err) {
       return res.status(err.status || 500).json({

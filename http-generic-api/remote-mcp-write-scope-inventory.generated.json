@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 6977,
+  "file_count": 6982,
   "route_count": 1074,
   "write_route_count": 652,
   "classified_write_surface_count": 38,
@@ -16,7 +16,7 @@
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 614,
   "sensitive_intentionally_unmapped_write_route_count": 614,
-  "migration_count": 445,
+  "migration_count": 446,
   "registry_evidence_count": 106,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
@@ -337,8 +337,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/env-bootstrap:0",
-      "source_line": 1729,
-      "source_offset": 67018,
+      "source_line": 1742,
+      "source_offset": 67944,
       "method": "GET",
       "path": "/activation/env-bootstrap",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -346,8 +346,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/bootstrap-config:1",
-      "source_line": 1783,
-      "source_offset": 70259,
+      "source_line": 1796,
+      "source_offset": 71185,
       "method": "GET",
       "path": "/activation/bootstrap-config",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -355,8 +355,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#POST:/activation/hard-run/legacy-full:2",
-      "source_line": 1865,
-      "source_offset": 74413,
+      "source_line": 1878,
+      "source_offset": 75339,
       "method": "POST",
       "path": "/activation/hard-run/legacy-full",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -364,8 +364,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context/read-only:3",
-      "source_line": 1936,
-      "source_offset": 78273,
+      "source_line": 1949,
+      "source_offset": 79199,
       "method": "GET",
       "path": "/activation/session-context/read-only",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -373,8 +373,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context:4",
-      "source_line": 1962,
-      "source_offset": 78946,
+      "source_line": 1975,
+      "source_offset": 79872,
       "method": "GET",
       "path": "/activation/session-context",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -382,8 +382,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/platform-access:5",
-      "source_line": 1991,
-      "source_offset": 79917,
+      "source_line": 2004,
+      "source_offset": 80843,
       "method": "GET",
       "path": "/activation/platform-access",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -3622,8 +3622,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:0",
-      "source_line": 4382,
-      "source_offset": 206344,
+      "source_line": 4453,
+      "source_offset": 209368,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3631,8 +3631,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:1",
-      "source_line": 4409,
-      "source_offset": 207297,
+      "source_line": 4484,
+      "source_offset": 210523,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -4891,8 +4891,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#GET:${prefix}/operations/contracts:0",
-      "source_line": 402,
-      "source_offset": 11397,
+      "source_line": 424,
+      "source_offset": 12058,
       "method": "GET",
       "path": "${prefix}/operations/contracts",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4900,8 +4900,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/context:1",
-      "source_line": 418,
-      "source_offset": 11873,
+      "source_line": 440,
+      "source_offset": 12534,
       "method": "POST",
       "path": "${prefix}/operations/context",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4909,8 +4909,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/preview:2",
-      "source_line": 432,
-      "source_offset": 12231,
+      "source_line": 454,
+      "source_offset": 12892,
       "method": "POST",
       "path": "${prefix}/operations/preview",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4918,8 +4918,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/execute:3",
-      "source_line": 442,
-      "source_offset": 12516,
+      "source_line": 464,
+      "source_offset": 13251,
       "method": "POST",
       "path": "${prefix}/operations/execute",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4927,8 +4927,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/status:4",
-      "source_line": 613,
-      "source_offset": 18095,
+      "source_line": 636,
+      "source_offset": 18932,
       "method": "POST",
       "path": "${prefix}/operations/status",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4936,8 +4936,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#GET:${prefix}/operations/workers/:worker_id:5",
-      "source_line": 629,
-      "source_offset": 18534,
+      "source_line": 652,
+      "source_offset": 19395,
       "method": "GET",
       "path": "${prefix}/operations/workers/:worker_id",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4945,8 +4945,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#GET:${prefix}/operations/artifacts:6",
-      "source_line": 649,
-      "source_offset": 18997,
+      "source_line": 672,
+      "source_offset": 19858,
       "method": "GET",
       "path": "${prefix}/operations/artifacts",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4954,8 +4954,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/ci-diagnose:7",
-      "source_line": 673,
-      "source_offset": 19655,
+      "source_line": 696,
+      "source_offset": 20516,
       "method": "POST",
       "path": "${prefix}/operations/ci-diagnose",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -10941,10 +10941,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/activationRoutes.js",
-        "source_line": 1865,
+        "source_line": 1878,
         "handler_window_lines": [
-          1865,
-          1934
+          1878,
+          1947
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25652,10 +25652,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4409,
+        "source_line": 4484,
         "handler_window_lines": [
-          4409,
-          4457
+          4484,
+          4536
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25675,6 +25675,7 @@
           ],
           "readback": [],
           "mutation": [
+            "create",
             "dispatch"
           ]
         },
@@ -30219,10 +30220,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 418,
+        "source_line": 440,
         "handler_window_lines": [
-          418,
-          430
+          440,
+          452
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30279,10 +30280,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 432,
+        "source_line": 454,
         "handler_window_lines": [
-          432,
-          440
+          454,
+          462
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30339,10 +30340,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 442,
+        "source_line": 464,
         "handler_window_lines": [
-          442,
-          611
+          464,
+          634
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30414,10 +30415,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 613,
+        "source_line": 636,
         "handler_window_lines": [
-          613,
-          627
+          636,
+          650
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30474,10 +30475,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 673,
+        "source_line": 696,
         "handler_window_lines": [
-          673,
-          699
+          696,
+          723
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -55564,6 +55565,16 @@
         "severity",
         "governed_migration_authorization_registry",
         "authorization_status"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
+      "tables": [
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools",
+        "display_name"
       ],
       "write_scopes": [],
       "catalog_fingerprints": []

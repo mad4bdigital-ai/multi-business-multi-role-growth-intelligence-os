@@ -540,6 +540,12 @@ await stage("tenant_surface_operation_budgets", async () => {
   const expectedOperationCount = (surfaceKey) => {
     const selector = customGptSurfaceRegistry.surfaces?.[surfaceKey]?.selector;
     assert.deepEqual(selector?.source_markers, [surfaceKey], `${surfaceKey} must use its source marker selector`);
+    const staticOperationIds = Array.isArray(selector?.static_operation_ids) ? selector.static_operation_ids : null;
+    const dynamicOperationIds = Array.isArray(selector?.dynamic_operation_ids) ? selector.dynamic_operation_ids : [];
+    if (staticOperationIds) {
+      assert.equal(new Set([...staticOperationIds, ...dynamicOperationIds]).size, staticOperationIds.length + dynamicOperationIds.length, `${surfaceKey} static/dynamic operation IDs must not overlap`);
+      return staticOperationIds.length;
+    }
     const source = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));
     return Object.values(source.paths || {})
       .flatMap((pathItem) => Object.values(pathItem || {}))

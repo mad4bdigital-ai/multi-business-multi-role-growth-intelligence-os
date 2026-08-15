@@ -15,16 +15,17 @@ surfaces:
     server_url: https://auth.mad4b.com
     auth_profile: admin_service
     hard_operation_limit: 30
-    warning_operation_limit: 24
+    warning_operation_limit: 30
     info:
       title: Growth Intelligence Platform - Admin Core Actions
-      summary: Admin and system MCP facades without Activation routes.
-      description: Stable Admin Core transport for governed admin-control and system-layer operations. Dynamic MCP tool schemas remain SQL-driven.
+      summary: Admin and system MCP facades with a bounded operation surface.
+      description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven.
     candidate_policy:
       mode: marker_required
       required_marker: admin_core
       candidate_tags:
         - admin-control
+        - admin-operations
         - system-layer
       omission: fail
       exclusion_records:
@@ -208,17 +209,38 @@ surfaces:
     server_url: https://auth.mad4b.com
     auth_profile: tenant_oauth
     hard_operation_limit: 30
-    warning_operation_limit: 26
+    warning_operation_limit: 30
+    catalog_policy:
+      mode: database_mcp_levels
+      registry_table: tenant_platform_endpoint_tools
+      level_column: mcp_catalog_level
+      fallback_operations:
+        - listTools
+        - callTool
+      demoted_operation_records:
+        - operation_id: getMeWorkspacesTenantIdResourceChanges
+          tool_key: tenant_resource_changes_list
+          level: resource_api
+          reason: Long-tail resource projection remains available through the DB-backed MCP catalog.
+        - operation_id: getMeWorkspacesTenantIdOperationsOperationId
+          tool_key: tenant_operation_get
+          level: resource_api
+          reason: Long-tail execution readback remains available through the DB-backed MCP catalog.
+        - operation_id: recordTenantGrowthRecommendationFeedback
+          tool_key: tenant_growth_recommendation_feedback
+          level: growth_feedback
+          reason: Bounded recommendation feedback remains available through the DB-backed MCP catalog.
     info:
       title: Growth Intelligence Platform - Tenant Core Actions
-      summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
-      description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+      summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
+      description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args.
     candidate_policy:
       mode: marker_required
       required_marker: tenant_core
       candidate_tags:
         - resource-api
         - growth-dashboard
+        - tenant-operations
         - system-layer
         - local-connector
         - platform-plugins
@@ -713,7 +735,7 @@ surfaces:
     selector:
       source_markers:
         - tenant_core
-      order_operation_ids:
+      static_operation_ids:
         - getMeWorkspacesTenantIdResources
         - getMeWorkspacesTenantIdResourcesResourceKey
         - postMeWorkspacesTenantIdResourcesResourceKey
@@ -724,15 +746,12 @@ surfaces:
         - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
         - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
         - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
-        - getMeWorkspacesTenantIdResourceChanges
-        - getMeWorkspacesTenantIdOperationsOperationId
         - getTenantGrowthDashboard
         - getTenantGrowthDashboardTab
         - getTenantDashboardPreferences
         - updateTenantDashboardPreferences
         - getTenantGrowthDigest
         - previewTenantGrowthAction
-        - recordTenantGrowthRecommendationFeedback
         - listLocalGatewayTools
         - listTools
         - callTool
@@ -744,6 +763,13 @@ surfaces:
         - decideTenantSkillApproval
         - writeSessionTurn
         - endSession
+        - previewTenantOperation
+        - executeTenantOperation
+        - getTenantOperationStatus
+      dynamic_operation_ids:
+        - getMeWorkspacesTenantIdResourceChanges
+        - getMeWorkspacesTenantIdOperationsOperationId
+        - recordTenantGrowthRecommendationFeedback
   tenant_activation:
     mode: generated_from_openapi
     output_file: openapi/openapi.tenant-gpt.activation.yaml

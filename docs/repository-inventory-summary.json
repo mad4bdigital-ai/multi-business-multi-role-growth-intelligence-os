@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6971,
-    "bytes": 65067255,
-    "lines": 1531457,
+    "files": 6976,
+    "bytes": 65113320,
+    "lines": 1532329,
     "directories": 260,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2090,
-      "documentation": 1891,
+      "tests-and-specs": 2091,
+      "documentation": 1892,
       "api-runtime": 1404,
-      "database-migrations": 780,
-      "root-and-other": 259,
-      "api-contracts": 161,
+      "database-migrations": 781,
+      "root-and-other": 260,
+      "api-contracts": 162,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 66,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2486,
-      ".mjs": 1625,
+      ".md": 2487,
+      ".mjs": 1627,
       ".js": 974,
-      ".sql": 795,
-      ".json": 734,
+      ".sql": 796,
+      ".json": 735,
       ".yml": 164,
       ".yaml": 110,
       ".ts": 15,
@@ -58,11 +58,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3600,
-      "docs": 1795,
+      "http-generic-api": 3603,
+      "docs": 1796,
       "specs": 846,
       ".github": 264,
-      ".changes": 247,
+      ".changes": 248,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -215,9 +215,9 @@
   ],
   "surfaces": {
     "workflows": 161,
-    "migrations": 780,
-    "apiContracts": 161,
-    "testSpecFiles": 2158
+    "migrations": 781,
+    "apiContracts": 162,
+    "testSpecFiles": 2159
   },
   "largestFiles": [
     {
@@ -229,14 +229,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3128065,
-      "lines": 95925
+      "bytes": 3123850,
+      "lines": 95802
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1930662,
-      "lines": 58377
+      "bytes": 1930977,
+      "lines": 58388
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -247,8 +247,8 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 984031,
-      "lines": 22830
+      "bytes": 990965,
+      "lines": 23004
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
@@ -281,16 +281,16 @@
       "lines": 2068
     },
     {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "category": "api-runtime",
+      "bytes": 212668,
+      "lines": 4536
+    },
+    {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
       "category": "documentation",
       "bytes": 210893,
       "lines": 3134
-    },
-    {
-      "path": "http-generic-api/routes/gptToolsRoutes.js",
-      "category": "api-runtime",
-      "bytes": 209252,
-      "lines": 4457
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -325,8 +325,8 @@
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
       "category": "api-contracts",
-      "bytes": 139965,
-      "lines": 3791
+      "bytes": 141224,
+      "lines": 3794
     },
     {
       "path": "package-lock.json",
