@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  assertRuntimeStartupTestEnvironment,
+  buildRuntimeStartupTestEnvironment,
+} from "./scripts/runtime-startup-test-environment.mjs";
 
 const port = 18181;
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -15,25 +19,30 @@ const staleDeploymentBranch = String(
   "main"
 ).trim();
 
+const childEnvironment = buildRuntimeStartupTestEnvironment({
+  ...process.env,
+  NODE_ENV: "production",
+  DEPLOYMENT_BRANCH: staleDeploymentBranch,
+  ACTIVATION_GITHUB_BRANCH: staleDeploymentBranch,
+  PORT: String(port),
+  BACKEND_API_KEY: "startup_smoke_key",
+  QUEUE_WORKER_ENABLED: "FALSE",
+  REDIS_URL: "redis://127.0.0.1:6399",
+});
+assertRuntimeStartupTestEnvironment(childEnvironment);
+
 // Emulate Hostinger's platform loader: the root entrypoint is required by a
 // wrapper instead of being the process main module. The environment may carry
 // stale source-branch metadata, but the production root entrypoint remains the
-// authoritative deployment provenance source.
+// authoritative deployment provenance source. Startup-auth requirements are
+// satisfied only by repository-local synthetic fixtures from the hermetic test
+// environment helper; inherited workflow/provider secret values are shadowed.
 const child = spawn(
   process.execPath,
   ["-e", "require(process.argv[1]);", rootEntrypoint],
   {
     cwd: repositoryRoot,
-    env: {
-      ...process.env,
-      NODE_ENV: "production",
-      DEPLOYMENT_BRANCH: staleDeploymentBranch,
-      ACTIVATION_GITHUB_BRANCH: staleDeploymentBranch,
-      PORT: String(port),
-      BACKEND_API_KEY: "startup_smoke_key",
-      QUEUE_WORKER_ENABLED: "FALSE",
-      REDIS_URL: "redis://127.0.0.1:6399",
-    },
+    env: childEnvironment,
     stdio: ["ignore", "pipe", "pipe"],
   }
 );

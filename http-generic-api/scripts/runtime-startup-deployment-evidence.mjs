@@ -3,6 +3,13 @@ import { spawnSync as defaultSpawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  RUNTIME_STARTUP_TEST_ENV_CONTRACT,
+  RUNTIME_STARTUP_TEST_ENVIRONMENT_VARIABLES,
+  assertRuntimeStartupTestEnvironment,
+  buildRuntimeStartupTestEnvironment,
+  describeRuntimeStartupTestEnvironment,
+} from "./runtime-startup-test-environment.mjs";
 
 export const RUNTIME_STARTUP_EVIDENCE_CONTRACT = "mad4b.runtime-startup-deployment-evidence.v1";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -106,6 +113,7 @@ function renderMarkdown(report) {
     `- Source head SHA: \`${report.identity.source_head_sha || "not-applicable"}\``,
     `- Branch: \`${report.identity.head_ref || "unknown"}\``,
     `- Contract: \`${report.contract}\``,
+    `- Startup test environment: \`${report.startup_environment.contract}\` (synthetic, inherited values overridden)`,
     "- Job logs: diagnostic-only; the bounded structured report is the evidence source.",
     "",
     "## Stages",
@@ -115,7 +123,14 @@ function renderMarkdown(report) {
     lines.push(`- ${stage.status === "passed" ? "PASS" : "FAIL"} \`${stage.id}\`: ${stage.label} (${stage.duration_ms} ms)`);
   }
   if (report.first_failure) {
-    lines.push("", "## First failure", "", `- Stage: \`${report.first_failure.stage_id}\``, `- Exit code: \`${report.first_failure.exit_code ?? "none"}\``);
+    lines.push(
+      "",
+      "## First failure",
+      "",
+      `- Stage: \`${report.first_failure.stage_id}\``,
+      `- Failure class: \`${report.first_failure.failure_class || "runtime_evidence_stage_failure"}\``,
+      `- Exit code: \`${report.first_failure.exit_code ?? "none"}\``
+    );
     if (report.first_failure.diagnostic?.stderr?.tail) {
       lines.push("", "### Redacted stderr tail", "", "```text", report.first_failure.diagnostic.stderr.tail, "```");
     } else if (report.first_failure.diagnostic?.stdout?.tail) {
@@ -135,15 +150,61 @@ function writeReport(outputDir, report) {
   return { jsonPath, markdownPath };
 }
 
+function runtimeContractFailureReport({ identity, error, startupEnvironment }) {
+  const diagnostic = {
+    stdout: { tail: "" },
+    stderr: {
+      tail: boundedDiagnosticTail(error?.message || String(error), { maxLines: 20, maxChars: 2_000 })
+    }
+  };
+  return {
+    contract: RUNTIME_STARTUP_EVIDENCE_CONTRACT,
+    generated_at: new Date().toISOString(),
+    identity,
+    startup_environment: startupEnvironment,
+    outcome: "failed",
+    stages: [],
+    first_failure: {
+      stage_id: "startup_test_environment_contract",
+      failure_class: "certification_contract_error",
+      exit_code: null,
+      signal: null,
+      diagnostic,
+    },
+    routing: {
+      source_of_truth: "structured_report",
+      job_logs_role: "diagnostic_only",
+      consult_job_logs: false,
+      log_access_reason: null,
+    },
+    secrets_included: false,
+  };
+}
+
 export function runRuntimeStartupDeploymentEvidence({
   outputDir = DEFAULT_OUTPUT_DIR,
   stages = DEFAULT_STAGES,
   spawnSync = defaultSpawnSync,
   env = process.env,
   cwd = process.cwd(),
-  now = () => Date.now()
+  now = () => Date.now(),
+  buildStartupTestEnvironment = buildRuntimeStartupTestEnvironment,
+  assertStartupTestEnvironment = assertRuntimeStartupTestEnvironment,
+  describeStartupTestEnvironment = describeRuntimeStartupTestEnvironment,
 } = {}) {
   const identity = reportIdentity(env);
+  const startupEnvironment = describeStartupTestEnvironment();
+  let stageEnv;
+
+  try {
+    stageEnv = buildStartupTestEnvironment(env);
+    assertStartupTestEnvironment(stageEnv);
+  } catch (error) {
+    const report = runtimeContractFailureReport({ identity, error, startupEnvironment });
+    const paths = writeReport(outputDir, report);
+    return { report, ...paths };
+  }
+
   const results = [];
   let firstFailure = null;
 
@@ -151,7 +212,7 @@ export function runRuntimeStartupDeploymentEvidence({
     const startedAt = now();
     const result = spawnSync(stage.command, [...stage.args], {
       cwd,
-      env,
+      env: stageEnv,
       encoding: "utf8",
       maxBuffer: 8 * 1024 * 1024
     });
@@ -162,6 +223,9 @@ export function runRuntimeStartupDeploymentEvidence({
       stdout: { tail: boundedDiagnosticTail(result?.stdout) },
       stderr: { tail: boundedDiagnosticTail(result?.stderr) }
     };
+    const failureClass = stage.id === "server_startup_smoke"
+      ? "runtime_startup_failure"
+      : "runtime_evidence_stage_failure";
     const stageResult = {
       id: stage.id,
       label: stage.label,
@@ -171,12 +235,13 @@ export function runRuntimeStartupDeploymentEvidence({
       signal: result?.signal || null,
       duration_ms: durationMs,
       ...(result?.error ? { error: boundedDiagnosticTail(result.error.message || String(result.error), { maxLines: 20, maxChars: 2_000 }) } : {}),
-      ...(diagnostic ? { diagnostic } : {})
+      ...(diagnostic ? { diagnostic, failure_class: failureClass } : {})
     };
     results.push(stageResult);
     if (!passed) {
       firstFailure = {
         stage_id: stage.id,
+        failure_class: failureClass,
         exit_code: exitCode,
         signal: result?.signal || null,
         ...(stageResult.error ? { error: stageResult.error } : {}),
@@ -190,6 +255,7 @@ export function runRuntimeStartupDeploymentEvidence({
     contract: RUNTIME_STARTUP_EVIDENCE_CONTRACT,
     generated_at: new Date().toISOString(),
     identity,
+    startup_environment: startupEnvironment,
     outcome: firstFailure ? "failed" : "passed",
     stages: results,
     first_failure: firstFailure,
@@ -216,6 +282,10 @@ export function runCli(argv = process.argv.slice(2)) {
     outcome: result.report.outcome,
     candidate_sha: result.report.identity.candidate_sha,
     first_failure: result.report.first_failure?.stage_id || null,
+    failure_class: result.report.first_failure?.failure_class || null,
+    startup_environment_contract: result.report.startup_environment?.contract || RUNTIME_STARTUP_TEST_ENV_CONTRACT,
+    startup_environment_variable_names: result.report.startup_environment?.variable_names || [...RUNTIME_STARTUP_TEST_ENVIRONMENT_VARIABLES],
+    credential_payload_read: false,
     report_file: result.jsonPath,
     secrets_included: false
   };
@@ -232,6 +302,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     console.error(JSON.stringify({
       ok: false,
       error: boundedDiagnosticTail(error?.message || String(error), { maxLines: 20, maxChars: 2_000 }),
+      credential_payload_read: false,
       secrets_included: false
     }));
     process.exitCode = 1;
