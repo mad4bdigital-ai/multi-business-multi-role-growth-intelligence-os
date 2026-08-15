@@ -33,14 +33,14 @@ assert.equal(classification.source.dispatch_artifact_sha256, createHash("sha256"
 assert.equal(classification.source.dispatch_source_digest, dispatch.baseline.source_digest);
 assert.equal(classification.coverage.openapi_gap_count, 0);
 assert.equal(classification.coverage.auth_contract_gap_count, 0);
-assert.equal(classification.coverage.coverage_complete, false);
+assert.equal(classification.coverage.coverage_complete, true);
 assert.equal(classification.distributions.detail_gap_entries_by_method.length >= 1, true);
 assert.equal(sumCounts(classification.distributions.detail_gap_entries_by_method), classification.coverage.openapi_detail_gap_count);
 assert.equal(sumCounts(classification.distributions.detail_gap_entries_by_surface_decision), classification.coverage.openapi_detail_gap_count);
 assert.equal(sumCounts(classification.distributions.detail_gap_entries_by_family), classification.coverage.openapi_detail_gap_count);
 assert.equal(classification.priority_summary.blocking_contract_gap_count, 0);
 assert.equal(classification.priority_summary.documentation_only_detail_gap_count, classification.coverage.openapi_detail_gap_count);
-assert.equal(classification.priority_summary.surface_decision_required_family_count, classification.distributions.surface_decisions_by_family.find((entry) => entry.decision === "requires_review")?.count);
+assert.equal(classification.priority_summary.surface_decision_required_family_count, 0);
 assert.equal(classification.priority_rules.length, 3);
 for (const [key, value] of boundaryEntries) assert.equal(value, false, `classification boundary ${key} must remain false`);
 for (const method of classification.distributions.detail_gap_entries_by_method) assert.match(method.method, /^(GET|POST|PUT|PATCH|DELETE)$/u);

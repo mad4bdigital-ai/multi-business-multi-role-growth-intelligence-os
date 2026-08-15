@@ -27,7 +27,7 @@ assert.equal(readiness.repository_openapi_baseline.openapi_detail_gap_count, pla
 assert.equal(readiness.repository_openapi_baseline.coverage_complete, plan.coverage.coverage_complete);
 assert.equal(plan.coverage.openapi_gap_count, 0);
 assert.equal(plan.coverage.auth_contract_gap_count, 0);
-assert.equal(plan.coverage.coverage_complete, false);
+assert.equal(plan.coverage.coverage_complete, true);
 
 for (const entry of readiness.operations) {
   const operation = resolveCanonicalBusinessOperation(entry.operation_key);
