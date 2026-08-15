@@ -39,10 +39,17 @@
       "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "autopilot-portable-staging/Install-AutoDeployTask.ps1",
       "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+      "autopilot-portable-staging/Staging-Operations-Log.ps1",
+      "autopilot-portable-staging/Staging-HealthMonitor.ps1",
+      "autopilot-portable-staging/Staging-Doctor.ps1",
+      "autopilot-portable-staging/Staging-Maintenance.cmd",
+      "autopilot-portable-staging/staging-maintenance-policy.json",
+      "autopilot-portable-staging/Show-StagingLogs.ps1",
       "autopilot-portable-staging/One-Click-Staging.ps1",
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
       "autopilot-portable-staging/autopilot-one-click-policy.json",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-operations-logging-contract.mjs",
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "docs/staging-auto-deploy.md",
       "docs/staging-schema-contract-matrix.md",
@@ -110,7 +117,11 @@
             "dev.mad4b.com exposes Tenant and Admin schema variants while mcp_dev.mad4b.com exposes only the independent Remote MCP schema; cross-surface schema requests return 404.",
             "The Staging Admin schema is GET-only and the Remote MCP schema keeps write activation false.",
             "The one-click Windows launcher bootstraps Git, GitHub CLI, Docker Desktop, WSL2, local secrets, CI eligibility, Staging startup, optional schema-only seed, and Task Scheduler without Production or provider mutation.",
-            "Missing Cloudflare credentials are requested only inside the launcher and are stored only in ignored local environment state; no secret is committed or included in evidence."
+            "Missing Cloudflare credentials are requested only inside the launcher and are stored only in ignored local environment state; no secret is committed or included in evidence.",
+            "Auto Pilot, Auto Deploy, and application operations write redacted durable JSONL events plus latest-status and last-failure snapshots on the External SSD, and the CMD launcher exposes the log path after failure.",
+            "The Health Monitor writes a per-component heartbeat and health-snapshot.json, checks only local Docker services, and is installed and removed together with the Auto Deploy Task Scheduler task.",
+            "Operations logs use a run_id for correlation and rotate bounded JSONL files without changing Production or provider state.",
+            "Staging-Doctor exposes Status, Repair, and Logs modes; Repair may recreate local scheduled tasks and rotate logs, but cannot delete data, apply migrations, rewrite secrets, touch Production, mutate Cloudflare DNS, or mutate Hostinger."
           ],
           "tests": [
             {
@@ -167,6 +178,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-workspace-brand-create.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-operations-logging-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-operations-logging-contract.mjs",
               "args": []
             },
             {
