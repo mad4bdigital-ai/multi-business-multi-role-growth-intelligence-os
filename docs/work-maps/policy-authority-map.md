@@ -36,6 +36,7 @@ flowchart TD
   n_agent_supervision_policy["agent_supervision_policy<br/>table"]
   n_app_action_grants["app_action_grants<br/>table"]
   n_cms_site_access_grants["cms_site_access_grants<br/>table"]
+  n_connection_ownership_scopes["connection_ownership_scopes<br/>table"]
   n_container_classifications["container_classifications<br/>table"]
   n_container_resource_bindings["container_resource_bindings<br/>table"]
   n_container_role_assignments["container_role_assignments<br/>table"]
@@ -63,7 +64,6 @@ flowchart TD
   n_browser_runtime_policy["browser_runtime_policy<br/>table"]
   n_canonical_identifier_column_binding_registry["canonical_identifier_column_binding_registry<br/>table"]
   n_compliance_profiles["compliance_profiles<br/>table"]
-  n_connection_ownership_scopes["connection_ownership_scopes<br/>table"]
   n_container_authority_epochs["container_authority_epochs<br/>table"]
   n_container_cache_invalidation_events["container_cache_invalidation_events<br/>table"]
   n_container_closure["container_closure<br/>table"]
@@ -108,7 +108,7 @@ flowchart TD
 | `capability_apply_authorization_policy_registry` | table | Platform resources & graph | generated_domain_rule | - | 1 | 21 | - |
 | `cms_site_access_grants` | table | Connectors & providers | generated_domain_rule | - | 3 | - | - |
 | `compliance_profiles` | table | Governance & authority | generated_domain_rule | - | 1 | 8 | `tenants` |
-| `connection_ownership_scopes` | table | Connectors & providers | registry:connection_ownership_context | `connector-provider-map`, `data-model-domain-map`, `policy-authority-map` | 1 | 19 | `tenants` |
+| `connection_ownership_scopes` | table | Connectors & providers | registry:connection_ownership_context | `connector-provider-map`, `data-model-domain-map`, `policy-authority-map` | 1 | 19 | `brands`, `tenants` |
 | `container_authority_epochs` | table | Platform resources & graph | registry:dynamic_container_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map` | 1 | 5 | `tenants` |
 | `container_authority_idempotency` | table | Platform resources & graph | registry:dynamic_container_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map` | 1 | 8 | - |
 | `container_cache_invalidation_events` | table | Platform resources & graph | registry:dynamic_container_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map` | 1 | 8 | `tenants` |

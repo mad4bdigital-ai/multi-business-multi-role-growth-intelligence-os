@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "50339afa5f36939a5d9babbee71fb37cada0a86fc41ef5b4a688001b66ff1583",
+    "source_digest": "dc7721aba8fec877fd2011992aa4f5627726f1ef4927f76690a361244f4cb419",
     "fail_closed": true
   },
   "source_authority": [
@@ -138,7 +138,7 @@
     },
     {
       "file": "workspaceBrandLifecycle.js",
-      "sha256": "5f114a3002ee6fd7b34b5467122a0e4af05c6bababa42595b5dcd9adf74e7bbb",
+      "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337",
       "present": true
     }
   ],
@@ -495,7 +495,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "29c5dea8ce46ac6548921832499e89a306acf606ec6dc3f30940667c197c458d",
+        "source_digest": "d222bc0214b6418045e923a4c5617fb9e3e914253a8b3fe8f0cc751810e3a0af",
         "fail_closed": true
       }
     },

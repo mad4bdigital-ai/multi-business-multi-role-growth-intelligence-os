@@ -1,0 +1,7 @@
+{
+  "surface_key": "tenant_relationships",
+  "source_table": "tenant_relationships",
+  "reason": "Excluded because Spec 020 only authors this relationship-governance table for a separately authorized future migration; no relationship, grant, route, or runtime authority is activated by this shadow/library-only bundle.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

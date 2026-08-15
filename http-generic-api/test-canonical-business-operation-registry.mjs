@@ -13,6 +13,7 @@ import {
 const parity = JSON.parse(readFileSync(new URL("./canonical-business-operation-parity.generated.json", import.meta.url), "utf8"));
 const validation = validateCanonicalBusinessOperationRegistry();
 const readback = getCanonicalBusinessOperationReadback();
+const revisionBoundActions = new Set(["update", "archive", "restore", "deactivate", "activate", "supersede", "revoke", "validate"]);
 
 assert.equal(validation.ok, true, `canonical registry invalid: ${JSON.stringify(validation.errors)}`);
 assert.equal(validation.secrets_included, false);
@@ -34,6 +35,14 @@ assert.equal(resolveCanonicalBusinessOperation("workspaces.list")?.projection_po
 assert.equal(resolveCanonicalBusinessOperation("brand.context.read")?.effect_class, "read_only");
 assert.equal(resolveCanonicalBusinessOperation("brand.context.read")?.status, "shadow");
 assert.equal(resolveCanonicalBusinessOperation("brand.create")?.response_contract?.next_operations?.items?.read_only, true);
+assert.equal(resolveCanonicalBusinessOperation("brand.create")?.identity_resolution_contract, "brand_identity_v2");
+assert.equal(resolveCanonicalBusinessOperation("brand.identity.resolve")?.status, "shadow");
+assert.equal(resolveCanonicalBusinessOperation("brand.identity.reconcile")?.effect_class, "read_only");
+assert.equal(resolveCanonicalBusinessOperation("brand.claim.request")?.approval_contract, "policy_resolved");
+assert.equal(resolveCanonicalBusinessOperation("brand.claim.verify")?.optimistic_concurrency_required, true);
+assert.equal(resolveCanonicalBusinessOperation("brand.claim.revoke")?.approval_contract, "explicit");
+assert.equal(resolveCanonicalBusinessOperation("asset.identity.resolve")?.relationship_resolution_contract, "asset_rights_separate_v1");
+assert.equal(resolveCanonicalBusinessOperation("provider_account.identity.resolve")?.relationship_resolution_contract, "credential_binding_separate_v1");
 assert.equal(listCanonicalBusinessOperations({ status: "shadow" }).every((operation) => operation.effect_class === "read_only" || operation.approval_required || operation.operation_key === "approvals.request"), true);
 assert.equal(listCanonicalBusinessOperations().every((operation) => {
   const serialized = JSON.stringify(operation);
@@ -42,7 +51,11 @@ assert.equal(listCanonicalBusinessOperations().every((operation) => {
     && !serialized.includes("activation.mad4b.com")
     && !serialized.includes("activation_dev.mad4b.com");
 }), true);
-assert.equal(listCanonicalBusinessOperations().filter((operation) => operation.effect_class !== "read_only").every((operation) => operation.readback_required === true && operation.idempotency_required === true && operation.optimistic_concurrency_required === true), true);
+assert.equal(listCanonicalBusinessOperations().filter((operation) => operation.effect_class !== "read_only").every((operation) => (
+  operation.readback_required === true
+  && operation.idempotency_required === true
+  && (!revisionBoundActions.has(operation.lifecycle_action) || operation.optimistic_concurrency_required === true)
+)), true);
 assert.equal(parity.performance_gates.known_intent_list_tools_calls, 0);
 assert.equal(parity.performance_gates.mutation_without_expected_revision, 0);
 assert.equal(parity.performance_gates.mutation_without_required_readback, 0);

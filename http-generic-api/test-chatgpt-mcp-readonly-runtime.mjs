@@ -285,13 +285,16 @@ function createPool(queryHandler) {
       return [[
         { resource_ref: "brand:alpha", permission: "admin", source: "role", granted_at: "2026-08-01" },
         { resource_ref: "brand:alpha", permission: "view", source: "duplicate", granted_at: "2026-07-01" },
-        { resource_ref: "brand:beta", permission: "view", source: "grant", granted_at: "2026-08-01" },
+        { resource_ref: "brand-uuid-beta", permission: "view", source: "grant", granted_at: "2026-08-01" },
       ], []];
     }
     if (queryIndex === 3) {
       assert(sql.includes("FROM brands"));
+      assert(sql.includes("brand_id IN (?)"));
+      assert.equal(params.length, 5);
       return [[
         {
+          brand_id: "brand-uuid-alpha",
           brand_name: "Alpha Brand",
           normalized_brand_name: "alpha",
           brand_domain: "alpha.example.test",
@@ -301,6 +304,7 @@ function createPool(queryHandler) {
           brand_core_ready: 1,
         },
         {
+          brand_id: "brand-uuid-beta",
           brand_name: "Beta Brand",
           normalized_brand_name: "beta",
           brand_domain: "beta.example.test",
@@ -337,6 +341,9 @@ function createPool(queryHandler) {
   assert.equal(queryIndex, 3);
   assert.equal(result.body.result.structuredContent.count, 2);
   assert.equal(result.body.result.structuredContent.brands[0].display_name, "Alpha Brand");
+  assert.equal(result.body.result.structuredContent.brands[0].brand_id, "brand-uuid-alpha");
+  assert.equal(result.body.result.structuredContent.brands[0].identity_read_mode, "canonical_brand_id_with_legacy_compatibility");
+  assert.equal(result.body.result.structuredContent.brands[1].brand_id, "brand-uuid-beta");
   assert.equal(result.body.result.structuredContent.brands[1].brand_core_ready, 0);
 }
 

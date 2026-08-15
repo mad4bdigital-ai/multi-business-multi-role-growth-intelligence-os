@@ -3,34 +3,34 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7005,
-    "bytes": 65349785,
-    "lines": 1537194,
-    "directories": 260,
+    "files": 7042,
+    "bytes": 65666530,
+    "lines": 1544520,
+    "directories": 263,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2097,
-      "documentation": 1896,
-      "api-runtime": 1408,
-      "database-migrations": 781,
-      "root-and-other": 274,
+      "tests-and-specs": 2116,
+      "documentation": 1897,
+      "api-runtime": 1420,
+      "database-migrations": 782,
+      "root-and-other": 275,
       "api-contracts": 162,
       "ci-workflows": 161,
       "ci-config": 103,
-      "schemas-and-data": 67,
+      "schemas-and-data": 70,
       "connectors-and-edge": 23,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2489,
-      ".mjs": 1637,
-      ".js": 975,
-      ".sql": 796,
-      ".json": 744,
+      ".md": 2494,
+      ".mjs": 1645,
+      ".js": 984,
+      ".sql": 797,
+      ".json": 758,
       ".yml": 164,
       ".yaml": 110,
       ".ps1": 15,
@@ -59,17 +59,17 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3612,
-      "docs": 1800,
-      "specs": 846,
+      "http-generic-api": 3633,
+      "docs": 1801,
+      "specs": 857,
       ".github": 264,
-      ".changes": 252,
+      ".changes": 253,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
       "autopilot-portable-staging": 17,
+      "schemas": 17,
       ".specify": 15,
-      "schemas": 14,
       "src": 12,
       "scripts": 11,
       "edge": 9,
@@ -216,9 +216,9 @@
   ],
   "surfaces": {
     "workflows": 161,
-    "migrations": 781,
+    "migrations": 782,
     "apiContracts": 162,
-    "testSpecFiles": 2165
+    "testSpecFiles": 2184
   },
   "largestFiles": [
     {
@@ -278,8 +278,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 241968,
-      "lines": 2072
+      "bytes": 242047,
+      "lines": 2073
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
