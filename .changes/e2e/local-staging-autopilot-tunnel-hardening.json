@@ -33,7 +33,15 @@
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/routes/workspaceResourceRoutes.js",
       "http-generic-api/test-workspace-brand-create.mjs",
-      "http-generic-api/frontend-operation-governance.generated.json"
+      "http-generic-api/frontend-operation-governance.generated.json",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "autopilot-portable-staging/auto-deploy-policy.json",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "docs/staging-auto-deploy.md",
+      ".gitignore"
     ],
     "exclude": [
       "auth.mad4b.com",
@@ -81,7 +89,12 @@
             "Canonical operation keys use dot notation and Brand context read is declared read-only and shadow-only.",
             "Brand create exposes a bounded next_operations array whose entries require operation_key, status, and reason without activating a write.",
             "Canonical parity performance gates report zero known-intent list-tools calls, zero mutations without expected revision/readback, and zero hard-delete operations without dependency plans.",
-            "Frontend governance and surface dispatch generated artifacts are regenerated from the changed Brand route/lifecycle source and pass deterministic check."
+            "Frontend governance and surface dispatch generated artifacts are regenerated from the changed Brand route/lifecycle source and pass deterministic check.",
+            "A push to main is eligible for local Staging only after the exact SHA passes the Staging Main Deploy Eligibility check.",
+            "The Windows watcher refuses missing, running, or failed eligibility checks and never deploys the same SHA twice.",
+            "Task Scheduler installation uses the interactive Windows user and does not expose an inbound webhook or store deployment secrets.",
+            "Auto Deploy policy and workflow contain no Production hostnames or secrets and keep all mutation safety flags false.",
+            "Auto Pilot and Auto Deploy runtime state files are ignored so a prior deployment does not make the Git worktree dirty."
           ],
           "tests": [
             {
@@ -139,6 +152,13 @@
               "working_directory": "http-generic-api",
               "path": "test-workspace-brand-create.mjs",
               "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -162,7 +182,15 @@
             "http-generic-api/workspaceBrandLifecycle.js",
             "http-generic-api/routes/workspaceResourceRoutes.js",
             "http-generic-api/test-workspace-brand-create.mjs",
-            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-operation-governance.generated.json",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "autopilot-portable-staging/auto-deploy-policy.json",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+            "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "docs/staging-auto-deploy.md",
+            ".gitignore"
           ]
         }
       ]

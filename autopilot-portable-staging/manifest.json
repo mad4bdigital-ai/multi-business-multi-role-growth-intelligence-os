@@ -54,7 +54,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "17b0ad1b8f12ce1ab2289e0c5aceb90192c7a8f513a58e201e607f86d24686c4"
+      "sha256": "42fc3bc079e356467975cc397027588b38ce59d7780d7f63b7c38b9ea647c566"
     },
     {
       "path": "STAGING-WINDOWS.md",
@@ -171,6 +171,22 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "sha256": "e534dbbad3aa3974624d0858316d44c3dc9f2f3b1d8b5bf2711a81f4507bfd35"
+    },
+    {
+      "path": "autopilot-portable-staging/auto-deploy-policy.json",
+      "sha256": "b120ff9330f5ca20e338c7bd2050ed937a6b751d79a29913e59447768a929341"
+    },
+    {
+      "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "sha256": "63c27e9f07d542e4e588d222d542cf5e2a03d4c6f549a9d595e625404ab2330c"
+    },
+    {
+      "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "sha256": "94cc4a0fabd287cefce07b3bd87f184c75c3bf1df3f5ac625b0ebfda897cdbe1"
+    },
+    {
+      "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+      "sha256": "7689dcc205812face756cf8c3e28d5c3524e9d98f9e394c61ef2d807ebd37d7a"
     }
   ],
   "safety": {

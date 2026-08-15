@@ -1,0 +1,29 @@
+{
+  "contract": "mad4b.staging-auto-deploy.v1",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "ref": "main",
+  "eligibility_check_name": "Staging Main Deploy Eligibility",
+  "minimum_poll_seconds": 60,
+  "default_poll_seconds": 300,
+  "deployment_mode": "local_windows_task_scheduler",
+  "requires_exact_commit": true,
+  "requires_ci_eligibility": true,
+  "allowed_staging_hosts": [
+    "dev.mad4b.com",
+    "mcp_dev.mad4b.com"
+  ],
+  "forbidden_hosts": [
+    "auth.mad4b.com",
+    "mcp.mad4b.com",
+    "activation.mad4b.com",
+    "activation_dev.mad4b.com"
+  ],
+  "safety": {
+    "production_deploy": false,
+    "hostinger_mutation": false,
+    "cloudflare_dns_mutation": false,
+    "database_mutation": false,
+    "migration_applied": false,
+    "provider_mutation": false
+  }
+}
