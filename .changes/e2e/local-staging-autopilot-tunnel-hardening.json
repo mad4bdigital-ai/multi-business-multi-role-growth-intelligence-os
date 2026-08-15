@@ -32,7 +32,8 @@
       "http-generic-api/test-staging-three-db-topology.mjs",
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/routes/workspaceResourceRoutes.js",
-      "http-generic-api/test-workspace-brand-create.mjs"
+      "http-generic-api/test-workspace-brand-create.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json"
     ],
     "exclude": [
       "auth.mad4b.com",
@@ -79,7 +80,8 @@
             "The manifest safety flags remain false and the operational file scope is hash-protected.",
             "Canonical operation keys use dot notation and Brand context read is declared read-only and shadow-only.",
             "Brand create exposes a bounded next_operations array whose entries require operation_key, status, and reason without activating a write.",
-            "Canonical parity performance gates report zero known-intent list-tools calls, zero mutations without expected revision/readback, and zero hard-delete operations without dependency plans."
+            "Canonical parity performance gates report zero known-intent list-tools calls, zero mutations without expected revision/readback, and zero hard-delete operations without dependency plans.",
+            "Frontend governance and surface dispatch generated artifacts are regenerated from the changed Brand route/lifecycle source and pass deterministic check."
           ],
           "tests": [
             {
@@ -159,7 +161,8 @@
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/workspaceBrandLifecycle.js",
             "http-generic-api/routes/workspaceResourceRoutes.js",
-            "http-generic-api/test-workspace-brand-create.mjs"
+            "http-generic-api/test-workspace-brand-create.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json"
           ]
         }
       ]
