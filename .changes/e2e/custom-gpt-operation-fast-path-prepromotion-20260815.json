@@ -18,6 +18,8 @@
       "http-generic-api/routes/activationRoutes.js",
       "http-generic-api/routes/operationOrchestratorRoutes.js",
       "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/scripts/resource-api-coverage-audit.mjs",
+      "http-generic-api/test-resource-api-coverage.mjs",
       "http-generic-api/systemToolCatalogV2.js",
       "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
       "http-generic-api/test-gpt-execution-capsule.mjs",
@@ -75,7 +77,8 @@
             { "id": "tenant-gpt-operational-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-gpt-operational-readiness.mjs", "args": [] },
             { "id": "custom-gpt-operation-openapi", "runner": "node", "working_directory": "http-generic-api", "path": "scripts/validate-custom-gpt-operation-openapi.mjs", "args": [] },
             { "id": "system-tool-catalog-v2", "runner": "node", "working_directory": "http-generic-api", "path": "test-system-tool-catalog-v2.mjs", "args": [] },
-            { "id": "gpt-tools-route-syntax-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-route-syntax-regression.mjs", "args": [] }
+            { "id": "gpt-tools-route-syntax-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-route-syntax-regression.mjs", "args": [] },
+            { "id": "resource-api-coverage", "runner": "node", "working_directory": "http-generic-api", "path": "test-resource-api-coverage.mjs", "args": [] }
           ],
           "evidence_paths": [
             ".changes/e2e/custom-gpt-operation-fast-path-prepromotion-20260815.json",
@@ -89,6 +92,8 @@
             "http-generic-api/routes/activationRoutes.js",
             "http-generic-api/routes/operationOrchestratorRoutes.js",
             "http-generic-api/scripts/split-openapi.mjs",
+            "http-generic-api/scripts/resource-api-coverage-audit.mjs",
+            "http-generic-api/test-resource-api-coverage.mjs",
             "http-generic-api/systemToolCatalogV2.js",
             "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
             "http-generic-api/activation-gateway-runtime/bundle-manifest.json",

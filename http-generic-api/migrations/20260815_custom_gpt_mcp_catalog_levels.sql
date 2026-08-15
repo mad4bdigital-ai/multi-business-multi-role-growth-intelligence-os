@@ -42,30 +42,6 @@ INSERT INTO `tenant_platform_endpoint_tools`
   (`tool_key`, `display_name`, `description`, `http_method`, `http_path`, `path_param_keys`, `input_schema`, `tags`, `mcp_catalog_level`, `sort_order`)
 VALUES
   (
-    'tenant_resource_changes_list',
-    'Tenant Resource Changes List',
-    'Read tenant-scoped resource change projections through the governed MCP catalog.',
-    'GET',
-    '/me/workspaces/{tenant_id}/resource-changes',
-    '["tenant_id"]',
-    JSON_OBJECT('type','object','additionalProperties',TRUE),
-    'resource_api,tenant_scoped,changes,pagination,read_only,no_secrets',
-    'resource_api',
-    12009
-  ),
-  (
-    'tenant_operation_get',
-    'Tenant Operation Get',
-    'Read one tenant-authorized execution through the governed MCP catalog.',
-    'GET',
-    '/me/workspaces/{tenant_id}/operations/{operationId}',
-    '["tenant_id","operationId"]',
-    JSON_OBJECT('type','object','additionalProperties',TRUE),
-    'resource_api,tenant_scoped,operations,readback,read_only,no_secrets',
-    'resource_api',
-    12010
-  ),
-  (
     'tenant_growth_recommendation_feedback',
     'Tenant Growth Recommendation Feedback',
     'Record a bounded tenant recommendation outcome; no secrets are accepted or returned.',
