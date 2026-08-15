@@ -34,7 +34,7 @@ try {
     CLOUDFLARE_API_TOKEN: "cloudflare-token-must-not-cross-boundary",
     DEPLOYMENT_MANIFEST_AUTHORITATIVE_BRANCH: "untrusted-inherited-production-lock",
     NODE_OPTIONS: "--require ./must-not-be-inherited.cjs",
-    PATH: process.env.PATH || "/usr/bin:/bin",
+    PATH: "/usr/bin:/bin",
     GITHUB_WORKFLOW: "CI",
   };
   const hermeticEnv = buildRuntimeStartupTestEnvironment(inherited);
