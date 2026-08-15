@@ -1,5 +1,3 @@
-import { resolveWorkspaceCanonicalBrandReference } from "./workspaceCanonicalBrandReference.js";
-
 function authorityError(status, code, message) {
   return Object.assign(new Error(message), { status, code });
 }
@@ -78,39 +76,56 @@ async function requireExplicitTenantResourceBinding(connection, {
 }
 
 async function resolveCanonicalBrandForWorkspace(connection, { tenantId, resourceRef }) {
-  try {
-    const resolved = await resolveWorkspaceCanonicalBrandReference(connection, {
-      tenantId,
-      resourceRef: normalizeBrandRef(resourceRef),
-      lock: true,
-    });
-    return {
-      resource_ref: resolved.target_key,
-      canonical_resource_id: resolved.brand_id || null,
-      brand_id: resolved.brand_id || null,
-      identity_mode: resolved.identity_mode,
-      relationship_status: resolved.relationship?.relationship_status || "active",
-      verification_status: resolved.relationship?.verification_status || null,
-      authority_source: resolved.brand_id
-        ? "brands.brand_id+tenant_brand_links+workspace_resource_grants"
-        : "brands.target_key+tenant_brand_links+workspace_resource_grants",
-    };
-  } catch (error) {
-    const mapping = {
-      workspace_brand_not_found: "workspace_resource_not_found",
-      workspace_brand_identity_none: "workspace_resource_not_found",
-      workspace_brand_identity_ambiguous: "workspace_resource_ambiguous",
-      workspace_brand_identity_conflict: "workspace_resource_ambiguous",
-      workspace_brand_relationship_required: "workspace_resource_cross_tenant",
-      workspace_brand_relationship_not_active: "workspace_resource_inactive",
-      workspace_brand_relationship_ambiguous: "workspace_resource_ambiguous",
-      workspace_brand_inactive: "workspace_resource_inactive",
-    };
-    if (mapping[error?.code]) {
-      throw authorityError(error.status || 409, mapping[error.code], error.message);
-    }
-    throw error;
+  const normalizedRef = normalizeBrandRef(resourceRef);
+  const [brandRows] = await connection.query(
+    `SELECT b.target_key, b.status AS brand_status
+       FROM brands b
+      WHERE LOWER(b.target_key) = LOWER(?)
+         OR LOWER(COALESCE(b.normalized_brand_name, '')) = LOWER(?)
+         OR LOWER(COALESCE(b.brand_name, '')) = LOWER(?)
+      LIMIT 20 FOR UPDATE`,
+    [normalizedRef, normalizedRef, normalizedRef]
+  );
+  const brand = requireExactlyOne(brandRows, "brand");
+  if (String(brand.brand_status || "").toLowerCase() !== "active") {
+    throw authorityError(409, "workspace_resource_inactive", "Brand resource is not active.");
   }
+
+  const canonicalBrandRef = String(brand.target_key || "").trim();
+  if (!canonicalBrandRef) {
+    throw authorityError(422, "workspace_resource_reference_unverifiable", "Brand resource has no canonical target key.");
+  }
+
+  // Keep legacy `brands` and tenant authority identity comparisons collation-local.
+  // `brands` may use utf8mb4_unicode_ci while tenant_brand_links uses
+  // utf8mb4_uca1400_ai_ci. Comparing those columns in one SQL JOIN causes
+  // ER_CANT_AGGREGATE_2COLLATIONS on valid tenant Brand operations.
+  const [linkRows] = await connection.query(
+    `SELECT tbl.tenant_id, tbl.brand_target_key, tbl.status AS link_status
+       FROM tenant_brand_links tbl
+      WHERE LOWER(tbl.brand_target_key) = LOWER(?)
+      LIMIT 20 FOR UPDATE`,
+    [canonicalBrandRef]
+  );
+  if (!Array.isArray(linkRows) || linkRows.length === 0) {
+    throw authorityError(404, "workspace_resource_not_found", "Brand resource was not found in tenant brand authority.");
+  }
+
+  const tenantRows = linkRows.filter((row) => String(row.tenant_id || "") === String(tenantId || ""));
+  if (tenantRows.length === 0) {
+    throw authorityError(403, "workspace_resource_cross_tenant", "Brand resource is not linked to this workspace.");
+  }
+  const activeRows = tenantRows.filter((row) => String(row.link_status || "").toLowerCase() === "active");
+  if (activeRows.length === 0) {
+    throw authorityError(409, "workspace_resource_inactive", "Brand resource is not active for this workspace.");
+  }
+  if (activeRows.length !== 1) {
+    throw authorityError(409, "workspace_resource_ambiguous", "Brand resource reference did not resolve uniquely for this workspace.");
+  }
+  return {
+    resource_ref: String(activeRows[0].brand_target_key),
+    authority_source: "brands+tenant_brand_links",
+  };
 }
 
 export async function assertGrantResourceInWorkspace(connection, { tenantId, resourceType, resourceRef }) {

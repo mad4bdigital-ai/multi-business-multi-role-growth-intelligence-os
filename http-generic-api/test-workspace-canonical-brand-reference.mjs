@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { resolveWorkspaceCanonicalBrandReference } from "./workspaceCanonicalBrandReference.js";
-import { assertGrantResourceInWorkspace } from "./workspaceGrantResourceAuthority.js";
 
 const BRAND_ID = "550e8400-e29b-41d4-a716-446655440000";
 const V2_COLUMNS = [
@@ -74,27 +73,6 @@ function legacyExecutor() {
   assert.equal(resolved.brand_id, BRAND_ID);
   assert.equal(resolved.target_key, "brand-acme-global");
   assert.equal(resolved.relationship.relationship_status, "active");
-}
-
-{
-  const db = v2Executor();
-  const grantTarget = await assertGrantResourceInWorkspace(db, {
-    tenantId: "tenant-a",
-    resourceType: "brand",
-    resourceRef: BRAND_ID,
-  });
-  assert.equal(grantTarget.brand_id, BRAND_ID);
-  assert.equal(grantTarget.resource_ref, "brand-acme-global", "grant storage remains target_key-compatible during dual-write migration");
-  assert.equal(grantTarget.identity_mode, "global_identity_v2");
-}
-
-{
-  const db = v2Executor({ relationshipStatus: "pending_verification", linkStatus: "inactive" });
-  await assert.rejects(
-    () => assertGrantResourceInWorkspace(db, { tenantId: "tenant-a", resourceType: "brand", resourceRef: BRAND_ID }),
-    (error) => error?.code === "workspace_resource_inactive",
-    "pending Brand relationship must not be grantable"
-  );
 }
 
 {

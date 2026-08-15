@@ -17,6 +17,10 @@ const brandAuthority = await fs.readFile(
   new URL("./workspaceBrandReadAuthority.js", import.meta.url),
   "utf8"
 );
+const canonicalBrandReference = await fs.readFile(
+  new URL("./workspaceCanonicalBrandReference.js", import.meta.url),
+  "utf8"
+);
 
 assert.match(migration, /growth_audit_evidence_v1/);
 assert.match(migration, /growth_audit_evidence_prepare/);
@@ -39,7 +43,8 @@ assert.match(runtime, /resolveWorkspaceBrandReadAuthority/);
 assert.match(runtime, /authorization:\s*authority/);
 assert.doesNotMatch(runtime, /\(brand_ref IS NOT NULL OR site_ref IS NOT NULL\)/);
 assert.doesNotMatch(runtime, /workspace_assets[\s\S]{0,300}(?:authorized|authority)/i);
-assert.match(brandAuthority, /FROM tenant_brand_links/);
+assert.match(brandAuthority, /resolveWorkspaceCanonicalBrandReference/);
+assert.match(canonicalBrandReference, /FROM tenant_brand_links/);
 assert.match(brandAuthority, /FROM memberships m/);
 assert.match(brandAuthority, /v_workspace_resource_grant_effective/);
 assert.match(brandAuthority, /tenant_owner_membership/);
