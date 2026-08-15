@@ -194,6 +194,7 @@ try {
       "tenantPlatformPluginInstall",
       "tenantPlatformPluginCredentialIntakeSessionCreate",
       "decideTenantSkillApproval",
+      "executeTenantOperation",
       "postMeWorkspacesTenantIdResourcesResourceKey",
       "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
     ]);

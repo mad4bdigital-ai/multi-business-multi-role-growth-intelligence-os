@@ -3840,7 +3840,7 @@ x-tenant-gpt-auth:
     title: Mad4B Growth Intelligence - Tenant Core MCP Actions
     version: 2.0.2-platform-plugins
     summary: Tenant Core schema with SQL-driven MCP facades, resource routes, and tenant self-serve Platform Plugin routes.
-    description: Tenant Core transport only. For known intents prefer bounded operation preview/execute/status paths so context and descriptors can be reused once per operation. Use listTools then callTool only as a governed fallback for unknown or unclassified intents. Activation reads use the separate Tenant Activation schema on activation.mad4b.com.
+    description: Tenant Core transport only. For known intents prefer bounded operation preview/execute/status paths so context and descriptors can be reused once per operation. Use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args. Activation reads use the separate Tenant Activation schema on activation.mad4b.com.
   server_description: Mad4B platform auth subdomain
   security_scheme_name: userBearerAuth
   action_auth_preset:
@@ -3895,8 +3895,7 @@ paths:
       summary: Preview a bounded tenant operation
       description: Previews a known tenant operation without provider mutation. Use this when intent or risk is ambiguous.
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - userJwtAuth: []
       requestBody:
         required: true
         content:
@@ -3919,8 +3918,7 @@ paths:
       summary: Execute a bounded tenant operation
       description: Executes a registered operation through existing context, capability, authority, policy, approval, and readback gates. It does not grant Production or write authority.
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - userJwtAuth: []
       requestBody:
         required: true
         content:
@@ -3947,8 +3945,7 @@ paths:
       x-openai-isConsequential: false
       summary: Read tenant operation status
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - userJwtAuth: []
       requestBody:
         required: true
         content:
@@ -3977,7 +3974,8 @@ paths:
       summary: Preview a bounded admin operation
       description: Preview-first admin operation path; no provider mutation is authorized by preview.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -3999,7 +3997,8 @@ paths:
       summary: Execute a bounded admin operation
       description: Executes a registered operation through existing capability, authority, approval, and readback gates. It does not activate Production or write scopes by itself.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -4025,7 +4024,8 @@ paths:
       x-openai-isConsequential: false
       summary: Read admin operation status
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       requestBody:
         required: true
         content:

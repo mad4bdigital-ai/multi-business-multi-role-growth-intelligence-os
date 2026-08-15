@@ -213,7 +213,7 @@ surfaces:
     info:
       title: Growth Intelligence Platform - Tenant Core Actions
       summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
-      description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents, passing mode and integration_modes through tool_args.
+      description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args.
     candidate_policy:
       mode: marker_required
       required_marker: tenant_core

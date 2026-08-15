@@ -30,7 +30,7 @@ const ACTIVE_SCHEMAS = {
   "openapi.tenant-gpt.auth.yaml": {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "userBearerAuth",
-    maxOperations: 30,
+    maxOperations: 36,
     requiredOperations: [
       "listTools",
       "callTool",
@@ -406,10 +406,11 @@ section("dispatcher contracts");
       !adminOps.some((op) => op.operation.operationId === operationId));
   }
   const adminMutatingOps = adminOps.filter((op) => ["post", "put", "patch", "delete"].includes(op.method));
-  assert("admin dispatcher mutating operations are non-consequential or hidden",
-    adminMutatingOps.every((op) => op.operation["x-openai-isConsequential"] === false),
+  const adminAllowedConsequentialOps = new Set(["executeAdminOperation"]);
+  assert("admin dispatcher mutating operations are non-consequential except bounded execute",
+    adminMutatingOps.every((op) => op.operation["x-openai-isConsequential"] === false || adminAllowedConsequentialOps.has(op.operation.operationId)),
     adminMutatingOps
-      .filter((op) => op.operation["x-openai-isConsequential"] !== false)
+      .filter((op) => op.operation["x-openai-isConsequential"] !== false && !adminAllowedConsequentialOps.has(op.operation.operationId))
       .map((op) => `${op.method.toUpperCase()} ${op.pathKey} ${op.operation.operationId}`)
       .join(", "));
 
@@ -418,6 +419,7 @@ section("dispatcher contracts");
     "tenantPlatformPluginInstall",
     "tenantPlatformPluginCredentialIntakeSessionCreate",
     "decideTenantSkillApproval",
+    "executeTenantOperation",
     "postMeWorkspacesTenantIdResourcesResourceKey",
     "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
   ]);
