@@ -25,6 +25,7 @@
       "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
       "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/validate-custom-gpt-operation-openapi.mjs",
       "docs/prepromotion-fast-path-readiness-20260815.md"
     ]
@@ -79,6 +80,7 @@
             "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
             "http-generic-api/openapi/openapi-mutation-policy.generated.json",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/test-connect-routes.mjs",
             "http-generic-api/test-custom-gpt-schemas.mjs",
             "http-generic-api/test-gpt-execution-capsule.mjs",
