@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6998,
-    "bytes": 65310459,
-    "lines": 1536496,
+    "bytes": 65311252,
+    "lines": 1536509,
     "directories": 260,
     "categories": 13
   },
@@ -8686,9 +8686,9 @@
       "path": ".changes/e2e/write-scope-shadow-preflight-20260815.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5389,
-      "lines": 93,
-      "sha256": "aa0baa04538aa3834c3c9f84de4007e28445bab6b647a9b2a6595ca43ea7cdfe",
+      "bytes": 6182,
+      "lines": 106,
+      "sha256": "246a64bcfd40206b45f0576d249b158d134f890a5c515ffa77fc888aba4bca49",
       "mode": "644",
       "executable": false,
       "generated": false
