@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "21a49f4298baff9786706d4ea1677a158a70f8569cadbecf588b2562c61a9cbc",
+    "source_digest": "cfe043e8996133491c8513ec085fbd1ab44fc7393be31f0088d71e84d590245b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "93fa3472b9f09c6bf8443006314d5b7868957005151540807f4010f1ba53a5b5",
+        "sha256": "6aa5d0fe7fb37eaf2a6056800e9c3a3595c3263c10871cac6dc9028556e68207",
         "present": true
       },
       {
@@ -1041,7 +1041,7 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99",
+        "sha256": "8c3f4c459ab2f7429f54773533ae4936ca6d83326424e0c6d35ec643420ff8e5",
         "present": true
       },
       {
@@ -30590,7 +30590,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99",
+      "source_digest": "8c3f4c459ab2f7429f54773533ae4936ca6d83326424e0c6d35ec643420ff8e5",
       "mount_prefix": "/",
       "mount_order": 16936,
       "split_from_mixed_scope_file": false,

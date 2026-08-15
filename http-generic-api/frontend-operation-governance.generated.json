@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "4cdfb7cf7b94a396d12d3b6e521020b6f272fc617c5842092db885c4ae9a9069",
+    "source_digest": "50339afa5f36939a5d9babbee71fb37cada0a86fc41ef5b4a688001b66ff1583",
     "fail_closed": true
   },
   "source_authority": [
@@ -58,7 +58,7 @@
     },
     {
       "file": "routes/workspaceResourceRoutes.js",
-      "sha256": "18836ecbf72da780a25869c4d18d1b696e0415c908ae4e35908b77d33cd39c99",
+      "sha256": "8c3f4c459ab2f7429f54773533ae4936ca6d83326424e0c6d35ec643420ff8e5",
       "present": true
     },
     {
@@ -128,7 +128,7 @@
     },
     {
       "file": "test-workspace-brand-create-operation-governance.mjs",
-      "sha256": "3f2e3665b2d456c0076988b79f766b26d2411c263f754d44b0f9907ad2321d49",
+      "sha256": "a9e519a7ae476c7d8a40dd877cb662b75a02798c1e5a3b0dd3f74d1413596112",
       "present": true
     },
     {
@@ -495,7 +495,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "1adb585d170cf7e04b52f408cdeb4db18214dfe31742def3955534fb8d80d582",
+        "source_digest": "29c5dea8ce46ac6548921832499e89a306acf606ec6dc3f30940667c197c458d",
         "fail_closed": true
       }
     },
