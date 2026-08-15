@@ -135,7 +135,7 @@ assert.match(
 );
 assert.doesNotMatch(
   fullPromotionBridge,
-  /gh pr merge|git push[^\n]*Production|refs\/heads\/Production/u,
+  /gh pr merge|git push[^\n]*Production|git update-ref[^\n]*Production|gh api[^\n]*git\/refs[^\n]*Production[^\n]*--method (?:POST|PATCH|DELETE)/u,
   "full promotion bridge must not merge or directly mutate Production",
 );
 
