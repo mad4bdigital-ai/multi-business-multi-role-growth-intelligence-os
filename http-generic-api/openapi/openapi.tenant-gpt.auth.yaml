@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   title: Growth Intelligence Platform - Tenant Core Actions
   version: 3.0.0-platform
-  summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
-  description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+  summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
+  description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents, passing mode and integration_modes through tool_args.
 servers:
   - url: https://auth.mad4b.com
     description: tenant_core surface
@@ -16,6 +16,8 @@ tags:
     description: Tenant-scoped growth cockpit, guidance, preferences, previews, and recommendation feedback.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+  - name: tenant-operations
+    description: Tenant Custom GPT bounded operation preview, execution, and status surfaces.
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: local-connector
@@ -520,6 +522,18 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource state conflicts with the requested operation
       content:
         application/json:
           schema:
@@ -3257,12 +3271,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/operations/preview:
+    post:
+      operationId: previewTenantOperation
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: false
+      summary: Preview a bounded tenant operation
+      description: Previews a known tenant operation without provider mutation. Use this when intent or risk is ambiguous.
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tenant/operations/execute:
+    post:
+      operationId: executeTenantOperation
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: true
+      summary: Execute a bounded tenant operation
+      description: Executes a registered operation through existing context, capability, authority, policy, approval, and readback gates. It does not grant Production or write authority.
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "202":
+          description: Operation awaiting governed input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tenant/operations/status:
+    post:
+      operationId: getTenantOperationStatus
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: false
+      summary: Read tenant operation status
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - run_id
+              properties:
+                run_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+      responses:
+        "200":
+          description: Operation status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62
+  source_openapi_sha256: 039f8e1dc57008d48e19be66800346064eb1e0da73a004d9d7d0ea82a5f51852
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748
+  registry_sha256: 426c1aa0932412c445575cdcafcc5e59b461b39b817a6656735945c189ea78f7
   registry_version: 2
   selector_model: marker_required
   candidate_policy:
@@ -3271,6 +3408,7 @@ x-custom-gpt-generation:
     candidate_tags:
       - resource-api
       - growth-dashboard
+      - tenant-operations
       - system-layer
       - local-connector
       - platform-plugins
@@ -3762,10 +3900,10 @@ x-custom-gpt-generation:
         reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
-  operation_count: 30
-  warning_operation_limit: 26
+  operation_count: 33
+  warning_operation_limit: 30
   warning_budget_exceeded: true
-  hard_operation_limit: 30
+  hard_operation_limit: 36
   secrets_included: false
 x-gpt-action-auth-preset:
   authentication_type: OAuth

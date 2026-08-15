@@ -3622,8 +3622,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:0",
-      "source_line": 4382,
-      "source_offset": 206344,
+      "source_line": 4421,
+      "source_offset": 208015,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3631,8 +3631,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:1",
-      "source_line": 4409,
-      "source_offset": 207297,
+      "source_line": 4452,
+      "source_offset": 209170,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -4891,8 +4891,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#GET:${prefix}/operations/contracts:0",
-      "source_line": 402,
-      "source_offset": 11397,
+      "source_line": 417,
+      "source_offset": 11836,
       "method": "GET",
       "path": "${prefix}/operations/contracts",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4900,8 +4900,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/context:1",
-      "source_line": 418,
-      "source_offset": 11873,
+      "source_line": 433,
+      "source_offset": 12312,
       "method": "POST",
       "path": "${prefix}/operations/context",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4909,8 +4909,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/preview:2",
-      "source_line": 432,
-      "source_offset": 12231,
+      "source_line": 447,
+      "source_offset": 12670,
       "method": "POST",
       "path": "${prefix}/operations/preview",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4918,8 +4918,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/execute:3",
-      "source_line": 442,
-      "source_offset": 12516,
+      "source_line": 457,
+      "source_offset": 13029,
       "method": "POST",
       "path": "${prefix}/operations/execute",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4927,8 +4927,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/status:4",
-      "source_line": 613,
-      "source_offset": 18095,
+      "source_line": 629,
+      "source_offset": 18710,
       "method": "POST",
       "path": "${prefix}/operations/status",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4936,8 +4936,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#GET:${prefix}/operations/workers/:worker_id:5",
-      "source_line": 629,
-      "source_offset": 18534,
+      "source_line": 645,
+      "source_offset": 19173,
       "method": "GET",
       "path": "${prefix}/operations/workers/:worker_id",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4945,8 +4945,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#GET:${prefix}/operations/artifacts:6",
-      "source_line": 649,
-      "source_offset": 18997,
+      "source_line": 665,
+      "source_offset": 19636,
       "method": "GET",
       "path": "${prefix}/operations/artifacts",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -4954,8 +4954,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationOrchestratorRoutes.js#POST:${prefix}/operations/ci-diagnose:7",
-      "source_line": 673,
-      "source_offset": 19655,
+      "source_line": 689,
+      "source_offset": 20294,
       "method": "POST",
       "path": "${prefix}/operations/ci-diagnose",
       "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
@@ -25652,10 +25652,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4409,
+        "source_line": 4452,
         "handler_window_lines": [
-          4409,
-          4457
+          4452,
+          4504
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25675,6 +25675,7 @@
           ],
           "readback": [],
           "mutation": [
+            "create",
             "dispatch"
           ]
         },
@@ -30219,10 +30220,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 418,
+        "source_line": 433,
         "handler_window_lines": [
-          418,
-          430
+          433,
+          445
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30279,10 +30280,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 432,
+        "source_line": 447,
         "handler_window_lines": [
-          432,
-          440
+          447,
+          455
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30339,10 +30340,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 442,
+        "source_line": 457,
         "handler_window_lines": [
-          442,
-          611
+          457,
+          627
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30414,10 +30415,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 613,
+        "source_line": 629,
         "handler_window_lines": [
-          613,
-          627
+          629,
+          643
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30474,10 +30475,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/operationOrchestratorRoutes.js",
-        "source_line": 673,
+        "source_line": 689,
         "handler_window_lines": [
-          673,
-          699
+          689,
+          716
         ],
         "evidence_flags": {
           "handler_window_present": true,

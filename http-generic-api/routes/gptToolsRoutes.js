@@ -145,6 +145,41 @@ const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
 
+export function createGptExecutionCapsule({ operation_key = null } = {}) {
+  return {
+    contract: "gpt.execution_capsule.v1",
+    operation_key,
+    manifest_schema_promise: null,
+    descriptor_cache: new Map(),
+    metrics: {
+      manifest_schema_loads: 0,
+      descriptor_resolutions: 0,
+      descriptor_cache_hits: 0,
+      duplicate_schema_queries: 0,
+    },
+    secrets_included: false,
+  };
+}
+
+async function loadTenantExecutionGuards(capsule) {
+  if (!capsule || typeof capsule !== "object") {
+    return Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+  }
+  if (!capsule.manifest_schema_promise) {
+    capsule.metrics.manifest_schema_loads += 1;
+    capsule.manifest_schema_promise = Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+  } else {
+    capsule.metrics.duplicate_schema_queries += 0;
+  }
+  return capsule.manifest_schema_promise;
+}
+
 const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
   status: "required",
   reason_code: "pre_final_capture_required",
@@ -2495,8 +2530,8 @@ export function resolveCallerTypeForRequest(req) {
   return resolveCallerType(req);
 }
 
-export async function fetchToolsForCaller(callerType) {
-  return fetchTools(callerType);
+export async function fetchToolsForCaller(callerType, runtimeDeps = {}) {
+  return fetchTools(callerType, runtimeDeps.executionCapsule || null);
 }
 
 export async function dispatchToolForCaller(callerType, toolKey, args, req, runtimeDeps = {}) {
@@ -2506,7 +2541,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
   });
 }
 
-async function fetchTools(callerType) {
+async function fetchTools(callerType, executionCapsule = null) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
     sqlCacheKey("tools", callerType, "list", "v3"),
@@ -2523,10 +2558,7 @@ async function fetchTools(callerType) {
     }
   );
   const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
-    ? await Promise.all([
-        loadTenantToolManifestBlocks(getPool()),
-        loadTenantToolSchemaBlocks(getPool()),
-      ])
+    ? await loadTenantExecutionGuards(executionCapsule)
     : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
     ? filterTenantToolsByStrictSchema(
@@ -2549,17 +2581,25 @@ async function fetchTools(callerType) {
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
 }
 
-async function resolveToolPreflightDescriptor(callerType, toolKey) {
+async function resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule = null) {
   const normalizedToolKey = String(toolKey || "").trim();
   if (!normalizedToolKey) return null;
+  const descriptorLookupKey = `${callerType}:${normalizedToolKey}`;
+  if (executionCapsule?.descriptor_cache?.has(descriptorLookupKey)) {
+    executionCapsule.metrics.descriptor_cache_hits += 1;
+    return executionCapsule.descriptor_cache.get(descriptorLookupKey);
+  }
   if (callerType === "admin") {
     const virtualTool = VIRTUAL_ADMIN_TOOLS.find((tool) => tool.name === normalizedToolKey);
     if (virtualTool) {
-      return {
+      const descriptor = {
         method: virtualTool.method || "VIRTUAL",
         tags: Array.isArray(virtualTool.tags) ? virtualTool.tags : [],
+        inputSchema: virtualTool.inputSchema || virtualTool.input_schema || null,
         source: "virtual_admin_tool_catalog",
       };
+      executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
+      return descriptor;
     }
   }
 
@@ -2568,19 +2608,23 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
     const [rows] = await getPool().query(
-      `SELECT http_method, tags FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT http_method, tags, input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
       [normalizedToolKey]
     );
     if (!rows?.[0]) continue;
-    return {
+    const descriptor = {
       method: rows[0].http_method || "",
       tags: normalizeRegistryTags(rows[0].tags),
+      inputSchema: parseJson(rows[0].input_schema),
       source: table,
     };
+    executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
+    if (executionCapsule) executionCapsule.metrics.descriptor_resolutions += 1;
+    return descriptor;
   }
   return null;
 }
-async function detectMissingRequiredArgs(callerType, toolKey, args) {
+async function detectMissingRequiredArgs(callerType, toolKey, args, executionCapsule = null) {
   // Virtual admin tools enforce their own schemas inside dispatchToolImpl;
   // skip up-front validation for them.
   if (callerType === "admin" && VIRTUAL_ADMIN_TOOLS.some((t) => t.name === toolKey)) {
@@ -2588,11 +2632,8 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   try {
-    const [rows] = await getPool().query(
-      `SELECT input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
-      [toolKey]
-    );
-    const schema = parseJson(rows?.[0]?.input_schema);
+    const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
+    const schema = descriptor?.inputSchema || null;
     const required = Array.isArray(schema?.required) ? schema.required : [];
     if (!required.length) return null;
     const provided = args && typeof args === "object" ? args : {};
@@ -2610,15 +2651,13 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
+  const executionCapsule = runtimeDeps.executionCapsule || null;
   if (callerType === "tenant") {
-    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
-      loadTenantToolManifestBlocks(getPool()),
-      loadTenantToolSchemaBlocks(getPool()),
-    ]);
+    const [blockedTenantManifests, blockedTenantSchemas] = await loadTenantExecutionGuards(executionCapsule);
     assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
     assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
-  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
+  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
       callerType,
@@ -4382,7 +4421,11 @@ export function buildGptToolsRoutes(deps) {
   router.get("/gpt/tools", requireBackendApiKey, async (req, res) => {
     try {
       const callerType = resolveCallerType(req);
-      const tools = await fetchTools(callerType);
+      const requestRuntimeDeps = {
+        ...runtimeDeps,
+        executionCapsule: createGptExecutionCapsule({ operation_key: "gpt_tools.list" }),
+      };
+      const tools = await fetchTools(callerType, requestRuntimeDeps.executionCapsule);
       const { items, page } = paginateItems(tools, req.query || {});
       const body = {
         ok: true,
@@ -4398,7 +4441,7 @@ export function buildGptToolsRoutes(deps) {
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
                   request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, runtimeDeps));
+        }, requestRuntimeDeps));
 
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
@@ -4420,12 +4463,16 @@ export function buildGptToolsRoutes(deps) {
       }
 
       const callerType = resolveCallerType(req);
+      const requestRuntimeDeps = {
+        ...runtimeDeps,
+        executionCapsule: createGptExecutionCapsule({ operation_key: name }),
+      };
 
       // Up-front required-args check so the GPT gets a clear retry signal
       // instead of a downstream HTTP error when its schema cache forgot to
       // attach tool_args/arguments. Skips for virtual tools (their schemas
       // are exposed via VIRTUAL_ADMIN_TOOLS and enforced inline).
-      const missingArgs = await detectMissingRequiredArgs(callerType, name, args);
+      const missingArgs = await detectMissingRequiredArgs(callerType, name, args, requestRuntimeDeps.executionCapsule);
       if (missingArgs) {
         return res.status(400).json({
           ok: false,
@@ -4437,7 +4484,7 @@ export function buildGptToolsRoutes(deps) {
         });
       }
 
-      const result = await dispatchTool(callerType, name, args, req, runtimeDeps);
+      const result = await dispatchTool(callerType, name, args, req, requestRuntimeDeps);
       return res.status(result.status).json(result.body);
     } catch (err) {
       return res.status(err.status || 500).json({

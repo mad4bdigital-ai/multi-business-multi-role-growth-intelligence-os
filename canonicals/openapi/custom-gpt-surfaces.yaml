@@ -14,17 +14,18 @@ surfaces:
     output_file: openapi/openapi.custom-gpt.auth-dispatcher.yaml
     server_url: https://auth.mad4b.com
     auth_profile: admin_service
-    hard_operation_limit: 30
-    warning_operation_limit: 24
+    hard_operation_limit: 36
+    warning_operation_limit: 30
     info:
       title: Growth Intelligence Platform - Admin Core Actions
-      summary: Admin and system MCP facades without Activation routes.
-      description: Stable Admin Core transport for governed admin-control and system-layer operations. Dynamic MCP tool schemas remain SQL-driven.
+      summary: Admin and system MCP facades with a bounded operation surface.
+      description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven.
     candidate_policy:
       mode: marker_required
       required_marker: admin_core
       candidate_tags:
         - admin-control
+        - admin-operations
         - system-layer
       omission: fail
       exclusion_records:
@@ -207,18 +208,19 @@ surfaces:
     output_file: openapi/openapi.tenant-gpt.auth.yaml
     server_url: https://auth.mad4b.com
     auth_profile: tenant_oauth
-    hard_operation_limit: 30
-    warning_operation_limit: 26
+    hard_operation_limit: 36
+    warning_operation_limit: 30
     info:
       title: Growth Intelligence Platform - Tenant Core Actions
-      summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
-      description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+      summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
+      description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents, passing mode and integration_modes through tool_args.
     candidate_policy:
       mode: marker_required
       required_marker: tenant_core
       candidate_tags:
         - resource-api
         - growth-dashboard
+        - tenant-operations
         - system-layer
         - local-connector
         - platform-plugins
