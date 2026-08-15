@@ -20,6 +20,11 @@ $OneClickScriptPath = $PSCommandPath
 $BootstrapScriptRoot = Split-Path -Parent $OneClickScriptPath
 $BootstrapLogRoot = Join-Path $BootstrapScriptRoot "logs"
 $BootstrapFallbackLog = Join-Path $BootstrapLogRoot "bootstrap-console.log"
+$WindowsPreflightPath = Join-Path $BootstrapScriptRoot "Staging-Windows-Preflight.ps1"
+try { . $WindowsPreflightPath } catch {
+    Write-Host "STAGING_WINDOWS_PREFLIGHT_IMPORT_FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    throw
+}
 function Write-EarlyBootstrapLog([string]$Message) {
     try {
         New-Item -ItemType Directory -Force -Path $BootstrapLogRoot | Out-Null
@@ -113,23 +118,6 @@ function Install-WingetPackage([string]$Id) {
     Refresh-Path
 }
 
-function Test-Wsl2DistributionReady([string]$WslList) {
-    if ([string]::IsNullOrWhiteSpace($WslList)) { return $false }
-    $normalized = $WslList -replace "\x00", ""
-    return $normalized -match '(?im)^\s*\*?\s*\S+\s+\S+\s+2\s*$'
-}
-
-function Wait-Wsl2Distribution([int]$Attempts = 12, [int]$DelaySeconds = 5) {
-    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
-        $wslList = (& wsl.exe --list --verbose 2>$null | Out-String)
-        # Some WSL startup states return a transient nonzero code or NUL-padded text;
-        # the normalized distribution/version row is the readiness authority.
-        if (Test-Wsl2DistributionReady $wslList) { return $true }
-        if ($attempt -lt ($Attempts - 1)) { Start-Sleep -Seconds $DelaySeconds }
-    }
-    return $false
-}
-
 function Ensure-Prerequisites {
     Refresh-Path
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Install-WingetPackage "Git.Git" }
@@ -141,12 +129,12 @@ function Ensure-Prerequisites {
     Require-Command "docker"
     Require-Command "wsl"
 
-    if (-not (Wait-Wsl2Distribution -Attempts 3 -DelaySeconds 5)) {
+    if (-not (Wait-StagingWsl2Distribution -Attempts 3 -DelaySeconds 5)) {
         Write-Host "WSL2 distribution is missing or still starting; requesting the standard Windows installation now."
         & wsl.exe --install -d Ubuntu --no-launch 2>$null
         $installExitCode = $LASTEXITCODE
-        if ($installExitCode -ne 0 -and -not (Wait-Wsl2Distribution -Attempts 12 -DelaySeconds 5)) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
-        if (-not (Wait-Wsl2Distribution -Attempts 24 -DelaySeconds 5)) { Fail "WSL2 installation completed but no version-2 distribution became ready after waiting; rerun after the requested Windows reboot." }
+        if ($installExitCode -ne 0 -and -not (Wait-StagingWsl2Distribution -Attempts 12 -DelaySeconds 5)) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
+        if (-not (Wait-StagingWsl2Distribution -Attempts 24 -DelaySeconds 5)) { Fail "WSL2 installation completed but no version-2 distribution became ready after waiting; rerun after the requested Windows reboot." }
     }
 
     $dockerContext = Get-NativeText "docker" @("context", "show")

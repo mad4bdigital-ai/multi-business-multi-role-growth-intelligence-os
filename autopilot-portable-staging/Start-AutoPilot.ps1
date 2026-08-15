@@ -13,6 +13,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$WindowsPreflightPath = Join-Path $PSScriptRoot "Staging-Windows-Preflight.ps1"
+if (-not (Test-Path -LiteralPath $WindowsPreflightPath)) { throw "Missing shared Windows preflight helper: $WindowsPreflightPath" }
+. $WindowsPreflightPath
 $LogComponent = "app-operations"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel }
 trap {
@@ -118,10 +121,9 @@ $context = Get-NativeText "docker" @("context", "show")
 if ($context -notin @("default", "desktop-linux")) { Fail "Docker context '$context' is not an accepted local context" }
 $dockerServer = Get-NativeText "docker" @("info", "--format", "{{.ServerVersion}}")
 if ([string]::IsNullOrWhiteSpace($dockerServer)) { Fail "Docker daemon is not reachable" }
-    $wslStatus = Get-NativeText "wsl.exe" @("--status")
+    $wslStatus = (& wsl.exe --status 2>$null | Out-String)
     if ([string]::IsNullOrWhiteSpace($wslStatus)) { Fail "WSL2 status could not be read" }
-    $wslDistros = Get-NativeText "wsl.exe" @("--list", "--verbose")
-    if ($wslDistros -notmatch '(?m)\s2\s*$') { Fail "No WSL2 distribution is available; Docker Desktop must be configured for WSL2" }
+    if (-not (Test-StagingWsl2Ready)) { Fail "No WSL2 distribution is available; Docker Desktop must be configured for WSL2" }
 
     Push-Location $RepositoryPath
 try {
