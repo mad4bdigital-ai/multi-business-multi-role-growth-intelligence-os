@@ -1,0 +1,1596 @@
+{
+  "schema_version": 1,
+  "feature_key": "020-platform-resource-identity-brand-governance",
+  "review_state": "ready_for_implementation",
+  "registry": {
+    "fingerprint": "02477cd5ab66368975459cab541d13387a86972cd94bfd74f896cc5de17cd78c",
+    "index_source_hash": "56a4aac9cea7fee328f15b23a14b5e7e9958eca9482089b833c285e680b64c35",
+    "coverage_source_hash": "9ccc2e39452ebfcce514632e510dac8417d6629f11c261cbef03f344d554c147",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/activation-access-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 20,
+        "matched_terms": [
+          "access",
+          "activation",
+          "active",
+          "assets",
+          "authorization",
+          "authorized",
+          "blocks",
+          "context",
+          "dynamic",
+          "filter",
+          "http-generic-api",
+          "json",
+          "registered",
+          "registry",
+          "result",
+          "surfaces",
+          "tenant",
+          "tenant-brand-links",
+          "tenant-scoped",
+          "workspace-registry"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "activation-onboarding-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/activation-onboarding-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 21,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "authority",
+          "authorization",
+          "coverage",
+          "discovery",
+          "domain",
+          "evidence",
+          "existing",
+          "http-generic-api",
+          "matching",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "references",
+          "rows",
+          "schema",
+          "state",
+          "tenants"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "agent-skill-plugin-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/agent-skill-plugin-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 30,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "binding",
+          "brand",
+          "business",
+          "coverage",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "grants",
+          "http-generic-api",
+          "identity",
+          "matching",
+          "migrations",
+          "model",
+          "object",
+          "objects",
+          "operating",
+          "policy"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "asset-package-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/asset-package-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 20,
+        "matched_terms": [
+          "activation",
+          "asset",
+          "assets",
+          "coverage",
+          "domain",
+          "existing",
+          "http-generic-api",
+          "matching",
+          "merge",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "ownership",
+          "references",
+          "rows",
+          "runtime",
+          "schema",
+          "tenants",
+          "type"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "commercial-usage-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/commercial-usage-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 22,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "commercial",
+          "coverage",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "http-generic-api",
+          "matching",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "plan",
+          "profile",
+          "references",
+          "rows",
+          "schema",
+          "tenants"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "connector-provider-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/connector-provider-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 33,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "binding",
+          "coverage",
+          "credential",
+          "delivery",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "grant",
+          "http-generic-api",
+          "identity",
+          "lifecycle",
+          "matching",
+          "migration",
+          "migrations",
+          "object",
+          "objects",
+          "operating"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "data-model-domain-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/data-model-domain-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 35,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "authority",
+          "brand",
+          "business",
+          "commercial",
+          "delivery",
+          "domain",
+          "existing",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "json",
+          "lifecycle",
+          "migration",
+          "migrations",
+          "model",
+          "object",
+          "objects",
+          "references"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "delivery-support-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/delivery-support-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 25,
+        "matched_terms": [
+          "assets",
+          "coverage",
+          "delivery",
+          "domain",
+          "existing",
+          "http-generic-api",
+          "matching",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "output",
+          "readback",
+          "references",
+          "registry",
+          "release",
+          "repository",
+          "resources",
+          "rows",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "execution-log-evidence-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/execution-log-evidence-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 31,
+        "matched_terms": [
+          "activity",
+          "assets",
+          "audit",
+          "authority",
+          "authorization",
+          "blocks",
+          "brand",
+          "business",
+          "connection",
+          "context",
+          "coverage",
+          "delivery",
+          "evidence",
+          "execution",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "inputs",
+          "json",
+          "migrations"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "migration-lifecycle-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/migration-lifecycle-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 23,
+        "matched_terms": [
+          "apply",
+          "assets",
+          "authorization",
+          "candidate",
+          "coverage",
+          "domain",
+          "existing",
+          "http-generic-api",
+          "lifecycle",
+          "matching",
+          "migration",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "readiness",
+          "record",
+          "references",
+          "registry",
+          "rows"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "observability-release-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/observability-release-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 34,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "audit",
+          "authority",
+          "coverage",
+          "delivery",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "lifecycle",
+          "matching",
+          "migration",
+          "migrations",
+          "object",
+          "objects",
+          "operating"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "platform-resource-graph-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/platform-resource-graph-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 32,
+        "matched_terms": [
+          "adapter",
+          "assets",
+          "authority",
+          "capability",
+          "contract",
+          "coverage",
+          "delivery",
+          "domain",
+          "evidence",
+          "existing",
+          "governance",
+          "http-generic-api",
+          "matching",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "projection",
+          "references",
+          "registry"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "platform-runtime-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/platform-runtime-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 38,
+        "matched_terms": [
+          "activity",
+          "assets",
+          "authority",
+          "authorization",
+          "before",
+          "blocks",
+          "brand",
+          "business",
+          "calls",
+          "compatibility",
+          "context",
+          "core",
+          "credential",
+          "evidence",
+          "excluded",
+          "execution",
+          "fields",
+          "http-generic-api",
+          "identity",
+          "input"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "policy-authority-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/policy-authority-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 40,
+        "matched_terms": [
+          "activation",
+          "actor",
+          "assets",
+          "authority",
+          "block",
+          "commercial",
+          "context",
+          "coverage",
+          "delivery",
+          "domain",
+          "evidence",
+          "existing",
+          "governance",
+          "grant",
+          "http-generic-api",
+          "identity",
+          "key",
+          "keys",
+          "matching",
+          "migrations"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "repository-automation-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/repository-automation-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 89,
+        "matched_terms": [
+          "activation",
+          "apply",
+          "assets",
+          "authority",
+          "authorization",
+          "authorize",
+          "authorized",
+          "backfill",
+          "baseline",
+          "blocks",
+          "brand",
+          "canary",
+          "candidate",
+          "change",
+          "closure",
+          "completion",
+          "composition",
+          "context",
+          "contract",
+          "current"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "repository-development-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/repository-development-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 25,
+        "matched_terms": [
+          "assets",
+          "candidate",
+          "coverage",
+          "deployment",
+          "domain",
+          "existing",
+          "http-generic-api",
+          "matching",
+          "merge",
+          "migrations",
+          "object",
+          "objects",
+          "operating",
+          "parity",
+          "readback",
+          "references",
+          "registry",
+          "release",
+          "repository",
+          "rows"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "session-memory-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/session-memory-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 37,
+        "matched_terms": [
+          "archive",
+          "assets",
+          "authority",
+          "brand",
+          "business",
+          "candidates",
+          "canonical",
+          "commercial",
+          "context",
+          "conversation",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "json",
+          "migrations",
+          "object"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "work-map-coverage-matrix": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 29,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "authority",
+          "brand",
+          "business",
+          "commercial",
+          "coverage",
+          "delivery",
+          "domain",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "json",
+          "lifecycle",
+          "matrix",
+          "migration",
+          "migrations",
+          "none",
+          "objects",
+          "release"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "This implementation slice keeps the current generated Work Map authoritative and defers runtime identity integration until the canonical repository adapter and operation registry evidence are complete.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Consume the existing generated Work Map as read-only context; do not create a parallel map or authority surface."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "Identity-safe resolution",
+        "relationship-authority separation",
+        "no Production mutation"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/workflow-task-orchestration-map.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 34,
+        "matched_terms": [
+          "activation",
+          "approval",
+          "assets",
+          "authority",
+          "binding",
+          "coverage",
+          "delivery",
+          "domain",
+          "execution",
+          "existing",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "lifecycle",
+          "matching",
+          "migration",
+          "migrations",
+          "object",
+          "objects",
+          "operating"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "risk_ref": "RISK-020-work-map-runtime-integration-deferred",
+      "target_gate": "canonical-operation-registry-and-read-only-repository-adapter",
+      "approval_ref": "separate-architecture-and-production-authority-review"
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "decision": "deferred_with_risk",
+      "rationale": "The pure identity and operation contracts are additive and shadow-only; schema-domain runtime integration is deferred until read-only parity and authority evidence are available.",
+      "owner": "platform-team",
+      "integration_points": [
+        "Use current schema domain classification as read-only context and preserve domain-owned semantics."
+      ],
+      "requirement_refs": [
+        "FR-001-FR-030"
+      ],
+      "task_refs": [
+        "Phase 0 contract baseline",
+        "Phase 1 shadow resolver"
+      ],
+      "acceptance_refs": [
+        "No authority implied",
+        "tenant-filtered disclosure",
+        "fail-closed ambiguity"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/020-platform-resource-identity-brand-governance/completion.json",
+        "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+        "specs/020-platform-resource-identity-brand-governance/spec.md"
+      ],
+      "depends_on": [],
+      "risk_ref": "RISK-020-schema-domain-runtime-integration-deferred",
+      "target_gate": "read-only-repository-adapter-and-shadow-parity",
+      "approval_ref": "separate-security-and-runtime-authority-review"
+    }
+  },
+  "cross_map_dependencies": [],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "The implementation reuses current generated Work Maps and schema domains; no new dimension is proposed in this PR."
+  },
+  "implementation_readiness": {
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "platform-team",
+    "evidence_refs": [
+      "specs/020-platform-resource-identity-brand-governance/spec.md",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+      "specs/020-platform-resource-identity-brand-governance/completion.json"
+    ]
+  },
+  "secrets_included": false
+}
