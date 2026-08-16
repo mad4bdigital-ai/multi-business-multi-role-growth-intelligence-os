@@ -309,19 +309,18 @@ export function createActivationGateway({
   if (!policy || typeof policy !== "object") throw new Error("Activation gateway policy is required");
   const indexes = buildRouteIndexes(policy);
   const oauthHandoffIndex = buildOAuthHandoffIndex(policy);
-  let verificationCacheKey = "";
-  let verificationCache = null;
+  const verificationState = {};
 
   async function currentVerification(env) {
-    const cacheKey = `${env?.ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON || ""}|${env?.ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK || ""}`;
-    if (verificationCache && cacheKey === verificationCacheKey) {
-      if (!verificationCache.ok || !Number.isFinite(verificationCache.expiresAtMs)) return verificationCache;
-      const stale = now() >= verificationCache.expiresAtMs;
-      return { ...verificationCache, stale, code: stale ? "GATEWAY_POLICY_STALE" : null };
+    const _attestKey = `${env?.ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON || ""}|${env?.ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK || ""}`;
+    if (verificationState.value && _attestKey === verificationState.key) {
+      if (!verificationState.value.ok || !Number.isFinite(verificationState.value.expiresAtMs)) return verificationState.value;
+      const stale = now() >= verificationState.value.expiresAtMs;
+      return { ...verificationState.value, stale, code: stale ? "GATEWAY_POLICY_STALE" : null };
     }
-    verificationCacheKey = cacheKey;
-    verificationCache = await verifyAttestation(policy, env, { cryptoImpl, now });
-    return verificationCache;
+    verificationState.key = _attestKey;
+    verificationState.value = await verifyAttestation(policy, env, { cryptoImpl, now });
+    return verificationState.value;
   }
 
   return async function handle(request, env = {}, context = {}) {
