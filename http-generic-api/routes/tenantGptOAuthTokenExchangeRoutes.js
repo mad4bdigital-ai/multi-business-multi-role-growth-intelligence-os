@@ -366,7 +366,8 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       const pool = resolvePool();
       const refreshReadiness = await refreshReady(deps.env || process.env, pool);
       tokenQuery = (sql, params) => pool.query(sql, params);
-      const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery });
+      const requestHost = String(req.headers?.["x-forwarded-host"] || req.headers?.host || "").split(",")[0].trim().toLowerCase();
+      const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery, requestHost });
       tokenLogContext.client_validation_source = clientValidation.source || null;
       if (!clientValidation.ok) {
         log({

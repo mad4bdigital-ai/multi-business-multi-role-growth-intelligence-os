@@ -4,14 +4,26 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
 
-export const ACTIVATION_HOST_GATEWAY_HOST = "activation.mad4b.com";
-const AUTH_HOST = "auth.mad4b.com";
+const IS_STAGING_RUNTIME = String(process.env.NODE_ENV || "").trim().toLowerCase() === "staging"
+  || String(process.env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase() === "staging";
+export const ACTIVATION_HOST_GATEWAY_HOST = String(
+  process.env.ACTIVATION_HOST_GATEWAY_HOST
+    || (IS_STAGING_RUNTIME ? "activation_dev.mad4b.com" : "activation.mad4b.com"),
+).trim().toLowerCase();
+const AUTH_HOST = IS_STAGING_RUNTIME
+  ? String(process.env.ACTIVATION_STAGING_AUTH_HOST || ACTIVATION_HOST_GATEWAY_HOST).trim().toLowerCase()
+  : "auth.mad4b.com";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
 const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
 
-const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map([
+const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map(IS_STAGING_RUNTIME ? [
+  ["/openapi.tenant-gpt.activation.staging.yaml", "openapi.tenant-gpt.activation.staging.yaml"],
+  ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.staging.yaml"],
+  ["/openapi.custom-gpt.activation-admin.staging.yaml", "openapi.custom-gpt.activation-admin.staging.yaml"],
+  ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.staging.yaml"],
+] : [
   ["/openapi.tenant-gpt.activation.yaml", "openapi.tenant-gpt.activation.yaml"],
   ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.yaml"],
   ["/openapi.custom-gpt.activation-admin.yaml", "openapi.custom-gpt.activation-admin.yaml"],
@@ -135,7 +147,7 @@ function isAuthPath(pathname) {
 
 export function buildActivationHostGatewayRoutes({
   activationHost = ACTIVATION_HOST_GATEWAY_HOST,
-  enabled = true,
+  enabled = !IS_STAGING_RUNTIME || String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true",
 } = {}) {
   const router = Router();
 
@@ -204,7 +216,7 @@ export function buildActivationHostGatewayRoutes({
     if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname, req.method)) {
       return res.status(404).json(errorResponse(
         "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
-        "This host only serves Activation transport routes and Activation OpenAPI schemas.",
+        "This host only serves the environment-bound Activation transport routes and Activation OpenAPI schemas.",
         req,
       ));
     }

@@ -14,7 +14,7 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "b120ff9330f5ca20e338c7bd2050ed937a6b751d79a29913e59447768a929341"
+      "sha256": "081a1b2a2898ac1c3a20144ddd20a60f0cb4aa2142b2b88d760986634b15d32f"
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "27cd343e4ac6e3b40c3429dcf2a35f9c7613818a8aa74814241a982dcf8e0cbf"
+      "sha256": "5f8ba6c021e35dabf4eab977d7879081bebe74b31b8bbaa5a2284095889e2486"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -66,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "4fe98cb38001659ce3b2d95a0e4e032c02a207af7ba5eba2cade05823fbc119f"
+      "sha256": "a0f1541c55110526e395a58949708a1eea13ab68dd34f2ae72aea364679107fb"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -90,7 +90,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "fcef22d5a58872c7a1f4be9a6c66f6f25fdbffdf3166be8988941d73831dac1b"
+      "sha256": "ad88ef94280378ea5d50163b60e15b43137037ebb66ad4f2992212f2804fe8cc"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -110,7 +110,7 @@
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
-      "sha256": "7187a007f693c1810239ca34c7a47b50d70650e681b7f617f80c37aa251414a7"
+      "sha256": "01471081ece754f3aa1b58185468bdb82c3fef0c9086c83bab5bfc93d8ab672e"
     },
     {
       "path": "http-generic-api/config/staging-openapi-mcp-policy.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "227e8f46da016cc44f001067e85086818d942df535753bf525ff24164b5d5da8"
+      "sha256": "c0d33a3034812338a1e665cd14ae5914f04e4920381f5b37d99046b310cf91b6"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -182,7 +182,7 @@
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "8427f721958a77a99c85e6a4c20d20d2157cddc8fee4e78c71ab81d9040fead6"
+      "sha256": "2bdac7eaa897b8103de538204a10e0e054fe510dd0fe3dd815cee652de15ee3d"
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -210,15 +210,15 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
-      "sha256": "438bd5d77e19942f85da23f765802f006af63c88972bb374b25f48f4692689ca"
+      "sha256": "8520de0bbc8075b5a6c4967864b7715e37310aa473a98910db534f22bdc2ff89"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPreset.js",
-      "sha256": "870b5a2ac162917af8cb74676343691bb1b4dcf8e527a1e9a40b3702c23d8a77"
+      "sha256": "92f5535bb5080dfc59d1df4ae174399d092c1c285440315cbf82d57e04881643"
     },
     {
       "path": "http-generic-api/tenantGptOAuthResourceProfile.js",
-      "sha256": "cebf50e920547a5468855f5852638285dc25211c8455b62d7b05435de4080037"
+      "sha256": "51fb2ddde843c7056d3e3939125063d53a6b07e069a6a5fd7f3e66c895c20b9b"
     },
     {
       "path": "http-generic-api/test-canonical-business-operation-registry.mjs",
@@ -226,7 +226,7 @@
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
-      "sha256": "460331286cef8ac52b59f054d3217dd6845ff2fb591c45922d8df1970ae1757d"
+      "sha256": "1729dff264973480a98ecbf89c5d2282645653442d0df166abb5a9c8d748a2c6"
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
