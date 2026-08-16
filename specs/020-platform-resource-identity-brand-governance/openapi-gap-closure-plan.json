@@ -6,11 +6,11 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "1b04a92526c873de57fbcbaf4540e0b641ba39085d2fe408655663de7d49d3dc",
-    "dispatch_artifact_sha256": "b995b15db1a716d350757a7aaa02848727d3abd5c855e0609cf5b68f1942f5f7"
+    "dispatch_source_digest": "ff854faa98c678f4465c1e5b5b94ce936b252ac6ff866a283200dfddde27956b",
+    "dispatch_artifact_sha256": "24884b327f0c6246da25e5cca94a67eeed108c218371405fca67c03a8aa64581"
   },
   "coverage": {
-    "operation_count": 1039,
+    "operation_count": 1041,
     "mounted_family_count": 167,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
@@ -4320,7 +4320,7 @@
       "surface_decision": "internal_only",
       "priority": "P3_observe",
       "detail_gap_count": 0,
-      "operation_count": 2,
+      "operation_count": 4,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "continue_deterministic_observation_and_regression_checks",
@@ -4335,6 +4335,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",

@@ -5,6 +5,8 @@ import path from "node:path";
 // This file is generated from the clean route inventory. The comments are parsed by
 // frontend-surface-dispatch.mjs as ownership evidence; the assertions keep the
 // evidence contract fail-closed without calling a provider or mutating a database.
+// frontend-surface-operation: post /admin/act-as-user/sessions
+// frontend-surface-operation: post /admin/act-as-user/sessions/{sessionId}/revoke
 // frontend-surface-operation: delete /
 // frontend-surface-operation: delete /admin/data-tables/{table_key}/rows/{row_id}
 // frontend-surface-operation: delete /admin/resources/{resourceKey}/{resourceId}

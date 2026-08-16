@@ -62,6 +62,9 @@ function safePreview(line, sensitive) {
 function candidateClass({ path, symbol, line, expressionKind }) {
   const text = `${path} ${symbol} ${line}`;
   if (GENERATED_PATH.test(path) || /(?:generated|work[-_]?map|openapi)/iu.test(symbol)) return { candidate_class: "generated_artifact", risk_class: "medium", migration_action: "exclude_from_migration" };
+  if (path === "http-generic-api/tenantGptOAuthClientConfig.js" && (symbol === "config" || expressionKind === "migration_seed")) return { candidate_class: "generated_artifact", risk_class: "medium", migration_action: "exclude_from_migration" };
+  if (/^(?:DEFAULT|MAX|MIN)_/u.test(symbol) || symbol === "TURN_CONTENT_STRING_LIMIT") return { candidate_class: "runtime_setting", risk_class: "medium", migration_action: "catalog_review_then_shadow_parity" };
+  if (symbol === "allowedHost") return { candidate_class: "policy_candidate", risk_class: "high", migration_action: "specialized_registry_review" };
   if (SENSITIVE_KEY.test(text)) return { candidate_class: "secret_candidate", risk_class: "critical", migration_action: "secret_inventory_and_rotation_review" };
   if (AUTHORIZATION_METADATA_KEY.test(text)) return { candidate_class: "runtime_setting", risk_class: "medium", migration_action: "catalog_review_then_shadow_parity" };
   if (POLICY_KEY.test(text)) return { candidate_class: "policy_candidate", risk_class: "high", migration_action: "specialized_registry_review" };
