@@ -88,16 +88,20 @@ jobs:
 
       - name: Publish fail-closed eligibility evidence
         run: |
-          node --input-type=module <<'NODE'
+          node --input-type=module - "$EXPECTED_REPOSITORY" "$EXPECTED_REF" "$EXPECTED_HEAD_SHA" <<'NODE'
           import fs from "node:fs";
+          const [, , expectedRepository, expectedRef, expectedHeadSha] = process.argv;
+          if (!expectedRepository || !expectedRef || !/^[0-9a-f]{40}$/u.test(expectedHeadSha || "")) {
+            throw new Error("Exact staging evidence identity arguments are required");
+          }
           const registry = JSON.parse(fs.readFileSync("http-generic-api/canonical-business-operation-registry.json", "utf8"));
           const parity = JSON.parse(fs.readFileSync("http-generic-api/canonical-business-operation-parity.generated.json", "utf8"));
           if (parity.safety?.production_mutation_allowed !== false) throw new Error("Production mutation safety gate is not false");
           const evidence = {
             contract: "mad4b.staging-main-deploy-eligibility.v1",
-            repository: process.env.EXPECTED_REPOSITORY,
-            ref: process.env.EXPECTED_REF,
-            exact_head_sha: process.env.EXPECTED_HEAD_SHA,
+            repository: expectedRepository,
+            ref: expectedRef,
+            exact_head_sha: expectedHeadSha,
             derived_state_closure: true,
             staging_deploy_only: true,
             production_deploy: false,
