@@ -20,6 +20,13 @@ components:
       bearerFormat: Backend API Key or User JWT
       description: |
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Send the Staging-only backend API key in the x-api-key header.
+
   schemas:
     ActivationHardRunSummaryResponse:
       type: object
@@ -906,6 +913,7 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 security:
   - backendBearerAuth: []
+  - backendApiKeyAuth: []
 paths:
   /activation/hard-run/summary:
     get:
@@ -918,6 +926,7 @@ paths:
         Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph. Use this endpoint when tool/client response budgets cannot safely receive full activation evidence.
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       responses:
         "200":
           description: Compact hard activation summary.
@@ -933,6 +942,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: readActivationAwareness
       x-openai-isConsequential: false
       summary: Read complete activation awareness manifests
@@ -997,6 +1007,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: readActivationOperationalAttention
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
@@ -1089,6 +1100,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: readActivationDynamicTabDetail
       x-openai-isConsequential: false
       summary: Read one authorized Dynamic Tab detail page
@@ -1149,6 +1161,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: acknowledgeActivationRun
       x-openai-isConsequential: false
       summary: Record consumer acknowledgement for an activation run
@@ -1195,6 +1208,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: runLegacyFullHardActivation
       x-openai-isConsequential: false
       summary: Run legacy full hard activation response
@@ -1309,6 +1323,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: runHardActivation
       x-openai-isConsequential: false
       summary: Run evidence-first hard activation with complete awareness
@@ -1423,6 +1438,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getActivationSessionContext
       summary: Read previous session history and platform scope context
       description: Hard activation layer that reads prior user session envelopes as a paginated history log, scoped user request transcripts, plus audit activity, developer scopes, API credential scopes, and connected-system scopes. Admin/service sessions may also receive execution-log prompt and response summaries..
@@ -1582,6 +1598,7 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getActivationPlatformAccess
       summary: Read platform-wide activation access and registry counts
       description: |
