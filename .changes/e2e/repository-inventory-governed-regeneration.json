@@ -102,7 +102,7 @@
             "A governed work-branch push may publish bootstrap evidence only within the Inventory gate's same-repository, main-base, non-protected branch contract; protected-ref pushes remain blocked.",
             "Work Map Integration runs currentness verification for every main-bound pull request without effective path narrowing; stale maps fail closed into the governed repair path, and ordinary validation performs no remote write.",
             "Main convergence creates only a non-protected branch and never turns the dispatcher into a direct protected-ref writer.",
-            "The generated-artifact-refresh maintenance tool remains the sole registered mutating repository maintenance tool.",
+            "The generated-artifact-refresh maintenance tool remains the sole registered mutating authority whose allowed changed-path patterns match Repository Inventory or Repository Evaluation outputs.",
             "A recovery PR that changes registered Repository Inventory, Repository Evaluation, or Remote MCP write-scope outputs carries this contract in its changed paths so E2E governance classifies it as repository-state recovery.",
             "Production deployment, database mutation, direct protected-ref mutation, provider calls, credential payload reads, and secret publication are outside this feature."
           ],

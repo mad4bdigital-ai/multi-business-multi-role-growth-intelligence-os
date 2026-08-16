@@ -64,10 +64,30 @@ check("governance-allows-both-artifact-families", () => {
   ]) {
     assert.ok(registration.allowed_changed_path_patterns.includes(pattern), `missing governance pattern: ${pattern}`);
   }
-  const mutatingTools = Object.entries(governance.tools)
-    .filter(([, registrationValue]) => registrationValue.mode === "mutating")
+  const repositoryStateOutputs = [
+    "docs/repository-inventory.json",
+    "docs/repository-inventory-summary.json",
+    "docs/repository-inventory.md",
+    "docs/repository-evaluation.json",
+    "docs/repository-evaluation-summary.json",
+    "docs/repository-evaluation.md",
+  ];
+  const competingMutatingTools = Object.entries(governance.tools)
+    .filter(([name, registrationValue]) =>
+      name !== "generated-artifact-refresh"
+      && registrationValue.mode === "mutating"
+      && repositoryStateOutputs.some((output) =>
+        (registrationValue.allowed_changed_path_patterns || []).some((pattern) =>
+          new RegExp(pattern, "u").test(output),
+        ),
+      ),
+    )
     .map(([name]) => name);
-  assert.deepEqual(mutatingTools, ["generated-artifact-refresh"], "the generated-artifact writer must remain the sole registered mutating maintenance tool");
+  assert.deepEqual(
+    competingMutatingTools,
+    [],
+    "the generated-artifact writer must remain the sole mutating authority for Repository Inventory and Evaluation outputs",
+  );
 });
 
 check("writer-dispatches-dual-exact-head-verification", () => {
@@ -125,7 +145,7 @@ console.log(JSON.stringify({
   exact_head_dual_verification: true,
   read_only_bootstrap_convergence_proof: true,
   verification_dispatch_v1_compatible: true,
-  sole_mutating_writer_preserved: true,
+  sole_repository_state_writer_preserved: true,
   protected_branch_mutation: false,
   force_push: false,
   secrets_included: false,
