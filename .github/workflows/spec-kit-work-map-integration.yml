@@ -212,13 +212,37 @@ jobs:
         id: integration
         if: steps.work_map_currentness.outcome == 'success' || steps.work_map_scope.outputs.currentness_required != 'true'
         continue-on-error: true
+        shell: bash
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || env.TARGET_PR || '' }}
           EXPECTED_HEAD_SHA: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
-        run: node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+        run: |
+          set -euo pipefail
+          diagnostic_root=".ci-evidence/spec-kit-work-map-integration"
+          rm -rf "${diagnostic_root}"
+          mkdir -p "${diagnostic_root}"
+
+          set +e
+          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs \
+            > "${diagnostic_root}/stdout.log" \
+            2> "${diagnostic_root}/stderr.log"
+          exit_code=$?
+          set -e
+
+          cat "${diagnostic_root}/stdout.log"
+          cat "${diagnostic_root}/stderr.log" >&2
+          printf '%s\n' "${exit_code}" > "${diagnostic_root}/exit-code.txt"
+          jq -n \
+            --arg contract "mad4b.spec-kit-work-map-integration-diagnostic.v1" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg pr_number "${PR_NUMBER}" \
+            --argjson exit_code "${exit_code}" \
+            '{contract:$contract,expected_head_sha:$expected_head_sha,pr_number:$pr_number,exit_code:$exit_code,secrets_included:false}' \
+            > "${diagnostic_root}/report.json"
+          exit "${exit_code}"
 
       - name: Upload bounded Work Map governance diagnostic
-        if: steps.integration.outcome == 'failure'
+        if: always() && steps.integration.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: work-map-integration-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
@@ -227,7 +251,7 @@ jobs:
           retention-days: 14
 
       - name: Fail closed on Work Map governance findings
-        if: steps.integration.outcome == 'failure'
+        if: always() && steps.integration.outcome == 'failure'
         shell: bash
         run: |
           echo "Spec Kit Work Map governance findings were detected."

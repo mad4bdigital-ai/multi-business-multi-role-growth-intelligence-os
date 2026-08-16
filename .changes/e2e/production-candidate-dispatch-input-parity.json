@@ -2,17 +2,19 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-candidate-dispatch-input-parity",
-  "title": "Governed Production candidate dispatch input parity",
+  "title": "Governed Production candidate dispatch and Work Map evidence durability",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/production-candidate-dispatch-input-parity.json",
       ".github/workflows/governed-production-candidate-dispatch-request-dispatcher.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/test-manifest.mjs",
-      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
+      "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
+      "http-generic-api/test-spec-kit-work-map-integration-registration.mjs"
     ]
   },
   "merge_contract": {
@@ -22,7 +24,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep every required Production candidate workflow_dispatch input supplied by both governed callers and bind expected_head_sha to the exact trusted main SHA in the request dispatcher.",
+      "objective": "Keep every required Production candidate workflow_dispatch input supplied by both governed callers, bind expected_head_sha to the exact trusted main SHA in the request dispatcher, preserve canonical dispatch evidence before optional PR receipts without broadening permissions, and preserve bounded Work Map integration diagnostics before fail-closed termination.",
       "e2e_journeys": [
         {
           "id": "governed-candidate-callers-preserve-required-input-parity",
@@ -30,20 +32,25 @@
           "level": "synthetic_runtime",
           "actor": "Governed Production promotion workflow dispatcher",
           "entrypoint": "The regression test reads the Production candidate workflow and both governed caller workflows from the repository checkout.",
-          "terminal_outcome": "Both callers supply every required candidate workflow_dispatch input, the request dispatcher binds expected_head_sha to MAIN_SHA, and the trusted generated frontend governance/dispatch projections remain covered by the same feature contract before any candidate dispatch can be requested.",
+          "terminal_outcome": "Both callers supply every required candidate workflow_dispatch input, the request dispatcher binds expected_head_sha to MAIN_SHA, canonical dispatch decisions are persisted before optional PR receipts, receipt transport failure cannot erase successful dispatch evidence, and the trusted generated frontend governance/dispatch projections remain covered by the same feature contract before any candidate dispatch can be requested.",
           "steps": [
             "Parse required workflow_dispatch inputs from production-promotion-candidate.yml.",
             "Inspect the governed dispatch request dispatcher and Production promotion launcher call sites.",
             "Require both callers to pass every required candidate input.",
             "Require the dispatch request dispatcher to pass expected_head_sha from the exact trusted MAIN_SHA pin.",
+            "Require both duplicate-suppressed and dispatched paths to persist decision.json before attempting an optional PR receipt.",
+            "Require optional PR receipt failures to degrade to warnings while preserving canonical evidence and read-only pull-request permission.",
             "Treat frontend operation-governance and surface-dispatch generated outputs refreshed by the registered writer as derived runtime evidence of this feature.",
-            "Fail the regression test on any caller/callee input drift before governed Production candidate execution."
+            "Fail the regression test on caller/callee input drift, evidence-order regression, or permission broadening before governed Production candidate execution."
           ],
           "assertions": [
             "The candidate workflow exposes at least one required workflow_dispatch input.",
             "The dispatch request dispatcher supplies every required candidate input.",
             "The Production promotion launcher supplies every required candidate input.",
             "The dispatch request dispatcher binds expected_head_sha to MAIN_SHA.",
+            "Both duplicate-suppressed and dispatched paths persist their canonical decision before attempting the optional PR receipt.",
+            "A PR receipt transport failure preserves the canonical decision artifact and is downgraded to a warning rather than invalidating an otherwise successful dispatch decision.",
+            "Evidence durability does not require pull-requests: write and retains the dispatcher's read-only pull-request permission.",
             "The trusted writer-owned frontend operation-governance and surface-dispatch generated outputs are covered by this feature contract rather than edited manually.",
             "No Production merge, deployment, migration, provider call, credential read, protected-ref mutation, or force push is performed by this test contract."
           ],
@@ -66,18 +73,56 @@
             "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs"
           ]
+        },
+        {
+          "id": "work-map-integration-failure-preserves-bounded-diagnostic",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer",
+          "entrypoint": "The registration regression reads the main-bound Spec Kit Work Map Integration workflow from the repository checkout.",
+          "terminal_outcome": "A failing integration gate materializes bounded stdout, stderr, exit-code, and JSON diagnostic evidence before returning its non-zero status; artifact upload remains strict and the final fail-closed step still executes even if artifact transport itself fails.",
+          "steps": [
+            "Inspect the Work Map Integration evaluation step without dispatching the workflow.",
+            "Require a bounded .ci-evidence/spec-kit-work-map-integration directory to be recreated before the integration gate command runs.",
+            "Require stdout, stderr, exit code, and a secret-free structured report to be persisted before the evaluation step exits with the original gate status.",
+            "Require the bounded diagnostic upload to treat missing files as an error.",
+            "Require both the diagnostic upload and the final fail-closed step to use always() while remaining conditioned on the integration step outcome being failure.",
+            "Fail the regression if evidence materialization, strict upload semantics, or fail-closed survivability regresses."
+          ],
+          "assertions": [
+            "The integration gate creates its diagnostic directory before running the validator.",
+            "The validator exit code is preserved after stdout and stderr are captured into bounded files.",
+            "A structured diagnostic report is written with secrets_included=false.",
+            "Diagnostic artifact upload retains if-no-files-found: error rather than masking missing evidence.",
+            "Both diagnostic upload and final Work Map governance fail-closed execution are guarded by always() plus the integration failure outcome.",
+            "No additional token permission, writer authority, protected-ref mutation, force push, deployment, migration, provider mutation, or Production mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "spec-kit-work-map-integration-registration-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-integration-registration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-candidate-dispatch-input-parity.json",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs"
+          ]
         }
       ]
     },
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Retain exact input-parity evidence across future governed candidate caller changes."
+      "objective": "Retain exact input-parity and evidence-durability proof across future governed candidate caller and Work Map integration workflow changes."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Detect future caller/callee workflow_dispatch contract drift before it can reach candidate dispatch."
+      "objective": "Detect future caller/callee workflow_dispatch drift, evidence-order regressions, diagnostic-tail regressions, or unnecessary permission broadening before they can invalidate governed CI evidence."
     },
     {
       "id": "canary",
