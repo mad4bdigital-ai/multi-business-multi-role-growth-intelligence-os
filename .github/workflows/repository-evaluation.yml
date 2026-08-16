@@ -179,13 +179,14 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          if ! git diff --quiet origin/main...HEAD -- scripts/repository-inventory-verification-gate.mjs; then
-            echo "Repository Evaluation bootstrap requires the Inventory verification gate to be byte-unchanged from trusted main." >&2
-            exit 1
-          fi
+          trusted_main_sha="$(git rev-parse origin/main)"
+          [[ "$trusted_main_sha" =~ ^[0-9a-f]{40}$ ]]
+          trusted_gate="$RUNNER_TEMP/repository-inventory-verification-gate.trusted-main.mjs"
+          git show "${trusted_main_sha}:scripts/repository-inventory-verification-gate.mjs" > "$trusted_gate"
+          test -s "$trusted_gate"
 
           report="$RUNNER_TEMP/repository-inventory-verification.json"
-          node scripts/repository-inventory-verification-gate.mjs \
+          node "$trusted_gate" \
             --event-name pull_request \
             --target-ref "$TARGET_REF" \
             --expected-head-sha "$EXPECTED_HEAD_SHA" \

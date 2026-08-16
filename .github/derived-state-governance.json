@@ -1,0 +1,217 @@
+{
+  "contract": "mad4b.repository-derived-state-governance.v1",
+  "schema_version": 1,
+  "protected_branches": [
+    "main",
+    "Production"
+  ],
+  "required_check_name": "Derived State Closure",
+  "max_convergence_passes": 3,
+  "policy": {
+    "pull_request_candidate": "github_merge_candidate",
+    "all_pull_requests_to_main_must_be_checked": true,
+    "path_filtering_for_closure_forbidden": true,
+    "branch_prefix_dependency_inference_forbidden": true,
+    "detection_mode": "read_only",
+    "mutation_mode": "separate_governed_writer",
+    "mutation_requires_exact_head_sha": true,
+    "protected_branch_mutation_forbidden": true,
+    "force_push_forbidden": true,
+    "main_requires_zero_stale_registered_artifacts": true,
+    "production_requires_same_sha_closure": true,
+    "production_requires_staging_eligibility": true,
+    "production_requires_source_pin": true,
+    "production_requires_explicit_authorization": true
+  },
+  "convergence": {
+    "orchestration_mode": "workflow_run_one_authority_per_pass",
+    "repair_dispatch_workflow": ".github/workflows/derived-state-repair-dispatch.yml",
+    "auto_merge_workflow": ".github/workflows/derived-state-converged-automerge.yml",
+    "post_merge_publisher_workflow": ".github/workflows/derived-state-main-convergence-publisher.yml",
+    "one_repair_authority_per_pass": true,
+    "repair_receipt_contract": "mad4b.derived-state-repair-dispatch.v1",
+    "main_convergence_receipt_contract": "mad4b.derived-state-main-convergence.v1",
+    "automerge_receipt_contract": "mad4b.derived-state-automerge.v1",
+    "automation_control_surface_changes_require_manual_review": true,
+    "automation_control_paths": [
+      ".github/derived-state-governance.json",
+      ".github/tests/derived-state-closure.test.mjs",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/derived-state-repair-dispatch.yml",
+      ".github/workflows/derived-state-converged-automerge.yml",
+      ".github/workflows/derived-state-main-convergence-publisher.yml",
+      "scripts/derived-state-closure.mjs",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml"
+    ],
+    "automerge_opt_out_labels": [
+      "do-not-auto-merge",
+      "manual-merge"
+    ],
+    "post_merge_publishable_recipes": [
+      "repository_inventory_refresh"
+    ],
+    "auto_merge_requires_current_head_convergence_receipt": true,
+    "receipt_must_bind_result_head": true,
+    "closure_reverification_mode": "exact_merge_candidate_workflow_dispatch"
+  },
+  "artifacts": [
+    {
+      "artifact_id": "repository_inventory",
+      "recipe": "repository_inventory_refresh",
+      "verifier_id": "repository_inventory_currentness",
+      "dependency_scope": [
+        {
+          "type": "git_index_shape"
+        },
+        {
+          "type": "repository_inventory_rules"
+        }
+      ],
+      "outputs": [
+        "docs/repository-inventory.json",
+        "docs/repository-inventory-summary.json",
+        "docs/repository-inventory.md"
+      ]
+    },
+    {
+      "artifact_id": "repository_evaluation",
+      "recipe": "repository_inventory_refresh",
+      "verifier_id": "repository_evaluation_currentness",
+      "dependency_scope": [
+        {
+          "type": "artifact",
+          "artifact_id": "repository_inventory"
+        },
+        {
+          "type": "repository_evaluation_rules"
+        }
+      ],
+      "outputs": [
+        "docs/repository-evaluation.json",
+        "docs/repository-evaluation-summary.json",
+        "docs/repository-evaluation.md"
+      ]
+    },
+    {
+      "artifact_id": "remote_mcp_write_scope_inventory",
+      "recipe": "remote_mcp_write_scope_refresh",
+      "verifier_id": "remote_mcp_write_scope_currentness",
+      "dependency_scope": [
+        {
+          "type": "git_index_shape",
+          "reason": "current generator materializes tracked file_count"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/routes/**/*.js"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/migrations/**/*.sql"
+        },
+        {
+          "type": "file",
+          "path": "http-generic-api/remote-mcp-scope-catalog.generated.json"
+        },
+        {
+          "type": "tracked_registry_evidence_scan",
+          "extensions": [
+            ".js",
+            ".mjs",
+            ".sql"
+          ]
+        }
+      ],
+      "outputs": [
+        "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+        "docs/remote-mcp-write-scope-inventory.md"
+      ]
+    },
+    {
+      "artifact_id": "frontend_openapi_projection",
+      "recipe": "frontend_openapi_refresh",
+      "verifier_id": "frontend_openapi_currentness",
+      "dependency_scope": [
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/routes/**"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/openapi/**"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "canonicals/openapi/**"
+        },
+        {
+          "type": "registered_generator_contract"
+        }
+      ],
+      "outputs": [
+        "http-generic-api/frontend-operation-governance.generated.json",
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+      ]
+    },
+    {
+      "artifact_id": "work_maps",
+      "repair_authority": {
+        "id": "spec_kit_work_map_autofix",
+        "kind": "delegated_work_map_writer",
+        "workflow": ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+        "writer_workflow": ".github/workflows/spec-kit-work-map-autofix.yml"
+      },
+      "verifier_id": "work_map_currentness",
+      "dependency_scope": [
+        {
+          "type": "registered_work_map_source_universe"
+        }
+      ],
+      "outputs": [
+        "docs/work-maps/**",
+        "specs/*/work-map-integration.json"
+      ]
+    },
+    {
+      "artifact_id": "portable_staging_manifest",
+      "recipe": "remote_mcp_write_scope_refresh",
+      "verifier_id": "portable_staging_manifest_currentness",
+      "dependency_scope": [
+        {
+          "type": "manifest_declared_files"
+        },
+        {
+          "type": "artifact",
+          "artifact_id": "remote_mcp_write_scope_inventory"
+        }
+      ],
+      "outputs": [
+        "autopilot-portable-staging/manifest.json"
+      ]
+    }
+  ],
+  "server_enforcement": {
+    "required_ruleset_state": "active",
+    "main": {
+      "require_pull_request": true,
+      "block_direct_push": true,
+      "block_force_push": true,
+      "dismiss_stale_approvals": true,
+      "require_conversation_resolution": true,
+      "required_checks": [
+        "Derived State Closure"
+      ]
+    },
+    "Production": {
+      "block_direct_push": true,
+      "block_force_push": true,
+      "generic_pull_request_merge_forbidden": true,
+      "promotion_path": "Governed Production Promotion",
+      "same_sha_closure_required": true
+    }
+  }
+}

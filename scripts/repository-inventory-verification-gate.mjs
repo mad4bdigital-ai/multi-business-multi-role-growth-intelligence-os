@@ -299,3 +299,6 @@ writeEvidence(outputPath, {
   followup_mode: "trusted_post_merge_work_branch",
   governed_work_push: governedWorkPush,
 });
+// A stale-but-repairable inventory is evidence, not success. Fail closed so the
+// trusted workflow_run dispatcher can invoke the bounded writer.
+process.exitCode = 1;

@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7093,
-    "bytes": 68114666,
-    "lines": 1595936,
+    "files": 7101,
+    "bytes": 68211686,
+    "lines": 1597701,
     "directories": 265,
     "categories": 13
   },
@@ -15,10 +15,10 @@
       "documentation": 1898,
       "api-runtime": 1428,
       "database-migrations": 783,
-      "root-and-other": 279,
+      "root-and-other": 281,
       "api-contracts": 184,
-      "ci-workflows": 162,
-      "ci-config": 103,
+      "ci-workflows": 166,
+      "ci-config": 105,
       "schemas-and-data": 70,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -27,11 +27,11 @@
     },
     "byExtension": {
       ".md": 2499,
-      ".mjs": 1662,
+      ".mjs": 1664,
       ".js": 987,
       ".sql": 798,
-      ".json": 777,
-      ".yml": 165,
+      ".json": 779,
+      ".yml": 169,
       ".yaml": 113,
       ".ps1": 16,
       ".ts": 15,
@@ -63,15 +63,15 @@
       "http-generic-api": 3661,
       "docs": 1802,
       "specs": 873,
-      ".github": 265,
-      ".changes": 256,
+      ".github": 271,
+      ".changes": 257,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
       "autopilot-portable-staging": 18,
       "schemas": 17,
       ".specify": 15,
-      "scripts": 12,
+      "scripts": 13,
       "src": 12,
       "edge": 9,
       "tests": 3,
@@ -223,10 +223,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 162,
+    "workflows": 166,
     "migrations": 783,
     "apiContracts": 184,
-    "testSpecFiles": 2212
+    "testSpecFiles": 2213
   },
   "largestFiles": [
     {

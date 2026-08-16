@@ -246,7 +246,7 @@ runCheck("pr-workflow-runner-context-availability", () => {
     /\$\{\{\s*runner\.temp\s*\}\}/u,
     "PR workflow must not evaluate runner.temp before runner allocation",
   );
-  assert.match(prWorkflowSource, /Initialize bounded refresh report paths after runner allocation/u);
+  assert.match(prWorkflowSource, /Initialize bounded report paths after runner allocation/u);
   assert.match(prWorkflowSource, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
   assert.match(
     prWorkflowSource,
