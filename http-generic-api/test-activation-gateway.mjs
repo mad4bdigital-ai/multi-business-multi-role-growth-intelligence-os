@@ -313,7 +313,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
         status: 200,
         headers: {
           "content-type": "application/json",
-          "set-cookie": "mad4b_tenant_gpt_sso=approved-token; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax",
+          "set-cookie": "mad4b_tenant_gpt_sso=approved-token; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax, evil=must-not-forward; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax",
           "x-internal-debug": "hidden",
         },
       });
