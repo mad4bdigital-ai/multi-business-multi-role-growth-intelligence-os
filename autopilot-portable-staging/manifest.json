@@ -146,7 +146,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "8be27ca5a520fb1e987f67c0c2b3aeeb8fbfd7d29e6c2657bdac112cad3fc9e9"
+      "sha256": "e1f103e22c37d5ed74a348607a886c3afe5e12a4cfb60b271a3b5bbd2cb0b53e"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -166,7 +166,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "db52ae5906e58d2716cdf44ed6c530d8b66976271e1de3edde3aa467dfb68e04"
+      "sha256": "508f71ee14aa3e2ce52ad7a4aa4acf2d8dfc291842f875f0c1fca9b5101fe1d2"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -186,7 +186,7 @@
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "0a474359f5827b588ff9d5e2593e67147fc64c5a2adfac39ee4996466a677c14"
+      "sha256": "0268da962b9406e86b6987350d1e6fdf0bd2be9403e594c7e80d52729ab1fe76"
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -238,7 +238,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "7abd3ed20e9a872d0612bd908cb126fd5da911394be7552fedbb66d956d3a7ad"
+      "sha256": "b5fe042051ac31a0079f045cff3f5380c6331dc87d344ed1e957b71f30602541"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
-      "sha256": "2cb9b0d5ecb1ece4718b17f9a7bffbddabdfbffec0cf0c5632dca8b31f73cda3"
+      "sha256": "e2559dd7a5ce6b047e1d718b778cee65d7939b32b87ceda50a1d4b46d867b878"
     },
     {
       "path": "http-generic-api/test-workspace-brand-create.mjs",

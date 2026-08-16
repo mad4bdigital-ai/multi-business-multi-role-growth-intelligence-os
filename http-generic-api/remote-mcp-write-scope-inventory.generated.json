@@ -7042,8 +7042,8 @@
     },
     {
       "route_id": "http-generic-api/routes/rootDiscoveryRoutes.js#GET:/:schemaFile(openapi.*.yaml):0",
-      "source_line": 155,
-      "source_offset": 5152,
+      "source_line": 165,
+      "source_offset": 5380,
       "method": "GET",
       "path": "/:schemaFile(openapi.*.yaml)",
       "file": "http-generic-api/routes/rootDiscoveryRoutes.js",
@@ -7051,8 +7051,8 @@
     },
     {
       "route_id": "http-generic-api/routes/rootDiscoveryRoutes.js#GET:/tenant-gpt/activation-openapi:1",
-      "source_line": 189,
-      "source_offset": 6168,
+      "source_line": 200,
+      "source_offset": 6430,
       "method": "GET",
       "path": "/tenant-gpt/activation-openapi",
       "file": "http-generic-api/routes/rootDiscoveryRoutes.js",
@@ -7060,8 +7060,8 @@
     },
     {
       "route_id": "http-generic-api/routes/rootDiscoveryRoutes.js#GET:/admin-gpt/activation-openapi:2",
-      "source_line": 219,
-      "source_offset": 7066,
+      "source_line": 230,
+      "source_offset": 7328,
       "method": "GET",
       "path": "/admin-gpt/activation-openapi",
       "file": "http-generic-api/routes/rootDiscoveryRoutes.js",
@@ -7069,8 +7069,8 @@
     },
     {
       "route_id": "http-generic-api/routes/rootDiscoveryRoutes.js#GET:/tenant-gpt/oauth-preset:3",
-      "source_line": 249,
-      "source_offset": 7967,
+      "source_line": 260,
+      "source_offset": 8229,
       "method": "GET",
       "path": "/tenant-gpt/oauth-preset",
       "file": "http-generic-api/routes/rootDiscoveryRoutes.js",

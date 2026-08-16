@@ -147,6 +147,16 @@ function schemaFilesForScope(scope) {
   ]);
 }
 
+function unmatchedHostResponse(res) {
+  return res.status(404).json({
+    ok: false,
+    error: {
+      code: "unmatched_hostname",
+      message: "This hostname is not declared as a routable platform surface.",
+    },
+  });
+}
+
 export function buildRootDiscoveryRoutes(deps = {}) {
   const router = Router();
   const env = deps.env || process.env;
@@ -154,7 +164,8 @@ export function buildRootDiscoveryRoutes(deps = {}) {
 
   router.get("/:schemaFile(openapi.*.yaml)", async (req, res) => {
     const host = requestHost(req);
-    const scope = SCOPES_BY_HOST[host] || DEFAULT_SCOPE;
+    const scope = SCOPES_BY_HOST[host];
+    if (!scope) return unmatchedHostResponse(res);
     const requestedFile = String(req.params.schemaFile || "").trim();
     const allowedSchemaFiles = schemaFilesForScope(scope);
 
@@ -291,7 +302,8 @@ export function buildRootDiscoveryRoutes(deps = {}) {
 
   router.all("/", (req, res) => {
     const host = requestHost(req);
-    const scope = SCOPES_BY_HOST[host] || DEFAULT_SCOPE;
+    const scope = SCOPES_BY_HOST[host];
+    if (!scope) return unmatchedHostResponse(res);
 
     return res.status(200).json({
       ok: true,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import http from "node:http";
 import express from "express";
 import { buildRootDiscoveryRoutes } from "./routes/rootDiscoveryRoutes.js";
@@ -44,6 +45,9 @@ function getJson(port, headers = {}) {
     request.end();
   });
 }
+
+const routesIndexSource = fs.readFileSync(new URL("./routes/index.js", import.meta.url), "utf8");
+assert.match(routesIndexSource, /buildRootDiscoveryRoutes\(deps\)/, "registerRoutes must forward deps to root discovery");
 
 assert.equal(normalizeTrustedRequestHost("Auth.MAD4B.com:443"), "auth.mad4b.com");
 assert.equal(normalizeTrustedRequestHost("auth.mad4b.com,activation.mad4b.com"), "");
@@ -97,9 +101,14 @@ assert.equal(resolveTrustedRequestHost({
       host: "auth.mad4b.com",
       "x-forwarded-host": "activation.mad4b.com,evil.example.test",
     });
-    assert.equal(malformed.status, 200);
-    assert.equal(malformed.body.host, null);
-    assert.equal(malformed.body.scope, "runtime");
+    assert.equal(malformed.status, 404);
+    assert.equal(malformed.body.error?.code, "unmatched_hostname");
+
+    const unknown = await getJson(port, {
+      host: "unknown.example.test",
+    });
+    assert.equal(unknown.status, 404);
+    assert.equal(unknown.body.error?.code, "unmatched_hostname");
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
@@ -109,6 +118,8 @@ console.log(JSON.stringify({
   ok: true,
   gate: "trusted_request_host_routing",
   forwarded_headers_fail_closed: true,
+  unmatched_hosts_fail_closed: true,
   root_discovery_uses_shared_authority: true,
+  root_discovery_deps_forwarded: true,
   secrets_included: false,
 }));
