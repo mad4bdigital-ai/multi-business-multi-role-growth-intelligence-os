@@ -90,15 +90,25 @@ for (const workflowSource of [generatedRefreshWorkflow, ciAutostartWorkflow]) {
     workflowSource.includes("github.event.pull_request.head.repo.full_name == github.repository"),
     "certification automation must stay restricted to same-repository pull requests",
   );
-  assert.ok(
-    workflowSource.includes("startsWith(github.event.pull_request.head.ref, 'gpt/')"),
-    "existing governed gpt branch support must remain enabled",
-  );
-  assert.ok(
-    workflowSource.includes("startsWith(github.event.pull_request.head.ref, 'cert/')"),
-    "non-protected certification branch support must remain enabled",
-  );
 }
+
+assert.ok(
+  generatedRefreshWorkflow.includes("branches: [main]"),
+  "generated refresh must evaluate every pull request to main",
+);
+assert.ok(
+  !generatedRefreshWorkflow.includes("startsWith(github.event.pull_request.head.ref, 'gpt/')") &&
+    !generatedRefreshWorkflow.includes("startsWith(github.event.pull_request.head.ref, 'cert/')"),
+  "generated refresh must not route dependency coverage through branch prefixes",
+);
+assert.ok(
+  ciAutostartWorkflow.includes("startsWith(github.event.pull_request.head.ref, 'gpt/')"),
+  "existing governed gpt recovery support must remain enabled",
+);
+assert.ok(
+  ciAutostartWorkflow.includes("startsWith(github.event.pull_request.head.ref, 'cert/')"),
+  "non-protected certification recovery support must remain enabled",
+);
 
 assert.ok(
   generatedRefreshWorkflow.includes("github.actor != 'github-actions[bot]'"),

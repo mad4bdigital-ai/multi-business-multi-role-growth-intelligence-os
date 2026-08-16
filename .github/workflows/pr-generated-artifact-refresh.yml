@@ -1,47 +1,10 @@
-# Evaluate bounded generated artifacts on governed non-Production work branches.
+# Evaluate bounded generated artifacts and full derived-state closure on every non-Production PR to main.
 name: PR Generated Artifact Refresh
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches-ignore:
-      - Production
-    paths:
-      - ".changes/e2e/ci-generated-artifact-evidence-routing.json"
-      - ".github/ci-evidence-routing.json"
-      - ".github/repository-maintenance-tool-governance.json"
-      - ".github/workflows/ci-evidence-pr-publisher.yml"
-      - ".github/workflows/governed-generated-artifact-refresh.yml"
-      - ".github/workflows/pr-generated-artifact-refresh.yml"
-      - ".github/workflows/production-promotion-generated-artifact-evidence.yml"
-      - ".github/workflows/frontend-surface-dispatch.yml"
-      - ".github/workflows/custom-gpt-contract-guard.yml"
-      - ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
-      - ".github/workflows/spec-kit-work-map-autofix.yml"
-      - ".github/workflows/spec-kit-work-map-integration.yml"
-      - ".specify/work-map-currentness-probe.txt"
-      - "docs/**"
-      - "http-generic-api/openapi.yaml"
-      - "http-generic-api/openapi*.yaml"
-      - "http-generic-api/openapi/**/*.yaml"
-      - "http-generic-api/openapi-route-contracts.yaml"
-      - "http-generic-api/routes/**"
-      - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
-      - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
-      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
-      - "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs"
-      - "http-generic-api/scripts/generated-artifact-refresh-runner.mjs"
-      - "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"
-      - "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
-      - "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
-      - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
-      - "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs"
-      - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
-      - "http-generic-api/scripts/repo-maintenance-sync.mjs"
-      - "http-generic-api/scripts/test-manifest.mjs"
-      - "http-generic-api/package.json"
-      - "http-generic-api/package-lock.json"
-      - "canonicals/openapi/**/*.yaml"
+    branches: [main]
   workflow_dispatch:
     inputs:
       target_ref:
@@ -65,19 +28,19 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
-       github.actor != 'github-actions[bot]' &&
-       (startsWith(github.event.pull_request.head.ref, 'gpt/') ||
-        startsWith(github.event.pull_request.head.ref, 'cert/')))
+       github.actor != 'github-actions[bot]')
     permissions:
       contents: read
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       EVENT_NAME: ${{ github.event_name }}
       CI_SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      CI_CLOSURE_CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.sha || inputs.expected_head_sha }}
+      CLOSURE_CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'github_merge_candidate' || 'exact_head' }}
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
     steps:
-      - name: Initialize bounded refresh report paths after runner allocation
+      - name: Initialize bounded report paths after runner allocation
         shell: bash
         run: |
           set -euo pipefail
@@ -86,18 +49,67 @@ jobs:
           mkdir -p "${report_dir}"
           echo "REPORT_PATH=${report_dir}/pr-generated-artifact-refresh-summary.json" >> "${GITHUB_ENV}"
           echo "REPORT_MARKDOWN_PATH=${report_dir}/pr-generated-artifact-refresh-summary.md" >> "${GITHUB_ENV}"
+          echo "CLOSURE_REPORT_PATH=${report_dir}/derived-state-closure.json" >> "${GITHUB_ENV}"
 
       - name: Validate exact candidate inputs
         shell: bash
         run: |
           set -euo pipefail
           [[ "${CI_SOURCE_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            [[ "${TARGET_REF}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-            [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
-          else
-            [[ "${TARGET_REF}" =~ ^(gpt|cert)/[A-Za-z0-9._/-]+$ ]]
-          fi
+          [[ "${CI_CLOSURE_CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${TARGET_REF}" =~ ^[A-Za-z0-9._/-]+$ ]]
+          [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
+
+      - name: Checkout exact closure candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ env.CI_CLOSURE_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install root dependencies without lifecycle side effects
+        run: npm ci --ignore-scripts
+
+      - name: Install API dependencies without lifecycle side effects
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Validate derived-state governance contract
+        run: node .github/tests/derived-state-closure.test.mjs
+
+      - name: Verify exact merge-candidate derived-state closure
+        id: derived_state_closure
+        continue-on-error: true
+        run: >-
+          node scripts/derived-state-closure.mjs
+          --expected-sha "$CI_CLOSURE_CANDIDATE_SHA"
+          --candidate-kind "$CLOSURE_CANDIDATE_KIND"
+          --report-file "$CLOSURE_REPORT_PATH"
+
+      - name: Upload canonical derived-state closure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: derived-state-closure-${{ github.run_id }}
+          path: ${{ env.CLOSURE_REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce derived-state closure before legacy artifact evaluation
+        if: steps.derived_state_closure.outcome != 'success'
+        shell: bash
+        run: |
+          echo "::error::Exact merge-candidate Derived State Closure did not converge. Inspect the canonical closure artifact for the governed repair recipe set."
+          exit 1
 
       - name: Checkout exact governed PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -115,13 +127,6 @@ jobs:
           [[ "$local_sha" == "$CI_SOURCE_HEAD_SHA" ]]
           [[ "$remote_sha" == "$CI_SOURCE_HEAD_SHA" ]]
 
-      - name: Setup Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
       - name: Test canonical evidence publisher
         working-directory: http-generic-api
         run: node scripts/test-generated-artifact-refresh-pr-publisher.mjs
@@ -135,7 +140,7 @@ jobs:
         run: node scripts/generated-artifact-refresh-runner.mjs
 
       - name: Upload canonical generated-artifact evidence
-        if: always()
+        if: always() && steps.derived_state_closure.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pr-generated-artifact-refresh-${{ github.run_id }}-summary
@@ -146,7 +151,7 @@ jobs:
           retention-days: 30
 
       - name: Enforce canonical report decision
-        if: always()
+        if: always() && steps.derived_state_closure.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
