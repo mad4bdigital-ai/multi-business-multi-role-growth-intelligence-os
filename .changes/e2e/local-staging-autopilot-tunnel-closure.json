@@ -19,6 +19,8 @@
       "http-generic-api/openapi.yaml",
       "http-generic-api/openapi-route-contracts.yaml",
       "http-generic-api/openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
       "http-generic-api/docker-compose.staging.yml",
       "docs/governance/configuration-drift-policy.json",
       "http-generic-api/config/domain-family-policy.json",
@@ -53,6 +55,7 @@
       "http-generic-api/test-trusted-request-host-routing.mjs",
       "http-generic-api/test-activation-gateway.mjs",
       "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
       "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "docs/staging-openapi-mcp-db-copy.md"
