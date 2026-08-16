@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7112,
-    "bytes": 68894593,
-    "lines": 1615814,
+    "files": 7113,
+    "bytes": 68902438,
+    "lines": 1615881,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2132,
-      "documentation": 1900,
+      "documentation": 1901,
       "api-runtime": 1429,
       "database-migrations": 783,
       "root-and-other": 281,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2501,
+      ".md": 2502,
       ".mjs": 1668,
       ".js": 987,
       ".sql": 798,
@@ -62,7 +62,7 @@
     },
     "topLevel": {
       "http-generic-api": 3663,
-      "docs": 1804,
+      "docs": 1805,
       "specs": 873,
       ".github": 271,
       ".changes": 257,
@@ -10729,9 +10729,9 @@
       "path": ".github/workflows/hostinger-production-runtime-readback-r7.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 15275,
-      "lines": 289,
-      "sha256": "abd48370e38497b79780aa8549679dc00522e9e48a62af8c79330b6e5b496766",
+      "bytes": 16369,
+      "lines": 313,
+      "sha256": "b23fd3a9fc4735a93d0bd04522e3d9af97748561b51e002421a18d2cf4e1677d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30246,6 +30246,17 @@
       "bytes": 1482,
       "lines": 28,
       "sha256": "3acd2f468ba1be9137d120d35444c6f39632c4f053b04beac4c6e59caa31ac90",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/governance/pr7384-deep-audit-ar.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 6405,
+      "lines": 38,
+      "sha256": "38fc3cb70a8cdd03d912901119de0d3f688084c0b9ad6cd68ba117a58205d991",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64431,9 +64442,9 @@
       "path": "http-generic-api/test-governed-autopilot-production-deployment.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 2492,
-      "lines": 57,
-      "sha256": "0e8f3a810290f19f17cb08bc5f401b11489beb09d3e03c958082e50745c1feab",
+      "bytes": 2838,
+      "lines": 62,
+      "sha256": "acfdfd2b2d119a00d8a9fbed69e98ebbaa86b8b7c1d764598706dc7310a13c24",
       "mode": "644",
       "executable": false,
       "generated": false
