@@ -146,7 +146,7 @@
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
-      "sha256": "cb7cdd3ffe6400a651faa0f9f576df2a980056c918874131508da8e5dbd62402"
+      "sha256": "1bc7e974f9c12a8f496ca326ae792b0f563824158d1dff50d17bffc8b718b2d8"
     },
     {
       "path": "edge/activation-gateway/wrangler.staging.jsonc",
