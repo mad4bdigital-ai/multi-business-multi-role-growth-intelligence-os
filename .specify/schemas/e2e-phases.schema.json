@@ -22,6 +22,7 @@
     "delivery_mode": { "enum": ["single_pr", "multi_pr"] },
     "current_phase": { "$ref": "#/$defs/phaseId" },
     "scope": { "$ref": "#/$defs/scope" },
+    "secrets_included": { "const": false },
     "merge_contract": {
       "type": "object",
       "additionalProperties": false,

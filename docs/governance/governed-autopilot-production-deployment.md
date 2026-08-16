@@ -2,164 +2,132 @@
 
 ## Purpose
 
-This document defines the single governed automation path for the Windows External SSD Staging environment and the protected Hostinger Production promotion path. It consolidates the operational failures observed during the Activation Gateway rollout into deterministic controls rather than operator memory.
+This document defines the governed automation and readback boundaries for the Windows External-SSD Staging environment and the protected Hostinger Production promotion path. It converts the failures observed during the Activation Gateway and Remote MCP/OAuth rollout into deterministic repository contracts rather than operator memory.
 
-The design deliberately keeps **Staging execution**, **Production promotion**, **Production GET-only runtime readback**, and **manual MCP protocol readback** as separate authorities. Local AutoPilot may clone or update the repository, generate local-only secrets, start Docker services, and start the dedicated Staging Tunnel. It must never mutate Production DNS, Hostinger, Production databases, or Cloudflare provider state.
+The authorities remain deliberately separated:
+
+- **Staging execution** may manage only the pinned local Staging tree, local secrets, Docker services, and the dedicated Staging Tunnel/Worker boundary.
+- **Production promotion** remains a separately authorized exact-candidate operation.
+- **Hostinger Production Runtime Readback R7** remains strictly **GET-only** and may only determine whether the promoted Production runtime and public OAuth discovery are current.
+- **Live MCP POST/transport verification is not implemented by this PR or by R7.** A real `POST /mcp` initialize handshake remains a separately authorized operational verification after merge/deployment and must not be inferred from GET-only evidence.
+
+No source change in this PR authorizes Cloudflare, Hostinger, DNS, database, migration, secret-rotation, or Production deployment mutation.
 
 ## Findings converted into controls
 
 | Observed failure or race | Governed control |
 |---|---|
 | AutoPilot was started with only `-Ref main` | Require an exact 40-character `-ExpectedCommit`; reject ref-only execution |
-| Local `Install-AutoDeployTask.ps1` used `InteractiveToken` | Contract-test the installer and require Windows PowerShell `Interactive` logon type |
-| A manually created `.backup` file blocked integrity checks | Quarantine only known AutoPilot backup files outside the repository; fail closed on all other dirty files |
-| Activation Gateway env keys were missing | Generate the local Activation OAuth secret and repair non-secret host defaults without printing secrets |
-| `SecureString` conversion produced an empty value | Generate local-only secrets using the OS cryptographic RNG and validate non-empty length without echoing values |
-| Tunnel scope could accidentally include Activation or Production | Require exactly `dev.mad4b.com,mcp_dev.mad4b.com`; route `activation-dev.mad4b.com` only through its independent Worker |
-| Hostinger runtime started without SSO signing secret | Production startup contract requires a dedicated `TENANT_GPT_SSO_SIGNING_SECRET` of at least 32 characters; Production automation must never invent it |
-| Hostinger deployment returned repeated 503/readback failure | Keep promotion non-current and classify the failing authority instead of treating Git promotion as runtime activation |
+| Local Scheduled Task used an obsolete logon value | Contract-test the installer and require the supported `Interactive` logon form |
+| Known AutoPilot backup files blocked integrity checks | Quarantine only known backup files outside the repository; fail closed on every unknown dirty file |
+| Staging Activation env keys or local secrets were missing | Generate only local ignored secrets and repair only non-secret Staging defaults without printing secret values |
+| Staging Tunnel scope could include Activation or Production | Keep Tunnel ingress limited to `dev.mad4b.com` and `mcp_dev.mad4b.com`; keep `activation-dev.mad4b.com` on its independent Worker |
+| Hostinger runtime started without the SSO signing secret | Require the dedicated Production secret as a startup/preflight contract; never invent a Production substitute in CI |
+| Git promotion succeeded while public runtime returned 503 | Treat branch promotion and runtime activation as separate states; R7 must remain negative until public identity endpoints prove the exact SHA/branch |
 | MCP OAuth metadata can fail closed when ingress trust is incomplete | Require the three-part trusted-ingress contract and test it under Production semantics |
-| Root discovery trusted forwarded host headers independently from MCP | Route all external-host selection through one shared trusted-host authority |
-| Repository DNS policy assumed one record type while provider evidence used another | Treat proxied `A` and `CNAME` as an allowed set when both terminate on the governed Hostinger Production origin |
-| General runtime health can be green while ChatGPT OAuth discovery is broken | R7 remains GET-only but now probes both protected-resource and authorization-server metadata |
-| MCP transport itself still needs a real handshake | Provide a separate owner-authorized exact-SHA MCP `initialize` readback that performs no authentication, tool call, provider mutation, SQL, or migration |
-| CI evidence could belong to another attempt or moving ref | Pin candidate, validation base, and `main` by exact SHA; verify source-pin freshness before and after CI |
-
-## State machine
-
-```text
-candidate discovered
-        |
-        v
-exact SHA + protected-ref checks
-        |
-        v
-source-pinned CI and generated-artifact evidence
-        |
-        +--> fail: stop; no deployment
-        |
-        v
-explicit authorized Production promotion
-        |
-        v
-Hostinger build/deployment evidence
-        |
-        v
-R7 bounded GET-only runtime/OAuth readback
-        |
-        +--> trusted ingress missing: trusted_ingress_attestation_required
-        |
-        +--> identity 503 / SHA mismatch: runtime_activation_pending_or_sha_mismatch
-        |
-        +--> OAuth metadata mismatch: oauth_discovery_not_ready
-        |
-        +--> exact SHA + Production branch + OAuth discovery
-                                  |
-                                  v
-                         production_current
-                                  |
-                                  v
-optional separately authorized exact-SHA MCP initialize readback
-        |
-        +--> failure: mcp_transport_not_ready
-        |
-        +--> success: mcp_initialize_ready
-```
-
-`production_current` and `mcp_initialize_ready` are intentionally separate pieces of evidence. Client-facing Remote MCP readiness requires both to refer to the same still-current Production SHA; the GET-only R7 authority is not widened into a POST authority.
-
-## Production secret boundary
-
-`TENANT_GPT_SSO_SIGNING_SECRET` is not a generated local-development value when the target is Production. It must be provisioned through the authorized Hostinger Production secret/configuration mechanism and must be at least 32 characters. The deployment controller may validate presence through a no-secret contract or startup evidence, but it must not print, copy, derive, or replace the Production value.
-
-The repeated Hostinger error:
-
-> A dedicated TENANT_GPT_SSO_SIGNING_SECRET with at least 32 characters is required.
-
-is therefore a **preflight configuration failure**, not a reason to weaken the application guard or generate a substitute in CI. Queue-disabled notices remain a separate capability warning when `REDIS_URL` and `QUEUE_WORKER_ENABLED` are intentionally absent; they must not be confused with the fatal SSO startup failure.
+| Root discovery trusted forwarded-host input differently from MCP | Route host-sensitive public surfaces through one shared trusted-host authority |
+| Repository DNS policy assumed one record type while provider evidence used another | Make the invariant proxied Hostinger Production routing with an explicit `A`/`CNAME` allowed set, without mutating provider state |
+| General runtime health can be green while ChatGPT OAuth discovery is broken | Extend GET-only R7 to verify both MCP protected-resource and OAuth authorization-server metadata |
+| A maintenance PR touched an already-integrated parallel feature | Permit only one explicit schema-valid single-PR maintenance contract that covers every changed runtime file and declares `secrets_included=false` |
+| The maintenance gate required a field forbidden by its own schema | Add optional `secrets_included` to the E2E schema with `const:false` and regression-test the maintenance path |
 
 ## Trusted ingress boundary
 
-Production OAuth metadata is intentionally fail-closed. The canonical deployment environment documents three independent controls:
+Production OAuth metadata is fail-closed. All three controls are required in Production-like environments:
 
-- `REMOTE_MCP_TRUST_PROXY_HOST_HEADERS=true` only when the edge is trusted to set the canonical forwarded host.
-- `REMOTE_MCP_TRUSTED_INGRESS_ATTESTED=true` only after the active Production ingress is explicitly verified.
-- `REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS=true` only after caller-supplied `x-forwarded-host` and `x-original-host` values are proven to be removed before the application sees them.
+```text
+REMOTE_MCP_TRUST_PROXY_HOST_HEADERS=true
+REMOTE_MCP_TRUSTED_INGRESS_ATTESTED=true
+REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS=true
+```
 
-All three are required in Production-like environments. Missing attestation is classified separately from deployment/SHA mismatch. The MCP authorization-server metadata route and the protected-resource metadata route are both covered by the same trusted-ingress authority.
+They mean different things and must not be collapsed into one flag:
 
-All public host-sensitive routing uses the same resolver. When forwarded-host trust is disabled, caller-controlled `x-forwarded-host` and `x-original-host` values are ignored and the direct `Host`/`:authority` value is authoritative. When trust is enabled, malformed, multi-valued, credential-bearing, or path-bearing forwarded host values fail closed rather than falling back to a less-trusted value.
+1. forwarded-host headers may be used only when the deployment edge is trusted to establish the external host;
+2. the active Production ingress itself has been explicitly attested;
+3. caller-supplied forwarded/original host headers are stripped before the application sees the trusted values.
+
+When forwarded-host trust is disabled, caller-controlled `x-forwarded-host` and `x-original-host` values are ignored. When trust is enabled, malformed, multi-valued, credential-bearing, or path-bearing host input fails closed instead of falling back to a weaker authority.
+
+The MCP protected-resource metadata and path-scoped authorization-server metadata are both subject to this authority under Production semantics.
 
 ## Production DNS authority
 
-The architectural invariant is not one DNS record syntax. Production `auth`, `mcp`, and `activation` hostnames must remain proxied through Cloudflare and terminate on the governed Hostinger Production origin. The repository therefore permits `A` or `CNAME` for those Production hostnames and marks the legacy `dns_record_type` value as preferred rather than exclusive.
+The architectural invariant is not a single DNS syntax. Production `auth`, `mcp`, and `activation` hostnames must be proxied by Cloudflare and terminate on the governed Hostinger Production origin. Repository policy therefore allows `A` or `CNAME` as an explicit set and treats the legacy `dns_record_type` value as preferred rather than exclusive.
 
-This repository-only contract change does **not** mutate Cloudflare. Provider state must be read back separately. A provider record outside the allowed set, an unproxied record, or a record whose effective origin is not Hostinger Production is a mismatch and must fail closed until separately authorized provider repair is performed.
+This is a repository contract only. It does **not** change Cloudflare. Provider state still requires separate readback; a non-allowed type, an unproxied record, or an effective origin outside Hostinger Production is a mismatch and must remain blocked until separately authorized provider repair.
 
-## R7 GET-only readback contract
+## R7 GET-only contract
 
-R7 is a bounded **public GET-only** readback and remains `mad4b.hostinger-production-runtime-readback-r7.v1`. It is not a deployment, provider mutation, or MCP POST workflow. The Production runtime is considered current only when all of the following are true for the same authorized SHA:
+`.github/workflows/hostinger-production-runtime-readback-r7.yml` remains a bounded GET-only authority. It must not contain a POST request or mutate any provider/runtime state.
 
-1. The protected `Production` ref still equals the expected 40-character SHA.
-2. `/health`, `/version`, `/deployment-info`, and `/connector-agent/version` return HTTP 200.
-3. `/version` contains the expected SHA.
-4. `/deployment-info` reports the expected commit SHA.
-5. `/deployment-info` reports branch `Production`.
-6. `https://mcp.mad4b.com/.well-known/oauth-protected-resource` returns the canonical MCP resource, the canonical authorization server, and `trusted_ingress.ready=true`.
-7. `https://auth.mad4b.com/.well-known/oauth-authorization-server/auth/mcp` returns the canonical issuer and token/authorization endpoints with `trusted_ingress.ready=true`.
-8. The readback report classifies the result as `production_current`.
-9. The report proves public GET-only collection, no provider mutation, no deployment action, no SQL or migration execution, and no secrets included.
+For one exact Production SHA it verifies:
 
-A 503, missing runtime identity, branch mismatch, SHA mismatch, trusted-ingress failure, or OAuth discovery mismatch is a closed negative result. The controller may poll GET readback within a bounded window, but it must not repeat provider mutation merely because the first readback is not yet current.
+1. protected `Production` still equals the expected SHA;
+2. `/health`, `/version`, `/deployment-info`, and `/connector-agent/version` are HTTP 200;
+3. version/deployment identity reports the exact Production SHA;
+4. deployment branch provenance is `Production`;
+5. `https://mcp.mad4b.com/.well-known/oauth-protected-resource` is HTTP 200 and advertises the canonical MCP resource and authorization server with trusted ingress ready;
+6. `https://auth.mad4b.com/.well-known/oauth-authorization-server/auth/mcp` is HTTP 200 and advertises the canonical issuer/authorization/token endpoints with trusted ingress ready;
+7. no provider mutation, deployment, database mutation, SQL, migration, or secret payload access is performed.
 
-## Owner-authorized MCP initialize readback
+The bounded classifications include:
 
-The transport handshake is verified by `.github/workflows/hostinger-production-mcp-initialize-readback.yml`, not by R7. It can run only from an owner comment whose entire body pins the current Production SHA:
+- `production_current`
+- `trusted_ingress_attestation_required`
+- `runtime_sha_current_branch_provenance_mismatch`
+- `runtime_activation_pending_or_sha_mismatch`
+- `oauth_discovery_not_ready`
+- `runtime_parity_incomplete`
 
-```text
-RUN_HOSTINGER_PRODUCTION_MCP_INITIALIZE_READBACK expected_production_sha=<40-char-production-sha>
-```
+A 503 or OAuth discovery mismatch is a closed negative result. R7 may be retried/read back within its governed lifecycle, but it may not repeat deployment/provider mutation merely because runtime activation is pending.
 
-The workflow re-reads `Production` before and after the probe and stops if the SHA differs. Its only network operation is an unauthenticated JSON-RPC `initialize` request to `https://mcp.mad4b.com/mcp` with protocol `2025-06-18`. It does not request an OAuth token, call a tool, read provider credentials, deploy, restart, execute SQL, apply a migration, mutate a database, or send an external business action.
+## MCP transport verification boundary
 
-Successful evidence is classified `mcp_initialize_ready`; otherwise it is `mcp_transport_not_ready`. This evidence must be paired with a still-current R7 result for the same Production SHA before claiming end-to-end Remote MCP client readiness.
+A real ChatGPT-compatible MCP transport handshake uses `POST /mcp`. The repository governance repair on this branch explicitly preserved R7 as GET-only and removed an attempted POST readback workflow. Therefore this PR **does not claim live MCP transport readiness**.
 
-## Failure classifications
+After the repository changes are merged, Production is activated, R7 is current, and provider configuration is separately verified, an operator may perform a separately authorized bounded MCP `initialize` verification against the exact still-current Production SHA. That verification is outside this PR's GET-only readback authority and must have its own explicit authorization/evidence. It must not be silently added to R7 or inferred from OAuth metadata success.
 
-| Classification | Meaning |
-|---|---|
-| `production_current` | Exact Production SHA/branch, runtime identity, OAuth discovery, and trusted ingress are current under GET-only R7 |
-| `trusted_ingress_attestation_required` | OAuth discovery reached the runtime but the Production ingress trust contract is incomplete |
-| `runtime_sha_current_branch_provenance_mismatch` | Runtime SHA is current but branch provenance is not `Production` |
-| `runtime_activation_pending_or_sha_mismatch` | Core runtime identity endpoints are unavailable or do not expose the exact Production SHA |
-| `oauth_discovery_not_ready` | Runtime identity is current but MCP protected-resource or authorization-server metadata is not exact/ready |
-| `mcp_initialize_ready` | Separately authorized exact-SHA MCP initialize handshake succeeded without authentication or tool execution |
-| `mcp_transport_not_ready` | Separately authorized exact-SHA MCP initialize handshake did not meet the transport contract |
-| `runtime_parity_incomplete` | Bounded fallback for an unclassified incomplete R7 parity state |
+## Single-PR maintenance contract
+
+The E2E governance layer supports maintenance on an already-integrated parallel feature only when one unique `.changes/e2e/*.json` contract satisfies all of the following:
+
+- `delivery_mode == "single_pr"`;
+- the current phase is `implemented`;
+- `secrets_included == false` explicitly;
+- its scope covers every changed runtime file in the PR;
+- every affected parallel contract is already fully integrated.
+
+The schema now permits the safety declaration only as `false`; it remains optional for unrelated historical contracts so the schema change does not retroactively invalidate them. A dedicated regression creates a temporary integrated parallel feature and proves that a safe complete maintenance contract is accepted while an otherwise identical contract without the explicit secret-safety declaration is rejected.
 
 ## Acceptance criteria
 
 | Area | Required acceptance condition |
 |---|---|
-| Windows AutoPilot | Exact SHA, local Docker context, WSL2 readiness, clean protected tree, manifest parity, and redacted operation logs |
-| Local environment | `.env.staging` is ignored, duplicate keys are rejected, mutation flags remain false, and local secrets are never echoed |
-| Activation Gateway | Explicit opt-in, dedicated local OAuth secret, `activation-dev.mad4b.com` host defaults, independent Worker routing |
-| Tunnel | Only `dev.mad4b.com` and `mcp_dev.mad4b.com`, with unmatched-host denial and no Production hostnames |
-| Production candidate | Exact candidate/base/main pinning, successful exact-head CI, and no provider mutation during validation |
-| Production startup | Dedicated SSO signing secret present and valid; no fallback or generated substitute |
-| Production trusted ingress | All three ingress controls are explicitly satisfied before Production OAuth metadata is served |
-| Host selection | One shared resolver governs MCP and root discovery; untrusted or malformed forwarded host values cannot select another surface |
-| Production DNS | Proxied `A` or `CNAME` only, with effective origin constrained to Hostinger Production and provider parity separately verified |
-| OAuth discovery | Canonical protected-resource and authorization-server metadata are public and exact under R7 GET-only readback |
-| Production runtime current | R7 proves exact SHA, Production branch, runtime health, trusted ingress, OAuth discovery, and `production_current` |
-| MCP transport | Separately authorized exact-SHA initialize readback returns `mcp_initialize_ready` without auth or tool execution |
-| End-to-end Remote MCP client readiness | A still-current R7 `production_current` result and `mcp_initialize_ready` evidence refer to the same Production SHA |
-| Recovery | Pending runtime activation produces evidence and a bounded retry/readback path, not an unbounded deployment loop |
+| Staging AutoPilot | Exact SHA, local Docker context, clean protected tree, manifest parity, redacted logs |
+| Staging boundary | Production hostnames absent from local Tunnel; Activation uses its independent Worker boundary |
+| Production candidate | Exact candidate/source pins and no provider mutation during validation |
+| Production startup | Dedicated SSO signing secret present through authorized Production configuration |
+| Trusted ingress | All three ingress controls satisfied before Production OAuth metadata is served |
+| Host selection | One shared resolver governs MCP/root discovery and forwarded-host spoofing fails closed |
+| Production DNS policy | Proxied Hostinger origin with only `A` or `CNAME` permitted by repository policy |
+| OAuth discovery | Canonical protected-resource and authorization-server metadata succeed under GET-only R7 |
+| E2E maintenance governance | One explicit `secrets_included=false` maintenance contract covers every changed runtime file |
+| Production current | Exact SHA/branch + identity endpoints + trusted ingress + OAuth discovery all pass R7 |
+| MCP transport | Not claimed by this PR; separately authorized live POST verification remains outstanding |
 
 ## Operational rule
 
-The safe order is **validate → pin → build/promote once → poll GET-only R7 → classify → optionally authorize exact-SHA MCP initialize readback → stop or report**. Any R7 failure keeps the release non-current. Any initialize failure keeps MCP transport unverified even when the core runtime is current. Local Staging may continue independently, but it must not be used as evidence that Hostinger Production has activated the same commit.
+The safe order is:
 
-## Scope and non-goals
+```text
+validate repository
+→ pin exact candidate
+→ separately authorize promotion/deployment
+→ run GET-only R7
+→ classify runtime/OAuth state
+→ separately verify provider configuration
+→ separately authorize live MCP POST transport verification when required
+```
 
-This contract does not rotate a Production secret, apply a database migration, change Cloudflare DNS, restart Hostinger, or perform a Production deployment by itself. The optional MCP initialize readback is a bounded non-mutating protocol handshake and requires its own exact-SHA owner trigger. Provider mutations remain explicit, separately authorized actions with their own evidence and readback requirements.
+No failure in a later step may be converted into an implicit provider retry or a relaxation of an earlier security contract.

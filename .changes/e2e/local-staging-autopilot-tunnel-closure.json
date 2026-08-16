@@ -2,9 +2,10 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "local-staging-autopilot-tunnel-closure",
-  "title": "Portable Windows External-SSD Staging Auto Pilot and Active Dev Tunnel Boundary",
+  "title": "Portable Staging Auto Pilot and Governed Production MCP/OAuth Maintenance Closure",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
+  "secrets_included": false,
   "scope": {
     "include": [
       ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
@@ -14,6 +15,7 @@
       "autopilot-portable-staging/manifest.json",
       "STAGING-WINDOWS.md",
       "http-generic-api/.env.staging.example",
+      "http-generic-api/.env.example",
       "http-generic-api/docker-compose.staging.yml",
       "docs/governance/configuration-drift-policy.json",
       "http-generic-api/config/domain-family-policy.json",
@@ -24,10 +26,15 @@
       "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/remoteMcpRequestHost.js",
+      "http-generic-api/trustedRequestHost.js",
       "http-generic-api/routes/rootDiscoveryRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
       "http-generic-api/scripts/build-staging-openapi.mjs",
       "http-generic-api/scripts/generate-activation-staging-policy.mjs",
       "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
+      "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
       "http-generic-api/test-connect-routes.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
@@ -35,6 +42,9 @@
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "http-generic-api/test-governed-autopilot-production-deployment.mjs",
+      "http-generic-api/test-platform-routes.mjs",
+      "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
+      "http-generic-api/test-trusted-request-host-routing.mjs",
       "http-generic-api/test-activation-gateway.mjs",
       "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
       "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
@@ -49,31 +59,33 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a portable Windows/External-SSD launcher that starts only a pinned local Staging tree and exposes only the ready Dev hostname through an explicit opt-in Tunnel profile.",
+      "objective": "Keep the pinned portable Staging launcher and its domain boundaries safe while allowing one explicit single-PR maintenance contract to cover repository-side Production MCP/OAuth ingress hardening after the affected parallel workstreams are already integrated.",
       "e2e_journeys": [
         {
-          "id": "external-ssd-pinned-local-start",
+          "id": "external-ssd-and-mcp-ingress-maintenance-closure",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Windows Staging operator",
-          "entrypoint": "autopilot-portable-staging/Start-AutoPilot.ps1",
-          "terminal_outcome": "The launcher either validates and starts the exact local repository safely or stops before mutation with a fail-closed diagnostic.",
+          "actor": "Platform maintainer",
+          "entrypoint": "autopilot-portable-staging/Start-AutoPilot.ps1 and repository MCP/OAuth governance gates",
+          "terminal_outcome": "The exact repository tree is accepted only when Staging remains isolated, Production MCP/OAuth metadata is fail-closed behind trusted ingress, host authority is shared, and the maintenance PR covers every changed runtime file without provider or secret mutation.",
           "steps": [
-            "Require an exact 40-character commit SHA and verify the remote ref and detached checkout resolve to that SHA.",
-            "Reject a dirty tree, DOCKER_HOST, DOCKER_CONTEXT, non-local Docker contexts, unavailable Docker, or unreadable WSL2 state.",
-            "Verify manifest SHA-256 values for Compose, env template, domain policy, OpenAPI/MCP policy, generated Staging OpenAPI artifact, DB copy tool, regression tests, documentation, and Auto Pilot files.",
-            "Create only an ignored local .env.staging with local-only credentials when absent; never copy Production credentials or provider tokens.",
-            "Parse the merged Compose model and start local services without migrations, SQL apply, provider calls, or Production deployment.",
-            "Start cloudflared only when the operator explicitly supplies -StartTunnel and a non-empty dedicated Staging token."
+            "Require an exact 40-character commit SHA for portable Staging execution and reject dirty or non-local execution contexts before local mutation.",
+            "Keep Production and Staging hostname families isolated while allowing only the declared Cloudflare/Hostinger DNS record-type set in repository policy.",
+            "Require all three Production trusted-ingress declarations before OAuth metadata can be served under Production semantics.",
+            "Resolve external host authority through one shared fail-closed resolver so caller-supplied forwarded-host values cannot select another public surface unless proxy-host trust is explicitly enabled.",
+            "Keep Hostinger R7 readback GET-only while verifying runtime identity plus protected-resource and authorization-server metadata without provider mutation.",
+            "Require the changed single-PR maintenance contract to declare secrets_included=false and cover every changed runtime file that overlaps already-integrated parallel feature contracts."
           ],
           "assertions": [
-            "The exact commit is pinned and read back before service startup.",
-            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false are required and exact.",
-            "The staging SSO cookie mode is host_only and Production hostnames are rejected from the active tunnel list.",
-            "The active tunnel hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com and their origin is exactly http://app:8080.",
-            "activation-dev.mad4b.com remains reserved-disabled and is not active Tunnel ingress.",
-            "cloudflared is behind the explicit tunnel profile, uses a digest-pinned image, depends only on app, and has no database or provider access.",
-            "Auto Pilot performs no Cloudflare DNS mutation, Hostinger deployment, migration, database mutation, or credential payload read."
+            "The exact Staging commit is pinned and read back before service startup.",
+            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false remain required and exact for portable Staging.",
+            "Production hostnames never route to local Staging, and Staging hostnames never route to Hostinger Production.",
+            "Production DNS policy requires proxied Hostinger routing and explicitly permits only A or CNAME record types without performing provider mutation.",
+            "Production OAuth protected-resource and authorization-server metadata fail closed when trusted ingress is not fully attested.",
+            "The shared trusted-host resolver ignores forwarded host headers unless REMOTE_MCP_TRUST_PROXY_HOST_HEADERS is exactly true and rejects malformed or multi-valued hosts.",
+            "R7 remains GET-only and performs no POST, deployment, provider mutation, database mutation, migration, or secret payload access.",
+            "The maintenance exception cannot activate unless one schema-valid single_pr contract declares secrets_included=false and covers all changed runtime files.",
+            "No secrets are included in this E2E contract or its evidence."
           ],
           "tests": [
             {
@@ -105,6 +117,27 @@
               "args": []
             },
             {
+              "id": "production-mcp-trusted-ingress-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
+              "args": []
+            },
+            {
+              "id": "trusted-request-host-routing-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-trusted-request-host-routing.mjs",
+              "args": []
+            },
+            {
+              "id": "single-pr-maintenance-governance-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
+              "args": []
+            },
+            {
               "id": "staging-openapi-mcp-db-boundary-validator",
               "runner": "node",
               "working_directory": ".",
@@ -121,11 +154,14 @@
           ],
           "evidence_paths": [
             ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
+            ".specify/schemas/e2e-phases.schema.json",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
             "autopilot-portable-staging/README.md",
             "autopilot-portable-staging/manifest.json",
             "STAGING-WINDOWS.md",
             "http-generic-api/.env.staging.example",
+            "http-generic-api/.env.example",
             "docs/governance/configuration-drift-policy.json",
             "http-generic-api/docker-compose.staging.yml",
             "http-generic-api/config/domain-family-policy.json",
@@ -136,15 +172,25 @@
             "http-generic-api/openapi/openapi-mutation-policy.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/remoteMcpRequestHost.js",
+            "http-generic-api/trustedRequestHost.js",
             "http-generic-api/routes/rootDiscoveryRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
             "http-generic-api/scripts/build-staging-openapi.mjs",
             "http-generic-api/scripts/generate-activation-staging-policy.mjs",
             "http-generic-api/scripts/split-openapi.mjs",
+            "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
+            "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
             "http-generic-api/test-connect-routes.mjs",
             "http-generic-api/test-domain-family-policy.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/test-governed-autopilot-production-deployment.mjs",
+            "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
+            "http-generic-api/test-trusted-request-host-routing.mjs",
             "http-generic-api/test-activation-gateway.mjs",
             "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
             "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
@@ -157,16 +203,16 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Validate the live Dev Tunnel from the operator's Windows host after authorized Cloudflare-side ingress configuration.",
+      "objective": "Validate live provider/runtime state only after separately authorized Cloudflare and Hostinger operations.",
       "blockers": [
-        "The Cloudflare dashboard/API configuration is provider-side and is intentionally not mutated by Auto Pilot.",
-        "Live validation requires the operator's Windows host, Docker Desktop/WSL2, the local app, and a dedicated Dev tunnel token."
+        "Cloudflare and Hostinger provider configuration is intentionally not mutated by this repository maintenance contract.",
+        "Live MCP transport POST verification remains outside the GET-only R7 authority and requires a separate explicit operational authorization."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Add independent tunnel health/readback evidence and operator-visible rollback guidance without sharing Production credentials."
+      "objective": "Add independent provider readback and operator-visible rollback evidence without sharing Production credentials or widening GET-only readback authority."
     },
     {
       "id": "canary",
@@ -176,9 +222,9 @@
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Production remains on Hostinger Cloud and is not changed by this local Staging Auto Pilot.",
+      "objective": "Production activation and provider mutation remain separate from this repository maintenance PR.",
       "blockers": [
-        "Production deployment and Hostinger-side operations are explicitly out of scope for this Staging closure PR."
+        "Production deployment, provider mutation, and live POST transport verification require separate authorization and evidence."
       ]
     }
   ]
