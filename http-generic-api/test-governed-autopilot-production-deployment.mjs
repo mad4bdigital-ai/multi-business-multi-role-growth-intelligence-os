@@ -6,6 +6,7 @@ const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
 const r7 = read(".github/workflows/hostinger-production-runtime-readback-r7.yml");
+const mcpInitializeReadback = read(".github/workflows/hostinger-production-mcp-initialize-readback.yml");
 const exactCandidate = read(".github/workflows/production-promotion-exact-candidate-validation.yml");
 const ci = read(".github/workflows/ci.yml");
 const authRoutes = read("http-generic-api/routes/authRoutes.js");
@@ -41,6 +42,25 @@ assert.match(r7, /mad4b\.hostinger-production-runtime-readback-r7\.v1/);
 assert.match(r7, /trigger_mode=production_push/);
 assert.match(r7, /TRIGGER_MODE: \$\{\{ steps\.trigger\.outputs\.trigger_mode \}\}/);
 
+assert.match(mcpInitializeReadback, /RUN_HOSTINGER_PRODUCTION_MCP_INITIALIZE_READBACK expected_production_sha=/);
+assert.match(mcpInitializeReadback, /expected_production_sha=\(\[0-9a-f\]\{40\}\)/);
+assert.match(mcpInitializeReadback, /test "\$\{remote_production_sha\}" = "\$\{EXPECTED_PRODUCTION_SHA\}"/);
+assert.match(mcpInitializeReadback, /--request POST/);
+assert.match(mcpInitializeReadback, /"method":"initialize"/);
+assert.match(mcpInitializeReadback, /"protocolVersion":"2025-06-18"/);
+assert.match(mcpInitializeReadback, /https:\/\/mcp\.mad4b\.com\/mcp/);
+assert.match(mcpInitializeReadback, /mcp_initialize_ready/);
+assert.match(mcpInitializeReadback, /mcp_transport_not_ready/);
+assert.match(mcpInitializeReadback, /public_protocol_probe_only: true/);
+assert.match(mcpInitializeReadback, /non_mutating_initialize_only: true/);
+assert.match(mcpInitializeReadback, /authenticated_request_performed: false/);
+assert.match(mcpInitializeReadback, /oauth_token_requested: false/);
+assert.match(mcpInitializeReadback, /tool_call_performed: false/);
+assert.match(mcpInitializeReadback, /provider_mutation_performed: false/);
+assert.match(mcpInitializeReadback, /database_mutation_performed: false/);
+assert.match(mcpInitializeReadback, /secrets_included: false/);
+assert.doesNotMatch(mcpInitializeReadback, /header 'authorization:/i);
+
 assert.match(exactCandidate, /VALIDATE_EXACT_PRODUCTION_CANDIDATE/);
 assert.match(exactCandidate, /expected_head_sha/);
 assert.match(exactCandidate, /source-pinned refs moved/);
@@ -61,8 +81,9 @@ assert.match(metadataRoutes, /trustedIngressOrError/);
 assert.match(metadataRoutes, /MCP_AUTHORIZATION_SERVER_NOT_FOUND/);
 assert.match(metadataRoutes, /trusted_ingress: trustedIngress\.readiness/);
 assert.match(spec017Manifest, /test-remote-mcp-production-trusted-ingress\.mjs/);
+assert.match(spec017Manifest, /test-trusted-request-host-routing\.mjs/);
 
-for (const workflow of [r7, exactCandidate]) {
+for (const workflow of [r7, mcpInitializeReadback, exactCandidate]) {
   assert.doesNotMatch(workflow, /PRODUCTION_MUTATION_AUTHORIZED=true/);
   assert.doesNotMatch(workflow, /DATABASE_MUTATED=true/);
   assert.doesNotMatch(workflow, /MIGRATION_APPLIED=true/);
@@ -70,12 +91,13 @@ for (const workflow of [r7, exactCandidate]) {
 
 console.log(JSON.stringify({
   ok: true,
-  contract: "mad4b.governed-autopilot-production-deployment.v2",
+  contract: "mad4b.governed-autopilot-production-deployment.v3",
   exact_sha: true,
   source_pin_freshness: true,
   production_secret_startup_contract: true,
   trusted_ingress_contract: true,
-  oauth_discovery_readback: true,
+  oauth_discovery_get_readback: true,
+  mcp_initialize_manual_readback: true,
   post_deploy_r7_readback: true,
   bounded_failure_classification: true,
   provider_mutation: false,
