@@ -54,7 +54,7 @@ jobs:
         env:
           DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/staging-derived-state-closure/report.json
         run: >-
-          node http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs
+          node scripts/derived-state-closure.mjs
           --expected-sha "$EXPECTED_HEAD_SHA"
           --candidate-kind "exact_main"
           --report-file "$DERIVED_STATE_REPORT_FILE"

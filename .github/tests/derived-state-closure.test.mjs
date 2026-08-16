@@ -5,9 +5,8 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const registry = JSON.parse(fs.readFileSync(path.join(root, ".github/derived-state-governance.json"), "utf8"));
-const maintenancePolicy = JSON.parse(fs.readFileSync(path.join(root, ".github/repository-maintenance-tool-governance.json"), "utf8"));
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/derived-state-closure.yml"), "utf8");
-const scriptPath = "http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs";
+const scriptPath = "scripts/derived-state-closure.mjs";
 const script = fs.readFileSync(path.join(root, scriptPath), "utf8");
 const stagingWorkflow = fs.readFileSync(path.join(root, ".github/workflows/staging-main-deploy-eligibility.yml"), "utf8");
 const prRefreshWorkflow = fs.readFileSync(path.join(root, ".github/workflows/pr-generated-artifact-refresh.yml"), "utf8");
@@ -24,11 +23,6 @@ assert.equal(registry.policy.mutation_mode, "separate_governed_writer");
 assert.equal(registry.policy.protected_branch_mutation_forbidden, true);
 assert.equal(registry.server_enforcement.main.required_checks.includes("Derived State Closure"), true);
 assert.equal(registry.server_enforcement.Production.same_sha_closure_required, true);
-
-const closureAuthority = maintenancePolicy.tools?.["derived-state-closure"];
-assert.equal(closureAuthority?.entrypoint, scriptPath);
-assert.equal(closureAuthority?.mode, "read_only");
-assert.equal(closureAuthority?.report_contract, "mad4b.repository-derived-state-closure.v1");
 
 const artifactIds = registry.artifacts.map((entry) => entry.artifact_id);
 assert.equal(new Set(artifactIds).size, artifactIds.length);
@@ -60,7 +54,7 @@ assert.doesNotMatch(workflow, /contents:\s*write/u);
 assert.doesNotMatch(workflow, /git\s+push/u);
 assert.match(workflow, /DERIVED_STATE_EXPECTED_SHA/u);
 assert.match(workflow, /github\.sha/u);
-assert.match(workflow, /http-generic-api\/scripts\/maintenance-tools\/derived-state-closure\.mjs/u);
+assert.match(workflow, /scripts\/derived-state-closure\.mjs/u);
 
 assert.match(prRefreshWorkflow, /branches:\s*\[main\]/u);
 assert.doesNotMatch(prRefreshWorkflow, /\n\s*paths:/u);
@@ -69,13 +63,14 @@ assert.match(prRefreshWorkflow, /CI_CLOSURE_CANDIDATE_SHA/u);
 assert.match(prRefreshWorkflow, /github\.sha/u);
 assert.match(prRefreshWorkflow, /persist-credentials:\s*false/u);
 assert.doesNotMatch(prRefreshWorkflow, /contents:\s*write/u);
-assert.match(prRefreshWorkflow, /http-generic-api\/scripts\/maintenance-tools\/derived-state-closure\.mjs/u);
+assert.match(prRefreshWorkflow, /scripts\/derived-state-closure\.mjs/u);
 
 assert.match(stagingWorkflow, /Verify repository derived-state closure/u);
 assert.match(stagingWorkflow, /--candidate-kind "exact_main"/u);
 assert.match(stagingWorkflow, /derived_state_closure: true/u);
-assert.match(stagingWorkflow, /http-generic-api\/scripts\/maintenance-tools\/derived-state-closure\.mjs/u);
+assert.match(stagingWorkflow, /scripts\/derived-state-closure\.mjs/u);
 
+assert.match(script, /Read-only CI verifier/u);
 assert.match(script, /git status/u);
 assert.match(script, /verifierMutation/u);
 assert.match(script, /repair_authorities/u);
@@ -86,4 +81,4 @@ assert.doesNotMatch(script, /git\s+push/u);
 assert.doesNotMatch(script, /update-ref/u);
 assert.doesNotMatch(script, /--apply/u);
 
-console.log(JSON.stringify({ ok: true, contract: registry.contract, artifact_count: registry.artifacts.length, read_only: true, registered_authority: true, branch_prefix_dependency_inference: false, truthful_work_map_repair_authority: true }));
+console.log(JSON.stringify({ ok: true, contract: registry.contract, artifact_count: registry.artifacts.length, read_only: true, code_owned_verifier: true, branch_prefix_dependency_inference: false, truthful_work_map_repair_authority: true }));

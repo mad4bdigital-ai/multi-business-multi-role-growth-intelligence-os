@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const CONTRACT = "mad4b.repository-derived-state-closure.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const MAX_LOG = 3000;
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+// Read-only CI verifier: lives with repository verifiers, not mutating maintenance tools.
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const apiDir = path.join(repoRoot, "http-generic-api");
 const registryPath = path.join(repoRoot, ".github/derived-state-governance.json");
 

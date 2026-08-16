@@ -86,13 +86,6 @@
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.platform-configuration-entry-guard.v1"
     },
-    "derived-state-closure": {
-      "description": "Evaluate every registered repository derived-state family at one exact candidate SHA through code-owned verifier identities, fail closed on stale state or verifier worktree mutation, and emit canonical read-only closure evidence with governed repair recipe identities.",
-      "entrypoint": "http-generic-api/scripts/maintenance-tools/derived-state-closure.mjs",
-      "mode": "read_only",
-      "allowed_changed_path_patterns": [],
-      "report_contract": "mad4b.repository-derived-state-closure.v1"
-    },
     "generated-artifact-refresh": {
       "description": "Regenerate bounded OpenAPI/frontend, Work Map, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
