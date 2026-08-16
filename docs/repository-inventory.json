@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7071,
-    "bytes": 67753278,
+    "bytes": 67753358,
     "lines": 1587126,
     "directories": 265,
     "categories": 13
@@ -12445,7 +12445,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "29d005319b12afafd3b2797995817cb4858042de97d70505730f0ac10d82cc27",
+      "sha256": "d63c9dbc0af5b0b15b488fb42fdd5d9d95027c14a679705d41cd775616bb7575",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31442,7 +31442,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "baf133a8db3dafc211dac00c55384f936ce9d4d735a646b6543f7259c1606502",
+      "sha256": "faa9f8c28e490602b317e1790e7474969031929c7a9de91535bc1079210c84ea",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50747,7 +50747,7 @@
       "extension": ".json",
       "bytes": 1931059,
       "lines": 58392,
-      "sha256": "5c8dfdecafadd0f165492fbf89d7372f4228cb8e206d072fb1fbd2609a9acb09",
+      "sha256": "0c71d78f14bd72d6179cd550f3579d05d21946401942b5864c6624dd2f110499",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70160,9 +70160,9 @@
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 8694,
+      "bytes": 8692,
       "lines": 120,
-      "sha256": "c8a59cea232d2074be1bf8f05e6a3fed6b6548f1f71cc3af3909ea048f9abb6c",
+      "sha256": "f7c2e98426356fd0b28ec4116a94b2235c8743a2531861de8adaed094226849b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83305,9 +83305,9 @@
       "path": "specs/021-portable-staging-autopilot/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 4960,
+      "bytes": 5042,
       "lines": 105,
-      "sha256": "e8074d6fdaad669f6ccf8c076338797afab7b20683fdca57c5e930222e6fbbf0",
+      "sha256": "880e596fbd97d74543bae6ab25603415fc80d41746d59f7518eb18d09b12e423",
       "mode": "644",
       "executable": false,
       "generated": false
