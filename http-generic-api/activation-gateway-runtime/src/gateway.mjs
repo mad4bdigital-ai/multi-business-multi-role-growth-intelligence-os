@@ -27,7 +27,7 @@ function filterOauthSsoCookieHeader(value) {
 }
 
 function filterOauthSsoSetCookieHeader(value) {
-  const candidates = String(value || "").split(/,(?=\s*mad4b_tenant_gpt_sso=)/iu).map((item) => item.trim());
+  const candidates = String(value || "").split(/,\s*(?=[A-Za-z0-9!#$%&'*+.^_`|~-]+=)/u).map((item) => item.trim());
   const approved = candidates.find((item) =>
     item.startsWith(`${TENANT_GPT_SSO_COOKIE_NAME}=`)
     && /(?:^|;\s*)Domain=\.mad4b\.com(?:;|$)/iu.test(item)

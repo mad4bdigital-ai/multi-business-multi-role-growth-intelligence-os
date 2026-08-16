@@ -32,6 +32,7 @@
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-activation-gateway.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "docs/staging-openapi-mcp-db-copy.md"
     ]
@@ -90,6 +91,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
               "args": []
+            },
+            {
+              "id": "activation-gateway-security-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-activation-gateway.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -118,6 +126,7 @@
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/test-activation-gateway.mjs",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
             "docs/staging-openapi-mcp-db-copy.md"
           ]
