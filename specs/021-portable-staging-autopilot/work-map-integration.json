@@ -1,0 +1,824 @@
+{
+  "schema_version": 1,
+  "feature_key": "021-portable-staging-autopilot",
+  "review_state": "draft",
+  "registry": {
+    "fingerprint": "676f019f09b19ff8e587aa98d4f957f5441e5635b09f5b067b1a1a9050e6b5d9",
+    "index_source_hash": "758dd69130535a1fb82ebbcc7e93b1c4b2ac833d40cf17bc4f480f8130c962c1",
+    "coverage_source_hash": "6450560fa9fdfa52e82a3dc7c2fe2143a380f8e624165cb7dc411661c32295df",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/activation-access-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 5,
+        "matched_terms": [
+          "active",
+          "authorized",
+          "http-generic-api",
+          "image",
+          "json"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "activation-onboarding-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/activation-onboarding-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "schema",
+          "start"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "agent-skill-plugin-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/agent-skill-plugin-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "asset-package-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/asset-package-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "runtime",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "commercial-usage-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/commercial-usage-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "eligibility",
+          "http-generic-api",
+          "image",
+          "raw",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "connector-provider-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/connector-provider-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "migration",
+          "provider",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "data-model-domain-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/data-model-domain-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "migration",
+          "raw",
+          "repository",
+          "schema",
+          "specify",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "delivery-support-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/delivery-support-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "execution-log-evidence-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/execution-log-evidence-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "operational",
+          "runtime",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "migration-lifecycle-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/migration-lifecycle-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "apply",
+          "database",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "recovery",
+          "repair",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "observability-release-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/observability-release-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "repair",
+          "repository",
+          "runtime",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "platform-resource-graph-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/platform-resource-graph-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "contract",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "platform-runtime-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/platform-runtime-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "http-generic-api",
+          "image",
+          "operational",
+          "provider",
+          "records",
+          "runtime",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "policy-authority-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/policy-authority-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 10,
+        "matched_terms": [
+          "actor",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "runtime",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "repository-automation-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/repository-automation-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 39,
+        "matched_terms": [
+          "apply",
+          "authorized",
+          "auto",
+          "build",
+          "canary",
+          "capture",
+          "commit",
+          "contract",
+          "dedicated",
+          "deployment",
+          "eligibility",
+          "exact",
+          "governance",
+          "hostinger",
+          "image",
+          "launcher",
+          "live",
+          "local",
+          "main",
+          "migration"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "repository-development-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/repository-development-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 8,
+        "matched_terms": [
+          "database",
+          "deployment",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "session-memory-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/session-memory-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 12,
+        "matched_terms": [
+          "canonical",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "raw",
+          "required",
+          "runtime",
+          "schema",
+          "schemas",
+          "scope"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "work-map-coverage-matrix": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "migration",
+          "raw",
+          "repository",
+          "schema",
+          "specify",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated platform Work Map.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/workflow-task-orchestration-map.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "approval",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "repository",
+          "runs",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      }
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "decision": "needs_analysis",
+      "rationale": "Pending explicit integration analysis against this generated schema domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "depends_on": []
+    }
+  },
+  "cross_map_dependencies": [],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "Pending registry-gap and cross-map analysis."
+  },
+  "implementation_readiness": {
+    "status": "blocked",
+    "blocking_dimensions": [
+      "activation-access-map",
+      "activation-onboarding-map",
+      "agent-skill-plugin-map",
+      "asset-package-map",
+      "commercial-usage-map",
+      "connector-provider-map",
+      "data-model-domain-map",
+      "delivery-support-map",
+      "execution-log-evidence-map",
+      "migration-lifecycle-map",
+      "observability-release-map",
+      "platform-resource-graph-map",
+      "platform-runtime-map",
+      "policy-authority-map",
+      "repository-automation-map",
+      "repository-development-map",
+      "session-memory-map",
+      "work-map-coverage-matrix",
+      "workflow-task-orchestration-map",
+      "activation-and-onboarding",
+      "agents-and-intelligence",
+      "assets-and-packages",
+      "brand-and-business",
+      "commercial-and-usage",
+      "connectors-and-providers",
+      "delivery-and-support",
+      "developer-and-api",
+      "governance-and-authority",
+      "migration-and-lifecycle",
+      "observability-and-release",
+      "platform-resources-and-graph",
+      "repository-and-development",
+      "sessions-and-memory",
+      "tenancy-and-identity",
+      "workflow-and-tasks"
+    ],
+    "reviewed_by": "platform-team",
+    "evidence_refs": []
+  },
+  "secrets_included": false
+}

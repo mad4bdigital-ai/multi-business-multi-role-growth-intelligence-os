@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "feature_key": "021-portable-staging-autopilot",
+  "title": "Portable Windows Staging Auto Pilot runtime governance",
+  "status": "in_progress",
+  "delivery_mode": "single_pr",
+  "last_updated_at": "2026-08-16T01:01:00Z",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": [
+      {
+        "number": 7357,
+        "role": "staging_autopilot_and_docker_runtime_hardening",
+        "status": "open",
+        "head_sha": "c312141fbb65248cfbe3c933262c463486551c35"
+      }
+    ],
+    "closeout_pr": null
+  },
+  "evidence": {
+    "local_validation": {
+      "status": "pass",
+      "checks": [
+        "staging_openapi_mcp_db_boundary",
+        "staging_autopilot_closure",
+        "staging_one_click_autopilot_contract",
+        "staging_operations_logging_contract",
+        "manifest_integrity",
+        "e2e_phase_governance"
+      ],
+      "production_mutation": false,
+      "migration_apply": false,
+      "provider_mutation": false
+    },
+    "ci": {
+      "status": "pending",
+      "source": "PR #7357 exact head"
+    }
+  },
+  "secrets_included": false
+}
