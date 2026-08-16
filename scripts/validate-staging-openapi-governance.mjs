@@ -8,6 +8,11 @@ const policyPath = "http-generic-api/config/staging-openapi-mcp-policy.json";
 const inspectionPath = "http-generic-api/config/admin-tenant-inspection-policy.json";
 const policy = JSON.parse(read(policyPath));
 const inspection = JSON.parse(read(inspectionPath));
+const presetSource = read("http-generic-api/tenantGptOAuthPreset.js");
+const oauthConfigSource = read("http-generic-api/tenantGptOAuthClientConfig.js");
+const resourceProfileSource = read("http-generic-api/tenantGptOAuthResourceProfile.js");
+const systemLayerSource = read("http-generic-api/routes/systemLayerRoutes.js");
+const oauthTokenSource = read("http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js");
 
 function assert(condition, message) {
   if (!condition) failures.push(message);
@@ -36,6 +41,20 @@ assert(inspection.required_request_fields.includes("correlation_id"), "inspectio
 assert(inspection.allowed_operations.every((op) => ["list_routes", "list_tools", "list_catalogs", "read_schema"].includes(op)), "inspection allowed operations must remain read-only discovery operations");
 assert(inspection.denied_operations.some((op) => ["call_tool", "execute", "create", "update", "delete", "deploy"].includes(op)), "inspection must deny mutations/tool execution");
 
+assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_ID"), "staging preset must use a dedicated OAuth client ID namespace");
+assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"), "staging preset must use a dedicated OAuth secret namespace");
+assert(presetSource.includes("https://dev.mad4b.com"), "staging preset must retain dev resource fallback");
+assert(oauthConfigSource.includes("TENANT_GPT_OAUTH_CLIENT_SECRET_ENV") && oauthConfigSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"), "staging runtime must use the environment-selected staging OAuth secret variable");
+assert(oauthConfigSource.includes("url.protocol === \"https:\""), "OAuth callback normalization must require HTTPS");
+assert(oauthConfigSource.includes("hostname === \"chatgpt.com\" || hostname === \"chat.openai.com\""), "OAuth callback normalization must restrict hosts to ChatGPT");
+assert(resourceProfileSource.includes("TENANT_GPT_IS_STAGING_RUNTIME ? \"\" : \"https://activation.mad4b.com\""), "staging resource profile must not expose activation resource");
+assert(resourceProfileSource.includes("clientId"), "resource profile must bind the request to a client ID");
+assert(oauthTokenSource.includes("equivalentRedirectUri"), "token exchange must enforce redirect binding");
+assert(oauthTokenSource.includes("resolveTenantGptOAuthResourceProfile"), "token exchange must enforce environment resource binding");
+assert(systemLayerSource.includes("tenant_system_tool_route_not_allowed"), "Tenant tool dispatch must retain a stable deny code");
+assert(systemLayerSource.includes("TENANT_BLOCKED_SYSTEM_TOOL_NAMES"), "Tenant discovery must retain blocked system tool filtering");
+assert(systemLayerSource.includes('dispatchToolForCaller("tenant"'), "Tenant tool dispatch must use the tenant caller boundary");
+
 const schemas = [
   ["tenant", "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", policy.custom_gpt.schema_url],
   ["admin", "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml", policy.custom_gpt.admin_read_only.schema_url],
@@ -51,6 +70,6 @@ for (const [name, relativePath, expectedUrl] of schemas) {
   if (name === "tenant") assert(/https:\/\/dev\.mad4b\.com\/scopes\//.test(text), "tenant staging schema must use staging scopes");
 }
 
-const result = { ok: failures.length === 0, failures, checked: { schemas: schemas.map(([name, p]) => ({ name, path: p, operation_count: operationCount(read(p)), server_urls: serverUrls(read(p)) })), policyPath, inspectionPath } };
+const result = { ok: failures.length === 0, failures, checked: { schemas: schemas.map(([name, p]) => ({ name, path: p, operation_count: operationCount(read(p)), server_urls: serverUrls(read(p)) })), policyPath, inspectionPath, runtime_guards: ["oauth_callback_https_chatgpt_host", "oauth_resource_profile_binding", "oauth_redirect_binding", "tenant_tool_dispatch_deny"] } };
 console.log(JSON.stringify(result, null, 2));
 if (failures.length) process.exitCode = 1;

@@ -30,6 +30,12 @@ The inspection contract permits only `list_routes`, `list_tools`, `list_catalogs
 
 Staging resources are `https://dev.mad4b.com`. Production resources are `https://auth.mad4b.com` and `https://activation.mad4b.com` where applicable. Cross-environment access is denied by policy and checked in CI. All Custom GPT schemas remain at or below the hard limit of 30 `operationId` entries.
 
+## Runtime hardening and evidence
+
+The OAuth runtime now normalizes configured callback URLs fail-closed: only HTTPS callbacks on `chatgpt.com` or `chat.openai.com` with an `/aip/.../oauth/callback` path are retained. The token exchange independently enforces client, resource, PKCE, and redirect binding; the Staging resource profile exposes no Activation resource. Tenant tool discovery and dispatch continue to use the existing runtime deny boundary and stable `tenant_system_tool_route_not_allowed` error for blocked paths and tools.
+
+The CI validator checks both the declarative policy and these runtime invariants. This prevents a policy artifact from drifting away from the code-level enforcement that actually protects Tenant isolation.
+
 ## Operational boundary
 
-This change adds governance contracts and CI enforcement only. It does not activate write scopes, grant Tenant delegation, perform database mutations, call providers, or promote anything to Production. The contract is ready for a future read-only runtime adapter once the application route and authority resolver are explicitly bound.
+This change adds governance contracts, runtime callback hardening, and CI enforcement. It does not activate write scopes, grant Tenant delegation, perform database mutations, call providers, or promote anything to Production. The Admin/Tenant inspection policy remains a read-only contract; a future runtime adapter must still bind it to an explicit authority resolver and an auditable route implementation.
