@@ -21,6 +21,7 @@
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "http-generic-api/.env.staging.example",
       "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/config/staging-openapi-mcp-policy.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
     ]
