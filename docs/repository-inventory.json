@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7114,
-    "bytes": 68916346,
-    "lines": 1616159,
+    "files": 7116,
+    "bytes": 68923850,
+    "lines": 1616321,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2133,
+      "tests-and-specs": 2134,
       "documentation": 1901,
-      "api-runtime": 1429,
+      "api-runtime": 1430,
       "database-migrations": 783,
       "root-and-other": 281,
       "api-contracts": 184,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2502,
-      ".mjs": 1669,
-      ".js": 987,
+      ".mjs": 1670,
+      ".js": 988,
       ".sql": 798,
       ".json": 782,
       ".yml": 169,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3664,
+      "http-generic-api": 3666,
       "docs": 1805,
       "specs": 873,
       ".github": 271,
@@ -2915,6 +2915,7 @@
       "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
       "http-generic-api/test-travel-activity-pack-reference.mjs",
       "http-generic-api/test-trusted-ingress-contract.mjs",
+      "http-generic-api/test-trusted-request-host-routing.mjs",
       "http-generic-api/test-upstream-response-parser.mjs",
       "http-generic-api/test-user-app-connection-credential-decrypt-compat.mjs",
       "http-generic-api/test-user-brand-skill-entitlement.mjs",
@@ -5133,6 +5134,7 @@
       "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
       "http-generic-api/test-travel-activity-pack-reference.mjs",
       "http-generic-api/test-trusted-ingress-contract.mjs",
+      "http-generic-api/test-trusted-request-host-routing.mjs",
       "http-generic-api/test-upstream-response-parser.mjs",
       "http-generic-api/test-user-app-connection-credential-decrypt-compat.mjs",
       "http-generic-api/test-user-brand-skill-entitlement.mjs",
@@ -12603,7 +12605,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "52aa82600e88ee6b5315ebc809f51bdb21aa67a634c45ba284d782343f17bc2b",
+      "sha256": "d283c2aca841b06295a12884ed59e4a80aae3c23d123614b21cefb1a68e4b488",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30212,9 +30214,9 @@
       "path": "docs/governance/governed-autopilot-production-deployment.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 10260,
-      "lines": 135,
-      "sha256": "47a9cfee917315d5ff92bcbdc2caec2f3dea2fceec7ea557ed095ed03f649a23",
+      "bytes": 12045,
+      "lines": 147,
+      "sha256": "058de6a07ef5c05b929301e0e461b60a0535a6892d0569c35efe9fee55838a85",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31633,7 +31635,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "b767f34e8f1a47550e4ccb561fa48bc9b24853e09fc554606c5f0af02e502b70",
+      "sha256": "d8de1f89dacec9df1db6ed0eeba9ab798bf10ae2af52a7082e22dc60c78fa01e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -36834,9 +36836,9 @@
       "path": "http-generic-api/config/domain-family-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 4169,
-      "lines": 109,
-      "sha256": "7dd23ee8b16cff977b7f63690f802d1cf2f5d37a9f028545a4319f012e84d29d",
+      "bytes": 4771,
+      "lines": 119,
+      "sha256": "efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38827,7 +38829,7 @@
       "extension": ".json",
       "bytes": 3448635,
       "lines": 97587,
-      "sha256": "dc9a25ad31d4c85d6b2d74e86cbf5f286f899e14f2925317eb8961bd5cf29359",
+      "sha256": "d9c94d6187fe07735e6b18b0747fad58f07c9279bc36972c7e0603b872a3e059",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51147,7 +51149,7 @@
       "extension": ".json",
       "bytes": 1935850,
       "lines": 58540,
-      "sha256": "2ebcc8ee80997b460b50cb593809c865f6a3c73fb84a4bc5c169e0e508cb1aff",
+      "sha256": "3c74ca3ec9d3941ffc3e233b5ea55294b6ab4f4c3149ddc36bfa5919ab13e1e0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51277,9 +51279,9 @@
       "path": "http-generic-api/remoteMcpRequestHost.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 2466,
-      "lines": 73,
-      "sha256": "a3c27fcad649811c5f6b8e89fe3f2dc8b7771b005ca2e2eb24e6e735c894d6b6",
+      "bytes": 1417,
+      "lines": 46,
+      "sha256": "81a949c00172208ad811f70c1d3e8bcfe9280a8b3a073ae775b63671dca50df1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52839,9 +52841,9 @@
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 10589,
-      "lines": 318,
-      "sha256": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
+      "bytes": 10584,
+      "lines": 313,
+      "sha256": "0a474359f5827b588ff9d5e2593e67147fc64c5a2adfac39ee4996466a677c14",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -55787,9 +55789,9 @@
       "path": "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 219,
-      "lines": 6,
-      "sha256": "e049a137b63a2620752f59f76d9d4a3171ff19904c022d9b939ddd3889e03eb5",
+      "bytes": 267,
+      "lines": 7,
+      "sha256": "caad2b7bfe9e004182c242437be345a00fd2121ad224e67b5a562ed9d13d98b1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -62948,9 +62950,9 @@
       "path": "http-generic-api/test-domain-family-policy.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 6059,
-      "lines": 89,
-      "sha256": "a62ec6f19259a275a3fe4a6f2dd506f2f8d8b607ef27348e9b70b5464a80b0d3",
+      "bytes": 6666,
+      "lines": 98,
+      "sha256": "8162adfdb163952df55b28fa43ed613687bc1100bcd5946f9d871e345e221cdf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -72603,6 +72605,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-trusted-request-host-routing.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 3872,
+      "lines": 115,
+      "sha256": "fbefc728eae0f6b54f4d0c9838a494ad7b6f64a56d0bb77f380f8cf79bc71c97",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-upstream-response-parser.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -73335,6 +73348,17 @@
       "bytes": 1546,
       "lines": 36,
       "sha256": "e6dd38f79ab08f98ed1ebfc51542789cdd496c5d93b74eb0e1b43f13a490599c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/trustedRequestHost.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 1644,
+      "lines": 47,
+      "sha256": "48ba982b97e77790d20fcfbc9211b6e8392ca426c6f96fbf18334259b8c73e1e",
       "mode": "644",
       "executable": false,
       "generated": false
