@@ -19,6 +19,7 @@
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/.env.staging.example",
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/config/staging-openapi-mcp-policy.json",
