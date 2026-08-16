@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7084,
-    "bytes": 67830141,
-    "lines": 1588618,
+    "files": 7086,
+    "bytes": 67875035,
+    "lines": 1589413,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2128,
+      "tests-and-specs": 2129,
       "documentation": 1898,
       "api-runtime": 1425,
       "database-migrations": 783,
-      "root-and-other": 277,
+      "root-and-other": 278,
       "api-contracts": 182,
       "ci-workflows": 162,
       "ci-config": 103,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2499,
-      ".mjs": 1660,
+      ".mjs": 1661,
       ".js": 987,
       ".sql": 798,
-      ".json": 772,
+      ".json": 773,
       ".yml": 165,
       ".yaml": 111,
       ".ps1": 16,
@@ -60,11 +60,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3654,
+      "http-generic-api": 3655,
       "docs": 1802,
       "specs": 873,
       ".github": 265,
-      ".changes": 254,
+      ".changes": 255,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -216,8 +216,7 @@
         "openapi:detail-batch:write",
         "openapi:detail-batch:check",
         "openapi:detail-batch:test",
-        "evaluation:loop",
-        "governance:staging-openapi"
+        "evaluation:loop"
       ],
       "dependencies": 0,
       "devDependencies": 4
@@ -227,7 +226,7 @@
     "workflows": 162,
     "migrations": 783,
     "apiContracts": 182,
-    "testSpecFiles": 2210
+    "testSpecFiles": 2211
   },
   "largestFiles": [
     {
@@ -311,8 +310,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 242258,
-      "lines": 2075
+      "bytes": 242557,
+      "lines": 2078
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
