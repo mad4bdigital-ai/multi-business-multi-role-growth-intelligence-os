@@ -65,15 +65,17 @@ function Get-RemoteMainSha([string]$RepositoryPath, [string]$TargetRef) {
 }
 
 function Get-LatestEligibility($Policy, [string]$Repository, [string]$Sha) {
-    $raw = & gh api "repos/$Repository/commits/$Sha/check-runs?per_page=100" 2>$null
-    if ($LASTEXITCODE -ne 0) { Fail "GitHub check-runs API failed; refusing deployment" }
-    $payload = (($raw | Out-String) | ConvertFrom-Json)
-    $matches = @($payload.check_runs | Where-Object { $_.name -eq [string]$Policy.eligibility_check_name } | Sort-Object completed_at -Descending)
-    if ($matches.Count -eq 0) { return @{ state = "pending"; reason = "eligibility_check_missing"; sha = $Sha } }
-    $latest = $matches[0]
-    if ($latest.status -ne "completed") { return @{ state = "pending"; reason = "eligibility_check_in_progress"; sha = $Sha } }
-    if ($latest.conclusion -ne "success") { return @{ state = "blocked"; reason = "eligibility_check_not_success:$($latest.conclusion)"; sha = $Sha } }
-    return @{ state = "eligible"; reason = "eligibility_check_success"; sha = $Sha; completed_at = $latest.completed_at }
+    # Workflow Runs are the source of truth for this contract. Check Runs can be
+    # stale or represent a different attempt, so never deploy from them alone.
+    $raw = & gh run list --repo $Repository --workflow "staging-main-deploy-eligibility.yml" --commit $Sha --limit 20 --json status,conclusion,headSha,databaseId,updatedAt 2>$null
+    if ($LASTEXITCODE -ne 0) { Fail "GitHub workflow-runs query failed; refusing deployment" }
+    try { $runs = @(($raw | Out-String | ConvertFrom-Json) | Where-Object { $_.headSha -eq $Sha }) }
+    catch { Fail "GitHub workflow-runs response was not valid JSON; refusing deployment" }
+    if ($runs.Count -eq 0) { return @{ state = "pending"; reason = "eligibility_workflow_missing"; sha = $Sha } }
+    $latest = $runs | Sort-Object updatedAt -Descending | Select-Object -First 1
+    if ($latest.status -ne "completed") { return @{ state = "pending"; reason = "eligibility_workflow_in_progress"; sha = $Sha; run_id = $latest.databaseId } }
+    if ($latest.conclusion -ne "success") { return @{ state = "blocked"; reason = "eligibility_workflow_not_success:$($latest.conclusion)"; sha = $Sha; run_id = $latest.databaseId } }
+    return @{ state = "eligible"; reason = "eligibility_workflow_success"; sha = $Sha; run_id = $latest.databaseId; completed_at = $latest.updatedAt }
 }
 
 function Read-State([string]$Path) {

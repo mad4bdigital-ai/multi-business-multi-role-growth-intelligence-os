@@ -18,7 +18,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "94d1072f9c51b516e6e7436139d632d6600da68c25d101a6989f2022dcaab4b0"
+      "sha256": "390f474a239bc33a06521b901129282d2437def58c5f6de66e9ef99d32c606f4"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
@@ -30,7 +30,7 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "828df3e84de4c22ec681a476464a46ff54dc5a41f42811fe9e2c6bdb75c1813a"
+      "sha256": "0bc1774ee5711e4b4b1a23e3d72b4cf9af634c122ff678e21a1caf9ba2d733eb"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "c7a370b6c6b149038b0c692c6f792db42160bbc022135e9ce0c5f4b4a645c8e9"
+      "sha256": "e28a3b61f03476f6bf31382a04db7f165d396423bcc57c2327e5df53faab5752"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
