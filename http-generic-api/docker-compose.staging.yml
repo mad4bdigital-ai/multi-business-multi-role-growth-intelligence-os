@@ -54,6 +54,9 @@ services:
       retries: 20
 
   app:
+    build:
+      context: ..
+      dockerfile: http-generic-api/Dockerfile.staging
     # Bind the local API to loopback only; public access is exclusively through cloudflared.
     ports:
       - "127.0.0.1:${PORT:-8080}:8080"

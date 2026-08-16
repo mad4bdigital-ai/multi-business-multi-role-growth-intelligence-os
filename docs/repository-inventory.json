@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7063,
-    "bytes": 67687250,
-    "lines": 1585446,
+    "bytes": 67687333,
+    "lines": 1585449,
     "directories": 263,
     "categories": 13
   },
@@ -12428,7 +12428,7 @@
       "extension": ".json",
       "bytes": 10780,
       "lines": 273,
-      "sha256": "b3f45b90680ef9953fc2927c476f217a1b314c28531e0e55b673cbba0b288d95",
+      "sha256": "5a0fa2edac3162dac02ad58991b100a269a3ec6d8b88e6453a98b1a5ada487bf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37671,9 +37671,9 @@
       "path": "http-generic-api/docker-compose.staging.yml",
       "category": "api-runtime",
       "extension": ".yml",
-      "bytes": 5330,
-      "lines": 118,
-      "sha256": "2c1d43eee84c5d1a9bbd44b996af2124bf518c7da203a05c3d574f29d936e9d1",
+      "bytes": 5413,
+      "lines": 121,
+      "sha256": "09b25d7aca5d241d9fb94d38a40899e149ae31e7f92fb9adcf00edeb7792095d",
       "mode": "644",
       "executable": false,
       "generated": false
