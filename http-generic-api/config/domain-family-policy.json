@@ -12,6 +12,7 @@
     "staging_env_hostname_role": "declaration_only",
     "staging_origin_source_of_truth": "docker_compose_app_service",
     "production_dns_source_of_truth": "cloudflare_dns_and_hostinger_edge",
+    "production_dns_record_type_invariant": "proxied_allowed_set_to_hostinger_production",
     "provider_mutation_required_to_activate": true,
     "mismatch_action": "deny_and_do_not_fallback"
   },
@@ -27,6 +28,9 @@
           "service": "auth",
           "origin_kind": "hostinger_production",
           "dns_record_type": "CNAME",
+          "dns_record_type_role": "preferred_not_exclusive",
+          "dns_record_type_enforcement": "allowed_set",
+          "dns_record_types_allowed": ["A", "CNAME"],
           "dns_proxy_required": true,
           "credential_namespace": "production.auth"
         },
@@ -35,6 +39,9 @@
           "service": "mcp",
           "origin_kind": "hostinger_production",
           "dns_record_type": "CNAME",
+          "dns_record_type_role": "preferred_not_exclusive",
+          "dns_record_type_enforcement": "allowed_set",
+          "dns_record_types_allowed": ["A", "CNAME"],
           "dns_proxy_required": true,
           "credential_namespace": "production.mcp"
         },
@@ -43,6 +50,9 @@
           "service": "activation",
           "origin_kind": "hostinger_production",
           "dns_record_type": "CNAME",
+          "dns_record_type_role": "preferred_not_exclusive",
+          "dns_record_type_enforcement": "allowed_set",
+          "dns_record_types_allowed": ["A", "CNAME"],
           "dns_proxy_required": true,
           "credential_namespace": "production.activation"
         }
@@ -80,7 +90,7 @@
           "dns_proxy_required": true,
           "credential_namespace": "staging.mcp"
         },
-          "activation": {
+        "activation": {
           "hostname": "activation-dev.mad4b.com",
           "service": "activation",
           "origin_kind": "cloudflare_worker_staging",
