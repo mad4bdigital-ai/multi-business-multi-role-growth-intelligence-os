@@ -1,0 +1,12 @@
+FROM node:22-slim
+WORKDIR /app
+
+COPY http-generic-api/package.json http-generic-api/package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY http-generic-api/ ./
+COPY canonical-manifest.mjs /canonical-manifest.mjs
+
+ENV NODE_ENV=staging
+ENV PORT=8080
+CMD ["npm", "start"]
