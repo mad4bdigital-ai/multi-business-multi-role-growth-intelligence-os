@@ -63,6 +63,8 @@ assert.match(gate, /dirty_set_exceeds_inventory_outputs/u);
 assert.match(gate, /worktree_dirty_set_exceeds_inventory_outputs/u);
 assert.match(gate, /bootstrap_pending/u);
 assert.match(gate, /self_hosting_bootstrap_pending/u);
+assert.match(gate, /process\.exitCode\s*=\s*1/u);
+assert.match(gate, /trusted workflow_run dispatcher can invoke the bounded writer/u);
 assert.match(gate, /trusted_generator_unchanged/u);
 assert.match(gate, /behind_by_zero/u);
 assert.match(gate, /trusted_post_merge_work_branch/u);
@@ -101,6 +103,7 @@ console.log(JSON.stringify({
   deterministic_double_pass: true,
   permissions: "read_only",
   bootstrap_pending: true,
+  bootstrap_pending_fails_closed: true,
   main_push_and_workflow_dispatch_recovery: true,
   manual_main_convergence_mode: true,
   trusted_authority_on_main_readback: true,
