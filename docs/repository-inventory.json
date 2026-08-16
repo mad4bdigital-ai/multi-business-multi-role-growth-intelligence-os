@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7117,
-    "bytes": 68976661,
-    "lines": 1617208,
+    "bytes": 68977139,
+    "lines": 1617214,
     "directories": 265,
     "categories": 13
   },
@@ -7116,9 +7116,9 @@
       "path": ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 13980,
-      "lines": 245,
-      "sha256": "e6b77f39e22f688fd82b8bb217454d3572073108df4e1935779eda68edc2e912",
+      "bytes": 14458,
+      "lines": 251,
+      "sha256": "1827598a4284c8cb7aa19974344f70a0b73fa8adf42aa18280acd40b4a838614",
       "mode": "644",
       "executable": false,
       "generated": false
