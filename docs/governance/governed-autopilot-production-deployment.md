@@ -19,6 +19,8 @@ The design deliberately keeps **Staging execution**, **Production promotion**, a
 | Hostinger runtime started without SSO signing secret | Production startup contract requires a dedicated `TENANT_GPT_SSO_SIGNING_SECRET` of at least 32 characters; Production automation must never invent it |
 | Hostinger deployment returned repeated 503/readback failure | Keep promotion non-current and classify the failing authority instead of treating Git promotion as runtime activation |
 | MCP OAuth metadata can fail closed when ingress trust is incomplete | Require the three-part trusted-ingress contract and test it under Production semantics |
+| Root discovery trusted forwarded host headers independently from MCP | Route all external-host selection through one shared trusted-host authority |
+| Repository DNS policy assumed one record type while provider evidence used another | Treat proxied `A` and `CNAME` as an allowed set when both terminate on the governed Hostinger Production origin |
 | General runtime health can be green while ChatGPT MCP discovery is broken | R7 v2 probes protected-resource metadata, authorization-server metadata, and an unauthenticated non-mutating MCP `initialize` handshake |
 | CI evidence could belong to another attempt or moving ref | Pin candidate, validation base, and `main` by exact SHA; verify source-pin freshness before and after CI |
 
@@ -78,6 +80,14 @@ Production OAuth metadata is intentionally fail-closed. The canonical deployment
 
 All three are required in Production-like environments. Missing attestation is classified separately from deployment/SHA mismatch. The MCP authorization-server metadata route and the protected-resource metadata route are both covered by the same trusted-ingress authority.
 
+All public host-sensitive routing uses the same resolver. When forwarded-host trust is disabled, caller-controlled `x-forwarded-host` and `x-original-host` values are ignored and the direct `Host`/`:authority` value is authoritative. When trust is enabled, malformed, multi-valued, credential-bearing, or path-bearing forwarded host values fail closed rather than falling back to a less-trusted value.
+
+## Production DNS authority
+
+The architectural invariant is not one DNS record syntax. Production `auth`, `mcp`, and `activation` hostnames must remain proxied through Cloudflare and terminate on the governed Hostinger Production origin. The repository therefore permits `A` or `CNAME` for those Production hostnames and marks the legacy `dns_record_type` value as preferred rather than exclusive.
+
+This repository-only contract change does **not** mutate Cloudflare. Provider state must be read back separately. A provider record outside the allowed set, an unproxied record, or a record whose effective origin is not Hostinger Production is a mismatch and must fail closed until separately authorized provider repair is performed.
+
 ## R7 readback contract
 
 R7 v2 is a bounded **public protocol probe**, not a deployment or provider mutation workflow. The Production runtime is considered current only when all of the following are true for the same authorized SHA:
@@ -120,6 +130,8 @@ A 503, missing runtime identity, branch mismatch, SHA mismatch, trusted-ingress 
 | Production candidate | Exact candidate/base/main pinning, successful exact-head CI, and no provider mutation during validation |
 | Production startup | Dedicated SSO signing secret present and valid; no fallback or generated substitute |
 | Production trusted ingress | All three ingress controls are explicitly satisfied before Production OAuth metadata is served |
+| Host selection | One shared resolver governs MCP and root discovery; untrusted or malformed forwarded host values cannot select another surface |
+| Production DNS | Proxied `A` or `CNAME` only, with effective origin constrained to Hostinger Production and provider parity separately verified |
 | OAuth discovery | Canonical protected-resource and authorization-server metadata are public and exact |
 | MCP transport | Canonical public endpoint accepts a bounded unauthenticated `initialize` handshake |
 | Production readback | R7 v2 proves exact SHA, Production branch, runtime health, OAuth discovery, MCP initialize, and `production_current` |
