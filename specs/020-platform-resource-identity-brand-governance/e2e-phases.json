@@ -71,7 +71,8 @@
             "No identity or relationship result implies authority.",
             "Known Brand Create does not require tool discovery.",
             "External and destructive effects retain their risk, approval, and readback floors.",
-            "No DB connection, migration, credential read, provider call, external send, or Production mutation occurs."
+            "No DB connection, migration, credential read, provider call, external send, or Production mutation occurs.",
+            "The persisted OpenAPI detail-gap classification is regenerated deterministically from the current dispatch artifact and remains classification-only with zero blocking contract gaps."
           ],
           "tests": [
             { "id": "spec020-identity-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-resource-identity-contract.mjs", "args": [] },
