@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7090,
-    "bytes": 68093198,
-    "lines": 1595594,
+    "bytes": 68095392,
+    "lines": 1595609,
     "directories": 265,
     "categories": 13
   },
@@ -302,16 +302,16 @@
       "lines": 6194
     },
     {
+      "path": "docs/governance/configuration-drift-policy.json",
+      "category": "documentation",
+      "bytes": 244768,
+      "lines": 2094
+    },
+    {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
       "category": "schemas-and-data",
       "bytes": 242696,
       "lines": 7657
-    },
-    {
-      "path": "docs/governance/configuration-drift-policy.json",
-      "category": "documentation",
-      "bytes": 242574,
-      "lines": 2079
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
