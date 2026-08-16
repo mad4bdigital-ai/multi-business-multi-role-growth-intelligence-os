@@ -7,8 +7,15 @@ import {
 } from "./repositoryOperationLeaseService.js";
 
 const RECIPE = "repo.pr.reconcile_and_finalize";
-const MUTATIONS = new Set(["repo_patch_apply","repo_patch_batch_apply","repo_existing_blob_commit_apply",
-  "github_branch_fast_forward_to_base","github_branch_merge_commit_create","github_pr_finalize","github_branch_delete"]);
+const MUTATIONS = new Set([
+  "repo_patch_apply",
+  "repo_patch_batch_apply",
+  "repo_existing_blob_commit_apply",
+  "github_branch_fast_forward_to_base",
+  "github_branch_merge_commit_create",
+  "github_pr_finalize",
+  "github_branch_delete",
+]);
 
 function value(input, max = 512) {
   const normalized = String(input ?? "").trim();
@@ -35,24 +42,36 @@ function fail(code, message, status = 409, details = {}) {
 }
 function normalize(args = {}, deps = {}) {
   const input = {
-    owner: value(args.owner, 191), repo: value(args.repo, 191), branch: value(args.branch, 255),
-    defaultBranch: value(args.default_branch || "main", 255), pullNumber: Number(args.pull_number),
+    owner: value(args.owner, 191),
+    repo: value(args.repo, 191),
+    branch: value(args.branch, 255),
+    defaultBranch: value(args.default_branch || "main", 255),
+    pullNumber: Number(args.pull_number),
     expectedBaseSha: value(args.expected_base_sha, 40)?.toLowerCase(),
     expectedBranchSha: value(args.expected_branch_sha, 40)?.toLowerCase(),
-    mode: value(args.mode || "dry_run", 16), recipeKey: value(args.recipe_key || RECIPE, 191),
+    mode: value(args.mode || "dry_run", 16),
+    recipeKey: value(args.recipe_key || RECIPE, 191),
     operationId: value(args.operation_id, 64) || (deps.randomUUID || crypto.randomUUID)(),
     capabilityEnvelopeId: value(args.capability_envelope_id, 64),
     approvalHoldId: value(args.approval_hold_id, 64),
-    tenantId: value(args.tenant_id, 64), workspaceId: value(args.workspace_id, 64),
-    userId: value(args.user_id, 64), actorId: value(args.actor_id, 128),
+    tenantId: value(args.tenant_id, 64),
+    workspaceId: value(args.workspace_id, 64),
+    userId: value(args.user_id, 64),
+    actorId: value(args.actor_id, 128),
     raw: args,
   };
   if (!input.owner || !input.repo || !input.branch || !input.pullNumber
       || !/^[0-9a-f]{40}$/.test(input.expectedBaseSha || "")
       || !/^[0-9a-f]{40}$/.test(input.expectedBranchSha || "")) {
-    throw fail("repository_reconciliation_input_invalid", "owner, repo, branch, pull_number, and exact base/branch SHAs are required.", 400);
+    throw fail(
+      "repository_reconciliation_input_invalid",
+      "owner, repo, branch, pull_number, and exact base/branch SHAs are required.",
+      400,
+    );
   }
-  if (!["dry_run","apply"].includes(input.mode)) throw fail("repository_reconciliation_mode_invalid", "mode must be dry_run or apply.", 400);
+  if (!["dry_run", "apply"].includes(input.mode)) {
+    throw fail("repository_reconciliation_mode_invalid", "mode must be dry_run or apply.", 400);
+  }
   return input;
 }
 function normalizeRecipeStep(step = {}) {
@@ -66,20 +85,73 @@ function normalizeRecipeStep(step = {}) {
     response_projection: json(step.response_projection ?? step.response_projection_json, null),
   };
 }
+
+export function classifyRepositoryReconciliationStepExecution(step = {}) {
+  const kind = value(step.step_kind, 64);
+  if (kind === "installed_tool_call") {
+    return {
+      route: "provider_tool",
+      provider_dispatch_allowed: true,
+      engine_owned: false,
+      reservation_required: true,
+      secrets_included: false,
+    };
+  }
+  if (kind === "engine_internal") {
+    return {
+      route: "engine_internal",
+      provider_dispatch_allowed: false,
+      engine_owned: true,
+      reservation_required: true,
+      secrets_included: false,
+    };
+  }
+  if (kind === "classify") {
+    return {
+      route: "engine_control",
+      provider_dispatch_allowed: false,
+      engine_owned: true,
+      reservation_required: false,
+      secrets_included: false,
+    };
+  }
+  if (kind === "emit_evidence") {
+    return {
+      route: "engine_evidence",
+      provider_dispatch_allowed: false,
+      engine_owned: true,
+      reservation_required: false,
+      secrets_included: false,
+    };
+  }
+  return {
+    route: "blocked",
+    provider_dispatch_allowed: false,
+    engine_owned: false,
+    reservation_required: false,
+    reason_code: "repository_reconciliation_step_kind_unsupported",
+    secrets_included: false,
+  };
+}
+
 export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, deps = {}) {
   const pool = deps.pool || getPool();
   const [recipes] = await pool.query(
     `SELECT recipe_key, resource_type, operation_key, adapter_key, risk_class, mode,
             requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback,
             policy_json, engine_key, status
-       FROM platform_resource_recipes WHERE recipe_key=? LIMIT 1`, [recipeKey],
+       FROM platform_resource_recipes WHERE recipe_key=? LIMIT 1`,
+    [recipeKey],
   );
-  if (!recipes?.[0]) throw fail("repository_reconciliation_recipe_missing", "The reconciliation recipe was not found.", 404);
+  if (!recipes?.[0]) {
+    throw fail("repository_reconciliation_recipe_missing", "The reconciliation recipe was not found.", 404);
+  }
   const [steps] = await pool.query(
     `SELECT step_order, step_key, step_kind, parent_action_key, tool_key, endpoint_key, source_table,
             source_pk_template_json, query_template_json, body_template_json, response_projection_json,
             required, on_error_policy, status
-       FROM platform_resource_recipe_steps WHERE recipe_key=? ORDER BY step_order, step_id`, [recipeKey],
+       FROM platform_resource_recipe_steps WHERE recipe_key=? ORDER BY step_order, step_id`,
+    [recipeKey],
   );
   return {
     ...recipes[0],
@@ -88,21 +160,25 @@ export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, dep
     secrets_included: false,
   };
 }
+
 function evidence(result = {}) {
   const classification = result.classification || result;
   const proof = result.evidence || classification.evidence || {};
   return {
     classification: value(classification.classification, 64),
     risk: value(classification.risk, 64),
-    ahead_by: Number(classification.ahead_by || 0), behind_by: Number(classification.behind_by || 0),
+    ahead_by: Number(classification.ahead_by || 0),
+    behind_by: Number(classification.behind_by || 0),
     overlapping_files: Array.isArray(classification.overlapping_files) ? classification.overlapping_files : [],
     changed_files: Array.isArray(classification.changed_files) ? classification.changed_files : [],
     base_ref_sha: value(proof.base_ref_sha, 40)?.toLowerCase() || null,
     branch_ref_sha: value(proof.branch_ref_sha, 40)?.toLowerCase() || null,
   };
 }
+
 export function buildRepositoryReconciliationStepDataflowContract({ input, step = {}, operationId, predecessorStepKey = null } = {}) {
   const normalizedStep = normalizeRecipeStep(step);
+  const executionRoute = classifyRepositoryReconciliationStepExecution(normalizedStep);
   const registry = {
     step_order: Number(normalizedStep.step_order || 0),
     step_key: value(normalizedStep.step_key, 128),
@@ -135,6 +211,7 @@ export function buildRepositoryReconciliationStepDataflowContract({ input, step 
       predecessor_step_key: predecessorStepKey || null,
       parent_action_key: registry.parent_action_key,
     },
+    execution_route: executionRoute,
     registry,
     force_push_allowed: false,
     migration_apply_allowed: false,
@@ -143,11 +220,13 @@ export function buildRepositoryReconciliationStepDataflowContract({ input, step 
   };
   return {
     ...normalizedStep,
+    execution_route: executionRoute,
     plan_item_id: hash([operationId, normalizedStep.step_order, normalizedStep.step_key]).slice(0, 36),
     execution_contract: contract,
     execution_contract_sha256: hash(contract),
   };
 }
+
 export function buildRepositoryReconciliationPlan({ input, recipe, reconciliation, operationId } = {}) {
   const planId = value(input.raw?.plan_id, 64) || operationId;
   const recipeSteps = (recipe.steps || [])
@@ -161,26 +240,47 @@ export function buildRepositoryReconciliationPlan({ input, recipe, reconciliatio
     predecessorStepKey: index > 0 ? value(recipeSteps[index - 1]?.step_key, 128) : null,
   }));
   const plan = {
-    version: "repository-reconciliation-orchestrator-v1", plan_id: planId, operation_id: operationId,
-    recipe_key: recipe.recipe_key, recipe_status: recipe.status,
-    resource: { owner: input.owner, repo: input.repo, branch: input.branch,
-      default_branch: input.defaultBranch, pull_number: input.pullNumber,
-      expected_base_sha: input.expectedBaseSha, expected_branch_sha: input.expectedBranchSha },
-    reconciliation, policy: recipe.policy || {}, steps,
+    version: "repository-reconciliation-orchestrator-v1",
+    plan_id: planId,
+    operation_id: operationId,
+    recipe_key: recipe.recipe_key,
+    recipe_status: recipe.status,
+    resource: {
+      owner: input.owner,
+      repo: input.repo,
+      branch: input.branch,
+      default_branch: input.defaultBranch,
+      pull_number: input.pullNumber,
+      expected_base_sha: input.expectedBaseSha,
+      expected_branch_sha: input.expectedBranchSha,
+    },
+    reconciliation,
+    policy: recipe.policy || {},
+    steps,
     dataflow: {
       version: "repository-reconciliation-step-dataflow-v1",
       registry_templates_bound: true,
       sequential_predecessors_bound: true,
+      execution_routes_bound: true,
+      provider_dispatch_installed_tool_only: true,
       execution_enabled: false,
       step_count: steps.length,
       secrets_included: false,
     },
-    force_push_allowed: false, migration_apply_allowed: false, secrets_included: false,
+    force_push_allowed: false,
+    migration_apply_allowed: false,
+    secrets_included: false,
   };
-  return { plan_id: planId,
-    report_sha256: hash([reconciliation, recipe.policy || {}]), plan_sha256: hash(plan),
-    plan, steps, secrets_included: false };
+  return {
+    plan_id: planId,
+    report_sha256: hash([reconciliation, recipe.policy || {}]),
+    plan_sha256: hash(plan),
+    plan,
+    steps,
+    secrets_included: false,
+  };
 }
+
 export function assertRepositoryReconciliationPlanBinding({ input, plan } = {}) {
   if (input?.mode !== "apply") return { ok: true, required: false, secrets_included: false };
   const suppliedPlanId = value(input?.raw?.plan_id, 64);
@@ -200,22 +300,44 @@ export function assertRepositoryReconciliationPlanBinding({ input, plan } = {}) 
       { plan_id: suppliedPlanId },
     );
   }
-  return { ok: true, required: true, plan_id: suppliedPlanId, plan_sha256: suppliedPlanSha256, secrets_included: false };
+  return {
+    ok: true,
+    required: true,
+    plan_id: suppliedPlanId,
+    plan_sha256: suppliedPlanSha256,
+    secrets_included: false,
+  };
 }
+
 function stepAuthorization(input, step) {
-  if (step.step_kind !== "installed_tool_call" || !MUTATIONS.has(step.tool_key)) return null;
+  const route = classifyRepositoryReconciliationStepExecution(step);
+  const consequential = route.route === "engine_internal"
+    || (route.route === "provider_tool" && MUTATIONS.has(step.tool_key));
+  if (!consequential) return null;
   const map = input.raw.step_authorizations;
   const auth = map && typeof map === "object" ? (map[step.step_key] || map[step.tool_key]) : null;
   if (!auth?.capability_envelope_id || !auth?.approval_hold_id || !auth?.confirm) {
-    throw fail("repository_reconciliation_step_authorization_required",
-      `Step ${step.step_key} requires its own envelope, approval hold, and typed confirmation.`, 403);
+    throw fail(
+      "repository_reconciliation_step_authorization_required",
+      `Step ${step.step_key} requires its own envelope, approval hold, and typed confirmation.`,
+      403,
+    );
   }
   return auth;
 }
+
 async function reserve(pool, input, plan, step, deps) {
   const runId = (deps.randomUUID || crypto.randomUUID)();
-  const key = hash([input.recipeKey, input.owner, input.repo, input.branch,
-    input.expectedBaseSha, input.expectedBranchSha, plan.plan_sha256, step.plan_item_id]);
+  const key = hash([
+    input.recipeKey,
+    input.owner,
+    input.repo,
+    input.branch,
+    input.expectedBaseSha,
+    input.expectedBranchSha,
+    plan.plan_sha256,
+    step.plan_item_id,
+  ]);
   try {
     await pool.query(
       `INSERT INTO repository_mutation_runs_v6
@@ -224,78 +346,182 @@ async function reserve(pool, input, plan, step, deps) {
          approval_hold_id, idempotency_key, status, secrets_included, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'repository_reconciliation_orchestrator',
                ?, ?, ?, 'dispatching', 0, NOW(), NOW())`,
-      [runId, plan.plan_id, step.plan_item_id, input.tenantId, input.workspaceId, input.userId,
-       `github://${input.owner}/${input.repo}/pull/${input.pullNumber}`, input.recipeKey,
-       input.pullNumber, input.expectedBranchSha, input.branch,
-       input.capabilityEnvelopeId, input.approvalHoldId, key],
+      [
+        runId,
+        plan.plan_id,
+        step.plan_item_id,
+        input.tenantId,
+        input.workspaceId,
+        input.userId,
+        `github://${input.owner}/${input.repo}/pull/${input.pullNumber}`,
+        input.recipeKey,
+        input.pullNumber,
+        input.expectedBranchSha,
+        input.branch,
+        input.capabilityEnvelopeId,
+        input.approvalHoldId,
+        key,
+      ],
     );
     return { runId, key };
   } catch (error) {
     if (error?.code !== "ER_DUP_ENTRY") throw error;
     const [rows] = await pool.query(
       `SELECT run_id, status FROM repository_mutation_runs_v6
-        WHERE plan_id=? AND plan_item_id=? LIMIT 1`, [plan.plan_id, step.plan_item_id],
+        WHERE plan_id=? AND plan_item_id=? LIMIT 1`,
+      [plan.plan_id, step.plan_item_id],
     );
-    if (rows?.[0]?.status === "readback_verified") return { runId: rows[0].run_id, key, reused: true };
-    throw fail("repository_reconciliation_step_replay_blocked", "The step is already reserved without verified readback.");
+    if (rows?.[0]?.status === "readback_verified") {
+      return { runId: rows[0].run_id, key, reused: true };
+    }
+    throw fail(
+      "repository_reconciliation_step_replay_blocked",
+      "The step is already reserved without verified readback.",
+    );
   }
 }
+
 async function finish(pool, runId, result) {
   const verified = result?.readback_verified === true;
   await pool.query(
     `UPDATE repository_mutation_runs_v6 SET status=?, provider_object_id=?, write_json=?,
       expected_readback_json=?, readback_json=?, error_json=?, provider_write_completed_at=NOW(),
       readback_completed_at=NOW(), updated_at=NOW() WHERE run_id=?`,
-    [verified ? "readback_verified" : "readback_failed", value(result?.provider_object_id, 191),
-     JSON.stringify(result?.write || null), JSON.stringify(result?.expected_readback || null),
-     JSON.stringify(result?.readback || null),
-     verified ? null : JSON.stringify({ code:"readback_failed", secrets_included:false }), runId],
+    [
+      verified ? "readback_verified" : "readback_failed",
+      value(result?.provider_object_id, 191),
+      JSON.stringify(result?.write || null),
+      JSON.stringify(result?.expected_readback || null),
+      JSON.stringify(result?.readback || null),
+      verified ? null : JSON.stringify({ code: "readback_failed", secrets_included: false }),
+      runId,
+    ],
   );
-  if (!verified) throw fail("repository_reconciliation_readback_failed", "Same-cycle readback was not verified.");
+  if (!verified) {
+    throw fail("repository_reconciliation_readback_failed", "Same-cycle readback was not verified.");
+  }
 }
+
+function engineOwnedStepResult(step, lease) {
+  if (step.step_key === "acquire_branch_lease") {
+    return {
+      step_key: step.step_key,
+      status: "engine_control_verified",
+      engine_owned: true,
+      lease_id: lease?.lease_id || null,
+      provider_calls: false,
+      secrets_included: false,
+    };
+  }
+  if (step.step_key === "release_branch_lease") {
+    return {
+      step_key: step.step_key,
+      status: "engine_control_deferred_to_finally",
+      engine_owned: true,
+      lease_id: lease?.lease_id || null,
+      provider_calls: false,
+      secrets_included: false,
+    };
+  }
+  return {
+    step_key: step.step_key,
+    status: "engine_control_verified",
+    engine_owned: true,
+    provider_calls: false,
+    secrets_included: false,
+  };
+}
+
 export async function runRepositoryReconciliationOrchestrator(args = {}, deps = {}) {
   const input = normalize(args, deps);
   const pool = deps.pool || getPool();
   const recipe = await loadRepositoryReconciliationRecipe(input.recipeKey, { pool });
   const reconciliation = evidence(await deps.reconcileBranch?.({
-    owner: input.owner, repo: input.repo, branch: input.branch,
-    default_branch: input.defaultBranch, mode: "dry_run",
-  }) || { evidence:{ base_ref_sha:input.expectedBaseSha, branch_ref_sha:input.expectedBranchSha } });
+    owner: input.owner,
+    repo: input.repo,
+    branch: input.branch,
+    default_branch: input.defaultBranch,
+    mode: "dry_run",
+  }) || {
+    evidence: {
+      base_ref_sha: input.expectedBaseSha,
+      branch_ref_sha: input.expectedBranchSha,
+    },
+  });
   if (reconciliation.base_ref_sha && reconciliation.base_ref_sha !== input.expectedBaseSha) {
     throw fail("repository_reconciliation_base_drift", "The default branch SHA changed.");
   }
   if (reconciliation.branch_ref_sha && reconciliation.branch_ref_sha !== input.expectedBranchSha) {
     throw fail("repository_reconciliation_branch_drift", "The work branch SHA changed.");
   }
+
   const plan = buildRepositoryReconciliationPlan({ input, recipe, reconciliation, operationId: input.operationId });
-  if (input.mode === "dry_run") return {
-    ok: true,
-    mode: "dry_run",
-    apply_allowed: false,
-    apply_readiness: {
-      recipe_active: recipe.status === "active",
-      admin_apply_surface_exposed: false,
-      executor_implemented: false,
-      blockers: ["repository_reconciliation_admin_apply_surface_not_exposed"],
-    },
-    reconciliation,
-    plan,
-    secrets_included: false,
-  };
+  if (input.mode === "dry_run") {
+    return {
+      ok: true,
+      mode: "dry_run",
+      apply_allowed: false,
+      apply_readiness: {
+        recipe_active: recipe.status === "active",
+        admin_apply_surface_exposed: false,
+        provider_executor_implemented: false,
+        engine_executor_implemented: false,
+        blockers: [
+          "repository_reconciliation_admin_apply_surface_not_exposed",
+          "repository_reconciliation_engine_internal_executor_not_wired",
+        ],
+      },
+      reconciliation,
+      plan,
+      secrets_included: false,
+    };
+  }
+
   assertRepositoryReconciliationPlanBinding({ input, plan });
-  if (recipe.status !== "active") throw fail("repository_reconciliation_recipe_not_active", "The recipe is not active for mutation.");
-  if (!input.capabilityEnvelopeId || !input.approvalHoldId || !deps.authorizePlan || !deps.executeStep) {
-    throw fail("repository_reconciliation_authority_required", "Plan authority and a governed step executor are required.", 403);
+  if (recipe.status !== "active") {
+    throw fail("repository_reconciliation_recipe_not_active", "The recipe is not active for mutation.");
+  }
+
+  const activeSteps = plan.steps.filter((item) => item.status === "active");
+  const needsProviderExecutor = activeSteps.some(
+    (step) => classifyRepositoryReconciliationStepExecution(step).route === "provider_tool",
+  );
+  const needsEngineExecutor = activeSteps.some(
+    (step) => classifyRepositoryReconciliationStepExecution(step).route === "engine_internal",
+  );
+  if (!input.capabilityEnvelopeId || !input.approvalHoldId || !deps.authorizePlan
+      || (needsProviderExecutor && !deps.executeStep)
+      || (needsEngineExecutor && !deps.executeEngineStep)) {
+    throw fail(
+      "repository_reconciliation_authority_required",
+      "Plan authority and the required governed provider/engine executors are required.",
+      403,
+      { needs_provider_executor: needsProviderExecutor, needs_engine_executor: needsEngineExecutor },
+    );
   }
   if ((await deps.authorizePlan({ input, recipe, plan }))?.ok !== true) {
     throw fail("repository_reconciliation_plan_authorization_denied", "The plan was not authorized.", 403);
   }
-  const fingerprint = hash([input.owner,input.repo,input.branch,input.expectedBaseSha,input.expectedBranchSha,plan.plan_sha256]);
+
+  const fingerprint = hash([
+    input.owner,
+    input.repo,
+    input.branch,
+    input.expectedBaseSha,
+    input.expectedBranchSha,
+    plan.plan_sha256,
+  ]);
   const lease = await acquireRepositoryOperationLease({
-    owner:input.owner, repo:input.repo, branch:input.branch, operation_key:input.recipeKey,
-    holder_run_id:input.operationId, holder_actor_id:input.actorId, resource_fingerprint:fingerprint,
-    metadata:{ pull_number:input.pullNumber, plan_id:plan.plan_id, secrets_included:false },
-  }, { pool, now:deps.now, randomUUID:deps.randomUUID });
+    owner: input.owner,
+    repo: input.repo,
+    branch: input.branch,
+    operation_key: input.recipeKey,
+    holder_run_id: input.operationId,
+    holder_actor_id: input.actorId,
+    resource_fingerprint: fingerprint,
+    metadata: { pull_number: input.pullNumber, plan_id: plan.plan_id, secrets_included: false },
+  }, { pool, now: deps.now, randomUUID: deps.randomUUID });
+
   try {
     await pool.query(
       `INSERT INTO repository_mutation_plans_v6
@@ -304,37 +530,114 @@ export async function runRepositoryReconciliationOrchestrator(args = {}, deps = 
          secrets_included, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR), 0, NOW(), NOW())
        ON DUPLICATE KEY UPDATE plan_json=VALUES(plan_json), updated_at=NOW()`,
-      [plan.plan_id,input.tenantId,input.workspaceId,input.userId,
-       `github://${input.owner}/${input.repo}/pull/${input.pullNumber}`,plan.report_sha256,
-       plan.plan_sha256,JSON.stringify(plan.plan),input.approvalHoldId,input.capabilityEnvelopeId],
+      [
+        plan.plan_id,
+        input.tenantId,
+        input.workspaceId,
+        input.userId,
+        `github://${input.owner}/${input.repo}/pull/${input.pullNumber}`,
+        plan.report_sha256,
+        plan.plan_sha256,
+        JSON.stringify(plan.plan),
+        input.approvalHoldId,
+        input.capabilityEnvelopeId,
+      ],
     );
+
     const results = [];
-    for (const step of plan.steps.filter((item) => item.status === "active")) {
+    for (const step of activeSteps) {
       await assertRepositoryOperationLeaseHolder({
         lease_id: lease.lease.lease_id,
         holder_run_id: input.operationId,
         resource_fingerprint: lease.lease.resource_fingerprint,
       }, { pool });
+
+      const route = classifyRepositoryReconciliationStepExecution(step);
+      if (route.route === "engine_control") {
+        results.push(engineOwnedStepResult(step, lease.lease));
+        continue;
+      }
+      if (route.route === "engine_evidence") {
+        results.push({
+          step_key: step.step_key,
+          status: "engine_evidence_recorded",
+          engine_owned: true,
+          plan_id: plan.plan_id,
+          plan_sha256: plan.plan_sha256,
+          provider_calls: false,
+          secrets_included: false,
+        });
+        continue;
+      }
+      if (route.route === "blocked") {
+        throw fail(
+          "repository_reconciliation_step_kind_unsupported",
+          `Step ${step.step_key} has unsupported step_kind=${step.step_kind}.`,
+          409,
+        );
+      }
+
       const auth = stepAuthorization(input, step);
       const reservation = await reserve(pool, input, plan, step, deps);
-      if (reservation.reused) { results.push({ step_key:step.step_key, run_id:reservation.runId, reused:true }); continue; }
+      if (reservation.reused) {
+        results.push({ step_key: step.step_key, run_id: reservation.runId, reused: true });
+        continue;
+      }
+
       let result;
-      try { result = await deps.executeStep({ input, recipe, plan, step, authorization:auth,
-        lease:lease.lease, run_id:reservation.runId, idempotency_key:reservation.key }); }
-      catch (error) {
-        await pool.query(`UPDATE repository_mutation_runs_v6 SET status=?, error_json=?, updated_at=NOW() WHERE run_id=?`,
-          [error?.unknown_provider_outcome ? "unknown_provider_outcome" : "failed_prewrite",
-           JSON.stringify({ code:error?.code || "step_failed", message:error?.message, secrets_included:false }),reservation.runId]);
+      try {
+        const executionContext = {
+          input,
+          recipe,
+          plan,
+          step,
+          authorization: auth,
+          lease: lease.lease,
+          run_id: reservation.runId,
+          idempotency_key: reservation.key,
+        };
+        result = route.route === "provider_tool"
+          ? await deps.executeStep(executionContext)
+          : await deps.executeEngineStep(executionContext);
+      } catch (error) {
+        await pool.query(
+          `UPDATE repository_mutation_runs_v6 SET status=?, error_json=?, updated_at=NOW() WHERE run_id=?`,
+          [
+            error?.unknown_provider_outcome ? "unknown_provider_outcome" : "failed_prewrite",
+            JSON.stringify({ code: error?.code || "step_failed", message: error?.message, secrets_included: false }),
+            reservation.runId,
+          ],
+        );
         throw error;
       }
-      if (result?.deferred) throw fail("repository_reconciliation_deferred_step_not_supported", "V1 requires each step to complete with same-cycle readback.");
+
+      if (result?.deferred) {
+        throw fail(
+          "repository_reconciliation_deferred_step_not_supported",
+          "V1 requires each executable step to complete with same-cycle readback.",
+        );
+      }
       await finish(pool, reservation.runId, result);
-      results.push({ step_key:step.step_key, run_id:reservation.runId, status:"readback_verified" });
+      results.push({ step_key: step.step_key, run_id: reservation.runId, status: "readback_verified" });
     }
-    await pool.query(`UPDATE repository_mutation_plans_v6 SET status='readback_verified', updated_at=NOW() WHERE plan_id=?`, [plan.plan_id]);
-    return { ok:true, mode:"apply", status:"readback_verified", plan, step_results:results, secrets_included:false };
+
+    await pool.query(
+      `UPDATE repository_mutation_plans_v6 SET status='readback_verified', updated_at=NOW() WHERE plan_id=?`,
+      [plan.plan_id],
+    );
+    return {
+      ok: true,
+      mode: "apply",
+      status: "readback_verified",
+      plan,
+      step_results: results,
+      secrets_included: false,
+    };
   } finally {
-    await releaseRepositoryOperationLease({ lease_id:lease.lease.lease_id, holder_run_id:input.operationId,
-      release_reason:"repository_reconciliation_cycle_completed" }, { pool, now:deps.now }).catch(() => {});
+    await releaseRepositoryOperationLease({
+      lease_id: lease.lease.lease_id,
+      holder_run_id: input.operationId,
+      release_reason: "repository_reconciliation_cycle_completed",
+    }, { pool, now: deps.now }).catch(() => {});
   }
 }

@@ -27,6 +27,7 @@ jobs:
   publish:
     if: >-
       github.event.workflow_run.head_sha != null &&
+      github.event.workflow_run.conclusion != 'skipped' &&
       (github.event.workflow_run.event == 'pull_request' ||
        (github.event.workflow_run.event == 'workflow_dispatch' &&
         (github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
@@ -57,6 +58,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Download branch diagnostic canonical report
         if: github.event.workflow_run.name == 'Branch Test Diagnostic Shards'
@@ -67,6 +69,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Download Context Kernel canonical report
         if: github.event.workflow_run.name == 'Context Kernel Hardcoding Report'
@@ -77,6 +80,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Download generated-artifact read-only canonical report
         if: >-
@@ -89,6 +93,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Download governed generated-artifact apply report
         if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh'
@@ -99,6 +104,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Download governed generated-artifact dispatcher report
         if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh Dispatch'
@@ -109,6 +115,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Download Hostinger Tenant Canary canonical report
         if: github.event.workflow_run.name == 'Hostinger Storage Tenant Canary Guard'
@@ -119,9 +126,11 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Select canonical report file
         id: report
+        if: always()
         shell: bash
         env:
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
@@ -137,10 +146,16 @@ jobs:
             "Hostinger Storage Tenant Canary Guard") report="${RUNNER_TEMP}/canonical/hostinger-storage-tenant-canary-summary.json" ;;
             *) echo "Unsupported workflow: $WORKFLOW_NAME" >&2; exit 2 ;;
           esac
-          test -f "$report"
+          if [[ ! -f "$report" ]]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Canonical artifact unavailable; refusing publication." >&2
+            exit 0
+          fi
+          echo "exists=true" >> "$GITHUB_OUTPUT"
           echo "path=$report" >> "$GITHUB_OUTPUT"
 
       - name: Upsert authoritative PR evidence comment
+        if: steps.report.outputs.exists == 'true'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -243,6 +258,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.hostinger_discovery.outputs.run_id }}
           github-token: ${{ github.token }}
+        continue-on-error: true
 
       - name: Publish exact-head Hostinger Tenant Canary fallback evidence
         if: steps.hostinger_discovery.outputs.found == 'true'

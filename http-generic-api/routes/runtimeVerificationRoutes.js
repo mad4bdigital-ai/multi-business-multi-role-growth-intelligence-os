@@ -1,12 +1,10 @@
 import { Router } from "express";
-import {
-  buildActivationHardRunSummary,
-  createRuntimeVerificationRun,
-  getRuntimeParity,
-  getRuntimeVerificationRun,
-  listRuntimeVerificationEvidence,
-} from "../runtimeVerificationService.js";
-import { buildRemoteMcpReadiness } from "../remoteMcpReadiness.js";
+import * as legacy from "./runtimeVerificationRoutesLegacy.js";
+import { createRuntimeVerificationRun } from "../runtimeVerificationService.js";
+import { recordRuntimeBreakGlassVerificationReadback } from "../runtimeBreakGlassVerificationReadbackService.js";
+import { getGovernancePool } from "../governanceDb.js";
+
+export * from "./runtimeVerificationRoutesLegacy.js";
 
 function actorFromRequest(req) {
   return {
@@ -16,94 +14,51 @@ function actorFromRequest(req) {
   };
 }
 
-function parseLimit(value, fallback = 25) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.min(Math.max(parsed, 1), 100);
-}
-
-export function buildRuntimeVerificationRoutes({
-  requireBackendApiKey,
-  requireAdminPrincipal,
-  env = process.env,
-  pool = null,
-  getPool = null,
-} = {}) {
+export function buildRuntimeVerificationRoutes(deps = {}) {
   const router = Router();
-  const guards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+  const guards = [deps.requireBackendApiKey, deps.requireAdminPrincipal].filter(Boolean);
 
+  // Break-glass verification runs require a run-bound readback from the Governance DB.
+  // Ordinary verification runs continue through the canonical legacy builder below.
   router.post("/runtime/verification-runs", ...guards, async (req, res, next) => {
+    const input = req.body || {};
+    const breakGlassId = String(input.break_glass_id || "").trim();
+    if (!breakGlassId) return next();
     try {
-      const run = await createRuntimeVerificationRun(req.body || {}, actorFromRequest(req));
-      res.status(201).json({ ok: true, ...run });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  router.get("/runtime/verification-runs/:runId", ...guards, async (req, res, next) => {
-    try {
-      const run = await getRuntimeVerificationRun(req.params.runId);
-      if (!run) return res.status(404).json({ ok: false, error: { code: "runtime_verification_run_not_found", message: "Runtime verification run was not found." } });
-      return res.status(200).json({ ok: true, ...run });
-    } catch (error) {
-      return next(error);
-    }
-  });
-
-  router.get("/runtime/verification-runs/:runId/evidence", ...guards, async (req, res, next) => {
-    try {
-      const evidence = await listRuntimeVerificationEvidence(req.params.runId, {
-        surface: req.query.surface,
-        limit: parseLimit(req.query.limit),
-        cursor: req.query.cursor || 0,
-      });
-      res.status(200).json({ ok: true, run_id: req.params.runId, ...evidence });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  router.get("/runtime/parity/:environmentKey?", ...guards, async (req, res, next) => {
-    try {
-      const parity = await getRuntimeParity(req.params.environmentKey || req.query.environment_key || "production");
-      res.status(200).json({ ok: true, ...parity });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  router.get("/runtime/readiness/remote-mcp", ...guards, async (_req, res, next) => {
-    try {
-      let readinessPool = pool;
-      if (!readinessPool && typeof getPool === "function") {
-        try {
-          readinessPool = getPool();
-        } catch {
-          readinessPool = null;
-        }
+      const run = await createRuntimeVerificationRun(input, actorFromRequest(req));
+      const readback = await recordRuntimeBreakGlassVerificationReadback(
+        { runId: run.run_id, breakGlassId },
+        { pool: getGovernancePool() },
+      );
+      if (!readback.matches_post_change_hashes) {
+        return res.status(424).json({
+          ok: false,
+          ...run,
+          runtime_break_glass_readback: readback,
+          error: {
+            code: "runtime_break_glass_readback_hash_mismatch",
+            message: "Run-bound runtime break-glass readback does not match the persisted post-change hashes.",
+          },
+          secrets_included: false,
+        });
       }
-      const readiness = await buildRemoteMcpReadiness({ env, pool: readinessPool });
-      return res.status(200).json(readiness);
+      return res.status(201).json({
+        ok: true,
+        ...run,
+        runtime_break_glass_readback: readback,
+        secrets_included: false,
+      });
     } catch (error) {
       return next(error);
     }
   });
 
-  router.get("/activation/hard-run/summary", ...guards, async (_req, res, next) => {
-    try {
-      const summary = await buildActivationHardRunSummary();
-      res.status(summary.status === "active" ? 200 : 424).json({
-        ok: summary.status === "active",
-        activation_layer: "hard_activation_summary",
-        detail_level: "summary",
-        evidence_manifest_available: true,
-        ...summary,
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
+  // Canonical surface delegates ordinary verification, evidence, parity, readiness,
+  // and hard-run summary routes to the governed legacy builder.
+  // GET /runtime/verification-runs/:runId/evidence
+  // GET /runtime/parity/:environmentKey?
+  // GET /runtime/readiness/remote-mcp
+  // GET /activation/hard-run/summary
+  router.use(legacy.buildRuntimeVerificationRoutes(deps));
   return router;
 }

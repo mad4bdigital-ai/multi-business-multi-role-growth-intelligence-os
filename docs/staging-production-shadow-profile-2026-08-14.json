@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "contract": "mad4b.staging-production-shadow-profile.v1",
+  "environment": "staging",
+  "route_partition": "docs/staging-write-route-partition-2026-08-14.json",
+  "route_count": 652,
+  "modes": {
+    "shadow": {
+      "enabled": true,
+      "mutation_execution": false,
+      "provider_calls": false,
+      "db_apply": false,
+      "default_request": false
+    },
+    "staging": {
+      "enabled": true,
+      "mutation_execution": false,
+      "provider_calls": false,
+      "db_apply": false,
+      "default_request": false,
+      "requires_shadow_evidence": true
+    },
+    "production-canary": {
+      "enabled": false,
+      "mutation_execution": false,
+      "provider_calls": false,
+      "db_apply": false,
+      "default_request": false,
+      "requires_independent_approval": true,
+      "requires_allowlist": true,
+      "requires_quota": true,
+      "requires_kill_switch": true
+    },
+    "production-live": {
+      "enabled": false,
+      "mutation_execution": false,
+      "provider_calls": false,
+      "db_apply": false,
+      "default_request": false,
+      "requires_canary_success": true,
+      "requires_production_change_approval": true,
+      "requires_rollback_rehearsal": true
+    }
+  },
+  "shadow_test": {
+    "enabled": true,
+    "mode": "shadow",
+    "mutation_execution": false,
+    "provider_calls": false,
+    "credential_payload_reads": false,
+    "external_send": false,
+    "db_apply": false,
+    "expected_outcomes": [
+      "authority_preflight_decision",
+      "tenant_resource_isolation_decision",
+      "approval_policy_decision",
+      "rollback_plan_validation",
+      "same_cycle_readback_contract_validation",
+      "secret_redaction_validation",
+      "deny_by_default_validation",
+      "durable_receipt_shape_validation"
+    ]
+  },
+  "production_readiness": {
+    "profile_present": true,
+    "promotion_allowed": false,
+    "production_allowed": false,
+    "write_activation_allowed": false,
+    "provider_mutation_allowed": false,
+    "migration_apply_allowed": false,
+    "required_before_promotion": [
+      "independent_owner_attestation",
+      "staging_shadow_evidence",
+      "same_cycle_schema_data_readback",
+      "rollback_reconciliation_evidence",
+      "durable_receipt_and_audit_evidence",
+      "live_oauth_or_dcr_acceptance_where_applicable",
+      "production_change_approval"
+    ]
+  },
+  "partition_policy": {
+    "default_request": false,
+    "approval_required": true,
+    "ttl_required": true,
+    "lease_required": true,
+    "readback_required": true,
+    "rollback_required": true,
+    "kill_switch_required": true,
+    "critical_routes": "shadow_only",
+    "high_routes": "shadow_only",
+    "manual_confirmation_routes": "shadow_only"
+  },
+  "safety": {
+    "secrets_included": false,
+    "production_mutation_performed": false,
+    "staging_mutation_performed": false,
+    "oauth_or_dcr_performed": false
+  }
+}

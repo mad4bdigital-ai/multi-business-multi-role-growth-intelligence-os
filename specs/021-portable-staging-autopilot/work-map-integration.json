@@ -1,0 +1,1333 @@
+{
+  "schema_version": 1,
+  "feature_key": "021-portable-staging-autopilot",
+  "review_state": "ready_for_implementation",
+  "registry": {
+    "fingerprint": "a09df999fb95dd1233eb5590f7b31a05c06bd60a33b1c582d39aae70c1710058",
+    "index_source_hash": "dd2067b240725498c12339c2fd0b6fa3d8db4a0cc709091a310df25493c26349",
+    "coverage_source_hash": "5561887910fbd8f4fabbb62eaa40f3384de80d1aeefb0bafc017372cfad0207a",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 5,
+        "matched_terms": [
+          "active",
+          "authorized",
+          "http-generic-api",
+          "image",
+          "json"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "activation-onboarding-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "schema",
+          "start"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "asset-package-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "runtime",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "commercial-usage-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "eligibility",
+          "http-generic-api",
+          "image",
+          "raw",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "connector-provider-map": {
+      "decision": "integrate",
+      "rationale": "This launcher reuses the existing governed runtime, automation, observability, evidence, and provider-boundary maps without adding Production authority.",
+      "owner": "platform-team",
+      "integration_points": [
+        "autopilot-portable-staging/Start-AutoPilot.ps1",
+        "autopilot-portable-staging/One-Click-Staging.ps1"
+      ],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "migration",
+          "provider",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "data-model-domain-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "migration",
+          "raw",
+          "repository",
+          "schema",
+          "specify",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "delivery-support-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "execution-log-evidence-map": {
+      "decision": "integrate",
+      "rationale": "This launcher reuses the existing governed runtime, automation, observability, evidence, and provider-boundary maps without adding Production authority.",
+      "owner": "platform-team",
+      "integration_points": [
+        "autopilot-portable-staging/Start-AutoPilot.ps1",
+        "autopilot-portable-staging/One-Click-Staging.ps1"
+      ],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "operational",
+          "runtime",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "migration-lifecycle-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "apply",
+          "database",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "recovery",
+          "repair",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "observability-release-map": {
+      "decision": "integrate",
+      "rationale": "This launcher reuses the existing governed runtime, automation, observability, evidence, and provider-boundary maps without adding Production authority.",
+      "owner": "platform-team",
+      "integration_points": [
+        "autopilot-portable-staging/Start-AutoPilot.ps1",
+        "autopilot-portable-staging/One-Click-Staging.ps1"
+      ],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "repair",
+          "repository",
+          "runtime",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "platform-resource-graph-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "contract",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "platform-runtime-map": {
+      "decision": "integrate",
+      "rationale": "This launcher reuses the existing governed runtime, automation, observability, evidence, and provider-boundary maps without adding Production authority.",
+      "owner": "platform-team",
+      "integration_points": [
+        "autopilot-portable-staging/Start-AutoPilot.ps1",
+        "autopilot-portable-staging/One-Click-Staging.ps1"
+      ],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "http-generic-api",
+          "image",
+          "operational",
+          "provider",
+          "records",
+          "runtime",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "policy-authority-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 10,
+        "matched_terms": [
+          "actor",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "runtime",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "repository-automation-map": {
+      "decision": "integrate",
+      "rationale": "This launcher reuses the existing governed runtime, automation, observability, evidence, and provider-boundary maps without adding Production authority.",
+      "owner": "platform-team",
+      "integration_points": [
+        "autopilot-portable-staging/Start-AutoPilot.ps1",
+        "autopilot-portable-staging/One-Click-Staging.ps1"
+      ],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 39,
+        "matched_terms": [
+          "apply",
+          "authorized",
+          "auto",
+          "build",
+          "canary",
+          "capture",
+          "commit",
+          "contract",
+          "dedicated",
+          "deployment",
+          "eligibility",
+          "exact",
+          "governance",
+          "hostinger",
+          "image",
+          "launcher",
+          "live",
+          "local",
+          "main",
+          "migration"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "repository-development-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 8,
+        "matched_terms": [
+          "database",
+          "deployment",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "session-memory-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 12,
+        "matched_terms": [
+          "canonical",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "raw",
+          "required",
+          "runtime",
+          "schema",
+          "schemas",
+          "scope"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "work-map-coverage-matrix": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "migration",
+          "raw",
+          "repository",
+          "schema",
+          "specify",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "approval",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "repository",
+          "runs",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "decision": "not_applicable",
+      "rationale": "This Staging-only launcher does not add resources, schemas, migrations, or Production authority in this dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [
+        "specs/021-portable-staging-autopilot/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-portable-staging-autopilot/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-portable-staging-autopilot/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/021-portable-staging-autopilot/spec.md",
+        "specs/021-portable-staging-autopilot/plan.md",
+        "specs/021-portable-staging-autopilot/tasks.md",
+        "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+      ]
+    }
+  },
+  "cross_map_dependencies": [],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "All required dimensions were reviewed against the generated Work Map registry; this Staging-only launcher reuses existing dimensions and proposes no new taxonomy or schema object."
+  },
+  "implementation_readiness": {
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "platform-team",
+    "evidence_refs": [
+      "specs/021-portable-staging-autopilot/spec.md",
+      "specs/021-portable-staging-autopilot/plan.md",
+      "specs/021-portable-staging-autopilot/tasks.md",
+      "specs/021-portable-staging-autopilot/checklists/pr-7357-autopilot.md"
+    ]
+  },
+  "secrets_included": false
+}

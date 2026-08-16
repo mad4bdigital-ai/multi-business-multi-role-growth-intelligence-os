@@ -13,6 +13,7 @@ import {
   REMOTE_MCP_AUTHORIZATION_CODE_TTL_SECONDS,
   REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS,
   REMOTE_MCP_SCOPES,
+  REMOTE_MCP_SUPPORTED_SCOPES,
   classifyRemoteMcpClientProfile,
   createOpaqueToken,
   fixedTimeSecretEqual,
@@ -33,6 +34,7 @@ import {
   readRemoteMcpAuthorizationCode,
   readRemoteMcpGrantByRefreshToken,
   readRemoteMcpOAuthClient,
+  readRemoteMcpActiveGrantScopesForSubject,
   registerRemoteMcpOAuthClient,
   revokeRemoteMcpGrantByAccessJti,
   revokeRemoteMcpGrantByRefreshToken,
@@ -187,8 +189,11 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       }
       const authMethod = normalizeTokenEndpointAuthMethod(req.body?.token_endpoint_auth_method || "none");
       if (!authMethod) return oauthError(res, 400, "invalid_client_metadata", "Unsupported token endpoint authentication method.");
-      const scopeResult = normalizeRemoteMcpScopes(req.body?.scope, REMOTE_MCP_SCOPES);
+      const scopeResult = normalizeRemoteMcpScopes(req.body?.scope, REMOTE_MCP_SUPPORTED_SCOPES, REMOTE_MCP_SCOPES);
       if (!scopeResult.ok) return oauthError(res, 400, "invalid_scope", "Requested scope is unavailable.");
+      const allowedScopes = req.body?.scope
+        ? scopeResult.scopes
+        : [...REMOTE_MCP_SUPPORTED_SCOPES];
       const clientName = text(req.body?.client_name || "Remote MCP client", 255);
       const clientSecret = authMethod === "none" ? "" : createOpaqueToken(32);
       const registered = await registerRemoteMcpOAuthClient({
@@ -198,7 +203,7 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         tokenEndpointAuthMethod: authMethod,
         clientSecret,
         redirectUris,
-        allowedScopes: scopeResult.scopes,
+        allowedScopes,
       });
       noStore(res);
       return res.status(201).json({
@@ -210,6 +215,7 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],
         scope: scopeResult.scopes.join(" "),
+        allowed_scopes: allowedScopes,
         client_name: clientName,
       });
     } catch {
@@ -266,12 +272,21 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       if (!redirectUri || !client.redirect_uris.includes(redirectUri)) return oauthError(res, 400, "invalid_redirect_uri", "redirect_uri is not registered.");
       const resource = resolveRemoteMcpOAuthResource(env);
       if (String(request?.resource || "").replace(/\/+$/u, "") !== resource) return oauthError(res, 400, "invalid_target", "resource is invalid.");
-      const scopes = normalizeRemoteMcpScopes(request?.scope, client.allowed_scopes);
+      const scopes = normalizeRemoteMcpScopes(request?.scope, client.allowed_scopes, REMOTE_MCP_SCOPES);
       if (!scopes.ok) return oauthError(res, 400, "invalid_scope", "scope is invalid.");
       const challenge = text(request?.code_challenge, 128);
       if (request?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return oauthError(res, 400, "invalid_request", "PKCE S256 code_challenge is required.");
       const context = await activeUserContext(pool, verified.claims);
       if (!context) return oauthError(res, 403, "inactive_user", "The signed-in user or requested tenant context is not active.");
+      const existingScopes = await readRemoteMcpActiveGrantScopesForSubject({
+        pool,
+        clientId: client.client_id,
+        userId: context.user_id,
+        tenantId: context.tenant_id,
+        resource,
+      });
+      const effectiveScopes = [...new Set([...existingScopes, ...scopes.scopes])]
+        .filter((scope) => client.allowed_scopes.includes(scope));
       const issued = await issueRemoteMcpAuthorizationCode({
         pool,
         clientId: client.client_id,
@@ -279,7 +294,7 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         tenantId: context.tenant_id,
         redirectUri,
         resource,
-        scopes: scopes.scopes,
+        scopes: effectiveScopes,
         codeChallenge: challenge,
       });
       noStore(res);

@@ -1,0 +1,383 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-resource-identity-brand-governance-20260815",
+  "title": "Platform Resource Identity and Brand Governance shadow and governed-foundation contract",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/platformResourceIdentityContract.js",
+      "http-generic-api/brandIdentityResolver.js",
+      "http-generic-api/brandIdentityReconciliation.js",
+      "http-generic-api/platformResourceIdentityAdapters.js",
+      "http-generic-api/brandClaimVerification.js",
+      "http-generic-api/brandClaimService.js",
+      "http-generic-api/context-kernel-hardcoding-scan.config.json",
+      "http-generic-api/activation-surfaces/exclusions/brand_claims.json",
+      "http-generic-api/activation-surfaces/exclusions/brand_verification_evidence.json",
+      "http-generic-api/activation-surfaces/exclusions/tenant_relationships.json",
+      "http-generic-api/platformOperationGovernanceContract.js",
+      "http-generic-api/canonicalBusinessOperationRegistry.js",
+      "http-generic-api/chatgptMcpRuntime.js",
+      "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
+      "http-generic-api/canonical-business-operation-parity.generated.json",
+      "http-generic-api/test-canonical-business-operation-registry.mjs",
+      "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+      "http-generic-api/test-openapi-projection-readiness.mjs",
+      "http-generic-api/test-openapi-detail-gap-classification.mjs",
+      "http-generic-api/test-openapi-gap-closure-plan.mjs",
+      "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
+      "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
+      "http-generic-api/package.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/workspaceBrandLifecycle.js",
+      "http-generic-api/workspaceBrandReadAuthority.js",
+      "http-generic-api/workspaceCanonicalBrandReference.js",
+      "http-generic-api/workspaceGlobalBrandCreateAdapter.js",
+      "http-generic-api/test-platform-resource-identity-contract.mjs",
+      "http-generic-api/test-platform-operation-governance-contract.mjs",
+      "http-generic-api/test-growth-audit-evidence-wiring.mjs",
+      "http-generic-api/test-brand-claim-verification.mjs",
+      "http-generic-api/test-brand-claim-request-service.mjs",
+      "http-generic-api/test-brand-identity-persistence.mjs",
+      "http-generic-api/test-workspace-brand-read-authority.mjs",
+      "http-generic-api/test-workspace-canonical-brand-reference.mjs",
+      "http-generic-api/test-workspace-global-brand-create-adapter.mjs",
+      "http-generic-api/test-global-brand-identity-migration-contract.mjs",
+      "http-generic-api/migrations/20260815_platform_resource_global_brand_identity.sql",
+      "schemas/platform-resource-identity-contract.schema.json",
+      "schemas/brand-identity-resolution.schema.json",
+      "schemas/canonical-operation-governance.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/manifest.json",
+      "specs/020-platform-resource-identity-brand-governance/spec.md",
+      "specs/020-platform-resource-identity-brand-governance/plan.md",
+      "specs/020-platform-resource-identity-brand-governance/tasks.md",
+      "specs/020-platform-resource-identity-brand-governance/completion.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/checklists/requirements.md",
+      ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define and test deterministic identity, Brand resolution, claim verification, and operation governance contracts while keeping relationship, authority, grant, credential, migration apply, and Production mutation separate.",
+      "e2e_journeys": [
+        {
+          "id": "brand-identity-resolution-shadow",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant-scoped signed principal context",
+          "entrypoint": "resolveVisibleBrandIdentity({ tenantId, identifiers, candidates })",
+          "terminal_outcome": "The resolver returns an identity-safe EXACT/PROBABLE/NONE/CONFLICT/AMBIGUOUS decision without exposing candidate tenant ownership or creating authority.",
+          "steps": [
+            "Normalize the submitted identifiers using the registered identifier type.",
+            "Filter candidate rows to the requested tenant scope before resolution output.",
+            "Apply hard identifier, probable identifier, and ambiguity rules deterministically.",
+            "Return only brand_id, matched identifier types, evidence readiness, reasons, and disclosure policy.",
+            "Require separate authority resolution for any future relationship or mutation operation."
+          ],
+          "assertions": [
+            "A unique fresh verified hard identifier resolves EXACT.",
+            "Name-only matching resolves PROBABLE or AMBIGUOUS and never EXACT.",
+            "Multiple hard matches resolve CONFLICT and do not merge.",
+            "No candidate tenant_id appears in resolver output.",
+            "Relationship validation never creates a grant and always sets authority_implied=false.",
+            "No database connection, migration apply, credential read, provider call, external send, or Production mutation occurs in this slice."
+          ],
+          "tests": [
+            {
+              "id": "platform-resource-identity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-identity-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "growth-audit-evidence-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-growth-audit-evidence-wiring.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
+            "http-generic-api/platformResourceIdentityContract.js",
+            "http-generic-api/brandIdentityResolver.js",
+            "http-generic-api/brandIdentityReconciliation.js",
+            "http-generic-api/platformResourceIdentityAdapters.js",
+            "http-generic-api/platformOperationGovernanceContract.js",
+            "http-generic-api/test-growth-audit-evidence-wiring.mjs",
+            "schemas/platform-resource-identity-contract.schema.json",
+            "schemas/brand-identity-resolution.schema.json",
+            "schemas/canonical-operation-governance.schema.json",
+            "specs/020-platform-resource-identity-brand-governance/spec.md",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "brand-claim-verification-library",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed verification worker with explicit expected revision",
+          "entrypoint": "prepareBrandVerificationChallenge/recordBrandVerificationEvidence/verifyBrandClaim",
+          "terminal_outcome": "Verification evidence is recorded and a claim relationship is updated only with expected-revision control; no authority grant is created.",
+          "steps": [
+            "Create a deterministic challenge reference without including secrets.",
+            "Record evidence using a hash and safe metadata filtering.",
+            "Verify the claim only when current evidence is verified and expected_revision matches.",
+            "Activate only the tenant-to-Brand relationship represented by the claim.",
+            "Return authority_grant_mutated=false and fail closed on stale revisions."
+          ],
+          "assertions": [
+            "Secret-like metadata keys are excluded from persisted metadata.",
+            "A stale expected revision returns a conflict and does not update the claim.",
+            "Relationship verification does not imply or create an authority grant.",
+            "The mocked regression path performs no database connection, migration apply, provider call, credential read, or Production mutation."
+          ],
+          "tests": [
+            {
+              "id": "brand-claim-verification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-claim-verification.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-identity-persistence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-identity-persistence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/brandClaimVerification.js",
+            "http-generic-api/test-brand-claim-verification.mjs",
+            "http-generic-api/test-brand-identity-persistence.mjs",
+            "specs/020-platform-resource-identity-brand-governance/manifest.json",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "brand-claim-service-shadow",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant-scoped signed principal with workspace-owner evidence",
+          "entrypoint": "requestBrandClaim/listBrandClaims/prepareClaimChallenge/submitClaimEvidence/revokeWorkspaceBrandClaim",
+          "terminal_outcome": "The claim lifecycle remains an owner-gated, revision-aware library contract with explicit shadow-only authority boundaries; no route or Production authority is activated.",
+          "steps": [
+            "Require the exact tenant workspace owner/admin membership before reading or mutating a claim.",
+            "Resolve one canonical Brand identity before relationship or claim verification proceeds.",
+            "Create, list, challenge, submit evidence, and revoke claims with deterministic status and expected-revision behavior.",
+            "Return safe evidence and relationship projections without credentials, grants, provider dispatch, or external sends."
+          ],
+          "assertions": [
+            "Zero or multiple membership/claim rows fail closed rather than selecting an arbitrary context.",
+            "Brand claim lifecycle helpers remain library-only and do not register HTTP routes.",
+            "No authority grant, migration apply, database connection, credential read, provider call, or Production mutation occurs in the synthetic tests."
+          ],
+          "tests": [
+            {
+              "id": "brand-claim-request-service",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-claim-request-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/brandClaimService.js",
+            "http-generic-api/test-brand-claim-request-service.mjs",
+            "http-generic-api/context-kernel-hardcoding-scan.config.json",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "workspace-brand-authority-dual-read-shadow",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Canonical resource identity reader with explicit workspace scope",
+          "entrypoint": "workspaceBrandLifecycle/workspaceBrandReadAuthority/workspaceCanonicalBrandReference/workspaceGlobalBrandCreateAdapter",
+          "terminal_outcome": "Workspace Brand identity is created/read through a dual-read, canonical-resource library contract while route wiring and runtime authority remain disabled.",
+          "steps": [
+            "Resolve a canonical Brand reference by stable resource identity and bounded legacy alias fallback.",
+            "Require active Brand status and exact row cardinality before exposing the read model.",
+            "Preserve explicit authority-binding and grant shapes as shadow contracts without executing grants or provider mutations.",
+            "Keep global Brand creation and lifecycle projections separate from HTTP route registration and Production activation."
+          ],
+          "assertions": [
+            "Canonical Brand read authority fails closed on missing, ambiguous, or inactive identity rows.",
+            "Workspace lifecycle and authority helpers do not register routes or become runtime authority in this slice.",
+            "No database connection, migration apply, grant, credential read, provider call, external send, or Production mutation occurs in the synthetic tests."
+          ],
+          "tests": [
+            {
+              "id": "workspace-brand-read-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-read-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-canonical-brand-reference",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-canonical-brand-reference.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-global-brand-create-adapter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-global-brand-create-adapter.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/workspaceBrandLifecycle.js",
+            "http-generic-api/workspaceBrandReadAuthority.js",
+            "http-generic-api/workspaceCanonicalBrandReference.js",
+            "http-generic-api/workspaceGlobalBrandCreateAdapter.js",
+            "http-generic-api/test-workspace-brand-read-authority.mjs",
+            "http-generic-api/test-workspace-canonical-brand-reference.mjs",
+            "http-generic-api/test-workspace-global-brand-create-adapter.mjs",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "operation-governance-shadow",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Canonical operation registry reviewer",
+          "entrypoint": "canonicalBusinessOperationRegistry/platformOperationGovernanceContract",
+          "terminal_outcome": "Brand and platform operation governance decisions remain deterministic registry evidence; no route execution, grant, provider dispatch, or Production mutation is performed.",
+          "steps": [
+            "Resolve the canonical operation registry entry and compare it with the governed operation contract.",
+            "Require explicit shadow-only execution metadata and fail closed on missing or conflicting governance.",
+            "Emit structured operation evidence without executing a route, applying a grant, reading credentials, or invoking a provider."
+          ],
+          "assertions": [
+            "The canonical registry and operation governance contract tests pass.",
+            "Registry evidence does not become runtime route wiring or execution authority in Spec 020.",
+            "No database connection, migration apply, grant, credential read, provider call, external send, or Production mutation occurs in the synthetic tests."
+          ],
+          "tests": [
+            {
+              "id": "platform-operation-governance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-operation-governance-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-business-operation-registry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-canonical-business-operation-registry.mjs",
+              "args": []
+            },
+            {
+              "id": "chatgpt-mcp-readonly-runtime",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-readonly-runtime.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-projection-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-projection-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/canonicalBusinessOperationRegistry.js",
+            "http-generic-api/chatgptMcpRuntime.js",
+            "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
+            "http-generic-api/canonical-business-operation-parity.generated.json",
+            "http-generic-api/platformOperationGovernanceContract.js",
+            "http-generic-api/test-platform-operation-governance-contract.mjs",
+            "http-generic-api/test-canonical-business-operation-registry.mjs",
+            "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+            "http-generic-api/test-openapi-projection-readiness.mjs",
+            "http-generic-api/test-openapi-detail-gap-classification.mjs",
+            "http-generic-api/test-openapi-gap-closure-plan.mjs",
+            "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
+            "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
+            "http-generic-api/package.json",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/openapi-detail-gap-classification.schema.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/repository-inventory-summary.json",
+            "docs/repository-inventory.json",
+            "docs/repository-inventory.md",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/activation-surfaces/exclusions/brand_claims.json",
+            "http-generic-api/activation-surfaces/exclusions/brand_verification_evidence.json",
+            "http-generic-api/activation-surfaces/exclusions/tenant_relationships.json",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        },
+        {
+          "id": "migration-collation-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Migration readiness reviewer",
+          "entrypoint": "mariadb-collation-ci-guard.mjs",
+          "terminal_outcome": "The authored SQL migration satisfies the repository MariaDB collation contract and remains unapplied.",
+          "steps": [
+            "Inspect only changed migration SQL against the current MariaDB policy.",
+            "Require explicit utf8mb4 charset and utf8mb4_uca1400_ai_ci collation for all projected tables and columns.",
+            "Emit a no-apply readiness report with database_connection_performed=false and sql_mutation_performed=false.",
+            "Keep migration apply, backfill, grants, and Production promotion behind separate authority."
+          ],
+          "assertions": [
+            "The migration passes the MariaDB collation guard.",
+            "No database connection or SQL apply occurs.",
+            "No credentials, provider writes, grants, or Production mutations occur.",
+            "The migration contract test passes independently of live database state."
+          ],
+          "tests": [
+            {
+              "id": "global-brand-identity-migration-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-global-brand-identity-migration-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/20260815_platform_resource_global_brand_identity.sql",
+            "http-generic-api/config/database-engine-collation-policy.json",
+            "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+            "specs/020-platform-resource-identity-brand-governance/completion.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

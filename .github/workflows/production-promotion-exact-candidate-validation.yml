@@ -1,79 +1,141 @@
 name: Exact Production Candidate Validation
 
 on:
-  pull_request:
-    branches:
-      - "gpt/validate-production-base"
-      - "gpt/validate-production-base-*"
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: Exact main SHA pinned by the governed promotion launcher
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact candidate SHA to validate and checkout
+        required: true
+        type: string
+      expected_candidate_ref:
+        description: Non-protected candidate branch pinned to the exact candidate SHA
+        required: true
+        type: string
+      expected_validation_base_sha:
+        description: Exact validation-base SHA pinned to main
+        required: true
+        type: string
+      expected_validation_base_ref:
+        description: Non-protected validation-base branch pinned to the exact main SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type VALIDATE_EXACT_PRODUCTION_CANDIDATE
+        required: true
+        type: string
 
 permissions:
   actions: write
   contents: read
 
 concurrency:
-  group: exact-production-candidate-${{ github.event.pull_request.number }}
+  group: exact-production-candidate-${{ inputs.expected_head_sha }}
   cancel-in-progress: true
 
 jobs:
   exact-candidate-ci:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/validate-production-candidate')
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirmation == 'VALIDATE_EXACT_PRODUCTION_CANDIDATE'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ inputs.expected_head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify pinned base and exact candidate tree
+      - name: Verify governed dispatch identity and source-pinned refs
         id: verify
         shell: bash
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          MAIN_SHA: ${{ inputs.expected_main_sha }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          BASE_SHA: ${{ inputs.expected_validation_base_sha }}
+          HEAD_REF: ${{ inputs.expected_candidate_ref }}
+          BASE_REF: ${{ inputs.expected_validation_base_ref }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
 
-          for value in "$HEAD_SHA" "$BASE_SHA"; do
+          require_sha() {
+            local label="$1"
+            local value="$2"
             if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "::error::validation refs must resolve to exact lowercase 40-character SHAs"
+              echo "::error::$label must be an exact lowercase 40-character SHA"
               exit 1
             fi
-          done
-          case "$BASE_REF" in
-            gpt/validate-production-base|gpt/validate-production-base-*) ;;
-            *)
-              echo "::error::unexpected validation base branch: $BASE_REF"
+          }
+
+          require_ref() {
+            local label="$1"
+            local value="$2"
+            if ! git check-ref-format --branch "$value" >/dev/null 2>&1; then
+              echo "::error::$label must be a valid branch name"
               exit 1
-              ;;
-          esac
+            fi
+            case "$value" in
+              main|main/*|Production|Production/*|refs/*)
+                echo "::error::$label must not name a protected branch or full ref"
+                exit 1
+                ;;
+            esac
+          }
+
+          [[ "$CONFIRMATION" == "VALIDATE_EXACT_PRODUCTION_CANDIDATE" ]] || {
+            echo "::error::workflow-dispatch confirmation mismatch"
+            exit 1
+          }
+          require_sha MAIN_SHA "$MAIN_SHA"
+          require_sha EXPECTED_HEAD_SHA "$EXPECTED_HEAD_SHA"
+          require_sha BASE_SHA "$BASE_SHA"
+          require_ref HEAD_REF "$HEAD_REF"
+          require_ref BASE_REF "$BASE_REF"
+          [[ "$HEAD_REF" != "$BASE_REF" ]] || {
+            echo "::error::candidate and validation-base refs must be distinct"
+            exit 1
+          }
+          [[ "$BASE_SHA" == "$MAIN_SHA" ]] || {
+            echo "::error::validation base SHA must equal the source-pinned main SHA"
+            exit 1
+          }
+
+          CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
+          [[ "$CURRENT_HEAD_SHA" == "$EXPECTED_HEAD_SHA" ]] || {
+            echo "::error::expected head mismatch: checkout is not the authorized candidate SHA"
+            exit 1
+          }
 
           git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
             "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
             "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          MAIN_READBACK="$(git rev-parse refs/remotes/origin/main)"
           HEAD_READBACK="$(git rev-parse "refs/remotes/origin/$HEAD_REF")"
           BASE_READBACK="$(git rev-parse "refs/remotes/origin/$BASE_REF")"
-          if [[ "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
-            echo "::error::validation branches moved before exact-CI dispatch"
+          if [[ "$MAIN_READBACK" != "$MAIN_SHA" || "$HEAD_READBACK" != "$EXPECTED_HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
+            echo "::error::source-pinned refs moved before exact-CI dispatch"
             exit 1
           fi
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA"; then
+          if ! git diff --quiet "$BASE_SHA" "$EXPECTED_HEAD_SHA"; then
             echo "::error::candidate tree differs from pinned validation base"
-            git diff --stat "$BASE_SHA" "$HEAD_SHA"
+            git diff --stat "$BASE_SHA" "$EXPECTED_HEAD_SHA"
             exit 1
           fi
 
-          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
-          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          {
+            echo "main_sha=$MAIN_SHA"
+            echo "head_sha=$EXPECTED_HEAD_SHA"
+            echo "base_sha=$BASE_SHA"
+            echo "head_ref=$HEAD_REF"
+            echo "base_ref=$BASE_REF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Dispatch Full CI on exact candidate branch
         id: dispatch
@@ -83,7 +145,7 @@ jobs:
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
           HEAD_REF: ${{ steps.verify.outputs.head_ref }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh workflow run ci.yml --ref "$HEAD_REF"
 
@@ -115,7 +177,6 @@ jobs:
             STATUS_FILE="$RUNNER_TEMP/exact-ci-status.json"
             ERROR_FILE="$RUNNER_TEMP/exact-ci-status.err"
             : > "$ERROR_FILE"
-
             if gh run view "$RUN_ID" \
               --json databaseId,event,headSha,status,conclusion \
               > "$STATUS_FILE" 2> "$ERROR_FILE"; then
@@ -131,13 +192,11 @@ jobs:
               sleep "$POLL_INTERVAL_SECONDS"
               continue
             fi
-
             if grep -Eqi 'rate limit exceeded|HTTP 403' "$ERROR_FILE"; then
               echo "::warning::GitHub API rate limit reached while polling exact CI; backing off for ${RATE_LIMIT_BACKOFF_SECONDS}s"
               sleep "$RATE_LIMIT_BACKOFF_SECONDS"
               continue
             fi
-
             cat "$ERROR_FILE" >&2
             echo "::error::unable to poll exact-candidate CI"
             exit 1
@@ -148,18 +207,18 @@ jobs:
             exit 1
           fi
 
-      - name: Verify exact CI result and branch freshness
+      - name: Verify exact CI result and source-pin freshness
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          MAIN_SHA: ${{ steps.verify.outputs.main_sha }}
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
           BASE_SHA: ${{ steps.verify.outputs.base_sha }}
           HEAD_REF: ${{ steps.verify.outputs.head_ref }}
           BASE_REF: ${{ steps.verify.outputs.base_ref }}
         run: |
-          set -euo pipefail
-
+          set -Eeuo pipefail
           VIEW_ERROR="$RUNNER_TEMP/exact-ci-view.err"
           VIEW_OK=0
           for attempt in $(seq 1 10); do
@@ -204,29 +263,32 @@ jobs:
           if (required.size) throw new Error(`missing successful jobs: ${[...required].join(", ")}`);
           NODE
 
+          MAIN_READBACK="$(git ls-remote --heads origin refs/heads/main | awk '{print $1}')"
           HEAD_READBACK="$(git ls-remote --heads origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
           BASE_READBACK="$(git ls-remote --heads origin "refs/heads/$BASE_REF" | awk '{print $1}')"
-          if [[ "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
-            echo "::error::validation branches moved during exact-CI execution"
+          if [[ "$MAIN_READBACK" != "$MAIN_SHA" || "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
+            echo "::error::source-pinned refs moved during exact-CI execution"
             exit 1
           fi
 
           jq -n \
+            --arg main_sha "$MAIN_SHA" \
             --arg head_sha "$HEAD_SHA" \
             --arg base_sha "$BASE_SHA" \
             --arg head_ref "$HEAD_REF" \
             --arg base_ref "$BASE_REF" \
             --arg run_id "$RUN_ID" \
             '{
-              schema_version: "production_promotion_exact_candidate_ci.v1",
+              schema_version: "production_promotion_exact_candidate_ci.v2",
               ok: true,
+              source_event: "workflow_dispatch",
               candidate_sha: $head_sha,
               validation_base_sha: $base_sha,
               candidate_branch: $head_ref,
               validation_base_branch: $base_ref,
               ci_run_id: $run_id,
               candidate_tree_matches_base: true,
-              branch_freshness_preserved: true,
+              source_pin_freshness_preserved: true,
               merge_executed: false,
               deployment_executed: false,
               migration_executed: false,

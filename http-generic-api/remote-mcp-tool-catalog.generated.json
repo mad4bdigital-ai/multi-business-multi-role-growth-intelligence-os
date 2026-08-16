@@ -1,0 +1,9 @@
+{
+  "revision": "remote-mcp-scope-catalog-v1",
+  "tools": [
+    {"name":"list_accessible_workspaces","resource_key":"workspaces","operation_key":"list","scope_keys":["workspaces.read"],"effect_class":"read_only","environment_class":"all","status":"active","secrets_included":false},
+    {"name":"list_accessible_brands","resource_key":"brands","operation_key":"list","scope_keys":["brands.read"],"effect_class":"read_only","environment_class":"all","status":"active","secrets_included":false}
+  ],
+  "excluded_tools": [],
+  "provenance": {"source":"remote-mcp-scope-catalog.generated.json","binding_required":true,"secrets_included":false}
+}

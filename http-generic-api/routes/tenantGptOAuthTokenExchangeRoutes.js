@@ -10,6 +10,7 @@ import {
   resolveTenantGptOAuthResourceProfile,
   tenantGptRequestHostFromHeaders,
 } from "../tenantGptOAuthResourceProfile.js";
+import { verifyTenantGptPkce } from "../tenantGptOAuthPkce.js";
 import { validateTenantGptOAuthClientCredentials } from "../tenantGptOAuthClientConfig.js";
 import { consumeTenantGptOAuthAuthorizationCode } from "../tenantGptOAuthAuthorizationCodeStore.js";
 import {
@@ -17,6 +18,14 @@ import {
   classifyTenantGptOAuthTokenExchangeOutcome,
 } from "../tenantGptOAuthTokenExchangeOutcomePolicy.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
+import {
+  createTenantGptOAuthGrant,
+  readTenantGptOAuthGrantByRefreshToken,
+  rotateTenantGptOAuthGrant,
+  tenantGptRefreshTokensEnabled,
+  tenantGptRefreshReady,
+  TENANT_GPT_REFRESH_TOKEN_TTL_SECONDS,
+} from "../tenantGptOAuthGrantStore.js";
 
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
@@ -148,15 +157,19 @@ async function resolveActiveTokenSubject(pool, { user_id, tenant_id = null } = {
          FROM \`memberships\` m
          JOIN \`tenants\` t ON t.tenant_id = m.tenant_id AND t.status = 'active'
         WHERE m.user_id = ? AND m.tenant_id = ? AND m.status = 'active'
-        LIMIT 1`
+        ORDER BY m.id ASC
+        LIMIT 2`
     : `SELECT m.tenant_id
          FROM \`memberships\` m
          JOIN \`tenants\` t ON t.tenant_id = m.tenant_id AND t.status = 'active'
         WHERE m.user_id = ? AND m.status = 'active'
-        ORDER BY m.granted_at ASC
-        LIMIT 1`;
+        ORDER BY m.granted_at ASC, m.id ASC
+        LIMIT 2`;
   const membershipParams = requestedTenantId ? [userId, requestedTenantId] : [userId];
   const [membershipRows] = await pool.query(membershipSql, membershipParams);
+  if (membershipRows.length > 1) {
+    return { ok: false, outcome: "membership_ambiguous" };
+  }
   const membership = membershipRows?.[0] || null;
   if (!membership?.tenant_id) {
     return { ok: false, outcome: "membership_inactive" };
@@ -266,6 +279,10 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
   const accessTokenTtlSeconds = deps.accessTokenTtlSeconds === undefined
     ? resolveTenantGptAccessTokenTtlSeconds(deps.env || process.env)
     : validateTenantGptAccessTokenTtlSeconds(deps.accessTokenTtlSeconds);
+  const refreshReady = deps.tenantGptRefreshReady || tenantGptRefreshReady;
+  const refreshTokensEnabled = typeof deps.tenantGptRefreshTokensEnabled === "function"
+    ? deps.tenantGptRefreshTokensEnabled(deps.env || process.env)
+    : tenantGptRefreshTokensEnabled(deps.env || process.env);
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     const startedAtMs = now();
@@ -341,28 +358,20 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       const redirectUri = req.body?.redirect_uri;
       const credentials = oauthClientCredentials(req);
 
-      if (grantType !== "authorization_code") {
+      if (!['authorization_code', 'refresh_token'].includes(grantType)) {
         log({ status: "failed", classification: "unsupported_grant_type", failure_reason: "unsupported_grant_type", http_status: 400 });
         return res.status(400).json(directOAuthError({
           error: "unsupported_grant_type",
-          description: "Only authorization_code is supported.",
+          description: "Only authorization_code and refresh_token are supported.",
           code: "oauth_unsupported_grant_type",
           requestId,
         }));
       }
-      if (!code) {
-        log({ status: "failed", classification: "missing_code", failure_reason: "missing_code", http_status: 400 });
-        return res.status(400).json(directOAuthError({
-          error: "invalid_request",
-          description: "code is required.",
-          code: "oauth_code_required",
-          requestId,
-        }));
-      }
-
       const pool = resolvePool();
+      const refreshReadiness = await refreshReady(deps.env || process.env, pool);
       tokenQuery = (sql, params) => pool.query(sql, params);
-      const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery });
+      const requestHost = String(req.headers?.["x-forwarded-host"] || req.headers?.host || "").split(",")[0].trim().toLowerCase();
+      const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery, requestHost });
       tokenLogContext.client_validation_source = clientValidation.source || null;
       if (!clientValidation.ok) {
         log({
@@ -398,7 +407,95 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         }));
       }
 
+      if (grantType === "refresh_token") {
+        if (!refreshTokensEnabled || !refreshReadiness.ready) {
+          return res.status(400).json(directOAuthError({
+            error: "unsupported_grant_type",
+            description: "refresh_token is not enabled for this Tenant GPT deployment.",
+            code: "oauth_refresh_tokens_disabled",
+            requestId,
+          }));
+        }
+        const refreshToken = String(req.body?.refresh_token || "");
+        if (!refreshToken) {
+          return res.status(400).json(directOAuthError({
+            error: "invalid_request",
+            description: "refresh_token is required.",
+            code: "oauth_refresh_token_required",
+            requestId,
+          }));
+        }
+        const current = await readTenantGptOAuthGrantByRefreshToken(refreshToken, { pool });
+        if (!current || current.client_id !== clientValidation.client_id || current.resource !== resourceProfile.resource) {
+          return res.status(400).json(directOAuthError({
+            error: "invalid_grant",
+            description: "Refresh token is invalid, expired, revoked, or bound to another resource.",
+            code: "oauth_refresh_token_binding_invalid",
+            requestId,
+          }));
+        }
+        const subject = await resolveSubject(pool, { user_id: current.user_id, tenant_id: current.tenant_id });
+        if (!subject.ok) {
+          return res.status(400).json(directOAuthError({
+            error: "invalid_grant",
+            description: "The refresh subject is no longer active.",
+            code: "oauth_refresh_subject_inactive",
+            requestId,
+          }));
+        }
+        const accessJti = createId();
+        const accessExpiresAt = new Date(now() + accessTokenTtlSeconds * 1000);
+        const rotated = await rotateTenantGptOAuthGrant({ pool, refreshToken, accessJti, accessExpiresAt });
+        if (!rotated) {
+          return res.status(400).json(directOAuthError({
+            error: "invalid_grant",
+            description: "Refresh token was already rotated or revoked.",
+            code: "oauth_refresh_token_replay",
+            requestId,
+          }));
+        }
+        const accessToken = issueAccessToken(
+          { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
+          {
+            clientId: clientValidation.client_id,
+            jwtid: accessJti,
+            resource: resourceProfile.resource,
+            expiresIn: accessTokenTtlSeconds,
+            scope: current.scopes,
+          },
+        );
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Pragma", "no-cache");
+        return res.status(200).json({
+          access_token: accessToken,
+          token_type: "bearer",
+          expires_in: accessTokenTtlSeconds,
+          refresh_token: rotated.next.refresh_token,
+          refresh_token_expires_in: Math.max(0, Math.round((new Date(rotated.next.refresh_expires_at).getTime() - now()) / 1000)),
+          scope: current.scopes.join(" "),
+        });
+      }
+
+      if (grantType === "authorization_code" && !code) {
+        log({ status: "failed", classification: "missing_code", failure_reason: "missing_code", http_status: 400 });
+        return res.status(400).json(directOAuthError({
+          error: "invalid_request",
+          description: "code is required.",
+          code: "oauth_code_required",
+          requestId,
+        }));
+      }
+
       const codePayload = verifyCode(code);
+      try {
+        verifyTenantGptPkce({
+          codeChallenge: codePayload?.code_challenge,
+          codeChallengeMethod: codePayload?.code_challenge_method,
+          codeVerifier: req.body?.code_verifier,
+        });
+      } catch (error) {
+        return invalidGrant(error.code || "pkce_verification_failed");
+      }
       tokenLogContext.code = {
         ...tokenLogContext.code,
         jti_present: Boolean(codePayload?.jti),
@@ -451,6 +548,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           jwtid: accessJti,
           resource: resourceProfile.resource,
           expiresIn: accessTokenTtlSeconds,
+          scope: codePayload.scope,
         },
       );
       tokenLogContext.access_token_prepared = true;
@@ -510,6 +608,30 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         expires_in: accessTokenTtlSeconds,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
+      if (refreshTokensEnabled && refreshReadiness.ready) {
+        try {
+          const refreshGrant = await createTenantGptOAuthGrant({
+            pool,
+            accessJti,
+            clientId: clientValidation.client_id,
+            userId: subject.user.user_id,
+            tenantId: subject.tenant_id,
+            resource: resourceProfile.resource,
+            scopes: String(codePayload.scope || "").split(/\s+/u).filter(Boolean),
+            accessExpiresAt,
+          });
+          tokenResponse.refresh_token = refreshGrant.refresh_token;
+          tokenResponse.refresh_token_expires_in = TENANT_GPT_REFRESH_TOKEN_TTL_SECONDS;
+        } catch (error) {
+          log({
+            status: "success",
+            classification: "refresh_grant_unavailable",
+            failure_reason: String(error?.code || "tenant_gpt_refresh_grant_store_unavailable").slice(0, 64),
+            http_status: 200,
+            refresh_grant: { enabled: true, issued: false, secrets_included: false },
+          });
+        }
+      }
 
       res.once("finish", () => {
         recordTerminal({

@@ -1,0 +1,120 @@
+services:
+  redis:
+    # Base compose publishes Redis; Staging must never expose it to the host LAN.
+    ports: []
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/redis:/data
+
+  runtime-db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:?set DB_NAME in .env.staging}
+      MARIADB_USER: ${DB_USER:?set DB_USER in .env.staging}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.staging}
+      MARIADB_ROOT_PASSWORD: ${RUNTIME_DB_ROOT_PASSWORD:?set RUNTIME_DB_ROOT_PASSWORD in .env.staging}
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/runtime-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MARIADB_USER} -p$${MARIADB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  governance-db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${GOVERNANCE_DB_NAME:?set GOVERNANCE_DB_NAME in .env.staging}
+      MARIADB_USER: ${GOVERNANCE_DB_USER:?set GOVERNANCE_DB_USER in .env.staging}
+      MARIADB_PASSWORD: ${GOVERNANCE_DB_PASSWORD:?set GOVERNANCE_DB_PASSWORD in .env.staging}
+      MARIADB_ROOT_PASSWORD: ${GOVERNANCE_DB_ROOT_PASSWORD:?set GOVERNANCE_DB_ROOT_PASSWORD in .env.staging}
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/governance-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MARIADB_USER} -p$${MARIADB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  persistence-db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${RUNTIME_PERSISTENCE_DB_NAME:?set RUNTIME_PERSISTENCE_DB_NAME in .env.staging}
+      MARIADB_USER: ${RUNTIME_PERSISTENCE_DB_USER:?set RUNTIME_PERSISTENCE_DB_USER in .env.staging}
+      MARIADB_PASSWORD: ${RUNTIME_PERSISTENCE_DB_PASSWORD:?set RUNTIME_PERSISTENCE_DB_PASSWORD in .env.staging}
+      MARIADB_ROOT_PASSWORD: ${RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD:?set RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD in .env.staging}
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/persistence-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MARIADB_USER} -p$${MARIADB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: ..
+      dockerfile: http-generic-api/Dockerfile.staging
+    # Staging ingress is internal-only; cloudflared reaches http://app:8080.
+    # An optional operator override may publish a localhost port when needed.
+    ports: []
+    env_file:
+      - .env.staging
+    volumes:
+      - ${STAGING_DATA_ROOT:-./.staging-data}/app:/app/data
+    environment:
+      NODE_ENV: staging
+      DB_HOST: runtime-db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:?set DB_NAME in .env.staging}
+      DB_USER: ${DB_USER:?set DB_USER in .env.staging}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.staging}
+      GOVERNANCE_DB_HOST: governance-db
+      GOVERNANCE_DB_PORT: 3306
+      GOVERNANCE_DB_NAME: ${GOVERNANCE_DB_NAME:?set GOVERNANCE_DB_NAME in .env.staging}
+      GOVERNANCE_DB_USER: ${GOVERNANCE_DB_USER:?set GOVERNANCE_DB_USER in .env.staging}
+      GOVERNANCE_DB_PASSWORD: ${GOVERNANCE_DB_PASSWORD:?set GOVERNANCE_DB_PASSWORD in .env.staging}
+      RUNTIME_PERSISTENCE_DB_HOST: persistence-db
+      RUNTIME_PERSISTENCE_DB_PORT: 3306
+      RUNTIME_PERSISTENCE_DB_NAME: ${RUNTIME_PERSISTENCE_DB_NAME:?set RUNTIME_PERSISTENCE_DB_NAME in .env.staging}
+      RUNTIME_PERSISTENCE_DB_USER: ${RUNTIME_PERSISTENCE_DB_USER:?set RUNTIME_PERSISTENCE_DB_USER in .env.staging}
+      RUNTIME_PERSISTENCE_DB_PASSWORD: ${RUNTIME_PERSISTENCE_DB_PASSWORD:?set RUNTIME_PERSISTENCE_DB_PASSWORD in .env.staging}
+      REDIS_URL: redis://redis:6379
+      QUEUE_WORKER_ENABLED: "FALSE"
+      MIGRATION_APPLIED: "false"
+      DATABASE_MUTATED: "false"
+      PRODUCTION_MUTATION_AUTHORIZED: "false"
+      RULESET_MUTATION_AUTHORIZED: "false"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(async r => { const body = await r.json(); process.exit(r.ok && body.status === 'healthy' ? 0 : 1); }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      runtime-db:
+        condition: service_healthy
+      governance-db:
+        condition: service_healthy
+      persistence-db:
+        condition: service_healthy
+
+  # Optional local-only ingress. Start explicitly with --profile tunnel.
+  # The Cloudflare dashboard ingress must target http://app:8080.
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1-amd64@sha256:f751174c3d8ae54b12575af320a4aa01bb3b6e61ab82aa1e4f8ecac8a079ce61
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-}"]
+    environment:
+      TUNNEL_ENVIRONMENT: ${CLOUDFLARE_TUNNEL_ENVIRONMENT:-staging}
+      TUNNEL_HOSTNAMES: ${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com}
+      TUNNEL_ORIGIN_APP: ${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}
+      TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
+      TUNNEL_LOGLEVEL: ${CLOUDFLARE_TUNNEL_LOGLEVEL:-info}
+      TUNNEL_GRACE_PERIOD: ${CLOUDFLARE_TUNNEL_GRACE_PERIOD:-30s}
+    depends_on:
+      app:
+        condition: service_healthy

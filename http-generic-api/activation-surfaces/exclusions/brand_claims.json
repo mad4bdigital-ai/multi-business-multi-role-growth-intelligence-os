@@ -1,0 +1,7 @@
+{
+  "surface_key": "brand_claims",
+  "source_table": "brand_claims",
+  "reason": "Excluded because Spec 020 only authors this identity-governance table for a separately authorized future migration; it is not applied, mounted, or exposed as a user-visible activation surface in this shadow/library-only bundle.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "domain-family-environment-separation",
+  "title": "Production and Dev Hostname Family Separation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/domain-family-environment-separation.json",
+      "STAGING-WINDOWS.md",
+      "docs/development-environment-governance.md",
+      "docs/hostinger-node-deploy.md",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/test-domain-family-policy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define explicit Production and Dev hostname families for auth, MCP, and Activation, bind each family to its own deployment authority and credential namespace, and fail closed on unmatched or cross-environment routing.",
+      "e2e_journeys": [
+        {
+          "id": "hostname-family-to-origin-isolation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Environment separation verifier",
+          "entrypoint": "http-generic-api/config/domain-family-policy.json",
+          "terminal_outcome": "The policy and local staging templates prove that Production hostnames route only to the Hostinger Production boundary, Dev hostnames route only to the opt-in local Tunnel origin, credentials are namespace-separated, and unmatched hostnames return a fail-closed 404 without DNS or provider mutation.",
+          "steps": [
+            "Load the machine-readable domain family policy and validate the six explicit application hostnames.",
+            "Verify Production auth, MCP, and Activation entries use Hostinger Production and staging entries use the local app origin.",
+            "Verify the Production tunnel is disabled, the staging tunnel is opt-in, and the connector recovery hostname is excluded from both families.",
+            "Parse staging env and Compose without starting containers and reject Production hostnames or credentials in the staging template.",
+            "Run the bounded domain-family regression and emit only secret-free pass/fail evidence."
+          ],
+          "assertions": [
+            "Production is exactly auth.mad4b.com, mcp.mad4b.com, and activation.mad4b.com; staging is exactly dev.mad4b.com, mcp_dev.mad4b.com, and activation-dev.mad4b.com.",
+            "No hostname belongs to both families and connector.mad4b.com remains independent.",
+            "Production and staging have distinct origin kinds, deployment providers, credential namespaces, and tunnel authority.",
+            "The local staging tunnel remains behind the explicit tunnel profile and targets only http://app:8080.",
+            "Unmatched hostnames fail closed with HTTP 404, and Auto Pilot performs no DNS, tunnel, Hostinger, database, migration, or provider mutation.",
+            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false remain explicit local defaults.",
+            "Staging uses host-only Tenant GPT SSO cookies and never shares a .mad4b.com cookie with Production.",
+            "The current Activation Gateway bundle is Production-only for activation.mad4b.com to https://auth.mad4b.com; activation-dev.mad4b.com remains reserved-disabled until a dedicated staging bundle exists.",
+            "The Dev MCP hostname remains reserved-disabled until the explicit staging MCP runtime flag is enabled under separate credentials.",
+            "The staging hostname list in env is declaration-only; Cloudflare remote ingress is the source of truth, and any mismatch denies exposure without origin fallback."
+          ],
+          "tests": [
+            {
+              "id": "domain-family-policy-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-domain-family-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/domain-family-environment-separation.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/.env.staging.example",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/test-domain-family-policy.mjs",
+            "docs/development-environment-governance.md",
+            "docs/hostinger-node-deploy.md",
+            "STAGING-WINDOWS.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Validate all six DNS records and live ingress mappings after authorized Cloudflare provisioning without allowing the local Auto Pilot to mutate provider state.",
+      "blockers": [
+        "Cloudflare DNS records and tunnel ingress are provider-side resources and are not provisioned by this source change.",
+        "Live validation requires the operator's Windows host, a running local Compose stack, and a dedicated Dev tunnel token."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add independent tunnel failover and certificate/health readback evidence for each hostname family without sharing Production and Dev credentials."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No DNS, Cloudflare, Hostinger, or external provider canary is executed by this source change."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Promote hostname-family routing to Production only through the protected Production branch and separately governed Hostinger/Cloudflare operations.",
+      "blockers": [
+        "No Production DNS record, tunnel, certificate, or Hostinger setting is changed by this source change.",
+        "Production runtime verification must prove all three Production hostnames resolve to the intended Hostinger boundary before activation."
+      ]
+    }
+  ]
+}

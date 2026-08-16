@@ -1,0 +1,169 @@
+{
+  "$schema": "./contracts/openapi-projection-readiness.schema.json",
+  "schema_version": "spec020-openapi-projection-readiness-v1",
+  "feature_key": "020-platform-resource-identity-brand-governance",
+  "status": "readiness_only",
+  "review_state": "requires_separate_surface_activation_decision",
+  "source_authority": {
+    "canonical_registry": "http-generic-api/canonicalBusinessOperationRegistry.js",
+    "canonical_openapi": "http-generic-api/openapi.yaml",
+    "runtime_dispatch_plan": "http-generic-api/frontend-surface-dispatch.generated.json",
+    "surface_policy": "http-generic-api/frontend-surface-policy.json",
+    "custom_gpt_surface_policy": "canonicals/openapi/custom-gpt-surfaces.yaml",
+    "presence_allowlist": "http-generic-api/openapi-route-coverage.allowlist.json"
+  },
+  "scope_boundary": {
+    "route_wiring_allowed": false,
+    "runtime_authority_allowed": false,
+    "rest_projection_allowed": false,
+    "custom_gpt_projection_allowed": false,
+    "remote_mcp_projection_allowed": false,
+    "frontend_projection_allowed": false,
+    "migration_apply_allowed": false,
+    "database_mutation_allowed": false,
+    "provider_call_allowed": false,
+    "credential_read_allowed": false,
+    "production_activation_allowed": false
+  },
+  "repository_openapi_baseline": {
+    "operation_count": 1041,
+    "openapi_documented_count": 1025,
+    "openapi_canonical_documented_count": 710,
+    "openapi_generated_index_count": 315,
+    "openapi_exemption_count": 16,
+    "openapi_gap_count": 0,
+    "openapi_detail_gap_count": 315,
+    "auth_contract_gap_count": 0,
+    "unresolved_operation_class_count": 0,
+    "unresolved_surface_decision_count": 0,
+    "untested_operation_count": 0,
+    "blocked_task_count": 0,
+    "coverage_complete": true,
+    "captured_from": "http-generic-api/frontend-surface-dispatch.generated.json"
+  },
+  "operations": [
+    {
+      "operation_key": "brand.identity.resolve",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "projection_decision": "not_projected_pending_readonly_surface_contract",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["canonical_request_response_schema", "security_parity", "tenant_privacy_evidence", "route_test", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "brand.identity.reconcile",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "projection_decision": "not_projected_pending_diagnostics_contract",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["diagnostics_response_schema", "select_only_evidence", "ambiguity_disclosure_contract", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "brand.claim.list",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "projection_decision": "not_projected_pending_claim_read_contract",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["claim_read_schema", "tenant_filter_evidence", "privacy_safe_disclosure", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "brand.claim.request",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "projection_decision": "blocked_until_authority_persistence_and_readback",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["approval_contract", "idempotency_contract", "expected_revision", "same_cycle_readback", "repository_port", "migration_authorization"]
+    },
+    {
+      "operation_key": "brand.claim.challenge.prepare",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "projection_decision": "not_projected_pending_claim_challenge_contract",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["challenge_response_schema", "privacy_safe_disclosure", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "brand.claim.evidence.submit",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "projection_decision": "blocked_until_evidence_repository_and_readback",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["evidence_repository_port", "credential_material_boundary", "approval_contract", "idempotency_contract", "migration_authorization"]
+    },
+    {
+      "operation_key": "brand.claim.verify",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "projection_decision": "blocked_until_verification_authority_and_readback",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["verification_evidence_contract", "expected_revision", "same_cycle_readback", "authority_separation", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "brand.claim.revoke",
+      "status": "shadow",
+      "effect_class": "internal_write",
+      "projection_decision": "blocked_until_explicit_revoke_authority",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["explicit_approval", "expected_revision", "readback_contract", "audit_evidence", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "asset.identity.resolve",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "projection_decision": "not_projected_pending_asset_identity_contract",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["asset_identity_schema", "rights_separation_evidence", "tenant_privacy_evidence", "surface_owner_approval"]
+    },
+    {
+      "operation_key": "provider_account.identity.resolve",
+      "status": "shadow",
+      "effect_class": "read_only",
+      "projection_decision": "not_projected_pending_provider_identity_contract",
+      "existing_surface": "library_only",
+      "candidate_openapi_operation_id": null,
+      "required_before_projection": ["provider_identity_schema", "credential_binding_separation", "credential_material_exclusion", "surface_owner_approval"]
+    }
+  ],
+  "existing_surface_parity": [
+    {
+      "surface": "mcp_readonly_brand_list",
+      "operation_id": "list_accessible_brands",
+      "state": "canonical_brand_id_with_legacy_compatibility",
+      "evidence": ["http-generic-api/chatgptMcpRuntime.js", "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs"]
+    },
+    {
+      "surface": "rest_workspace_brand_list",
+      "operation_id": "listCurrentWorkspaceBrands",
+      "state": "legacy_target_key_compatible_response_requires_parity_review",
+      "evidence": ["http-generic-api/routes/workspaceResourceRoutes.js", "http-generic-api/openapi.yaml"],
+      "route_change_in_this_readiness_slice": false
+    }
+  ],
+  "readiness_gates": {
+    "presence_gaps_must_be_zero": true,
+    "auth_contract_gaps_must_be_zero": true,
+    "detail_gaps_must_not_be_mislabeled_as_canonical": true,
+    "allowlist_is_presence_only": true,
+    "surface_policy_default_requires_review": true,
+    "shadow_operations_must_not_become_active": true
+  },
+  "safety": {
+    "database_connection_performed": false,
+    "database_write_performed": false,
+    "migration_applied": false,
+    "provider_call_performed": false,
+    "credential_read_performed": false,
+    "route_wiring_performed": false,
+    "production_activation_performed": false,
+    "secrets_included": false
+  }
+}

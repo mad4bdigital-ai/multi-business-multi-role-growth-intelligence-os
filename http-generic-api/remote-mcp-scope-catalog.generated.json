@@ -1,0 +1,55 @@
+{
+  "revision": "remote-mcp-scope-catalog-v1",
+  "source_revision": "acbfb1351fdf2fb4932d85fc1a034917d06c574c",
+  "scopes": [
+    {"scope_key":"identity.read","display_name":"Read identity","description":"Read the active linked identity.","effect_class":"read_only","risk_class":"low","default_request":true,"incremental_request":false,"status":"active"},
+    {"scope_key":"workspaces.read","display_name":"Read workspaces","description":"Read active workspaces available to the linked identity.","effect_class":"read_only","risk_class":"low","default_request":true,"incremental_request":false,"status":"active"},
+    {"scope_key":"brands.read","display_name":"Read brands","description":"Read brands authorized inside an active workspace.","effect_class":"read_only","risk_class":"low","default_request":true,"incremental_request":false,"status":"active"},
+    {"scope_key":"permissions.read","display_name":"Read permissions","description":"Read effective permission projections.","effect_class":"read_only","risk_class":"low","default_request":true,"incremental_request":false,"status":"active"},
+    {"scope_key":"assets.read","display_name":"Read assets","description":"Read authorized workspace assets.","effect_class":"read_only","risk_class":"low","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"sessions.read","display_name":"Read sessions","description":"Read bounded session projections.","effect_class":"read_only","risk_class":"low","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"executions.read","display_name":"Read executions","description":"Read authorized execution evidence.","effect_class":"read_only","risk_class":"medium","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"approvals.read","display_name":"Read approvals","description":"Read approval holds.","effect_class":"read_only","risk_class":"low","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"approvals.request","display_name":"Request approvals","description":"Request an approval hold without deciding it.","effect_class":"internal_write","risk_class":"medium","default_request":false,"incremental_request":true,"status":"shadow"},
+    {"scope_key":"assets.create","display_name":"Create assets","description":"Create an authorized workspace asset after approval and readback.","effect_class":"internal_write","risk_class":"high","default_request":false,"incremental_request":true,"status":"shadow"},
+    {"scope_key":"assets.update","display_name":"Update assets","description":"Update an authorized workspace asset after approval and readback.","effect_class":"internal_write","risk_class":"high","default_request":false,"incremental_request":true,"status":"shadow"},
+    {"scope_key":"github.write","display_name":"Write GitHub","description":"Perform a governed GitHub mutation in staging only after approval and readback.","effect_class":"external_write","risk_class":"high","default_request":false,"incremental_request":true,"status":"shadow"},
+    {"scope_key":"cloudflare.write","display_name":"Write Cloudflare","description":"Perform a governed Cloudflare mutation in staging only after approval and readback.","effect_class":"external_write","risk_class":"high","default_request":false,"incremental_request":true,"status":"shadow"},
+    {"scope_key":"hostinger.deploy","display_name":"Deploy Hostinger","description":"Perform a governed Hostinger staging deployment after approval and readback.","effect_class":"external_write","risk_class":"critical","default_request":false,"incremental_request":true,"status":"shadow"},
+    {"scope_key":"connections.read","display_name":"Read connections","description":"Read connection metadata without secrets.","effect_class":"read_only","risk_class":"medium","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"github.read","display_name":"Read GitHub","description":"Read governed GitHub metadata.","effect_class":"read_only","risk_class":"medium","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"cloudflare.read","display_name":"Read Cloudflare","description":"Read governed Cloudflare metadata.","effect_class":"read_only","risk_class":"medium","default_request":false,"incremental_request":true,"status":"active"},
+    {"scope_key":"hostinger.read","display_name":"Read Hostinger","description":"Read governed Hostinger metadata.","effect_class":"read_only","risk_class":"medium","default_request":false,"incremental_request":true,"status":"active"}
+  ],
+  "implications": [
+    {"scope_key":"assets.read","implies_scope_key":"permissions.read"},
+    {"scope_key":"approvals.request","implies_scope_key":"approvals.read"}
+  ],
+  "exported_tool_keys": ["list_accessible_workspaces","list_accessible_brands"],
+  "eligible_operation_keys": ["workspaces:list","brands:list"],
+  "resource_operation_bindings": [
+    {"resource_key":"workspaces","operation_key":"list","scope_key":"workspaces.read","effect_class":"read_only","environment_class":"all","status":"active"},
+    {"resource_key":"brands","operation_key":"list","scope_key":"brands.read","effect_class":"read_only","environment_class":"all","status":"active"}
+  ],
+  "shadow_resource_operation_bindings": [
+    {"resource_key":"approvals","operation_key":"request","scope_key":"approvals.request","effect_class":"internal_write","environment_class":"staging","status":"shadow","approval_required":true},
+    {"resource_key":"assets","operation_key":"create","scope_key":"assets.create","effect_class":"internal_write","environment_class":"staging","status":"shadow","approval_required":true},
+    {"resource_key":"assets","operation_key":"update","scope_key":"assets.update","effect_class":"internal_write","environment_class":"staging","status":"shadow","approval_required":true},
+    {"resource_key":"github","operation_key":"write","scope_key":"github.write","effect_class":"external_write","environment_class":"staging","status":"shadow","approval_required":true},
+    {"resource_key":"cloudflare","operation_key":"write","scope_key":"cloudflare.write","effect_class":"external_write","environment_class":"staging","status":"shadow","approval_required":true},
+    {"resource_key":"hostinger","operation_key":"deploy","scope_key":"hostinger.deploy","effect_class":"external_write","environment_class":"staging","status":"shadow","approval_required":true}
+  ],
+  "shadow_route_bindings": [
+    {"scope_key":"approvals.request","methods":["POST","PUT","PATCH"],"path_pattern":"approval|grant-request","status":"shadow"},
+    {"scope_key":"assets.create","methods":["POST"],"path_pattern":"asset","status":"shadow"},
+    {"scope_key":"assets.update","methods":["PUT","PATCH","DELETE"],"path_pattern":"asset","status":"shadow"},
+    {"scope_key":"github.write","methods":["POST","PUT","PATCH","DELETE"],"path_pattern":"github","status":"shadow"},
+    {"scope_key":"cloudflare.write","methods":["POST","PUT","PATCH","DELETE"],"path_pattern":"cloudflare|(?:^|/)dns(?:/|$)","status":"shadow"},
+    {"scope_key":"hostinger.deploy","methods":["POST","PUT","PATCH","DELETE"],"path_pattern":"hostinger|deploy","status":"shadow"}
+  ],
+  "tool_bindings": [
+    {"tool_key":"list_accessible_workspaces","scope_keys":["workspaces.read"],"required":true,"resource_key":"workspaces","operation_key":"list","effect_class":"read_only","environment_class":"all","status":"active","source":"remote-mcp-scope-catalog-v1"},
+    {"tool_key":"list_accessible_brands","scope_keys":["brands.read"],"required":true,"resource_key":"brands","operation_key":"list","effect_class":"read_only","environment_class":"all","status":"active","source":"remote-mcp-scope-catalog-v1"}
+  ],
+  "provenance": {"generated_by":"remote-mcp-scope-catalog-v1","secrets_included":false}
+}

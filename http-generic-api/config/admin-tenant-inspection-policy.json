@@ -1,0 +1,103 @@
+{
+  "schema_version": "mad4b.admin-tenant-inspection-policy.v1",
+  "mode": "read_only_shadow",
+  "fail_closed": true,
+  "runtime_binding": {
+    "status": "not_bound",
+    "adapter_required": true,
+    "deny_until_bound": true,
+    "required_evidence": ["authority_resolution", "tenant_membership", "route_allowlist", "readback", "audit_record"]
+  },
+  "admin_context_may_borrow_tenant_authority": false,
+  "required_request_fields": [
+    "tenant_id",
+    "inspection_scope",
+    "reason",
+    "owner",
+    "expires_at",
+    "correlation_id"
+  ],
+  "allowed_scopes": [
+    "tenant_routes",
+    "tenant_tools",
+    "tenant_catalogs",
+    "tenant_openapi_schema"
+  ],
+  "allowed_operations": [
+    "list_routes",
+    "list_tools",
+    "list_catalogs",
+    "read_schema"
+  ],
+  "denied_operations": [
+    "call_tool",
+    "execute",
+    "create",
+    "update",
+    "delete",
+    "deploy",
+    "activate",
+    "grant",
+    "revoke"
+  ],
+  "controls": {
+    "tenant_context_required": true,
+    "explicit_delegation_required": true,
+    "authority_resolution_required": true,
+    "expiry_required": true,
+    "max_ttl_seconds": 900,
+    "audit_required": true,
+    "readback_required": true,
+    "production_mutation_allowed": false,
+    "database_mutation_allowed": false,
+    "provider_mutation_allowed": false
+  },
+  "act_as_user": {
+    "status": "not_bound",
+    "mode": "hierarchical_tenant_delegation",
+    "deny_until_bound": true,
+    "allowed_actor_roles": ["owner", "admin", "supervisor", "manager", "tenant_responsible"],
+    "target_must_be_lower_role": true,
+    "same_tenant_required": true,
+    "effective_authority_rule": "actor_intersection_target_intersection_tenant_intersection_tool",
+    "allowed_operations": ["call_tool", "execute"],
+    "required_request_fields": ["tenant_id", "target_user_id", "reason", "owner", "expires_at", "correlation_id", "operation_scope", "idempotency_key"],
+    "max_ttl_seconds": 900,
+    "max_operation_scope_entries": 50,
+    "wildcard_operation_scope_allowed": false,
+    "requires_target_membership": true,
+    "requires_active_delegation": true,
+    "requires_audit_record": true,
+    "requires_readback": true,
+    "security_controls": {
+      "actor_identity_immutable": true,
+      "target_identity_immutable": true,
+      "no_token_substitution": true,
+      "no_cross_tenant": true,
+      "no_role_escalation": true,
+      "replay_protection_required": true,
+      "idempotency_key_required": true,
+      "audit_secrets_forbidden": true,
+      "explicit_per_tool_binding_required": true,
+      "sensitive_tool_step_up_required": true
+    },
+    "production_mutation_allowed": false,
+    "database_mutation_allowed": false,
+    "provider_mutation_allowed": false,
+    "runtime_adapter_integration": {
+      "status": "not_bound",
+      "deny_until_bound": true,
+      "required_hook": "before_evaluateGptToolDispatchPreflight",
+      "must_preserve_caller_type": true,
+      "must_not_replace_bearer_identity": true,
+      "must_attach_actor_target_context": true,
+      "must_recheck_revocation_at_dispatch": true,
+      "must_emit_readback_before_completion": true
+    }
+  },
+  "environment_isolation": {
+    "staging_resource": "https://dev.mad4b.com",
+    "production_resource": "https://auth.mad4b.com",
+    "cross_environment_resource_access": false
+  }
+}

@@ -1,5 +1,8 @@
 node_modules/
 .env
+.env.staging
+http-generic-api/.env.staging
+http-generic-api/.staging-data/
 .claude/
 .mcp.json
 secrets/
@@ -20,3 +23,10 @@ apps/local-manager-sidecar-certification/obj/
 
 local-connector/.env
 tmp/
+
+# Portable Staging Auto Deploy runtime state
+/autopilot-portable-staging/autopilot-state.json
+/autopilot-portable-staging/auto-deploy-state.json
+/autopilot-portable-staging/one-click-state.json
+/autopilot-portable-staging/staging-db-dumps/
+/autopilot-portable-staging/logs/

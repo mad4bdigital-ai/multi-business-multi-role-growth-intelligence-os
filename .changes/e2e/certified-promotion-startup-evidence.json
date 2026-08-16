@@ -1,0 +1,152 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "certified-promotion-startup-evidence",
+  "title": "Certified Production promotion startup evidence hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/certified-promotion-startup-evidence.json",
+      "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
+      "http-generic-api/scripts/runtime-startup-test-environment.mjs",
+      "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/test-server-startup-smoke.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make Certified Production release-cut startup proof use one hermetic repository-owned test environment while preserving exact candidate identity and authoritative Production provenance.",
+      "e2e_journeys": [
+        {
+          "id": "certify-runtime-startup-with-hermetic-environment-and-production-provenance",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions release certification",
+          "entrypoint": "A CI or Certified Production Release Cut Validation run invokes the structured runtime startup evidence harness for an exact candidate SHA.",
+          "terminal_outcome": "The startup proof either passes with bounded structured evidence for the exact candidate or fails closed with a classified first failure, without consuming inherited provider, database, GitHub, or Production secret payloads.",
+          "steps": [
+            "Build a child startup environment from an explicit safe inherited-variable allowlist.",
+            "Override required startup authentication values with repository-local synthetic fixtures.",
+            "Run deployment manifest validation and generation for the exact candidate.",
+            "Start the runtime through the Hostinger-compatible root entrypoint.",
+            "Verify the runtime exposes authoritative Production deployment provenance even when inherited branch metadata is stale.",
+            "Persist bounded structured startup evidence and classify the first failure without relying on unrestricted job logs."
+          ],
+          "assertions": [
+            "Inherited database, provider, GitHub, runtime persistence, and Production branch-lock secret values do not cross the startup-test environment boundary.",
+            "PATH remains an allowlisted process-execution context value and is not treated as application environment selection.",
+            "NODE_ENV and deployment identity metadata remain explicit inputs while the root entrypoint establishes authoritative Production provenance.",
+            "The root entrypoint generates the manifest with Production provenance and establishes the process-local authoritative branch lock.",
+            "A broken hermetic startup environment is classified as certification_contract_error before runtime stages execute.",
+            "A server startup failure is classified as runtime_startup_failure and emitted through bounded structured evidence.",
+            "Production is not mutated and no deployment, SQL, migration, provider call, grant, or credential payload read is executed by this contract."
+          ],
+          "tests": [
+            {
+              "id": "runtime-startup-deployment-structured-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-runtime-startup-deployment-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "server-startup-smoke-production-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-startup-smoke.mjs",
+              "args": []
+            },
+            {
+              "id": "production-promotion-convergence-workflows",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/scripts/runtime-startup-test-environment.mjs",
+            "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/test-server-startup-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This patch changes repository-local certification behavior only and does not require live Production execution to prove the merge contract."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Keep inherited secrets, stale branch metadata, invalid startup-test contracts, and runtime startup failures fail-closed with deterministic classification and bounded evidence.",
+      "e2e_journeys": [
+        {
+          "id": "fail-closed-on-contaminated-environment-or-invalid-startup-proof",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions release certification",
+          "entrypoint": "The startup evidence harness receives inherited secret-like environment values, stale deployment branch metadata, or an invalid startup-test environment contract.",
+          "terminal_outcome": "Unsafe inherited values are excluded or replaced, stale branch metadata cannot override authoritative Production provenance, and invalid startup certification fails closed with bounded classified evidence before any Production mutation.",
+          "steps": [
+            "Construct the repository-owned startup-test environment from the explicit inherited-variable allowlist.",
+            "Reject or replace inherited credential and branch-lock payloads while retaining required process execution context such as PATH.",
+            "Exercise invalid startup-test contract and runtime startup failure paths.",
+            "Exercise stale inherited branch metadata through the Hostinger-compatible root startup path.",
+            "Verify deterministic failure classification, bounded diagnostics, and authoritative Production provenance."
+          ],
+          "assertions": [
+            "Inherited provider, database, GitHub, persistence, authentication, and Production branch-lock secret payloads do not cross the test-environment boundary.",
+            "PATH remains a safe execution-context allowlist entry and does not select staging or Production.",
+            "An invalid startup-test environment contract prevents runtime stages from executing and is classified as certification_contract_error.",
+            "A runtime startup failure is classified without exposing inherited secret payloads.",
+            "Stale inherited main or feature branch metadata cannot replace the authoritative Production provenance established by the root entrypoint.",
+            "No Production deployment, SQL, migration, provider mutation, grant, or credential payload read is authorized or executed by this journey."
+          ],
+          "tests": [
+            {
+              "id": "runtime-startup-deployment-fail-closed-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-runtime-startup-deployment-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "server-startup-stale-branch-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-startup-smoke.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/scripts/runtime-startup-test-environment.mjs",
+            "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/test-server-startup-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No deployment or live Production canary is authorized by this patch."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This contract grants no Production mutation, promotion execution, deployment, SQL, migration, provider, credential, or grant authority."
+    }
+  ]
+}

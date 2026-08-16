@@ -4,13 +4,24 @@ import { resolveCredentialReference } from "./credentialResolver.js";
 import { encryptToken } from "./tokenEncryption.js";
 import {
   TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
+  TENANT_GPT_IS_STAGING_RUNTIME,
   TENANT_GPT_OAUTH_CLIENT_ID,
   TENANT_GPT_SCOPE,
   TENANT_GPT_SCOPE_LINKS,
 } from "./tenantGptOAuthPreset.js";
+import { TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID } from "./tenantGptOAuthResourceProfile.js";
 
 export const TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY = "tenant_gpt.oauth.client";
-export const TENANT_GPT_OAUTH_CLIENT_SECRET_REF = "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET";
+export const TENANT_GPT_OAUTH_CLIENT_SECRET_ENV = TENANT_GPT_IS_STAGING_RUNTIME
+  ? "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"
+  : "TENANT_GPT_OAUTH_CLIENT_SECRET";
+export const TENANT_GPT_OAUTH_CLIENT_SECRET_REF = `platform_secret:${TENANT_GPT_OAUTH_CLIENT_SECRET_ENV}`;
+export const TENANT_GPT_ACTIVATION_OAUTH_CLIENT_SECRET_ENV = "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET";
+function isActivationStagingRequest(options = {}) {
+  return TENANT_GPT_IS_STAGING_RUNTIME
+    && String(options.requestHost || "").trim().toLowerCase().replace(/:\d+$/, "") === "activation-dev.mad4b.com"
+    && String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
+}
 
 function parseJsonConfig(value) {
   if (!value) return null;
@@ -37,12 +48,31 @@ function cleanSecretRef(value) {
   return normalized || "";
 }
 
+function isAllowedTenantGptCallbackUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    const hostname = url.hostname.toLowerCase();
+    const allowedHost = hostname === "chatgpt.com" || hostname === "chat.openai.com";
+    const callbackPath = /^\/aip\/(?:g-[a-z0-9]+|\{g-GPT-ID\})\/oauth\/callback$/i.test(url.pathname)
+      || url.pathname === "/aip/oauth/callback";
+    return url.protocol === "https:"
+      && allowedHost
+      && callbackPath
+      && !url.username
+      && !url.password
+      && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
 function cleanCallbackUrls(value) {
   const raw = Array.isArray(value) ? value : [];
   const cleaned = raw
     .map((item) => String(item || "").trim())
-    .filter(Boolean);
-  return [...new Set(cleaned.length ? cleaned : TENANT_GPT_CALLBACK_URLS_TO_ALLOW)];
+    .filter((item) => isAllowedTenantGptCallbackUrl(item));
+  const fallback = TENANT_GPT_CALLBACK_URLS_TO_ALLOW.filter(isAllowedTenantGptCallbackUrl);
+  return [...new Set(cleaned.length ? cleaned : fallback)];
 }
 
 function fixedTimeEqual(left, right) {
@@ -144,6 +174,9 @@ export async function readTenantGptOAuthClientConfig(options = null) {
         LIMIT 1`,
       [TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY]
     );
+    if (Array.isArray(rows) && rows.length > 1) {
+      throw new Error("tenant_gpt_oauth_client_config_ambiguous");
+    }
 
     const config = parseJsonConfig(Array.isArray(rows) ? rows[0]?.config_json : null);
     if (!config?.client_secret_ref && !config?.client_secret) {
@@ -206,6 +239,9 @@ export async function getTenantGptOAuthClientConfigStatus(options = {}) {
         LIMIT 1`,
       [TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY]
     );
+    if (Array.isArray(rows) && rows.length > 1) {
+      throw new Error("tenant_gpt_oauth_client_config_status_ambiguous");
+    }
     const row = Array.isArray(rows) ? rows[0] : null;
     const config = parseJsonConfig(row?.config_json);
     const clientSecretRef = cleanSecretRef(config?.client_secret_ref);
@@ -249,8 +285,10 @@ export async function getTenantGptOAuthClientConfigStatus(options = {}) {
   }
 }
 
-export function readTenantGptOAuthClientConfigFromEnv() {
-  const clientSecret = cleanSecret(process.env.TENANT_GPT_OAUTH_CLIENT_SECRET);
+export function readTenantGptOAuthClientConfigFromEnv(options = {}) {
+  const activationProfile = isActivationStagingRequest(options);
+  const secretEnv = activationProfile ? TENANT_GPT_ACTIVATION_OAUTH_CLIENT_SECRET_ENV : TENANT_GPT_OAUTH_CLIENT_SECRET_ENV;
+  const clientSecret = cleanSecret(process.env[secretEnv]);
   if (!clientSecret) {
     return {
       ok: false,
@@ -264,7 +302,9 @@ export function readTenantGptOAuthClientConfigFromEnv() {
     source: "server_env",
     config: sanitizeTenantGptOAuthClientConfig(
       {
-        client_id: process.env.TENANT_GPT_OAUTH_CLIENT_ID || TENANT_GPT_OAUTH_CLIENT_ID,
+        client_id: activationProfile
+          ? (process.env.TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_ID || TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID)
+          : (process.env[TENANT_GPT_IS_STAGING_RUNTIME ? "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" : "TENANT_GPT_OAUTH_CLIENT_ID"] || TENANT_GPT_OAUTH_CLIENT_ID),
         client_secret: clientSecret,
         callback_urls_to_allow: TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
       },
@@ -274,10 +314,21 @@ export function readTenantGptOAuthClientConfigFromEnv() {
 }
 
 export async function resolveTenantGptOAuthClientConfig(options = {}) {
+  const activationProfile = isActivationStagingRequest(options);
+  const envConfig = readTenantGptOAuthClientConfigFromEnv(options);
+  if (TENANT_GPT_IS_STAGING_RUNTIME) {
+    if (envConfig.ok) return envConfig;
+    return {
+      ok: false,
+      source: "staging_env_only",
+      error: activationProfile ? "staging_activation_oauth_client_secret_env_missing" : "staging_oauth_client_secret_env_missing",
+      env_error: envConfig,
+    };
+  }
+
   const dbConfig = await readTenantGptOAuthClientConfig(options);
   if (dbConfig.ok) return dbConfig;
 
-  const envConfig = readTenantGptOAuthClientConfigFromEnv();
   if (envConfig.ok) return envConfig;
 
   const compatibilityErrors = new Set([
@@ -325,13 +376,13 @@ export async function validateTenantGptOAuthClientCredentials(credentials = {}, 
   }
 
   // Reject token exchange when running in compatibility mode (no secret configured).
-  // Set TENANT_GPT_OAUTH_CLIENT_SECRET env var or seed platform_runtime_config to enable.
+  // Set the environment-selected secret namespace or seed platform_runtime_config to enable.
   if (resolved.source === "default_unconfigured") {
     return {
       ok: false,
       status: 401,
       error: "invalid_client",
-      message: "OAuth client secret is not configured. Set TENANT_GPT_OAUTH_CLIENT_SECRET or run migration 045 to seed the config.",
+      message: `OAuth client secret is not configured. Set ${isActivationStagingRequest(options) ? TENANT_GPT_ACTIVATION_OAUTH_CLIENT_SECRET_ENV : TENANT_GPT_OAUTH_CLIENT_SECRET_ENV} or seed the governed platform config.`,
       source: resolved.source,
     };
   }

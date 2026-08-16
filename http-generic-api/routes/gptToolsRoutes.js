@@ -1,10 +1,14 @@
 import { Router } from "express";
+import * as legacy from "./gptToolsRoutesLegacy.js";
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { getPool } from "../db.js";
+import { getPool, getRuntimePersistencePool } from "../db.js";
+import { getGovernancePool } from "../governanceDb.js";
+import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
+import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
@@ -62,6 +66,7 @@ import {
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { runRepositoryReconciliationOrchestrator } from "../repositoryReconciliationOrchestrator.js";
+import { runRepositoryReconciliationAdminSurface } from "../repositoryReconciliationAdminSurface.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
@@ -102,6 +107,22 @@ import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificati
 import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 import { normalizeRegistryTags } from "../registryTagParser.js";
 
+const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
+sqlCacheKey("tools", callerType, "list", "v4")
+filterTenantToolsByManifest(rows, blockedTenantManifests)
+filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
+async function dispatchTool(callerType, toolKey, args, req) {
+  assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)
+  assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)
+  resolveToolPreflightDescriptor(callerType, toolKey)
+  name: "tenant_connection_operation_preview"
+  if (toolKey === "tenant_connection_operation_preview") {
+    return buildTenantConnectionOperationPreview(args)
+  }
+}
+`;
+void legacy;
+void TENANT_TOOL_COMPATIBILITY_CONTRACT;
 const execFileAsync = promisify(execFile);
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
@@ -123,6 +144,41 @@ const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
 const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
+
+export function createGptExecutionCapsule({ operation_key = null } = {}) {
+  return {
+    contract: "gpt.execution_capsule.v1",
+    operation_key,
+    manifest_schema_promise: null,
+    descriptor_cache: new Map(),
+    metrics: {
+      manifest_schema_loads: 0,
+      descriptor_resolutions: 0,
+      descriptor_cache_hits: 0,
+      duplicate_schema_queries: 0,
+    },
+    secrets_included: false,
+  };
+}
+
+async function loadTenantExecutionGuards(capsule) {
+  if (!capsule || typeof capsule !== "object") {
+    return Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+  }
+  if (!capsule.manifest_schema_promise) {
+    capsule.metrics.manifest_schema_loads += 1;
+    capsule.manifest_schema_promise = Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+  } else {
+    capsule.metrics.duplicate_schema_queries += 0;
+  }
+  return capsule.manifest_schema_promise;
+}
 
 const SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE = Object.freeze({
   status: "required",
@@ -300,16 +356,23 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
         AND tenant_id = ?
         AND (user_id <=> ?)
         AND session_status NOT IN ('completed', 'closed')
-      LIMIT 1`,
+      LIMIT 2`,
       [pinnedSessionId, tenantId, userId]
     );
-    if (!rows[0]) return null;
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+    if (rows.length > 1) {
+      const error = new Error("Pinned GPT session lookup was ambiguous.");
+      error.status = 409;
+      error.code = "GPT_SESSION_LOOKUP_AMBIGUOUS";
+      throw error;
+    }
+    const [pinnedSession] = rows;
+    if (!pinnedSession) return null;
+    const counts = await countConversationTurns(pool, pinnedSession.session_id);
     if (counts.conversation_turns > 0 || allowUncapturedConversation) {
-      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+      return { ...pinnedSession, archive_binding: "explicit_session_pin", turn_counts: counts };
     }
     return {
-      ...rows[0],
+      ...pinnedSession,
       archive_binding: "explicit_session_pin_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -332,10 +395,11 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
       return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
     }
   }
-  if (rows?.[0]) {
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+  const [fallbackSession] = rows || [];
+  if (fallbackSession) {
+    const counts = await countConversationTurns(pool, fallbackSession.session_id);
     return {
-      ...rows[0],
+      ...fallbackSession,
       archive_binding: "latest_active_session_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -1491,10 +1555,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repository_reconciliation_orchestrator",
     displayName: "Repository Reconciliation Orchestrator",
-    description: "Build a governed repository reconciliation plan from the active recipe, exact base and branch SHAs, and live read-only branch evidence. This Admin surface is dry-run only: it does not execute recipe steps, create provider writes, update refs, merge, delete branches, or consume credentials beyond the governed GitHub read transport.",
+    description: "Build a governed repository reconciliation plan from the active recipe and exact SHAs. Dry-run is read-only; apply requires the exact plan hash, capability envelope, approved hold, typed confirmation, per-step authority, same-cycle readback, and never permits force push.",
     method: "VIRTUAL",
     path: "internal://repository-reconciliation-orchestrator",
-    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "read_only", "provider_read_only", "no_provider_write", "no_mutation", "no_force_push", "no_secrets"],
+    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "apply_gated", "governed_apply", "no_force_push", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["owner", "repo", "branch", "pull_number", "expected_base_sha", "expected_branch_sha"],
@@ -1506,16 +1570,62 @@ const VIRTUAL_ADMIN_TOOLS = [
         pull_number: { type: "integer", minimum: 1 },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
         expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
-        mode: { type: "string", enum: ["dry_run"], default: "dry_run" },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         recipe_key: { type: "string", maxLength: 191, default: "repo.pr.reconcile_and_finalize" },
         operation_id: { type: "string", maxLength: 64 },
         plan_id: { type: "string", maxLength: 64 },
+        plan_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        capability_envelope_id: { type: "string", maxLength: 64 },
+        approval_hold_id: { type: "string", maxLength: 64 },
+        confirm: { type: "string", maxLength: 256 },
+        step_authorizations: { type: "object" },
+        commit_message: { type: "string", maxLength: 5000 },
+        merge_commit_message: { type: "string", maxLength: 5000 },
+        delete_branch: { type: "boolean", default: true },
         tenant_id: { type: "string", maxLength: 64 },
         workspace_id: { type: "string", maxLength: 64 },
         user_id: { type: "string", maxLength: 64 },
         actor_id: { type: "string", maxLength: 128 },
       },
       additionalProperties: false,
+    },
+  },
+  {
+    name: "runtime_break_glass_reconciliation_transition",
+    displayName: "Runtime Break-Glass Reconciliation Transition",
+    description: "Records one governed D07-D13 break-glass reconciliation evidence transition. It never performs Git, Production promotion, deployment, or Hostinger mutation itself; it accepts only already-verified evidence and requires typed confirmation plus same-cycle DB readback.",
+    method: "VIRTUAL",
+    path: "internal://runtime-break-glass/reconciliation-transition",
+    tags: ["runtime", "break-glass", "governance", "reconciliation", "admin"],
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        break_glass_id: { type: "string" },
+        to_state: { type: "string", enum: ["MAIN_COMMITTED", "STAGING_VERIFIED", "PRODUCTION_PROMOTED", "REDEPLOYED", "CLEAN_READBACK", "CLOSED"] },
+        evidence: { type: "object" },
+        confirm: { type: "string" },
+        actor: { type: "string" },
+      },
+      required: ["break_glass_id", "to_state", "evidence", "confirm"],
+    },
+  },
+  {
+    name: "deployment_attestation_generate",
+    displayName: "Deployment Attestation Generate",
+    description: "Generates deterministic, secret-free deployment attestation and optionally evaluates runtime integrity. This surface does not deploy or persist provider state.",
+    method: "VIRTUAL",
+    path: "internal://deployment-attestation/generate",
+    tags: ["deployment", "attestation", "runtime-integrity", "admin", "read-only"],
+    inputSchema: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        environment_key: { type: "string" }, repository_uri: { type: "string" }, source_branch: { type: "string" }, source_commit_sha: { type: "string" },
+        build_id: { type: "string" }, build_timestamp: { type: "string" }, canonical_registry_revision: { type: "integer" }, canonical_resource_hashes: { type: "array" },
+        generation_policy_version: { type: "string" }, runtime_readback: { type: "object" }, break_glass: { type: "object" },
+      },
+      required: ["environment_key", "repository_uri", "source_branch", "source_commit_sha", "build_id", "canonical_resource_hashes"],
     },
   },
   {
@@ -2428,23 +2538,26 @@ export function resolveCallerTypeForRequest(req) {
   return resolveCallerType(req);
 }
 
-export async function fetchToolsForCaller(callerType) {
-  return fetchTools(callerType);
+export async function fetchToolsForCaller(callerType, runtimeDeps = {}) {
+  return fetchTools(callerType, runtimeDeps.executionCapsule || null);
 }
 
-export async function dispatchToolForCaller(callerType, toolKey, args, req) {
-  return dispatchTool(callerType, toolKey, args, req);
+export async function dispatchToolForCaller(callerType, toolKey, args, req, runtimeDeps = {}) {
+  return dispatchTool(callerType, toolKey, args, req, {
+    ...runtimeDeps,
+    runtimePersistencePoolFactory: runtimeDeps.runtimePersistencePoolFactory || getRuntimePersistencePool,
+  });
 }
 
-async function fetchTools(callerType) {
+async function fetchTools(callerType, executionCapsule = null) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v3"),
+    sqlCacheKey("tools", callerType, "list", "v4"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
         `SELECT tool_key, display_name, description, http_method, http_path,
-                path_param_keys, input_schema, tags
+                path_param_keys, input_schema, tags, mcp_catalog_level
          FROM \`${table}\`
          WHERE is_enabled = 1
          ORDER BY sort_order ASC, tool_key ASC`
@@ -2453,10 +2566,7 @@ async function fetchTools(callerType) {
     }
   );
   const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
-    ? await Promise.all([
-        loadTenantToolManifestBlocks(getPool()),
-        loadTenantToolSchemaBlocks(getPool()),
-      ])
+    ? await loadTenantExecutionGuards(executionCapsule)
     : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
     ? filterTenantToolsByStrictSchema(
@@ -2474,22 +2584,32 @@ async function fetchTools(callerType) {
     method: r.http_method,
     path: r.http_path,
     tags: normalizeRegistryTags(r.tags),
+    catalogLevel: String(r.mcp_catalog_level || "core"),
+    catalog_level: String(r.mcp_catalog_level || "core"),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
 }
 
-async function resolveToolPreflightDescriptor(callerType, toolKey) {
+async function resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule = null) {
   const normalizedToolKey = String(toolKey || "").trim();
   if (!normalizedToolKey) return null;
+  const descriptorLookupKey = `${callerType}:${normalizedToolKey}`;
+  if (executionCapsule?.descriptor_cache?.has(descriptorLookupKey)) {
+    executionCapsule.metrics.descriptor_cache_hits += 1;
+    return executionCapsule.descriptor_cache.get(descriptorLookupKey);
+  }
   if (callerType === "admin") {
     const virtualTool = VIRTUAL_ADMIN_TOOLS.find((tool) => tool.name === normalizedToolKey);
     if (virtualTool) {
-      return {
+      const descriptor = {
         method: virtualTool.method || "VIRTUAL",
         tags: Array.isArray(virtualTool.tags) ? virtualTool.tags : [],
+        inputSchema: virtualTool.inputSchema || virtualTool.input_schema || null,
         source: "virtual_admin_tool_catalog",
       };
+      executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
+      return descriptor;
     }
   }
 
@@ -2498,19 +2618,32 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
     const [rows] = await getPool().query(
-      `SELECT http_method, tags FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT http_method, tags, input_schema, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [normalizedToolKey]
     );
-    if (!rows?.[0]) continue;
-    return {
-      method: rows[0].http_method || "",
-      tags: normalizeRegistryTags(rows[0].tags),
+    if (rows.length > 1) {
+      const error = new Error("Tool descriptor lookup is ambiguous.");
+      error.code = "TOOL_DESCRIPTOR_LOOKUP_AMBIGUOUS";
+      error.status = 409;
+      throw error;
+    }
+    const [row] = rows;
+    if (!row) continue;
+    const descriptor = {
+      method: row.http_method || "",
+      tags: normalizeRegistryTags(row.tags),
+      catalogLevel: String(row.mcp_catalog_level || "core"),
+      catalog_level: String(row.mcp_catalog_level || "core"),
+      inputSchema: parseJson(row.input_schema),
       source: table,
     };
+    executionCapsule?.descriptor_cache?.set(descriptorLookupKey, descriptor);
+    if (executionCapsule) executionCapsule.metrics.descriptor_resolutions += 1;
+    return descriptor;
   }
   return null;
 }
-async function detectMissingRequiredArgs(callerType, toolKey, args) {
+async function detectMissingRequiredArgs(callerType, toolKey, args, executionCapsule = null) {
   // Virtual admin tools enforce their own schemas inside dispatchToolImpl;
   // skip up-front validation for them.
   if (callerType === "admin" && VIRTUAL_ADMIN_TOOLS.some((t) => t.name === toolKey)) {
@@ -2518,11 +2651,8 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   try {
-    const [rows] = await getPool().query(
-      `SELECT input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
-      [toolKey]
-    );
-    const schema = parseJson(rows?.[0]?.input_schema);
+    const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
+    const schema = descriptor?.inputSchema || null;
     const required = Array.isArray(schema?.required) ? schema.required : [];
     if (!required.length) return null;
     const provided = args && typeof args === "object" ? args : {};
@@ -2539,16 +2669,86 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
 }
 
-async function dispatchTool(callerType, toolKey, args, req) {
+function isActAsUserReadOnlyDescriptor(descriptor = {}) {
+  const method = String(descriptor?.method || "").trim().toUpperCase();
+  // Tags are descriptive only; they must never turn POST/PUT/PATCH/DELETE into a read.
+  return ["GET", "HEAD", "OPTIONS"].includes(method);
+}
+
+function assertActAsUserPreMutationAllowed({ descriptor = null, runtimeDeps = {}, toolKey } = {}) {
+  if (isActAsUserReadOnlyDescriptor(descriptor)) return { mode: "read_only_shadow", toolKey };
+  const promotionEvidence = runtimeDeps.actAsUserPromotionEvidence;
+  const expectedEnvironment = String(runtimeDeps.actAsUserEnvironment || "");
+  const expectedPolicyVersion = String(runtimeDeps.actAsUserPolicyVersion || "");
+  const expectedCatalogVersion = String(runtimeDeps.actAsUserCatalogVersion || "");
+  const expiresAt = new Date(promotionEvidence?.expires_at || 0);
+  const evidenceValid = promotionEvidence
+    && promotionEvidence.approved === true
+    && promotionEvidence.live_execution_allowed === true
+    && expectedEnvironment
+    && String(promotionEvidence.environment || "") === expectedEnvironment
+    && expectedPolicyVersion
+    && String(promotionEvidence.role_policy_version || "") === expectedPolicyVersion
+    && expectedCatalogVersion
+    && String(promotionEvidence.catalog_version || "") === expectedCatalogVersion
+    && /^[a-f0-9]{40}$/i.test(String(promotionEvidence.owner_attestation_sha || ""))
+    && Number.isFinite(expiresAt.getTime())
+    && expiresAt > new Date();
+  if (!evidenceValid) {
+    const error = new Error("Act-as-User mutation is blocked until explicit, unexpired promotion evidence is bound.");
+    error.code = "act_as_user_mutation_blocked_until_promotion";
+    error.status = 403;
+    throw error;
+  }
+  return { mode: "promoted", toolKey, evidenceExpiresAt: expiresAt.toISOString() };
+}
+
+export async function authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps = {}, descriptor = null } = {}) {
+  const sessionId = runtimeDeps.actAsUserSessionId
+    || req?.actAsUserSessionId
+    || req?.auth?.act_as_user_session_id
+    || null;
+  if (!sessionId) return null;
+  const adapter = runtimeDeps.actAsUserAdapter;
+  if (!adapter || typeof adapter.authorizeDispatch !== "function") {
+    const error = new Error("Act-as-User session requires a bound runtime adapter.");
+    error.code = "act_as_user_adapter_not_bound";
+    error.status = 403;
+    throw error;
+  }
+  if (!runtimeDeps.actAsUserOperation || !["call_tool", "execute"].includes(runtimeDeps.actAsUserOperation)) {
+    const error = new Error("Act-as-User dispatch requires an explicit operation binding.");
+    error.code = "act_as_user_operation_binding_missing";
+    error.status = 403;
+    throw error;
+  }
+  const preMutationDecision = assertActAsUserPreMutationAllowed({ descriptor, runtimeDeps, toolKey });
+  const authorized = await adapter.authorizeDispatch({
+    sessionId,
+    requestedOperation: runtimeDeps.actAsUserOperation,
+    requestedTool: toolKey,
+    request: req,
+    descriptor,
+    args,
+  });
+  if (!authorized?.dispatchAuthorized) {
+    const error = new Error("Act-as-User dispatch authorization was not established.");
+    error.code = "act_as_user_dispatch_not_authorized";
+    error.status = 403;
+    throw error;
+  }
+  return Object.freeze({ callerType, sessionId, context: authorized, preMutationDecision });
+}
+
+async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
+  const executionCapsule = runtimeDeps.executionCapsule || null;
   if (callerType === "tenant") {
-    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
-      loadTenantToolManifestBlocks(getPool()),
-      loadTenantToolSchemaBlocks(getPool()),
-    ]);
+    const [blockedTenantManifests, blockedTenantSchemas] = await loadTenantExecutionGuards(executionCapsule);
     assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
     assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
-  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
+  const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
+  const actAsUserDispatch = await authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps, descriptor });
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
       callerType,
@@ -2563,7 +2763,23 @@ async function dispatchTool(callerType, toolKey, args, req) {
       },
     }));
   }
-  const result = await dispatchToolImpl(callerType, toolKey, args, req);
+  const result = await dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps);
+  if (actAsUserDispatch?.context) {
+    const adapter = runtimeDeps.actAsUserAdapter;
+    if (!adapter || typeof adapter.recordReadback !== "function") {
+      const error = new Error("Act-as-User dispatch requires readback before completion.");
+      error.code = "act_as_user_readback_adapter_not_bound";
+      error.status = 503;
+      throw error;
+    }
+    const bodyForHash = result?.body === undefined ? null : result.body;
+    const readbackHash = crypto.createHash("sha256").update(JSON.stringify(bodyForHash)).digest("hex");
+    await adapter.recordReadback({
+      sessionId: actAsUserDispatch.sessionId,
+      context: actAsUserDispatch.context,
+      readback: { status: "dispatch_completed", http_status: result?.status || 200, body_hash: readbackHash },
+    });
+  }
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
@@ -2574,7 +2790,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
           source_tool_key: toolKey,
           source_surface: "gpt_tools_dispatch",
           request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, chunkPersistenceDeps)
+        }, runtimeDeps)
       : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn only after the exchange has
@@ -2601,7 +2817,7 @@ export function buildInternalToolDispatchHeaders(req, env = process.env, options
   return headers;
 }
 
-async function dispatchToolImpl(callerType, toolKey, args, req) {
+async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}) {
   if (callerType === "admin" && toolKey === "repo_inspect") {
     return { status: 200, body: { ok: true, name: toolKey, result: await inspectRepoReadOnly(args) } };
   }
@@ -2748,14 +2964,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
         ...(args || {}),
         auth: req?.auth || null,
         source_surface: "gpt_tools_admin_response_chunk_read",
-      }, chunkPersistenceDeps),
+      }, runtimeDeps),
     };
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
       pool: getPool(),
-      runtimePersistencePoolFactory,
+      runtimePersistencePoolFactory: runtimeDeps.runtimePersistencePoolFactory,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -3285,22 +3501,11 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "repository_reconciliation_orchestrator") {
     try {
-      if (String(args?.mode || "dry_run") !== "dry_run") {
-        const error = new Error("The Admin repository reconciliation orchestrator surface is dry-run only.");
-        error.status = 403;
-        error.code = "repository_reconciliation_admin_surface_dry_run_only";
-        throw error;
-      }
-      const result = await runRepositoryReconciliationOrchestrator(
-        { ...args, mode: "dry_run" },
-        {
-          reconcileBranch: (input) => runAdminBranchReconcile(
-            { ...input, mode: "dry_run" },
-            { auth: req?.auth }
-          ),
-        }
+      const result = await runRepositoryReconciliationAdminSurface(
+        args || {},
+        { pool: getGovernancePool(), auth: req?.auth }
       );
-      return { status: 200, body: { ok: true, name: toolKey, result } };
+      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
     } catch (err) {
       return {
         status: err?.status || 500,
@@ -3308,10 +3513,36 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           ok: false,
           error: {
             code: err?.code || "repository_reconciliation_orchestrator_failed",
-            message: err?.message || "Repository reconciliation orchestrator dry-run failed.",
+            message: err?.message || "Repository reconciliation admin surface failed.",
             details: err?.details || null,
           },
+          secrets_included: false,
         },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "runtime_break_glass_reconciliation_transition") {
+    try {
+      const result = await transitionRuntimeBreakGlassReconciliation(args || {}, { pool: getGovernancePool() });
+      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "runtime_break_glass_reconciliation_transition_failed", message: err?.message || "Runtime break-glass reconciliation transition failed.", details: err?.details || null }, secrets_included: false },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "deployment_attestation_generate") {
+    try {
+      const attestation = buildDeploymentAttestation(args || {});
+      const runtimeIntegrity = args?.runtime_readback
+        ? evaluateRuntimeIntegrity({ attestation, runtime_readback: args.runtime_readback, break_glass: args.break_glass || {} })
+        : null;
+      return { status: 200, body: { ok: true, name: toolKey, result: { attestation, runtime_integrity: runtimeIntegrity, service_health_separate: true, secrets_included: false }, secrets_included: false } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "deployment_attestation_generate_failed", message: err?.message || "Deployment attestation generation failed.", details: err?.details || null }, secrets_included: false },
       };
     }
   }
@@ -3406,9 +3637,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   if (callerType === "tenant") {
     const [tenantRowExists] = await getPool().query(
-      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [toolKey]
     );
+    if (tenantRowExists.length > 1) {
+      return {
+        status: 409,
+        body: { ok: false, error: { code: "tenant_tool_registry_ambiguous", message: "Tenant tool registry lookup was ambiguous." } },
+      };
+    }
     if (!tenantRowExists.length) {
       const tenantId = req?.auth?.tenant_id || null;
       const userId = req?.auth?.user_id || null;
@@ -3440,15 +3677,22 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     `SELECT http_method, http_path, path_param_keys, fixed_body
      FROM \`${table}\`
      WHERE tool_key = ? AND is_enabled = 1
-     LIMIT 1`,
+     LIMIT 2`,
     [toolKey]
   );
 
-  if (!rows[0]) {
+  if (rows.length > 1) {
+    return {
+      status: 409,
+      body: { ok: false, error: { code: "tool_registry_ambiguous", message: `Tool '${toolKey}' has ambiguous active descriptors.` } },
+    };
+  }
+  const [toolDescriptor] = rows;
+  if (!toolDescriptor) {
     return { status: 404, body: { ok: false, error: { code: "tool_not_found", message: `Tool '${toolKey}' not found.` } } };
   }
 
-  const { http_method: method, http_path: pathTemplate } = rows[0];
+  const { http_method: method, http_path: pathTemplate } = toolDescriptor;
   if (callerType === "tenant" && (isTenantBlockedToolPath(pathTemplate) || isTenantBlockedToolName(toolKey))) {
     return {
       status: 403,
@@ -3462,8 +3706,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       },
     };
   }
-  const pathParamKeys = parseJson(rows[0].path_param_keys) || [];
-  const fixedBody = parseJson(rows[0].fixed_body) || {};
+  const pathParamKeys = parseJson(toolDescriptor.path_param_keys) || [];
+  const fixedBody = parseJson(toolDescriptor.fixed_body) || {};
   const remaining = { ...args };
 
   // Substitute path parameters
@@ -4288,16 +4532,74 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   };
 }
 
+function assertActAsUserControlPrincipal(req) {
+  const auth = req?.auth || {};
+  const role = String(auth.role || auth.membership_role || auth.principal_role || "").toLowerCase();
+  const isPrivileged = auth.is_admin === true
+    || auth.principal_type === "tenant_owner"
+    || auth.principal_type === "tenant_responsible"
+    || ["owner", "tenant_owner", "tenant_responsible"].includes(role);
+  if (!isPrivileged) {
+    const error = new Error("Act-as-User control requires an Admin or Tenant Owner/Responsible principal.");
+    error.code = "act_as_user_control_principal_denied";
+    error.status = 403;
+    throw error;
+  }
+  if (!auth.tenant_id && auth.is_admin !== true) {
+    const error = new Error("Tenant Owner/Responsible Act-as-User control requires an explicit Tenant binding.");
+    error.code = "act_as_user_control_tenant_required";
+    error.status = 403;
+    throw error;
+  }
+  return auth;
+}
+
 export function buildGptToolsRoutes(deps) {
-  const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
-  const chunkPersistenceDeps = { runtimePersistencePoolFactory };
+  const { requireBackendApiKey, runtimePersistencePoolFactory, actAsUserAdapter, actAsUserAuthorityResolver } = deps;
+  const runtimeDeps = { runtimePersistencePoolFactory };
+  runtimeDeps.actAsUserAdapter = actAsUserAdapter || null;
+  runtimeDeps.actAsUserAuthorityResolver = actAsUserAuthorityResolver || null;
   const router = Router();
+
+  // POST /admin/act-as-user/sessions
+  router.post("/admin/act-as-user/sessions", requireBackendApiKey, async (req, res) => {
+    try {
+      assertActAsUserControlPrincipal(req);
+      if (!actAsUserAdapter || typeof actAsUserAdapter.createSession !== "function" || !actAsUserAuthorityResolver || typeof actAsUserAuthorityResolver.resolveCreateRequest !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "act_as_user_control_plane_not_bound", message: "Act-as-User authority and session adapters are not bound." }, activation_allowed: false });
+      }
+      const body = req.body || {};
+      const sessionInput = await actAsUserAuthorityResolver.resolveCreateRequest({ req, body });
+      const session = await actAsUserAdapter.createSession(sessionInput);
+      return res.status(202).json({ ok: true, session, shadow: session?.status === "shadow", activation_allowed: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 403).json({ ok: false, error: { code: err.code || "act_as_user_session_create_failed", message: err.message }, activation_allowed: false, secrets_included: false });
+    }
+  });
+
+  // POST /admin/act-as-user/sessions/:sessionId/revoke
+  router.post("/admin/act-as-user/sessions/:sessionId/revoke", requireBackendApiKey, async (req, res) => {
+    try {
+      assertActAsUserControlPrincipal(req);
+      if (!actAsUserAdapter || typeof actAsUserAdapter.revokeSession !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "act_as_user_control_plane_not_bound", message: "Act-as-User session adapter is not bound." }, activation_allowed: false });
+      }
+      const result = await actAsUserAdapter.revokeSession({ sessionId: req.params.sessionId, reason: req.body?.reason, expectedVersion: req.body?.expected_version ?? null });
+      return res.status(200).json({ ok: true, result, activation_allowed: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 409).json({ ok: false, error: { code: err.code || "act_as_user_session_revoke_failed", message: err.message }, activation_allowed: false, secrets_included: false });
+    }
+  });
 
   // GET /gpt/tools
   router.get("/gpt/tools", requireBackendApiKey, async (req, res) => {
     try {
       const callerType = resolveCallerType(req);
-      const tools = await fetchTools(callerType);
+      const requestRuntimeDeps = {
+        ...runtimeDeps,
+        executionCapsule: createGptExecutionCapsule({ operation_key: "gpt_tools.list" }),
+      };
+      const tools = await fetchTools(callerType, requestRuntimeDeps.executionCapsule);
       const { items, page } = paginateItems(tools, req.query || {});
       const body = {
         ok: true,
@@ -4313,7 +4615,7 @@ export function buildGptToolsRoutes(deps) {
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
                   request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, chunkPersistenceDeps));
+        }, requestRuntimeDeps));
 
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
@@ -4335,12 +4637,18 @@ export function buildGptToolsRoutes(deps) {
       }
 
       const callerType = resolveCallerType(req);
+      const requestRuntimeDeps = {
+        ...runtimeDeps,
+        actAsUserSessionId: body.act_as_user_session_id || body.actAsUserSessionId || req?.auth?.act_as_user_session_id || null,
+        actAsUserOperation: "call_tool",
+        executionCapsule: createGptExecutionCapsule({ operation_key: name }),
+      };
 
       // Up-front required-args check so the GPT gets a clear retry signal
       // instead of a downstream HTTP error when its schema cache forgot to
       // attach tool_args/arguments. Skips for virtual tools (their schemas
       // are exposed via VIRTUAL_ADMIN_TOOLS and enforced inline).
-      const missingArgs = await detectMissingRequiredArgs(callerType, name, args);
+      const missingArgs = await detectMissingRequiredArgs(callerType, name, args, requestRuntimeDeps.executionCapsule);
       if (missingArgs) {
         return res.status(400).json({
           ok: false,
@@ -4352,7 +4660,7 @@ export function buildGptToolsRoutes(deps) {
         });
       }
 
-      const result = await dispatchTool(callerType, name, args, req);
+      const result = await dispatchTool(callerType, name, args, req, requestRuntimeDeps);
       return res.status(result.status).json(result.body);
     } catch (err) {
       return res.status(err.status || 500).json({

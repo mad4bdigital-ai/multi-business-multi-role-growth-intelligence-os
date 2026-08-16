@@ -8,6 +8,8 @@
   },
   "production": {
     "hostname": "auth.mad4b.com",
+    "hostname_family_policy": "http-generic-api/config/domain-family-policy.json",
+    "hostnames": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
     "source_branch": "Production",
     "upstream_branch": "main",
     "deployment_provider": "hostinger",
@@ -22,6 +24,8 @@
   },
   "staging": {
     "hostname": "dev.mad4b.com",
+    "hostname_family_policy": "http-generic-api/config/domain-family-policy.json",
+    "hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
     "source_branch": "main",
     "runtime_location": "local_device",
     "lifecycle_status": "planned",
@@ -48,6 +52,7 @@
   },
   "connector_recovery": {
     "hostname": "connector.mad4b.com",
+    "excluded_from_hostname_families": true,
     "deployment_provider": "cloudflare_tunnel_local_windows_service",
     "hostinger_auto_deploy": false
   }

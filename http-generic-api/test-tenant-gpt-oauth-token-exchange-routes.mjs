@@ -3,17 +3,20 @@ import express from "express";
 import { TENANT_GPT_OAUTH_CLIENT_ID } from "./tenantGptOAuthPreset.js";
 import { buildTenantGptOAuthMetadataRoutes } from "./routes/tenantGptOAuthMetadataRoutes.js";
 import { buildTenantGptOAuthTokenExchangeRoutes } from "./routes/tenantGptOAuthTokenExchangeRoutes.js";
+import { deriveTenantGptPkceChallenge } from "./tenantGptOAuthPkce.js";
 
 const RESOURCE = "https://activation.mad4b.com";
 const CALLBACK = "https://chatgpt.com/aip/g-route-test/oauth/callback";
 const RAW_CODE = "raw-authorization-code-sensitive";
 const CLIENT_SECRET = "client-secret-sensitive";
+const CODE_VERIFIER = "test-code-verifier-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ._~-";
 const BASE_BODY = Object.freeze({
   grant_type: "authorization_code",
   code: RAW_CODE,
   redirect_uri: CALLBACK,
   client_id: TENANT_GPT_OAUTH_CLIENT_ID,
   client_secret: CLIENT_SECRET,
+  code_verifier: CODE_VERIFIER,
 });
 const CODE_PAYLOAD = Object.freeze({
   purpose: "custom_gpt_oauth_code",
@@ -23,6 +26,8 @@ const CODE_PAYLOAD = Object.freeze({
   redirect_uri: CALLBACK,
   client_id: TENANT_GPT_OAUTH_CLIENT_ID,
   resource: RESOURCE,
+  code_challenge: deriveTenantGptPkceChallenge(CODE_VERIFIER),
+  code_challenge_method: "S256",
   scope: "https://auth.mad4b.com/scopes/tenant.activation",
   activation_context: { purpose: "tenant_activation", activation_mode: "managed" },
 });
@@ -109,6 +114,8 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
       issuance.push({ payload, options });
       return "access-token-safe-test";
     },
+    tenantGptRefreshReady: async () => ({ ready: false, reason: "test_refresh_disabled", secrets_included: false }),
+    tenantGptRefreshTokensEnabled: () => false,
     consumeCode: async () => {
       order.push("consume");
       return {

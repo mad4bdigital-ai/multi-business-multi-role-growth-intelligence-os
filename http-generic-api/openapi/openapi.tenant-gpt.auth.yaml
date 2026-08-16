@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   title: Growth Intelligence Platform - Tenant Core Actions
   version: 3.0.0-platform
-  summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
-  description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+  summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
+  description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args.
 servers:
   - url: https://auth.mad4b.com
     description: tenant_core surface
@@ -16,6 +16,8 @@ tags:
     description: Tenant-scoped growth cockpit, guidance, preferences, previews, and recommendation feedback.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+  - name: tenant-operations
+    description: Tenant Custom GPT bounded operation preview, execution, and status surfaces.
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: local-connector
@@ -35,6 +37,18 @@ components:
             https://auth.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
             https://auth.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
             https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
   schemas:
     SecurityDecisionTraceEventPublic:
       type: object
@@ -508,6 +522,18 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource state conflicts with the requested operation
       content:
         application/json:
           schema:
@@ -1061,93 +1087,6 @@ paths:
           description: Resource not found
         "409":
           description: Operation conflicts with lifecycle or policy
-  /me/workspaces/{tenant_id}/resource-changes:
-    get:
-      operationId: getMeWorkspacesTenantIdResourceChanges
-      summary: GET /me/workspaces/{tenant_id}/resource-changes
-      tags:
-        - resource-api
-      security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-        - name: pageSize
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-        - name: pageToken
-          in: query
-          schema:
-            type: string
-        - name: q
-          in: query
-          schema:
-            type: string
-            maxLength: 200
-      responses:
-        "200":
-          description: Successful resource operation
-        "400":
-          description: Invalid request
-        "401":
-          description: Authentication required
-        "403":
-          description: Resource access forbidden
-        "404":
-          description: Resource not found
-        "409":
-          description: Operation conflicts with lifecycle or policy
-  /me/workspaces/{tenant_id}/operations/{operationId}:
-    get:
-      operationId: getMeWorkspacesTenantIdOperationsOperationId
-      summary: GET /me/workspaces/{tenant_id}/operations/{operationId}
-      tags:
-        - resource-api
-      security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-        - name: operationId
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        "200":
-          description: Successful resource operation
-        "400":
-          description: Invalid request
-        "401":
-          description: Authentication required
-        "403":
-          description: Resource access forbidden
-        "404":
-          description: Resource not found
-        "409":
-          description: Operation conflicts with lifecycle or policy
   /tenant/dashboard:
     get:
       tags:
@@ -1578,127 +1517,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /tenant/dashboard/recommendations/{recommendationId}/feedback:
-    post:
-      tags:
-        - growth-dashboard
-      security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
-      operationId: recordTenantGrowthRecommendationFeedback
-      x-openai-isConsequential: false
-      summary: Record recommendation feedback or outcome
-      parameters:
-        - name: recommendationId
-          in: path
-          required: true
-          schema:
-            type: string
-            maxLength: 180
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - event_type
-              properties:
-                event_type:
-                  type: string
-                  enum:
-                    - shown
-                    - opened
-                    - accepted
-                    - dismissed
-                    - executed
-                    - failed
-                    - result_observed
-                reason_code:
-                  type: string
-                  enum:
-                    - not_relevant
-                    - wrong_timing
-                    - too_expensive
-                    - already_done
-                    - missing_information
-                    - other
-                workspace_id:
-                  type: string
-                recommendation_key:
-                  type: string
-                tab_key:
-                  type: string
-                card_id:
-                  type: string
-                result_metric_key:
-                  type: string
-                result_value: {}
-                context:
-                  type: object
-                  additionalProperties: true
-                  properties: {}
-      responses:
-        "201":
-          description: Recommendation event recorded
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - event_id
-                  - event_type
-                  - secrets_included
-                properties:
-                  ok:
-                    type: boolean
-                    enum:
-                      - true
-                  event_id:
-                    type: string
-                    format: uuid
-                  event_type:
-                    type: string
-                    enum:
-                      - shown
-                      - opened
-                      - accepted
-                      - dismissed
-                      - executed
-                      - failed
-                      - result_observed
-                  secrets_included:
-                    type: boolean
-                    enum:
-                      - false
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          description: Recommendation event write failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /local/tools:
     get:
       tags:
         - local-connector
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listLocalGatewayTools
       summary: List tenant-safe local gateway tools
       description: Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false.
@@ -1763,15 +1588,18 @@ paths:
       tags:
         - system-layer
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
+      parameters:
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{1,63}$
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
       responses:
         "200":
           description: System layer tools
@@ -1802,12 +1630,8 @@ paths:
       tags:
         - system-layer
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
@@ -3076,12 +2900,8 @@ paths:
       tags:
         - session-archive
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: writeSessionTurn
       x-openai-isConsequential: false
       summary: Append one turn to a customer_sessions archive
@@ -3180,12 +3000,8 @@ paths:
       tags:
         - session-archive
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: endSession
       x-openai-isConsequential: false
       summary: Close a customer_sessions archive
@@ -3265,6 +3081,695 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/operations/preview:
+    post:
+      operationId: previewTenantOperation
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: false
+      summary: Preview a bounded tenant operation
+      description: Previews a known tenant operation without provider mutation. Use this when intent or risk is ambiguous.
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tenant/operations/execute:
+    post:
+      operationId: executeTenantOperation
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: true
+      summary: Execute a bounded tenant operation
+      description: Executes a registered operation through existing context, capability, authority, policy, approval, and readback gates. It does not grant Production or write authority.
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "202":
+          description: Operation awaiting governed input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tenant/operations/status:
+    post:
+      operationId: getTenantOperationStatus
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: false
+      summary: Read tenant operation status
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - run_id
+              properties:
+                run_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+      responses:
+        "200":
+          description: Operation status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+x-custom-gpt-generation:
+  generator: http-generic-api/scripts/split-openapi.mjs
+  source_openapi: http-generic-api/openapi.yaml
+  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
+  registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
+  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
+  registry_version: 2
+  selector_model: marker_required
+  candidate_policy:
+    mode: marker_required
+    required_marker: tenant_core
+    candidate_tags:
+      - resource-api
+      - growth-dashboard
+      - tenant-operations
+      - system-layer
+      - local-connector
+      - platform-plugins
+      - activation
+      - session-archive
+    omission: fail
+    exclusion_records:
+      - operation_id: revokeAuthOAuthSsoSession
+        reason: Shared OAuth and SSO lifecycle endpoint remains outside the Tenant Core OAuth surface boundary; revocation is handled by the auth boundary.
+        owner: identity-platform
+        review_after: 2026-09-30
+      - operation_id: getAdminResourceTypes
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourceTypesResourceKey
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourcesResourceKey
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: postAdminResourcesResourceKey
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourcesResourceKeyResourceId
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: patchAdminResourcesResourceKeyResourceId
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: deleteAdminResourcesResourceKeyResourceId
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: postAdminResourcesResourceKeyResourceIdRestore
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: postAdminResourcesResourceKeyResourceIdPurge
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourcesResourceKeyResourceIdPermissions
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourcesResourceKeyResourceIdRevisions
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourcesResourceKeyResourceIdChanges
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourceChanges
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminResourceCoverageAudit
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminOperationsOperationId
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listSessions
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getGptSessions
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getGptSessionsId
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: writeGptSessionTurns
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getGptSessionsIdTurns
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getGptSessionsIdSummary
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getGptSessionsIdEvents
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getGptSessionsIdTranscript
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: postGptSessionsIdSummaryGenerate
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationHardRunSummary
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readPlatformHealthScorecard
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: recordPlatformHealthScorecardSnapshot
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readPlatformHealthScorecardRemediationPlan
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readPlatformHealthScorecardTenantRollout
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readPlatformHealthScorecardLedgerHygiene
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationRunArchive
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getTenantActivationRunArchive
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readActivationAwareness
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readActivationOperationalAttention
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: synchronizeActivationOperationalAttention
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: ingestActivationOperationalCiSignal
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: updateActivationOperationalAlertLifecycle
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readActivationDynamicTabDetail
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: acknowledgeActivationRun
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getMyDashboard
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getMyWorkspaceDashboard
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getMyWorkspaceDashboardTab
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getMyWorkspaceDashboardPreferences
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: putMyWorkspaceDashboardPreferences
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getMyWorkspaceDashboardDigest
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getMyWorkspaceDashboardActionPreview
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: postMyWorkspaceDashboardRecommendationFeedback
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readTenantActivationOperationalAttention
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readTenantActivationAwareness
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readTenantResolutionProblemCards
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listTenantResolutionCases
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: createTenantResolutionCase
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getTenantResolutionCase
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: transitionTenantResolutionCase
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: runTenantResolutionDiagnosticAction
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: previewTenantTaskSourceRepair
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: applyTenantTaskSourceRepair
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readTenantActivationDynamicTabDetail
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: runLegacyFullHardActivation
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: runHardActivation
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationSessionContext
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getTenantActivationSessionContext
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listTenantActivationSessions
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: writeTenantActivationSessionTurns
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationPlatformAccess
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listSystemConnectors
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getSystemConnector
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getSystemToolCatalogObservability
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getSystemToolDescriptor
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: resolveSystemToolCapability
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getLocalConnectorHealth
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getLocalConnectorDevices
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getConnectorAgentVersion
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getConnectorAgentManifest
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getConnectorAgentInstallerScript
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getConnectorAgentFile
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: postConnectorAgentHeartbeat
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: adsProviderGovernanceSnapshotRecord
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: supportTicketLifecycleSnapshotRecord
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: supportTicketLifecycleSnapshotPropose
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: adsProviderGovernanceSnapshotPropose
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformOrchestrationReadback
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginCatalog
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformMockProvidersList
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformMockProviderResource
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformMockCrmContacts
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginResolve
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: actionManifestResolve
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: executionReadinessDryRun
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeHostingerDeployRunRead
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeLocalReadonlyExecute
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeDispatchDryRun
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeCertify
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeCertificationStatus
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationPolicyResolve
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationPolicyList
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationPolicyUpsert
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationPolicyHistory
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationPolicyRollbackPreview
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationPolicyRollbackApply
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationQueue
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginSmokeRecertificationBatch
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeTargetUpsert
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeTargetValidate
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeTargetCatalog
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: remoteRuntimeProbe
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginPolicyUpsert
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginActionTemplateUpsert
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginDispatchRest
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginActionGrantUpsert
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginInstall
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionList
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionCreate
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionGet
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionCertify
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionPromote
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionPrivateActivate
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionPrivateResolve
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: platformPluginContributionPrivateDispatchRest
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: verifyTenantTaskSourceRepair
+        reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+  catalog_policy:
+    mode: database_mcp_levels
+    registry_table: tenant_platform_endpoint_tools
+    level_column: mcp_catalog_level
+    fallback_operations:
+      - listTools
+      - callTool
+    demoted_operation_records:
+      - operation_id: getMeWorkspacesTenantIdResourceChanges
+        tool_key: tenant_resource_changes_list
+        level: resource_api
+        reason: Long-tail resource projection remains available through the DB-backed MCP catalog.
+      - operation_id: getMeWorkspacesTenantIdOperationsOperationId
+        tool_key: tenant_operation_get
+        level: resource_api
+        reason: Long-tail execution readback remains available through the DB-backed MCP catalog.
+      - operation_id: recordTenantGrowthRecommendationFeedback
+        tool_key: tenant_growth_recommendation_feedback
+        level: growth_feedback
+        reason: Bounded recommendation feedback remains available through the DB-backed MCP catalog.
+  static_operation_ids:
+    - getMeWorkspacesTenantIdResources
+    - getMeWorkspacesTenantIdResourcesResourceKey
+    - postMeWorkspacesTenantIdResourcesResourceKey
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+    - patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+    - deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+    - postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+    - getTenantGrowthDashboard
+    - getTenantGrowthDashboardTab
+    - getTenantDashboardPreferences
+    - updateTenantDashboardPreferences
+    - getTenantGrowthDigest
+    - previewTenantGrowthAction
+    - listLocalGatewayTools
+    - listTools
+    - callTool
+    - tenantPlatformPluginCatalog
+    - tenantPlatformPluginInstall
+    - tenantPlatformPluginCredentialIntakeSessionCreate
+    - tenantPlatformPluginResolve
+    - listTenantSkillApprovals
+    - decideTenantSkillApproval
+    - writeSessionTurn
+    - endSession
+    - previewTenantOperation
+    - executeTenantOperation
+    - getTenantOperationStatus
+  dynamic_operation_ids:
+    - getMeWorkspacesTenantIdResourceChanges
+    - getMeWorkspacesTenantIdOperationsOperationId
+    - recordTenantGrowthRecommendationFeedback
+  operation_count: 30
+  warning_operation_limit: 30
+  warning_budget_exceeded: false
+  hard_operation_limit: 30
+  secrets_included: false
 x-gpt-action-auth-preset:
   authentication_type: OAuth
   schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml

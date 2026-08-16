@@ -1,0 +1,10 @@
+{
+  "surface_key": "act_as_user_readbacks",
+  "source_table": "act_as_user_readbacks",
+  "reason": "Excluded because this table stores bounded readback evidence used to prove Act-as-User dispatch outcomes and same-cycle reconciliation. It is not an activation surface, external provider surface, write-scope grant, or tenant-facing mutation projection; missing or mismatched evidence remains fail-closed.",
+  "owner": "platform-governance",
+  "authority": "act_as_user_readback_evidence",
+  "production_activation_allowed": false,
+  "external_write_allowed": false,
+  "review_after": "2026-12-31"
+}

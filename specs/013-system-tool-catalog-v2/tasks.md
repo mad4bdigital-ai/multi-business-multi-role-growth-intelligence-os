@@ -14,10 +14,10 @@
 
 ## Verification and closeout
 
-- [ ] Pass Syntax Check.
-- [ ] Pass Architecture Drift Detection.
-- [ ] Pass Execution Resolver Gate.
-- [ ] Pass Unit & Integration Tests.
-- [ ] Reconcile the work branch with the latest `main` without force.
-- [ ] Re-run CI on the reconciled head.
-- [ ] Record final CI and release-readiness evidence in `completion.json`.
+- [x] Pass Syntax Check.
+- [x] Pass Architecture Drift Detection.
+- [x] Pass Execution Resolver Gate.
+- [x] Pass Unit & Integration Tests.
+- [x] Reconcile the work branch with the latest `main` without force.
+- [x] Re-run CI on the reconciled head.
+- [x] Record final CI and release-readiness evidence in `completion.json`.

@@ -1,0 +1,194 @@
+name: Derived State Main Convergence Publisher
+run-name: Derived State Main Convergence Publisher · ${{ github.event.workflow_run.id || inputs.source_run_id || github.run_id }}
+
+on:
+  workflow_run:
+    workflows:
+      - Governed Generated Artifact Refresh
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful governed generated-artifact writer run ID
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact expected result branch head SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type PUBLISH_DERIVED_STATE_MAIN_CONVERGENCE
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: derived-state-main-convergence-${{ github.event.workflow_run.id || inputs.source_run_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish governed exact-main convergence PR
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'PUBLISH_DERIVED_STATE_MAIN_CONVERGENCE')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
+      MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
+      MAIN_CONVERGENCE_CONTRACT: mad4b.derived-state-main-convergence.v1
+    steps:
+      - name: Read exact governed writer evidence
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$MANUAL_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          fi
+          report_dir="$RUNNER_TEMP/derived-state-main-convergence"
+          rm -rf "$report_dir"
+          mkdir -p "$report_dir/writer"
+          echo "REPORT_DIR=$report_dir" >> "$GITHUB_ENV"
+
+          source_run="$report_dir/source-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$source_run"
+          test "$(jq -r '.path' "$source_run")" = ".github/workflows/governed-generated-artifact-refresh.yml"
+          test "$(jq -r '.event' "$source_run")" = "workflow_dispatch"
+          test "$(jq -r '.head_branch' "$source_run")" = "main"
+          test "$(jq -r '.conclusion' "$source_run")" = "success"
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$report_dir/artifacts.json"
+          expected_name="governed-generated-artifact-refresh-${SOURCE_RUN_ID}"
+          count="$(jq --arg name "$expected_name" '[.artifacts[] | select(.name == $name and .expired == false)] | length' "$report_dir/artifacts.json")"
+          test "$count" = "1"
+          artifact_id="$(jq -r --arg name "$expected_name" '[.artifacts[] | select(.name == $name and .expired == false)][0].id' "$report_dir/artifacts.json")"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$report_dir/writer.zip"
+          unzip -q "$report_dir/writer.zip" -d "$report_dir/writer"
+          preflight="$report_dir/writer/generated-artifact-refresh-preflight.json"
+          report="$report_dir/writer/generated-artifact-refresh-report.json"
+          test -f "$preflight" && test -f "$report"
+          test "$(jq -r '.contract' "$preflight")" = "mad4b.generated-artifact-refresh-preflight.v1"
+          test "$(jq -r '.contract' "$report")" = "mad4b.governed-generated-artifact-refresh.v1"
+          test "$(jq -r '.outcome' "$report")" = "passed"
+          test "$(jq -r '.create_from_main' "$preflight")" = "true"
+          test "$(jq -r '.remote_write_executed' "$preflight")" = "false"
+          test "$(jq -r '.mutation.force_push' "$report")" = "false"
+          test "$(jq -r '.authority.mode' "$report")" = "trusted_generated_artifact_writer"
+
+          recipe="$(jq -r '.recipe' "$report")"
+          target_ref="$(jq -r '.target_ref' "$report")"
+          source_main_sha="$(jq -r '.source_main_sha // empty' "$preflight")"
+          writer_expected_head_sha="$(jq -r '.expected_head_sha' "$report")"
+          result_head_sha="$(jq -r '.result_head_sha' "$report")"
+          [[ "$source_main_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$writer_expected_head_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$result_head_sha" =~ ^[0-9a-f]{40}$ ]]
+          test "$writer_expected_head_sha" = "$source_main_sha"
+          [[ "$target_ref" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
+          [[ "$target_ref" != "main" && "$target_ref" != "Production" ]] || { echo "Protected branch mutation forbidden" >&2; exit 1; }
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            test "$result_head_sha" = "$MANUAL_EXPECTED_HEAD_SHA"
+          fi
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$source_main_sha"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${target_ref}" --jq '.object.sha')" = "$result_head_sha"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/${source_main_sha}...${result_head_sha}" --jq '.behind_by')" = "0"
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "recipe=$recipe" >> "$GITHUB_OUTPUT"
+          echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
+          echo "source_main_sha=$source_main_sha" >> "$GITHUB_OUTPUT"
+          echo "result_head_sha=$result_head_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout trusted exact main policy
+        if: steps.source.outputs.eligible == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ steps.source.outputs.source_main_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove bounded convergence write set
+        id: scope
+        if: steps.source.outputs.eligible == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECIPE: ${{ steps.source.outputs.recipe }}
+          SOURCE_MAIN_SHA: ${{ steps.source.outputs.source_main_sha }}
+          RESULT_HEAD_SHA: ${{ steps.source.outputs.result_head_sha }}
+        run: |
+          set -euo pipefail
+          registry=.github/derived-state-governance.json
+          test "$(jq -r '.contract' "$registry")" = "mad4b.repository-derived-state-governance.v1"
+          jq -e --arg recipe "$RECIPE" '.convergence.post_merge_publishable_recipes | index($recipe) != null' "$registry" >/dev/null
+          jq -r --arg recipe "$RECIPE" '.artifacts[] | select(.recipe == $recipe) | .outputs[]' "$registry" | sort -u > "$RUNNER_TEMP/allowed.txt"
+          gh api "repos/${GITHUB_REPOSITORY}/compare/${SOURCE_MAIN_SHA}...${RESULT_HEAD_SHA}" --jq '.files[].filename' | sort -u > "$RUNNER_TEMP/actual.txt"
+          test -s "$RUNNER_TEMP/actual.txt"
+          unexpected="$(comm -23 "$RUNNER_TEMP/actual.txt" "$RUNNER_TEMP/allowed.txt" || true)"
+          [[ -z "$unexpected" ]] || { echo "Convergence branch exceeds registered outputs: $unexpected" >&2; exit 1; }
+          echo "changed_count=$(wc -l < "$RUNNER_TEMP/actual.txt" | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Create or reuse exact convergence pull request
+        id: pr
+        if: steps.scope.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          TARGET_REF: ${{ steps.source.outputs.target_ref }}
+          SOURCE_MAIN_SHA: ${{ steps.source.outputs.source_main_sha }}
+          RESULT_HEAD_SHA: ${{ steps.source.outputs.result_head_sha }}
+          RECIPE: ${{ steps.source.outputs.recipe }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]] || { echo "Protected branch mutation forbidden" >&2; exit 1; }
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$SOURCE_MAIN_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')" = "$RESULT_HEAD_SHA"
+          gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls" -f state=open -f base=main -f head="${GITHUB_REPOSITORY_OWNER}:${TARGET_REF}" -f per_page=2 > "$REPORT_DIR/prs.json"
+          count="$(jq 'length' "$REPORT_DIR/prs.json")"
+          if [[ "$count" = "0" ]]; then
+            body="<!-- derived-state-main-convergence:source=${SOURCE_MAIN_SHA} recipe=${RECIPE} writer_run=${SOURCE_RUN_ID} -->"$'\n\n'"Governed convergence PR produced from exact main ${SOURCE_MAIN_SHA}. Derived State Closure must converge on the exact merge candidate before guarded auto-merge is registered."
+            url="$(gh pr create --base main --head "$TARGET_REF" --title "chore(derived-state): converge ${RECIPE} from ${SOURCE_MAIN_SHA:0:12}" --body "$body")"
+            pr_number="${url##*/}"
+          elif [[ "$count" = "1" ]]; then
+            pr_number="$(jq -r '.[0].number' "$REPORT_DIR/prs.json")"
+          else
+            echo "Multiple convergence PRs for same branch" >&2; exit 1
+          fi
+          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]]
+          readback="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
+          test "$(jq -r '.base.ref' <<<"$readback")" = "main"
+          test "$(jq -r '.head.ref' <<<"$readback")" = "$TARGET_REF"
+          test "$(jq -r '.head.sha' <<<"$readback")" = "$RESULT_HEAD_SHA"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Publish main-convergence provenance receipt
+        if: steps.pr.outputs.pr_number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          TARGET_REF: ${{ steps.source.outputs.target_ref }}
+          SOURCE_MAIN_SHA: ${{ steps.source.outputs.source_main_sha }}
+          RESULT_HEAD_SHA: ${{ steps.source.outputs.result_head_sha }}
+          RECIPE: ${{ steps.source.outputs.recipe }}
+          CHANGED_COUNT: ${{ steps.scope.outputs.changed_count }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" > "$REPORT_DIR/comments.json"
+          existing="$(jq --arg run "$SOURCE_RUN_ID" --arg contract "$MAIN_CONVERGENCE_CONTRACT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("DERIVED_STATE_MAIN_CONVERGENCE contract=" + $contract + " ")) and (.body | contains("source_writer_run_id=" + $run + " ")))] | length' "$REPORT_DIR/comments.json")"
+          if (( existing == 0 )); then
+            receipt="DERIVED_STATE_MAIN_CONVERGENCE contract=${MAIN_CONVERGENCE_CONTRACT} state=published source_writer_run_id=${SOURCE_RUN_ID} pr_number=${PR_NUMBER} target_ref=${TARGET_REF} base_sha=${SOURCE_MAIN_SHA} head_sha=${RESULT_HEAD_SHA} expected_head_sha=${RESULT_HEAD_SHA} recipe=${RECIPE} changed_files=${CHANGED_COUNT} protected_branch_mutation=false force_push=false"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$receipt" >/dev/null
+            echo "$receipt" >> "$GITHUB_STEP_SUMMARY"
+          fi

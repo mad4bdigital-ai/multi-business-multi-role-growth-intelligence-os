@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "feature_key": "staging-oauth-act-as-user-maintenance-20260816",
+  "title": "Staging OAuth and Act-as-User governed runtime maintenance",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reconcile the already-integrated parallel governance workstreams and the bounded staging OAuth, Frontend dispatch, and Act-as-User runtime changes in one standard PR without enabling provider dispatch, live mutation, SQL Apply, Production promotion, or secret transport.",
+      "e2e_journeys": [
+        {
+          "id": "standard-pr-runtime-governance-to-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed-maintenance-integrator",
+          "entrypoint": "Standard pull request head evaluation against main",
+          "terminal_outcome": "The exact PR head is evaluated against all affected integrated contracts, generated artifacts are deterministic, staging OAuth/OpenAPI and Act-as-User controls remain fail-closed, and no live or Production mutation is authorized.",
+          "steps": [
+            "Resolve the exact PR head, base ref, affected runtime files, and integrated parallel contract set.",
+            "Verify every affected runtime file is covered by this single-PR scope and the owning integrated contracts.",
+            "Run deterministic Frontend generated-artifact, OpenAPI auth parity, staging governance, Act-as-User, and E2E contract checks.",
+            "Require shadow-only or read-only outcomes for write-capable paths and preserve secret exclusion, protected-ref, and promotion guards.",
+            "Persist the evaluation and inventory readbacks against the exact head before any owner attestation or merge decision."
+          ],
+          "assertions": [
+            "The maintenance exception is valid only for base main, an implemented mvp, and fully integrated parallel workstreams.",
+            "All runtime files changed by this PR match the bounded maintenance scope and remain attributable to the integrated contracts.",
+            "Generated Frontend and repository governance artifacts are deterministic and show no uncommitted drift after generation.",
+            "Staging OAuth/OpenAPI parity, Act-as-User hierarchy, CAS/replay protection, mandatory readback, and lower-role same-tenant constraints remain enforced.",
+            "No secrets are included and no provider dispatch, live mutation, SQL Apply, Production promotion, or protected-ref mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "e2e-parallel-pr-flow-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-parallel-pr-flow-self-test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-single-pr-maintenance-evaluator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
+              "args": []
+            },
+            {
+              "id": "act-as-user-execution-policy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-act-as-user-execution-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-openapi-governance",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/validate-staging-openapi-governance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-oauth-act-as-user-maintenance-20260816.json",
+            "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json",
+            "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/actAsUserExecutionPolicy.js",
+            "http-generic-api/actAsUserDurableRepositories.js",
+            "http-generic-api/test-act-as-user-execution-policy.mjs",
+            "scripts/validate-staging-openapi-governance.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "scope": {
+    "include": [
+      ".changes/e2e/**",
+      "http-generic-api/**",
+      "scripts/**",
+      "specs/014-governed-hostinger-storage-orchestration/**",
+      "specs/020-platform-resource-identity-brand-governance/**",
+      "docs/**"
+    ]
+  },
+  "secrets_included": false
+}

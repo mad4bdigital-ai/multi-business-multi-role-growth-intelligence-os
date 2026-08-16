@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       recipe:
-        description: Registered generated-artifact recipe; auto preserves existing classification
+        description: Registered generated-artifact recipe; auto preserves existing classification and repairs stale Remote MCP write-scope inventory before frontend fallback
         required: true
         default: auto
         type: choice
@@ -21,13 +21,29 @@ on:
           - auto
           - frontend_openapi_refresh
           - work_map_self_hosting_bootstrap
+          - remote_mcp_write_scope_refresh
           - repository_inventory_refresh
       confirmation:
         description: Type APPLY_GENERATED_ARTIFACT_REFRESH
         required: true
         type: string
+      create_from_main:
+        description: Create the governed target branch from exact main before refresh
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      source_main_sha:
+        description: Exact main SHA authorizing post-merge generated-state convergence
+        required: false
+        default: ""
+        type: string
 
-# This is the sole registered generated-artifact writer; all inputs remain exact-head and branch-scoped.
+# This is the sole registered generated-artifact maintenance writer; all inputs remain exact-head and branch-scoped.
+# Bounded post-merge Repository State or Work Map repair may create a governed work branch from exact main, but never mutates main or Production.
+# Contracts: mad4b.repository-inventory-self-hosting.v2 and mad4b.work-map-main-self-convergence.v1.
 env:
   GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
 
@@ -46,6 +62,28 @@ jobs:
     env:
       OUTPUT_DIR: .ci-evidence/governed-generated-artifact-refresh
     steps:
+      - name: Initialize bounded refresh evidence
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          RECIPE: ${{ inputs.recipe }}
+          CREATE_FROM_MAIN: ${{ inputs.create_from_main }}
+          SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
+        run: |
+          set -euo pipefail
+          rm -rf "$OUTPUT_DIR"
+          mkdir -p "$OUTPUT_DIR"
+          jq -cn \
+            --arg contract "mad4b.generated-artifact-refresh-preflight.v1" \
+            --arg target_ref "$TARGET_REF" \
+            --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
+            --arg recipe "$RECIPE" \
+            --arg create_from_main "$CREATE_FROM_MAIN" \
+            --arg source_main_sha "$SOURCE_MAIN_SHA" \
+            '{contract:$contract,target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:$recipe,create_from_main:$create_from_main,source_main_sha:(if ($source_main_sha|length)>0 then $source_main_sha else null end),remote_write_executed:false,secrets_included:false}' \
+            > "$OUTPUT_DIR/generated-artifact-refresh-preflight.json"
+
       - name: Validate dispatch identity
         shell: bash
         env:
@@ -53,6 +91,8 @@ jobs:
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
           RECIPE: ${{ inputs.recipe }}
           CONFIRMATION: ${{ inputs.confirmation }}
+          CREATE_FROM_MAIN: ${{ inputs.create_from_main }}
+          SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
         run: |
           set -euo pipefail
           test "$GENERATED_ARTIFACT_AUTHORITY_MODE" = "trusted_writer"
@@ -63,10 +103,101 @@ jobs:
           [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
           case "$RECIPE" in
-            auto|frontend_openapi_refresh|work_map_self_hosting_bootstrap|repository_inventory_refresh) ;;
+            auto|frontend_openapi_refresh|work_map_self_hosting_bootstrap|remote_mcp_write_scope_refresh|repository_inventory_refresh) ;;
             *) echo "Unregistered generated-artifact recipe: $RECIPE" >&2; exit 1 ;;
           esac
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
+          [[ "$CREATE_FROM_MAIN" == "false" || "$CREATE_FROM_MAIN" == "true" ]]
+          if [[ "$CREATE_FROM_MAIN" == "true" ]]; then
+            [[ "$RECIPE" == "repository_inventory_refresh" || "$RECIPE" == "work_map_self_hosting_bootstrap" ]]
+            [[ "$SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
+            if [[ "$RECIPE" == "repository_inventory_refresh" ]]; then
+              [[ "$TARGET_REF" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
+            else
+              [[ "$TARGET_REF" =~ ^chore/work-map-main-sync-[0-9a-f]{12}$ ]]
+            fi
+          else
+            [[ -z "$SOURCE_MAIN_SHA" ]]
+          fi
+
+      - name: Prepare exact main convergence branch
+        if: inputs.create_from_main == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
+        run: |
+          set -euo pipefail
+          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main_sha" = "$SOURCE_MAIN_SHA"
+          test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
+
+          lookup_err="$RUNNER_TEMP/generated-artifact-target-ref-lookup.err"
+          create_response="$RUNNER_TEMP/generated-artifact-target-ref-create.json"
+          create_err="$RUNNER_TEMP/generated-artifact-target-ref-create.err"
+          : > "$lookup_err"
+          : > "$create_err"
+
+          set +e
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha' 2>"$lookup_err")"
+          existing_status=$?
+          set -e
+          if (( existing_status == 0 )); then
+            if [[ "$existing_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+              echo "Target branch already exists at unexpected SHA: ${existing_sha}" >&2
+              exit 1
+            fi
+          else
+            if ! grep -Eqi 'HTTP 404|Not Found' "$lookup_err"; then
+              cat "$lookup_err" >&2
+              echo "Target branch lookup failed with a non-404 error; refusing to infer absence." >&2
+              exit "$existing_status"
+            fi
+
+            payload="$(jq -cn --arg ref "refs/heads/${TARGET_REF}" --arg sha "$EXPECTED_HEAD_SHA" '{ref:$ref,sha:$sha}')"
+            set +e
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" --input - <<<"$payload" >"$create_response" 2>"$create_err"
+            create_status=$?
+            set -e
+            if (( create_status == 0 )); then
+              created_sha="$(jq -er '.object.sha' "$create_response")"
+              if [[ "$created_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+                echo "Created target branch returned unexpected SHA: ${created_sha}" >&2
+                exit 1
+              fi
+            else
+              echo "::warning::Target ref create returned status ${create_status}; requiring bounded exact-SHA readback before continuing."
+            fi
+          fi
+
+          remote_target_sha=""
+          for attempt in $(seq 1 8); do
+            set +e
+            candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha' 2>/dev/null)"
+            readback_status=$?
+            set -e
+            if (( readback_status == 0 )); then
+              if [[ "$candidate_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+                echo "Target ref resolved to unexpected SHA during readback: ${candidate_sha}" >&2
+                exit 1
+              fi
+              remote_target_sha="$candidate_sha"
+              break
+            fi
+            sleep "$attempt"
+          done
+
+          if [[ "$remote_target_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+            if [[ -s "$create_err" ]]; then
+              cat "$create_err" >&2
+            fi
+            echo "Target ref did not converge to expected SHA after bounded readback retries." >&2
+            exit 1
+          fi
+          echo "Prepared governed convergence branch ${TARGET_REF} from exact main@${SOURCE_MAIN_SHA}." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout exact expected head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -108,38 +239,51 @@ jobs:
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           [[ "$remote_sha" == "$result_sha" ]]
 
-          case "$resolved_recipe" in
-            repository_inventory_refresh)
-              verifier_workflow="repository-inventory.yml"
-              verifier_name="Repository Inventory"
-              ;;
-            frontend_openapi_refresh|work_map_self_hosting_bootstrap)
-              verifier_workflow="pr-generated-artifact-refresh.yml"
-              verifier_name="PR Generated Artifact Refresh"
-              ;;
-            *)
-              echo "No registered verifier route for recipe: $resolved_recipe" >&2
-              exit 1
-              ;;
-          esac
+          verifier_records='[]'
+          if [[ "$resolved_recipe" == "repository_inventory_refresh" ]]; then
+            verifier_workflows=("repository-inventory.yml" "repository-evaluation.yml")
+            verifier_names=("Repository Inventory" "Repository Evaluation")
+          elif [[ "$resolved_recipe" == "remote_mcp_write_scope_refresh" ]]; then
+            verifier_workflows=("remote-mcp-write-scope-verification.yml")
+            verifier_names=("Remote MCP Write-Scope Verification")
+          elif [[ "$resolved_recipe" == "frontend_openapi_refresh" || "$resolved_recipe" == "work_map_self_hosting_bootstrap" ]]; then
+            verifier_workflows=("pr-generated-artifact-refresh.yml")
+            verifier_names=("PR Generated Artifact Refresh")
+          else
+            echo "No registered verifier route for recipe: $resolved_recipe" >&2
+            exit 1
+          fi
 
-          payload="$(jq -cn \
-            --arg ref "$TARGET_REF" \
-            --arg target_ref "$TARGET_REF" \
-            --arg expected_head_sha "$result_sha" \
-            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
-          gh api \
-            --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches" \
-            --input - <<<"$payload"
+          for index in "${!verifier_workflows[@]}"; do
+            verifier_workflow="${verifier_workflows[$index]}"
+            verifier_name="${verifier_names[$index]}"
+            payload="$(jq -cn \
+              --arg ref "$TARGET_REF" \
+              --arg target_ref "$TARGET_REF" \
+              --arg expected_head_sha "$result_sha" \
+              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches" \
+              --input - <<<"$payload"
+            verifier_records="$(jq -cn \
+              --argjson current "$verifier_records" \
+              --arg workflow "$verifier_name" \
+              --arg workflow_file "$verifier_workflow" \
+              '$current + [{workflow:$workflow,workflow_file:$workflow_file}]')"
+          done
+
+          primary_verifier_name="${verifier_names[0]}"
+          primary_verifier_workflow="${verifier_workflows[0]}"
           jq -cn \
             --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
             --arg recipe "$resolved_recipe" \
             --arg target_ref "$TARGET_REF" \
             --arg candidate_sha "$result_sha" \
-            --arg workflow "$verifier_name" \
-            --arg workflow_file "$verifier_workflow" \
-            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,requested:true,secrets_included:false}' \
+            --arg workflow "$primary_verifier_name" \
+            --arg workflow_file "$primary_verifier_workflow" \
+            --argjson verifiers "$verifier_records" \
+            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,verifiers:$verifiers,requested:true,secrets_included:false}' \
             > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
 
       - name: Upload canonical refresh report

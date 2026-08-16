@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   title: Growth Intelligence Platform - Admin Core Actions
   version: 3.0.0-platform
-  summary: Admin and system MCP facades without Activation routes.
-  description: Stable Admin Core transport for governed admin-control and system-layer operations. Dynamic MCP tool schemas remain SQL-driven.
+  summary: Admin and system MCP facades with a bounded operation surface.
+  description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven.
 servers:
   - url: https://auth.mad4b.com
     description: admin_core surface
@@ -12,6 +12,8 @@ tags:
     description: Personal administrator control surface for CLI, database, and runtime environment operations.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+  - name: admin-operations
+    description: Admin Custom GPT bounded operation preview, execution, and status surfaces.
 components:
   securitySchemes:
     backendBearerAuth:
@@ -285,6 +287,106 @@ components:
 security:
   - backendBearerAuth: []
 paths:
+  /admin/operations/preview:
+    post:
+      operationId: previewAdminOperation
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Preview a bounded admin operation
+      description: Preview-first admin operation path; no provider mutation is authorized by preview.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/operations/execute:
+    post:
+      operationId: executeAdminOperation
+      tags:
+        - admin-operations
+      x-openai-isConsequential: true
+      summary: Execute a bounded admin operation
+      description: Executes a registered operation through existing capability, authority, approval, and readback gates. It does not activate Production or write scopes by itself.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "202":
+          description: Operation awaiting governed input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/operations/status:
+    post:
+      operationId: getAdminOperationStatus
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Read admin operation status
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - run_id
+              properties:
+                run_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+      responses:
+        "200":
+          description: Operation status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /system/connectors:
     get:
       tags:
@@ -405,6 +507,13 @@ paths:
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
+      parameters:
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{1,63}$
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
       responses:
         "200":
           description: System layer tools
@@ -1166,6 +1275,12 @@ paths:
           schema:
             type: string
           description: Optional exact tag filter.
+        - name: catalog_level
+          in: query
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{1,63}$
+          description: Optional exact DB-backed MCP catalog level filter. Discovery only; execution remains separately governed.
         - name: max_chars
           in: query
           schema:
@@ -1886,3 +2001,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+x-custom-gpt-generation:
+  generator: http-generic-api/scripts/split-openapi.mjs
+  source_openapi: http-generic-api/openapi.yaml
+  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
+  registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
+  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
+  registry_version: 2
+  selector_model: marker_required
+  candidate_policy:
+    mode: marker_required
+    required_marker: admin_core
+    candidate_tags:
+      - admin-control
+      - admin-operations
+      - system-layer
+    omission: fail
+    exclusion_records:
+      - operation_id: revokeAuthOAuthSsoSession
+        reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
+        owner: identity-platform
+        review_after: 2026-09-30
+      - operation_id: sessionInsightTargetWriteReadbackCreate
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: sessionInsightTargetWriteReadbackList
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: createAdminScopeGrant
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listAdminScopeGrants
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: revokeAdminScopeGrant
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomySummary
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyAppMap
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyToolMap
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyFamilyCoverage
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+  catalog_policy: null
+  static_operation_ids: null
+  dynamic_operation_ids: null
+  operation_count: 26
+  warning_operation_limit: 30
+  warning_budget_exceeded: false
+  hard_operation_limit: 30
+  secrets_included: false

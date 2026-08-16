@@ -1,0 +1,168 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-staging-autopilot-tunnel-closure",
+  "title": "Portable Windows External-SSD Staging Auto Pilot and Active Dev Tunnel Boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/README.md",
+      "autopilot-portable-staging/manifest.json",
+      "STAGING-WINDOWS.md",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/docker-compose.staging.yml",
+      "docs/governance/configuration-drift-policy.json",
+      "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/config/staging-openapi-mcp-policy.json",
+      "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/rootDiscoveryRoutes.js",
+      "http-generic-api/scripts/build-staging-openapi.mjs",
+      "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+      "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-domain-family-policy.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
+      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-activation-gateway.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+      "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+      "docs/staging-openapi-mcp-db-copy.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a portable Windows/External-SSD launcher that starts only a pinned local Staging tree and exposes only the ready Dev hostname through an explicit opt-in Tunnel profile.",
+      "e2e_journeys": [
+        {
+          "id": "external-ssd-pinned-local-start",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging operator",
+          "entrypoint": "autopilot-portable-staging/Start-AutoPilot.ps1",
+          "terminal_outcome": "The launcher either validates and starts the exact local repository safely or stops before mutation with a fail-closed diagnostic.",
+          "steps": [
+            "Require an exact 40-character commit SHA and verify the remote ref and detached checkout resolve to that SHA.",
+            "Reject a dirty tree, DOCKER_HOST, DOCKER_CONTEXT, non-local Docker contexts, unavailable Docker, or unreadable WSL2 state.",
+            "Verify manifest SHA-256 values for Compose, env template, domain policy, OpenAPI/MCP policy, generated Staging OpenAPI artifact, DB copy tool, regression tests, documentation, and Auto Pilot files.",
+            "Create only an ignored local .env.staging with local-only credentials when absent; never copy Production credentials or provider tokens.",
+            "Parse the merged Compose model and start local services without migrations, SQL apply, provider calls, or Production deployment.",
+            "Start cloudflared only when the operator explicitly supplies -StartTunnel and a non-empty dedicated Staging token."
+          ],
+          "assertions": [
+            "The exact commit is pinned and read back before service startup.",
+            "MIGRATION_APPLIED=false and DATABASE_MUTATED=false are required and exact.",
+            "The staging SSO cookie mode is host_only and Production hostnames are rejected from the active tunnel list.",
+            "The active tunnel hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com and their origin is exactly http://app:8080.",
+            "activation-dev.mad4b.com remains reserved-disabled and is not active Tunnel ingress.",
+            "cloudflared is behind the explicit tunnel profile, uses a digest-pinned image, depends only on app, and has no database or provider access.",
+            "Auto Pilot performs no Cloudflare DNS mutation, Hostinger deployment, migration, database mutation, or credential payload read."
+          ],
+          "tests": [
+            {
+              "id": "domain-family-policy-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-domain-family-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure-validator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-openapi-mcp-db-boundary-validator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-gateway-security-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-activation-gateway.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/README.md",
+            "autopilot-portable-staging/manifest.json",
+            "STAGING-WINDOWS.md",
+            "http-generic-api/.env.staging.example",
+            "docs/governance/configuration-drift-policy.json",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/config/domain-family-policy.json",
+            "http-generic-api/config/staging-openapi-mcp-policy.json",
+            "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/routes/rootDiscoveryRoutes.js",
+            "http-generic-api/scripts/build-staging-openapi.mjs",
+            "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+            "http-generic-api/scripts/split-openapi.mjs",
+            "http-generic-api/test-connect-routes.mjs",
+            "http-generic-api/test-domain-family-policy.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
+            "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/test-activation-gateway.mjs",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+            "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+            "docs/staging-openapi-mcp-db-copy.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Validate the live Dev Tunnel from the operator's Windows host after authorized Cloudflare-side ingress configuration.",
+      "blockers": [
+        "The Cloudflare dashboard/API configuration is provider-side and is intentionally not mutated by Auto Pilot.",
+        "Live validation requires the operator's Windows host, Docker Desktop/WSL2, the local app, and a dedicated Dev tunnel token."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add independent tunnel health/readback evidence and operator-visible rollback guidance without sharing Production credentials."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No Cloudflare, Hostinger, DNS, or external-provider canary is executed by this source change."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production remains on Hostinger Cloud and is not changed by this local Staging Auto Pilot.",
+      "blockers": [
+        "Production deployment and Hostinger-side operations are explicitly out of scope for this Staging closure PR."
+      ]
+    }
+  ]
+}

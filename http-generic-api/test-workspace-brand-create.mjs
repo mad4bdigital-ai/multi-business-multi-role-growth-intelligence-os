@@ -152,6 +152,11 @@ assert.deepEqual(
   assert.equal(result.grant.resource_ref, targetKey);
   assert.equal(result.next_steps.brand_core_profile_required, true);
   assert.equal(result.next_steps.asset_attachment_available, false, "asset create/import remains a later Brand Core slice");
+  assert.deepEqual(result.next_operations.map(({ operation_key, status }) => ({ operation_key, status })), [
+    { operation_key: "brand.context.read", status: "shadow" },
+    { operation_key: "assets.create", status: "shadow" },
+  ]);
+  assert.equal(result.next_operations.every((operation) => operation.operation_key.includes(".") && operation.reason && !JSON.stringify(operation).includes("secret")), true);
   const sql = connection.queries.map((entry) => entry.sql).join("\n");
   assert.match(sql, /LIMIT 2 FOR UPDATE/);
   assert.match(sql, /INSERT INTO brands/);
@@ -291,11 +296,11 @@ for (const invalidName of ["", " ", "x", "x".repeat(256)]) {
 const routeSource = await fs.readFile(new URL("./routes/workspaceResourceRoutes.js", import.meta.url), "utf8");
 assert.match(routeSource, /RESOURCE_API_CALLABILITY_CONTRACT: workspace_brand_create/);
 assert.match(routeSource, /router\.post\("\/me\/workspaces\/:tenant_id\/brands"/);
-assert.match(routeSource, /createWorkspaceBrand\(connection,/);
+assert.match(routeSource, /createWorkspaceBrandWithRootTopology\(connection,/);
+assert.match(routeSource, /withContainerAuthorityMutation\(\{/);
+assert.match(routeSource, /MUTATION_TRANSACTION: workspace_brand_create/);
+assert.match(routeSource, /MUTATION_READBACK: workspace_brand_create/);
 assert.match(routeSource, /workspace_link: result\.link/);
-assert.match(routeSource, /await connection\.beginTransaction\(\); \/\/ MUTATION_TRANSACTION: workspace_brand_create/);
-assert.match(routeSource, /await connection\.commit\(\)/);
-assert.match(routeSource, /await connection\.rollback\(\)/);
 assert.match(routeSource, /secrets_included: false/);
 
 console.log("workspace brand create tests passed");

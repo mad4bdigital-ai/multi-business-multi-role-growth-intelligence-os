@@ -14,4 +14,4 @@
 - [x] OpenAPI 3.1 documents list, lookup, resolution, observability, errors, and compatibility.
 - [x] Tests cover 250 tools, isolation, stale cursors, ambiguity, collision, multilingual intent, parity, and HTTP routes.
 - [x] No provider call, mutation, migration, deployment, device action, or secret exposure is introduced.
-- [ ] CI and branch freshness are verified on the final head.
+- [x] CI and branch freshness are verified on the final head.

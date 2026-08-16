@@ -1,0 +1,62 @@
+{
+  "schema_version": "mad4b.staging-openapi-mcp-policy.v1",
+  "environment": "staging",
+  "fail_closed": true,
+  "custom_gpt": {
+    "enabled_env": "TENANT_GPT_STAGING_ENABLED",
+    "client_id_env": "TENANT_GPT_STAGING_OAUTH_CLIENT_ID",
+    "client_secret_env": "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET",
+    "authorization_server": "https://dev.mad4b.com",
+    "resource": "https://dev.mad4b.com",
+    "schema_url": "https://dev.mad4b.com/openapi.tenant-gpt.staging.yaml",
+    "server_uri_count": 1,
+    "surface": "tenant-custom-gpt",
+    "production_resources_forbidden": ["https://auth.mad4b.com", "https://activation.mad4b.com"],
+    "admin_read_only": {
+      "schema_url": "https://dev.mad4b.com/openapi.custom-gpt.staging-admin.yaml",
+      "resource": "https://dev.mad4b.com",
+      "server_uri_count": 1,
+      "authorization_mode": "backend_bearer_or_user_jwt",
+      "write_activation": false,
+      "secrets_included": false
+    }
+  },
+  "remote_mcp": {
+    "enabled_env": "REMOTE_MCP_ENABLED",
+    "oauth_enabled_env": "REMOTE_MCP_OAUTH_ENABLED",
+    "environment_env": "REMOTE_MCP_ENVIRONMENT",
+    "resource": "https://mcp_dev.mad4b.com",
+    "authorization_server": "https://dev.mad4b.com/auth/mcp",
+    "documentation_url": "https://mcp_dev.mad4b.com/docs",
+    "schema_url": "https://mcp_dev.mad4b.com/openapi.remote-mcp.staging.yaml",
+    "server_uri_count": 1,
+    "production_resources_forbidden": ["https://mcp.mad4b.com", "https://auth.mad4b.com/auth/mcp"]
+  },
+  "tunnel": {
+    "active_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+    "worker_custom_domains": ["activation-dev.mad4b.com"],
+    "reserved_disabled_hostnames": [],
+    "activation_gateway": {
+      "mode": "active_opt_in",
+      "required_flag": "ACTIVATION_STAGING_GATEWAY_ENABLED=true",
+      "required_host": "activation-dev.mad4b.com",
+      "binding_type": "worker_custom_domain",
+      "required_bundle": "dedicated_staging_activation_gateway_bundle",
+      "production_hosts_forbidden": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]
+    },
+    "origin": "http://app:8080",
+    "provider_mutation": "manual_only"
+  },
+  "databases": {
+    "source": "local_staging_only_or_operator_supplied_sanitized_dump",
+    "production_connection_forbidden": true,
+    "schemas": [
+      {"key": "runtime", "database_env": "DB_NAME", "container": "runtime-db", "schema_dump_file": "runtime.schema.sql.gz", "sanitized_data_dump_file": "runtime.sanitized.sql.gz"},
+      {"key": "governance", "database_env": "GOVERNANCE_DB_NAME", "container": "governance-db", "schema_dump_file": "governance.schema.sql.gz", "sanitized_data_dump_file": "governance.sanitized.sql.gz"},
+      {"key": "persistence", "database_env": "RUNTIME_PERSISTENCE_DB_NAME", "container": "persistence-db", "schema_dump_file": "persistence.schema.sql.gz", "sanitized_data_dump_file": "persistence.sanitized.sql.gz"}
+    ],
+    "default_mode": "schema_only",
+    "data_mode_requires_explicit_flag": true,
+    "plaintext_dump_retention": "forbidden"
+  }
+}

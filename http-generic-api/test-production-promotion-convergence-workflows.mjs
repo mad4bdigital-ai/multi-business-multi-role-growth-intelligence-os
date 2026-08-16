@@ -1,220 +1,201 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const launcher = readFileSync(
-  new URL("../.github/workflows/governed-production-promotion-request-launcher.yml", import.meta.url),
-  "utf8",
-);
-const postFinalizationGuard = readFileSync(
-  new URL("../.github/workflows/governed-production-promotion-post-finalization-guard.yml", import.meta.url),
-  "utf8",
-);
-const certifiedReleaseCut = readFileSync(
-  new URL("../.github/workflows/production-certified-release-cut-validation.yml", import.meta.url),
-  "utf8",
-);
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const launcher = read(".github/workflows/governed-production-promotion-request-launcher.yml");
+const candidate = read(".github/workflows/production-promotion-candidate.yml");
+const mainSourcePinGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
+const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
+const postFinalizationGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
+const certifiedReleaseCut = read(".github/workflows/production-certified-release-cut-validation.yml");
+const ci = read(".github/workflows/ci.yml");
+const runtimeStartupWorkflow = read(".github/workflows/runtime-startup-deployment-evidence.yml");
+const startupSmoke = read("http-generic-api/test-server-startup-smoke.mjs");
+const runtimeStartupEvidence = read("http-generic-api/scripts/runtime-startup-deployment-evidence.mjs");
+const runtimeStartupEnvironment = read("http-generic-api/scripts/runtime-startup-test-environment.mjs");
+const gateResolver = read(".github/scripts/production-promotion-supporting-gates.mjs");
+const evidenceHelper = read(".github/scripts/production-promotion-release-cut-evidence.mjs");
+const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 
 for (const required of [
-  /group: governed-production-promotion-convergence-\$\{\{ github\.repository \}\}/,
-  /cancel-in-progress: true/,
-  /MAX_ATTEMPTS=3/,
-  /production-promotion-candidate\.yml/,
-  /production-promotion-exact-candidate-validation\.yml/,
-  /Frontend surface dispatch/,
-  /HTTP Generic API Fanout Relocation/,
-  /Custom GPT Contract Guard/,
-  /Platform Completion Cleanup Readback/,
-  /Platform Remaining Scope Scorecard/,
-  /Spec 011 Delegation MariaDB Certification/,
-  /resolve_run_once\(\)/,
-  /sort_by\(\.createdAt, \.databaseId\)/,
-  /\.status != \\"completed\\"/,
-  /\.conclusion == \\"success\\"/,
-  /\.conclusion == \\"action_required\\"/,
-  /spec-011-delegation-mariadb-certification\.yml/,
-  /frontend-surface-dispatch\.yml[\s\S]*--ref "\$RELEASE_BRANCH"/,
-  /http-generic-api-fanout-relocation\.yml[\s\S]*--field scope=scripts[\s\S]*--field max_files=20[\s\S]*--field target_branch="\$RELEASE_BRANCH"/,
-  /custom-gpt-contract-guard\.yml[\s\S]*--ref "\$RELEASE_BRANCH"[\s\S]*--field drill_mode=none/,
-  /platform-completion-cleanup-readback\.yml[\s\S]*--ref "\$RELEASE_BRANCH"/,
-  /platform-remaining-scope-scorecard\.yml[\s\S]*--ref "\$RELEASE_BRANCH"/,
-  /Spec 011 release branch moved before supporting gate dispatch/,
-  /refusing blind dispatch retry/,
-  /protected refs moved during validation; retrying from current refs/,
-  /request_pr: \$request_pr/,
-  /candidate_tree_matches_main: true/,
-  /protected_refs_stable_during_validation: true/,
-  /exact_full_ci_success: true/,
-  /merge_executed: false/,
-  /deployment_executed: false/,
-  /migration_executed: false/,
-  /provider_call_executed: false/,
-  /credential_payload_read: false/,
-  /secrets_included: false/,
-  /\.head\.repo\.full_name \/\/ ""/,
-  /request PR must originate from this repository/,
-  /run \$run_id is waiting for required approval; keeping governed review surfaces open/,
-  /source-pinned main moved during convergence/,
-  /refusing to build against an unapproved main/,
-  /validation branch prefix must use the governed candidate namespace/,
-  /validation base branch prefix must use the governed base namespace/,
-]) {
-  assert.match(launcher, required);
+  /group: governed-production-promotion-convergence-\$\{\{ github\.repository \}\}/u,
+  /production-promotion-candidate\.yml/u,
+  /production-certified-release-cut-validation\.yml/u,
+  /production-promotion-supporting-gates\.mjs/u,
+  /production-promotion-release-cut-evidence\.mjs/u,
+  /git merge-base --is-ancestor "\$RELEASE_CUT_SHA" "\$CURRENT_MAIN_SHA"/u,
+  /git merge-base --is-ancestor "\$PRODUCTION_SHA" "\$RELEASE_CUT_SHA"/u,
+  /candidate first parent is not release cut/u,
+  /candidate tree differs from release cut/u,
+  /Production moved during convergence/u,
+  /main_tip_may_advance=true/u,
+  /request evidence comment transport degraded/u,
+  /validation evidence comment transport degraded/u,
+]) assert.match(launcher, required);
+
+assert.doesNotMatch(launcher, /source-pinned main moved during convergence/u);
+assert.doesNotMatch(launcher, /MAX_ATTEMPTS=3/u);
+assert.doesNotMatch(launcher, /gh pr merge/u);
+assert.doesNotMatch(launcher, /contents:\s*write/u);
+
+for (const gate of registry.gates) {
+  assert.equal(gate.required, true);
+  assert.equal(gate.effect, "read_only");
+  assert.deepEqual(gate.modes, ["human", "ai_policy"]);
+  assert.doesNotMatch(launcher, new RegExp(gate.workflow.replaceAll(".", "\\."), "u"), `launcher must not hardcode gate ${gate.workflow}`);
 }
-assert.doesNotMatch(launcher, /headRepositoryOwner/);
-
-const waitRunSuccessBlock = launcher.match(/wait_run_success\(\) \{[\s\S]*?\n\s+\}\n\n\s+close_surface\(\)/)?.[0] ?? "";
-assert.ok(waitRunSuccessBlock, "launcher must expose a bounded run wait contract");
-assert.match(
-  waitRunSuccessBlock,
-  /conclusion.*action_required[\s\S]*?keeping governed review surfaces open/,
-  "action_required must remain approval-pending instead of closing governed review surfaces",
-);
-
-const spec011DispatchBlock =
-  launcher.match(
-    /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?else\n\s+SUPPORTING_RUN_ID=/,
-  )?.[0] ?? "";
-assert.ok(spec011DispatchBlock, "Spec 011 supporting gate must have an explicit bounded dispatch block");
-assert.match(
-  spec011DispatchBlock,
-  /SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"/,
-  "Spec 011 must reuse an already-visible exact-head run before dispatch",
-);
-assert.match(
-  spec011DispatchBlock,
-  /SPEC011_RELEASE_READBACK="\$\(gh api "\/repos\/\$\{REPOSITORY\}\/git\/ref\/heads\/\$\{RELEASE_BRANCH\}" --jq '\.object\.sha'\)"/,
-  "Spec 011 dispatch must CAS-read the release branch immediately before dispatch",
-);
-assert.match(
-  spec011DispatchBlock,
-  /gh workflow run spec-011-delegation-mariadb-certification\.yml[\s\S]*?--ref "\$RELEASE_BRANCH"/,
-  "Spec 011 dispatch must target the release branch that points at the candidate",
-);
-assert.equal(
-  (spec011DispatchBlock.match(/gh workflow run spec-011-delegation-mariadb-certification\.yml/g) ?? []).length,
-  1,
-  "Spec 011 must have one bounded dispatch command and no blind retry loop",
-);
-assert.doesNotMatch(
-  spec011DispatchBlock,
-  /--ref main/,
-  "Spec 011 supporting-gate dispatch must not run against moving main",
-);
-assert.doesNotMatch(
-  spec011DispatchBlock,
-  /--ref Production/,
-  "Spec 011 supporting-gate dispatch must not run against Production",
-);
+assert.equal((launcher.match(/jq -c '\.gates\[\]' "\$GATE_PLAN"/gu) ?? []).length, 2, "controller must dispatch all registered gates before a distinct wait pass");
+assert.match(launcher, /SUPPORTING_RUNS='\{\}'/u);
+assert.match(launcher, /dispatched supporting gate \$gate_id run=\$gate_run_id/u);
 
 for (const required of [
-  /workflow_run:/,
-  /Governed Production Promotion Request Launcher/,
-  /MAX_POST_FINALIZATION_RETRIES: 3/,
-  /\.request_pr \| test/,
-  /\.validation_pr \| test/,
-  /jq -r '\.request_pr'/,
-  /jq -r '\.validation_pr'/,
-  /main_moved_after_finalization/,
-  /production_moved_after_finalization/,
-  /release_head_changed_after_finalization/,
-  /candidate_no_longer_matches_or_contains_main/,
-  /candidate_no_longer_contains_pinned_production/,
-  /gh pr reopen "\$REQUEST_PR"/,
-  /startswith\(\"release: promote pinned main \"\)/,
-  /startswith\(\"ci: validate exact Production candidate \"\)/,
-  /authoritative_validation_pr=/,
-  /single_release_surface=true/,
-  /final_freshness_readback=true/,
-  /merge executed: false/,
-  /deployment executed: false/,
-  /migration executed: false/,
-]) {
-  assert.match(postFinalizationGuard, required);
-}
-assert.doesNotMatch(
-  postFinalizationGuard,
-  /(?:release\/production-|gpt\/validate-production-candidate-)/,
-  "post-finalization cleanup must select governed PR surfaces independently of work-branch names",
-);
+  /trusted workflow source must contain the authorized release cut/u,
+  /trusted workflow source must be tree-identical to the authorized release cut/u,
+  /authorized release cut is no longer an ancestor of current main/u,
+  /current Production contains commits not present in the authorized release cut/u,
+  /git commit-tree "\$RELEASE_TREE" -p "\$RELEASE_CUT_SHA" -p "\$ACTUAL_PRODUCTION_SHA"/u,
+  /candidate first parent is not the release cut/u,
+  /tree_policy:"exact_release_cut_tree"/u,
+  /main_tip_may_advance:true/u,
+  /production_must_remain_stable:true/u,
+  /test\(release\): certify immutable Production candidate/u,
+]) assert.match(candidate, required);
+assert.doesNotMatch(candidate, /ACTUAL_MAIN" != "\$EXPECTED_MAIN_SHA/u);
+assert.doesNotMatch(candidate, /force/u);
 
 for (const required of [
-  /name: Certified Production Release Cut Validation/,
-  /pull_request_target:/,
-  /contents: read/,
-  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
-  /Validate trusted same-repository validation surface/,
-  /certified validation requires a same-repository head/,
-  /persist-credentials: false/,
-  /candidate first parent must be the certified release cut/,
-  /candidate tree differs from certified release cut/,
-  /certified release cut is not contained by current main/,
-  /candidate does not contain current Production ancestry/,
-  /Production moved during certified-cut validation/,
-  /git merge-base --is-ancestor "\$BASE_SHA" "\$MAIN_SHA_FINAL"/,
-  /git merge-base --is-ancestor "\$PRODUCTION_SHA" "\$HEAD_SHA"/,
-  /schema_version: "certified_production_release_cut\.v1"/,
-  /release_mode: "certified_release_cut"/,
-  /execution_mode: "direct_arm"/,
-  /runner_pool: "ubuntu-24\.04-arm"/,
-  /exact_full_ci_success: true/,
-  /candidate_tree_matches_certified_cut: true/,
-  /certified_cut_is_ancestor_of_current_main: true/,
-  /candidate_contains_production: true/,
-  /candidate_and_base_refs_immutable_during_validation: true/,
-  /production_ref_stable_during_validation: true/,
-  /main_tip_may_advance: true/,
-  /name: Syntax Check/,
-  /name: Unit & Integration Tests/,
-  /name: Execution Resolver Gate/,
-  /name: Architecture Drift Detection/,
-  /merge_executed: false/,
-  /deployment_executed: false/,
-  /migration_executed: false/,
-  /provider_call_executed: false/,
-  /credential_payload_read: false/,
-  /secrets_included: false/,
-]) {
-  assert.match(certifiedReleaseCut, required);
+  /mad4b\.governed-production-main-source-pin-guard\.v3/u,
+  /guard_scope:"release_cut_ancestry"/u,
+  /compatible_release_cuts/u,
+  /main_tip_may_advance:true/u,
+  /preserving launcher run/u,
+  /release_cut_ancestor=false/u,
+]) assert.match(mainSourcePinGuard, required);
+assert.doesNotMatch(mainSourcePinGuard, /gh pr merge/u);
+assert.doesNotMatch(mainSourcePinGuard, /git push/u);
+
+for (const required of [
+  /mad4b\.governed-production-release-source-pin-gate\.v2/u,
+  /certified release cut is not an ancestor of current main/u,
+  /current Production contains commits absent from the certified release cut/u,
+  /candidate first parent must be the certified release cut/u,
+  /candidate tree differs from certified release cut/u,
+  /release_cut_is_ancestor_of_current_main:true/u,
+  /production_is_ancestor_of_release_cut:true/u,
+  /main_tip_may_advance/u,
+]) assert.match(releaseSourcePinGate, required);
+assert.doesNotMatch(releaseSourcePinGate, /contents:\s*write/u);
+assert.doesNotMatch(releaseSourcePinGate, /gh pr (?:comment|close|merge)/u);
+
+for (const required of [
+  /governed_production_promotion_convergence\.v2/u,
+  /candidate_tree_matches_release_cut/u,
+  /release_cut_is_ancestor_of_current_main/u,
+  /production_is_ancestor_of_release_cut/u,
+  /supporting_gates_success/u,
+  /release_cut_not_in_current_main/u,
+  /legacy_exact_main_moved_after_finalization/u,
+  /candidate_first_parent_differs_from_release_cut/u,
+  /new_authorization_required=true/u,
+  /test\(release\): certify immutable Production candidate/u,
+  /main_tip_may_advance=true/u,
+]) assert.match(postFinalizationGuard, required);
+assert.doesNotMatch(postFinalizationGuard, /REASON=main_moved_after_finalization/u);
+assert.doesNotMatch(postFinalizationGuard, /gh pr reopen/u);
+
+for (const required of [
+  /name: Certified Production Release Cut Validation/u,
+  /candidate first parent must be the certified release cut/u,
+  /candidate tree differs from certified release cut/u,
+  /certified release cut is not contained by current main/u,
+  /Production moved during certified-cut validation/u,
+  /schema_version: "certified_production_release_cut\.v1"/u,
+  /exact_full_ci_success: true/u,
+  /candidate_tree_matches_certified_cut: true/u,
+  /certified_cut_is_ancestor_of_current_main: true/u,
+  /candidate_contains_production: true/u,
+  /production_ref_stable_during_validation: true/u,
+  /main_tip_may_advance: true/u,
+  /name: Syntax Check/u,
+  /name: Unit & Integration Tests/u,
+  /name: Execution Resolver Gate/u,
+  /name: Architecture Drift Detection/u,
+]) assert.match(certifiedReleaseCut, required);
+assert.doesNotMatch(certifiedReleaseCut, /contents:\s*write/u);
+assert.doesNotMatch(certifiedReleaseCut, /JWT_SECRET\s*:|TENANT_GPT_SSO_SIGNING_SECRET\s*:/u);
+
+// Startup proof must remain hermetic even when CI and Certified use different
+// orchestration surfaces. Both direct callers reach the same smoke harness, and
+// the structured workflow reaches the same environment helper through the
+// structured evidence reporter. This prevents workflow-level auth-env drift
+// from reintroducing false-negative certification failures.
+for (const directCaller of [ci, certifiedReleaseCut]) {
+  assert.match(directCaller, /node test-server-startup-smoke\.mjs/u);
 }
-
-const certifiedJobHeader =
-  certifiedReleaseCut.match(/  certified-release-cut-ci:\n[\s\S]*?    steps:/)?.[0] ?? "";
-assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
-assert.match(
-  certifiedJobHeader,
-  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
-  "certified release-cut validation must use a quoted, branch-independent governed eligibility selector",
-);
-assert.doesNotMatch(certifiedReleaseCut, /issues:\s*write/);
-assert.doesNotMatch(certifiedReleaseCut, /gh pr comment/);
-assert.doesNotMatch(certifiedReleaseCut, /gpt\/validate-certified-release-(?:base|candidate)-/);
-
-const armJobs = certifiedReleaseCut.match(/runs-on: ubuntu-24\.04-arm/g) ?? [];
-assert.equal(
-  armJobs.length,
-  6,
-  "certified release-cut validation must run preflight, four CI gates, and final evidence on ARM",
-);
-assert.doesNotMatch(
-  certifiedReleaseCut,
-  /gh workflow run ci\.yml/,
-  "certified validation must not dispatch the frozen candidate's x64 CI workflow",
-);
-assert.doesNotMatch(
-  certifiedReleaseCut,
-  /runs-on: ubuntu-latest/,
-  "certified release validation must not depend on the queued x64 runner pool",
-);
-
-for (const workflow of [launcher, postFinalizationGuard, certifiedReleaseCut]) {
-  assert.doesNotMatch(workflow, /gh pr merge/i);
-  assert.doesNotMatch(workflow, /git push\s+--force/i);
-  assert.doesNotMatch(workflow, /force-with-lease/i);
-  assert.doesNotMatch(workflow, /deployment_authorized=true/i);
-  assert.doesNotMatch(workflow, /migration_authorized=true/i);
+assert.match(runtimeStartupWorkflow, /node scripts\/runtime-startup-deployment-evidence\.mjs/u);
+for (const implementation of [startupSmoke, runtimeStartupEvidence]) {
+  assert.match(implementation, /runtime-startup-test-environment\.mjs/u);
+  assert.match(implementation, /buildRuntimeStartupTestEnvironment/u);
 }
+for (const required of [
+  /mad4b\.runtime-startup-test-environment\.v1/u,
+  /JWT_SECRET/u,
+  /TENANT_GPT_SSO_SIGNING_SECRET/u,
+  /inherited_values_overridden: true/u,
+  /credential_payload_read: false/u,
+  /production_secret_source_used: false/u,
+  /production_mutation_executed: false/u,
+]) assert.match(runtimeStartupEnvironment, required);
+for (const required of [
+  /startup_test_environment_contract/u,
+  /certification_contract_error/u,
+  /runtime_startup_failure/u,
+  /credential_payload_read: false/u,
+]) assert.match(runtimeStartupEvidence, required);
 
-// Compose the independently reviewable migration-first response-chunk rollout contract into this already registered operational suite.
-await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
+for (const required of [
+  /production-promotion-supporting-gates\.v1/u,
+  /SECRETISH/u,
+  /effect !== "read_only"/u,
+  /production_merge/u,
+  /migration_apply/u,
+  /provider_mutation/u,
+  /registry_sha256/u,
+]) assert.match(gateResolver, required);
 
-console.log("Production promotion convergence workflow contract test passed");
+for (const required of [
+  /governed_production_promotion_convergence\.v2/u,
+  /main_advanced_after_release_cut/u,
+  /candidate_tree_matches_release_cut: true/u,
+  /release_cut_is_ancestor_of_current_main: true/u,
+  /production_is_ancestor_of_release_cut: true/u,
+  /main_tip_may_advance: true/u,
+  /merge_executed: false/u,
+  /deployment_executed: false/u,
+  /migration_executed: false/u,
+  /grant_executed: false/u,
+  /provider_call_executed: false/u,
+  /credential_payload_read: false/u,
+  /secrets_included: false/u,
+]) assert.match(evidenceHelper, required);
+assert.doesNotMatch(evidenceHelper, /candidate_tree_matches_main: true/u);
+
+console.log(JSON.stringify({
+  contract: "mad4b.production-promotion-release-cut-convergence.v1",
+  ok: true,
+  release_mode: "certified_release_cut",
+  main_tip_may_advance: true,
+  production_must_remain_stable: true,
+  supporting_gate_source: "declarative_registry",
+  supporting_gate_count: registry.gates.length,
+  supporting_gate_dispatch: "parallel_dispatch_then_wait",
+  startup_test_environment: "hermetic_repository_local_fixture",
+  inherited_startup_secret_values_overridden: true,
+  comment_transport_authoritative: false,
+  merge_executed: false,
+  deployment_executed: false,
+  migration_executed: false,
+  provider_call_executed: false,
+  credential_payload_read: false,
+  secrets_included: false,
+}));

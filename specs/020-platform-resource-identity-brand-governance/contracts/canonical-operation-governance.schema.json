@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://growth-intelligence-os.invalid/schemas/canonical-operation-governance.schema.json",
+  "title": "Canonical Operation Governance Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation_key", "resource_type", "effect_class", "risk_class", "approval_contract", "readback_contract", "authority_required", "idempotency_required"],
+  "properties": {
+    "operation_key": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_.-]*$" },
+    "resource_type": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_.-]*$" },
+    "effect_class": { "enum": ["read_only", "internal_write", "external_write", "destructive_write", "commercial_effect"] },
+    "risk_class": { "enum": ["low", "medium", "high", "critical"] },
+    "approval_contract": { "enum": ["none", "policy_resolved", "explicit", "typed_confirmation"] },
+    "readback_contract": { "enum": ["none", "same_cycle_required", "provider_verified"] },
+    "identity_resolution_contract": { "type": ["string", "null"], "maxLength": 128 },
+    "relationship_resolution_contract": { "type": ["string", "null"], "maxLength": 128 },
+    "expected_revision_required": { "type": "boolean" },
+    "idempotency_required": { "const": true },
+    "authority_required": { "const": true },
+    "tool_discovery_required": { "type": "boolean" },
+    "executor_ref": { "type": ["string", "null"], "maxLength": 255 },
+    "secrets_included": { "const": false }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "effect_class": { "const": "read_only" } } },
+      "then": { "properties": { "readback_contract": { "enum": ["none", "same_cycle_required"] } } }
+    },
+    {
+      "if": { "properties": { "effect_class": { "enum": ["external_write", "commercial_effect"] } } },
+      "then": { "properties": { "risk_class": { "enum": ["high", "critical"] }, "approval_contract": { "enum": ["explicit", "typed_confirmation"] }, "readback_contract": { "const": "provider_verified" } } }
+    },
+    {
+      "if": { "properties": { "effect_class": { "const": "destructive_write" } } },
+      "then": { "properties": { "risk_class": { "const": "critical" }, "approval_contract": { "const": "typed_confirmation" }, "readback_contract": { "enum": ["same_cycle_required", "provider_verified"] } } }
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "contract": "mad4b.staging-maintenance.v1",
+  "schema_version": 1,
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "ref": "main",
+  "tasks": {
+    "auto_deploy": "MAD4B Staging Auto Deploy",
+    "health_monitor": "MAD4B Staging Health Monitor"
+  },
+  "logs": {
+    "directory": "autopilot-portable-staging/logs",
+    "active_file": "operations.jsonl",
+    "failure_snapshot": "last-failure.json",
+    "health_snapshot": "health-snapshot.json",
+    "heartbeat_suffix": "-heartbeat.json",
+    "max_active_bytes": 10485760,
+    "rotated_files": 4,
+    "max_age_days": 14,
+    "delete_logs_by_default": false
+  },
+  "maintenance": {
+    "repair_may_register_tasks": true,
+    "repair_may_rotate_logs": true,
+    "repair_may_rewrite_env_secrets": false,
+    "repair_may_delete_data": false,
+    "repair_may_apply_migrations": false,
+    "repair_may_touch_production": false,
+    "repair_may_mutate_cloudflare_dns": false,
+    "repair_may_mutate_hostinger": false
+  },
+  "required_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"],
+  "required_env": {
+    "MIGRATION_APPLIED": "false",
+    "DATABASE_MUTATED": "false",
+    "PRODUCTION_MUTATION_AUTHORIZED": "false",
+    "RULESET_MUTATION_AUTHORIZED": "false",
+    "TENANT_GPT_SSO_COOKIE_MODE": "host_only"
+  },
+  "safety": {
+    "production_deploy": false,
+    "database_mutation": false,
+    "migration_applied": false,
+    "provider_mutation": false,
+    "cloudflare_dns_mutation": false,
+    "hostinger_mutation": false,
+    "secrets_included": false
+  }
+}

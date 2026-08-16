@@ -1,0 +1,10 @@
+{
+  "surface_key": "act_as_user_audit_events",
+  "source_table": "act_as_user_audit_events",
+  "reason": "Excluded because this table is an append-only audit evidence ledger for Act-as-User authorization, dispatch, replay, and readback events. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; evidence remains bounded and excludes sensitive material.",
+  "owner": "platform-governance",
+  "authority": "act_as_user_audit_evidence",
+  "production_activation_allowed": false,
+  "external_write_allowed": false,
+  "review_after": "2026-12-31"
+}

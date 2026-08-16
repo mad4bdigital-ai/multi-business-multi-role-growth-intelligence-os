@@ -1,5 +1,27 @@
 # Activation Gateway
 
+## Staging deployment
+
+The staging Worker is a separate resource named `mad4b-activation-gateway-staging`. It uses `wrangler.staging.jsonc`, `src/worker-staging.mjs`, the `activation_gateway_staging` policy, and the non-production upstream `https://dev.mad4b.com`. It must never reuse the production Worker `auth-mad4b-proxy`, production secrets, or the production policy artifact.
+
+From this directory, run:
+
+```bash
+npm ci
+npm run policy:staging:generate
+npm run policy:staging:check
+npm run types
+npm run deploy:dry-run
+```
+
+The encrypted staging Worker secrets must exist before a real deploy:
+
+- `ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON`
+- `ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK`
+
+Secret values must be generated for staging and must not be committed, printed, or copied from production. A real deployment is permitted only after policy signature verification, `/health`, `/ready`, allowed-route, rejected-route, host-boundary, and rollback smoke tests pass on the `workers.dev` hostname. The custom domain `activation-dev.mad4b.com` is a separate, explicitly approved infrastructure operation and is not created by `npm run deploy`.
+
+
 Stateless Cloudflare Worker boundary for the fixed Activation transport surfaces.
 
 ## Responsibilities

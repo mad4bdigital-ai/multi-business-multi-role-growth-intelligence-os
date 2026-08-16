@@ -1,0 +1,293 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-staging-autopilot-tunnel-hardening",
+  "title": "Portable Local Staging Auto Pilot, Tunnel, OAuth, and Database Isolation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/canonical-business-operation-registry.json",
+      "http-generic-api/canonicalBusinessOperationRegistry.js",
+      "http-generic-api/canonical-business-operation-parity.generated.json",
+      "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/config/staging-openapi-mcp-policy.json",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/rootDiscoveryRoutes.js",
+      "http-generic-api/scripts/build-staging-openapi.mjs",
+      "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
+      "http-generic-api/tenantGptOAuthClientConfig.js",
+      "http-generic-api/tenantGptOAuthPreset.js",
+      "http-generic-api/tenantGptOAuthResourceProfile.js",
+      "http-generic-api/test-canonical-business-operation-registry.mjs",
+      "http-generic-api/test-domain-family-policy.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-staging-runtime-oauth-profile.mjs",
+      "http-generic-api/test-staging-three-db-topology.mjs",
+      "http-generic-api/workspaceBrandLifecycle.js",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/test-workspace-brand-create.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "autopilot-portable-staging/auto-deploy-policy.json",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+      "autopilot-portable-staging/Staging-Operations-Log.ps1",
+      "autopilot-portable-staging/Staging-HealthMonitor.ps1",
+      "autopilot-portable-staging/Staging-Doctor.ps1",
+      "autopilot-portable-staging/Staging-Maintenance.cmd",
+      "autopilot-portable-staging/staging-maintenance-policy.json",
+      "autopilot-portable-staging/Show-StagingLogs.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/Staging-Windows-Preflight.ps1",
+      "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-operations-logging-contract.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "docs/staging-auto-deploy.md",
+      "docs/staging-schema-contract-matrix.md",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+      "http-generic-api/scripts/build-staging-admin-openapi.mjs",
+      "http-generic-api/scripts/build-staging-openapi.mjs",
+      "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
+      "http-generic-api/test-staging-independent-schema-contract.mjs",
+      ".gitignore"
+    ],
+    "exclude": [
+      "auth.mad4b.com",
+      "activation.mad4b.com",
+      "mcp.mad4b.com",
+      "activation-dev.mad4b.com",
+      "Hostinger Production deployment",
+      "Cloudflare provider mutation"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a portable Windows/External-SSD Staging topology with fail-closed environment isolation, local three-database readiness, loopback-only origin exposure, health-gated Cloudflare ingress, and environment-aware OAuth/MCP/OpenAPI discovery.",
+      "e2e_journeys": [
+        {
+          "id": "portable-staging-governance-and-runtime-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator and governed runtime verifier",
+          "entrypoint": "Start-AutoPilot.ps1 and Staging runtime contract suite",
+          "terminal_outcome": "The verifier proves that Staging uses only dev.mad4b.com and mcp_dev.mad4b.com, rejects Production and activation_dev hostnames, keeps origins loopback/local-network isolated, requires healthy Redis/API/three MariaDB services before tunnel startup, rejects unsafe or duplicate env values, and exposes no secrets in generated OpenAPI or bounded evidence.",
+          "steps": [
+            "Load the Staging policy, env template, Compose overlay, OpenAPI artifact, Auto Pilot, and database-copy contracts.",
+            "Verify the two active tunnel hostnames and the reserved-disabled activation_dev hostname against the domain-family policy.",
+            "Verify that the remote MCP resource uses mcp_dev.mad4b.com and that Tenant GPT OAuth uses the dedicated Staging client namespace and dev.mad4b.com issuer/resource.",
+            "Verify that the generated Staging OAuth preset points to openapi.tenant-gpt.staging.yaml, has no activation schema, and returns 404 on mcp_dev and activation_dev discovery hosts.",
+            "Verify that Compose binds the origin to loopback, keeps Redis unexposed, gates cloudflared on app health, and requires health status rather than HTTP 200 alone.",
+            "Verify that Auto Pilot and database cloning enforce WSL2 presence, local Docker context, valid Compose model, healthy services, duplicate-key rejection, and mutation flags read from .env.staging.",
+            "Verify the manifest hashes the complete Staging operational scope while migration_applied, database_mutated, production_deploy, provider_mutation, cloudflare_dns_mutation, and hostinger_mutation remain false."
+          ],
+          "assertions": [
+            "Staging active hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com.",
+            "activation-dev.mad4b.com and all Production hostnames are excluded from Staging OAuth, MCP, DNS, and tunnel contracts.",
+            "The Staging OpenAPI artifact server, OAuth URLs, schema_url, scope links, and boundary metadata use dev.mad4b.com; activation_schema_url is empty.",
+            "The runtime discovery endpoint returns the Staging preset only for dev.mad4b.com and returns 404 for mcp_dev.mad4b.com and activation-dev.mad4b.com.",
+            "No raw OAuth, tunnel, database, JWT, or MCP secret is included in policy, OpenAPI, manifest, or test evidence.",
+            "The API and Redis are not LAN-published, and cloudflared depends on app health.",
+            "Database cloning remains schema_only by default and rejects unsafe production/provider paths and non-local Docker contexts.",
+            "The manifest safety flags remain false and the operational file scope is hash-protected.",
+            "Canonical operation keys use dot notation and Brand context read is declared read-only and shadow-only.",
+            "Brand create exposes a bounded next_operations array whose entries require operation_key, status, and reason without activating a write.",
+            "Canonical parity performance gates report zero known-intent list-tools calls, zero mutations without expected revision/readback, and zero hard-delete operations without dependency plans.",
+            "Frontend governance and surface dispatch generated artifacts are regenerated from the changed Brand route/lifecycle source and pass deterministic check.",
+            "A push to main is eligible for local Staging only after the exact SHA passes the Staging Main Deploy Eligibility check.",
+            "The Windows watcher refuses missing, running, or failed eligibility checks and never deploys the same SHA twice.",
+            "Task Scheduler installation uses the interactive Windows user and does not expose an inbound webhook or store deployment secrets.",
+            "Auto Deploy policy and workflow contain no Production hostnames or secrets and keep all mutation safety flags false.",
+            "Auto Pilot and Auto Deploy runtime state files are ignored so a prior deployment does not make the Git worktree dirty.",
+            "Tenant and Admin Staging Custom GPT schemas are independent documents with one server URI each; Remote MCP has a separate mcp_dev protocol document.",
+            "dev.mad4b.com exposes Tenant and Admin schema variants while mcp_dev.mad4b.com exposes only the independent Remote MCP schema; cross-surface schema requests return 404.",
+            "The Staging Admin schema is GET-only and the Remote MCP schema keeps write activation false.",
+            "The one-click Windows launcher bootstraps Git, GitHub CLI, Docker Desktop, WSL2, local secrets, CI eligibility, Staging startup, optional schema-only seed, and Task Scheduler without Production or provider mutation.",
+            "Missing Cloudflare credentials are requested only inside the launcher and are stored only in ignored local environment state; no secret is committed or included in evidence.",
+            "Auto Pilot, Auto Deploy, and application operations write redacted durable JSONL events plus latest-status and last-failure snapshots on the External SSD, and the CMD launcher exposes the log path after failure.",
+            "The Health Monitor writes a per-component heartbeat and health-snapshot.json, checks only local Docker services, and is installed and removed together with the Auto Deploy Task Scheduler task.",
+            "Operations logs use a run_id for correlation and rotate bounded JSONL files without changing Production or provider state.",
+            "Staging-Doctor exposes Status, Repair, and Logs modes; Repair may recreate local scheduled tasks and rotate logs, but cannot delete data, apply migrations, rewrite secrets, touch Production, mutate Cloudflare DNS, or mutate Hostinger.",
+            "The one-click launcher writes bootstrap-console.log before prerequisite checks, prints it after a non-zero CMD exit, and initializes ignored .env.staging on an existing Git checkout before dependency validation.",
+            "The shared operations logger initializes Mad4bStagingRunId through a StrictMode-safe Get-Variable lookup before the first durable log write, and the logging contract prevents regression to an unset-global read.",
+            "The one-click launcher parses WSL2 readiness independently and retries wsl.exe --list --verbose with bounded backoff after installation or reboot instead of failing on a single transient probe.",
+            "The WSL2 readiness parser normalizes NUL-padded output and treats a valid Ubuntu version-2 row as authoritative even when the probe exit code is transiently nonzero.",
+            "The WSL2 output normalization uses PowerShell 5.1-compatible regex replacement and does not rely on a [char]0 conversion that can throw before readiness evaluation."
+          ],
+          "tests": [
+            {
+              "id": "canonical-business-operation-registry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-canonical-business-operation-registry.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-openapi-mcp-db-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-openapi-mcp-db-boundary.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-runtime-oauth-discovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-runtime-oauth-profile.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-three-database-topology",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-three-db-topology.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-domain-family-policy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-domain-family-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-openapi-output-paths",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-schema-output-paths.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-brand-create-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-operations-logging-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-operations-logging-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-independent-schema-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-independent-schema-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/.env.staging.example",
+            "http-generic-api/canonical-business-operation-registry.json",
+            "http-generic-api/canonicalBusinessOperationRegistry.js",
+            "http-generic-api/canonical-business-operation-parity.generated.json",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+            "http-generic-api/routes/rootDiscoveryRoutes.js",
+            "http-generic-api/scripts/build-staging-openapi.mjs",
+            "http-generic-api/scripts/build-canonical-business-operation-parity.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/test-canonical-business-operation-registry.mjs",
+            "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/test-staging-runtime-oauth-profile.mjs",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/Staging-Windows-Preflight.ps1",
+            "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/workspaceBrandLifecycle.js",
+            "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/test-workspace-brand-create.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "autopilot-portable-staging/auto-deploy-policy.json",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/Staging-Operations-Log.ps1",
+            "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+            "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/test-staging-operations-logging-contract.mjs",
+            "docs/staging-auto-deploy.md",
+            "docs/staging-schema-contract-matrix.md",
+            "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+            "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+            "http-generic-api/scripts/build-staging-admin-openapi.mjs",
+            "http-generic-api/scripts/build-staging-openapi.mjs",
+            "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
+            "http-generic-api/test-staging-independent-schema-contract.mjs",
+            ".gitignore"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Run the portable Staging stack on the operator's Windows 10 host, validate WSL2/Docker/NTFS behavior, provision local schemas, and establish the Cloudflare connector without importing Production data or credentials.",
+      "blockers": [
+        "The Windows host has not yet run the authoritative PowerShell -ValidateOnly preflight.",
+        "The operator must supply the dedicated Staging OAuth client secret and Cloudflare tunnel token manually in the ignored local env file.",
+        "Docker Desktop, WSL2 integration, the three local MariaDB services, Redis, and the API have not been executed in this Linux sandbox.",
+        "Schema provisioning requires an operator-reviewed local dump directory and explicit Apply authorization."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add repeatable local backup/restore drills, connector reconnection checks, and device-migration verification without copying Production credentials or unsanitized data."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No external provider write canary or Production traffic canary is introduced by this local Staging change."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production remains on Hostinger and is outside this local Staging delivery.",
+      "blockers": [
+        "No Hostinger deployment, Production database mutation, Production OAuth change, or Production Cloudflare DNS change is authorized by this contract.",
+        "Production readiness is not inferred from local Staging success."
+      ]
+    }
+  ]
+}

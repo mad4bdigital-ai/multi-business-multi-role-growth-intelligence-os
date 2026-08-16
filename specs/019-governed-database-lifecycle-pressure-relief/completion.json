@@ -4,6 +4,7 @@
   "title": "Governed Database Lifecycle and Pressure Relief",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-08-14T00:00:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -16,50 +17,14 @@
       "number": null,
       "branch": "gpt/019-governed-database-lifecycle-pressure-relief-20260813",
       "role": "specification_and_contracts",
-      "status": "current_pr"
+      "status": "observed_on_main"
     },
     "implementation_prs": [
       {
         "number": null,
-        "branch": null,
-        "role": "read_only_pressure_intelligence",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "authority_and_durable_mutation_readiness",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "response_chunk_ttl_pilot",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "repo_audit_supersession_adapter",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "jobrunner_and_policy_bound_autopilot",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "engine_run_archive_thin",
-        "status": "separate_project"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "physical_reclaim",
-        "status": "separate_high_risk_project"
+        "branch": "agent/track-b-db-lifecycle-readiness",
+        "role": "authority_receipt_readback_ttl_supersession_readiness",
+        "status": "branch_ready_for_ci_and_review"
       }
     ],
     "closeout_pr": {
@@ -71,33 +36,89 @@
   },
   "evidence": {
     "implementation": {
-      "status": "contracts_only_no_runtime_mutation",
-      "read_only_current_main_lifecycle_foundation": true,
+      "status": "track_b_readiness_slice_implemented_execution_disabled",
+      "read_only_pressure_intelligence": true,
+      "bounded_select_only_observation": true,
+      "domain_adapter_classification": true,
+      "immutable_plan_fingerprints": true,
+      "exact_resource_and_recipe_authority_evidence_binding": true,
+      "track_b_authority_grant": false,
+      "capability_lease_typed_approval_expiry_validation": true,
+      "receipt_persistence_readiness_contract": true,
+      "same_cycle_readback_readiness_contract": true,
+      "unknown_outcome_blind_retry_allowed": false,
+      "ttl_non_production_dry_run_pilot": true,
+      "ttl_live_mutation_executed": false,
+      "ttl_post_plan_rows_preserved": true,
+      "ttl_non_expired_rows_preserved": true,
+      "physical_reclaim_assessment_observation_only": true,
+      "automatic_compaction_enabled": false,
+      "repository_audit_supersession_adapter": true,
+      "supersession_cleanup_executed": false,
+      "concurrent_newer_row_guard": true,
+      "mutation_execution_enabled": false,
+      "durable_receipt_runtime_enabled": false,
+      "job_runner_enabled": false,
+      "autopilot_enabled": false,
+      "engine_run_archive_thin_enabled": false,
+      "physical_reclaim_execution_enabled": false,
       "arbitrary_sql_surface": false,
       "production_mutation": false,
       "migration_applied": false,
-      "production_deployed": false,
+      "database_mutated": false,
+      "provider_called": false,
+      "runtime_consumers_enabled": false,
       "secrets_included": false
     },
     "ci": {
-      "status": "pending",
-      "head_sha": null
+      "status": "focused_validation_pass_full_branch_ci_pending",
+      "head_sha": null,
+      "focused_tests": [
+        "test-database-lifecycle-mutation-readiness.mjs",
+        "test-runtime-break-glass-reconciliation-readiness.mjs",
+        "test-track-b-migration-readiness-manifest.mjs"
+      ],
+      "source": "connector-local focused Node validation; full repository CI/readback required after branch commit"
     },
     "release_readiness": {
-      "status": "pending"
+      "status": "blocked_pending_separate_mutation_authority_staging_canary_and_production_evidence",
+      "read_only_scope": "pass",
+      "readiness_contract_scope": "pass",
+      "mutation_scope": "disabled",
+      "staging_canary": "pending_separate_authorization",
+      "production_promotion_authorized": false,
+      "provider_mutation": false
     },
     "migration": {
-      "status": "not_created_in_pr_a",
-      "paths": [
-        "http-generic-api/migrations/20260730_spec011_durable_execution_control.sql"
-      ]
+      "status": "existing_sources_checksum_bound_not_applied",
+      "new_migration_added": false,
+      "apply_authorized": false,
+      "migration_applied": false,
+      "database_mutated": false,
+      "same_cycle_readback": "contract_ready_not_executed",
+      "manifest": "docs/agent-tracks/track-b-migration-checksum-readback-manifest.json"
+    },
+    "rollback": {
+      "status": "matrix_and_reconciliation_contract_ready",
+      "matrix": "docs/agent-tracks/track-b-rollback-matrix.json",
+      "live_rollback_executed": false
     },
     "production_verification": {
-      "status": "not_run"
+      "status": "not_run",
+      "reason": "Track B does not deploy, mutate Production, or activate runtime consumers."
     },
     "post_merge_audit": {
-      "status": "pending"
-    }
+      "status": "pending",
+      "reason": "Requires integration refresh, independent mutation authorization if any, staging/canary evidence, and protected readback."
+    },
+    "residual_debt": [
+      "F01-G03 JobRunner/autopilot remains a separate disabled follow-up.",
+      "H01-H04 engine-run archive/thin remains a separate project.",
+      "I01-I04 physical reclaim remains a separate high-risk project and execution is disabled.",
+      "Any live non-production TTL or supersession mutation requires separate final authority and same-cycle readback.",
+      "V05-V06 staging/canary and main-to-Production approval/readback remain open.",
+      "Repository-wide inventory/evaluation and generated-artifact refresh are reserved for the final integration branch."
+    ]
   },
   "secrets_included": false
 }

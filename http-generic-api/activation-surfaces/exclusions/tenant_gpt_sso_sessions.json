@@ -1,0 +1,7 @@
+{
+  "surface_key": "tenant_gpt_sso_sessions",
+  "source_table": "tenant_gpt_sso_sessions",
+  "reason": "Excluded because this table is an internal Tenant GPT SSO session lifecycle and revocation ledger consumed only by the authorization boundary. It is not a tenant or admin activation surface, does not expose private session values, and does not authorize provider or write operations.",
+  "owner": "identity-security",
+  "review_after": "2026-12-31"
+}

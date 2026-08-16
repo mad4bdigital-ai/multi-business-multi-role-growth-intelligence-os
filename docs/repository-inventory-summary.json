@@ -3,73 +3,78 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6716,
-    "bytes": 58969971,
-    "lines": 1376271,
-    "directories": 255,
+    "files": 7109,
+    "bytes": 68862358,
+    "lines": 1615280,
+    "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2022,
-      "documentation": 1856,
-      "api-runtime": 1328,
-      "database-migrations": 767,
-      "root-and-other": 228,
-      "ci-workflows": 152,
-      "api-contracts": 147,
-      "ci-config": 94,
-      "schemas-and-data": 66,
-      "connectors-and-edge": 23,
+      "tests-and-specs": 2131,
+      "documentation": 1898,
+      "api-runtime": 1429,
+      "database-migrations": 783,
+      "root-and-other": 281,
+      "api-contracts": 184,
+      "ci-workflows": 166,
+      "ci-config": 105,
+      "schemas-and-data": 70,
+      "connectors-and-edge": 29,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2459,
-      ".mjs": 1535,
-      ".js": 931,
-      ".sql": 782,
-      ".json": 672,
-      ".yml": 154,
-      ".yaml": 107,
-      ".ts": 15,
+      ".md": 2499,
+      ".mjs": 1667,
+      ".js": 987,
+      ".sql": 798,
+      ".json": 782,
+      ".yml": 169,
+      ".yaml": 113,
+      ".ps1": 16,
+      ".ts": 16,
       ".cs": 14,
       ".jsx": 9,
       ".txt": 7,
       ".py": 5,
-      ".ps1": 5,
+      ".example": 3,
       ".css": 3,
       ".csproj": 2,
+      ".cmd": 2,
       ".toml": 2,
-      ".example": 2,
       ".gitattributes": 1,
       ".gitignore": 1,
       ".nvmrc": 1,
       ".manifest": 1,
       ".jsonl": 1,
+      ".jsonc": 1,
       ".htaccess": 1,
+      ".dockerignore": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
+      ".staging": 1,
       ".png": 1,
       ".html": 1,
       ".sh": 1,
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3440,
-      "docs": 1762,
-      "specs": 838,
-      ".github": 246,
-      ".changes": 224,
+      "http-generic-api": 3662,
+      "docs": 1802,
+      "specs": 873,
+      ".github": 271,
+      ".changes": 257,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
-      ".specify": 14,
-      "schemas": 14,
+      "autopilot-portable-staging": 18,
+      "schemas": 17,
+      "edge": 16,
+      ".specify": 15,
+      "scripts": 13,
       "src": 12,
-      "edge": 9,
-      "scripts": 7,
       "tests": 3,
       ".gitattributes": 1,
       ".gitignore": 1,
@@ -80,6 +85,9 @@
       "GPT_Tenant_Connector_Instructions.md": 1,
       "GPT_Tenant_Connector_Knowledge.md": 1,
       "README.md": 1,
+      "STAGING-DEEP-AUDIT-2026-08-15.md": 1,
+      "STAGING-PR7264-EXTENSION-SCOPE.md": 1,
+      "STAGING-WINDOWS.md": 1,
       "Top Level Instructions.md": 1,
       "Updating Registry Patch Index.md": 1,
       "build-canonicals.mjs": 1,
@@ -110,6 +118,23 @@
   },
   "packages": [
     {
+      "path": "edge/activation-gateway/package.json",
+      "name": "mad4b-activation-gateway",
+      "version": null,
+      "scripts": [
+        "policy:staging:generate",
+        "policy:staging:check",
+        "bundle:check",
+        "types",
+        "dev",
+        "deploy:dry-run",
+        "deploy",
+        "secrets:list"
+      ],
+      "dependencies": 0,
+      "devDependencies": 1
+    },
+    {
       "path": "http-generic-api/package.json",
       "name": "http-generic-api-connector",
       "version": "2.7.0-wordpress-dry-run-preflight",
@@ -130,6 +155,10 @@
         "frontend:governance:check",
         "frontend:dispatch:generate",
         "frontend:dispatch:check",
+        "openapi:detail-gaps:generate",
+        "openapi:detail-gaps:check",
+        "openapi:gap-closure-plan:generate",
+        "openapi:gap-closure-plan:check",
         "openapi:auth:write",
         "openapi:auth:check",
         "schemas:generate",
@@ -145,6 +174,8 @@
         "readiness:verify-plan",
         "manifest:deployment",
         "supervisor:readiness",
+        "runtime-persistence:readiness",
+        "database:collation:check",
         "supervisor:readiness:live",
         "supervisor:certify",
         "supervisor:certify:live",
@@ -160,6 +191,7 @@
         "verify",
         "activation-gateway:bundle:sync",
         "activation-gateway:bundle:check",
+        "ci:path-guard",
         "outbox:status",
         "outbox:dry-run",
         "outbox:run-once",
@@ -189,12 +221,19 @@
         "inventory:write",
         "inventory:check",
         "inventory:test",
+        "write-scopes:inventory",
+        "write-scopes:inventory:check",
+        "write-scopes:inventory:test",
+        "remote-mcp:architecture:test",
         "evaluation:write",
         "evaluation:enforce",
         "evaluation:check",
         "evaluation:test",
         "evaluation:network",
         "evaluation:environment",
+        "openapi:detail-batch:write",
+        "openapi:detail-batch:check",
+        "openapi:detail-batch:test",
         "evaluation:loop"
       ],
       "dependencies": 0,
@@ -202,10 +241,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 152,
-    "migrations": 767,
-    "apiContracts": 147,
-    "testSpecFiles": 2085
+    "workflows": 166,
+    "migrations": 783,
+    "apiContracts": 184,
+    "testSpecFiles": 2214
   },
   "largestFiles": [
     {
@@ -217,20 +256,56 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3161187,
-      "lines": 97073
+      "bytes": 3448637,
+      "lines": 97587
+    },
+    {
+      "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "category": "api-runtime",
+      "bytes": 1935850,
+      "lines": 58540
+    },
+    {
+      "path": "docs/staging-write-route-partition-2026-08-14.json",
+      "category": "documentation",
+      "bytes": 1535977,
+      "lines": 47056
     },
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 979336,
-      "lines": 22721
+      "bytes": 990965,
+      "lines": 23004
+    },
+    {
+      "path": "http-generic-api/frontend-surface-policy.json",
+      "category": "api-runtime",
+      "bytes": 607641,
+      "lines": 11495
+    },
+    {
+      "path": "edge/activation-gateway/worker-configuration.d.ts",
+      "category": "connectors-and-edge",
+      "bytes": 573853,
+      "lines": 15183
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
+      "category": "api-contracts",
+      "bytes": 407307,
+      "lines": 11364
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 329163,
-      "lines": 8576
+      "bytes": 325509,
+      "lines": 8484
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "category": "api-contracts",
+      "bytes": 291182,
+      "lines": 7445
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -245,10 +320,28 @@
       "lines": 7914
     },
     {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "category": "api-contracts",
+      "bytes": 256302,
+      "lines": 6195
+    },
+    {
+      "path": "docs/governance/configuration-drift-policy.json",
+      "category": "documentation",
+      "bytes": 244768,
+      "lines": 2094
+    },
+    {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
       "category": "schemas-and-data",
       "bytes": 242696,
       "lines": 7657
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "category": "api-runtime",
+      "bytes": 220408,
+      "lines": 4680
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
@@ -257,10 +350,10 @@
       "lines": 3134
     },
     {
-      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
-      "bytes": 204096,
-      "lines": 4372
+      "bytes": 203999,
+      "lines": 4368
     },
     {
       "path": "http-generic-api/supportTicketService.js",
@@ -273,60 +366,6 @@
       "category": "documentation",
       "bytes": 155274,
       "lines": 1826
-    },
-    {
-      "path": "http-generic-api/routes/adminCliRoutes.js",
-      "category": "api-runtime",
-      "bytes": 149339,
-      "lines": 3362
-    },
-    {
-      "path": "AI_Agent_Knowledge_Guide.md",
-      "category": "documentation",
-      "bytes": 145911,
-      "lines": 1339
-    },
-    {
-      "path": "package-lock.json",
-      "category": "build-and-dependencies",
-      "bytes": 138721,
-      "lines": 3861
-    },
-    {
-      "path": "http-generic-api/releaseReadiness.js",
-      "category": "api-runtime",
-      "bytes": 135154,
-      "lines": 2593
-    },
-    {
-      "path": "schemas/operations.schema.json",
-      "category": "schemas-and-data",
-      "bytes": 134568,
-      "lines": 3397
-    },
-    {
-      "path": "http-generic-api/routes/devAgentRoutes.js",
-      "category": "api-runtime",
-      "bytes": 127236,
-      "lines": 2754
-    },
-    {
-      "path": "docs/work-maps/data-model-domain-map.md",
-      "category": "documentation",
-      "bytes": 117364,
-      "lines": 848
-    },
-    {
-      "path": "apps/local-manager-windows/Program.cs",
-      "category": "applications",
-      "bytes": 112920,
-      "lines": 2024
-    },
-    {
-      "path": "http-generic-api/platformResourceRecipeCapability.js",
-      "category": "api-runtime",
-      "bytes": 112466,
-      "lines": 2727
     }
   ]
 }

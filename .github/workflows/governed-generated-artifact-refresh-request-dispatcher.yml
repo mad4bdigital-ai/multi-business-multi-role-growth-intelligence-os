@@ -175,15 +175,26 @@ jobs:
           fi
 
           if [[ -n "${failure_code}" ]]; then
-            jq -n \
-              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
-              --arg target_ref "${target_ref:-unresolved}" \
-              --arg expected_head_sha "${expected_head_sha:-unresolved}" \
-              --argjson pr_number "${pr_number:-0}" \
-              --arg code "${failure_code}" \
-              --arg detail "${failure_detail}" \
-              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,first_failure:{code:$code,diagnostic_tail:$detail},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-              > "${REPORT_DIR}/dispatch.json"
+            if [[ "${failure_code}" == "pull_request_is_draft" ]]; then
+              jq -n \
+                --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
+                --arg target_ref "${target_ref:-unresolved}" \
+                --arg expected_head_sha "${expected_head_sha:-unresolved}" \
+                --argjson pr_number "${pr_number:-0}" \
+                --arg reason "${failure_code}" \
+                '{contract:$contract,outcome:"skipped",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,reason:$reason,dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+                > "${REPORT_DIR}/dispatch.json"
+            else
+              jq -n \
+                --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
+                --arg target_ref "${target_ref:-unresolved}" \
+                --arg expected_head_sha "${expected_head_sha:-unresolved}" \
+                --argjson pr_number "${pr_number:-0}" \
+                --arg code "${failure_code}" \
+                --arg detail "${failure_detail}" \
+                '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,first_failure:{code:$code,diagnostic_tail:$detail},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+                > "${REPORT_DIR}/dispatch.json"
+            fi
             echo "eligible=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

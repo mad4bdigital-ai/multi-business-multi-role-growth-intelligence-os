@@ -1,0 +1,114 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "brand-root-topology-current-main-20260815",
+  "title": "Canonical Brand Root Workspace topology on current main",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/workspaceBrandRootTopology.js",
+      "http-generic-api/dynamicContainerProjectionService.js",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/test-dynamic-container-authority-runtime.mjs",
+      "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
+      "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
+      "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+      "http-generic-api/test-workspace-brand-create.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      ".changes/e2e/brand-root-topology-current-main-20260815.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind Brand Create and legacy Dynamic Container projection to one canonical personal/company Root Workspace, preserve one deterministic Root-to-Brand containment edge, and fail closed on missing, invalid, ambiguous, stale, or noncanonical topology before durable authority convergence.",
+      "e2e_journeys": [
+        {
+          "id": "brand-create-root-topology-current-main",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Signed-in workspace owner/admin",
+          "entrypoint": "POST /me/workspaces/{tenant_id}/brands with root_workspace_id",
+          "terminal_outcome": "Brand identity, operational workspace, explicit Root binding, canonical containers, deterministic Root-to-Brand containment, closure readback, and authority epoch converge in one mutation transaction without projecting the operational Brand workspace as the authority parent.",
+          "steps": [
+            "Resolve root_workspace_id against current workspace_registry ownership fields and require the exact active tenant, personal/company classification, ready bootstrap state, and personal owner identity when applicable.",
+            "Create or idempotently reuse the canonical Brand, tenant-brand link, operational Brand workspace, and creator Brand grant inside the container authority mutation transaction.",
+            "Persist root_workspace_id as operational Brand workspace provenance without classifying the operational Brand workspace as an ownership Root.",
+            "Create or reuse the canonical Root Workspace and Brand containers and require one deterministic contains relationship identity for the exact endpoint pair.",
+            "Rebuild container closure at the next authority epoch and require exactly one direct Root-to-Brand path before commit.",
+            "Invalidate the in-process authority cache after the mutation commits.",
+            "Build the legacy projection from the same Root binding and verify that it plans the Brand under the Root Workspace, not under the operational Brand workspace.",
+            "Reject apply before durable projection writes when Root evidence is missing, invalid, not ready, personal-owner incomplete, ambiguous, or represented by a noncanonical same-endpoint relationship identity."
+          ],
+          "assertions": [
+            "Brand Create requires root_workspace_id and does not silently infer a Root from tenant membership or Brand workspace identity.",
+            "A personal Root Workspace without owner_user_id is rejected and a signed-in actor cannot create a Brand under another personal owner.",
+            "Operational workspace_type=brand remains an unclassified child/provenance row and cannot become the Brand authority parent.",
+            "The Root-to-Brand relationship uses the deterministic canonical relationship_id and a same-endpoint noncanonical relationship fails closed before duplicate insertion.",
+            "Exactly one active inheritance-bearing Workspace parent and one direct closure path are required before Brand Create commits.",
+            "Dynamic Container projection consumes config_json.root_workspace_id and blocks topology-invalid plans before durable apply.",
+            "No migration, Production mutation, provider call, credential read, external send, force push, or manual generated-artifact edit is performed by this slice."
+          ],
+          "tests": [
+            {
+              "id": "brand-root-topology-kernel-current-main",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-root-topology-current-main.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-root-projection-current-main",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-root-projection-current-main.mjs",
+              "args": []
+            },
+            {
+              "id": "dynamic-container-authority-runtime-root-fixture",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-dynamic-container-authority-runtime.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-create-operation-governance-current-main",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create-operation-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-create-legacy-contract-current-main",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/brand-root-topology-current-main-20260815.json",
+            "http-generic-api/workspaceBrandRootTopology.js",
+            "http-generic-api/dynamicContainerProjectionService.js",
+            "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-dynamic-container-authority-runtime.mjs",
+            "http-generic-api/test-workspace-brand-root-topology-current-main.mjs",
+            "http-generic-api/test-workspace-brand-root-projection-current-main.mjs",
+            "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+            "http-generic-api/test-workspace-brand-create.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -23,6 +23,7 @@ const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";
 export const CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-dry-run.mjs", import.meta.url));
 export const CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-create.mjs", import.meta.url));
 export const CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-approve.mjs", import.meta.url));
+export const GOVERNED_MIGRATION_RUNNER_PATH = fileURLToPath(new URL("../scripts/governed-migration-runner.mjs", import.meta.url));
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
 const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
 const GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST = new Set(["superseded"]);
@@ -2017,7 +2018,7 @@ function builtInShellAllowlist() {
     },
     migration_apply_guarded_dry_run: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--dry-run"],
+      args: [GOVERNED_MIGRATION_RUNNER_PATH, "--dry-run"],
       display_name: "Governed migration runner dry-run",
       allow_extra_args: true,
       max_extra_args: 4,
@@ -2026,7 +2027,7 @@ function builtInShellAllowlist() {
     },
     migration_apply_guarded_apply: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--apply"],
+      args: [GOVERNED_MIGRATION_RUNNER_PATH, "--apply"],
       display_name: "Governed migration runner apply",
       allow_extra_args: true,
       max_extra_args: 6,
@@ -2116,7 +2117,7 @@ function builtInShellAllowlist() {
     activation_source_table_coverage_audit: { command: process.execPath, args: ["http-generic-api/scripts/activation-surface-db-coverage-audit.mjs"], display_name: "Activation source table coverage audit", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     migration_ledger_record_dry_run: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
+      args: [GOVERNED_MIGRATION_RUNNER_PATH, "--record-ledger", "--dry-run"],
       display_name: "Governed migration ledger record-only dry-run",
       allow_extra_args: true,
       max_extra_args: 4,
@@ -2125,7 +2126,7 @@ function builtInShellAllowlist() {
     },
     migration_ledger_record_apply: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--apply"],
+      args: [GOVERNED_MIGRATION_RUNNER_PATH, "--record-ledger", "--apply"],
       display_name: "Governed migration ledger record-only apply",
       allow_extra_args: true,
       max_extra_args: 6,

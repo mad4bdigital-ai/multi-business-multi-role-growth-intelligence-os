@@ -30,7 +30,11 @@
       "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md",
       "specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json",
       "specs/012-unified-admin-tenant-context-kernel/provider-consent-adapter-evidence-nonproduction-readiness.md",
-      "specs/012-unified-admin-tenant-context-kernel/e2e-phases.json"
+      "specs/012-unified-admin-tenant-context-kernel/e2e-phases.json",
+      "http-generic-api/contextKernel/domain/contextIntegrity.js",
+      "http-generic-api/test-context-kernel-integrity-regression.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md"
     ]
   },
   "merge_contract": {
@@ -186,6 +190,42 @@
             "http-generic-api/contextKernel/infrastructure/sql/index.js",
             "http-generic-api/test-context-kernel-provider-consent-unknown-outcome-reconciliation.mjs",
             "specs/012-unified-admin-tenant-context-kernel/provider-consent-adapter-evidence-nonproduction-readiness.md"
+          ]
+        },
+        {
+          "id": "context-kernel-integrity-regression",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Context Kernel authority operator",
+          "entrypoint": "Context Kernel domain integrity boundary",
+          "terminal_outcome": "A context decision hash and invalidation graph remain deterministic, secret-safe, revision-sensitive, and fail-closed without database or provider mutation.",
+          "steps": [
+            "Canonicalize a context snapshot while removing sensitive values",
+            "Change owner-scope revision and verify context hash movement",
+            "Reject stale context revisions",
+            "Project authority/workspace invalidation dimensions without arbitrary fallback"
+          ],
+          "assertions": [
+            "Sensitive values do not affect public context hashes",
+            "Owner-scope revision movement changes the context hash",
+            "Context revision mismatch is rejected",
+            "Authority and workspace invalidation remains deterministic and fail-closed",
+            "No database, provider, credential, or automatic write is performed"
+          ],
+          "tests": [
+            {
+              "id": "context-kernel-integrity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-integrity-regression.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/contextKernel/domain/contextIntegrity.js",
+            "http-generic-api/test-context-kernel-integrity-regression.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md"
           ]
         }
       ]

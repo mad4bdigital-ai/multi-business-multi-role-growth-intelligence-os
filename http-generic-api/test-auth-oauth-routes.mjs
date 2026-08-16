@@ -6,8 +6,11 @@
  * Run: node test-auth-oauth-routes.mjs
  */
 
-process.env.JWT_SECRET = "oauth_route_test_secret";
+process.env.JWT_SECRET = "oauth_route_test_secret_32_characters_long";
+process.env.TENANT_GPT_SSO_SIGNING_SECRET = "tenant_gpt_sso_test_secret_32_characters_long";
+process.env.TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED = "true";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id.apps.googleusercontent.com";
+process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
 import express from "express";
 import jwt from "jsonwebtoken";
@@ -17,6 +20,7 @@ const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
 const { buildTenantGptOAuthMetadataRoutes } = await import("./routes/tenantGptOAuthMetadataRoutes.js");
 const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
+const { deriveTenantGptPkceChallenge } = await import("./tenantGptOAuthPkce.js");
 await import("./test-tenant-gpt-access-token-verifier.mjs");
 await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
 await import("./test-tenant-gpt-google-jit-recovery.mjs");
@@ -31,6 +35,8 @@ const TENANT_SCOPE_LINKS = [
 const TENANT_SCOPE = TENANT_SCOPE_LINKS.join(" ");
 const AUTH_RESOURCE = "https://auth.mad4b.com";
 const ACTIVATION_RESOURCE = "https://activation.mad4b.com";
+const PKCE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+const PKCE_CHALLENGE = deriveTenantGptPkceChallenge(PKCE_VERIFIER);
 
 let passed = 0;
 let failed = 0;
@@ -116,6 +122,7 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
 const oauthCredentialRequests = [];
+const ssoSessions = new Map();
 const durableOAuthCodes = new Map();
 
 const oauthClientPool = {
@@ -213,6 +220,16 @@ app.use(buildActivationHostGatewayRoutes());
 app.get("/tenant/activation/probe", (req, res) => res.status(200).json({ ok: true, auth: req.auth || null }));
 app.use("/auth", buildAuthRoutes({
   getPool: () => oauthClientPool,
+  isTenantGptSsoSessionActive: async ({ sid }) => ({ ok: true, active: ssoSessions.has(sid), sid }),
+  persistTenantGptSsoSession: async ({ claims }) => { ssoSessions.set(claims.sid, claims); return { ok: true, sid: claims.sid }; },
+  revokeTenantGptSsoSessionBySid: async ({ sid }) => ssoSessions.delete(sid),
+  revokeTenantGptSsoSessionsForUser: async ({ userId }) => {
+    let revoked = 0;
+    for (const [sid, claims] of ssoSessions.entries()) {
+      if (claims.user_id === userId) { ssoSessions.delete(sid); revoked += 1; }
+    }
+    return revoked;
+  },
   async resolveTenantGptOAuthCredential(credential) {
     oauthCredentialRequests.push({
       kind: credential?.kind || null,
@@ -243,7 +260,7 @@ try {
   {
     const result = await getText(
       baseUrl,
-      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&code_challenge=${encodeURIComponent(PKCE_CHALLENGE)}&code_challenge_method=S256&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`,
       { headers: { "x-forwarded-host": "activation.mad4b.com" } },
     );
     assert("activation host authorize reaches shared auth route", result.status === 200, `${result.status}`);
@@ -276,7 +293,7 @@ try {
   {
     const result = await getText(
       baseUrl,
-      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&language=ar-EG`,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&language=ar-EG&code_challenge=${encodeURIComponent(PKCE_CHALLENGE)}&code_challenge_method=S256`,
       { headers: { "accept-language": "ar-EG,ar;q=0.9,en;q=0.8" } }
     );
     assert("Arabic browser language still returns authorize html", result.status === 200, `${result.status}`);
@@ -295,7 +312,9 @@ try {
     assert("authorization metadata publishes the token endpoint", authorizationMetadata.token_endpoint === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(authorizationMetadata));
     assert("authorization metadata declares resource support", authorizationMetadata.resource_parameter_supported === true, JSON.stringify(authorizationMetadata));
 
-    const protectedResourceResult = await getText(baseUrl, "/.well-known/oauth-protected-resource");
+    const protectedResourceResult = await getText(baseUrl, "/.well-known/oauth-protected-resource", {
+      headers: { "x-forwarded-host": "activation.mad4b.com" },
+    });
     const protectedResource = JSON.parse(protectedResourceResult.text);
     assert("protected resource metadata is public", protectedResourceResult.status === 200, `${protectedResourceResult.status}`);
     assert("protected resource metadata identifies Activation", protectedResource.resource === ACTIVATION_RESOURCE, JSON.stringify(protectedResource));
@@ -344,6 +363,15 @@ try {
       { headers: { "x-forwarded-host": "unregistered.example" } },
     );
     assert("authorize rejects an unregistered request host", result.status === 400, `${result.status}`);
+  }
+
+  {
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&code_challenge=${encodeURIComponent(PKCE_CHALLENGE)}&code_challenge_method=S256`,
+      { headers: { "x-original-host": "auth.mad4b.com", "x-forwarded-host": "activation.mad4b.com" } },
+    );
+    assert("authorize rejects conflicting trusted host headers", result.status === 400, `${result.status}`);
   }
 
   {
@@ -429,6 +457,8 @@ try {
       redirect_uri: redirectUri,
       state: "google-state",
       scope: TENANT_SCOPE,
+      code_challenge: PKCE_CHALLENGE,
+      code_challenge_method: "S256",
     });
     assert("Google popup issues an authorization code through the default identity resolver", googleCodeResult.status === 200, JSON.stringify(googleCodeResult.body));
     assert("Google ID token is verified for the configured audience", verifiedGoogleTokens[0]?.audience === process.env.GOOGLE_CLIENT_ID, JSON.stringify(verifiedGoogleTokens));
@@ -491,6 +521,8 @@ try {
       redirect_uri: redirectUri,
       state: "unavailable-store-state",
       scope: TENANT_SCOPE,
+      code_challenge: PKCE_CHALLENGE,
+      code_challenge_method: "S256",
     });
     assert("code-store outages return a retryable service response", unavailableCodeResult.status === 503, JSON.stringify(unavailableCodeResult.body));
     assert("code-store outages are not mislabeled as identity failures", unavailableCodeResult.body.error?.code === "oauth_code_store_unavailable", JSON.stringify(unavailableCodeResult.body));
@@ -504,6 +536,8 @@ try {
       redirect_uri: redirectUri,
       state: "unavailable-identity-state",
       scope: TENANT_SCOPE,
+      code_challenge: PKCE_CHALLENGE,
+      code_challenge_method: "S256",
     });
     const identityDiagnostic = infrastructureLogs.find((entry) => entry?.[1]?.stage === "identity_resolution");
     assert("identity infrastructure outages return a retryable service response", unavailableIdentityResult.status === 503, JSON.stringify(unavailableIdentityResult.body));
@@ -547,6 +581,8 @@ try {
       redirect_uri: redirectUri,
       state: "unavailable-config-state",
       scope: TENANT_SCOPE,
+      code_challenge: PKCE_CHALLENGE,
+      code_challenge_method: "S256",
     });
     assert("OAuth configuration outages return a retryable service response", unavailableConfigResult.status === 503, JSON.stringify(unavailableConfigResult.body));
     assert("OAuth configuration outages are not mislabeled as redirect mismatches", unavailableConfigResult.body.error?.code === "oauth_configuration_unavailable", JSON.stringify(unavailableConfigResult.body));
@@ -558,7 +594,7 @@ try {
 
     const unavailableAuthorizeResult = await getText(
       unavailableConfigServer.baseUrl,
-      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=unavailable-config-authorize-state`,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=unavailable-config-authorize-state&code_challenge=${encodeURIComponent(PKCE_CHALLENGE)}&code_challenge_method=S256`,
     );
     assert("authorize returns 503 when OAuth configuration is unavailable", unavailableAuthorizeResult.status === 503, `${unavailableAuthorizeResult.status}`);
     assert("authorize reports a retryable configuration outage", unavailableAuthorizeResult.text.includes("temporarily unavailable"), unavailableAuthorizeResult.text);
@@ -580,8 +616,11 @@ try {
     screen_hint: "signin",
     sign_in_options: ["email", "register"],
   };
-  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, scope: TENANT_SCOPE, activation_context: activationContext });
+  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, scope: TENANT_SCOPE, code_challenge: PKCE_CHALLENGE, code_challenge_method: "S256", activation_context: activationContext });
   assert("code endpoint accepts signed user token", codeResult.status === 200, `${codeResult.status}`);
+  const ssoCookie = String(codeResult.headers.get("set-cookie") || "").split(";")[0];
+  assert("OAuth code issuance sets a persistent SSO cookie", ssoCookie.startsWith("mad4b_tenant_gpt_sso="), ssoCookie);
+  assert("OAuth code issuance persists an SSO sid", ssoSessions.size === 1, JSON.stringify([...ssoSessions.keys()]));
   assert("code response includes code", typeof codeResult.body.code === "string" && codeResult.body.code.length > 40);
   assert("code response redirects with state", String(codeResult.body.redirect_to || "").includes(`state=${state}`), codeResult.body.redirect_to);
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
@@ -589,17 +628,35 @@ try {
   assert("authorization code stores canonical ChatGPT callback", decodedAuthorizationCode?.redirect_uri === canonicalRedirectUri, JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds the registered OAuth client", decodedAuthorizationCode?.client_id === "mad4b-tenant-gpt", JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds the Activation protected resource", decodedAuthorizationCode?.resource === ACTIVATION_RESOURCE, JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code binds the PKCE challenge", decodedAuthorizationCode?.code_challenge === PKCE_CHALLENGE, JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code binds S256 PKCE method", decodedAuthorizationCode?.code_challenge_method === "S256", JSON.stringify(decodedAuthorizationCode));
   assert("code response reports the Activation protected resource", codeResult.body.resource === ACTIVATION_RESOURCE, JSON.stringify(codeResult.body));
   assert("code response redirects legacy callback directly to canonical ChatGPT host", String(codeResult.body.redirect_to || "").startsWith(canonicalRedirectUri), codeResult.body.redirect_to);
   assert("code response does not redirect through legacy ChatGPT host", !String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 
+  const ssoReuseResult = await postJson(baseUrl, "/auth/oauth/code", {
+    redirect_uri: redirectUri,
+    state: "sso-reuse-state",
+    scope: TENANT_SCOPE,
+    code_challenge: PKCE_CHALLENGE,
+    code_challenge_method: "S256",
+  }, { headers: { cookie: ssoCookie } });
+  assert("SSO cookie round trip reuses the active session", ssoReuseResult.status === 200, JSON.stringify(ssoReuseResult.body));
+  assert("SSO cookie round trip preserves state", String(ssoReuseResult.body.redirect_to || "").includes("state=sso-reuse-state"), JSON.stringify(ssoReuseResult.body));
+  const ssoTokenValue = decodeURIComponent(ssoCookie.slice(ssoCookie.indexOf("=") + 1));
+  const revokeResult = await postJson(baseUrl, "/auth/oauth/revoke", { session_token: ssoTokenValue }, { headers: { "x-forwarded-host": "auth.mad4b.com" } });
+  assert("SSO revoke endpoint returns success", revokeResult.status === 200, JSON.stringify(revokeResult.body));
+  assert("SSO revoke endpoint revokes the sid", revokeResult.body.revoked === true && !ssoSessions.has(revokeResult.body.sid), JSON.stringify(revokeResult.body));
+
   const credentialCodeResult = await postJson(baseUrl, "/auth/oauth/code", {
     credential: { kind: "login", email: "user@example.com", password: "not-logged" },
     redirect_uri: redirectUri,
     state: "credential-state",
     scope: TENANT_SCOPE,
+    code_challenge: PKCE_CHALLENGE,
+    code_challenge_method: "S256",
     activation_context: activationContext,
   }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("activation host routes popup credentials into shared OAuth code logic", credentialCodeResult.status === 200, `${credentialCodeResult.status}`);
@@ -632,6 +689,7 @@ try {
     redirect_uri: redirectUri,
     client_id: "mad4b-tenant-gpt",
     client_secret: "test-client-secret",
+    code_verifier: PKCE_VERIFIER,
     resource: AUTH_RESOURCE,
   }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint rejects a resource that does not match the Activation host", wrongTarget.status === 400, `${wrongTarget.status}`);
@@ -643,6 +701,7 @@ try {
     redirect_uri: redirectUri,
     client_id: "mad4b-tenant-gpt",
     client_secret: "test-client-secret",
+    code_verifier: PKCE_VERIFIER,
   }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
   assert("token endpoint accepts legacy callback as equivalent to canonical code callback", exchange.status === 200, JSON.stringify(exchange.body));
@@ -693,7 +752,7 @@ try {
   assert("Activation gateway exposes the verified token resource", validProbeBody.auth?.token_resource === ACTIVATION_RESOURCE, JSON.stringify(validProbeBody));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
   assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
-  assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
+  assert("access JWT carries linked tenant scopes", accessPayload.scope === [...TENANT_SCOPE_LINKS].sort().join(" "), JSON.stringify(accessPayload));
   assert("OAuth access JWT omits duplicated scope links", accessPayload.scope_links === undefined, JSON.stringify(accessPayload));
   assert("OAuth access JWT identifies the authorized client", accessPayload.client_id === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
   assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
@@ -705,6 +764,7 @@ try {
     redirect_uri: redirectUri,
     client_id: "mad4b-tenant-gpt",
     client_secret: "test-client-secret",
+    code_verifier: PKCE_VERIFIER,
   }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint rejects authorization code replay", replay.status === 400, `${replay.status}`);
   assert("authorization code replay reports invalid_grant", replay.body.error === "invalid_grant", JSON.stringify(replay.body));
@@ -715,6 +775,7 @@ try {
     redirect_uri: "https://chatgpt.com/aip/other/oauth/callback",
     client_id: "mad4b-tenant-gpt",
     client_secret: "test-client-secret",
+    code_verifier: PKCE_VERIFIER,
   });
   assert("token endpoint rejects redirect mismatch", mismatch.status === 400, `${mismatch.status}`);
   assert("redirect mismatch reports invalid_grant", mismatch.body.error === "invalid_grant", JSON.stringify(mismatch.body));

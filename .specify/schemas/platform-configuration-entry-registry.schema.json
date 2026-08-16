@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/platform-configuration-entry-registry.schema.json",
+  "title": "Platform Configuration Entry Registry",
+  "type": "object",
+  "required": ["contract", "schema_version", "entries", "ignored_changed_path_prefixes", "safety"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "const": "mad4b.platform-configuration-entry-registry.v1" },
+    "schema_version": { "const": 1 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["config_key", "schema_ref", "owner", "risk_class", "scope_types", "binding_ref", "resolver_ref", "readback_ref", "shadow_evidence_ref", "classification", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "config_key": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+)+$" },
+          "schema_ref": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "risk_class": { "enum": ["low", "medium", "high", "critical"] },
+          "scope_types": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "binding_ref": { "type": "string", "minLength": 1 },
+          "resolver_ref": { "type": "string", "minLength": 1 },
+          "readback_ref": { "type": "string", "minLength": 1 },
+          "shadow_evidence_ref": { "type": "string", "minLength": 1 },
+          "classification": { "const": "runtime_setting" },
+          "status": { "enum": ["shadow", "staged"] },
+          "secrets_included": { "const": false }
+        }
+      }
+    },
+    "ignored_changed_path_prefixes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "safety": {
+      "type": "object",
+      "required": ["values_included", "secrets_included", "runtime_mutation_allowed", "database_mutation_allowed", "production_activation_allowed"],
+      "additionalProperties": false,
+      "properties": {
+        "values_included": { "const": false },
+        "secrets_included": { "const": false },
+        "runtime_mutation_allowed": { "const": false },
+        "database_mutation_allowed": { "const": false },
+        "production_activation_allowed": { "const": false }
+      }
+    }
+  }
+}

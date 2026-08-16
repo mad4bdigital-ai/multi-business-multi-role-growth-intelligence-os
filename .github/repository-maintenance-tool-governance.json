@@ -9,6 +9,30 @@
   ],
   "tool_root": "http-generic-api/scripts/maintenance-tools",
   "canonical_report_contract": "mad4b.repository-tool-lifecycle-report.v1",
+  "discovery": {
+    "contract": "mad4b.repository-tool-discovery.v1",
+    "central_inventory_path": "docs/repository-inventory.json",
+    "roots": [
+      {
+        "path": "http-generic-api/scripts/maintenance-tools",
+        "registration": "explicit_registry_required"
+      },
+      {
+        "path": ".github/scripts",
+        "registration": "auto_catalog_read_only"
+      }
+    ],
+    "extensions": [
+      ".mjs",
+      ".cjs",
+      ".js",
+      ".py",
+      ".sh"
+    ],
+    "mutating_unregistered_changed_fails": true,
+    "orphaned_registry_fails": true,
+    "read_only_auto_catalog": true
+  },
   "forbidden_path_patterns": [
     "(^|/)\\.changes/e2e/.*trigger$",
     "(^|/).*\\.trigger$",
@@ -34,8 +58,36 @@
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
     },
+    "repository-tool-discovery": {
+      "description": "Build a non-authoritative live catalog of repository tools from the Git index, cross-check central inventory coverage, and require explicit registry authority for governed or mutating tools.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.repository-tool-discovery.v1"
+    },
+    "configuration-candidate-discovery": {
+      "description": "Discover hardcoded configuration candidates from the central repository inventory scope, redact sensitive values, classify runtime settings versus policies, secrets, constants, and generated artifacts, and emit a review-only manifest without repository or database mutation.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.configuration-candidate-discovery.v1"
+    },
+    "configuration-drift-guard": {
+      "description": "Compare deterministic configuration candidate fingerprints against an approved baseline, verify authority and E2E contract integrity, reject unsuppressed drift, and enforce report-only safety invariants without repository, database, or Production mutation.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.configuration-drift-guard.v1"
+    },
+    "platform-configuration-entry-guard": {
+      "description": "Require every new runtime configuration candidate to have metadata-only catalog registration, schema, owner, bounded risk, scope binding, resolver, readback, and shadow evidence while rejecting secrets, policies, and fixed contracts.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.platform-configuration-entry-guard.v1"
+    },
     "generated-artifact-refresh": {
-      "description": "Regenerate bounded OpenAPI/frontend, Work Map, or Repository Inventory generated artifacts through the existing registered exact-head mutation authority.",
+      "description": "Regenerate bounded OpenAPI/frontend, dynamically discovered execution-ready Work Map bindings, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "mode": "mutating",
       "allowed_changed_path_patterns": [
@@ -50,14 +102,22 @@
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.yaml$",
         "^http-generic-api/openapi\\.gpt-action\\.local-connector\\.yaml$",
         "^docs/work-maps/.*$",
+        "^specs/[0-9]{3}-[a-z0-9][a-z0-9-]*/work-map-integration\\.json$",
         "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
         "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
         "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$",
         "^specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration\\.json$",
         "^specs/018-environment-promotion-runtime-integrity/work-map-integration\\.json$",
+        "^specs/019-governed-database-lifecycle-pressure-relief/work-map-integration\\.json$",
+        "^http-generic-api/remote-mcp-write-scope-inventory\\.generated\\.json$",
+        "^docs/remote-mcp-write-scope-inventory\\.md$",
+        "^autopilot-portable-staging/manifest\\.json$",
         "^docs/repository-inventory\\.json$",
         "^docs/repository-inventory-summary\\.json$",
-        "^docs/repository-inventory\\.md$"
+        "^docs/repository-inventory\\.md$",
+        "^docs/repository-evaluation\\.json$",
+        "^docs/repository-evaluation-summary\\.json$",
+        "^docs/repository-evaluation\\.md$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },
@@ -66,6 +126,19 @@
       "entrypoint": "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
       "mode": "read_only",
       "allowed_changed_path_patterns": []
+    },
+    "branch-hygiene": {
+      "description": "Classify repository branches into a deterministic triage queue and delete only exact-head, merged, unprotected, no-open-PR branches after the configured grace period; unmerged branches are report-only.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs",
+      "mode": "mutating",
+      "allowed_changed_path_patterns": [
+        "^\\.github/branch-hygiene-policy\\.json$",
+        "^\\.github/workflows/branch-hygiene\\.yml$",
+        "^http-generic-api/scripts/maintenance-tools/branch-hygiene-policy\\.mjs$",
+        "^\\.github/tests/branch-hygiene-policy\\.test\\.mjs$",
+        "^docs/branch-hygiene\\.md$"
+      ],
+      "report_contract": "mad4b.branch-hygiene-report.v2"
     }
   }
 }

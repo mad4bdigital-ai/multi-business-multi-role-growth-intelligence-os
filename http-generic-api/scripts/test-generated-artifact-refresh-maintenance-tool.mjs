@@ -122,6 +122,7 @@ runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /work_map_self_hosting_scope_violation/u);
   assert.match(toolSource, /"git", \["diff", "--name-only", "main", "HEAD"\]/u);
   assert.match(toolSource, /\.github\/workflows\/spec-kit-work-map-autofix\.yml/u);
+  assert.match(toolSource, /remote-mcp-oauth-path-format-guard/u);
   assert.match(toolSource, /scripts\/platform-work-map-generator\.mjs", "--write"/u);
   assert.match(toolSource, /scripts\/spec014-refresh-final-work-map-binding\.mjs/u);
   assert.match(toolSource, /014-retail-commerce-operations-growth-os/u);
@@ -149,6 +150,27 @@ runCheck("tool-work-map-self-hosting-bootstrap", () => {
   );
   assert.match(toolSource, /self_hosting_scope_bounded/u);
 });
+runCheck("tool-remote-mcp-write-scope-refresh", () => {
+  assert.match(toolSource, /remote_mcp_write_scope_refresh/u);
+  for (const output of [
+    "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+    "docs/remote-mcp-write-scope-inventory.md",
+  ]) {
+    assert.ok(toolSource.includes(`"${output}"`), `Remote MCP output must be explicitly bounded: ${output}`);
+  }
+  assert.match(toolSource, /remoteMcpWriteScopeInventoryIsCurrent/u);
+  assert.match(toolSource, /generate_remote_mcp_write_scope_first_pass/u);
+  assert.match(toolSource, /generate_remote_mcp_write_scope_second_pass/u);
+  assert.match(toolSource, /remote_mcp_write_scope_not_deterministic/u);
+  assert.match(toolSource, /remote-mcp-write-scope-inventory\.mjs", "--check"/u);
+  assert.match(toolSource, /test-remote-mcp-write-scope-inventory\.mjs/u);
+  assert.match(toolSource, /REMOTE_MCP_WRITE_SCOPE_OUTPUTS\.has\(file\)/u);
+  assert.match(toolSource, /docs\(remote-mcp\): regenerate write-scope inventory/u);
+  const workMapPriority = toolSource.indexOf("hasSelfHostingTrigger");
+  const remoteProbe = toolSource.indexOf("remoteMcpWriteScopeInventoryIsCurrent()", workMapPriority);
+  const frontendFallback = toolSource.indexOf("return FRONTEND_OPENAPI_RECIPE", remoteProbe);
+  assert.ok(workMapPriority >= 0 && remoteProbe > workMapPriority && frontendFallback > remoteProbe, "auto routing must preserve Work Map self-hosting priority, then Remote MCP currentness, then frontend fallback");
+});
 runCheck("tool-repository-inventory-refresh", () => {
   assert.match(toolSource, /repository_inventory_refresh/u);
   for (const output of [
@@ -175,9 +197,11 @@ runCheck("governed-workflow-dispatch-only", () => {
   assert.doesNotMatch(workflowSource, /^\s*pull_request(?:_target)?:/mu);
   assert.match(workflowSource, /expected_head_sha:/u);
   assert.match(workflowSource, /recipe:/u);
+  assert.match(workflowSource, /remote_mcp_write_scope_refresh/u);
   assert.match(workflowSource, /repository_inventory_refresh/u);
   assert.match(workflowSource, /actions:\s*write/u);
   assert.match(workflowSource, /contents:\s*write/u);
+  assert.match(workflowSource, /remote-mcp-write-scope-verification\.yml/u);
   assert.match(workflowSource, /pr-generated-artifact-refresh\.yml/u);
   assert.match(workflowSource, /repository-inventory\.yml/u);
   assert.match(workflowSource, /generated-artifact-refresh-verification-dispatch\.json/u);
@@ -222,7 +246,7 @@ runCheck("pr-workflow-runner-context-availability", () => {
     /\$\{\{\s*runner\.temp\s*\}\}/u,
     "PR workflow must not evaluate runner.temp before runner allocation",
   );
-  assert.match(prWorkflowSource, /Initialize bounded refresh report paths after runner allocation/u);
+  assert.match(prWorkflowSource, /Initialize bounded report paths after runner allocation/u);
   assert.match(prWorkflowSource, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
   assert.match(
     prWorkflowSource,
@@ -237,6 +261,7 @@ runCheck("pr-workflow-runner-context-availability", () => {
 
 const inventoryWorkflowSource = fs.readFileSync("../.github/workflows/repository-inventory.yml", "utf8");
 const inventoryGateSource = fs.readFileSync("../scripts/repository-inventory-verification-gate.mjs", "utf8");
+
 runCheck("repository-inventory-exact-head-verifier", () => {
   assert.match(inventoryWorkflowSource, /workflow_dispatch:/u);
   assert.match(inventoryWorkflowSource, /target_ref:/u);
@@ -266,13 +291,17 @@ runCheck("repository-inventory-autofix-dispatcher", () => {
   assert.match(autofixWorkflowSource, /Repository Inventory/u);
   assert.match(autofixWorkflowSource, /SOURCE_CONCLUSION/u);
   assert.match(autofixWorkflowSource, /SOURCE_EVENT/u);
-  assert.match(autofixWorkflowSource, /source_event_not_pull_request/u);
+  assert.match(autofixWorkflowSource, /source_push_not_main/u);
+  assert.match(autofixWorkflowSource, /source_main_head_is_stale/u);
+  assert.match(autofixWorkflowSource, /main_convergence/u);
+  assert.match(autofixWorkflowSource, /MANUAL_MODE/u);
+  assert.match(autofixWorkflowSource, /source_main_sha_mismatch/u);
   assert.match(autofixWorkflowSource, /fork_pr_not_eligible/u);
   assert.match(autofixWorkflowSource, /branch_requires_reconciliation/u);
   assert.match(autofixWorkflowSource, /governance_surface_changed_requires_manual_regeneration/u);
   assert.match(autofixWorkflowSource, /repository_inventory_stale_only/u);
   assert.match(autofixWorkflowSource, /dirty_set_exceeds_inventory_outputs/u);
-  assert.match(autofixWorkflowSource, /repository-inventory-regeneration-pr-/u);
+  assert.match(autofixWorkflowSource, /repository-inventory-regeneration-/u);
   assert.match(autofixWorkflowSource, /actions:\s*write/u);
   assert.match(autofixWorkflowSource, /contents:\s*read/u);
   assert.match(autofixWorkflowSource, /pull-requests:\s*read/u);
@@ -305,6 +334,8 @@ runCheck("maintenance-tool-registration", () => {
     "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
     "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
     "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$",
+    "^http-generic-api/remote-mcp-write-scope-inventory\\.generated\\.json$",
+    "^docs/remote-mcp-write-scope-inventory\\.md$",
     "^docs/repository-inventory\\.json$",
     "^docs/repository-inventory-summary\\.json$",
     "^docs/repository-inventory\\.md$",
@@ -324,8 +355,10 @@ console.log(JSON.stringify({
   exact_head_verification_dispatch: true,
   canonical_auth_repair_registered: true,
   work_map_self_hosting_bootstrap_registered: true,
+  remote_mcp_write_scope_refresh_registered: true,
   repository_inventory_refresh_registered: true,
   repository_inventory_autofix_dispatch_registered: true,
+  main_convergence_recovery_registered: true,
   pull_request_write_authority: false,
   jobs_level_runner_context_used: false,
   secrets_included: false,

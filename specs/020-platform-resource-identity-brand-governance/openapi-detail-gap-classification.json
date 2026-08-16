@@ -1,0 +1,667 @@
+{
+  "$schema": "https://schemas.mad4b.com/spec020/openapi-detail-gap-classification.schema.json",
+  "schema_version": "spec020-openapi-detail-gap-classification-v1",
+  "status": "classification_only",
+  "review_state": "documentation_and_surface_decision_readiness",
+  "source": {
+    "baseline_ref": "main",
+    "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
+    "dispatch_source_digest": "f48b5b999e8f8c50c59163e0be5a52fd38037d27e5c4d1762af6334e279d1cff",
+    "dispatch_artifact_sha256": "5c05f7c87b3fcac8c737f0e82d0a1bfa9e397d593676cd89603f7313a48f4e9f"
+  },
+  "coverage": {
+    "operation_count": 1041,
+    "openapi_documented_count": 1025,
+    "openapi_canonical_documented_count": 710,
+    "openapi_generated_index_count": 315,
+    "openapi_gap_count": 0,
+    "auth_contract_gap_count": 0,
+    "openapi_detail_gap_count": 315,
+    "unresolved_surface_decision_count": 0,
+    "coverage_complete": true
+  },
+  "distributions": {
+    "surface_decisions_by_family": [
+      {
+        "decision": "internal_only",
+        "count": 116
+      },
+      {
+        "decision": "api_only",
+        "count": 38
+      },
+      {
+        "decision": "embedded_ui",
+        "count": 6
+      },
+      {
+        "decision": "legacy_compatibility",
+        "count": 6
+      },
+      {
+        "decision": "unified_ui",
+        "count": 1
+      }
+    ],
+    "detail_gap_entries_by_surface_decision": [
+      {
+        "decision": "internal_only",
+        "count": 272
+      },
+      {
+        "decision": "api_only",
+        "count": 37
+      },
+      {
+        "decision": "legacy_compatibility",
+        "count": 4
+      },
+      {
+        "decision": "embedded_ui",
+        "count": 2
+      }
+    ],
+    "detail_gap_entries_by_method": [
+      {
+        "method": "POST",
+        "count": 142
+      },
+      {
+        "method": "GET",
+        "count": 118
+      },
+      {
+        "method": "PUT",
+        "count": 20
+      },
+      {
+        "method": "DELETE",
+        "count": 19
+      },
+      {
+        "method": "PATCH",
+        "count": 16
+      }
+    ],
+    "detail_gap_entries_by_path_first_segment": [
+      {
+        "path_first_segment": "admin",
+        "count": 35
+      },
+      {
+        "path_first_segment": "dev-agent",
+        "count": 31
+      },
+      {
+        "path_first_segment": "tenants",
+        "count": 30
+      },
+      {
+        "path_first_segment": "me",
+        "count": 27
+      },
+      {
+        "path_first_segment": "platform",
+        "count": 22
+      },
+      {
+        "path_first_segment": "planner",
+        "count": 12
+      },
+      {
+        "path_first_segment": "browser-runtime",
+        "count": 11
+      },
+      {
+        "path_first_segment": "agents",
+        "count": 9
+      },
+      {
+        "path_first_segment": "local-connector",
+        "count": 8
+      },
+      {
+        "path_first_segment": "sessions",
+        "count": 8
+      },
+      {
+        "path_first_segment": "uploads",
+        "count": 8
+      },
+      {
+        "path_first_segment": "github",
+        "count": 6
+      },
+      {
+        "path_first_segment": "root",
+        "count": 6
+      },
+      {
+        "path_first_segment": "customers",
+        "count": 5
+      },
+      {
+        "path_first_segment": "logic-definitions",
+        "count": 5
+      },
+      {
+        "path_first_segment": "agent-chain-events",
+        "count": 4
+      },
+      {
+        "path_first_segment": "installations",
+        "count": 4
+      },
+      {
+        "path_first_segment": "local-manager",
+        "count": 4
+      },
+      {
+        "path_first_segment": "tickets",
+        "count": 4
+      },
+      {
+        "path_first_segment": "users",
+        "count": 4
+      },
+      {
+        "path_first_segment": "agent-skills",
+        "count": 3
+      },
+      {
+        "path_first_segment": "connected-systems",
+        "count": 3
+      },
+      {
+        "path_first_segment": "developer-apps",
+        "count": 3
+      },
+      {
+        "path_first_segment": "entitlements",
+        "count": 3
+      },
+      {
+        "path_first_segment": "gpt",
+        "count": 3
+      },
+      {
+        "path_first_segment": "incidents",
+        "count": 3
+      },
+      {
+        "path_first_segment": "mcp",
+        "count": 3
+      },
+      {
+        "path_first_segment": "session-assimilation-queue",
+        "count": 3
+      },
+      {
+        "path_first_segment": "threads",
+        "count": 3
+      },
+      {
+        "path_first_segment": "tracking",
+        "count": 3
+      },
+      {
+        "path_first_segment": "workflow-runs",
+        "count": 3
+      },
+      {
+        "path_first_segment": "workflow-runtime",
+        "count": 3
+      },
+      {
+        "path_first_segment": "activation",
+        "count": 2
+      },
+      {
+        "path_first_segment": "agent-delegations",
+        "count": 2
+      },
+      {
+        "path_first_segment": "contacts",
+        "count": 2
+      },
+      {
+        "path_first_segment": "dispatch",
+        "count": 2
+      },
+      {
+        "path_first_segment": "logic-packs",
+        "count": 2
+      },
+      {
+        "path_first_segment": "output-artifacts",
+        "count": 2
+      },
+      {
+        "path_first_segment": "reporting",
+        "count": 2
+      },
+      {
+        "path_first_segment": "webhooks",
+        "count": 2
+      },
+      {
+        "path_first_segment": "adaptation-records",
+        "count": 1
+      },
+      {
+        "path_first_segment": "api-credentials",
+        "count": 1
+      },
+      {
+        "path_first_segment": "approval-holds",
+        "count": 1
+      },
+      {
+        "path_first_segment": "bootstrap",
+        "count": 1
+      },
+      {
+        "path_first_segment": "connect",
+        "count": 1
+      },
+      {
+        "path_first_segment": "connector",
+        "count": 1
+      },
+      {
+        "path_first_segment": "dev",
+        "count": 1
+      },
+      {
+        "path_first_segment": "execution-plans",
+        "count": 1
+      },
+      {
+        "path_first_segment": "governance",
+        "count": 1
+      },
+      {
+        "path_first_segment": "governed-addition",
+        "count": 1
+      },
+      {
+        "path_first_segment": "hostinger",
+        "count": 1
+      },
+      {
+        "path_first_segment": "jobs",
+        "count": 1
+      },
+      {
+        "path_first_segment": "local",
+        "count": 1
+      },
+      {
+        "path_first_segment": "output-sink",
+        "count": 1
+      },
+      {
+        "path_first_segment": "release",
+        "count": 1
+      },
+      {
+        "path_first_segment": "sink-dispatch-log",
+        "count": 1
+      },
+      {
+        "path_first_segment": "site-migrate",
+        "count": 1
+      },
+      {
+        "path_first_segment": "site-migration",
+        "count": 1
+      },
+      {
+        "path_first_segment": "skill-grants",
+        "count": 1
+      },
+      {
+        "path_first_segment": "wordpress",
+        "count": 1
+      }
+    ],
+    "detail_gap_entries_by_family": [
+      {
+        "family_key": "dev-agent",
+        "count": 31
+      },
+      {
+        "family_key": "customer",
+        "count": 17
+      },
+      {
+        "family_key": "planner",
+        "count": 12
+      },
+      {
+        "family_key": "session",
+        "count": 12
+      },
+      {
+        "family_key": "browser-runtime",
+        "count": 11
+      },
+      {
+        "family_key": "connected-systems",
+        "count": 10
+      },
+      {
+        "family_key": "output-sink",
+        "count": 10
+      },
+      {
+        "family_key": "tenant-commercial",
+        "count": 10
+      },
+      {
+        "family_key": "identity",
+        "count": 9
+      },
+      {
+        "family_key": "agent-registry",
+        "count": 8
+      },
+      {
+        "family_key": "developer-api",
+        "count": 8
+      },
+      {
+        "family_key": "logic",
+        "count": 8
+      },
+      {
+        "family_key": "tenant-lifecycle",
+        "count": 8
+      },
+      {
+        "family_key": "upload",
+        "count": 8
+      },
+      {
+        "family_key": "agent-skill.developer",
+        "count": 7
+      },
+      {
+        "family_key": "observability",
+        "count": 7
+      },
+      {
+        "family_key": "tenant-infrastructure",
+        "count": 7
+      },
+      {
+        "family_key": "admin-onboarding",
+        "count": 6
+      },
+      {
+        "family_key": "github",
+        "count": 6
+      },
+      {
+        "family_key": "registry-data-management.admin",
+        "count": 6
+      },
+      {
+        "family_key": "registry-data-management.tenant",
+        "count": 6
+      },
+      {
+        "family_key": "tenants",
+        "count": 6
+      },
+      {
+        "family_key": "workspace-resource",
+        "count": 6
+      },
+      {
+        "family_key": "root-discovery.public",
+        "count": 5
+      },
+      {
+        "family_key": "sql-endpoint-registry",
+        "count": 5
+      },
+      {
+        "family_key": "workflow-orchestration",
+        "count": 5
+      },
+      {
+        "family_key": "governance",
+        "count": 4
+      },
+      {
+        "family_key": "release",
+        "count": 4
+      },
+      {
+        "family_key": "security",
+        "count": 4
+      },
+      {
+        "family_key": "auth-email-targeted-delivery",
+        "count": 3
+      },
+      {
+        "family_key": "gpt-session",
+        "count": 3
+      },
+      {
+        "family_key": "local-connector",
+        "count": 3
+      },
+      {
+        "family_key": "local-connector-device-route",
+        "count": 3
+      },
+      {
+        "family_key": "mcp",
+        "count": 3
+      },
+      {
+        "family_key": "n8n-workflow-runtime",
+        "count": 3
+      },
+      {
+        "family_key": "platform-engine",
+        "count": 3
+      },
+      {
+        "family_key": "activation",
+        "count": 2
+      },
+      {
+        "family_key": "admin-workspace-authority",
+        "count": 2
+      },
+      {
+        "family_key": "dispatch",
+        "count": 2
+      },
+      {
+        "family_key": "dynamic-container-authority.admin",
+        "count": 2
+      },
+      {
+        "family_key": "local-connector-install.developer",
+        "count": 2
+      },
+      {
+        "family_key": "local-manager-desktop-command.admin",
+        "count": 2
+      },
+      {
+        "family_key": "local-manager-desktop-command.local_device",
+        "count": 2
+      },
+      {
+        "family_key": "member-google-oauth.admin",
+        "count": 2
+      },
+      {
+        "family_key": "session-insight-backlog-target-write",
+        "count": 2
+      },
+      {
+        "family_key": "support-ticket-lifecycle-integrity.admin",
+        "count": 2
+      },
+      {
+        "family_key": "bootstrap",
+        "count": 1
+      },
+      {
+        "family_key": "connect.public.connect-assets",
+        "count": 1
+      },
+      {
+        "family_key": "connector-proxy.developer",
+        "count": 1
+      },
+      {
+        "family_key": "dev-db-restore",
+        "count": 1
+      },
+      {
+        "family_key": "job.admin",
+        "count": 1
+      },
+      {
+        "family_key": "job.developer",
+        "count": 1
+      },
+      {
+        "family_key": "local-gateway-tools",
+        "count": 1
+      },
+      {
+        "family_key": "platform-plugin",
+        "count": 1
+      },
+      {
+        "family_key": "repository-automation",
+        "count": 1
+      },
+      {
+        "family_key": "resource-authority-grant",
+        "count": 1
+      },
+      {
+        "family_key": "schema-import",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-actual-request",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-actual-request-preflight",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-adapter-execution-gate",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-approval",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-dispatch-dry-run",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-dispatch-dry-run-review",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-dispatch-readback",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-plan",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-request-gate",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-capability-envelope-request-gate-review",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-payload-preview-review",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-promotion-apply-request",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-promotion-dry-run-executor",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-promotion-payload-preview",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-promotion-review",
+        "count": 1
+      },
+      {
+        "family_key": "session-insight-remaining-scope-completion",
+        "count": 1
+      },
+      {
+        "family_key": "status.public.default",
+        "count": 1
+      }
+    ]
+  },
+  "priority_rules": [
+    {
+      "id": "canonical-contract-blocker",
+      "condition": "openapi_gap_count > 0 OR auth_contract_gap_count > 0",
+      "tier": "blocking_contract_gap",
+      "action": "stop_and_open_separate_contract_repair_review"
+    },
+    {
+      "id": "surface-decision-review",
+      "condition": "family.surface_decision.decision == requires_review",
+      "tier": "surface_decision_required",
+      "action": "document_owner_and_decision_before_any_projection"
+    },
+    {
+      "id": "detail-traceability-only",
+      "condition": "openapi_detail_gap_count > 0 AND openapi_gap_count == 0",
+      "tier": "documentation_only",
+      "action": "classify_and_add_evidence_without_claiming_canonical_coverage"
+    }
+  ],
+  "priority_summary": {
+    "blocking_contract_gap_count": 0,
+    "surface_decision_required_family_count": 0,
+    "documentation_only_detail_gap_count": 315,
+    "top_surface_decision_families": []
+  },
+  "scope_boundary": {
+    "route_wiring": false,
+    "runtime_authority": false,
+    "rest_projection": false,
+    "custom_gpt_projection": false,
+    "remote_mcp_projection": false,
+    "frontend_projection": false,
+    "database_write": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "credential_read": false,
+    "production_activation": false
+  }
+}

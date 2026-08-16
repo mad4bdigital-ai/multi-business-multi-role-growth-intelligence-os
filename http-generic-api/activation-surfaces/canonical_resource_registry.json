@@ -1,0 +1,20 @@
+{
+  "surface_key": "canonical_resource_registry",
+  "display_name": "Canonical Resource Registry",
+  "description": "Activation-time canonical resource metadata, integrity policy, environment scope, and searchable registry state.",
+  "source_table": "canonical_resource_registry",
+  "covered_source_tables": ["canonical_resource_registry"],
+  "result_key_column": "resource_key",
+  "result_label_column": "path",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "enabled",
+  "active_status_values": [1],
+  "result_columns": ["resource_key", "path", "resource_type", "resource_class", "load_strategy", "validation_strategy", "required_at_activation", "searchable", "environment_scope", "enabled", "registry_revision", "metadata_json", "created_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 200,
+  "sort_order": 332,
+  "status": "active",
+  "notes": "Registry metadata only; no resource payloads, credentials, provider data, or activation mutation is exposed by this manifest."
+}

@@ -253,7 +253,7 @@
     },
     {
       "migration_file": "1026_sprint69_repository_reconciliation_automation.sql",
-      "migration_sha256": "288babca148977b93d172e8a9cfe2681070a506fe3b7cf43b1d48ab498f609f2",
+      "migration_sha256": "6111029cd9dd026da815f2a4816cadb2e37d9a8a39fc2a51806034a31778e667",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_human_review",
@@ -285,7 +285,7 @@
         "'migration_apply_allowed',FALSE",
         "'automatic_activation_allowed',FALSE",
         "'recipe_status','planned'",
-        "'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return')"
+        "'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','caller_supplied_lease_authority','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return')"
       ],
       "surface_counts": {
         "plugins": 0,

@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { prepareWorkspaceGlobalBrandForCreate } from "./workspaceGlobalBrandCreateAdapter.js";
 
 const OWNER_ROLES = new Set(["owner", "admin"]);
 
@@ -165,14 +166,55 @@ async function ensureCanonicalBrand(connection, { displayName, normalizedName, t
   return { brand, created: true };
 }
 
-async function ensureTenantBrandLink(connection, { tenantId, targetKey, actorUserId }) {
+async function ensureTenantBrandLink(connection, {
+  tenantId,
+  targetKey,
+  actorUserId,
+  brandId = null,
+  relationshipType = "operator",
+  verificationStatus = "unverified",
+  relationshipSource = "workspace_owner_brand_create",
+}) {
   const linkId = randomUUID();
   const metadata = JSON.stringify({
-    authority_implied: true,
-    authority_source: "workspace_owner_brand_create",
+    authority_implied: false,
+    authority_source: "separate_workspace_resource_grant",
+    relationship_source: relationshipSource,
     created_by_user_id: actorUserId,
     secrets_included: false,
   });
+
+  if (brandId) {
+    await connection.query(
+      `INSERT INTO tenant_brand_links
+        (link_id, tenant_id, brand_id, brand_target_key, relationship_type, relationship_status,
+         verification_status, relationship_source, link_source, status, metadata_json, effective_from, revision)
+       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, 'active', ?, UTC_TIMESTAMP(), 1)
+       ON DUPLICATE KEY UPDATE
+         brand_id=VALUES(brand_id),
+         relationship_type=VALUES(relationship_type),
+         relationship_status='active',
+         verification_status=VALUES(verification_status),
+         relationship_source=VALUES(relationship_source),
+         link_source=VALUES(link_source),
+         metadata_json=VALUES(metadata_json),
+         effective_until=NULL,
+         status='active',
+         revision=revision,
+         updated_at=CURRENT_TIMESTAMP`,
+      [linkId, tenantId, brandId, targetKey, relationshipType, verificationStatus, relationshipSource, relationshipSource, metadata]
+    );
+    const [rows] = await connection.query(
+      `SELECT link_id, tenant_id, brand_id, brand_target_key, relationship_type, relationship_status,
+              verification_status, relationship_source, link_source, status, revision
+         FROM tenant_brand_links
+        WHERE tenant_id=? AND brand_id=? AND brand_target_key=? AND status='active'
+        LIMIT 2 FOR UPDATE`,
+      [tenantId, brandId, targetKey]
+    );
+    return requireExactlyOne(rows, "workspace_brand_link_readback_invalid", "Workspace Brand relationship did not resolve exactly once.");
+  }
+
   await connection.query(
     `INSERT INTO tenant_brand_links
       (link_id, tenant_id, brand_target_key, link_source, status, metadata_json)
@@ -275,6 +317,7 @@ async function ensureCreatorBrandGrant(connection, { tenantId, targetKey, actorU
   const metadata = JSON.stringify({
     reason: "workspace_brand_create",
     authority_source: "workspace_owner_brand_create",
+    identity_authority_separated: true,
     secrets_included: false,
   });
   await connection.query(
@@ -296,7 +339,33 @@ async function ensureCreatorBrandGrant(connection, { tenantId, targetKey, actorU
   return requireExactlyOne(rows, "workspace_brand_owner_grant_readback_invalid", "Brand creator grant did not resolve exactly once.");
 }
 
-export async function createWorkspaceBrand(connection, { tenantId, actorUserId, displayName }) {
+function buildBrandNextOperations(brandCoreReady) {
+  return [
+    {
+      operation_key: "brand.context.read",
+      status: "shadow",
+      reason: "Dedicated Brand context read projection is declared but not activated in this PR.",
+    },
+    {
+      operation_key: "assets.create",
+      status: "shadow",
+      reason: brandCoreReady
+        ? "Asset attachment remains approval-gated and is not activated by Brand create."
+        : "Complete the Brand Core profile before requesting the approval-gated asset attachment operation.",
+    },
+  ];
+}
+
+export async function createWorkspaceBrand(connection, {
+  tenantId,
+  actorUserId,
+  displayName,
+  canonicalBrand = null,
+  canonicalCreated = false,
+  relationshipType = "operator",
+  verificationStatus = "unverified",
+  relationshipSource = "workspace_owner_brand_create",
+} = {}) {
   const tenant = String(tenantId || "").trim();
   const actor = String(actorUserId || "").trim();
   if (!tenant || !actor) {
@@ -304,25 +373,57 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
   }
   const canonicalDisplayName = requireDisplayName(displayName);
   const normalizedName = normalizeWorkspaceBrandName(canonicalDisplayName);
-  const targetKey = canonicalWorkspaceBrandTargetKey(tenant, normalizedName);
+  const compatibilityTargetKey = canonicalWorkspaceBrandTargetKey(tenant, normalizedName);
 
   await requireOwnerAuthority(connection, tenant, actor);
-  const existing = await findExistingTenantBrand(connection, tenant, normalizedName, targetKey);
   let brand;
   let created = false;
-  if (existing) {
-    brand = existing;
+
+  if (canonicalBrand) {
+    brand = { ...canonicalBrand };
+    created = canonicalCreated === true;
+    if (!String(brand.target_key || "").trim()) {
+      throw lifecycleError(409, "workspace_brand_canonical_target_key_required", "Canonical Brand must expose a compatibility target key.");
+    }
+    if (String(brand.status || "").toLowerCase() !== "active") {
+      throw lifecycleError(409, "workspace_brand_inactive", "Canonical Brand is not active.");
+    }
   } else {
-    const canonical = await ensureCanonicalBrand(connection, {
+    const globalPrepared = await prepareWorkspaceGlobalBrandForCreate(connection, {
+      tenantId: tenant,
+      actorUserId: actor,
       displayName: canonicalDisplayName,
       normalizedName,
-      targetKey,
     });
-    brand = canonical.brand;
-    created = canonical.created;
+    if (globalPrepared) {
+      brand = { ...globalPrepared.brand };
+      created = globalPrepared.created === true;
+      relationshipSource = "workspace_owner_global_brand_create";
+    } else {
+      const existing = await findExistingTenantBrand(connection, tenant, normalizedName, compatibilityTargetKey);
+      if (existing) {
+        brand = existing;
+      } else {
+        const canonical = await ensureCanonicalBrand(connection, {
+          displayName: canonicalDisplayName,
+          normalizedName,
+          targetKey: compatibilityTargetKey,
+        });
+        brand = canonical.brand;
+        created = canonical.created;
+      }
+    }
   }
 
-  const tenantBrandLink = await ensureTenantBrandLink(connection, { tenantId: tenant, targetKey: brand.target_key, actorUserId: actor });
+  const tenantBrandLink = await ensureTenantBrandLink(connection, {
+    tenantId: tenant,
+    targetKey: brand.target_key,
+    actorUserId: actor,
+    brandId: brand.brand_id || null,
+    relationshipType,
+    verificationStatus,
+    relationshipSource,
+  });
   const workspace = await ensureBrandWorkspace(connection, {
     tenantId: tenant,
     targetKey: brand.target_key,
@@ -334,10 +435,14 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
 
   return {
     created,
+    identity_mode: brand.brand_id ? "global_identity_v2" : "legacy_compatibility",
     brand: {
+      brand_id: brand.brand_id || null,
       brand_name: brand.brand_name,
       normalized_brand_name: brand.normalized_brand_name,
       target_key: brand.target_key,
+      identity_status: brand.identity_status || null,
+      resource_revision: brand.resource_revision == null ? null : Number(brand.resource_revision),
       status: brand.status,
       brand_core_ready: brand.brand_core_ready ?? null,
     },
@@ -349,6 +454,7 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
       asset_attachment_available: false,
       member_invitation_available: false,
     },
+    next_operations: buildBrandNextOperations(brandCoreReady),
   };
 }
 
@@ -357,5 +463,8 @@ export const _testingWorkspaceBrandLifecycle = {
   requireDisplayName,
   isBrandCoreReady,
   validateBrandWorkspaceRow,
+  buildBrandNextOperations,
   findExistingTenantBrand,
+  requireOwnerAuthority,
+  ensureTenantBrandLink,
 };

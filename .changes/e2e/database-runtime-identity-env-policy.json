@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "database-runtime-identity-env-policy",
+  "title": "Database runtime identity App Env policy and UEACP same-cycle binding",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/database-runtime-identity-env-policy.json",
+      ".github/scripts/authority-live-census-observation.mjs",
+      ".github/workflows/context-kernel-hardcoding-report.yml",
+      ".github/workflows/ueacp-live-source-capture.yml",
+      "docs/context-kernel/hardcoding-baseline.md",
+      "http-generic-api/scripts/database-runtime-identity-policy.mjs",
+      "http-generic-api/test-database-runtime-identity-policy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make deployed App Env the only runtime source of truth for database/schema identity, remove operator-entered UEACP target schemas, verify the live DB identity against App Env in the same read-only cycle, and enforce a repository-wide PR ratchet against future database identity literals, fallbacks, or manual workflow overrides.",
+      "e2e_journeys": [
+        {
+          "id": "database-role-identity-remains-env-derived-and-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository contributor and governed UEACP evidence operator",
+          "entrypoint": "Pull request validation plus the trusted-main UEACP live source-capture contract",
+          "terminal_outcome": "Runtime, governance, and persistence database identities remain bound to DB_NAME, GOVERNANCE_DB_NAME, and RUNTIME_PERSISTENCE_DB_NAME respectively; repository policy rejects hardcoded or manually overridden identities; UEACP derives TARGET_SCHEMA from Hostinger App Env DB_NAME and accepts census evidence only when DATABASE() matches it in the same cycle.",
+          "steps": [
+            "Run the database runtime identity policy regression suite against safe and intentionally unsafe synthetic files.",
+            "Verify non-empty literal fallbacks for canonical database identity environment variables are rejected.",
+            "Verify concrete Hostinger-style database literals and static TARGET_SCHEMA assignments are rejected in runtime/workflow zones.",
+            "Verify workflow input bindings cannot override TARGET_SCHEMA or canonical database identity variables.",
+            "Verify the UEACP live source-capture workflow has no target_schema input and reads DB_NAME from the deployed Hostinger App Env through the authenticated env control surface.",
+            "Verify TARGET_SCHEMA is created only from that same-cycle App Env readback and is bound into the short-lived read-only authorization.",
+            "Verify the live census requires TARGET_SCHEMA and rejects DATABASE() or same-cycle readback identity mismatches.",
+            "Keep governance and persistence identity roles separate from runtime DB_NAME and leave all provider/database mutation disabled."
+          ],
+          "assertions": [
+            "The canonical role mapping is runtime=DB_NAME, governance=GOVERNANCE_DB_NAME, persistence=RUNTIME_PERSISTENCE_DB_NAME.",
+            "No actual deployed database/schema value is encoded in the policy contract or UEACP workflow.",
+            "A missing, malformed, masked, or mismatched App Env database identity fails closed.",
+            "The UEACP workflow cannot accept an operator-entered target_schema value.",
+            "The live census proves DATABASE() equals the App Env-derived TARGET_SCHEMA before source evidence can advance.",
+            "The policy runs on every pull request to main regardless of changed path.",
+            "Documentation, migrations, tests, and synthetic fixtures may be non-blocking evidence zones, while runtime/workflow findings block.",
+            "No Production deployment, migration Apply, SQL mutation, provider mutation, credential payload read, runtime authority change, or external write is performed by this E2E journey."
+          ],
+          "tests": [
+            {
+              "id": "database-runtime-identity-policy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-runtime-identity-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/database-runtime-identity-env-policy.json",
+            ".github/scripts/authority-live-census-observation.mjs",
+            ".github/workflows/context-kernel-hardcoding-report.yml",
+            ".github/workflows/ueacp-live-source-capture.yml",
+            "docs/context-kernel/hardcoding-baseline.md",
+            "http-generic-api/scripts/database-runtime-identity-policy.mjs",
+            "http-generic-api/test-database-runtime-identity-policy.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

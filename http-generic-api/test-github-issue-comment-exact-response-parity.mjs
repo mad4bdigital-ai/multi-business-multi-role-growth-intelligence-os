@@ -30,6 +30,12 @@ for (const marker of [
 }
 
 // Canonical GitHub contract remains 201 Created for createIssueComment.
+const canonicalCommentBlock = githubSchema.match(/(?:^|\n)    Comment:\n([\s\S]*?)(?=\n  parameters:)/u)?.[0] || "";
+const canonicalCommentShape = {
+  type: /type: object/u.test(canonicalCommentBlock),
+  additionalProperties: /additionalProperties: true/u.test(canonicalCommentBlock),
+};
+assert.deepEqual(canonicalCommentShape, { type: true, additionalProperties: true }, "Comment canonical schema must remain explicit");
 assert.match(
   githubSchema,
   /operationId: createIssueComment[\s\S]*?responses:\s*\n\s*'201':\s*\n\s*description: Created[\s\S]*?\$ref: '#\/components\/schemas\/Comment'/,
@@ -46,6 +52,11 @@ assert.match(migration, /JSON_SET\([\s\S]*?'\$\.responses\.201'/);
 assert.match(migration, /'description', 'Created'/);
 assert.match(migration, /'type', 'object'/);
 assert.match(migration, /'additionalProperties', TRUE/);
+const migrationCommentShape = {
+  type: /'type', 'object'/u.test(migration),
+  additionalProperties: /'additionalProperties', TRUE/u.test(migration),
+};
+assert.deepEqual(migrationCommentShape, canonicalCommentShape, "SQL endpoint schema must remain structurally aligned with canonical Comment");
 assert.match(migration, /SET @github_issue_comment_endpoint_match_count :=/);
 assert.match(migration, /@github_issue_comment_endpoint_match_count = 1/);
 assert.match(migration, /parent_action_key = 'github_api_mcp'/);

@@ -1,0 +1,199 @@
+openapi: 3.0.3
+info:
+  title: Growth Intelligence Platform - Staging Act-as-User Control
+  version: 1.0.0-staging-act-as-user
+  summary: Governed Tenant Responsible Act-as-User session control.
+  description: |
+    Explicit control surface for creating and revoking bounded Act-as-User sessions.
+    The server resolves actor, target membership, lower-role authority, effective capability
+    intersection, expiry, idempotency, audit, and readback. Client-supplied actor roles or
+    capabilities are never authoritative. Live execution remains deny-by-default until the
+    runtime adapter and independent Owner evidence are present.
+servers:
+  - url: https://dev.mad4b.com
+    description: Staging-only Act-as-User control surface
+security:
+  - backendBearerAuth: []
+components:
+  securitySchemes:
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT or backend service credential
+  schemas:
+    ActAsUserSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, target_user_id, reason, expires_at, correlation_id, operation_scope, idempotency_key]
+      properties:
+        tenant_id:
+          type: string
+          minLength: 1
+        target_user_id:
+          type: string
+          minLength: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        expires_at:
+          type: string
+          format: date-time
+        correlation_id:
+          type: string
+          minLength: 1
+        operation_scope:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+            enum: [call_tool, execute]
+        idempotency_key:
+          type: string
+          minLength: 16
+          maxLength: 191
+        requested_tool:
+          type: string
+          minLength: 1
+        requested_operation:
+          type: string
+          enum: [call_tool, execute]
+    ActAsUserSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, session, activation_allowed, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        session:
+          type: object
+          additionalProperties: true
+          properties:
+            sessionId: { type: string }
+            status: { type: string, enum: [shadow, active] }
+            expiresAt: { type: string, format: date-time }
+        shadow:
+          type: boolean
+        activation_allowed:
+          type: boolean
+          enum: [false]
+        secrets_included:
+          type: boolean
+          enum: [false]
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, error, activation_allowed, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+        activation_allowed: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+paths:
+  /admin/act-as-user/sessions:
+    post:
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createActAsUserSession
+      x-openai-isConsequential: true
+      summary: Create a bounded Act-as-User session in Staging
+      description: Creates a session only after server-side authority resolution. The target must be lower role and in the same Tenant; effective capabilities are an intersection, never client-provided grants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActAsUserSessionRequest'
+      responses:
+        '202':
+          description: Shadow session created or queued for governed evaluation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActAsUserSessionResponse'
+        '403':
+          description: Authority or role hierarchy denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Runtime adapter is not bound; fail-closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/act-as-user/sessions/{sessionId}/revoke:
+    post:
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: revokeActAsUserSession
+      x-openai-isConsequential: true
+      summary: Revoke a bounded Act-as-User session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason: { type: string, maxLength: 500 }
+                expected_version: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Session revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, activation_allowed, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  result: { type: object, additionalProperties: true }
+                  activation_allowed: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        '409':
+          description: CAS conflict or already revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Runtime adapter is not bound; fail-closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+x-mad4b-environment: staging
+x-mad4b-surface: admin-custom-gpt-act-as-user-control
+x-mad4b-boundary:
+  resource: https://dev.mad4b.com
+  production_hosts_forbidden: true
+  live_execution_allowed: false
+  write_activation_allowed: false
+  database_mutation_allowed: false
+  secrets_included: false
+x-custom-gpt-generation:
+  operation_count: 2
+  hard_operation_limit: 30
+  fail_closed: true

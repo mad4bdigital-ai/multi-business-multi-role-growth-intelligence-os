@@ -13,12 +13,6 @@ on:
         type: string
   pull_request:
     branches: [main]
-    paths:
-      - "http-generic-api/**"
-      - "src/**"
-      - "specs/012-unified-admin-tenant-context-kernel/**"
-      - ".github/ci-evidence-routing.json"
-      - ".github/workflows/context-kernel-hardcoding-report.yml"
 
 permissions:
   contents: read
@@ -59,6 +53,7 @@ jobs:
         with:
           ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify exact candidate checkout
         shell: bash
@@ -73,7 +68,9 @@ jobs:
 
       - name: Test scanner behavior
         working-directory: http-generic-api
-        run: node test-context-kernel-hardcoding-scan.mjs
+        run: |
+          node test-context-kernel-hardcoding-scan.mjs
+          node test-database-runtime-identity-policy.mjs
 
       - name: Determine exact changed-file scope
         shell: bash
@@ -102,6 +99,14 @@ jobs:
           --report-only
           --changed-files-from="${{ runner.temp }}/context-kernel-changed-files.txt"
           --output="${{ runner.temp }}/context-kernel-hardcoding-source.json"
+
+      - name: Generate exact-scope database identity policy report
+        working-directory: http-generic-api
+        run: >-
+          node scripts/database-runtime-identity-policy.mjs
+          --report-only
+          --changed-files-from="${{ runner.temp }}/context-kernel-changed-files.txt"
+          --output="${{ runner.temp }}/database-runtime-identity-policy.json"
 
       - name: Build canonical report and Step Summary
         env:
@@ -192,6 +197,29 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
           NODE
 
+      - name: Append database identity policy summary
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/database-runtime-identity-policy.json', 'utf8'));
+          if (report.contract !== 'mad4b.database-runtime-identity-policy.v1' || report.secrets_included !== false) {
+            throw new Error('Database runtime identity policy evidence contract is invalid.');
+          }
+          const lines = [
+            '',
+            '## Database runtime identity policy',
+            '',
+            `- Blocking runtime findings: **${report.summary?.blocking_finding_count ?? 0}**`,
+            `- App Env source of truth: **${report.policy?.app_env_is_source_of_truth === true ? 'required' : 'invalid'}**`,
+            '- Runtime DB identity: `DB_NAME`',
+            '- Governance DB identity: `GOVERNANCE_DB_NAME`',
+            '- Persistence DB identity: `RUNTIME_PERSISTENCE_DB_NAME`',
+            '- Literal values in runtime/workflows: **forbidden**',
+            '- Manual workflow schema override: **forbidden**'
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          NODE
+
       - name: Upload canonical hardcoding evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -201,6 +229,7 @@ jobs:
             ${{ runner.temp }}/context-kernel-hardcoding-source.json
             ${{ runner.temp }}/context-kernel-hardcoding-summary.json
             ${{ runner.temp }}/context-kernel-hardcoding-summary.md
+            ${{ runner.temp }}/database-runtime-identity-policy.json
           if-no-files-found: error
           retention-days: 30
 
@@ -213,6 +242,20 @@ jobs:
           const finding = report.first_blocking_finding || {};
           const title = `Context Kernel ${finding.rule_id || 'hardcoding finding'}`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
           const message = `${finding.path || 'unknown'}:${finding.line || 0} ${finding.message || 'Runtime finding detected.'}`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+          console.log(`::error title=${title}::${message}`);
+          process.exit(1);
+          NODE
+
+      - name: Enforce database runtime identity policy decision
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/database-runtime-identity-policy.json', 'utf8'));
+          const count = Number(report.summary?.blocking_finding_count || 0);
+          if (count === 0) process.exit(0);
+          const finding = (report.findings || []).find((item) => !item.suppressed && item.zone === 'runtime') || {};
+          const title = `Database runtime identity ${finding.rule_id || 'policy violation'}`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+          const message = `${finding.path || 'unknown'}:${finding.line || 0} ${finding.message || 'Database identity policy violation.'}`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
           console.log(`::error title=${title}::${message}`);
           process.exit(1);
           NODE

@@ -20,17 +20,17 @@ These checked rows certify bounded merged slices only. They do not close the exp
 
 ## Phase 2: Domain kernel
 
-- [ ] Add principal, effective subject, workspace context, candidate, decision, pin, connection ownership, authority path, execution context, readiness decision, and outcome types.
+- [x] Add principal, effective subject, workspace context, candidate, decision, pin, connection ownership, authority path, execution context, readiness decision, and outcome types.
 - [ ] Add `workspaceOwnershipType` independently from the existing operational `workspaceType`.
-- [ ] Implement deterministic connection precedence and ambiguity policy.
-- [ ] Implement personal-owner, workspace, brand, and tenant eligibility predicates.
-- [ ] Require exact owner scope in every resolved selected-connection decision.
-- [ ] Omit selected connection and owner-scope fields from unresolved decisions; expose candidate and revision evidence without fabricated ownership.
+- [x] Implement deterministic connection precedence and ambiguity policy.
+- [x] Implement personal-owner, workspace, brand, and tenant eligibility predicates.
+- [x] Require exact owner scope in every resolved selected-connection decision.
+- [x] Omit selected connection and owner-scope fields from unresolved decisions; expose candidate and revision evidence without fabricated ownership.
 - [ ] Bind workspace ownership, selected owner-scope type/ref, owner-scope revision, connection revision, authorization revision, and unresolved candidate revision vector into the context hash.
 - [ ] Invalidate pins, plans, approvals, and envelopes when any hashed ownership or revision field changes.
-- [ ] Implement context hash and tenant/workspace/brand/resource/connection invalidation graph.
-- [ ] Implement high-risk and consequential-write fallback prohibition.
-- [ ] Add unit and property tests.
+- [x] Implement context hash and tenant/workspace/brand/resource/connection invalidation graph.
+- [x] Implement high-risk and consequential-write fallback prohibition.
+- [x] Add unit and property tests.
 
 ## Phase 3: Persistence and registry adapters
 

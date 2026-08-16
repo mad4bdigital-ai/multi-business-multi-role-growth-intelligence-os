@@ -1,0 +1,17 @@
+{
+  "revision": "remote-mcp-scope-catalog-v1",
+  "tree": {
+    "kind":"oauth_grant",
+    "children":[{"kind":"principal","children":[{"kind":"tenant_workspace","children":[{"kind":"container","children":[{"kind":"resource_type","children":[{"kind":"resource_instance","children":[{"kind":"operation","children":[{"kind":"effect_class"},{"kind":"provider_environment"},{"kind":"conditions"}]}]}]}]}]}]}]
+  },
+  "scope_bindings": [
+    {"resource_key":"workspaces","operation_key":"list","scope_key":"workspaces.read","effect_class":"read_only","environment_class":"all","status":"active"},
+    {"resource_key":"brands","operation_key":"list","scope_key":"brands.read","effect_class":"read_only","environment_class":"all","status":"active"}
+  ],
+  "implications": [
+    {"scope_key":"assets.read","implies_scope_key":"permissions.read"},
+    {"scope_key":"approvals.request","implies_scope_key":"approvals.read"}
+  ],
+  "decision_formula":"OAuth scope ∩ active subject ∩ active membership ∩ resource authority binding ∩ operation eligibility ∩ effect policy ∩ provider/environment authority ∩ approval/capability/lease conditions",
+  "secrets_included":false
+}

@@ -6,6 +6,7 @@ const backendApiKey = String(process.env.BACKEND_API_KEY || "").trim();
 const evidencePath = String(process.env.EVIDENCE_PATH || "").trim();
 const repository = String(process.env.REPOSITORY || "").trim();
 const observedRef = String(process.env.OBSERVED_REF || "").trim();
+const expectedSchema = String(process.env.TARGET_SCHEMA || "").trim();
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -68,6 +69,7 @@ assert(backendApiKey, "BACKEND_API_KEY is required.");
 assert(evidencePath, "EVIDENCE_PATH is required.");
 assert(repository, "REPOSITORY is required.");
 assert(/^[0-9a-f]{40}$/i.test(observedRef), "OBSERVED_REF must be a full commit SHA.");
+assert(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(expectedSchema), "TARGET_SCHEMA must be resolved from App Env DB_NAME before live census observation.");
 
 const startedAt = new Date().toISOString();
 const identityRows = await adminDbSelect(
@@ -77,6 +79,7 @@ const identityRows = await adminDbSelect(
 assert(identityRows.length === 1, "database_identity must return exactly one row.");
 const schemaName = String(identityRows[0]?.schema_name || "").trim();
 assert(schemaName, "Live database schema identity is unavailable.");
+assert(schemaName === expectedSchema, "Live database schema identity does not match Hostinger App Env DB_NAME.");
 
 const objects = boundedRows(await adminDbSelect(
   "schema_objects",
@@ -115,6 +118,7 @@ const readbackRows = await adminDbSelect(
 assert(readbackRows.length === 1, "same_cycle_readback must return exactly one row.");
 const readback = readbackRows[0];
 assert(String(readback.schema_name || "").trim() === schemaName, "Same-cycle readback schema identity changed.");
+assert(String(readback.schema_name || "").trim() === expectedSchema, "Same-cycle readback no longer matches Hostinger App Env DB_NAME.");
 assert(Number(readback.object_count) === objects.length, "Same-cycle object count does not match observation.");
 assert(Number(readback.column_count) === columns.length, "Same-cycle column count does not match observation.");
 assert(Number(readback.view_count) === views.length, "Same-cycle view count does not match observation.");
@@ -154,6 +158,8 @@ const payload = {
   completed_at: new Date().toISOString(),
   database_server: {
     schema_name: schemaName,
+    schema_identity_source: "hostinger_app_env:DB_NAME",
+    app_env_matches_database: true,
     version: String(identityRows[0]?.version || ""),
     version_comment: String(identityRows[0]?.version_comment || ""),
     observed_at: String(identityRows[0]?.observed_at || ""),
@@ -181,6 +187,7 @@ const payload = {
   same_cycle_readback: {
     verified: true,
     schema_name: String(readback.schema_name || ""),
+    app_env_matches_database: true,
     object_count: Number(readback.object_count),
     column_count: Number(readback.column_count),
     view_count: Number(readback.view_count),
@@ -214,7 +221,7 @@ const payload = {
 payload.observation_sha256 = sha256(payload);
 fs.writeFileSync(evidencePath, `${JSON.stringify(payload, null, 2)}\n`);
 console.log(`AUTHORITY_LIVE_CENSUS_STATUS=${payload.status}`);
-console.log(`AUTHORITY_LIVE_CENSUS_SCHEMA=${schemaName}`);
+console.log("AUTHORITY_LIVE_CENSUS_SCHEMA_SOURCE=hostinger_app_env:DB_NAME");
 console.log(`AUTHORITY_LIVE_CENSUS_OBJECTS=${objects.length}`);
 console.log(`AUTHORITY_LIVE_CENSUS_COLUMNS=${columns.length}`);
 console.log(`AUTHORITY_LIVE_CENSUS_VIEWS=${views.length}`);

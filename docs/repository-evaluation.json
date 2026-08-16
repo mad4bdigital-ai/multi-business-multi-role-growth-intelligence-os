@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "121416e6dbae1e35e5374dc4344e1f5a4ea072dcdcbea0cd1a49364ac1d0f252",
+  "inputFingerprint": "57d14e4a237cbaa8786eef054eb9cd1864819de7ead165f1654cd09cb697b9de",
   "inventory": {
-    "files": 6716,
-    "bytes": 58969971,
-    "directories": 255,
+    "files": 7109,
+    "bytes": 68862358,
+    "directories": 265,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 152,
-      "explicitPermissions": 152,
+      "workflowCount": 166,
+      "explicitPermissions": 166,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -20,11 +20,11 @@
       "budget": {
         "max": 160,
         "warning": 155,
-        "status": "within-budget"
+        "status": "exceeded"
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6686,
+      "trackedTextFilesScanned": 7073,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -35,6 +35,7 @@
     "audit": {
       "mode": "not-run",
       "packages": [
+        "edge/activation-gateway/package-lock.json",
         "http-generic-api/package-lock.json",
         "package-lock.json"
       ],
@@ -50,10 +51,10 @@
     "maintainability": {
       "workflowBudget": 160,
       "workflowBudgetWarning": 155,
-      "workflowBudgetStatus": "within-budget",
-      "totalLargeFiles": 2,
+      "workflowBudgetStatus": "exceeded",
+      "totalLargeFiles": 4,
       "approvedLargeFiles": 2,
-      "unapprovedLargeFiles": 0
+      "unapprovedLargeFiles": 2
     }
   },
   "policies": {
@@ -164,11 +165,63 @@
       "exitCode": 0
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "gapId": "AUTO-CI-SURFACE-SIZE",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "workflowCount": 166,
+        "maxWorkflowCount": 160,
+        "overlapCheck": "passed"
+      },
+      "impact": "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
+      "recommendation": "Keep the workflow count within the declared budget and maintain a passing automation overlap check.",
+      "lifecycle": "new"
+    },
+    {
+      "gapId": "MAINT-LARGE-TRACKED-FILES",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "totalLargeFiles": 4,
+        "approved": [
+          {
+            "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+            "bytes": 4831654
+          },
+          {
+            "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+            "bytes": 3448637
+          }
+        ],
+        "unapproved": [
+          {
+            "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "bytes": 1935850
+          },
+          {
+            "path": "docs/staging-write-route-partition-2026-08-14.json",
+            "bytes": 1535977
+          }
+        ]
+      },
+      "impact": "Large files without an explicit ownership and rationale policy increase review and change costs.",
+      "recommendation": "Split or generate the file, or add a bounded rationale to the large-file policy.",
+      "lifecycle": "new"
+    }
+  ],
   "gate": {
-    "decision": "pass",
+    "decision": "warn",
     "blockingGapIds": [],
-    "warningGapIds": []
+    "warningGapIds": [
+      "AUTO-CI-SURFACE-SIZE",
+      "MAINT-LARGE-TRACKED-FILES"
+    ]
   },
   "baselineDiff": {
     "available": false,

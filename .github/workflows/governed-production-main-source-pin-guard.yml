@@ -1,0 +1,199 @@
+name: Governed Production Main Source-Pin Guard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact main workflow head SHA for an auditable guard rerun
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: governed-production-main-source-pin-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  reconcile-promotion-release-cuts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EVENT_MAIN_SHA: ${{ github.sha }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || github.sha }}
+      EVENT_NAME: ${{ github.event_name }}
+    steps:
+      - name: Verify current main event identity
+        id: verify
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF_NAME" == main ]] || { echo "::error::source-pin guard must execute from main"; exit 1; }
+          [[ "$EVENT_MAIN_SHA" =~ ^[0-9a-f]{40}$ && "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::main pins must be exact lowercase SHAs"; exit 1; }
+          [[ "$EVENT_MAIN_SHA" == "$EXPECTED_HEAD_SHA" ]] || { echo "::error::expected head mismatch"; exit 1; }
+          CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$CURRENT_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::main readback is invalid"; exit 1; }
+          if [[ "$CURRENT_MAIN_SHA" != "$EVENT_MAIN_SHA" ]]; then
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "superseded=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "current_main_sha=$CURRENT_MAIN_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Reconcile legacy pins and immutable release cuts
+        id: reconcile
+        if: steps.verify.outputs.superseded != 'true'
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.verify.outputs.current_main_sha }}
+        run: |
+          set -Eeuo pipefail
+          REPORT_DIR="$RUNNER_TEMP/governed-production-main-source-pin"
+          mkdir -p "$REPORT_DIR"
+
+          RELEASE_PRS="$(gh pr list --repo "$REPOSITORY" --state open --base Production --limit 100 --json number,title,body,headRefName,headRefOid)"
+          COMPATIBLE_RELEASES='[]'
+          STALE_RELEASES='[]'
+          STALE_HEADS='[]'
+          MARKED_RELEASES='[]'
+
+          is_ancestor_of_main() {
+            local cut="$1"
+            local compare="$RUNNER_TEMP/compare-${cut}.json"
+            if ! gh api "/repos/${REPOSITORY}/compare/${cut}...${MAIN_SHA}" > "$compare" 2>/dev/null; then return 1; fi
+            local status behind
+            status="$(jq -r '.status // ""' "$compare")"
+            behind="$(jq -r '.behind_by // -1' "$compare")"
+            [[ "$behind" == 0 && ( "$status" == ahead || "$status" == identical ) ]]
+          }
+
+          while IFS= read -r pr; do
+            [[ -n "$pr" ]] || continue
+            pr_number="$(jq -r '.number' <<<"$pr")"
+            title="$(jq -r '.title' <<<"$pr")"
+            body="$(jq -r '.body // ""' <<<"$pr")"
+            head_sha="$(jq -r '.headRefOid' <<<"$pr")"
+            [[ "$title" == release:\ promote\ pinned\ main\ * ]] || continue
+            [[ "$body" == *"governed_promotion_candidate: true"* ]] || continue
+            [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || continue
+
+            release_cut="$(grep -Eo 'release cut: `[0-9a-f]{40}`' <<<"$body" | head -n1 | tr -d '`' | awk '{print $3}')"
+            if [[ ! "$release_cut" =~ ^[0-9a-f]{40}$ ]]; then
+              release_cut="$(grep -Eo 'pinned main: `[0-9a-f]{40}`' <<<"$body" | head -n1 | tr -d '`' | awk '{print $3}')"
+            fi
+            [[ "$release_cut" =~ ^[0-9a-f]{40}$ ]] || continue
+            release_cut_mode=false
+            [[ "$body" == *"release_cut_mode: true"* ]] && release_cut_mode=true
+
+            compatible=false
+            if [[ "$release_cut_mode" == true ]]; then
+              if is_ancestor_of_main "$release_cut"; then compatible=true; fi
+            elif [[ "$release_cut" == "$MAIN_SHA" ]]; then
+              compatible=true
+            fi
+
+            if [[ "$compatible" == true ]]; then
+              COMPATIBLE_RELEASES="$(jq --argjson pr "$pr_number" --arg cut "$release_cut" --arg head "$head_sha" '. + [{pr_number:$pr,release_cut_sha:$cut,head_sha:$head,main_tip_may_advance:true}]' <<<"$COMPATIBLE_RELEASES")"
+              continue
+            fi
+
+            STALE_RELEASES="$(jq --argjson pr "$pr_number" --arg cut "$release_cut" --arg head "$head_sha" '. + [{pr_number:$pr,release_cut_sha:$cut,head_sha:$head}]' <<<"$STALE_RELEASES")"
+            STALE_HEADS="$(jq --arg head "$head_sha" 'if index($head) then . else . + [$head] end' <<<"$STALE_HEADS")"
+            reason="STALE_PRODUCTION_CANDIDATE release_cut=${release_cut} current_main=${MAIN_SHA} release_cut_ancestor=false source_pin_guard=true merge_executed=false deployment_executed=false"
+            if gh pr comment "$pr_number" --repo "$REPOSITORY" --body "$reason"; then
+              MARKED_RELEASES="$(jq --argjson pr "$pr_number" '. + [$pr]' <<<"$MARKED_RELEASES")"
+            else
+              echo "::warning::release PR $pr_number is stale but comment transport is degraded"
+            fi
+          done < <(jq -c '.[]' <<<"$RELEASE_PRS")
+
+          CANCELLED='[]'
+          if [[ "$(jq 'length' <<<"$STALE_HEADS")" -gt 0 ]]; then
+            RUNS="$(gh api "/repos/${REPOSITORY}/actions/runs?status=in_progress&per_page=100")"
+            while IFS= read -r run_id; do
+              [[ -n "$run_id" ]] || continue
+              if gh run cancel "$run_id" --repo "$REPOSITORY"; then
+                CANCELLED="$(jq --argjson id "$run_id" '. + [$id]' <<<"$CANCELLED")"
+              fi
+            done < <(jq --argjson stale "$STALE_HEADS" -r '.workflow_runs[] | select(.head_sha as $h | ($stale | index($h)) != null) | .id' <<<"$RUNS")
+          fi
+
+          # Launcher runs are no longer stale merely because main advanced. Cancel only a launcher whose
+          # authorized workflow SHA is not an ancestor of current main (history divergence / force rewrite).
+          LAUNCHERS="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?status=in_progress&per_page=100")"
+          while IFS=$'\t' read -r run_id run_head; do
+            [[ -n "$run_id" && "$run_head" =~ ^[0-9a-f]{40}$ ]] || continue
+            [[ "$run_head" == "$MAIN_SHA" ]] && continue
+            if is_ancestor_of_main "$run_head"; then
+              echo "::notice::preserving launcher run $run_id: release cut $run_head remains an ancestor of current main"
+              continue
+            fi
+            if gh run cancel "$run_id" --repo "$REPOSITORY"; then
+              CANCELLED="$(jq --argjson id "$run_id" 'if index($id) then . else . + [$id] end' <<<"$CANCELLED")"
+            fi
+          done < <(jq -r '.workflow_runs[] | [.id,.head_sha] | @tsv' <<<"$LAUNCHERS")
+
+          jq -n \
+            --arg contract "mad4b.governed-production-main-source-pin-guard.v3" \
+            --arg main_sha "$MAIN_SHA" \
+            --arg event_name "$EVENT_NAME" \
+            --argjson compatible_release_cuts "$COMPATIBLE_RELEASES" \
+            --argjson stale_release_cuts "$STALE_RELEASES" \
+            --argjson marked_stale_release_pr_numbers "$MARKED_RELEASES" \
+            --argjson cancelled_run_ids "$CANCELLED" \
+            '{contract:$contract,ok:true,outcome:"current",event_name:$event_name,current_main_sha:$main_sha,guard_scope:"release_cut_ancestry",compatible_release_cuts:$compatible_release_cuts,stale_release_cuts:$stale_release_cuts,marked_stale_release_pr_numbers:$marked_stale_release_pr_numbers,cancelled_run_ids:$cancelled_run_ids,main_tip_may_advance:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            > "$REPORT_DIR/report.json"
+          echo "report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
+
+      - name: Publish superseded guard evidence
+        id: superseded
+        if: steps.verify.outputs.superseded == 'true'
+        shell: bash
+        env:
+          CURRENT_MAIN_SHA: ${{ steps.verify.outputs.current_main_sha }}
+        run: |
+          set -Eeuo pipefail
+          REPORT_DIR="$RUNNER_TEMP/governed-production-main-source-pin"
+          mkdir -p "$REPORT_DIR"
+          jq -n --arg contract "mad4b.governed-production-main-source-pin-guard.v3" --arg event "$EVENT_MAIN_SHA" --arg current "$CURRENT_MAIN_SHA" \
+            '{contract:$contract,ok:true,outcome:"superseded",event_main_sha:$event,current_main_sha:$current,guard_scope:"release_cut_ancestry",compatible_release_cuts:[],stale_release_cuts:[],marked_stale_release_pr_numbers:[],cancelled_run_ids:[],main_tip_may_advance:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            > "$REPORT_DIR/report.json"
+          echo "report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
+
+      - name: Upload source-pin guard evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: governed-production-main-source-pin-${{ github.run_id }}
+          path: ${{ steps.reconcile.outputs.report || steps.superseded.outputs.report }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish source-pin decision
+        if: always()
+        shell: bash
+        env:
+          REPORT: ${{ steps.reconcile.outputs.report || steps.superseded.outputs.report }}
+        run: |
+          set -Eeuo pipefail
+          test -f "$REPORT"
+          compatible="$(jq '.compatible_release_cuts | length' "$REPORT")"
+          stale="$(jq '.stale_release_cuts | length' "$REPORT")"
+          cancelled="$(jq '.cancelled_run_ids | length' "$REPORT")"
+          echo "::notice::release-cut source guard: compatible=$compatible stale=$stale cancelled=$cancelled"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Production release-cut source guard
+
+          - current main: \`$(jq -r '.current_main_sha' "$REPORT")\`
+          - compatible release cuts: \`$compatible\`
+          - stale release cuts: \`$stale\`
+          - cancelled stale runs: \`$cancelled\`
+          - main tip may advance: \`true\`
+          EOF

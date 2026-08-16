@@ -27,6 +27,9 @@ export function policyPayload(policy) {
   return {
     manifest_version: policy.manifest_version,
     surface_registry_version: policy.surface_registry_version,
+    source_openapi_sha256: policy.source_openapi_sha256,
+    surface_registry_sha256: policy.surface_registry_sha256,
+    warning_budget: policy.warning_budget,
     policy_key: policy.policy_key,
     public_host: policy.public_host,
     upstream_origin: policy.upstream_origin,

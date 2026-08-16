@@ -15,23 +15,23 @@
 - [x] The specification PR explicitly performs no protected-branch write, merge, deployment, Hostinger mutation, migration execution, or secret access.
 
 ## Implementation obligations
-- [ ] Current production deployment contracts that hard-code or expose `main` are inventoried.
-- [ ] Environment authority is represented in governed registry/configuration authority.
-- [ ] Production deployment resolves only an exact approved `Production` SHA.
-- [ ] Direct routine Hostinger application-code writes are denied by enforcement.
-- [ ] Break-glass persistence, authorization, expiry, rollback, and reconciliation state transitions are implemented.
-- [ ] Dirty or unreconciled runtime state is detected and reported independently from service health.
-- [ ] Canonical resource registry migration and seed data are implemented additively.
-- [ ] Activation resolves critical resources through the dynamic registry.
-- [ ] On-demand searchable resources can be added or disabled without activation-code edits.
-- [ ] Generated deployment attestation is available in shadow/readback mode before enforcement.
-- [ ] Explicit mismatch/degraded reason codes are implemented and tested.
-- [ ] OpenAPI and affected canonical documentation are updated when public/admin contracts change.
+- [x] Current production deployment contracts that hard-code or expose `main` are inventoried.
+- [x] Environment authority is represented in governed registry/configuration authority.
+- [x] Production deployment resolves only an exact approved `Production` SHA.
+- [x] Direct routine Hostinger application-code writes are denied by enforcement.
+- [x] Break-glass persistence, authorization, expiry, rollback, and reconciliation state transitions are implemented.
+- [x] Dirty or unreconciled runtime state is detected and reported independently from service health.
+- [x] Canonical resource registry migration and seed data are implemented additively.
+- [x] Activation resolves critical resources through the dynamic registry.
+- [x] On-demand searchable resources can be added or disabled without activation-code edits.
+- [x] Generated deployment attestation is available in shadow/readback mode before enforcement.
+- [x] Explicit mismatch/degraded reason codes are implemented and tested.
+- [x] OpenAPI and affected canonical documentation are updated when public/admin contracts change.
 
 ## Release and closeout evidence
-- [ ] CI evidence is recorded for each implementation PR.
+- [x] CI evidence is recorded for each implementation PR.
 - [ ] Staging verification on `main` is recorded before production promotion.
 - [ ] Release-readiness evidence is recorded before `Production` promotion.
 - [ ] Production exact-SHA verification is recorded after deployment.
-- [ ] Break-glass negative-path and rollback verification evidence is recorded.
+- [x] Break-glass negative-path and rollback verification evidence is recorded.
 - [ ] Final post-merge audit and runtime-integrity readback are recorded before Spec 018 is marked complete.

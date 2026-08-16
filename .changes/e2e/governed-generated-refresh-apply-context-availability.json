@@ -2,15 +2,18 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "governed-generated-refresh-apply-context-availability",
-  "title": "Valid GitHub Actions context and stale-queue control for governed generated refresh apply",
+  "title": "Governed generated refresh exact-head authority and bounded Remote MCP recovery",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/governed-generated-refresh-apply-context-availability.json",
       ".github/workflows/governed-generated-artifact-refresh.yml",
-      "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
-      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+      ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/schema-docs-change-guard.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs"
     ]
   },
   "merge_contract": {
@@ -20,35 +23,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Allow GitHub to parse and dispatch the registered generated-artifact writer while ensuring the newest exact-head request supersedes stale requests for the same work branch and remains directly identifiable by branch and SHA.",
+      "objective": "Keep generated-artifact-refresh as the sole exact-head mutating maintenance authority while adding a deterministic Remote MCP write-scope recipe bounded to its two generated outputs and preserving fail-closed schema/docs coverage for maintenance-tool changes.",
       "e2e_journeys": [
         {
-          "id": "dispatch-governed-generated-refresh-with-valid-context",
+          "id": "dispatch-bounded-remote-mcp-generated-refresh",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "trusted generated-artifact dispatcher and registered maintenance writer",
-          "entrypoint": "workflow_dispatch with a governed work branch, exact current SHA, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation",
-          "terminal_outcome": "GitHub accepts the registered writer dispatch, the latest branch request supersedes stale queued or running requests, the run identity exposes the exact target and SHA, the writer uses one stable evidence directory, rejects protected or stale targets, commits only allowlisted generated files by normal fast-forward, uploads canonical evidence, and requests exact-head read-only verification.",
+          "actor": "trusted generated-artifact dispatcher and repository governance reviewer",
+          "entrypoint": "workflow_dispatch of the registered generated-artifact writer with a governed feature branch, exact current SHA, registered recipe, and typed confirmation",
+          "terminal_outcome": "The writer rejects stale or protected targets, auto-selects Work Map self-hosting before Remote MCP recovery and frontend fallback, regenerates only the two Remote MCP write-scope artifacts when that canonical inventory is stale, proves two-pass determinism and currentness, commits with a normal fast-forward push, and dispatches the read-only Remote MCP verifier bound to the resulting exact head.",
           "steps": [
-            "Reject jobs-level use of the runner context before a runner exists.",
-            "Expose target_ref and expected_head_sha in the workflow run name.",
-            "Serialize by target branch and cancel stale in-progress requests when a newer exact-head request is accepted.",
-            "Use one stable repository-relative output directory across apply, verification dispatch, artifact upload, and summary rendering.",
-            "Validate target_ref, expected_head_sha, typed confirmation, and protected-branch rejection before checkout.",
-            "Checkout the exact expected head and run the registered generated-artifact refresh tool.",
-            "Verify the resulting remote head and dispatch read-only PR Generated Artifact Refresh on that exact result.",
-            "Upload the governed apply report and bounded verification-dispatch evidence."
+            "Validate target_ref, expected_head_sha, typed confirmation, protected-branch rejection, and workflow-dispatch-only authority before mutation.",
+            "Classify the recipe with Work Map self-hosting priority, canonical Remote MCP currentness probing, and frontend fallback without granting an alternate writer authority.",
+            "For Remote MCP recovery, run the canonical generator twice and require identical SHA-256 output hashes.",
+            "Require the candidate write set to contain only http-generic-api/remote-mcp-write-scope-inventory.generated.json and docs/remote-mcp-write-scope-inventory.md.",
+            "Run canonical Remote MCP currentness and contract tests before committing.",
+            "Re-read the remote branch against expected_head_sha immediately before one normal push and never force-push.",
+            "Dispatch Remote MCP OAuth Path Format Guard with target_ref and the resulting exact head SHA for read-only verification.",
+            "Treat maintenance-tool source changes under http-generic-api/scripts as covered only when a real scripts/test-* or other accepted schema/docs/test companion exists."
           ],
           "assertions": [
-            "jobs.apply.env contains no runner.temp expression.",
-            "OUTPUT_DIR is stable and repository-relative.",
-            "The workflow remains workflow_dispatch-only with actions:write and contents:write.",
-            "The concurrency group is scoped to target_ref and cancel-in-progress is true.",
-            "The run name contains target_ref and expected_head_sha for direct observability.",
-            "main and Production are rejected before checkout or mutation.",
-            "The exact SHA and typed confirmation remain mandatory.",
-            "The registered maintenance tool allowlist, normal fast-forward push, canonical report, and read-only verification dispatch remain unchanged.",
-            "No force push, provider call, credential disclosure, migration, deployment, or Production mutation occurs."
+            "generated-artifact-refresh remains the sole registered mutating maintenance tool for generated state in this flow.",
+            "remote_mcp_write_scope_refresh can write exactly the JSON inventory and Markdown inventory and no other repository path.",
+            "auto routing preserves Work Map self-hosting priority, then canonical Remote MCP stale-state recovery, then frontend fallback.",
+            "Remote MCP generation is executed twice and SHA-256 equality is required before currentness and contract verification.",
+            "The Remote MCP verifier is read-only and workflow-dispatch verification is bound to target_ref plus expected_head_sha.",
+            "main and Production remain forbidden mutation targets and force push remains forbidden.",
+            "Schema/docs coverage recognizes http-generic-api/scripts/test-* companions without exempting maintenance tooling from coverage.",
+            "No provider call, live database access, migration apply, deployment, live UEACP capture, or secret read is authorized by this contract."
           ],
           "tests": [
             {
@@ -64,12 +66,23 @@
               "working_directory": "http-generic-api",
               "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
               "args": []
+            },
+            {
+              "id": "remote-mcp-read-only-verifier-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth-path-format-guard.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/governed-generated-artifact-refresh.yml",
-            "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
-            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+            ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/schema-docs-change-guard.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs"
           ]
         }
       ]
@@ -77,22 +90,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe one newest exact-head writer dispatch supersede stale requests and complete with canonical apply and read-only verification evidence."
+      "objective": "Observe one explicitly authorized feature-branch Remote MCP refresh converge the two bounded outputs and pass exact-head read-only verification."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise malformed inputs, stale heads, protected targets, concurrent branch movement, duplicate and superseded requests, no-op generation, write-set violations, dispatch rejection, and verification failure without Job-log authority."
+      "objective": "Exercise stale heads, protected refs, unexpected dirty paths, nondeterministic generation, currentness-probe failure, concurrent branch movement, and verification-dispatch failure while preserving fail-closed behavior."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "This repository maintenance repair performs no live provider or deployment canary."
+      "objective": "This repository-maintenance bootstrap performs no live provider or deployment canary."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "The writer rejects protected branches and grants no deployment, migration, provider, or Production authority."
+      "objective": "The writer rejects protected branches and this contract grants no Production, migration, provider, database, or live-capture authority."
     }
   ],
   "secrets_included": false

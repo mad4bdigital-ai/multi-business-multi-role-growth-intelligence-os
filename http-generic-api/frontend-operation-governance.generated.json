@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "891f3b1c66d5600b6850904e9d2d2794ddb1f6ae6450107dc48e08d1e6d1f926",
+    "source_digest": "03879ab5e2597de8e71b08fcad8973dd716d004dd51cb2705b01a8994064c565",
     "fail_closed": true
   },
   "source_authority": [
@@ -58,7 +58,7 @@
     },
     {
       "file": "routes/workspaceResourceRoutes.js",
-      "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+      "sha256": "8c3f4c459ab2f7429f54773533ae4936ca6d83326424e0c6d35ec643420ff8e5",
       "present": true
     },
     {
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "e7b40847392580c1eaace3e3f95c36a30dabfcafe30fb19c7d2d1159c2a4a9fe",
+      "sha256": "303ed2d44d6a8e8a0ff876aad1687c9f24f9ae083e10057855c9115a0e1c5ac0",
       "present": true
     },
     {
@@ -128,7 +128,7 @@
     },
     {
       "file": "test-workspace-brand-create-operation-governance.mjs",
-      "sha256": "3f2e3665b2d456c0076988b79f766b26d2411c263f754d44b0f9907ad2321d49",
+      "sha256": "a9e519a7ae476c7d8a40dd877cb662b75a02798c1e5a3b0dd3f74d1413596112",
       "present": true
     },
     {
@@ -138,7 +138,7 @@
     },
     {
       "file": "workspaceBrandLifecycle.js",
-      "sha256": "30c985919712ebbf6c6e283a6bae70eeb49fcb470fd73322cf6991e30352762f",
+      "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337",
       "present": true
     }
   ],
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "c592c1a18086e6dbdd4941d24a02e5d72862127925fef1a82b9d8d6e30009b52",
+        "source_digest": "dc5ae2ae3d2e855b4d92694126e16e00645b1a57dff86e61a0f10fbd86e37621",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "c592c1a18086e6dbdd4941d24a02e5d72862127925fef1a82b9d8d6e30009b52",
+        "source_digest": "dc5ae2ae3d2e855b4d92694126e16e00645b1a57dff86e61a0f10fbd86e37621",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "c592c1a18086e6dbdd4941d24a02e5d72862127925fef1a82b9d8d6e30009b52",
+        "source_digest": "dc5ae2ae3d2e855b4d92694126e16e00645b1a57dff86e61a0f10fbd86e37621",
         "fail_closed": true
       }
     },
@@ -495,7 +495,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "868aa5ff178d93ed152efbfb10b1e80d00d0d6fccba0927ab9bf58fc6f10f76c",
+        "source_digest": "d222bc0214b6418045e923a4c5617fb9e3e914253a8b3fe8f0cc751810e3a0af",
         "fail_closed": true
       }
     },

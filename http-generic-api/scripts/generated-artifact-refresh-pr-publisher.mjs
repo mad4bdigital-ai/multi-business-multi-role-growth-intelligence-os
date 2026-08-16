@@ -10,6 +10,7 @@ const FRONTEND_OPENAPI_RECIPE = "frontend_openapi_refresh";
 const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
+const WORK_MAP_BOOTSTRAP_MANIFEST_PATTERN = /^specs\/[0-9]{3}-[a-z0-9][a-z0-9-]*\/work-map-integration\.json$/u;
 const CONCLUSIONS = new Set(["success", "failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale", "skipped", "neutral"]);
 const FRONTEND_OPENAPI_ALLOWED_GENERATED_PATHS = new Set([
   "http-generic-api/openapi.yaml",
@@ -28,6 +29,7 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/014-governed-hostinger-storage-orchestration/tasks.md",
   "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
   "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+  "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
 ]);
 const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
   ".github/workflows/spec-kit-work-map-autofix.yml",
@@ -36,7 +38,7 @@ const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
 const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
   /^\.github\/repository-maintenance-tool-governance\.json$/u,
-  /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
+  /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|work-map-autofix-registry-refresh-scope|ci-generated-artifact-evidence-routing)\.json$/u,
   /^docs\/ci-evidence-routing\.md$/u,
   /^docs\/runbooks\/supervisor-runtime-assurance\.md$/u,
   /^http-generic-api\/scripts\/maintenance-tools\/generated-artifact-refresh\.mjs$/u,
@@ -47,6 +49,7 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
   /^http-generic-api\/test-spec014-refresh-final-work-map-binding\.mjs$/u,
   /^http-generic-api\/test-work-map-autofix-spec014-binding-convergence\.mjs$/u,
+  /^http-generic-api\/test-work-map-autofix-registry-refresh-scope\.mjs$/u,
   /^http-generic-api\/test-supervisor-runtime-assurance-automation\.mjs$/u,
 ];
 
@@ -107,7 +110,9 @@ function isMerged(pr) {
 }
 
 function isWorkMapBootstrapOutput(file) {
-  return file.startsWith("docs/work-maps/") || WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS.has(file);
+  return file.startsWith("docs/work-maps/")
+    || WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS.has(file)
+    || WORK_MAP_BOOTSTRAP_MANIFEST_PATTERN.test(file);
 }
 
 function isAllowedWorkMapSelfHostingSource(file) {

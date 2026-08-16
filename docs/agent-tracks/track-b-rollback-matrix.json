@@ -1,0 +1,68 @@
+{
+  "contract": "mad4b.track-b-rollback-matrix.v1",
+  "branch": "agent/track-b-db-lifecycle-readiness",
+  "rows": [
+    {
+      "scope": "012_connection_ownership_migration",
+      "failure_window": "pre_authorization_or_pre_apply",
+      "track_b_action": "remain_blocked_and_retain_checksum_readback_evidence",
+      "rollback_strategy": "no_op_no_database_change",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    },
+    {
+      "scope": "012_connection_ownership_migration",
+      "failure_window": "future_partial_or_unknown_apply_outcome",
+      "track_b_action": "require_exact_ledger_and_schema_reconciliation_before_any_followup_authority",
+      "rollback_strategy": "disable_consumers_and_retain_additive_schema",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    },
+    {
+      "scope": "017_migration_1043",
+      "failure_window": "pre_authorization_or_pre_apply",
+      "track_b_action": "remain_blocked_and_retain_exact_checksum_blob_statement_count_evidence",
+      "rollback_strategy": "no_op_no_database_change",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    },
+    {
+      "scope": "017_migration_1043",
+      "failure_window": "future_unknown_apply_outcome",
+      "track_b_action": "readback_first_exact_ledger_objects_and_readiness_view_before_operator_decision",
+      "rollback_strategy": "keep_runtime_consumers_disabled_until_reconciled",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    },
+    {
+      "scope": "019_response_chunk_ttl_pilot",
+      "failure_window": "track_b_dry_run",
+      "track_b_action": "discard_plan_or_rebuild_from_new_immutable_cutoff",
+      "rollback_strategy": "no_op_no_database_change",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    },
+    {
+      "scope": "019_repository_audit_supersession",
+      "failure_window": "concurrent_newer_observation",
+      "track_b_action": "invalidate_batch_and_replan_after_latest_observation_readback",
+      "rollback_strategy": "no_cleanup_execution_in_track_b",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    },
+    {
+      "scope": "018_break_glass_reconciliation",
+      "failure_window": "stale_incomplete_or_replayed_evidence",
+      "track_b_action": "block_close_readiness_and_require_fresh_evidence",
+      "rollback_strategy": "use_governed_rollback_evidence_then_clean_redeploy_readback",
+      "blind_retry_allowed": false,
+      "requires_same_cycle_readback_before_retry": true
+    }
+  ],
+  "migration_applied": false,
+  "database_mutated": false,
+  "provider_called": false,
+  "runtime_consumer_enabled": false,
+  "production_mutated": false,
+  "secrets_included": false
+}

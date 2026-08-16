@@ -1,0 +1,95 @@
+{
+  "contract": "mad4b.track-b-dry-run-evidence.v1",
+  "branch": "agent/track-b-db-lifecycle-readiness",
+  "shared_base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "scope": "repository_static_and_synthetic_non_production_rehearsal_only",
+  "focused_validation": {
+    "status": "pass",
+    "commands": [
+      "node http-generic-api/test-database-lifecycle-mutation-readiness.mjs",
+      "node http-generic-api/test-runtime-break-glass-reconciliation-readiness.mjs",
+      "node http-generic-api/test-track-b-migration-readiness-manifest.mjs",
+      "node --check http-generic-api/databaseLifecycleMutationReadiness.js",
+      "node --check http-generic-api/runtimeBreakGlassReconciliationReadiness.js",
+      "node --check http-generic-api/migrationReadinessManifest.js",
+      "node http-generic-api/test-track-b-handoff-contract.mjs"
+    ]
+  },
+  "database_lifecycle_019": {
+    "authority_and_receipt_readiness": "implemented_as_evidence_validation_only",
+    "ttl_pilot": {
+      "mode": "non_production_dry_run_rehearsal",
+      "immutable_cutoff": true,
+      "preserves_non_expired_rows": true,
+      "preserves_post_plan_rows": true,
+      "bounded_batches": true,
+      "receipt_idempotency_contract": true,
+      "same_cycle_readback_contract": true,
+      "unknown_outcome_blind_retry_allowed": false,
+      "physical_reclaim_observation_only": true,
+      "automatic_compaction": false,
+      "live_non_production_mutation_executed": false
+    },
+    "repository_audit_supersession": {
+      "deterministic_latest_ordering": true,
+      "completed_parent_required": true,
+      "strictly_newer_same_file_required": true,
+      "latest_observation_preserved": true,
+      "non_terminal_parent_rows_preserved": true,
+      "concurrent_newer_row_guard": true,
+      "policy_approval_required_for_execution": true,
+      "cleanup_executed": false
+    },
+    "job_runner_enabled": false,
+    "autopilot_enabled": false,
+    "archive_thin_enabled": false,
+    "physical_reclaim_execution_enabled": false
+  },
+  "break_glass_018": {
+    "governed_git_representation_contract": true,
+    "main_reachability_contract": true,
+    "staging_verification_contract": true,
+    "normal_governed_production_promotion_evidence_contract": true,
+    "clean_redeploy_exact_production_sha_contract": true,
+    "clean_runtime_readback_before_close_contract": true,
+    "rollback_rehearsal_contract": true,
+    "expiry_replay_stale_and_incomplete_evidence_tests": true,
+    "runtime_transition_activation": false,
+    "production_promotion_executed": false,
+    "production_deploy_executed": false
+  },
+  "migration_readiness": {
+    "context_connection_ownership_checksum_bound": true,
+    "context_connection_ownership_statement_count": 4,
+    "tenant_1043_checksum_bound": true,
+    "tenant_1043_statement_count": 4,
+    "live_dry_run_executed": false,
+    "ledger_readback_executed": false,
+    "same_cycle_schema_readback_executed": false
+  },
+  "required_repository_guards": {
+    "evaluation_loop": {
+      "status": "not_executable_pre_commit_in_connector_only_environment",
+      "reason": "The execution environment has no full Git checkout and repository inventory/evaluation artifacts are explicitly reserved for the final integration branch. Track B does not modify or regenerate them."
+    },
+    "schemas_guard": {
+      "status": "not_run_out_of_scope",
+      "reason": "Track B changes no OpenAPI, MCP, frontend, Catalog, schema-generation source, or generated schema artifact."
+    },
+    "frontend_dispatch_check": {
+      "status": "not_run_out_of_scope",
+      "reason": "Track B changes no frontend dispatch source or generated frontend artifact."
+    },
+    "ci_path_guard": {
+      "status": "not_executable_pre_commit_in_connector_only_environment",
+      "reason": "The guard requires a complete repository checkout and generated inventories that are not materialized in this connector-only environment. No guarded OpenAPI/frontend/mutation-registry source is changed by Track B."
+    },
+    "integration_branch_refresh_required": true
+  },
+  "migration_applied": false,
+  "database_mutated": false,
+  "provider_called": false,
+  "runtime_consumer_enabled": false,
+  "production_mutated": false,
+  "secrets_included": false
+}

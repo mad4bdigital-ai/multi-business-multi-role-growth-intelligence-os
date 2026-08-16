@@ -94,7 +94,17 @@ function resolveChangedLineRanges(repositoryRoot, changedFiles) {
   try {
     const diffText = execFileSync(
       "git",
-      ["diff", "--unified=0", "--no-color", `${baseSha}...HEAD`, "--", ...changedFiles],
+      [
+        "diff",
+        "--unified=0",
+        "--no-color",
+        "--find-renames=100%",
+        "--find-copies=100%",
+        "--find-copies-harder",
+        `${baseSha}...HEAD`,
+        "--",
+        ...changedFiles,
+      ],
       {
         cwd: repositoryRoot,
         encoding: "utf8",

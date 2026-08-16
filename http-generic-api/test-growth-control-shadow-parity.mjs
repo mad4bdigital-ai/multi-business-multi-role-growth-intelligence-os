@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   canonicalizeShadowValue,
   compareGrowthControlShadowParity,
@@ -8,6 +9,10 @@ import {
 import { createGrowthControlShadowParityService } from "./src/application/growthControlPlane/growthControlShadowParityService.js";
 import { createGrowthControlShadowParityRepository } from "./src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js";
 
+const MIGRATION_PATH = fileURLToPath(new URL("./migrations/20260725_growth_control_shadow_parity.sql", import.meta.url));
+const REPOSITORY_SOURCE_PATH = fileURLToPath(new URL("./src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js", import.meta.url));
+const SERVICE_SOURCE_PATH = fileURLToPath(new URL("./src/application/growthControlPlane/growthControlPlaneService.js", import.meta.url));
+const ROUTE_SOURCE_PATH = fileURLToPath(new URL("./routes/dynamicGrowthControlPlaneRoutes.js", import.meta.url));
 const SECRET = "secret-raw-value-must-never-persist";
 const CONFIG_KEY = "growth.execution.policy";
 const LEGACY_KEY = "legacy.growth.execution.policy";
@@ -164,7 +169,7 @@ const repository = createGrowthControlShadowParityRepository({
         }]];
       }
       if (statement.includes("FROM platform_runtime_config")) {
-        return [[{ configJson: JSON.stringify({ policy: { allowExternalWrite: false, token: SECRET } }), updatedAt: null }]];
+        return [[{ config_key: LEGACY_KEY, config_json: JSON.stringify({ policy: { allowExternalWrite: false } }), updated_at: null, status: "active" }]];
       }
       return [{ affectedRows: 1 }];
     }
@@ -173,11 +178,11 @@ const repository = createGrowthControlShadowParityRepository({
 const storedMapping = await repository.getMapping(CONFIG_KEY);
 assert.deepEqual(storedMapping.privilegePaths, ["allowExternalWrite"]);
 const legacyRecord = await repository.readLegacyRuntimeConfig(LEGACY_KEY);
-assert.equal(legacyRecord.value.policy.token, SECRET);
+assert.equal(legacyRecord.value.policy.allowExternalWrite, false);
 await repository.recordEvidence(recorded[0]);
 assert.match(sqlCalls[0].statement, /growth_config_key = \?/);
 assert.deepEqual(sqlCalls[0].params, [CONFIG_KEY]);
-assert.match(sqlCalls[1].statement, /config_key = \?/);
+assert.match(sqlCalls[1].statement, /config_key\s*=\s*\?/);
 assert.deepEqual(sqlCalls[1].params, [LEGACY_KEY]);
 const insertCall = sqlCalls.at(-1);
 assert.match(insertCall.statement, /INSERT INTO growth_control_shadow_parity_evidence/);
@@ -185,7 +190,7 @@ assert.equal(insertCall.statement.includes("config_json"), false);
 assert.equal(insertCall.statement.includes("raw_payload"), true);
 assert.equal(insertCall.params.some((value) => typeof value === "string" && value.includes(SECRET)), false);
 
-const migration = readFileSync("migrations/20260725_growth_control_shadow_parity.sql", "utf8");
+const migration = readFileSync(MIGRATION_PATH, "utf8");
 assert(migration.includes("growth_control_shadow_parity_mappings"));
 assert(migration.includes("growth_control_shadow_parity_evidence"));
 assert(migration.includes("v_growth_control_shadow_parity_summary"));
@@ -194,13 +199,14 @@ assert.equal(/\bDROP\s+(TABLE|VIEW)\b/i.test(migration), false);
 assert.equal(/\bALTER\s+TABLE\b/i.test(migration), false);
 assert.equal(migration.includes(SECRET), false);
 
-const repositorySource = readFileSync("src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js", "utf8");
-assert(repositorySource.includes("platform_runtime_config"));
+const repositorySource = readFileSync(REPOSITORY_SOURCE_PATH, "utf8");
+assert(repositorySource.includes("createPlatformLegacyConfigurationAdapter"));
+assert.equal(repositorySource.includes("FROM platform_runtime_config"), false);
 assert(repositorySource.includes("growth_control_shadow_parity_evidence"));
 assert.equal(repositorySource.includes("providerApplyAllowed: true"), false);
 assert.equal(repositorySource.includes("externalWriteAllowed: true"), false);
 
-const controlPlaneServiceSource = readFileSync("src/application/growthControlPlane/growthControlPlaneService.js", "utf8");
+const controlPlaneServiceSource = readFileSync(SERVICE_SOURCE_PATH, "utf8");
 assert(controlPlaneServiceSource.includes("shadowParityObserver = null"));
 assert(controlPlaneServiceSource.includes("await shadowParityObserver.observeSafely"));
 assert(controlPlaneServiceSource.includes("growthValue: result"));
@@ -210,7 +216,7 @@ assert(
     < controlPlaneServiceSource.indexOf("return Object.freeze({ ...snapshot, scopeHierarchy")
 );
 
-const routeSource = readFileSync("routes/dynamicGrowthControlPlaneRoutes.js", "utf8");
+const routeSource = readFileSync(ROUTE_SOURCE_PATH, "utf8");
 assert(routeSource.includes("GROWTH_CONTROL_SHADOW_PARITY_ENABLED"));
 assert(routeSource.includes("=== \"true\""));
 assert(routeSource.includes("service || !shadowParityEnabled"));

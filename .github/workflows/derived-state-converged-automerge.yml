@@ -1,0 +1,202 @@
+name: Derived State Converged Auto-Merge
+run-name: Derived State Converged Auto-Merge · ${{ github.event.workflow_run.id || inputs.source_run_id || github.run_id }}
+
+on:
+  workflow_run:
+    workflows:
+      - Derived State Closure
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Derived State Closure run ID
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current PR head SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type REGISTER_DERIVED_STATE_AUTOMERGE
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: derived-state-automerge-${{ github.event.workflow_run.id || inputs.source_run_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  register:
+    name: Register exact-head guarded auto-merge
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'REGISTER_DERIVED_STATE_AUTOMERGE')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
+      MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
+      REPAIR_RECEIPT_CONTRACT: mad4b.derived-state-repair-dispatch.v1
+      MAIN_CONVERGENCE_CONTRACT: mad4b.derived-state-main-convergence.v1
+      AUTOMERGE_RECEIPT_CONTRACT: mad4b.derived-state-automerge.v1
+    steps:
+      - name: Resolve exact converged candidate
+        id: target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$MANUAL_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          fi
+          report_dir="$RUNNER_TEMP/derived-state-automerge"
+          rm -rf "$report_dir"
+          mkdir -p "$report_dir/closure"
+          echo "REPORT_DIR=$report_dir" >> "$GITHUB_ENV"
+
+          source_run="$report_dir/source-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$source_run"
+          test "$(jq -r '.path' "$source_run")" = ".github/workflows/derived-state-closure.yml"
+          test "$(jq -r '.conclusion' "$source_run")" = "success"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$report_dir/artifacts.json"
+          count="$(jq '[.artifacts[] | select((.name | startswith("derived-state-closure-")) and (.expired == false))] | length' "$report_dir/artifacts.json")"
+          test "$count" = "1"
+          artifact_id="$(jq -r '[.artifacts[] | select((.name | startswith("derived-state-closure-")) and (.expired == false))][0].id' "$report_dir/artifacts.json")"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$report_dir/closure.zip"
+          unzip -q "$report_dir/closure.zip" -d "$report_dir/closure"
+          mapfile -t reports < <(find "$report_dir/closure" -type f -name report.json -print)
+          test "${#reports[@]}" = "1"
+          report="${reports[0]}"
+          test "$(jq -r '.contract' "$report")" = "mad4b.repository-derived-state-closure.v1"
+          test "$(jq -r '.candidate.kind' "$report")" = "github_merge_candidate"
+          test "$(jq -r '.converged' "$report")" = "true"
+          test "$(jq -r '.stale_or_failed_artifact_count' "$report")" = "0"
+          test "$(jq -r '.verifier_mutation == null' "$report")" = "true"
+
+          pr_number="$(jq -r '.candidate.pr_number // 0' "$report")"
+          head_sha="$(jq -r '.candidate.source_head_sha // empty' "$report")"
+          base_sha="$(jq -r '.candidate.base_sha // empty' "$report")"
+          candidate_sha="$(jq -r '.candidate.sha // empty' "$report")"
+          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]]
+          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$base_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            test "$head_sha" = "$MANUAL_EXPECTED_HEAD_SHA"
+          fi
+
+          pr_file="$report_dir/pr.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr_file"
+          test "$(jq -r '.state' "$pr_file")" = "open"
+          test "$(jq -r '.base.ref' "$pr_file")" = "main"
+          test "$(jq -r '.base.sha' "$pr_file")" = "$base_sha"
+          test "$(jq -r '.head.repo.full_name' "$pr_file")" = "$GITHUB_REPOSITORY"
+          test "$(jq -r '.head.sha' "$pr_file")" = "$head_sha"
+          test "$(jq -r '.draft' "$pr_file")" = "false"
+          target_ref="$(jq -r '.head.ref' "$pr_file")"
+          [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "$target_ref" != "main" && "$target_ref" != "Production" ]] || { echo "Protected branch mutation forbidden" >&2; exit 1; }
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$base_sha"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${head_sha}" --jq '.behind_by')" = "0"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq '.merge_commit_sha // empty')" = "$candidate_sha"
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout trusted exact main policy
+        if: steps.target.outputs.eligible == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ steps.target.outputs.main_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove current-head convergence provenance
+        id: policy
+        if: steps.target.outputs.eligible == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.target.outputs.head_sha }}
+          MAIN_SHA: ${{ steps.target.outputs.main_sha }}
+        run: |
+          set -euo pipefail
+          registry=.github/derived-state-governance.json
+          test "$(jq -r '.convergence.auto_merge_requires_current_head_convergence_receipt' "$registry")" = "true"
+          test "$(jq -r '.convergence.receipt_must_bind_result_head' "$registry")" = "true"
+
+          expected_changed_files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')"
+          [[ "$expected_changed_files" =~ ^[0-9]+$ ]]
+          (( expected_changed_files <= 3000 ))
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename' | sort -u > "$RUNNER_TEMP/pr-files.txt"
+          test "$(wc -l < "$RUNNER_TEMP/pr-files.txt" | tr -d '[:space:]')" = "$expected_changed_files"
+          jq -er '.convergence.automation_control_paths[]' "$registry" | sort -u > "$RUNNER_TEMP/control-files.txt"
+          if [[ -n "$(comm -12 "$RUNNER_TEMP/pr-files.txt" "$RUNNER_TEMP/control-files.txt" || true)" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=automation_control_surface_changed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}" --jq '[.labels[].name]')"
+          while IFS= read -r label; do
+            [[ -z "$label" ]] && continue
+            jq -e --arg label "$label" 'index($label) == null' <<<"$labels" >/dev/null || { echo "eligible=false" >> "$GITHUB_OUTPUT"; echo "reason=automerge_opt_out_label" >> "$GITHUB_OUTPUT"; exit 0; }
+          done < <(jq -r '.convergence.automerge_opt_out_labels[]' "$registry")
+
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" > "$RUNNER_TEMP/comments.json"
+          repair_count="$(jq --arg base "$MAIN_SHA" --arg head "$HEAD_SHA" --arg contract "$REPAIR_RECEIPT_CONTRACT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("DERIVED_STATE_REPAIR_DISPATCH contract=" + $contract + " ")) and (.body | contains("base_sha=" + $base + " ")) and (.body | contains("result_head_sha=" + $head + " ")) and (.body | contains("closure_reverification_requested=true ")))] | length' "$RUNNER_TEMP/comments.json")"
+          main_count="$(jq --arg base "$MAIN_SHA" --arg head "$HEAD_SHA" --arg contract "$MAIN_CONVERGENCE_CONTRACT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("DERIVED_STATE_MAIN_CONVERGENCE contract=" + $contract + " ")) and (.body | contains("base_sha=" + $base + " ")) and (.body | contains("head_sha=" + $head + " ")))] | length' "$RUNNER_TEMP/comments.json")"
+          (( repair_count + main_count >= 1 )) || { echo "eligible=false" >> "$GITHUB_OUTPUT"; echo "reason=no_trusted_current_head_convergence_receipt" >> "$GITHUB_OUTPUT"; exit 0; }
+          max_passes="$(jq -er '.max_convergence_passes' "$registry")"
+          (( repair_count <= max_passes ))
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')" = "$HEAD_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$MAIN_SHA"
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+
+      - name: Register guarded exact-head auto-merge
+        id: merge
+        if: steps.policy.outputs.eligible == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.target.outputs.head_sha }}
+          MAIN_SHA: ${{ steps.target.outputs.main_sha }}
+          TARGET_REF: ${{ steps.target.outputs.target_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]] || { echo "Protected branch mutation forbidden" >&2; exit 1; }
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$MAIN_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')" = "$HEAD_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${HEAD_SHA}" --jq '.behind_by')" = "0"
+          gh pr merge "$PR_NUMBER" --auto --squash --delete-branch --match-head-commit "$HEAD_SHA"
+          echo "registered=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish auto-merge receipt
+        if: steps.merge.outputs.registered == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.target.outputs.head_sha }}
+          MAIN_SHA: ${{ steps.target.outputs.main_sha }}
+          CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          receipt="DERIVED_STATE_AUTOMERGE contract=${AUTOMERGE_RECEIPT_CONTRACT} state=registered source_run_id=${SOURCE_RUN_ID} pr_number=${PR_NUMBER} base_sha=${MAIN_SHA} head_sha=${HEAD_SHA} candidate_sha=${CANDIDATE_SHA} match_head_commit=true admin_bypass=false protected_branch_mutation=github_merge_only force_push=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$receipt" >/dev/null
+          echo "$receipt" >> "$GITHUB_STEP_SUMMARY"
