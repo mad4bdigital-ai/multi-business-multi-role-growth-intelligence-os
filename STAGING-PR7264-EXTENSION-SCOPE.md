@@ -11,7 +11,7 @@ The current PR is a local Staging and governance PR. The safe extension is there
 1. Define a canonical operation descriptor schema with operation key, domain, lifecycle action, resource type, authority references, effect/risk class, approval/readback/idempotency contracts, revision domains, executor reference, and projection policy.
 2. Build a bounded registry inventory from existing runtime descriptors and Remote MCP scope data without changing activation status or executing writes.
 3. Generate a Staging parity matrix for Custom GPT, System Layer, Remote MCP, REST, and Frontend, explicitly distinguishing active, shadow, blocked, absent, and intentional exclusions.
-4. Preserve `activation_dev.mad4b.com` as blocked and keep Production hostnames and Hostinger outside the Staging projection.
+4. Preserve `activation-dev.mad4b.com` as blocked and keep Production hostnames and Hostinger outside the Staging projection.
 5. Add structural performance gates as contract assertions, not unverified latency claims: known intents must be able to resolve without mandatory `listTools`; no mutation may omit expected revision or required readback; no hard delete may bypass a dependency plan.
 6. Add E2E and integrity coverage for deterministic registry/projection generation and no-secret/no-Production leakage.
 7. Declare `brand.context.read` as a read-only shadow descriptor and expose a bounded `next_operations` continuation array from the existing Brand create executor without activating a new write path.

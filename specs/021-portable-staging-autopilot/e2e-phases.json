@@ -57,7 +57,7 @@
             "Concurrent Auto Pilot runs are rejected by the valid Windows Global Mutex contract and no second Compose operation is started.",
             "Line-ending repair cannot hide non-line-ending content changes and manifest hashes remain deterministic.",
             "The Staging image contains the canonical manifest required by activationDynamicEvidenceLegacy.js.",
-            "activation_dev.mad4b.com is fail-closed unless ACTIVATION_STAGING_GATEWAY_ENABLED=true and uses dedicated Staging OpenAPI/OAuth contracts.",
+            "activation-dev.mad4b.com is fail-closed unless ACTIVATION_STAGING_GATEWAY_ENABLED=true and uses dedicated Staging OpenAPI/OAuth contracts.",
             "Tenant Activation and Admin Activation use separate Staging schema files with one server URI each.",
             "No Production hostname, Hostinger mutation, Cloudflare DNS mutation, migration apply, or database mutation is authorized by this journey."
           ],

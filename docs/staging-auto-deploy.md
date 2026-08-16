@@ -68,6 +68,6 @@ To remove the watcher and stop local Staging:
 
 ## Safety boundaries
 
-The policy permits only `dev.mad4b.com` and `mcp_dev.mad4b.com` as Staging tunnel hostnames. `auth.mad4b.com`, `mcp.mad4b.com`, `activation.mad4b.com`, and `activation_dev.mad4b.com` are rejected as deployment targets. The workflow and local watcher carry no secrets; local tunnel and OAuth values remain in the ignored `http-generic-api\.env.staging` file.
+The policy permits only `dev.mad4b.com` and `mcp_dev.mad4b.com` as Staging tunnel hostnames. `auth.mad4b.com`, `mcp.mad4b.com`, `activation.mad4b.com`, and `activation-dev.mad4b.com` are rejected as deployment targets. The workflow and local watcher carry no secrets; local tunnel and OAuth values remain in the ignored `http-generic-api\.env.staging` file.
 
 The watcher is intentionally not a GitHub webhook receiver. It uses outbound `git ls-remote` and the GitHub check-runs API, so the Windows machine does not need a public inbound address. If the computer is off, deployment waits until the next logon and then evaluates the current `main` SHA.

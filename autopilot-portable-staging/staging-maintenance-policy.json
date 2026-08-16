@@ -29,7 +29,7 @@
     "repair_may_mutate_hostinger": false
   },
   "required_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
-  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation_dev.mad4b.com"],
+  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"],
   "required_env": {
     "MIGRATION_APPLIED": "false",
     "DATABASE_MUTATED": "false",

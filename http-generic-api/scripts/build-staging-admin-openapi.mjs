@@ -7,7 +7,7 @@ const apiRoot = path.resolve(here, "..");
 const sourcePath = path.join(apiRoot, "openapi", "openapi.custom-gpt.auth-dispatcher.yaml");
 const targetPath = path.join(apiRoot, "openapi", "openapi.custom-gpt.staging-admin.yaml");
 const stagingHost = "https://dev.mad4b.com";
-const forbiddenHosts = ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation_dev.mad4b.com"];
+const forbiddenHosts = ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"];
 const allowedReadOnlyPaths = new Set([
   "/system/connectors",
   "/system/connectors/{system_id}",
@@ -43,7 +43,7 @@ function replaceStagingHosts(value) {
       .replaceAll("activation.mad4b.com", "dev.mad4b.com")
       .replaceAll("https://mcp.mad4b.com", "https://mcp_dev.mad4b.com")
       .replaceAll("mcp.mad4b.com", "mcp_dev.mad4b.com")
-      .replaceAll("activation_dev.mad4b.com", "dev.mad4b.com");
+      .replaceAll("activation-dev.mad4b.com", "dev.mad4b.com");
   }
   if (Array.isArray(value)) return value.map(replaceStagingHosts);
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, replaceStagingHosts(child)]));

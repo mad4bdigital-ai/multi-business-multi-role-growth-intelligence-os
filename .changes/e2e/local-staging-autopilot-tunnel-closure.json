@@ -64,7 +64,7 @@
             "MIGRATION_APPLIED=false and DATABASE_MUTATED=false are required and exact.",
             "The staging SSO cookie mode is host_only and Production hostnames are rejected from the active tunnel list.",
             "The active tunnel hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com and their origin is exactly http://app:8080.",
-            "activation_dev.mad4b.com remains reserved-disabled and is not active Tunnel ingress.",
+            "activation-dev.mad4b.com remains reserved-disabled and is not active Tunnel ingress.",
             "cloudflared is behind the explicit tunnel profile, uses a digest-pinned image, depends only on app, and has no database or provider access.",
             "Auto Pilot performs no Cloudflare DNS mutation, Hostinger deployment, migration, database mutation, or credential payload read."
           ],

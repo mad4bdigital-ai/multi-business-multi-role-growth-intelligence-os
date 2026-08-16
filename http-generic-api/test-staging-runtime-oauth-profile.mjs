@@ -34,7 +34,7 @@ assert.equal(profile.resolveTenantGptOAuthResourceProfile({
 }).ok, true);
 assert.equal(profile.resolveTenantGptOAuthResourceProfile({
   clientId: "mad4b-tenant-gpt-staging",
-  requestHost: "activation_dev.mad4b.com",
+  requestHost: "activation-dev.mad4b.com",
 }).ok, false);
 assert.equal(clientConfig.TENANT_GPT_OAUTH_CLIENT_SECRET_ENV, "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET");
 assert.equal(clientConfig.TENANT_GPT_OAUTH_CLIENT_SECRET_REF, "platform_secret:TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET");
@@ -55,7 +55,7 @@ try {
   assert.equal(stagingBody.preset.authorization_url, "https://dev.mad4b.com/auth/oauth/authorize");
   assert.equal(stagingBody.preset.token_url, "https://dev.mad4b.com/auth/oauth/token");
 
-  for (const host of ["mcp_dev.mad4b.com", "activation_dev.mad4b.com"]) {
+  for (const host of ["mcp_dev.mad4b.com", "activation-dev.mad4b.com"]) {
     const blocked = await fetch(`http://127.0.0.1:${port}/tenant-gpt/oauth-preset`, { headers: { "x-forwarded-host": host } });
     assert.equal(blocked.status, 404, `preset must remain unavailable for ${host}`);
   }

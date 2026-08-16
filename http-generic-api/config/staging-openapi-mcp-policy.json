@@ -33,12 +33,14 @@
     "production_resources_forbidden": ["https://mcp.mad4b.com", "https://auth.mad4b.com/auth/mcp"]
   },
   "tunnel": {
-    "active_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"],
+    "active_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+    "worker_custom_domains": ["activation-dev.mad4b.com"],
     "reserved_disabled_hostnames": [],
     "activation_gateway": {
       "mode": "active_opt_in",
       "required_flag": "ACTIVATION_STAGING_GATEWAY_ENABLED=true",
-      "required_host": "activation_dev.mad4b.com",
+      "required_host": "activation-dev.mad4b.com",
+      "binding_type": "worker_custom_domain",
       "required_bundle": "dedicated_staging_activation_gateway_bundle",
       "production_hosts_forbidden": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]
     },

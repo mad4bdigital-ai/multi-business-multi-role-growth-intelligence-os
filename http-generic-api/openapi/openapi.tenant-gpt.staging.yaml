@@ -16,6 +16,8 @@ tags:
     description: Tenant-scoped growth cockpit, guidance, preferences, previews, and recommendation feedback.
   - name: system-layer
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
+  - name: tenant-operations
+    description: Tenant Custom GPT bounded operation preview, execution, and status surfaces.
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: local-connector
@@ -520,6 +522,18 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource state conflicts with the requested operation
       content:
         application/json:
           schema:
@@ -1073,93 +1087,6 @@ paths:
           description: Resource not found
         "409":
           description: Operation conflicts with lifecycle or policy
-  /me/workspaces/{tenant_id}/resource-changes:
-    get:
-      operationId: getMeWorkspacesTenantIdResourceChanges
-      summary: GET /me/workspaces/{tenant_id}/resource-changes
-      tags:
-        - resource-api
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-        - name: pageSize
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-        - name: pageToken
-          in: query
-          schema:
-            type: string
-        - name: q
-          in: query
-          schema:
-            type: string
-            maxLength: 200
-      responses:
-        "200":
-          description: Successful resource operation
-        "400":
-          description: Invalid request
-        "401":
-          description: Authentication required
-        "403":
-          description: Resource access forbidden
-        "404":
-          description: Resource not found
-        "409":
-          description: Operation conflicts with lifecycle or policy
-  /me/workspaces/{tenant_id}/operations/{operationId}:
-    get:
-      operationId: getMeWorkspacesTenantIdOperationsOperationId
-      summary: GET /me/workspaces/{tenant_id}/operations/{operationId}
-      tags:
-        - resource-api
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-        - name: operationId
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        "200":
-          description: Successful resource operation
-        "400":
-          description: Invalid request
-        "401":
-          description: Authentication required
-        "403":
-          description: Resource access forbidden
-        "404":
-          description: Resource not found
-        "409":
-          description: Operation conflicts with lifecycle or policy
   /tenant/dashboard:
     get:
       tags:
@@ -1586,116 +1513,6 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Action preview failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /tenant/dashboard/recommendations/{recommendationId}/feedback:
-    post:
-      tags:
-        - growth-dashboard
-      security:
-        - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
-      operationId: recordTenantGrowthRecommendationFeedback
-      x-openai-isConsequential: false
-      summary: Record recommendation feedback or outcome
-      parameters:
-        - name: recommendationId
-          in: path
-          required: true
-          schema:
-            type: string
-            maxLength: 180
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - event_type
-              properties:
-                event_type:
-                  type: string
-                  enum:
-                    - shown
-                    - opened
-                    - accepted
-                    - dismissed
-                    - executed
-                    - failed
-                    - result_observed
-                reason_code:
-                  type: string
-                  enum:
-                    - not_relevant
-                    - wrong_timing
-                    - too_expensive
-                    - already_done
-                    - missing_information
-                    - other
-                workspace_id:
-                  type: string
-                recommendation_key:
-                  type: string
-                tab_key:
-                  type: string
-                card_id:
-                  type: string
-                result_metric_key:
-                  type: string
-                result_value: {}
-                context:
-                  type: object
-                  additionalProperties: true
-                  properties: {}
-      responses:
-        "201":
-          description: Recommendation event recorded
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - event_id
-                  - event_type
-                  - secrets_included
-                properties:
-                  ok:
-                    type: boolean
-                    enum:
-                      - true
-                  event_id:
-                    type: string
-                    format: uuid
-                  event_type:
-                    type: string
-                    enum:
-                      - shown
-                      - opened
-                      - accepted
-                      - dismissed
-                      - executed
-                      - failed
-                      - result_observed
-                  secrets_included:
-                    type: boolean
-                    enum:
-                      - false
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          description: Recommendation event write failure
           content:
             application/json:
               schema:
@@ -2900,12 +2717,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tenant/operations/preview:
+    post:
+      operationId: previewTenantOperation
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: false
+      summary: Preview a bounded tenant operation
+      description: Previews a known tenant operation without provider mutation. Use this when intent or risk is ambiguous.
+      security:
+        - userBearerAuth:
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tenant/operations/execute:
+    post:
+      operationId: executeTenantOperation
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: true
+      summary: Execute a bounded tenant operation
+      description: Executes a registered operation through existing context, capability, authority, policy, approval, and readback gates. It does not grant Production or write authority.
+      security:
+        - userBearerAuth:
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties: {}
+      responses:
+        "200":
+          description: Operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "202":
+          description: Operation awaiting governed input
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tenant/operations/status:
+    post:
+      operationId: getTenantOperationStatus
+      tags:
+        - tenant-operations
+      x-openai-isConsequential: false
+      summary: Read tenant operation status
+      security:
+        - userBearerAuth:
+            - https://dev.mad4b.com/scopes/tenant.links
+            - https://dev.mad4b.com/scopes/tenant.status
+            - https://dev.mad4b.com/scopes/tenant.activation
+            - https://dev.mad4b.com/scopes/tenant.install
+            - https://dev.mad4b.com/scopes/tenant.system-tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - run_id
+              properties:
+                run_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+      responses:
+        "200":
+          description: Operation status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62
+  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748
+  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
   registry_version: 2
   selector_model: marker_required
   candidate_policy:
@@ -2914,6 +2854,7 @@ x-custom-gpt-generation:
     candidate_tags:
       - resource-api
       - growth-dashboard
+      - tenant-operations
       - system-layer
       - local-connector
       - platform-plugins
@@ -3405,9 +3346,64 @@ x-custom-gpt-generation:
         reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
+  catalog_policy:
+    mode: database_mcp_levels
+    registry_table: tenant_platform_endpoint_tools
+    level_column: mcp_catalog_level
+    fallback_operations:
+      - listTools
+      - callTool
+    demoted_operation_records:
+      - operation_id: getMeWorkspacesTenantIdResourceChanges
+        tool_key: tenant_resource_changes_list
+        level: resource_api
+        reason: Long-tail resource projection remains available through the DB-backed MCP catalog.
+      - operation_id: getMeWorkspacesTenantIdOperationsOperationId
+        tool_key: tenant_operation_get
+        level: resource_api
+        reason: Long-tail execution readback remains available through the DB-backed MCP catalog.
+      - operation_id: recordTenantGrowthRecommendationFeedback
+        tool_key: tenant_growth_recommendation_feedback
+        level: growth_feedback
+        reason: Bounded recommendation feedback remains available through the DB-backed MCP catalog.
+  static_operation_ids:
+    - getMeWorkspacesTenantIdResources
+    - getMeWorkspacesTenantIdResourcesResourceKey
+    - postMeWorkspacesTenantIdResourcesResourceKey
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+    - patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+    - deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+    - postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+    - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+    - getTenantGrowthDashboard
+    - getTenantGrowthDashboardTab
+    - getTenantDashboardPreferences
+    - updateTenantDashboardPreferences
+    - getTenantGrowthDigest
+    - previewTenantGrowthAction
+    - listLocalGatewayTools
+    - listTools
+    - callTool
+    - tenantPlatformPluginCatalog
+    - tenantPlatformPluginInstall
+    - tenantPlatformPluginCredentialIntakeSessionCreate
+    - tenantPlatformPluginResolve
+    - listTenantSkillApprovals
+    - decideTenantSkillApproval
+    - writeSessionTurn
+    - endSession
+    - previewTenantOperation
+    - executeTenantOperation
+    - getTenantOperationStatus
+  dynamic_operation_ids:
+    - getMeWorkspacesTenantIdResourceChanges
+    - getMeWorkspacesTenantIdOperationsOperationId
+    - recordTenantGrowthRecommendationFeedback
   operation_count: 30
-  warning_operation_limit: 26
-  warning_budget_exceeded: true
+  warning_operation_limit: 30
+  warning_budget_exceeded: false
   hard_operation_limit: 30
   secrets_included: false
 x-gpt-action-auth-preset:

@@ -53,7 +53,8 @@
       "deployment_provider": "local_device",
       "credential_namespace": "staging",
       "tunnel_enabled": true,
-      "active_tunnel_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"],
+      "active_tunnel_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+      "active_worker_custom_domains": ["activation-dev.mad4b.com"],
       "reserved_disabled_hostnames": [],
       "tunnel_token_env": "CLOUDFLARE_TUNNEL_TOKEN",
       "tunnel_hostname_env": "CLOUDFLARE_TUNNEL_HOSTNAMES",
@@ -79,10 +80,10 @@
           "dns_proxy_required": true,
           "credential_namespace": "staging.mcp"
         },
-        "activation": {
-          "hostname": "activation_dev.mad4b.com",
+          "activation": {
+          "hostname": "activation-dev.mad4b.com",
           "service": "activation",
-          "origin_kind": "local_staging_app",
+          "origin_kind": "cloudflare_worker_staging",
           "exposure_status": "active_opt_in",
           "required_runtime_bundle": "dedicated_staging_activation_gateway_bundle",
           "required_runtime_flag": "ACTIVATION_STAGING_GATEWAY_ENABLED=true",
@@ -98,6 +99,7 @@
     "staging_hostnames_must_not_route_to_hostinger_production",
     "production_credentials_must_not_appear_in_staging_environment",
     "staging_tunnel_token_must_not_appear_in_production_environment",
+    "activation_staging_must_use_worker_custom_domain_not_tunnel_ingress",
     "staging_env_hostname_list_is_declaration_only",
     "cloudflare_ingress_must_match_policy_before_exposure",
     "auto_pilot_must_not_create_or_modify_dns_records",

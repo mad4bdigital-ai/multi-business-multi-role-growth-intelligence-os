@@ -32,10 +32,11 @@ const staging = Object.values(policy.environments.staging.hostnames);
 const productionNames = production.map((entry) => entry.hostname);
 const stagingNames = staging.map((entry) => entry.hostname);
 assert.deepEqual(productionNames, ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]);
-assert.deepEqual(stagingNames, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"]);
+assert.deepEqual(stagingNames, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"]);
 assert.equal(new Set([...productionNames, ...stagingNames]).size, 6);
 assert.equal(production.some((entry) => entry.origin_kind !== "hostinger_production"), false);
-assert.equal(staging.some((entry) => entry.origin_kind !== "local_staging_app"), false);
+assert.equal(staging.filter((entry) => entry.service !== "activation").some((entry) => entry.origin_kind !== "local_staging_app"), false);
+assert.equal(policy.environments.staging.hostnames.activation.origin_kind, "cloudflare_worker_staging");
 assert.equal(policy.environments.staging.hostnames.auth.exposure_status, "active_opt_in");
 assert.equal(policy.environments.staging.hostnames.auth.required_runtime_flag, "TENANT_GPT_STAGING_ENABLED=true");
 assert.equal(policy.environments.staging.hostnames.mcp.exposure_status, "active_opt_in");
@@ -45,7 +46,8 @@ assert.equal(policy.environments.staging.hostnames.activation.required_runtime_b
 assert.equal(policy.environments.staging.hostnames.activation.required_runtime_flag, "ACTIVATION_STAGING_GATEWAY_ENABLED=true");
 assert.equal(policy.environments.production.tunnel_enabled, false);
 assert.equal(policy.environments.staging.tunnel_enabled, true);
-assert.deepEqual(policy.environments.staging.active_tunnel_hostnames, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"]);
+assert.deepEqual(policy.environments.staging.active_tunnel_hostnames, ["dev.mad4b.com", "mcp_dev.mad4b.com"]);
+assert.deepEqual(policy.environments.staging.active_worker_custom_domains, ["activation-dev.mad4b.com"]);
 assert.deepEqual(policy.environments.staging.reserved_disabled_hostnames, []);
 assert.notEqual(policy.environments.production.credential_namespace, policy.environments.staging.credential_namespace);
 
@@ -55,7 +57,7 @@ assert.equal(deployment.connector_recovery.excluded_from_hostname_families, true
 
 for (const hostname of productionNames) assert.equal(env.includes(hostname), false, `staging env must not contain Production hostname ${hostname}`);
 assert.match(env, /CLOUDFLARE_TUNNEL_ENVIRONMENT=staging/);
-assert.match(env, /CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com,activation_dev\.mad4b\.com\s*$/m);
+assert.match(env, /CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$/m);
 assert.match(env, /ACTIVATION_STAGING_GATEWAY_ENABLED=false/);
 assert.match(env, /REMOTE_MCP_ENABLED=true/);
 assert.match(env, /REMOTE_MCP_OAUTH_ENABLED=true/);
@@ -71,13 +73,13 @@ assert.deepEqual(tunnel.profiles, ["tunnel"]);
 assert.match(String(tunnel.command), /--token/);
 assert.equal(String(tunnel.environment.TUNNEL_ENVIRONMENT), "${CLOUDFLARE_TUNNEL_ENVIRONMENT:-staging}");
 assert.equal(String(tunnel.environment.TUNNEL_ORIGIN_APP), "${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}");
-assert.equal(String(tunnel.environment.TUNNEL_HOSTNAMES), "${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com,activation_dev.mad4b.com}");
+assert.equal(String(tunnel.environment.TUNNEL_HOSTNAMES), "${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com}");
 
 // The edge bundle remains Production-only; local Staging activation is gated by
 // its own opt-in runtime flag and dedicated OpenAPI/OAuth bundle.
 assert.equal(activationPolicy.public_host, "activation.mad4b.com");
 assert.equal(activationPolicy.upstream_origin, "https://auth.mad4b.com");
-assert.equal(activationPolicy.public_host === "activation_dev.mad4b.com", false);
+assert.equal(activationPolicy.public_host === "activation-dev.mad4b.com", false);
 assert.match(activationGatewaySource, /GATEWAY_HOST_MISMATCH/);
 assert.match(ssoSessionSource, /TENANT_GPT_SSO_COOKIE_MODE_HOST_ONLY/);
 assert.match(ssoSessionSource, /domain: mode === TENANT_GPT_SSO_COOKIE_MODE_SHARED \? ".mad4b\.com" : null/);

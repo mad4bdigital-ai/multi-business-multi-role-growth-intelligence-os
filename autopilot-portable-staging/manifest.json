@@ -5,6 +5,18 @@
   "required_ref": "main",
   "files": [
     {
+      "path": ".changes/e2e/domain-family-environment-separation.json",
+      "sha256": "ca9a0dd52ef834974e4198949d17c1178a90e9520cc1219ed364a910663c2537"
+    },
+    {
+      "path": ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
+      "sha256": "8ea0c1cdf7dd1fad61415ab8b845eb68d49513d63fdb5ab13ff218db002e7745"
+    },
+    {
+      "path": ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
+      "sha256": "f7ad9c3719b00f9b6840ac0bdced83ae7f60d224d71a4fa4726ad7d4fc7a9e17"
+    },
+    {
       "path": ".gitattributes",
       "sha256": "ad2ebc820c5e245bfaf2ae028f3626740a421d57024a1575102d0e2b7cd203b5"
     },
@@ -13,16 +25,20 @@
       "sha256": "2d9ced5ef0c35f272984b057fd68853d689a284b3b2eb43c7c1e512e8fc83523"
     },
     {
-      "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "081a1b2a2898ac1c3a20144ddd20a60f0cb4aa2142b2b88d760986634b15d32f"
+      "path": "STAGING-DEEP-AUDIT-2026-08-15.md",
+      "sha256": "51cb81c33148fb3b289dec75d4909a307d3a886921edc5f2978900c82bddc37a"
+    },
+    {
+      "path": "STAGING-PR7264-EXTENSION-SCOPE.md",
+      "sha256": "2a2b882e69407a1e9d479e12eb420635e023638b8e2aa6fc40beaf0408940f46"
+    },
+    {
+      "path": "STAGING-WINDOWS.md",
+      "sha256": "ea7218b79fe7946efb8e507ba6ffe35c123ae7c86fac3ed843858051ad89c84e"
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "sha256": "cb08c7765664ae661dc1e71460cc719d72ec0fb05d6e72326fd6b4c0c36c2641"
-    },
-    {
-      "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "03800cc9365ed815041b2bfc85b34a1f76cc2b01bb7b285f002fc4392bba2f8b"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -34,11 +50,11 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "5f8ba6c021e35dabf4eab977d7879081bebe74b31b8bbaa5a2284095889e2486"
+      "sha256": "e9ac16103bf2f05ccf3d2b058188cc7f8305fad1b4842c6666f54da1f2cc656a"
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "e28a3b61f03476f6bf31382a04db7f165d396423bcc57c2327e5df53faab5752"
+      "sha256": "d6c0ac13ae3cddc6a0b86a162afd8d0dcb0ec86821487f6b7d9d7f0562cecb8e"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -53,10 +69,6 @@
       "sha256": "d987c084391663997a7e24e50e6d4be2928497c94c3ebc4065d2129726bca7dd"
     },
     {
-      "path": "autopilot-portable-staging/staging-maintenance-policy.json",
-      "sha256": "fba9016e853092520ea3183478dc4579587bd365eb36c1e9627a45f0335b15eb"
-    },
-    {
       "path": "autopilot-portable-staging/Staging-Maintenance.cmd",
       "sha256": "eb028547c728b0d0c481ed1a6853068a46916e373138bde8a3b5ef52b505bbd4"
     },
@@ -66,7 +78,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "a0f1541c55110526e395a58949708a1eea13ab68dd34f2ae72aea364679107fb"
+      "sha256": "4f38dd983182a1cfd887cf92c6ecc1545a96cacb600cd89cf8bc23e5ed7ac9e8"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -77,12 +89,68 @@
       "sha256": "8dd751eadac44215c2dbe150cc19564f9fafedada3b3b67191742de178d52885"
     },
     {
+      "path": "autopilot-portable-staging/auto-deploy-policy.json",
+      "sha256": "852d274c2ff7094af365d1dc25f93265d10250d79987cb8bc412b3d707c22b13"
+    },
+    {
+      "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "sha256": "7ed053d43c0d8dacf3c6d179af3ddccb7afe42a7346211925dab406c2543644f"
+    },
+    {
+      "path": "autopilot-portable-staging/staging-maintenance-policy.json",
+      "sha256": "b3b4a935170c26393ca3c69bf16a52a113de26afaa733ea74627dc590753ebf2"
+    },
+    {
+      "path": "docs/development-environment-governance.md",
+      "sha256": "495048ed944f4138bba48e4f968410a6dedd770c97f5ae43ed764518fcb59f31"
+    },
+    {
+      "path": "docs/hostinger-node-deploy.md",
+      "sha256": "cd0c52b792c5576d5b407a8108927ae7e216410f4eae6da490d330980799f02d"
+    },
+    {
+      "path": "docs/staging-auto-deploy.md",
+      "sha256": "80dab1da7db549f78f8f628ba82db733c8d0dc5a4f5b6dfe1ada4b3820eb7a46"
+    },
+    {
       "path": "docs/staging-openapi-mcp-db-copy.md",
-      "sha256": "a2355e28d6a1a6086dcadac02b42414db8a4eba405bca29c35e5724842a67c83"
+      "sha256": "6f707f61aef98623c77817c0ed0590e600f6f84491befd911a0a53411730007e"
     },
     {
       "path": "docs/staging-schema-contract-matrix.md",
       "sha256": "f6762190d7cb67cf5c5f050cd254eee6e9984687e1d6b3b402bc1d8a632e324c"
+    },
+    {
+      "path": "edge/activation-gateway/README.md",
+      "sha256": "e75594dfe137ac540226ca2cba80a5614ba8e9981a696383ee5a3b216dd840f3"
+    },
+    {
+      "path": "edge/activation-gateway/generated/route-policy.staging.json",
+      "sha256": "acc4aca4866fda287101b26afb2645c3aac41da1909714ff1b7f9971159af9c2"
+    },
+    {
+      "path": "edge/activation-gateway/package-lock.json",
+      "sha256": "7e54d04afbedd702108592c6039a4fcd605024f8d0dedc398daec380baba096a"
+    },
+    {
+      "path": "edge/activation-gateway/package.json",
+      "sha256": "62bf62b8d2100c2261727cef793a109e94359e67343cd0e6b6a4f3a4ab4f3eca"
+    },
+    {
+      "path": "edge/activation-gateway/src/worker-staging.mjs",
+      "sha256": "ddbe78c51f8b3f7aab3819a3b3bcd2ef14e8dea466d8642ed2249f99791ccbb6"
+    },
+    {
+      "path": "edge/activation-gateway/test-staging-config.mjs",
+      "sha256": "3c2b2d1c98a7d175902bea487edd2562f3b54d85fe8bbbdded2ab56c1c39a45f"
+    },
+    {
+      "path": "edge/activation-gateway/worker-configuration.d.ts",
+      "sha256": "cb7cdd3ffe6400a651faa0f9f576df2a980056c918874131508da8e5dbd62402"
+    },
+    {
+      "path": "edge/activation-gateway/wrangler.staging.jsonc",
+      "sha256": "e4112f54134026ba6a0cd52e3b60f45bfeaf08bdbe2a5cdcf535fea87b79103c"
     },
     {
       "path": "http-generic-api/.dockerignore",
@@ -90,15 +158,23 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "2a181532d0aebb5a726e2646a20e73121d9ddd04177934704315831b9d47acde"
+      "sha256": "ffa0138dd61c580a93d06c5d7b5ee3c56b5088ace7675a4a660b4407b9e739ed"
+    },
+    {
+      "path": "http-generic-api/Dockerfile",
+      "sha256": "25cfaadebb9874f349bc13b3b365c39cdac6335f89a7406026fe6c6249b439dc"
+    },
+    {
+      "path": "http-generic-api/Dockerfile.staging",
+      "sha256": "58f6b5a63838603bc0ec52f5df5c892a6da761d738faeb00cc757a4646c19091"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
-      "sha256": "d52501a05aaff45351f3f9f8fb388d57509e77cbb615be18594d8c54af314c37"
+      "sha256": "e58dc5cab14a855bad4a1acc2a3092e8e3b8d3cfb622da68455e8d71223c01e2"
     },
     {
       "path": "http-generic-api/canonical-business-operation-registry.json",
-      "sha256": "7e847bc49d56642f5204945888bd8a54510629cfc0c3232f9aa812af79fbdf2d"
+      "sha256": "0c1b89f90af83d55f3c6356d89022c7ccac7cc0b73d228b7d42aae437136b207"
     },
     {
       "path": "http-generic-api/canonicalBusinessOperationRegistry.js",
@@ -106,15 +182,15 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "50597a75e5adcf42f728fb6eaad2273b1557adb2bf67abe13ad3c7a698f251fe"
+      "sha256": "560b9df366e4339da6a9878e7f129c22d28c83ff5c274d4c9e92f43fe201a469"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
-      "sha256": "01471081ece754f3aa1b58185468bdb82c3fef0c9086c83bab5bfc93d8ab672e"
+      "sha256": "7dd23ee8b16cff977b7f63690f802d1cf2f5d37a9f028545a4319f012e84d29d"
     },
     {
       "path": "http-generic-api/config/staging-openapi-mcp-policy.json",
-      "sha256": "fe1f800b332ff3064ea7cb0927b844038c4785240126c5c125232a6d912a8e26"
+      "sha256": "a58fea2f33a41734bc690252db0707c730f16b3880e194c92296972e3090f52d"
     },
     {
       "path": "http-generic-api/db.js",
@@ -129,14 +205,6 @@
       "sha256": "06539f972c22dc0d60be2c5b47dcb56818d50b913e881db057dbeb6de5bb59e8"
     },
     {
-      "path": "http-generic-api/Dockerfile",
-      "sha256": "25cfaadebb9874f349bc13b3b365c39cdac6335f89a7406026fe6c6249b439dc"
-    },
-    {
-      "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "58f6b5a63838603bc0ec52f5df5c892a6da761d738faeb00cc757a4646c19091"
-    },
-    {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
       "sha256": "417d4fbdc0bf56b1d62c53ec33b279e93b643c9c6590a91dc52e5d71aba231fc"
     },
@@ -149,16 +217,24 @@
       "sha256": "e4d75527dc21181a7814f7a99478d559a0c83e16fcb772e5f7cb99e97f969b13"
     },
     {
+      "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "sha256": "a4d0e7e292f1430d4506d2b9ed4465cd3865257447ab350e7a6ccf1d40f4c1ae"
+    },
+    {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "7d7dd7432f37487176a8b1390fadd7c935ddd9927d074fee7301308d357b8f87"
+      "sha256": "e9fbed495598bb3d9d227646116bea4374247e4dd11d1c14384c277144e11a8c"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
       "sha256": "abc55c8befc40af3ddde9c3f412435689b6900645372bdf2a9e914fd323eb99b"
     },
     {
+      "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "sha256": "bc6214317f59ca2fc76572a97b2d14823a2920e814684ecd9fa0b65f22170265"
+    },
+    {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
-      "sha256": "0b968260740ce858fe6fdd4bf6ea8e0556e72919a46ba349f5a36e235eaad8aa"
+      "sha256": "db11794c939bfe5837ea7292e447db78f9aaf09293559bc092d3a0d4e579bac1"
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -177,12 +253,16 @@
       "sha256": "a3c27fcad649811c5f6b8e89fe3f2dc8b7771b005ca2e2eb24e6e735c894d6b6"
     },
     {
+      "path": "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "sha256": "0db845e649117887f2a96ba503fb6f011ea33de4f331bb6bd69e25748005d378"
+    },
+    {
       "path": "http-generic-api/routes/healthRoutes.js",
       "sha256": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c"
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "2bdac7eaa897b8103de538204a10e0e054fe510dd0fe3dd815cee652de15ee3d"
+      "sha256": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e"
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -194,7 +274,7 @@
     },
     {
       "path": "http-generic-api/scripts/build-staging-admin-openapi.mjs",
-      "sha256": "8c80ba88ee0185ff0e62f3e8fe2df9c5446c2328b61c310ae598670e804b5250"
+      "sha256": "f5476b64081f167218a7a51108397d5146e80e4ec195f808161b14fb8cc5c20c"
     },
     {
       "path": "http-generic-api/scripts/build-staging-openapi.mjs",
@@ -202,7 +282,11 @@
     },
     {
       "path": "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
-      "sha256": "fca913a857512d0f983621f42c0875fa985a8c52d95cb27821dca37b41d97ef2"
+      "sha256": "63fe9452f5598d55d48dcdbfaef41e51ba75950749eecd7bb6963df98758e76d"
+    },
+    {
+      "path": "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+      "sha256": "86151560fec755fa6f57cbe710c119498309c67881509d535713a94b2413f1c0"
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
@@ -210,7 +294,7 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
-      "sha256": "5e8cd5668826bf062aabf398cc35ba11a2f552a509fc555a760c6efad609ab39"
+      "sha256": "5ef5fd238b66853f5a431915d84b5f5d60f34096765e61ad573597121c645dbc"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPreset.js",
@@ -218,31 +302,39 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthResourceProfile.js",
-      "sha256": "35189f515358d2d91808ab07176b7e65e12ce6c93ad880e4c4ae402c6450982e"
+      "sha256": "3f598f26a308442b74b1d1170fde3e18bea3947ed22efb5e000674e2689d1d68"
     },
     {
       "path": "http-generic-api/test-canonical-business-operation-registry.mjs",
-      "sha256": "b5fb6542c15bb661fa0b212985ddd3bc9b785aba69892d8d80602580e5559d58"
+      "sha256": "6bb03b81c0c211e731683a16630de2d2972d821dd67b7506fd23e64bcd1aa924"
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
-      "sha256": "1729dff264973480a98ecbf89c5d2282645653442d0df166abb5a9c8d748a2c6"
+      "sha256": "a62ec6f19259a275a3fe4a6f2dd506f2f8d8b607ef27348e9b70b5464a80b0d3"
+    },
+    {
+      "path": "http-generic-api/test-staging-activation-gateway.mjs",
+      "sha256": "a43222b8e04885dd8093d60d401f2f4b893644d4a51aa391d6f98b6ea08146cb"
+    },
+    {
+      "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "sha256": "311dd213339731a5b3853b9963855e7adebf9d68d481abd4aba88f6bd9ed7958"
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "e004bc91701258820915b9fbd9c377b9023022327282b9241019243abdd0b4f2"
+      "sha256": "657737c50c9dc8e4833298f62ce4ace6bc92aa2fd9a17d770296c870d4d38f97"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "8cbdb8abdf29236c91d606e85c6c771001f284dbfc4966b2229f3976f0e025b3"
+      "sha256": "7abd3ed20e9a872d0612bd908cb126fd5da911394be7552fedbb66d956d3a7ad"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "54accf75ecf629ba1f575459aed35834dac4825a0dbc2e39796a16e850ee18a5"
+      "sha256": "a17851f90773dc5715f94b155d7196fcdae46587e37b8248069373a44ee9bd89"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "4ff17d33effe1289fdd8ca70fb4fe1a76e8403b43497d2c77fa2af5351ad7d8d"
+      "sha256": "ec5c773659e9513f667489fdb1f41455c0007ff77ec5bb8ae1ff6d1f190cd644"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
@@ -250,7 +342,7 @@
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
-      "sha256": "c8a65a3026dbbc0c415ab01456e9a2c89c4cdf6fa676a4f6a0ee6940d0152f6b"
+      "sha256": "2cb9b0d5ecb1ece4718b17f9a7bffbddabdfbffec0cf0c5632dca8b31f73cda3"
     },
     {
       "path": "http-generic-api/test-workspace-brand-create.mjs",
@@ -261,8 +353,8 @@
       "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337"
     },
     {
-      "path": "STAGING-WINDOWS.md",
-      "sha256": "6f837d5a402c510c60d9b8eaceb723ad64f90a45346946b19075d3d1283c7287"
+      "path": "specs/021-portable-staging-autopilot/e2e-phases.json",
+      "sha256": "ff9f3fd1d8e377b240e807cf9c0d9208262f919e93183631750f3601762fc885"
     }
   ],
   "safety": {

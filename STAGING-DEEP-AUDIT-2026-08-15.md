@@ -26,13 +26,13 @@ The live Cloudflare account and zone were inspected read-only through the config
 | WARP routing | Disabled | Correct for published web applications |
 | Tunnel status during audit | `inactive`, zero connections | Expected until Windows connector starts |
 
-Cloudflare DNS was also verified directly. Both Staging hostnames are proxied CNAME records to the tunnel UUID target. `activation_dev.mad4b.com` has no DNS record. Production hostnames remain proxied A records to `147.93.49.130` and do not point at the Staging tunnel.
+Cloudflare DNS was also verified directly. Both Staging hostnames are proxied CNAME records to the tunnel UUID target. `activation-dev.mad4b.com` has no DNS record. Production hostnames remain proxied A records to `147.93.49.130` and do not point at the Staging tunnel.
 
 | Hostname | Live DNS result | Environment boundary |
 |---|---|---|
 | `dev.mad4b.com` | CNAME -> `156b6897-cfd0-4965-91c2-73146c6ede40.cfargotunnel.com` | Staging |
 | `mcp_dev.mad4b.com` | CNAME -> same tunnel target | Staging |
-| `activation_dev.mad4b.com` | No record | Reserved-disabled |
+| `activation-dev.mad4b.com` | No record | Reserved-disabled |
 | `auth.mad4b.com` | A -> `147.93.49.130` | Production / Hostinger |
 | `mcp.mad4b.com` | A -> `147.93.49.130` | Production / Hostinger |
 | `activation.mad4b.com` | A -> `147.93.49.130` | Production / Hostinger |
@@ -47,7 +47,7 @@ The following controls are now present in the PR branch:
 |---|---|
 | OAuth client namespace | Staging uses `TENANT_GPT_STAGING_OAUTH_CLIENT_ID` and `TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET`; Production defaults remain unchanged. |
 | OAuth resource | Staging core resource and issuer resolve to `https://dev.mad4b.com`. |
-| Activation boundary | `activation_dev.mad4b.com` is not registered as a Staging OAuth resource. |
+| Activation boundary | `activation-dev.mad4b.com` is not registered as a Staging OAuth resource. |
 | Remote MCP | Resource and authorization server continue to resolve from Staging env values: `mcp_dev.mad4b.com` and `dev.mad4b.com/auth/mcp`. |
 | DB-derived secret fallback | Disabled for Staging OAuth; the Staging environment must supply its own secret namespace. |
 | Startup secrets | Auto Pilot generates local JWT, SSO, token-encryption, and MCP signing secrets when missing. |
@@ -135,7 +135,7 @@ The environment template now declares all three database connection limits and t
 
 Git line-ending attributes now pin `*.ps1` and `*.env*` to LF. This is required because the portable manifest hashes files byte-for-byte and a Windows checkout with `core.autocrlf=true` could otherwise convert unpinned files to CRLF and fail closed on every device.
 
-The runtime OAuth regression now performs an HTTP round-trip through `buildRootDiscoveryRoutes()`. It confirms that `dev.mad4b.com/tenant-gpt/oauth-preset` returns the dedicated Staging client and `dev.mad4b.com` authorization/token URLs, while `mcp_dev.mad4b.com` and `activation_dev.mad4b.com` return 404 for the Tenant GPT preset endpoint.
+The runtime OAuth regression now performs an HTTP round-trip through `buildRootDiscoveryRoutes()`. It confirms that `dev.mad4b.com/tenant-gpt/oauth-preset` returns the dedicated Staging client and `dev.mad4b.com` authorization/token URLs, while `mcp_dev.mad4b.com` and `activation-dev.mad4b.com` return 404 for the Tenant GPT preset endpoint.
 
 ## Expanded verification
 
@@ -178,7 +178,7 @@ The registry validator and parity regression enforce the following boundaries:
 | Purge | Always blocked |
 | Update/archive/restore/activate/supersede without optimistic concurrency | Rejected |
 | Write operation without readback/idempotency | Rejected |
-| `activation_dev.mad4b.com` or Production host leakage | Rejected |
+| `activation-dev.mad4b.com` or Production host leakage | Rejected |
 | Raw secrets in registry, parity, or evidence | Rejected |
 | Deterministic parity generation | Required and tested |
 

@@ -8,7 +8,7 @@ const IS_STAGING_RUNTIME = String(process.env.NODE_ENV || "").trim().toLowerCase
   || String(process.env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase() === "staging";
 export const ACTIVATION_HOST_GATEWAY_HOST = String(
   process.env.ACTIVATION_HOST_GATEWAY_HOST
-    || (IS_STAGING_RUNTIME ? "activation_dev.mad4b.com" : "activation.mad4b.com"),
+    || (IS_STAGING_RUNTIME ? "activation-dev.mad4b.com" : "activation.mad4b.com"),
 ).trim().toLowerCase();
 const AUTH_HOST = IS_STAGING_RUNTIME
   ? String(process.env.ACTIVATION_STAGING_AUTH_HOST || ACTIVATION_HOST_GATEWAY_HOST).trim().toLowerCase()

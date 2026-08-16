@@ -2,7 +2,7 @@
 
 ## الهدف
 
-تضيف هذه الدفعة مساراً مستقلاً لبيئة Staging على `dev.mad4b.com` و`mcp_dev.mad4b.com`. لا يعاد استخدام Production OAuth resources أو MCP resource أو أسرار Hostinger. يبقى `activation_dev.mad4b.com` محجوباً إلى أن يوجد Activation Gateway bundle مستقل ومختبر.
+تضيف هذه الدفعة مساراً مستقلاً لبيئة Staging على `dev.mad4b.com` و`mcp_dev.mad4b.com`. لا يعاد استخدام Production OAuth resources أو MCP resource أو أسرار Hostinger. يبقى `activation-dev.mad4b.com` محجوباً إلى أن يوجد Activation Gateway bundle مستقل ومختبر.
 
 | السطح | Staging | Production | الحالة |
 |---|---|---|---|
@@ -21,7 +21,7 @@
 
 يستخدم MCP Staging `REMOTE_MCP_ENVIRONMENT=staging` و`REMOTE_MCP_ENABLED=true` و`REMOTE_MCP_OAUTH_ENABLED=true` مع resource `https://mcp_dev.mad4b.com` وauthorization server `https://dev.mad4b.com/auth/mcp`. يظل DCR مغلقاً افتراضياً، ولا يسمح loopback إلا في اختبار محلي صريح. لا يتم منح write scope لمجرد تفعيل MCP؛ shared mutation governance وapproval وcapability وlease تبقى شروطاً مستقلة، وتبقى كل المسارات غير المربوطة fail-closed.
 
-يقوم Cloudflare Tunnel بتوجيه `dev.mad4b.com` و`mcp_dev.mad4b.com` إلى `http://app:8080` فقط بعد إنشاء ingress يدوي مطابق لهذه السياسة. لا ينشئ Auto Pilot DNS أو Tunnel أو OAuth client. يجب أن يحتوي tunnel configuration على deny fallback، وألا يحتوي أي ingress لـ`activation_dev.mad4b.com`.
+يقوم Cloudflare Tunnel بتوجيه `dev.mad4b.com` و`mcp_dev.mad4b.com` إلى `http://app:8080` فقط بعد إنشاء ingress يدوي مطابق لهذه السياسة. لا ينشئ Auto Pilot DNS أو Tunnel أو OAuth client. يجب أن يحتوي tunnel configuration على deny fallback، وألا يحتوي أي ingress لـ`activation-dev.mad4b.com`.
 
 ## قواعد البيانات وSchemas/Tables
 

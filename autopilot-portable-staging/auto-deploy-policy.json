@@ -11,7 +11,7 @@
   "allowed_staging_hosts": [
     "dev.mad4b.com",
     "mcp_dev.mad4b.com",
-    "activation_dev.mad4b.com"
+    "activation-dev.mad4b.com"
   ],
   "forbidden_hosts": [
     "auth.mad4b.com",
@@ -21,7 +21,7 @@
   "activation_gateway": {
     "enabled_by_env": "ACTIVATION_STAGING_GATEWAY_ENABLED",
     "required_value": "true",
-    "required_host": "activation_dev.mad4b.com",
+    "required_host": "activation-dev.mad4b.com",
     "required_schema_files": [
       "openapi.tenant-gpt.activation.staging.yaml",
       "openapi.custom-gpt.activation-admin.staging.yaml"

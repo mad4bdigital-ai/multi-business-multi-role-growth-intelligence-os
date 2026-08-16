@@ -49,7 +49,7 @@ assert.equal(listCanonicalBusinessOperations().every((operation) => {
   return !serialized.includes("auth.mad4b.com")
     && !serialized.includes("mcp.mad4b.com")
     && !serialized.includes("activation.mad4b.com")
-    && !serialized.includes("activation_dev.mad4b.com");
+    && !serialized.includes("activation-dev.mad4b.com");
 }), true);
 assert.equal(listCanonicalBusinessOperations().filter((operation) => operation.effect_class !== "read_only").every((operation) => (
   operation.readback_required === true
