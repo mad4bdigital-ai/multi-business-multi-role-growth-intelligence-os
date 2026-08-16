@@ -1,9 +1,5 @@
-function flag(value) {
-  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
-}
-
 export function trustedProxyHostHeadersEnabled(env = process.env) {
-  return flag(env?.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS);
+  return String(env?.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS || "").trim().toLowerCase() === "true";
 }
 
 export function headerValue(headers, name) {
