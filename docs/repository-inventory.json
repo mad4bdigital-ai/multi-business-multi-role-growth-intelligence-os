@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7086,
-    "bytes": 67885453,
-    "lines": 1589655,
+    "files": 7087,
+    "bytes": 67890124,
+    "lines": 1589748,
     "directories": 265,
     "categories": 13
   },
@@ -15,7 +15,7 @@
       "documentation": 1898,
       "api-runtime": 1425,
       "database-migrations": 783,
-      "root-and-other": 278,
+      "root-and-other": 279,
       "api-contracts": 182,
       "ci-workflows": 162,
       "ci-config": 103,
@@ -30,7 +30,7 @@
       ".mjs": 1661,
       ".js": 987,
       ".sql": 798,
-      ".json": 773,
+      ".json": 774,
       ".yml": 165,
       ".yaml": 111,
       ".ps1": 16,
@@ -64,7 +64,7 @@
       "docs": 1802,
       "specs": 873,
       ".github": 265,
-      ".changes": 255,
+      ".changes": 256,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -8335,6 +8335,17 @@
       "bytes": 4760,
       "lines": 89,
       "sha256": "24eecb657bd589a3b230a38f8c603e397e28a206f28e74ee616181fbe35e4eed",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/staging-oauth-act-as-user-maintenance-20260816.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 4671,
+      "lines": 93,
+      "sha256": "2b30cc0e0cfbdaa01f6040ab306eeb06d61adb84de335242303ce20d0049b896",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81847,7 +81858,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "9b866950930add08408d2083d9cc8dbb971385c384fb455eab7506a24ab0160f",
+      "sha256": "d3299ff307a41db23594e9d0589bcf2955e9f4661ddcbaa2e8ff0f0582457a61",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82683,7 +82694,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "7dc3f768871216d56f730c97c39ab46c3fccb78a1498a8f4bd5b053899db3312",
+      "sha256": "cfac02c5f7c42ea09462f7ed35d0913aa9f4a45a4e2317088180db70862d95d2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82914,7 +82925,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "c118be248ae9f58f0bcb1f1dc531584b43dd6c395d8df7e6f89287c72ca79d6b",
+      "sha256": "1a1ad8b1cfb58b042e4a02e5128e67c71ff007e0a541349e210144cd2f799a11",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83233,7 +83244,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "f1506b76e54e2b3e3eee06e4852421a65cdd0dab2517e9c6a792e19b1030857f",
+      "sha256": "f6e2ca826d2352312809404d35c77504b981c593a10861bfb10fa2aa1c6117ce",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83453,7 +83464,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "80e76f9311149675135191f5cc904e05f53f80eb13897bbd80861f52a5c57950",
+      "sha256": "5b0ed243a8d4229f3cdcc9dfcb5cc5fe84993bce75c2c5bc9a78d368a5fa70cd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83530,7 +83541,7 @@
       "extension": ".json",
       "bytes": 49481,
       "lines": 1334,
-      "sha256": "486badfb4c84ab65466753a21dfabe22de0add18650e42077043263f644e66ab",
+      "sha256": "caa6b216b30a5b6c3fc7c7ffae5ca7d27d978da437a10c71b60809b0d0e1edb7",
       "mode": "644",
       "executable": false,
       "generated": false

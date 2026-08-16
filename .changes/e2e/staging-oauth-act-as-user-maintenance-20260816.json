@@ -1,7 +1,11 @@
 {
   "schema_version": 1,
   "feature_key": "staging-oauth-act-as-user-maintenance-20260816",
+  "title": "Staging OAuth and Act-as-User governed runtime maintenance",
   "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "current_phase": "mvp",
   "phases": [
     {
