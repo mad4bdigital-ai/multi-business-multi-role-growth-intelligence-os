@@ -19,6 +19,8 @@ const actAsUserAdapterSource = read("http-generic-api/actAsUserRuntimeAdapter.js
 const actAsUserDurableRepositorySource = read("http-generic-api/actAsUserDurableRepositories.js");
 const actAsUserDurableMigrationSource = read("http-generic-api/migrations/20260816_act_as_user_durable_runtime_v1.sql");
 const actAsUserDurableTestSource = read("http-generic-api/test-act-as-user-durable-repositories.mjs");
+const actAsUserDispatchSource = read("http-generic-api/routes/gptToolsRoutes.js");
+const actAsUserDispatchTestSource = read("http-generic-api/test-act-as-user-dispatch-hook.mjs");
 
 function assert(condition, message) {
   if (!condition) failures.push(message);
@@ -103,6 +105,10 @@ assert(actAsUserDurableRepositorySource.includes("act_as_user_audit_secret_denie
 assert(actAsUserDurableMigrationSource.includes("act_as_user_sessions") && actAsUserDurableMigrationSource.includes("act_as_user_audit_events") && actAsUserDurableMigrationSource.includes("act_as_user_readbacks"), "Durable Act-as-User migration must define session, audit, and readback tables");
 assert(actAsUserDurableMigrationSource.includes("ck_act_as_user_session_no_secrets"), "Durable Act-as-User migration must enforce no-secret session state");
 assert(actAsUserDurableTestSource.includes("act-as-user durable repository tests passed"), "Durable Act-as-User repository regression test must remain present");
+assert(actAsUserDispatchSource.includes("authorizeActAsUserDispatchIfPresent"), "Tool dispatch must retain the Act-as-User hook");
+assert(actAsUserDispatchSource.includes("act_as_user_adapter_not_bound"), "Tool dispatch must fail closed when Act-as-User adapter is absent");
+assert(actAsUserDispatchSource.includes("await authorizeActAsUserDispatchIfPresent"), "Act-as-User hook must run before tool preflight");
+assert(actAsUserDispatchTestSource.includes("act-as-user dispatch hook tests passed"), "Act-as-User dispatch hook regression test must remain present");
 
 const schemas = [
   ["tenant", "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", policy.custom_gpt.schema_url],

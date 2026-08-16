@@ -2669,6 +2669,42 @@ async function detectMissingRequiredArgs(callerType, toolKey, args, executionCap
   }
 }
 
+export async function authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps = {}, descriptor = null } = {}) {
+  const sessionId = runtimeDeps.actAsUserSessionId
+    || req?.actAsUserSessionId
+    || req?.auth?.act_as_user_session_id
+    || null;
+  if (!sessionId) return null;
+  const adapter = runtimeDeps.actAsUserAdapter;
+  if (!adapter || typeof adapter.authorizeDispatch !== "function") {
+    const error = new Error("Act-as-User session requires a bound runtime adapter.");
+    error.code = "act_as_user_adapter_not_bound";
+    error.status = 403;
+    throw error;
+  }
+  if (!runtimeDeps.actAsUserOperation || !["call_tool", "execute"].includes(runtimeDeps.actAsUserOperation)) {
+    const error = new Error("Act-as-User dispatch requires an explicit operation binding.");
+    error.code = "act_as_user_operation_binding_missing";
+    error.status = 403;
+    throw error;
+  }
+  const authorized = await adapter.authorizeDispatch({
+    sessionId,
+    requestedOperation: runtimeDeps.actAsUserOperation,
+    requestedTool: toolKey,
+    request: req,
+    descriptor,
+    args,
+  });
+  if (!authorized?.dispatchAuthorized) {
+    const error = new Error("Act-as-User dispatch authorization was not established.");
+    error.code = "act_as_user_dispatch_not_authorized";
+    error.status = 403;
+    throw error;
+  }
+  return Object.freeze({ callerType, sessionId, context: authorized });
+}
+
 async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
   const executionCapsule = runtimeDeps.executionCapsule || null;
   if (callerType === "tenant") {
@@ -2677,6 +2713,7 @@ async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
     assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
+  await authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps, descriptor });
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
       callerType,
