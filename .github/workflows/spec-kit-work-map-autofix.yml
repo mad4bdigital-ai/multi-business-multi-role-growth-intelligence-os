@@ -227,6 +227,29 @@ jobs:
             fi
           done < "${immutable_target_pr_files}"
 
+          generator_preview_file="${DIAGNOSTIC_ROOT}/platform-work-map-generator-preview.json"
+          set +e
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check > "${generator_preview_file}"
+          generator_preview_exit_code=$?
+          set -e
+          if [[ "${generator_preview_exit_code}" -ne 0 && "${generator_preview_exit_code}" -ne 1 ]]; then
+            echo "::error::Read-only Work Map generator preview failed with unexpected exit code ${generator_preview_exit_code}."
+            exit 1
+          fi
+          if ! jq -e '
+            .mode == "check"
+            and (.drift_files | type == "array")
+            and (.generated_files | type == "array")
+            and .secrets_included == false
+            and .image_assets_generated == false
+          ' "${generator_preview_file}" >/dev/null; then
+            echo "::error::Read-only Work Map generator preview returned an invalid or unsafe report."
+            exit 1
+          fi
+          if jq -e '.drift_files | length > 0' "${generator_preview_file}" >/dev/null; then
+            registry_refresh_required=true
+          fi
+
           if [[ "${registry_refresh_required}" = "true" ]]; then
             git ls-files -- "${spec_root}/[0-9][0-9][0-9]-*/${manifest_filename}" \
               | sort -u > "${registry_refresh_binding_candidates}"
@@ -258,6 +281,7 @@ jobs:
           target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"
           registry_refresh_binding_count="$(wc -l < "${registry_refresh_binding_file}" | tr -d '[:space:]')"
           writer_binding_count="$(wc -l < "${writer_binding_file}" | tr -d '[:space:]')"
+          generator_preview_drift_count="$(jq -r '.drift_files | length' "${generator_preview_file}")"
           echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
           echo "REGISTRY_REFRESH_BINDING_FILE=${registry_refresh_binding_file}" >> "$GITHUB_ENV"
           echo "WRITER_BINDING_FILE=${writer_binding_file}" >> "$GITHUB_ENV"
@@ -267,6 +291,7 @@ jobs:
           echo "registry_refresh_binding_count=${registry_refresh_binding_count}" >> "$GITHUB_OUTPUT"
           echo "writer_binding_count=${writer_binding_count}" >> "$GITHUB_OUTPUT"
           echo "registry_refresh_required=${registry_refresh_required}" >> "$GITHUB_OUTPUT"
+          echo "generator_preview_drift_count=${generator_preview_drift_count}" >> "$GITHUB_OUTPUT"
 
       - name: Verify and consume Recovery-issued writer delegation
         id: delegation
