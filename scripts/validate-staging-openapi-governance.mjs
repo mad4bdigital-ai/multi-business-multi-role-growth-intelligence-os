@@ -13,6 +13,8 @@ const oauthConfigSource = read("http-generic-api/tenantGptOAuthClientConfig.js")
 const resourceProfileSource = read("http-generic-api/tenantGptOAuthResourceProfile.js");
 const systemLayerSource = read("http-generic-api/routes/systemLayerRoutes.js");
 const oauthTokenSource = read("http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js");
+const actAsUserPolicySource = read("http-generic-api/actAsUserExecutionPolicy.js");
+const actAsUserTestSource = read("http-generic-api/test-act-as-user-execution-policy.mjs");
 
 function assert(condition, message) {
   if (!condition) failures.push(message);
@@ -77,6 +79,12 @@ assert(oauthTokenSource.includes("resolveTenantGptOAuthResourceProfile"), "token
 assert(systemLayerSource.includes("tenant_system_tool_route_not_allowed"), "Tenant tool dispatch must retain a stable deny code");
 assert(systemLayerSource.includes("TENANT_BLOCKED_SYSTEM_TOOL_NAMES"), "Tenant discovery must retain blocked system tool filtering");
 assert(systemLayerSource.includes('dispatchToolForCaller("tenant"'), "Tenant tool dispatch must use the tenant caller boundary");
+assert(actAsUserPolicySource.includes("resolveActAsUserExecutionContext"), "Act-as-User must have a dedicated execution-policy resolver");
+assert(actAsUserPolicySource.includes("act_as_user_role_escalation_denied"), "Act-as-User resolver must deny role escalation");
+assert(actAsUserPolicySource.includes("act_as_user_capability_intersection_denied"), "Act-as-User resolver must enforce capability intersection");
+assert(actAsUserPolicySource.includes("act_as_user_idempotency_required"), "Act-as-User resolver must require replay protection");
+assert(actAsUserPolicySource.includes("act_as_user_revoked"), "Act-as-User resolver must enforce revocation");
+assert(actAsUserTestSource.includes("act-as-user execution policy tests passed"), "Act-as-User regression test must remain present");
 
 const schemas = [
   ["tenant", "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", policy.custom_gpt.schema_url],
