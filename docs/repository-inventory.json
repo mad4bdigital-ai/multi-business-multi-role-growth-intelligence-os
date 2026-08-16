@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7116,
-    "bytes": 68923776,
-    "lines": 1616317,
+    "bytes": 68925875,
+    "lines": 1616337,
     "directories": 265,
     "categories": 13
   },
@@ -30214,9 +30214,9 @@
       "path": "docs/governance/governed-autopilot-production-deployment.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 12045,
-      "lines": 147,
-      "sha256": "058de6a07ef5c05b929301e0e461b60a0535a6892d0569c35efe9fee55838a85",
+      "bytes": 14067,
+      "lines": 166,
+      "sha256": "7efc7481501713da885dc2f2c12a02a100caaff80bfd81eec86761ab3f9fa8fb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64446,9 +64446,9 @@
       "path": "http-generic-api/test-governed-autopilot-production-deployment.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 4224,
-      "lines": 85,
-      "sha256": "9951df3bab8e47fd1162fdc2044a621ec77fa74083db9b1e2c7ececbb668d8e2",
+      "bytes": 4301,
+      "lines": 86,
+      "sha256": "62c80ce521675f7197219bc29d41cd6b7d74f69cd8972be64e130b9689359ac6",
       "mode": "644",
       "executable": false,
       "generated": false
