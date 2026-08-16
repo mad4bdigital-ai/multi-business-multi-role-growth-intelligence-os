@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
-      "sha256": "7dd23ee8b16cff977b7f63690f802d1cf2f5d37a9f028545a4319f012e84d29d"
+      "sha256": "efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532"
     },
     {
       "path": "http-generic-api/config/staging-openapi-mcp-policy.json",
