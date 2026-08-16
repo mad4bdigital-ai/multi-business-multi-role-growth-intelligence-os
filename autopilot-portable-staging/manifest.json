@@ -10,7 +10,7 @@
     },
     {
       "path": ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
-      "sha256": "fa3622361e7ae74f89ba477eb1fa97a4a3414de173c69e6f9c00d28100e6a2f0"
+      "sha256": "a99fd70ba0499dc6271a705bc0df3ed8185219d28724d0e28098bf274f8c52a7"
     },
     {
       "path": ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",

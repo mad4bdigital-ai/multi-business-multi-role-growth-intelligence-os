@@ -33,6 +33,8 @@
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "http-generic-api/test-activation-gateway.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "docs/staging-openapi-mcp-db-copy.md"
     ]
@@ -127,6 +129,8 @@
             "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
             "http-generic-api/test-activation-gateway.mjs",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
             "docs/staging-openapi-mcp-db-copy.md"
           ]
