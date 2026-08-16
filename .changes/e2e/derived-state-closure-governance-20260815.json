@@ -4,6 +4,7 @@
   "feature_key": "derived-state-closure-governance-20260815",
   "title": "Exact-candidate Repository Derived-State Closure governance",
   "delivery_mode": "single_pr",
+  "secrets_included": false,
   "current_phase": "mvp",
   "scope": {
     "include": [
@@ -18,6 +19,8 @@
       "scripts/derived-state-closure.mjs",
       "scripts/repository-inventory-verification-gate.mjs",
       "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
