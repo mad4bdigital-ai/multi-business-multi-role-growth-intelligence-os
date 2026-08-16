@@ -1,7 +1,10 @@
 {
   "contract": "mad4b.repository-derived-state-governance.v1",
   "schema_version": 1,
-  "protected_branches": ["main", "Production"],
+  "protected_branches": [
+    "main",
+    "Production"
+  ],
   "required_check_name": "Derived State Closure",
   "max_convergence_passes": 3,
   "policy": {
@@ -20,14 +23,52 @@
     "production_requires_source_pin": true,
     "production_requires_explicit_authorization": true
   },
+  "convergence": {
+    "orchestration_mode": "workflow_run_one_authority_per_pass",
+    "repair_dispatch_workflow": ".github/workflows/derived-state-repair-dispatch.yml",
+    "auto_merge_workflow": ".github/workflows/derived-state-converged-automerge.yml",
+    "post_merge_publisher_workflow": ".github/workflows/derived-state-main-convergence-publisher.yml",
+    "one_repair_authority_per_pass": true,
+    "repair_receipt_contract": "mad4b.derived-state-repair-dispatch.v1",
+    "main_convergence_receipt_contract": "mad4b.derived-state-main-convergence.v1",
+    "automerge_receipt_contract": "mad4b.derived-state-automerge.v1",
+    "automation_control_surface_changes_require_manual_review": true,
+    "automation_control_paths": [
+      ".github/derived-state-governance.json",
+      ".github/tests/derived-state-closure.test.mjs",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/derived-state-repair-dispatch.yml",
+      ".github/workflows/derived-state-converged-automerge.yml",
+      ".github/workflows/derived-state-main-convergence-publisher.yml",
+      "scripts/derived-state-closure.mjs",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml"
+    ],
+    "automerge_opt_out_labels": [
+      "do-not-auto-merge",
+      "manual-merge"
+    ],
+    "post_merge_publishable_recipes": [
+      "repository_inventory_refresh"
+    ],
+    "auto_merge_requires_current_head_convergence_receipt": true,
+    "receipt_must_bind_result_head": true,
+    "closure_reverification_mode": "exact_merge_candidate_workflow_dispatch"
+  },
   "artifacts": [
     {
       "artifact_id": "repository_inventory",
       "recipe": "repository_inventory_refresh",
       "verifier_id": "repository_inventory_currentness",
       "dependency_scope": [
-        {"type": "git_index_shape"},
-        {"type": "repository_inventory_rules"}
+        {
+          "type": "git_index_shape"
+        },
+        {
+          "type": "repository_inventory_rules"
+        }
       ],
       "outputs": [
         "docs/repository-inventory.json",
@@ -40,8 +81,13 @@
       "recipe": "repository_inventory_refresh",
       "verifier_id": "repository_evaluation_currentness",
       "dependency_scope": [
-        {"type": "artifact", "artifact_id": "repository_inventory"},
-        {"type": "repository_evaluation_rules"}
+        {
+          "type": "artifact",
+          "artifact_id": "repository_inventory"
+        },
+        {
+          "type": "repository_evaluation_rules"
+        }
       ],
       "outputs": [
         "docs/repository-evaluation.json",
@@ -54,11 +100,30 @@
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "remote_mcp_write_scope_currentness",
       "dependency_scope": [
-        {"type": "git_index_shape", "reason": "current generator materializes tracked file_count"},
-        {"type": "path_glob", "pattern": "http-generic-api/routes/**/*.js"},
-        {"type": "path_glob", "pattern": "http-generic-api/migrations/**/*.sql"},
-        {"type": "file", "path": "http-generic-api/remote-mcp-scope-catalog.generated.json"},
-        {"type": "tracked_registry_evidence_scan", "extensions": [".js", ".mjs", ".sql"]}
+        {
+          "type": "git_index_shape",
+          "reason": "current generator materializes tracked file_count"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/routes/**/*.js"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/migrations/**/*.sql"
+        },
+        {
+          "type": "file",
+          "path": "http-generic-api/remote-mcp-scope-catalog.generated.json"
+        },
+        {
+          "type": "tracked_registry_evidence_scan",
+          "extensions": [
+            ".js",
+            ".mjs",
+            ".sql"
+          ]
+        }
       ],
       "outputs": [
         "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -70,10 +135,21 @@
       "recipe": "frontend_openapi_refresh",
       "verifier_id": "frontend_openapi_currentness",
       "dependency_scope": [
-        {"type": "path_glob", "pattern": "http-generic-api/routes/**"},
-        {"type": "path_glob", "pattern": "http-generic-api/openapi/**"},
-        {"type": "path_glob", "pattern": "canonicals/openapi/**"},
-        {"type": "registered_generator_contract"}
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/routes/**"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "http-generic-api/openapi/**"
+        },
+        {
+          "type": "path_glob",
+          "pattern": "canonicals/openapi/**"
+        },
+        {
+          "type": "registered_generator_contract"
+        }
       ],
       "outputs": [
         "http-generic-api/frontend-operation-governance.generated.json",
@@ -91,7 +167,9 @@
       },
       "verifier_id": "work_map_currentness",
       "dependency_scope": [
-        {"type": "registered_work_map_source_universe"}
+        {
+          "type": "registered_work_map_source_universe"
+        }
       ],
       "outputs": [
         "docs/work-maps/**",
@@ -103,10 +181,17 @@
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "portable_staging_manifest_currentness",
       "dependency_scope": [
-        {"type": "manifest_declared_files"},
-        {"type": "artifact", "artifact_id": "remote_mcp_write_scope_inventory"}
+        {
+          "type": "manifest_declared_files"
+        },
+        {
+          "type": "artifact",
+          "artifact_id": "remote_mcp_write_scope_inventory"
+        }
       ],
-      "outputs": ["autopilot-portable-staging/manifest.json"]
+      "outputs": [
+        "autopilot-portable-staging/manifest.json"
+      ]
     }
   ],
   "server_enforcement": {
@@ -117,7 +202,9 @@
       "block_force_push": true,
       "dismiss_stale_approvals": true,
       "require_conversation_resolution": true,
-      "required_checks": ["Derived State Closure"]
+      "required_checks": [
+        "Derived State Closure"
+      ]
     },
     "Production": {
       "block_direct_push": true,

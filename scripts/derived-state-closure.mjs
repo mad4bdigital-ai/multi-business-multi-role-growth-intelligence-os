@@ -110,8 +110,17 @@ validateRegistry(registry);
 
 const expectedSha = arg("expected-sha", headSha());
 const candidateKind = arg("candidate-kind", "exact_sha");
+const prNumberRaw = arg("pr-number", "0");
+const sourceHeadSha = arg("source-head-sha", expectedSha);
+const baseSha = arg("base-sha", expectedSha);
 const reportFile = path.resolve(arg("report-file", path.join(repoRoot, ".artifacts/derived-state-closure/report.json")));
+
 if (!SHA_RE.test(expectedSha)) throw new Error("expected SHA must be an exact lowercase 40-character Git SHA");
+if (!SHA_RE.test(sourceHeadSha)) throw new Error("source head SHA must be an exact lowercase 40-character Git SHA");
+if (!SHA_RE.test(baseSha)) throw new Error("base SHA must be an exact lowercase 40-character Git SHA");
+if (!/^(?:0|[1-9][0-9]*)$/u.test(prNumberRaw)) throw new Error("pr-number must be zero or a positive integer");
+const prNumber = Number.parseInt(prNumberRaw, 10);
+
 const observedHead = headSha();
 if (observedHead !== expectedSha) throw new Error(`exact candidate mismatch: expected=${expectedSha} observed=${observedHead}`);
 
@@ -158,7 +167,10 @@ const report = {
   generated_at: new Date().toISOString(),
   candidate: {
     kind: candidateKind,
-    sha: observedHead
+    sha: observedHead,
+    pr_number: prNumber > 0 ? prNumber : null,
+    source_head_sha: sourceHeadSha,
+    base_sha: baseSha
   },
   registry_contract: registry.contract,
   required_check_name: registry.required_check_name,
@@ -183,5 +195,18 @@ const report = {
 };
 fs.mkdirSync(path.dirname(reportFile), { recursive: true });
 fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
-process.stdout.write(`${JSON.stringify({ contract: report.contract, candidate_sha: observedHead, converged, stale_or_failed_artifact_count: failed.length, repair_authority_ids: repairAuthorities.map((entry) => entry.id), repair_recipes: repairRecipes, verifier_mutation: Boolean(verifierMutation), secrets_included: false })}\n`);
+process.stdout.write(`${JSON.stringify({
+  contract: report.contract,
+  candidate_sha: observedHead,
+  candidate_kind: candidateKind,
+  pr_number: report.candidate.pr_number,
+  source_head_sha: sourceHeadSha,
+  base_sha: baseSha,
+  converged,
+  stale_or_failed_artifact_count: failed.length,
+  repair_authority_ids: repairAuthorities.map((entry) => entry.id),
+  repair_recipes: repairRecipes,
+  verifier_mutation: Boolean(verifierMutation),
+  secrets_included: false
+})}\n`);
 if (!converged) process.exitCode = 1;
