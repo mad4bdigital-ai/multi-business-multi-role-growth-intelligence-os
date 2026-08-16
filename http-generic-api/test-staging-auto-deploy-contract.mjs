@@ -6,6 +6,8 @@ const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const policy = JSON.parse(fs.readFileSync(path.join(root, "autopilot-portable-staging", "auto-deploy-policy.json"), "utf8"));
 const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "staging-main-deploy-eligibility.yml"), "utf8");
 const deployScript = fs.readFileSync(path.join(root, "autopilot-portable-staging", "Auto-Deploy-Staging.ps1"), "utf8");
+const pilotScript = fs.readFileSync(path.join(root, "autopilot-portable-staging", "Start-AutoPilot.ps1"), "utf8");
+const oneClickScript = fs.readFileSync(path.join(root, "autopilot-portable-staging", "One-Click-Staging.ps1"), "utf8");
 const installer = fs.readFileSync(path.join(root, "autopilot-portable-staging", "Install-AutoDeployTask.ps1"), "utf8");
 const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
 
@@ -14,8 +16,10 @@ assert.equal(policy.ref, "main");
 assert.equal(policy.deployment_mode, "local_windows_task_scheduler");
 assert.equal(policy.requires_exact_commit, true);
 assert.equal(policy.requires_ci_eligibility, true);
-assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp_dev.mad4b.com"]);
-assert.deepEqual(policy.forbidden_hosts, ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation_dev.mad4b.com"]);
+assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"]);
+assert.deepEqual(policy.forbidden_hosts, ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]);
+assert.equal(policy.activation_gateway.enabled_by_env, "ACTIVATION_STAGING_GATEWAY_ENABLED");
+assert.equal(policy.activation_gateway.required_host, "activation_dev.mad4b.com");
 assert.deepEqual(policy.safety, {
   production_deploy: false,
   hostinger_mutation: false,
@@ -44,9 +48,12 @@ assert.match(deployScript, /database_mutated = \$false/);
 assert.match(deployScript, /migration_applied = \$false/);
 assert.match(deployScript, /PollSeconds -lt \[int\]\$Policy\.minimum_poll_seconds/);
 assert.doesNotMatch(deployScript, /auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com/);
+assert.match(pilotScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
+assert.match(oneClickScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
+assert.match(deployScript, /Global\\Mad4bPortableStagingAutoPilot/);
 assert.doesNotMatch(deployScript, /CLOUDFLARE_TUNNEL_TOKEN\s*=/i);
 assert.match(installer, /Register-ScheduledTask/);
-assert.match(installer, /InteractiveToken/);
+assert.match(installer, /LogonType Interactive/);
 assert.match(installer, /New-ScheduledTaskTrigger -AtLogOn/);
 assert.match(gitignore, /autopilot-portable-staging\/autopilot-state\.json/);
 assert.match(gitignore, /autopilot-portable-staging\/auto-deploy-state\.json/);

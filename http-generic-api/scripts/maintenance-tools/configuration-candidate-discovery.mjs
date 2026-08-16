@@ -9,9 +9,10 @@ const CONTRACT = "mad4b.configuration-candidate-discovery.v1";
 const DEFAULT_INVENTORY = "docs/repository-inventory.json";
 const DEFAULT_OUTPUT_DIR = ".artifacts/configuration-candidate-discovery";
 const SCAN_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".sql", ".yml", ".yaml", ".json"]);
-const SENSITIVE_KEY = /(?:secret|token|password|passwd|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|credential|refresh[_-]?token|access[_-]?token)/iu;
+const SENSITIVE_KEY = /(?:secret|password|passwd|private[_-]?key|client[_-]?secret|api[_-]?key|cookie|credential|authorization[_-]?(?:code|token|secret)|(?:refresh|access)[_-]?token(?![_-]?(?:ttl|url|host|id|endpoint|type))|(?:^|[_-])token(?:$|[_-]?(?:value|secret|hash)))/iu;
 const POLICY_KEY = /(?:approval|allowlist|denylist|production|live|write[_-]?scope|policy|permission|authorization|role|scope|canary|kill[_-]?switch)/iu;
-const SETTING_KEY = /(?:^|[_\-.])(?:default|config|setting|feature|flag|timeout|ttl|quota|rate[_-]?limit|batch|cache|retry|concurrency|limit)(?:$|[_\-.])/iu;
+const AUTHORIZATION_METADATA_KEY = /authorization.*(?:server|url)|(?:server|url).*authorization/iu;
+const SETTING_KEY = /(?:^|[_\-.])(?:default|config|setting|feature|flag|timeout|ttl|quota|rate[_-]?limit|batch|cache|retry|concurrency|limit|preset|host)(?:$|[_\-.])/iu;
 const CONFIG_SYMBOL = /(?:default|config|setting|feature|flag|timeout|ttl|quota|rate[_-]?limit|batch|cache|retry|concurrency|allowlist|denylist|policy|approval|scope|mode|environment|endpoint|base[_-]?url|host|port|generated|openapi|work[-_]?map)/iu;
 const GENERATED_PATH = /(?:generated|work[-_]?maps?|repository-inventory|repository-evaluation|openapi\.(?:yaml|yml|json))/iu;
 const EXCLUDED_PATH = /(?:^|\/)(?:node_modules|\.git|\.artifacts|dist|build|coverage|vendor|fixtures?|snapshots?|__snapshots__|tests?|specs?)(?:\/|$)|(?:\.generated\.(?:js|mjs|json|yaml|yml)|\.lock$)/iu;
@@ -62,8 +63,9 @@ function candidateClass({ path, symbol, line, expressionKind }) {
   const text = `${path} ${symbol} ${line}`;
   if (GENERATED_PATH.test(path) || /(?:generated|work[-_]?map|openapi)/iu.test(symbol)) return { candidate_class: "generated_artifact", risk_class: "medium", migration_action: "exclude_from_migration" };
   if (SENSITIVE_KEY.test(text)) return { candidate_class: "secret_candidate", risk_class: "critical", migration_action: "secret_inventory_and_rotation_review" };
+  if (AUTHORIZATION_METADATA_KEY.test(text)) return { candidate_class: "runtime_setting", risk_class: "medium", migration_action: "catalog_review_then_shadow_parity" };
   if (POLICY_KEY.test(text)) return { candidate_class: "policy_candidate", risk_class: "high", migration_action: "specialized_registry_review" };
-  if (expressionKind === "environment_reference" || SETTING_KEY.test(text)) return { candidate_class: "runtime_setting", risk_class: "medium", migration_action: "catalog_review_then_shadow_parity" };
+  if (expressionKind === "environment_reference" || expressionKind === "migration_seed" || SETTING_KEY.test(text)) return { candidate_class: "runtime_setting", risk_class: "medium", migration_action: "catalog_review_then_shadow_parity" };
   return { candidate_class: "unknown_review_required", risk_class: "medium", migration_action: "manual_classification_required" };
 }
 
@@ -85,11 +87,13 @@ export function extractCandidates(path, content) {
     if (!line.trim() || /^\s*(?:\/\/|#|--|\*)/u.test(line)) continue;
     const envMatch = line.match(/process\.env\.([A-Z][A-Z0-9_]*)/u);
     const declarationMatch = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;]+)/u);
-    const configSeed = /platform_runtime_config/iu.test(line) && /config_key|config_json|INSERT|UPDATE/iu.test(line);
+    const configSeed = /platform_runtime_config/iu.test(line) && /(?:INSERT|UPDATE)\s+platform_runtime_config|(?:config_key|config_json)\s*[,)]/iu.test(line);
     if (!envMatch && !declarationMatch && !configSeed) continue;
     const expressionKind = envMatch ? "environment_reference" : configSeed ? "migration_seed" : "literal_declaration";
     const symbol = extractSymbol(line, expressionKind);
     if (!envMatch && !configSeed && (!declarationMatch || !CONFIG_SYMBOL.test(symbol) || !LITERAL.test(line))) continue;
+    if (!envMatch && !configSeed && /^(?:config|host)$/iu.test(symbol)) continue;
+    if (!envMatch && !configSeed && /(?:callback[_-]?host|preset[_-]?host)/iu.test(symbol)) continue;
     const context = lines.slice(Math.max(0, index - 1), Math.min(lines.length, index + 2)).join(" ");
     const classification = candidateClass({ path, symbol, line, expressionKind });
     const sensitive = classification.candidate_class === "secret_candidate";

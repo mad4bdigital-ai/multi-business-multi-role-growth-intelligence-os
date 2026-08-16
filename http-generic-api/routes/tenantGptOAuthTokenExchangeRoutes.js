@@ -157,15 +157,19 @@ async function resolveActiveTokenSubject(pool, { user_id, tenant_id = null } = {
          FROM \`memberships\` m
          JOIN \`tenants\` t ON t.tenant_id = m.tenant_id AND t.status = 'active'
         WHERE m.user_id = ? AND m.tenant_id = ? AND m.status = 'active'
-        LIMIT 1`
+        ORDER BY m.id ASC
+        LIMIT 2`
     : `SELECT m.tenant_id
          FROM \`memberships\` m
          JOIN \`tenants\` t ON t.tenant_id = m.tenant_id AND t.status = 'active'
         WHERE m.user_id = ? AND m.status = 'active'
-        ORDER BY m.granted_at ASC
-        LIMIT 1`;
+        ORDER BY m.granted_at ASC, m.id ASC
+        LIMIT 2`;
   const membershipParams = requestedTenantId ? [userId, requestedTenantId] : [userId];
   const [membershipRows] = await pool.query(membershipSql, membershipParams);
+  if (membershipRows.length > 1) {
+    return { ok: false, outcome: "membership_ambiguous" };
+  }
   const membership = membershipRows?.[0] || null;
   if (!membership?.tenant_id) {
     return { ok: false, outcome: "membership_inactive" };
@@ -366,7 +370,8 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       const pool = resolvePool();
       const refreshReadiness = await refreshReady(deps.env || process.env, pool);
       tokenQuery = (sql, params) => pool.query(sql, params);
-      const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery });
+      const requestHost = String(req.headers?.["x-forwarded-host"] || req.headers?.host || "").split(",")[0].trim().toLowerCase();
+      const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery, requestHost });
       tokenLogContext.client_validation_source = clientValidation.source || null;
       if (!clientValidation.ok) {
         log({

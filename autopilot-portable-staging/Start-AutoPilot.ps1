@@ -233,12 +233,17 @@ try {
     if ($effectiveEnv -notmatch '(?im)^MIGRATION_APPLIED=false\s*$' -or $effectiveEnv -notmatch '(?im)^DATABASE_MUTATED=false\s*$') { Fail "Mutation safety flags must be present and exactly false" }
     if ($StartTunnel -and (Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"))) { Fail "StartTunnel requires TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET when Staging GPT is enabled" }
     if ($StartTunnel -and (Read-EnvValue $EnvFile "REMOTE_MCP_ENABLED") -eq "true" -and (Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_SIGNING_SECRET"))) { Fail "StartTunnel requires REMOTE_MCP_OAUTH_SIGNING_SECRET when Staging MCP OAuth is enabled" }
+    $activationGatewayEnabled = (Read-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
+    if ($activationGatewayEnabled -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET"))) { Fail "Activation Staging Gateway requires TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" }
     if ($effectiveEnv -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { Fail "Staging SSO cookie mode must be host_only" }
-    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$') { Fail "Staging tunnel must expose exactly dev.mad4b.com and mcp_dev.mad4b.com" }
+    if ($activationGatewayEnabled) {
+        if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com,activation_dev\.mad4b\.com\s*$') { Fail "Enabled Activation Staging Gateway requires exact dev, mcp_dev, and activation_dev hostnames" }
+    } elseif ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$') { Fail "Disabled Activation Gateway requires exactly dev.mad4b.com and mcp_dev.mad4b.com" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://app:8080\s*$') { Fail "Staging tunnel origin must be exactly http://app:8080" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_LOGLEVEL=info\s*$') { Fail "Staging tunnel loglevel must remain info; debug may expose request headers" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
-    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com|activation_dev\.mad4b\.com)') { Fail "Forbidden Production or reserved-disabled hostname found in staging tunnel list" }
+    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }
+    if (-not $activationGatewayEnabled -and $effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*activation_dev\.mad4b\.com') { Fail "activation_dev.mad4b.com requires ACTIVATION_STAGING_GATEWAY_ENABLED=true" }
 
     $composeArgs = @("compose", "-f", $ComposeBase, "-f", $ComposeStage, "--env-file", $EnvFile)
     Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
