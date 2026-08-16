@@ -2,36 +2,36 @@
 
 ## النطاق
 
-يراجع هذا التدقيق علاجات AutoPilot وStaging وActivation Gateway وProduction promotion وHostinger R7 وgenerated artifacts وGitHub Actions. لا يجيز هذا الملف أي نشر Production أو provider mutation؛ جميع readbackات Production يجب أن تبقى GET-only.
+يراجع هذا التدقيق علاجات AutoPilot وStaging وActivation Gateway وProduction promotion وHostinger R7 وRemote MCP/OAuth trusted ingress وhost authority وDNS policy وE2E maintenance governance وgenerated artifacts. لا يجيز هذا الملف أي نشر Production أو Cloudflare/Hostinger/provider mutation؛ وتبقى R7 سلطة GET-only حصراً.
+
+> ملاحظة: لا تُثبت هذه الوثيقة SHA ثابتة للفرع لأن generated-state writers قد تحرك رأس PR أثناء التقارب. GitHub live ref وexact-head checks هما السلطة عند أي قرار كتابة أو دمج.
 
 ## مصفوفة الأسباب الجذرية
 
-| المعرّف | المشكلة المرصودة | السبب الجذري | الإصلاح الدائم | اختبار القبول | الحالة |
-|---|---|---|---|---|---|
-| G-01 | `action_required` مع jobs فارغة على عدة workflows | GitHub يوقف workflows المحمية قبل إنشاء jobs، لذلك لا يمكن اعتبارها نجاحاً أو فشلاً فنياً | توثيق approval boundary، وتقليل workflows المطلوبة إلى authoritative checks، وربط workflow_call حيث يلزم | لا توجد `action_required` على الرأس النهائي، أو يوجد receipt صريح للموافقة | مفتوح خارجياً |
-| G-02 | inventory/evaluation يتغيران تلقائياً بعد الدفع | generated-artifact writer يعمل بعد push ويخلق رأساً جديداً، ما يبدّل exact SHA ويعيد تشغيل CI | جعل generation جزءاً من writer محكوم قبل إنشاء PR، أو جعل post-push refresh يعيد CI على الرأس الجديد تلقائياً مع CAS | inventory/evaluation check أخضر على نفس الرأس الذي سيُراجع | قيد المعالجة |
-| G-03 | E2E `feature_change_missing_e2e_phase_contract` وruntime coverage | عقود E2E لا تتغير مع test/runtime files الجديدة | تحديث `scope.include` و`evidence_paths` و`tests` داخل العقد نفسه ثم تشغيل evaluator على commit الناتج | evaluator المحلي يخرج `findings=[]` | عولج محلياً |
-| G-04 | Work Map/Derived State stale بعد generated refresh | writers متعددة تنتج artifacts مشتقة بترتيب غير ذري | release recipe واحد يكتب artifacts ويعيد فحصها قبل الدفع؛ منع أي writer متوازٍ على نفس الرأس | Work Map وDerived State convergence على exact SHA | مفتوح/يتطلب writer |
-| G-05 | R7 يعيد 503 رغم نجاح Git/CI | Hostinger runtime activation غير مثبت أو لا يقدم SHA/branch المتوقع؛ R7 لا يملك build/deploy evidence كافياً | post-merge reconciler بمهلة محددة يربط build evidence بـProduction SHA ثم يشغّل R7 تلقائياً؛ لا يعلن Current عند 503 | `/health`, `/version`, `/deployment-info`, `/connector-agent-version` كلها 200 وتطابق SHA وProduction | مفتوح تشغيلياً |
-| G-06 | R7 يبدأ من issue comment فقط | `issue_comment` مع author-id ثابت، ولا يوجد push/workflow_run trigger تلقائي | إضافة trigger موثوق من protected Production push أو workflow_run، مع exact SHA وCAS وidempotent session | دمج ناجح يبدأ readback بلا تعليق يدوي | مفتوح داخل PR متابعة |
-| G-07 | نقص `TENANT_GPT_SSO_SIGNING_SECRET` في Production preflight | startup contract لا يمنع promotion قبل فحص secret presence | preflight يتحقق من وجود secret metadata فقط دون قراءته، ويصنف `blocked_secret_contract` | deployment لا يبدأ عند غياب secret، ولا يظهر secret payload في evidence | قيد التدقيق |
-| G-08 | AutoPilot كان يحتاج إصلاحات يدوية على Windows | env defaults وempty-secret replacement وbackup quarantine لم تكن جزءاً من المسار | دمج exact-SHA، protected-file guard، backup quarantine خارج repo، local-only secret generation، host defaults وInteractive logon | تشغيل Zero Click من External SSD بعد clean tree | عولج في PR |
-| G-09 | Production/Staging authority mixing risk | عدة workflows وgenerated writers تتعامل مع main/Production دون state machine موحدة | promotion_session_id مشتق من repository/release-cut/pinned Production SHA، مع CAS قبل كل mutation وفصل certifier/merger/reconciler | أي ref movement يؤدي إلى Blocked وطلب تفويض جديد | قيد التصميم |
-| G-10 | الفحوص العرضية تختلط بالدليل السلطوي | عدد كبير من workflows العامة يظهر بجانب بوابات الترقية | check سلطوي واحد `Governed Production Promotion / Ready` يضم receipts للبوابات السلطوية فقط | قرار الترقية لا يعتمد على check غير مسجل | قيد التصميم |
+| المعرّف | المشكلة المرصودة | السبب الجذري | الإصلاح/الحماية داخل PR | الحالة المتبقية |
+|---|---|---|---|---|
+| G-01 | `action_required` مع jobs فارغة على workflows محمية | GitHub قد يوقف workflow قبل إنشاء jobs | إبقاءها حالة حوكمة لا نجاحاً فنياً وعدم استخدامها كدليل جاهزية | خارجي/صلاحيات GitHub |
+| G-02 | inventory/evaluation وderived state تحرك رأس PR بعد الدفع | writers محكومة متعددة تتقارب بعد تغييرات runtime/governance | CAS قبل كل كتابة، عدم force-push، والحفاظ على outputs التي تكتبها السلطات الرسمية | يلزم exact-head convergence قبل الدمج |
+| G-03 | `parallel_work_pr_branch_not_declared` رغم أن workstreams المتأثرة مدمجة | single-PR maintenance gate تطلب `secrets_included=false` بينما E2E schema كانت تمنع الحقل، والعقد لم تغط كل runtime files | السماح الاختياري بالحقل في schema مع `const:false`، توسيع عقد `.changes/e2e` ليغطي كل runtime files، وإضافة regression ديناميكية للقبول/الرفض | يغلق بعد نجاح E2E Phase Governance على الرأس الجديد |
+| G-04 | Work Map/Derived State تصبح stale بعد تغير source files | مشتقات متعددة لها writers مستقلة | عدم الكتابة اليدوية للمشتقات، وترك writers الرسمية تعيد التقارب بعد آخر source commit | يلزم readback نهائي |
+| G-05 | Hostinger R7 أعادت 503 رغم نجاح Git promotion | branch promotion لا يثبت runtime activation | R7 تبقى negative حتى identity endpoints تعيد 200 وتطابق exact Production SHA/branch | تشغيلي/Hostinger runtime |
+| G-06 | R7 كانت تعتمد على issue comment فقط | لم يكن هناك trigger مباشر من protected Production push | أضيف trigger `push` إلى Production مع exact-SHA/CAS مع إبقاء GET-only | داخل PR |
+| G-07 | `TENANT_GPT_SSO_SIGNING_SECRET` قد يغيب عند Production startup | deployment/startup contract لم يكن يغلق هذا الشرط مبكراً بما يكفي | توثيق واختبار شرط secret metadata دون قراءة payload أو توليد بديل Production | provisioning الفعلي منفصل |
+| G-08 | AutoPilot احتاج إصلاحات يدوية على Windows | env defaults وempty-secret replacement وbackup quarantine وScheduled Task contract غير مكتملة | دمج exact-SHA، local-only secrets، backup quarantine، host defaults وInteractive logon | داخل PR |
+| G-09 | OAuth discovery قد تفشل 503 رغم صحة route code | Production trusted ingress يتطلب ثلاث attestations مستقلة | توثيق env الثلاثة، fail-closed metadata routes، Production-mode regression، وتصنيف `trusted_ingress_attestation_required` | provider ingress attestation فعلية منفصلة |
+| G-10 | MCP وroot discovery كانا يختلفان في الثقة بـ`x-forwarded-host` | سلطتان مختلفتان لاستخراج external host | `trustedRequestHost.js` سلطة مشتركة مع رفض malformed/multi-value inputs واختبار spoofing | داخل PR |
+| G-11 | repository DNS policy قالت CNAME بينما live Cloudflare evidence السابقة كانت proxied A | العقد خلط invariant المعماري مع syntax record واحدة | allowed set `[A,CNAME]` مع `dns_proxy_required=true` وHostinger origin invariant | live Cloudflare readback منفصل؛ لا mutation هنا |
+| G-12 | الحاجة إلى إثبات MCP transport الحقيقي | R7 GET-only لا يمكنها إثبات `POST /mcp initialize` دون توسيع سلطة readback | تم رفض توسيع R7 إلى POST والحفاظ على GET-only governance؛ لا يدّعي هذا PR transport readiness | live POST initialize يحتاج تفويض/دليل تشغيلي منفصل بعد merge/deploy |
 
 ## قواعد عدم التخفيف
 
-لا يستخدم هذا الإصلاح `force-push` أو `reset --hard` على عمل المستخدم، ولا يقرأ credential payloads، ولا يشغّل SQL migrations، ولا ينفذ Cloudflare/Hostinger mutation داخل readback. لا تعتبر حالة `action_required` نجاحاً، ولا تعتبر 503 دليلاً على أن Production Current.
+- لا `force-push` ولا كتابة مباشرة على `main` أو `Production`.
+- لا credential payload read، ولا SQL/migration apply، ولا Cloudflare/Hostinger mutation داخل readback.
+- لا تُعتبر 503 أو `action_required` نجاحاً.
+- لا يُستنتج MCP transport readiness من OAuth GET metadata فقط.
+- أي تحرك في PR HEAD يلغي صلاحية exact-head evidence السابقة ويستلزم إعادة التحقق.
+- generated artifacts تُحدَّث بواسطة writers الرسمية فقط متى كانت لها authority معروفة.
 
 ## قرار التقدم
 
-لا يُطلب Owner Gate على رأس جديد قبل استقرار generated artifacts وCI. أي تحديث آلي للرأس يلغي التفويض السابق. Production لا تُعلن Current إلا بعد R7 ناجح يثبت HTTP 200 والـSHA والـbranch، مع إبقاء `provider_mutation=false` و`database_mutation=false`.
-
-## خطة الإصلاح
-
-يبدأ الإصلاح بإغلاق E2E وgenerated convergence، ثم معالجة workflow approval boundary وpost-push refresh idempotency، ثم إضافة Production preflight وR7 push/workflow_run reconciler. بعد ذلك فقط يعاد تقييم Owner Gate وmergeability. لا يُنفذ نشر Production أثناء مرحلة التدقيق.
-
-## الحالة الحالية الموثقة
-
-رأس PR #7384 الأخير عند بدء التدقيق هو `1b3109d5345cc25330cb67029a33478a7c41eb7c`. الرأس المحلي متزامن مع الفرع البعيد. ظهرت workflows كثيرة بحالة `action_required` مع `jobs=[]`، وهي حالة حوكمة/صلاحية تشغيل وليست دليلاً على نجاح فني.
-
+لا يُطلب merge/Owner Gate نهائي على رأس غير مستقر. يجب أولاً أن ينجح E2E Phase Governance بعد إصلاح maintenance contract/schema، ثم تتقارب generated artifacts وCI على exact HEAD واحد. بعد الدمج لا تُعلن Production current إلا من R7 ناجحة على exact Production SHA، ولا تُعلن MCP transport ready إلا بعد تحقق POST منفصل ومصرح به.
