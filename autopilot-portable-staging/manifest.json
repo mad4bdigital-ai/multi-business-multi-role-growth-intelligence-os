@@ -186,7 +186,7 @@
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e"
+      "sha256": "0a474359f5827b588ff9d5e2593e67147fc64c5a2adfac39ee4996466a677c14"
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -230,7 +230,7 @@
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
-      "sha256": "a62ec6f19259a275a3fe4a6f2dd506f2f8d8b607ef27348e9b70b5464a80b0d3"
+      "sha256": "8162adfdb163952df55b28fa43ed613687bc1100bcd5946f9d871e345e221cdf"
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
