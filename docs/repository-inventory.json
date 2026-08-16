@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7084,
-    "bytes": 68088583,
+    "bytes": 68088575,
     "lines": 1595280,
     "directories": 265,
     "categories": 13
@@ -56510,9 +56510,9 @@
       "path": "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 18722,
+      "bytes": 18714,
       "lines": 366,
-      "sha256": "c17ea31925620a9978bf72e308850d261abfc8f3e6f010a9e46863972a961ff2",
+      "sha256": "59054ded693c168db3d5512c1a44200ad5dfcc2cf472e0b1312bc54ce1c72fa0",
       "mode": "644",
       "executable": false,
       "generated": false
