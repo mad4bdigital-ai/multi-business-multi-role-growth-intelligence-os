@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7086,
-    "bytes": 67875035,
-    "lines": 1589413,
+    "bytes": 67875481,
+    "lines": 1589425,
     "directories": 265,
     "categories": 13
   },
@@ -11621,9 +11621,9 @@
       "path": ".github/workflows/staging-openapi-governance.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 1026,
+      "bytes": 1044,
       "lines": 36,
-      "sha256": "f240b83c945168e25755750178ddeabfa7acf38138b3d9bc784f9938bce0231f",
+      "sha256": "12a8855967bbcc3ca906b7d380b13929233d2fb37e5ecbc6d67920c4a0f1343a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32919,7 +32919,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "65e30f082dee9e81167f361041caccae29e342da02544bd150b289e904e9e3b4",
+      "sha256": "a2d655f0a4b68aad4e7093b98f441409afa8f93f580f741b2cbcde5706f7c87a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33084,7 +33084,7 @@
       "extension": ".md",
       "bytes": 47974,
       "lines": 517,
-      "sha256": "b0ebb125c5b9056223081c95ed5b014eef84e14515fad45b35ab3757d4c205ed",
+      "sha256": "3babdc645d70b2a41c804cc476f9570611e5bf466f4d58e0eac2f67a3e976da3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49153,9 +49153,9 @@
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 6312,
-      "lines": 188,
-      "sha256": "4a2550ec86be879159bca3cf340ba2f43fd1ae77d0d70159068375c13349b4db",
+      "bytes": 6740,
+      "lines": 200,
+      "sha256": "ca2fb18bade7df2a0384114be4bc390d4f35005c4b3d6b28e6b111b3d552fbc0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81286,7 +81286,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "43b1ce3963620b00ffc1e37ecba8c3561f7906da44f3b71f3ac7711ab62f069c",
+      "sha256": "5b09ecf7841bc40fa45986582e1428da6adced57fb410c2b1809f301beb583c4",
       "mode": "644",
       "executable": false,
       "generated": false

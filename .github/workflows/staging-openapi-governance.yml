@@ -32,4 +32,4 @@ jobs:
         with:
           node-version: 22
       - name: Validate governed staging schemas
-        run: npm run governance:staging-openapi
+        run: node scripts/validate-staging-openapi-governance.mjs
