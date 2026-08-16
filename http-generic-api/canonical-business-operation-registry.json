@@ -4,7 +4,7 @@
   "environment_policy": {
     "active_environment": "staging",
     "allowed_public_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
-    "blocked_public_hosts": ["activation_dev.mad4b.com", "auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
+    "blocked_public_hosts": ["activation-dev.mad4b.com", "auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
     "production_mutation_allowed": false,
     "provider_mutation_allowed": false,
     "secrets_included": false

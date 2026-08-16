@@ -9,7 +9,7 @@
       "mcp_dev.mad4b.com"
     ],
     "blocked_public_hosts": [
-      "activation_dev.mad4b.com",
+      "activation-dev.mad4b.com",
       "auth.mad4b.com",
       "mcp.mad4b.com",
       "activation.mad4b.com"
