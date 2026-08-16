@@ -86,7 +86,7 @@ assert.match(autopilotScript, /Wait-ServiceHealthy/);
 assert.match(autopilotScript, /Repair-ManifestLineEndings/);
 assert.match(autopilotScript, /Write-ServiceFailureDiagnostics/);
 assert.match(read("autopilot-portable-staging/One-Click-Staging.ps1"), /Get-EligibilityWorkflowRuns/);
-assert.match(read("autopilot-portable-staging/One-Click-Staging.ps1"), /Global\\\\Mad4bPortableStagingAutoPilot/);
+assert.match(read("autopilot-portable-staging/One-Click-Staging.ps1"), /Global\\Mad4bPortableStagingAutoPilot/);
 assert.match(windowsPreflight, /--list.*--verbose/);
 assert.match(runtimeOAuthTest, /staging_runtime_oauth_profile=PASS/);
 assert.match(cloneScript, /Assert-UniqueEnvKeys/);
