@@ -182,7 +182,7 @@ export function registerRoutes(app, deps) {
   // root-level protected routers that can return missing_backend_api_key.
   app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildLegalRoutes(deps));
-  app.use(buildRootDiscoveryRoutes());
+  app.use(buildRootDiscoveryRoutes(deps));
   app.use(buildConnectRoutes(deps));
   app.use(buildPlatformFrontendRoutes());
   // Tenant Connect API must mount before root-level admin/protected routers

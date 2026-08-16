@@ -13,6 +13,7 @@ import {
   TENANT_GPT_ACTIVATION_RESOURCE,
 } from "../tenantGptOAuthResourceProfile.js";
 import { resolveTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
+import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
@@ -146,20 +147,25 @@ function schemaFilesForScope(scope) {
   ]);
 }
 
-function requestHost(req) {
-  return String(req.headers["x-forwarded-host"] || req.headers.host || "")
-    .split(",")[0]
-    .trim()
-    .toLowerCase()
-    .replace(/:\d+$/, "");
+function unmatchedHostResponse(res) {
+  return res.status(404).json({
+    ok: false,
+    error: {
+      code: "unmatched_hostname",
+      message: "This hostname is not declared as a routable platform surface.",
+    },
+  });
 }
 
-export function buildRootDiscoveryRoutes() {
+export function buildRootDiscoveryRoutes(deps = {}) {
   const router = Router();
+  const env = deps.env || process.env;
+  const requestHost = (req) => resolveTrustedRequestHost(req, env);
 
   router.get("/:schemaFile(openapi.*.yaml)", async (req, res) => {
     const host = requestHost(req);
-    const scope = SCOPES_BY_HOST[host] || DEFAULT_SCOPE;
+    const scope = SCOPES_BY_HOST[host];
+    if (!scope) return unmatchedHostResponse(res);
     const requestedFile = String(req.params.schemaFile || "").trim();
     const allowedSchemaFiles = schemaFilesForScope(scope);
 
@@ -256,7 +262,7 @@ export function buildRootDiscoveryRoutes() {
     const stagingPresetHost = TENANT_GPT_IS_STAGING_RUNTIME && host === "dev.mad4b.com";
     const stagingActivationPresetHost = TENANT_GPT_IS_STAGING_RUNTIME
       && host === "activation-dev.mad4b.com"
-      && String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
+      && String(env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
     if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com" && !stagingPresetHost && !stagingActivationPresetHost) {
       return res.status(404).json({
         ok: false,
@@ -296,7 +302,8 @@ export function buildRootDiscoveryRoutes() {
 
   router.all("/", (req, res) => {
     const host = requestHost(req);
-    const scope = SCOPES_BY_HOST[host] || DEFAULT_SCOPE;
+    const scope = SCOPES_BY_HOST[host];
+    if (!scope) return unmatchedHostResponse(res);
 
     return res.status(200).json({
       ok: true,

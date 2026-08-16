@@ -253,6 +253,7 @@ jobs:
           node test-openapi-split-governance.mjs
           node test-openapi-split-regeneration-parity.mjs
           node test-local-connector-capability-installer-grants.mjs
+          node test-governed-autopilot-production-deployment.mjs
 
       - name: Reject stale readiness evidence
         working-directory: http-generic-api

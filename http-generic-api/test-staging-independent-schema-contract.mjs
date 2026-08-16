@@ -11,6 +11,7 @@ process.env.TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com
 process.env.TENANT_GPT_STAGING_RESOURCE_URL = "https://dev.mad4b.com";
 process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp_dev.mad4b.com";
 process.env.REMOTE_MCP_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com/auth/mcp";
+process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");

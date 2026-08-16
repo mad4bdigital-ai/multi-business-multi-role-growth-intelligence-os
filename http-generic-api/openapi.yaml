@@ -23001,3 +23001,7 @@ paths:
           description: Governed deployment conflict including production_deployment_branch_authority_mismatch, production_deployment_sha_stale, target/path conflict, or Hostinger target-policy denial.
         "502":
           description: GitHub authority readback or SSH deployment failed before acceptance.
+  /admin/act-as-user/sessions:
+    $ref: ./openapi/openapi.custom-gpt.staging-act-as-user-control.yaml#/paths/~1admin~1act-as-user~1sessions
+  /admin/act-as-user/sessions/{sessionId}/revoke:
+    $ref: ./openapi/openapi.custom-gpt.staging-act-as-user-control.yaml#/paths/~1admin~1act-as-user~1sessions~1{sessionId}~1revoke
