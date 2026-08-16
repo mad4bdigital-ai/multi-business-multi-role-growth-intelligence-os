@@ -52,6 +52,25 @@
     "database_mutation_allowed": false,
     "provider_mutation_allowed": false
   },
+  "act_as_user": {
+    "status": "not_bound",
+    "mode": "hierarchical_tenant_delegation",
+    "deny_until_bound": true,
+    "allowed_actor_roles": ["owner", "admin", "supervisor", "manager", "tenant_responsible"],
+    "target_must_be_lower_role": true,
+    "same_tenant_required": true,
+    "effective_authority_rule": "actor_intersection_target_intersection_tenant_intersection_tool",
+    "allowed_operations": ["call_tool", "execute"],
+    "required_request_fields": ["tenant_id", "target_user_id", "reason", "owner", "expires_at", "correlation_id", "operation_scope"],
+    "max_ttl_seconds": 900,
+    "requires_target_membership": true,
+    "requires_active_delegation": true,
+    "requires_audit_record": true,
+    "requires_readback": true,
+    "production_mutation_allowed": false,
+    "database_mutation_allowed": false,
+    "provider_mutation_allowed": false
+  },
   "environment_isolation": {
     "staging_resource": "https://dev.mad4b.com",
     "production_resource": "https://auth.mad4b.com",

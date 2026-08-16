@@ -26,6 +26,14 @@ Tenant inspection requires an explicit read-only request containing:
 
 The inspection contract permits only `list_routes`, `list_tools`, `list_catalogs`, and `read_schema`. It denies tool calls, execute, create, update, delete, deploy, activation, grant, and revoke operations. Context and authority resolution must both succeed, and Admin context may not borrow Tenant authority. The contract is explicitly `runtime_binding.status=not_bound` with `deny_until_bound=true`; it must not be interpreted as an already-live Admin-to-Tenant inspection endpoint.
 
+## Hierarchical Act-as-User contract
+
+The general model is not limited to platform Admin. A Tenant Responsible, Owner, Admin, Supervisor, or Manager may request an Act-as-User session for a lower-ranked active member of the same Tenant. The target user must never be outside the actor's Tenant or above the actor's effective role.
+
+For `call_tool` and `execute`, the effective authority is the intersection of the actor's authority, target user's authority, Tenant boundary, and tool-level capability. It is not the union of the two identities, and it cannot grant a capability the target user does not already possess. Every request requires `tenant_id`, `target_user_id`, `operation_scope`, reason, owner, expiry, correlation ID, active target membership, and an active delegation record. The maximum session TTL is 900 seconds.
+
+The contract is currently `status=not_bound` and `deny_until_bound=true`. Therefore, the schema explicitly describes the intended capability without enabling live impersonation. A future runtime adapter must issue a distinct Act-as-User session, preserve both actor and target identities in every call log, enforce lower-role ordering and authority intersection before dispatch, and support immediate revocation.
+
 ## Environment isolation
 
 Staging resources are `https://dev.mad4b.com`. Production resources are `https://auth.mad4b.com` and `https://activation.mad4b.com` where applicable. Cross-environment access is denied by policy and checked in CI. All Custom GPT schemas remain at or below the hard limit of 30 `operationId` entries.

@@ -46,6 +46,18 @@ assert(inspection.required_request_fields.includes("expires_at"), "inspection mu
 assert(inspection.required_request_fields.includes("correlation_id"), "inspection must require audit correlation");
 assert(inspection.allowed_operations.every((op) => ["list_routes", "list_tools", "list_catalogs", "read_schema"].includes(op)), "inspection allowed operations must remain read-only discovery operations");
 assert(inspection.denied_operations.some((op) => ["call_tool", "execute", "create", "update", "delete", "deploy"].includes(op)), "inspection must deny mutations/tool execution");
+const actAsUser = inspection.act_as_user || {};
+assert(actAsUser.status === "not_bound", "Act-as-User must remain unbound until runtime implementation and evidence exist");
+assert(actAsUser.deny_until_bound === true, "Act-as-User must deny until runtime binding");
+assert(actAsUser.target_must_be_lower_role === true, "Act-as-User target must be lower role");
+assert(actAsUser.same_tenant_required === true, "Act-as-User must require same Tenant");
+assert(actAsUser.effective_authority_rule === "actor_intersection_target_intersection_tenant_intersection_tool", "Act-as-User must use effective authority intersection");
+assert(actAsUser.allowed_operations?.includes("call_tool") && actAsUser.allowed_operations?.includes("execute"), "Act-as-User contract must explicitly scope call/execute");
+for (const field of ["tenant_id", "target_user_id", "reason", "owner", "expires_at", "correlation_id", "operation_scope"]) {
+  assert(actAsUser.required_request_fields?.includes(field), `Act-as-User must require ${field}`);
+}
+assert(Number(actAsUser.max_ttl_seconds) <= 900, "Act-as-User TTL must be at most 900 seconds");
+assert(actAsUser.requires_target_membership === true && actAsUser.requires_active_delegation === true, "Act-as-User must require active target membership and delegation");
 
 assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_ID"), "staging preset must use a dedicated OAuth client ID namespace");
 assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"), "staging preset must use a dedicated OAuth secret namespace");
