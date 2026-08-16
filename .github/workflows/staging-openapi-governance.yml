@@ -1,0 +1,35 @@
+name: Staging OpenAPI Governance
+
+on:
+  pull_request:
+    paths:
+      - 'http-generic-api/openapi/**'
+      - 'http-generic-api/config/staging-openapi-mcp-policy.json'
+      - 'http-generic-api/config/admin-tenant-inspection-policy.json'
+      - 'scripts/validate-staging-openapi-governance.mjs'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'http-generic-api/openapi/**'
+      - 'http-generic-api/config/staging-openapi-mcp-policy.json'
+      - 'http-generic-api/config/admin-tenant-inspection-policy.json'
+      - 'scripts/validate-staging-openapi-governance.mjs'
+      - 'package.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Staging OpenAPI and Tenant Inspection Governance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate governed staging schemas
+        run: npm run governance:staging-openapi

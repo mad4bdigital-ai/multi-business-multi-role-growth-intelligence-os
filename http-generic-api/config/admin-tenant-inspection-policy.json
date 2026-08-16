@@ -1,0 +1,54 @@
+{
+  "schema_version": "mad4b.admin-tenant-inspection-policy.v1",
+  "mode": "read_only_shadow",
+  "fail_closed": true,
+  "admin_context_may_borrow_tenant_authority": false,
+  "required_request_fields": [
+    "tenant_id",
+    "inspection_scope",
+    "reason",
+    "owner",
+    "expires_at",
+    "correlation_id"
+  ],
+  "allowed_scopes": [
+    "tenant_routes",
+    "tenant_tools",
+    "tenant_catalogs",
+    "tenant_openapi_schema"
+  ],
+  "allowed_operations": [
+    "list_routes",
+    "list_tools",
+    "list_catalogs",
+    "read_schema"
+  ],
+  "denied_operations": [
+    "call_tool",
+    "execute",
+    "create",
+    "update",
+    "delete",
+    "deploy",
+    "activate",
+    "grant",
+    "revoke"
+  ],
+  "controls": {
+    "tenant_context_required": true,
+    "explicit_delegation_required": true,
+    "authority_resolution_required": true,
+    "expiry_required": true,
+    "max_ttl_seconds": 900,
+    "audit_required": true,
+    "readback_required": true,
+    "production_mutation_allowed": false,
+    "database_mutation_allowed": false,
+    "provider_mutation_allowed": false
+  },
+  "environment_isolation": {
+    "staging_resource": "https://dev.mad4b.com",
+    "production_resource": "https://auth.mad4b.com",
+    "cross_environment_resource_access": false
+  }
+}
