@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7117,
-    "bytes": 68960645,
-    "lines": 1616975,
+    "bytes": 68972431,
+    "lines": 1617141,
     "directories": 265,
     "categories": 13
   },
@@ -83766,7 +83766,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "7413417aae53f21dbd9cc1765cc5a9de9ee2d0199e4b11ba0f9d2aacbb34f156",
+      "sha256": "604f6e791c6433ee86a368757f8c43fc271a6f0bd3fb27b8c4aca9b4abea13b4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83775,9 +83775,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
       "extension": ".json",
-      "bytes": 256302,
-      "lines": 6195,
-      "sha256": "7a3c464bbd43831c1ab6ea4782b626edbe90fb0679aa47d8d96ad2871231d202",
+      "bytes": 268088,
+      "lines": 6361,
+      "sha256": "b36c4719f07397544c4726dff3214a87ded4e9f8915fba7f47eceba0b88e7d00",
       "mode": "644",
       "executable": false,
       "generated": false

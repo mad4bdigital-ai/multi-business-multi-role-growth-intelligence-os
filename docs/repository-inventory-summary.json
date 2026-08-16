@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7117,
-    "bytes": 68960645,
-    "lines": 1616975,
+    "bytes": 68972431,
+    "lines": 1617141,
     "directories": 265,
     "categories": 13
   },
@@ -314,16 +314,16 @@
       "lines": 7691
     },
     {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "category": "api-contracts",
+      "bytes": 268088,
+      "lines": 6361
+    },
+    {
       "path": "docs/surface-contract-safety-attestations.json",
       "category": "documentation",
       "bytes": 265603,
       "lines": 7914
-    },
-    {
-      "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
-      "category": "api-contracts",
-      "bytes": 256302,
-      "lines": 6195
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",
