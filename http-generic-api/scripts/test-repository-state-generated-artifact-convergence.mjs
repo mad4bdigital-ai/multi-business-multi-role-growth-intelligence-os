@@ -117,7 +117,16 @@ check("evaluation-verifier-is-exact-head-read-only", () => {
 check("evaluation-bootstrap-reuses-trusted-inventory-gate", () => {
   assert.match(evaluationWorkflow, /Classify read-only repository-state bootstrap/u);
   assert.match(evaluationWorkflow, /scripts\/repository-inventory-verification-gate\.mjs/u);
-  assert.match(evaluationWorkflow, /git diff --quiet origin\/main\.\.\.HEAD -- scripts\/repository-inventory-verification-gate\.mjs/u);
+  assert.match(evaluationWorkflow, /trusted_main_sha="\$\(git rev-parse origin\/main\)"/u);
+  assert.match(
+    evaluationWorkflow,
+    /git show "\$\{trusted_main_sha\}:scripts\/repository-inventory-verification-gate\.mjs" > "\$trusted_gate"/u,
+  );
+  assert.match(evaluationWorkflow, /node "\$trusted_gate"/u);
+  assert.doesNotMatch(
+    evaluationWorkflow,
+    /git diff --quiet origin\/main\.\.\.HEAD -- scripts\/repository-inventory-verification-gate\.mjs/u,
+  );
   assert.match(evaluationWorkflow, /bootstrap_pending=true/u);
   assert.match(evaluationWorkflow, /deterministic_generation_verified/u);
 });
