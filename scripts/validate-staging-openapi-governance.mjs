@@ -53,11 +53,16 @@ assert(actAsUser.target_must_be_lower_role === true, "Act-as-User target must be
 assert(actAsUser.same_tenant_required === true, "Act-as-User must require same Tenant");
 assert(actAsUser.effective_authority_rule === "actor_intersection_target_intersection_tenant_intersection_tool", "Act-as-User must use effective authority intersection");
 assert(actAsUser.allowed_operations?.includes("call_tool") && actAsUser.allowed_operations?.includes("execute"), "Act-as-User contract must explicitly scope call/execute");
-for (const field of ["tenant_id", "target_user_id", "reason", "owner", "expires_at", "correlation_id", "operation_scope"]) {
+for (const field of ["tenant_id", "target_user_id", "reason", "owner", "expires_at", "correlation_id", "operation_scope", "idempotency_key"]) {
   assert(actAsUser.required_request_fields?.includes(field), `Act-as-User must require ${field}`);
 }
 assert(Number(actAsUser.max_ttl_seconds) <= 900, "Act-as-User TTL must be at most 900 seconds");
+assert(Number(actAsUser.max_operation_scope_entries) <= 50, "Act-as-User operation scope must remain bounded");
+assert(actAsUser.wildcard_operation_scope_allowed === false, "Act-as-User must reject wildcard operation scopes");
 assert(actAsUser.requires_target_membership === true && actAsUser.requires_active_delegation === true, "Act-as-User must require active target membership and delegation");
+for (const control of ["actor_identity_immutable", "target_identity_immutable", "no_token_substitution", "no_cross_tenant", "no_role_escalation", "replay_protection_required", "idempotency_key_required", "audit_secrets_forbidden", "explicit_per_tool_binding_required", "sensitive_tool_step_up_required"]) {
+  assert(actAsUser.security_controls?.[control] === true, `Act-as-User security control must remain enabled: ${control}`);
+}
 
 assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_ID"), "staging preset must use a dedicated OAuth client ID namespace");
 assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"), "staging preset must use a dedicated OAuth secret namespace");

@@ -34,6 +34,21 @@ For `call_tool` and `execute`, the effective authority is the intersection of th
 
 The contract is currently `status=not_bound` and `deny_until_bound=true`. Therefore, the schema explicitly describes the intended capability without enabling live impersonation. A future runtime adapter must issue a distinct Act-as-User session, preserve both actor and target identities in every call log, enforce lower-role ordering and authority intersection before dispatch, and support immediate revocation.
 
+## Objection review and controls
+
+| Potential objection | Required control | Current status |
+|---|---|---|
+| The actor could become the target or substitute a stronger token | Immutable actor and target identities; no token substitution | Required by contract; runtime adapter pending |
+| A manager could target an equal or higher role | Strict lower-role check and fail-closed role resolution | Required by contract; runtime adapter pending |
+| The request could cross Tenant boundaries | Explicit same-Tenant binding and active target membership | Required by contract; runtime adapter pending |
+| `call` or `execute` could become unrestricted | Per-tool explicit binding and actor ∩ target ∩ Tenant ∩ tool authority | Required by contract; runtime adapter pending |
+| A wildcard scope could silently expand authority | Wildcards rejected; maximum 50 operation-scope entries | Enforced by CI contract guard |
+| A captured session could be replayed | Idempotency key, replay protection, expiry, and revocation | Required by contract; runtime adapter pending |
+| Sensitive tools could be run without extra assurance | Step-up control for sensitive tools | Required by contract; runtime adapter pending |
+| Audit logs could leak credentials or tokens | Secrets forbidden in audit records; actor/target/correlation/readback retained | Required by contract; runtime adapter pending |
+
+These controls deliberately distinguish **design readiness** from **runtime activation**. The PR does not claim that live impersonation is already safe merely because the contract exists; it requires implementation evidence for each control before `status` can move from `not_bound`.
+
 ## Environment isolation
 
 Staging resources are `https://dev.mad4b.com`. Production resources are `https://auth.mad4b.com` and `https://activation.mad4b.com` where applicable. Cross-environment access is denied by policy and checked in CI. All Custom GPT schemas remain at or below the hard limit of 30 `operationId` entries.
