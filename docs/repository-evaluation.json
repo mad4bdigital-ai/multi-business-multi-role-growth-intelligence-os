@@ -2,21 +2,30 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "49142172a24d1d47322ffa993223f5178499dfbbe5e61098bd48968a26cc2463",
+  "inputFingerprint": "264e8b28213338b1355c093f35ab623e9f1c5a08adef4c22848b367ecfd06100",
   "inventory": {
-    "files": 7071,
-    "bytes": 67753358,
+    "files": 7084,
+    "bytes": 67830141,
     "directories": 265,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 161,
-      "explicitPermissions": 161,
+      "workflowCount": 162,
+      "explicitPermissions": 162,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
-      "unpinnedActions": 0,
-      "unpinnedActionRefs": [],
+      "unpinnedActions": 2,
+      "unpinnedActionRefs": [
+        {
+          "path": ".github/workflows/staging-openapi-governance.yml",
+          "reference": "uses: actions/checkout@v4"
+        },
+        {
+          "path": ".github/workflows/staging-openapi-governance.yml",
+          "reference": "uses: actions/setup-node@v4"
+        }
+      ],
       "budget": {
         "max": 160,
         "warning": 155,
@@ -24,7 +33,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7036,
+      "trackedTextFilesScanned": 7049,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -172,7 +181,7 @@
       "status": "open",
       "blocking": false,
       "evidence": {
-        "workflowCount": 161,
+        "workflowCount": 162,
         "maxWorkflowCount": 160,
         "overlapCheck": "passed"
       },
@@ -201,7 +210,7 @@
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1931059
+            "bytes": 1935850
           },
           {
             "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -212,6 +221,29 @@
       "impact": "Large files without an explicit ownership and rationale policy increase review and change costs.",
       "recommendation": "Split or generate the file, or add a bounded rationale to the large-file policy.",
       "lifecycle": "new"
+    },
+    {
+      "gapId": "SEC-CI-UNPINNED-ACTIONS",
+      "domain": "security",
+      "severity": "medium",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "unpinnedActions": 2,
+        "samples": [
+          {
+            "path": ".github/workflows/staging-openapi-governance.yml",
+            "reference": "uses: actions/checkout@v4"
+          },
+          {
+            "path": ".github/workflows/staging-openapi-governance.yml",
+            "reference": "uses: actions/setup-node@v4"
+          }
+        ]
+      },
+      "impact": "Workflow action references are mutable tags or branches and can drift without review.",
+      "recommendation": "Pin every third-party or first-party action reference to a full commit SHA and retain the release tag in a comment.",
+      "lifecycle": "new"
     }
   ],
   "gate": {
@@ -219,7 +251,8 @@
     "blockingGapIds": [],
     "warningGapIds": [
       "AUTO-CI-SURFACE-SIZE",
-      "MAINT-LARGE-TRACKED-FILES"
+      "MAINT-LARGE-TRACKED-FILES",
+      "SEC-CI-UNPINNED-ACTIONS"
     ]
   },
   "baselineDiff": {

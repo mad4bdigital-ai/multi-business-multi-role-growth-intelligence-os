@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7071,
-    "bytes": 67753358,
-    "lines": 1587126,
+    "files": 7084,
+    "bytes": 67830141,
+    "lines": 1588618,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2124,
-      "documentation": 1897,
-      "api-runtime": 1421,
-      "database-migrations": 782,
+      "tests-and-specs": 2128,
+      "documentation": 1898,
+      "api-runtime": 1425,
+      "database-migrations": 783,
       "root-and-other": 277,
-      "api-contracts": 180,
-      "ci-workflows": 161,
+      "api-contracts": 182,
+      "ci-workflows": 162,
       "ci-config": 103,
       "schemas-and-data": 70,
       "connectors-and-edge": 23,
@@ -26,13 +26,13 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2498,
-      ".mjs": 1655,
-      ".js": 984,
-      ".sql": 797,
-      ".json": 771,
-      ".yml": 164,
-      ".yaml": 110,
+      ".md": 2499,
+      ".mjs": 1660,
+      ".js": 987,
+      ".sql": 798,
+      ".json": 772,
+      ".yml": 165,
+      ".yaml": 111,
       ".ps1": 16,
       ".ts": 15,
       ".cs": 14,
@@ -60,10 +60,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3644,
-      "docs": 1801,
+      "http-generic-api": 3654,
+      "docs": 1802,
       "specs": 873,
-      ".github": 264,
+      ".github": 265,
       ".changes": 254,
       "canonicals": 70,
       "local-connector": 23,
@@ -71,8 +71,8 @@
       "autopilot-portable-staging": 18,
       "schemas": 17,
       ".specify": 15,
+      "scripts": 12,
       "src": 12,
-      "scripts": 11,
       "edge": 9,
       "tests": 3,
       ".gitattributes": 1,
@@ -216,17 +216,18 @@
         "openapi:detail-batch:write",
         "openapi:detail-batch:check",
         "openapi:detail-batch:test",
-        "evaluation:loop"
+        "evaluation:loop",
+        "governance:staging-openapi"
       ],
       "dependencies": 0,
       "devDependencies": 4
     }
   ],
   "surfaces": {
-    "workflows": 161,
-    "migrations": 782,
-    "apiContracts": 180,
-    "testSpecFiles": 2206
+    "workflows": 162,
+    "migrations": 783,
+    "apiContracts": 182,
+    "testSpecFiles": 2210
   },
   "largestFiles": [
     {
@@ -244,8 +245,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1931059,
-      "lines": 58392
+      "bytes": 1935850,
+      "lines": 58540
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -316,8 +317,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 212668,
-      "lines": 4536
+      "bytes": 217370,
+      "lines": 4619
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
