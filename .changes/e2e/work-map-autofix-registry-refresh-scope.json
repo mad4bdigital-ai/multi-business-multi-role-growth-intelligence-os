@@ -1,0 +1,71 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-autofix-registry-refresh-scope",
+  "title": "Work Map Autofix registry refresh scope convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-autofix-registry-refresh-scope.json",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the sole governed Work Map writer aligned with the validator when Work Map registry or policy surfaces change, while preserving bounded write authority and fail-closed manifest eligibility.",
+      "e2e_journeys": [
+        {
+          "id": "registry-refresh-scope-matches-validator",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer",
+          "entrypoint": "The regression test reads the Spec Kit Work Map Autofix workflow from the exact repository checkout.",
+          "terminal_outcome": "Registry-affecting changes expand the writer refresh set to the same execution-ready Work Map manifests validated by the gate; ordinary pull requests remain diff-scoped, invalid manifest states fail closed, and remote writes remain bounded.",
+          "steps": [
+            "Inspect the Work Map Autofix workflow without dispatching it.",
+            "Require registry-refresh expansion to be conditional on the same Work Map registry or policy change class used by validation.",
+            "Require the refresh inventory to include only execution-ready manifests and reject invalid or ambiguous review states.",
+            "Require the effective writer set to be the bounded union of target-derived bindings and registry-refresh bindings.",
+            "Require write, staging, and verification loops to consume the same bounded writer inventory.",
+            "Fail the regression if the writer returns to PR-diff-only scope for registry-affecting changes or broadens to arbitrary repository paths."
+          ],
+          "assertions": [
+            "Registry-refresh scope expansion is conditional and is not enabled for unrelated pull requests.",
+            "Only canonical execution-ready Work Map integration manifests can enter the registry-refresh set.",
+            "Invalid or unsupported manifest states fail closed before writer authority is consumed.",
+            "The writer allowlist accepts only target-derived or registry-refresh bindings that passed bounded classification.",
+            "Write, staging, currentness, and verification phases share the same effective writer inventory.",
+            "No protected-ref mutation, force push, deployment, migration, provider mutation, database write, credential read, or Production mutation is authorized by this contract."
+          ],
+          "tests": [
+            {
+              "id": "work-map-autofix-registry-refresh-scope-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-registry-refresh-scope.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-autofix-registry-refresh-scope.json",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Confirm the next governed registry-affecting Work Map repair converges every validator-selected ready manifest in one exact-head writer cycle without scope broadening."
+    }
+  ],
+  "secrets_included": false
+}
