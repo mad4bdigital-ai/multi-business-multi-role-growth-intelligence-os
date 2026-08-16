@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
-      "sha256": "e58dc5cab14a855bad4a1acc2a3092e8e3b8d3cfb622da68455e8d71223c01e2"
+      "sha256": "79c964ca27b5b2d37d0ab530eedd051b84b5084b293cf9de9bbc5664f2c473f4"
     },
     {
       "path": "http-generic-api/canonical-business-operation-registry.json",
