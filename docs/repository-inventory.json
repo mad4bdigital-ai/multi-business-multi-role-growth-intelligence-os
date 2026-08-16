@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7101,
-    "bytes": 68210973,
-    "lines": 1597686,
+    "bytes": 68211180,
+    "lines": 1597689,
     "directories": 265,
     "categories": 13
   },
@@ -6417,9 +6417,9 @@
       "path": ".changes/e2e/derived-state-closure-governance-20260815.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 11048,
-      "lines": 127,
-      "sha256": "37b511f44f1a37050e105ffc0283726fef065dc21aacd4ee59fc6b086f46ff53",
+      "bytes": 11255,
+      "lines": 130,
+      "sha256": "5d575701735212f11e2015f14ff8b45cf96a955d01f5a9625987298e7c0f7965",
       "mode": "644",
       "executable": false,
       "generated": false
