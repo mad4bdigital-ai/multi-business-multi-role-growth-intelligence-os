@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7116,
-    "bytes": 68926034,
-    "lines": 1616339,
+    "files": 7117,
+    "bytes": 68935689,
+    "lines": 1616621,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2134,
+      "tests-and-specs": 2135,
       "documentation": 1901,
       "api-runtime": 1430,
       "database-migrations": 783,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2502,
-      ".mjs": 1670,
+      ".mjs": 1671,
       ".js": 988,
       ".sql": 798,
       ".json": 782,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3666,
+      "http-generic-api": 3667,
       "docs": 1805,
       "specs": 873,
       ".github": 271,
@@ -1693,6 +1693,7 @@
       "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-drift-guard.mjs",
       "http-generic-api/scripts/test-connector-recovery-evidence.mjs",
+      "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
       "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
       "http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs",
       "http-generic-api/scripts/test-e2e-phase-governance-bounded-diagnostics.mjs",
@@ -3912,6 +3913,7 @@
       "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-drift-guard.mjs",
       "http-generic-api/scripts/test-connector-recovery-evidence.mjs",
+      "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
       "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
       "http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs",
       "http-generic-api/scripts/test-e2e-phase-governance-bounded-diagnostics.mjs",
@@ -7114,9 +7116,9 @@
       "path": ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 9781,
-      "lines": 186,
-      "sha256": "07213de09e9338ee461941a772fd88893536b4299c594d15bf86d37339f6fd77",
+      "bytes": 12930,
+      "lines": 232,
+      "sha256": "5d082369dc78c775abf620429770c13136f5126131e5897ea6678c1f27a9b937",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11965,9 +11967,9 @@
       "path": ".specify/schemas/e2e-phases.schema.json",
       "category": "schemas-and-data",
       "extension": ".json",
-      "bytes": 9444,
-      "lines": 305,
-      "sha256": "fef1ace56edbd9fa251f3b8fe4d1afa9e7456109715ad654c30ef5a35d7e0889",
+      "bytes": 9488,
+      "lines": 306,
+      "sha256": "ff4e2d1a16c7f25bd38afe0e7fcf0c089d18af1990cf08109813b2af1f72d5c8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30214,9 +30216,9 @@
       "path": "docs/governance/governed-autopilot-production-deployment.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 14067,
-      "lines": 166,
-      "sha256": "7efc7481501713da885dc2f2c12a02a100caaff80bfd81eec86761ab3f9fa8fb",
+      "bytes": 10213,
+      "lines": 134,
+      "sha256": "60e225606d7a1c89e8d033924234f33482c31f834d9ee9f2d83d1af4294180a6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30258,9 +30260,9 @@
       "path": "docs/governance/pr7384-deep-audit-ar.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 6405,
+      "bytes": 6067,
       "lines": 38,
-      "sha256": "38fc3cb70a8cdd03d912901119de0d3f688084c0b9ad6cd68ba117a58205d991",
+      "sha256": "d69441e5de81b4334c8d9cabd544b9dd98e2e73ecec2905d4e668a1fe350b4c4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -56738,6 +56740,17 @@
       "bytes": 6904,
       "lines": 159,
       "sha256": "3c56d954f76b954cb1f6a0c25004bad179e1051981b231a30056c24bcde5c48a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 10654,
+      "lines": 267,
+      "sha256": "a02711d0b6e18b403977744b5109ecd9193a6ec2d7e7ca1db363b015b6236c0a",
       "mode": "644",
       "executable": false,
       "generated": false
