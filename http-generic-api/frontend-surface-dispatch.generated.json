@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": null,
-    "source_digest": "9a92dc74f0b75394fafeb8c3518de3e581ef630a14e0e8267cf732a8726afde8",
+    "source_digest": "32fef27feae7ba3ba61f712e9781b4d39aed556dacc3f2abb5b84ecb4aa56c7d",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -826,7 +826,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
+        "sha256": "0a474359f5827b588ff9d5e2593e67147fc64c5a2adfac39ee4996466a677c14",
         "present": true
       },
       {
@@ -6981,7 +6981,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
+      "source_digest": "0a474359f5827b588ff9d5e2593e67147fc64c5a2adfac39ee4996466a677c14",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -7188,7 +7188,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
+      "source_digest": "0a474359f5827b588ff9d5e2593e67147fc64c5a2adfac39ee4996466a677c14",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
