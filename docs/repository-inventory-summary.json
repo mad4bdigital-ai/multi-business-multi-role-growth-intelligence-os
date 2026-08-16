@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7090,
-    "bytes": 68095392,
-    "lines": 1595609,
+    "files": 7093,
+    "bytes": 68114666,
+    "lines": 1595936,
     "directories": 265,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2130,
       "documentation": 1898,
-      "api-runtime": 1425,
+      "api-runtime": 1428,
       "database-migrations": 783,
       "root-and-other": 279,
       "api-contracts": 184,
@@ -30,7 +30,7 @@
       ".mjs": 1662,
       ".js": 987,
       ".sql": 798,
-      ".json": 774,
+      ".json": 777,
       ".yml": 165,
       ".yaml": 113,
       ".ps1": 16,
@@ -60,7 +60,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3658,
+      "http-generic-api": 3661,
       "docs": 1802,
       "specs": 873,
       ".github": 265,
@@ -238,8 +238,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3448128,
-      "lines": 97590
+      "bytes": 3448727,
+      "lines": 97587
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -262,8 +262,8 @@
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 606319,
-      "lines": 11469
+      "bytes": 607641,
+      "lines": 11495
     },
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
@@ -298,8 +298,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 256231,
-      "lines": 6194
+      "bytes": 256302,
+      "lines": 6195
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",
@@ -316,8 +316,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 217370,
-      "lines": 4619
+      "bytes": 220408,
+      "lines": 4680
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",

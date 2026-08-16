@@ -2669,6 +2669,40 @@ async function detectMissingRequiredArgs(callerType, toolKey, args, executionCap
   }
 }
 
+function isActAsUserReadOnlyDescriptor(descriptor = {}) {
+  const method = String(descriptor?.method || "").trim().toUpperCase();
+  // Tags are descriptive only; they must never turn POST/PUT/PATCH/DELETE into a read.
+  return ["GET", "HEAD", "OPTIONS"].includes(method);
+}
+
+function assertActAsUserPreMutationAllowed({ descriptor = null, runtimeDeps = {}, toolKey } = {}) {
+  if (isActAsUserReadOnlyDescriptor(descriptor)) return { mode: "read_only_shadow", toolKey };
+  const promotionEvidence = runtimeDeps.actAsUserPromotionEvidence;
+  const expectedEnvironment = String(runtimeDeps.actAsUserEnvironment || "");
+  const expectedPolicyVersion = String(runtimeDeps.actAsUserPolicyVersion || "");
+  const expectedCatalogVersion = String(runtimeDeps.actAsUserCatalogVersion || "");
+  const expiresAt = new Date(promotionEvidence?.expires_at || 0);
+  const evidenceValid = promotionEvidence
+    && promotionEvidence.approved === true
+    && promotionEvidence.live_execution_allowed === true
+    && expectedEnvironment
+    && String(promotionEvidence.environment || "") === expectedEnvironment
+    && expectedPolicyVersion
+    && String(promotionEvidence.role_policy_version || "") === expectedPolicyVersion
+    && expectedCatalogVersion
+    && String(promotionEvidence.catalog_version || "") === expectedCatalogVersion
+    && /^[a-f0-9]{40}$/i.test(String(promotionEvidence.owner_attestation_sha || ""))
+    && Number.isFinite(expiresAt.getTime())
+    && expiresAt > new Date();
+  if (!evidenceValid) {
+    const error = new Error("Act-as-User mutation is blocked until explicit, unexpired promotion evidence is bound.");
+    error.code = "act_as_user_mutation_blocked_until_promotion";
+    error.status = 403;
+    throw error;
+  }
+  return { mode: "promoted", toolKey, evidenceExpiresAt: expiresAt.toISOString() };
+}
+
 export async function authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps = {}, descriptor = null } = {}) {
   const sessionId = runtimeDeps.actAsUserSessionId
     || req?.actAsUserSessionId
@@ -2688,6 +2722,7 @@ export async function authorizeActAsUserDispatchIfPresent({ callerType, toolKey,
     error.status = 403;
     throw error;
   }
+  const preMutationDecision = assertActAsUserPreMutationAllowed({ descriptor, runtimeDeps, toolKey });
   const authorized = await adapter.authorizeDispatch({
     sessionId,
     requestedOperation: runtimeDeps.actAsUserOperation,
@@ -2702,7 +2737,7 @@ export async function authorizeActAsUserDispatchIfPresent({ callerType, toolKey,
     error.status = 403;
     throw error;
   }
-  return Object.freeze({ callerType, sessionId, context: authorized });
+  return Object.freeze({ callerType, sessionId, context: authorized, preMutationDecision });
 }
 
 async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
@@ -4497,6 +4532,28 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   };
 }
 
+function assertActAsUserControlPrincipal(req) {
+  const auth = req?.auth || {};
+  const role = String(auth.role || auth.membership_role || auth.principal_role || "").toLowerCase();
+  const isPrivileged = auth.is_admin === true
+    || auth.principal_type === "tenant_owner"
+    || auth.principal_type === "tenant_responsible"
+    || ["owner", "tenant_owner", "tenant_responsible"].includes(role);
+  if (!isPrivileged) {
+    const error = new Error("Act-as-User control requires an Admin or Tenant Owner/Responsible principal.");
+    error.code = "act_as_user_control_principal_denied";
+    error.status = 403;
+    throw error;
+  }
+  if (!auth.tenant_id && auth.is_admin !== true) {
+    const error = new Error("Tenant Owner/Responsible Act-as-User control requires an explicit Tenant binding.");
+    error.code = "act_as_user_control_tenant_required";
+    error.status = 403;
+    throw error;
+  }
+  return auth;
+}
+
 export function buildGptToolsRoutes(deps) {
   const { requireBackendApiKey, runtimePersistencePoolFactory, actAsUserAdapter, actAsUserAuthorityResolver } = deps;
   const runtimeDeps = { runtimePersistencePoolFactory };
@@ -4507,6 +4564,7 @@ export function buildGptToolsRoutes(deps) {
   // POST /admin/act-as-user/sessions
   router.post("/admin/act-as-user/sessions", requireBackendApiKey, async (req, res) => {
     try {
+      assertActAsUserControlPrincipal(req);
       if (!actAsUserAdapter || typeof actAsUserAdapter.createSession !== "function" || !actAsUserAuthorityResolver || typeof actAsUserAuthorityResolver.resolveCreateRequest !== "function") {
         return res.status(503).json({ ok: false, error: { code: "act_as_user_control_plane_not_bound", message: "Act-as-User authority and session adapters are not bound." }, activation_allowed: false });
       }
@@ -4522,6 +4580,7 @@ export function buildGptToolsRoutes(deps) {
   // POST /admin/act-as-user/sessions/:sessionId/revoke
   router.post("/admin/act-as-user/sessions/:sessionId/revoke", requireBackendApiKey, async (req, res) => {
     try {
+      assertActAsUserControlPrincipal(req);
       if (!actAsUserAdapter || typeof actAsUserAdapter.revokeSession !== "function") {
         return res.status(503).json({ ok: false, error: { code: "act_as_user_control_plane_not_bound", message: "Act-as-User session adapter is not bound." }, activation_allowed: false });
       }

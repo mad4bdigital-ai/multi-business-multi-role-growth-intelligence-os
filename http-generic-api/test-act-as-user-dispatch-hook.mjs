@@ -25,9 +25,24 @@ const result = await authorizeActAsUserDispatchIfPresent({
     },
   },
   req: { requestId: "req-1" },
+  descriptor: { method: "GET", tags: ["read_only"] },
 });
 assert.equal(result.context.dispatchAuthorized, true);
 assert.equal(calls[0].requestedOperation, "call_tool");
 assert.equal(calls[0].requestedTool, "tenant.read");
 assert.equal(result.callerType, "tenant");
+await assert.rejects(
+  () => authorizeActAsUserDispatchIfPresent({
+    callerType: "tenant",
+    toolKey: "tenant.write",
+    runtimeDeps: {
+      actAsUserSessionId: "session-1",
+      actAsUserOperation: "call_tool",
+      actAsUserAdapter: { async authorizeDispatch() { throw new Error("adapter must not be reached"); } },
+    },
+    req: { requestId: "req-2" },
+    descriptor: { method: "POST", tags: ["read_only"] },
+  }),
+  (error) => error.code === "act_as_user_mutation_blocked_until_promotion",
+);
 console.log("act-as-user dispatch hook tests passed");

@@ -101,14 +101,17 @@ assert(actAsUserPolicySource.includes("act_as_user_idempotency_required"), "Act-
 assert(actAsUserPolicySource.includes("act_as_user_revoked"), "Act-as-User resolver must enforce revocation");
 assert(actAsUserTestSource.includes("act-as-user execution policy tests passed"), "Act-as-User regression test must remain present");
 assert(actAsUserAdapterSource.includes("authorizeDispatch") && actAsUserAdapterSource.includes("recordReadback"), "Act-as-User adapter must expose dispatch and readback boundaries");
+assert(actAsUserAdapterSource.includes("assertLiveActivationEvidence") && actAsUserAdapterSource.includes("act_as_user_promotion_evidence_required"), "Live Act-as-User must require explicit activation evidence");
 assert(actAsUserDurableRepositorySource.includes("version = version + 1") && actAsUserDurableRepositorySource.includes("act_as_user_revoke_conflict"), "Durable Act-as-User repository must enforce CAS revocation");
 assert(actAsUserDurableRepositorySource.includes("environment = ?"), "Durable Act-as-User repository must bind environment in read/revoke queries");
 assert(actAsUserDurableMigrationSource.includes("role_policy_version") && actAsUserDurableMigrationSource.includes("catalog_version"), "Durable Act-as-User session must retain role and catalog evidence versions");
-assert(actAsUserDurableRepositorySource.includes("act_as_user_audit_secret_denied") && actAsUserDurableRepositorySource.includes("act_as_user_readback_secret_denied"), "Durable Act-as-User repositories must reject secrets");
+assert(actAsUserDurableRepositorySource.includes("containsForbiddenSecret") && actAsUserDurableRepositorySource.includes("act_as_user_audit_secret_denied") && actAsUserDurableRepositorySource.includes("act_as_user_readback_secret_denied"), "Durable Act-as-User repositories must recursively reject nested secrets");
 assert(actAsUserDurableMigrationSource.includes("act_as_user_sessions") && actAsUserDurableMigrationSource.includes("act_as_user_audit_events") && actAsUserDurableMigrationSource.includes("act_as_user_readbacks"), "Durable Act-as-User migration must define session, audit, and readback tables");
 assert(actAsUserDurableMigrationSource.includes("ck_act_as_user_session_no_secrets"), "Durable Act-as-User migration must enforce no-secret session state");
 assert(actAsUserDurableTestSource.includes("act-as-user durable repository tests passed"), "Durable Act-as-User repository regression test must remain present");
 assert(actAsUserDispatchSource.includes("authorizeActAsUserDispatchIfPresent"), "Tool dispatch must retain the Act-as-User hook");
+assert(actAsUserDispatchSource.includes("assertActAsUserPreMutationAllowed") && actAsUserDispatchSource.includes("act_as_user_mutation_blocked_until_promotion"), "Act-as-User mutations must be blocked before dispatch without promotion evidence");
+assert(actAsUserDispatchSource.includes("assertActAsUserControlPrincipal") && actAsUserDispatchSource.includes("act_as_user_control_principal_denied"), "Act-as-User control endpoints must enforce a privileged principal boundary");
 assert(actAsUserDispatchSource.includes("act_as_user_adapter_not_bound"), "Tool dispatch must fail closed when Act-as-User adapter is absent");
 assert(actAsUserDispatchSource.includes("await authorizeActAsUserDispatchIfPresent"), "Act-as-User hook must run before tool preflight");
 assert(actAsUserDispatchTestSource.includes("act-as-user dispatch hook tests passed"), "Act-as-User dispatch hook regression test must remain present");

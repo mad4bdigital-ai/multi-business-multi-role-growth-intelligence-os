@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createActAsUserShadowAdapter } from "./actAsUserRuntimeAdapter.js";
+import { createActAsUserShadowAdapter, createActAsUserRuntimeAdapter } from "./actAsUserRuntimeAdapter.js";
 
 const now = () => new Date("2026-08-16T12:00:00.000Z");
 const input = {
@@ -46,4 +46,19 @@ await assert.rejects(
 const liveAdapter = createActAsUserShadowAdapter({ now });
 // The shadow factory never enables live execution; this remains an explicit deny boundary.
 assert.equal(liveAdapter.adapter.createSession instanceof Function, true);
+
+const repositories = {
+  sessionRepository: { async create() { return { sessionId: "live-session" }; }, async read() { return null; }, async revoke() { return {}; } },
+  revocationRepository: { async isRevoked() { return false; } },
+  auditRepository: { async append() {} },
+  readbackRepository: { async record() { return {}; } },
+};
+assert.throws(
+  () => createActAsUserRuntimeAdapter({ ...repositories, now, environment: "staging", rolePolicyVersion: "policy-v1", catalogVersion: "catalog-v1", liveExecutionEnabled: true }),
+  (error) => error.code === "act_as_user_promotion_evidence_required",
+);
+assert.throws(
+  () => createActAsUserRuntimeAdapter({ ...repositories, now, environment: "staging", rolePolicyVersion: "policy-v1", catalogVersion: "catalog-v1", liveExecutionEnabled: true, shadowOnly: true, activationEvidence: { approved: true, environment: "staging", role_policy_version: "policy-v1", catalog_version: "catalog-v1", owner_attestation_sha: "0123456789012345678901234567890123456789", expires_at: "2026-08-16T12:10:00.000Z" } }),
+  (error) => error.code === "act_as_user_mode_conflict",
+);
 console.log("act-as-user runtime adapter tests passed");
