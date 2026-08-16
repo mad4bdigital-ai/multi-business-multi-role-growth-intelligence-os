@@ -42,6 +42,9 @@ for (const token of [
   "registry_refresh_binding_candidates",
   "registry_refresh_binding_file",
   "writer_binding_file",
+  "generator_preview_file",
+  "generator_preview_exit_code",
+  "generator_preview_drift_count",
 ]) {
   assert.ok(workflow.includes(token), `autofix writer must expose ${token}`);
 }
@@ -65,7 +68,32 @@ assert.ok(workflow.includes('"${changed_file}" = "http-generic-api/scripts/spec-
 assert.ok(workflow.includes('"${changed_file}" == "${work_map_root}/"*'));
 assert.ok(
   workflow.includes('done < "${immutable_target_pr_files}"'),
-  "registry refresh trigger must come from immutable exact-base/exact-head Git inventory",
+  "static registry refresh triggers must come from immutable exact-base/exact-head Git inventory",
+);
+
+assert.ok(
+  workflow.includes('generator_preview_file="${DIAGNOSTIC_ROOT}/platform-work-map-generator-preview.json"'),
+  "writer must persist a bounded read-only generator preview before authority is consumed",
+);
+assert.ok(
+  workflow.includes('node http-generic-api/scripts/platform-work-map-generator.mjs --check > "${generator_preview_file}"'),
+  "writer must detect prospective generated Work Map drift without writing",
+);
+assert.ok(workflow.includes('generator_preview_exit_code=$?'));
+assert.ok(
+  workflow.includes('if [[ "${generator_preview_exit_code}" -ne 0 && "${generator_preview_exit_code}" -ne 1 ]]; then'),
+  "only the generator's current and stale check exits may continue discovery",
+);
+assert.ok(
+  workflow.includes('.mode == "check"')
+    && workflow.includes('(.drift_files | type == "array")')
+    && workflow.includes('.secrets_included == false')
+    && workflow.includes('.image_assets_generated == false'),
+  "prospective drift evidence must be structured, read-only, secret-free, and text-only",
+);
+assert.ok(
+  workflow.includes("if jq -e '.drift_files | length > 0' \"${generator_preview_file}\" >/dev/null; then"),
+  "prospective generated Work Map drift must expand registry refresh scope before delegation",
 );
 
 assert.ok(
@@ -94,9 +122,11 @@ assert.ok(
 );
 
 const discoveryIndex = workflow.indexOf('registry_refresh_required=false');
+const previewIndex = workflow.indexOf('generator_preview_file="${DIAGNOSTIC_ROOT}/platform-work-map-generator-preview.json"');
 const unionIndex = workflow.indexOf('cat "${target_binding_file}" "${registry_refresh_binding_file}" | sort -u > "${writer_binding_file}"');
 const consumeIndex = workflow.indexOf("- name: Verify and consume Recovery-issued writer delegation");
-assert.ok(discoveryIndex >= 0 && unionIndex > discoveryIndex, "registry refresh discovery must finish before writer union is created");
+assert.ok(discoveryIndex >= 0 && previewIndex > discoveryIndex, "prospective drift discovery must follow immutable PR trigger discovery");
+assert.ok(unionIndex > previewIndex, "prospective drift discovery must finish before writer union is created");
 assert.ok(consumeIndex > unionIndex, "all writer authority discovery must finish before delegation consumption");
 
 const writerLoopMatches = workflow.match(/done < "\$\{WRITER_BINDING_FILE\}"/gu) || [];
