@@ -9,6 +9,8 @@
     "include": [
       ".changes/e2e/work-map-autofix-registry-refresh-scope.json",
       ".github/workflows/spec-kit-work-map-autofix.yml",
+      "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs"
     ]
   },
@@ -19,15 +21,15 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep the sole governed Work Map writer aligned with the validator when Work Map registry or policy surfaces change, including registry drift that is only discoverable prospectively from the exact-head generator, while preserving bounded write authority and fail-closed manifest eligibility.",
+      "objective": "Keep the sole governed Work Map writer and its trusted self-hosting bootstrap aligned with the validator when Work Map registry or policy surfaces change, including registry drift that is only discoverable prospectively from the exact-head generator, while preserving bounded write authority, canonical evidence publication, and fail-closed manifest eligibility.",
       "e2e_journeys": [
         {
           "id": "registry-refresh-scope-matches-validator",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer",
-          "entrypoint": "The regression test reads the Spec Kit Work Map Autofix workflow from the exact repository checkout.",
-          "terminal_outcome": "Registry-affecting changes and prospective generated Work Map drift expand the writer refresh set to the same execution-ready Work Map manifests validated by the gate before delegation is consumed; ordinary current pull requests remain diff-scoped, invalid manifest states fail closed, and remote writes remain bounded.",
+          "entrypoint": "The regression test reads the Spec Kit Work Map Autofix workflow and trusted generated-artifact bootstrap contracts from the exact repository checkout.",
+          "terminal_outcome": "Registry-affecting changes and prospective generated Work Map drift expand the writer and trusted bootstrap refresh sets to the same execution-ready Work Map manifests validated by the gate before mutation authority is consumed; ordinary current pull requests remain diff-scoped, invalid manifest states fail closed, and generated evidence accepts only canonical bounded outputs.",
           "steps": [
             "Inspect the Work Map Autofix workflow without dispatching it.",
             "Require static registry-refresh expansion to remain conditional on the same Work Map registry or policy change class used by validation.",
@@ -35,17 +37,21 @@
             "Require the generator preview to be structured, secret-free, text-only evidence and reject unexpected execution outcomes before writer authority is consumed.",
             "Require the refresh inventory to include only execution-ready manifests and reject invalid or ambiguous review states.",
             "Require the effective writer set to be the bounded union of target-derived bindings and registry-refresh bindings.",
-            "Require write, staging, and verification loops to consume the same bounded writer inventory.",
-            "Fail the regression if the writer returns to PR-diff-only scope when its own generator would change the registry, consumes delegation before scope discovery completes, or broadens to arbitrary repository paths."
+            "Require the trusted self-hosting bootstrap to discover additional canonical ready manifests dynamically and refresh them through the canonical binding producer.",
+            "Require the generated-artifact evidence publisher to accept the same canonical dynamic Work Map output class while rejecting unrelated generated paths.",
+            "Require write, staging, currentness, verification, bootstrap, and evidence-publication phases to share compatible bounded authority.",
+            "Fail the regression if the writer returns to PR-diff-only scope when its own generator would change the registry, consumes delegation before scope discovery completes, hardcodes future ready manifests, or broadens to arbitrary repository paths."
           ],
           "assertions": [
             "Registry-refresh scope expansion is conditional and is not enabled when neither the immutable PR diff nor the read-only generator preview indicates registry drift.",
             "Prospective Work Map generator drift is detected with --check before delegation consumption, so first-cycle generated registry changes cannot leave ready manifests stale.",
             "The prospective generator report is validated as check-mode, secret-free, text-only structured evidence before it can influence scope.",
-            "Only canonical execution-ready Work Map integration manifests can enter the registry-refresh set.",
+            "Only canonical execution-ready Work Map integration manifests can enter the registry-refresh or trusted bootstrap dynamic set.",
             "Invalid or unsupported manifest states fail closed before writer authority is consumed.",
             "The writer allowlist accepts only target-derived or registry-refresh bindings that passed bounded classification.",
-            "Write, staging, currentness, and verification phases share the same effective writer inventory.",
+            "The trusted generated-artifact bootstrap keeps exact-head CAS, protected-branch rejection, deterministic double-pass generation, and canonical producer currentness checks for dynamically discovered ready manifests.",
+            "The evidence publisher accepts only canonical Work Map bootstrap outputs and does not authorize arbitrary repository writes.",
+            "Write, staging, currentness, verification, trusted bootstrap, and evidence publication share compatible bounded Work Map authority.",
             "No protected-ref mutation, force push, deployment, migration, provider mutation, database write, credential read, or Production mutation is authorized by this contract."
           ],
           "tests": [
@@ -55,11 +61,28 @@
               "working_directory": "http-generic-api",
               "path": "test-work-map-autofix-registry-refresh-scope.mjs",
               "args": []
+            },
+            {
+              "id": "generated-artifact-refresh-maintenance-tool-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            },
+            {
+              "id": "generated-artifact-refresh-evidence-publisher-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/work-map-autofix-registry-refresh-scope.json",
+            ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/spec-kit-work-map-autofix.yml",
+            "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs"
           ]
         }
@@ -68,7 +91,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Confirm the next governed Work Map repair converges every validator-selected ready manifest in one exact-head writer cycle, including a case where the exact-head generator preview is the only registry-refresh trigger, without scope broadening."
+      "objective": "Confirm governed Work Map repair and trusted bootstrap each converge every validator-selected ready manifest in one exact-head writer cycle, including a case where the exact-head generator preview is the only registry-refresh trigger, without scope broadening."
     }
   ],
   "secrets_included": false
