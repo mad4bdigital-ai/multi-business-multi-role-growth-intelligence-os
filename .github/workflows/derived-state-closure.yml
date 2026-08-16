@@ -22,7 +22,6 @@ jobs:
     env:
       DERIVED_STATE_EXPECTED_SHA: ${{ github.sha }}
       DERIVED_STATE_CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'github_merge_candidate' || 'exact_sha' }}
-      DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/derived-state-closure/report.json
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -58,6 +57,8 @@ jobs:
         run: node .github/tests/derived-state-closure.test.mjs
 
       - name: Verify all registered derived state at the exact candidate
+        env:
+          DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/derived-state-closure/report.json
         run: >-
           node scripts/derived-state-closure.mjs
           --expected-sha "$DERIVED_STATE_EXPECTED_SHA"
@@ -69,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: derived-state-closure-${{ github.sha }}
-          path: ${{ env.DERIVED_STATE_REPORT_FILE }}
+          path: ${{ runner.temp }}/derived-state-closure/report.json
           if-no-files-found: error
           retention-days: 30
