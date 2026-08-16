@@ -10,7 +10,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 622
+- Paths: 624
 - Operations: 573
 - Top-level tags: 38
 
@@ -67,6 +67,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/connector-recovery-evidence.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
+- `.github/workflows/derived-state-closure.yml`
+- `.github/workflows/derived-state-converged-automerge.yml`
+- `.github/workflows/derived-state-main-convergence-publisher.yml`
+- `.github/workflows/derived-state-repair-dispatch.yml`
 - `.github/workflows/docs-agent-main-followup.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
@@ -201,6 +205,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`
 - `.github/workflows/staging-main-deploy-eligibility.yml`
+- `.github/workflows/staging-openapi-governance.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance-alert.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
