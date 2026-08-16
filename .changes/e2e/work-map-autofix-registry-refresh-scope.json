@@ -19,7 +19,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep the sole governed Work Map writer aligned with the validator when Work Map registry or policy surfaces change, while preserving bounded write authority and fail-closed manifest eligibility.",
+      "objective": "Keep the sole governed Work Map writer aligned with the validator when Work Map registry or policy surfaces change, including registry drift that is only discoverable prospectively from the exact-head generator, while preserving bounded write authority and fail-closed manifest eligibility.",
       "e2e_journeys": [
         {
           "id": "registry-refresh-scope-matches-validator",
@@ -27,17 +27,21 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer",
           "entrypoint": "The regression test reads the Spec Kit Work Map Autofix workflow from the exact repository checkout.",
-          "terminal_outcome": "Registry-affecting changes expand the writer refresh set to the same execution-ready Work Map manifests validated by the gate; ordinary pull requests remain diff-scoped, invalid manifest states fail closed, and remote writes remain bounded.",
+          "terminal_outcome": "Registry-affecting changes and prospective generated Work Map drift expand the writer refresh set to the same execution-ready Work Map manifests validated by the gate before delegation is consumed; ordinary current pull requests remain diff-scoped, invalid manifest states fail closed, and remote writes remain bounded.",
           "steps": [
             "Inspect the Work Map Autofix workflow without dispatching it.",
-            "Require registry-refresh expansion to be conditional on the same Work Map registry or policy change class used by validation.",
+            "Require static registry-refresh expansion to remain conditional on the same Work Map registry or policy change class used by validation.",
+            "Require a read-only exact-head generator check before delegation consumption and expand registry refresh scope when that preview reports generated Work Map drift.",
+            "Require the generator preview to be structured, secret-free, text-only evidence and reject unexpected execution outcomes before writer authority is consumed.",
             "Require the refresh inventory to include only execution-ready manifests and reject invalid or ambiguous review states.",
             "Require the effective writer set to be the bounded union of target-derived bindings and registry-refresh bindings.",
             "Require write, staging, and verification loops to consume the same bounded writer inventory.",
-            "Fail the regression if the writer returns to PR-diff-only scope for registry-affecting changes or broadens to arbitrary repository paths."
+            "Fail the regression if the writer returns to PR-diff-only scope when its own generator would change the registry, consumes delegation before scope discovery completes, or broadens to arbitrary repository paths."
           ],
           "assertions": [
-            "Registry-refresh scope expansion is conditional and is not enabled for unrelated pull requests.",
+            "Registry-refresh scope expansion is conditional and is not enabled when neither the immutable PR diff nor the read-only generator preview indicates registry drift.",
+            "Prospective Work Map generator drift is detected with --check before delegation consumption, so first-cycle generated registry changes cannot leave ready manifests stale.",
+            "The prospective generator report is validated as check-mode, secret-free, text-only structured evidence before it can influence scope.",
             "Only canonical execution-ready Work Map integration manifests can enter the registry-refresh set.",
             "Invalid or unsupported manifest states fail closed before writer authority is consumed.",
             "The writer allowlist accepts only target-derived or registry-refresh bindings that passed bounded classification.",
@@ -64,7 +68,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Confirm the next governed registry-affecting Work Map repair converges every validator-selected ready manifest in one exact-head writer cycle without scope broadening."
+      "objective": "Confirm the next governed Work Map repair converges every validator-selected ready manifest in one exact-head writer cycle, including a case where the exact-head generator preview is the only registry-refresh trigger, without scope broadening."
     }
   ],
   "secrets_included": false
