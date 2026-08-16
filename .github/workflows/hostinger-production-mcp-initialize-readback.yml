@@ -1,0 +1,225 @@
+name: Hostinger Production MCP Initialize Readback
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-mcp-initialize-readback-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Verify exact Production MCP initialize through public protocol handshake
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.id == 271942579 &&
+      startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_MCP_INITIALIZE_READBACK expected_production_sha=')
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    env:
+      AUTHORIZATION_USER_ID: '271942579'
+      TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_MCP_INITIALIZE_READBACK
+      EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
+      EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+    steps:
+      - name: Resolve immutable trigger identity
+        id: trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+          if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_production_sha=([0-9a-f]{40})$ ]]; then
+            echo "Invalid MCP initialize readback trigger format." >&2
+            exit 1
+          fi
+          echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Initialize bounded report directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/hostinger-production-mcp-initialize-readback"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+
+      - name: Checkout trusted default-branch tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify protected Production ref before probe
+        id: identity
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          remote_production_sha="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
+          test "${remote_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
+          echo "observed_production_sha=${remote_production_sha}" >> "${GITHUB_OUTPUT}"
+          echo "tooling_sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Collect bounded MCP initialize evidence
+        id: collect
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          raw="${REPORT_DIR}/mcp-initialize.raw"
+          safe="${REPORT_DIR}/mcp-initialize.json"
+          url="https://mcp.mad4b.com/mcp"
+          set +e
+          status="$(curl --silent --show-error --max-time 25 \
+            --proto '=https' --tlsv1.2 --request POST \
+            --header 'content-type: application/json' \
+            --header 'accept: application/json, text/event-stream' \
+            --header 'origin: https://chatgpt.com' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"mad4b-production-mcp-readback","version":"1.0.0"}}}' \
+            --output "${raw}" --write-out '%{http_code}' "${url}")"
+          rc=$?
+          set -e
+          [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
+          printf '%s\n' "${status}" > "${REPORT_DIR}/mcp-initialize.http-status"
+          printf '%s\n' "${rc}" > "${REPORT_DIR}/mcp-initialize.curl-exit"
+          if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
+            jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
+          else
+            jq -n --arg url "${url}" --arg status "${status}" --argjson curl_exit "${rc}" \
+              '{jsonrpc:null,result:null,url:$url,http_status:($status|tonumber? // 0),curl_exit:$curl_exit,error:"bounded_json_response_unavailable",secrets_included:false}' > "${safe}"
+          fi
+          rm -f "${raw}"
+
+          node --input-type=module - "${REPORT_DIR}" "${EXPECTED_PRODUCTION_SHA}" <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const [directory, expectedSha] = process.argv.slice(2);
+          const body = JSON.parse(fs.readFileSync(path.join(directory, 'mcp-initialize.json'), 'utf8'));
+          const status = Number(fs.readFileSync(path.join(directory, 'mcp-initialize.http-status'), 'utf8').trim() || 0);
+          const curlExit = Number(fs.readFileSync(path.join(directory, 'mcp-initialize.curl-exit'), 'utf8').trim() || 0);
+          const protocolVersion = String(body?.result?.protocolVersion || '');
+          const serverName = String(body?.result?.serverInfo?.name || '');
+          const ready = status === 200
+            && curlExit === 0
+            && body?.jsonrpc === '2.0'
+            && body?.id === 1
+            && protocolVersion === '2025-06-18'
+            && Boolean(serverName);
+          const report = {
+            contract: 'mad4b.hostinger-production-mcp-initialize-readback.v1',
+            generated_at: new Date().toISOString(),
+            expected_production_sha: expectedSha,
+            expected_endpoint: 'https://mcp.mad4b.com/mcp',
+            http_status: status,
+            curl_exit: curlExit,
+            protocol_version: protocolVersion || null,
+            server_name: serverName || null,
+            classification: ready ? 'mcp_initialize_ready' : 'mcp_transport_not_ready',
+            mcp_initialize_ready: ready,
+            exact_production_ref_required: true,
+            public_protocol_probe_only: true,
+            non_mutating_initialize_only: true,
+            authenticated_request_performed: false,
+            oauth_token_requested: false,
+            tool_call_performed: false,
+            provider_credential_accessed: false,
+            provider_mutation_performed: false,
+            deployment_performed: false,
+            restart_performed: false,
+            sql_execution_performed: false,
+            migration_apply_performed: false,
+            database_mutation_performed: false,
+            external_business_send_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(directory, 'summary.json'), `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Re-read protected Production after probe
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin refs/heads/Production | awk '{print $1}')" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Publish bounded MCP initialize decision
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+          TOOLING_SHA: ${{ steps.identity.outputs.tooling_sha }}
+          OBSERVED_PRODUCTION_SHA: ${{ steps.identity.outputs.observed_production_sha }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          set -Eeuo pipefail
+          summary="${REPORT_DIR}/summary.json"
+          if [[ ! -s "${summary}" ]]; then
+            jq -n --arg expected "${EXPECTED_PRODUCTION_SHA}" \
+              '{contract:"mad4b.hostinger-production-mcp-initialize-readback.v1",expected_production_sha:$expected,classification:"runtime_evidence_unavailable",mcp_initialize_ready:false,exact_production_ref_required:true,public_protocol_probe_only:true,non_mutating_initialize_only:true,authenticated_request_performed:false,oauth_token_requested:false,tool_call_performed:false,provider_credential_accessed:false,provider_mutation_performed:false,deployment_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' > "${summary}"
+          fi
+          {
+            echo "# Hostinger Production MCP Initialize Readback"
+            echo
+            echo "- Run: \`${GITHUB_RUN_ID}\`"
+            echo "- Trigger comment: \`${EVENT_COMMENT_ID}\`"
+            echo "- Tooling SHA: \`${TOOLING_SHA:-unresolved}\`"
+            echo "- Expected Production SHA: \`${EXPECTED_PRODUCTION_SHA}\`"
+            echo "- Observed Production SHA: \`${OBSERVED_PRODUCTION_SHA:-unresolved}\`"
+            echo "- Classification: \`$(jq -r '.classification' "${summary}")\`"
+            echo "- HTTP status: \`$(jq -r '.http_status // 0' "${summary}")\`"
+            echo "- Protocol: \`$(jq -r '.protocol_version // "unverified"' "${summary}")\`"
+            echo "- Authenticated request: \`false\`"
+            echo "- Tool call: \`false\`"
+            echo "- Provider mutation: \`false\`"
+            echo "- Secrets included: \`false\`"
+            echo "- Collect outcome: \`${COLLECT_OUTCOME}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload bounded MCP initialize evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hostinger-production-mcp-initialize-readback-${{ github.run_id }}
+          path: ${{ runner.temp }}/hostinger-production-mcp-initialize-readback/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce exact Production MCP initialize readiness
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ steps.collect.outcome }}" = "success"
+          jq -e '
+            .contract == "mad4b.hostinger-production-mcp-initialize-readback.v1" and
+            .classification == "mcp_initialize_ready" and
+            .mcp_initialize_ready == true and
+            .exact_production_ref_required == true and
+            .public_protocol_probe_only == true and
+            .non_mutating_initialize_only == true and
+            .authenticated_request_performed == false and
+            .oauth_token_requested == false and
+            .tool_call_performed == false and
+            .provider_credential_accessed == false and
+            .provider_mutation_performed == false and
+            .deployment_performed == false and
+            .restart_performed == false and
+            .sql_execution_performed == false and
+            .migration_apply_performed == false and
+            .database_mutation_performed == false and
+            .external_business_send_performed == false and
+            .secrets_included == false
+          ' "${REPORT_DIR}/summary.json" >/dev/null
