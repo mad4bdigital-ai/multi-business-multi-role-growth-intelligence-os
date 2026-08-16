@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7117,
-    "bytes": 68935689,
-    "lines": 1616621,
+    "bytes": 68935697,
+    "lines": 1616624,
     "directories": 265,
     "categories": 13
   },
@@ -56748,9 +56748,9 @@
       "path": "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 10654,
-      "lines": 267,
-      "sha256": "a02711d0b6e18b403977744b5109ecd9193a6ec2d7e7ca1db363b015b6236c0a",
+      "bytes": 10662,
+      "lines": 270,
+      "sha256": "b610158cf5401cc6c0ddacd14556b632c49985aede532bff9a8820ff6e694886",
       "mode": "644",
       "executable": false,
       "generated": false
