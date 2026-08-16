@@ -16,11 +16,17 @@ try {
   const get = (path, host) => fetch(`http://127.0.0.1:${port}${path}`, {
     headers: { "x-forwarded-host": host },
   });
+  const getWithHeaders = (path, headers) => fetch(`http://127.0.0.1:${port}${path}`, { headers });
   const schema = await get("/openapi.tenant-gpt.activation.staging.yaml", "activation_dev.mad4b.com");
   assert.equal(schema.status, 200);
   const schemaText = await schema.text();
   assert.match(schemaText, /https:\/\/activation_dev\.mad4b\.com/);
   assert.doesNotMatch(schemaText, /https:\/\/auth\.mad4b\.com|https:\/\/activation\.mad4b\.com/);
+  const alternateHost = await getWithHeaders("/openapi.tenant-gpt.activation.staging.yaml", {
+    "x-forwarded-host": "untrusted.invalid",
+    "x-original-host": "activation_dev.mad4b.com",
+  });
+  assert.equal(alternateHost.status, 200, "gateway must choose the first trusted non-empty host candidate");
   const wrongHost = await get("/openapi.tenant-gpt.activation.staging.yaml", "dev.mad4b.com");
   assert.equal(wrongHost.status, 404);
   const forbidden = await get("/auth/login", "activation_dev.mad4b.com");
