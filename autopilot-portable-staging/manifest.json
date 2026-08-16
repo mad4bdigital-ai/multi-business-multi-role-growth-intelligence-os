@@ -18,7 +18,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "390f474a239bc33a06521b901129282d2437def58c5f6de66e9ef99d32c606f4"
+      "sha256": "cb08c7765664ae661dc1e71460cc719d72ec0fb05d6e72326fd6b4c0c36c2641"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",

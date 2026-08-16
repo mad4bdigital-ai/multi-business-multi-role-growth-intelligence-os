@@ -15,10 +15,30 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
 $LogComponent = "auto-deploy"
+$script:AutoPilotRunMutex = $null
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds }
+function Acquire-AutoPilotRunLock {
+    try {
+        $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\Mad4bPortableStagingAutoPilot")
+        if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Staging operation is already running; refusing overlapping Auto Deploy" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Staging operation lock acquired"
+    } catch [System.Threading.AbandonedMutexException] {
+        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Staging operation lock"
+    } catch {
+        Fail "Unable to acquire Staging operation lock: $($_.Exception.Message)"
+    }
+}
+function Release-AutoPilotRunLock {
+    if ($null -ne $script:AutoPilotRunMutex) {
+        try { $script:AutoPilotRunMutex.ReleaseMutex() } catch { }
+        try { $script:AutoPilotRunMutex.Dispose() } catch { }
+        $script:AutoPilotRunMutex = $null
+    }
+}
 trap {
     Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
     Write-Host "AUTO_DEPLOY_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
+    Release-AutoPilotRunLock
     exit 1
 }
 
@@ -100,6 +120,7 @@ Require-Command "git"
 Require-Command "gh"
 Require-Command "powershell"
 if (-not (Test-Path -LiteralPath $startScript)) { Fail "Start-AutoPilot.ps1 is missing" }
+Acquire-AutoPilotRunLock
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
 
 $previous = Read-State $statePath
@@ -114,7 +135,7 @@ while ($true) {
     Write-StagingLog -Level info -Component $LogComponent -Stage "poll" -Message "auto-deploy observation" -Data @{ ref = $Ref; sha = $sha; eligibility = $eligibility.state; reason = $eligibility.reason; already_deployed = $alreadyDeployed }
 
     if ($alreadyDeployed) {
-        if (-not $Watch) { return }
+        if (-not $Watch) { Release-AutoPilotRunLock; return }
     } elseif ($eligibility.state -eq "eligible") {
         $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-Ref", $Ref, "-ExpectedCommit", $sha)
         if ($StartTunnel) { $pilotArgs += "-StartTunnel" }
@@ -137,7 +158,7 @@ while ($true) {
         }
         Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel=$StartTunnel"
         Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$StartTunnel; validate_only = [bool]$ValidateOnly }
-        if (-not $Watch) { return }
+        if (-not $Watch) { Release-AutoPilotRunLock; return }
         $previous = Read-State $statePath
     } elseif ($eligibility.state -eq "blocked") {
         Fail "main commit $sha is blocked by CI eligibility: $($eligibility.reason)"
@@ -145,7 +166,7 @@ while ($true) {
         Fail "main commit $sha is not yet eligible: $($eligibility.reason)"
     }
 
-    if (-not $Watch) { return }
+    if (-not $Watch) { Release-AutoPilotRunLock; return }
     Write-StagingLog -Level info -Component $LogComponent -Stage "sleep" -Message "watcher sleeping before next poll" -Data @{ seconds = $PollSeconds }
     Start-Sleep -Seconds $PollSeconds
 }
