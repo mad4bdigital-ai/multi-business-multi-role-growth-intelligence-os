@@ -20,6 +20,11 @@ $OneClickScriptPath = $PSCommandPath
 $BootstrapScriptRoot = Split-Path -Parent $OneClickScriptPath
 $BootstrapLogRoot = Join-Path $BootstrapScriptRoot "logs"
 $BootstrapFallbackLog = Join-Path $BootstrapLogRoot "bootstrap-console.log"
+$WindowsPreflightPath = Join-Path $BootstrapScriptRoot "Staging-Windows-Preflight.ps1"
+try { . $WindowsPreflightPath } catch {
+    Write-Host "STAGING_WINDOWS_PREFLIGHT_IMPORT_FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    throw
+}
 function Write-EarlyBootstrapLog([string]$Message) {
     try {
         New-Item -ItemType Directory -Force -Path $BootstrapLogRoot | Out-Null
@@ -36,6 +41,25 @@ try { . $loggerPath } catch {
     throw
 }
 $LogComponent = "auto-pilot"
+$script:AutoPilotRunMutex = $null
+function Acquire-AutoPilotRunLock {
+    try {
+        $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\Mad4bPortableStagingAutoPilot")
+        if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Auto Pilot instance is already running; refusing overlapping execution" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Auto Pilot run lock acquired"
+    } catch [System.Threading.AbandonedMutexException] {
+        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Auto Pilot run lock"
+    } catch {
+        Fail "Unable to acquire Auto Pilot run lock: $($_.Exception.Message)"
+    }
+}
+function Release-AutoPilotRunLock {
+    if ($null -ne $script:AutoPilotRunMutex) {
+        try { $script:AutoPilotRunMutex.ReleaseMutex() } catch { }
+        try { $script:AutoPilotRunMutex.Dispose() } catch { }
+        $script:AutoPilotRunMutex = $null
+    }
+}
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "one-click process started" -Data @{ mode = $Mode; repository_path = $RepositoryPath }
 trap {
     $errorMessage = $_.Exception.Message
@@ -43,6 +67,7 @@ trap {
     Write-EarlyBootstrapLog "unhandled failure: $errorMessage"
     Write-Host "AUTO_PILOT_FAILURE_LOGGED: $(Join-Path $BootstrapLogRoot 'operations.jsonl')" -ForegroundColor Red
     Write-Host "AUTO_PILOT_EARLY_DIAGNOSTIC: $BootstrapFallbackLog" -ForegroundColor Yellow
+    Release-AutoPilotRunLock
     exit 1
 }
 
@@ -94,6 +119,7 @@ function Reinvoke-Elevated {
 }
 
 if (Reinvoke-Elevated) { return }
+Acquire-AutoPilotRunLock
 
 function Refresh-Path {
     $paths = @(
@@ -113,23 +139,6 @@ function Install-WingetPackage([string]$Id) {
     Refresh-Path
 }
 
-function Test-Wsl2DistributionReady([string]$WslList) {
-    if ([string]::IsNullOrWhiteSpace($WslList)) { return $false }
-    $normalized = $WslList -replace "\x00", ""
-    return $normalized -match '(?im)^\s*\*?\s*\S+\s+\S+\s+2\s*$'
-}
-
-function Wait-Wsl2Distribution([int]$Attempts = 12, [int]$DelaySeconds = 5) {
-    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
-        $wslList = (& wsl.exe --list --verbose 2>$null | Out-String)
-        # Some WSL startup states return a transient nonzero code or NUL-padded text;
-        # the normalized distribution/version row is the readiness authority.
-        if (Test-Wsl2DistributionReady $wslList) { return $true }
-        if ($attempt -lt ($Attempts - 1)) { Start-Sleep -Seconds $DelaySeconds }
-    }
-    return $false
-}
-
 function Ensure-Prerequisites {
     Refresh-Path
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Install-WingetPackage "Git.Git" }
@@ -141,12 +150,12 @@ function Ensure-Prerequisites {
     Require-Command "docker"
     Require-Command "wsl"
 
-    if (-not (Wait-Wsl2Distribution -Attempts 3 -DelaySeconds 5)) {
+    if (-not (Wait-StagingWsl2Distribution -Attempts 3 -DelaySeconds 5)) {
         Write-Host "WSL2 distribution is missing or still starting; requesting the standard Windows installation now."
         & wsl.exe --install -d Ubuntu --no-launch 2>$null
         $installExitCode = $LASTEXITCODE
-        if ($installExitCode -ne 0 -and -not (Wait-Wsl2Distribution -Attempts 12 -DelaySeconds 5)) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
-        if (-not (Wait-Wsl2Distribution -Attempts 24 -DelaySeconds 5)) { Fail "WSL2 installation completed but no version-2 distribution became ready after waiting; rerun after the requested Windows reboot." }
+        if ($installExitCode -ne 0 -and -not (Wait-StagingWsl2Distribution -Attempts 12 -DelaySeconds 5)) { Fail "WSL2 is not ready. Windows may require one reboot; rerun this same launcher after reboot." }
+        if (-not (Wait-StagingWsl2Distribution -Attempts 24 -DelaySeconds 5)) { Fail "WSL2 installation completed but no version-2 distribution became ready after waiting; rerun after the requested Windows reboot." }
     }
 
     $dockerContext = Get-NativeText "docker" @("context", "show")
@@ -290,20 +299,25 @@ function Get-MainSha([string]$RepoPath) {
     } finally { Pop-Location }
 }
 
+function Get-EligibilityWorkflowRuns([string]$Sha) {
+    $raw = & gh run list --repo $ExpectedRepository --workflow "staging-main-deploy-eligibility.yml" --commit $Sha --limit 20 --json status,conclusion,headSha,databaseId,updatedAt 2>$null
+    if ($LASTEXITCODE -ne 0) { return @() }
+    try {
+        return @((($raw | Out-String) | ConvertFrom-Json) | Where-Object { $_.headSha -eq $Sha })
+    } catch { return @() }
+}
 function Wait-Eligibility([string]$Sha) {
     $deadline = (Get-Date).ToUniversalTime().AddSeconds($EligibilityWaitSeconds)
     while ($true) {
-        $raw = & gh api "repos/$ExpectedRepository/commits/$Sha/check-runs?per_page=100" 2>$null
-        if ($LASTEXITCODE -ne 0) { Fail "GitHub eligibility lookup failed; refusing deployment" }
-        $payload = (($raw | Out-String) | ConvertFrom-Json)
-        $checks = @($payload.check_runs | Where-Object { $_.name -eq "Staging Main Deploy Eligibility" } | Sort-Object completed_at -Descending)
-        if ($checks.Count -gt 0) {
-            $check = $checks[0]
-            if ($check.status -eq "completed" -and $check.conclusion -eq "success") { return }
-            if ($check.status -eq "completed" -and $check.conclusion -notin @("success", "neutral")) { Fail "main commit $Sha is blocked by CI eligibility: $($check.conclusion)" }
+        $runs = @(Get-EligibilityWorkflowRuns $Sha)
+        if ($runs.Count -gt 0) {
+            $run = $runs | Sort-Object updatedAt -Descending | Select-Object -First 1
+            Write-StagingLog -Level info -Component $LogComponent -Stage "eligibility-poll" -Message "workflow eligibility observed" -Data @{ sha = $Sha; status = $run.status; conclusion = $run.conclusion; run_id = $run.databaseId }
+            if ($run.status -eq "completed" -and $run.conclusion -eq "success") { return }
+            if ($run.status -eq "completed" -and $run.conclusion -notin @("success", "neutral")) { Fail "main commit $Sha is blocked by CI eligibility: $($run.conclusion)" }
         }
-        if ((Get-Date).ToUniversalTime() -gt $deadline) { Fail "Timed out waiting for Staging Main Deploy Eligibility for $Sha" }
-        Write-Host "Waiting for Staging Main Deploy Eligibility: sha=$Sha"
+        if ((Get-Date).ToUniversalTime() -gt $deadline) { Fail "Timed out waiting for Staging Main Deploy Eligibility workflow for exact SHA $Sha" }
+        Write-Host "Waiting for Staging Main Deploy Eligibility workflow: sha=$Sha"
         Start-Sleep -Seconds 15
     }
 }

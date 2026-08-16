@@ -54,9 +54,12 @@ services:
       retries: 20
 
   app:
-    # Bind the local API to loopback only; public access is exclusively through cloudflared.
-    ports:
-      - "127.0.0.1:${PORT:-8080}:8080"
+    build:
+      context: ..
+      dockerfile: http-generic-api/Dockerfile.staging
+    # Staging ingress is internal-only; cloudflared reaches http://app:8080.
+    # An optional operator override may publish a localhost port when needed.
+    ports: []
     env_file:
       - .env.staging
     volumes:

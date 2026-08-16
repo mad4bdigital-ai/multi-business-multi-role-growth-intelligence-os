@@ -13,6 +13,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$WindowsPreflightPath = Join-Path $PSScriptRoot "Staging-Windows-Preflight.ps1"
+if (-not (Test-Path -LiteralPath $WindowsPreflightPath)) { throw "Missing shared Windows preflight helper: $WindowsPreflightPath" }
+. $WindowsPreflightPath
 $LogComponent = "app-operations"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel }
 trap {
@@ -48,7 +51,41 @@ function Get-NativeText([string]$File, [string[]]$Arguments) {
 function Require-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { Fail "Required command is missing: $Name" }
 }
+function Normalize-TextFileToLf([string]$Path) {
+    $text = [System.IO.File]::ReadAllText($Path)
+    $text = $text -replace "`r`n", "`n"
+    $text = $text -replace "`r", "`n"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $text, $utf8NoBom)
+}
+function Repair-ManifestLineEndings([string]$RepoPath) {
+    if (-not (Test-Path $Manifest)) { return }
+    $manifestObject = Get-Content -Raw $Manifest | ConvertFrom-Json
+    git config core.autocrlf false | Out-Null
+    git config core.eol lf | Out-Null
+    $trackedDirty = @(git diff --name-only)
+    foreach ($relative in $trackedDirty) {
+        $entry = $manifestObject.files | Where-Object { $_.path -eq ($relative -replace '\\','/') } | Select-Object -First 1
+        if ($null -eq $entry) { continue }
+        git diff --ignore-space-at-eol --quiet -- $relative
+        if ($LASTEXITCODE -ne 0) { Fail "Protected file has content changes, not only line-ending drift: $relative" }
+        Normalize-TextFileToLf (Join-Path $RepoPath $relative)
+        Write-StagingLog -Level info -Component $LogComponent -Stage "line-endings" -Message "normalized protected file to LF" -Data @{ path = $relative }
+    }
+    git update-index --really-refresh 2>$null | Out-Null
+}
 
+function Write-ServiceFailureDiagnostics([string]$Service, [string]$ContainerId) {
+    try {
+        $state = (& docker inspect --format '{{json .State}}' $ContainerId 2>$null | Out-String).Trim()
+        $logs = (& docker logs --tail 120 $ContainerId 2>&1 | Out-String).Trim()
+        Write-StagingLog -Level error -Component $LogComponent -Stage "health:$Service" -Message "service health diagnostics" -Data @{ service = $Service; container_id = $ContainerId; state = $state; logs = $logs }
+        Write-Host "SERVICE_HEALTH_DIAGNOSTICS: service=$Service container=$ContainerId" -ForegroundColor Red
+        if (-not [string]::IsNullOrWhiteSpace($logs)) { Write-Host $logs -ForegroundColor DarkRed }
+    } catch {
+        Write-StagingLog -Level warn -Component $LogComponent -Stage "health:$Service" -Message "service diagnostics collection failed" -Data @{ service = $Service; error = $_.Exception.Message }
+    }
+}
 function Wait-ServiceHealthy([string[]]$ComposeArgs, [string]$Service) {
     $containerId = Get-NativeText "docker" ($ComposeArgs + @("ps", "-q", $Service))
     if ([string]::IsNullOrWhiteSpace($containerId)) { Fail "Compose did not create the expected service container: $Service" }
@@ -58,9 +95,13 @@ function Wait-ServiceHealthy([string[]]$ComposeArgs, [string]$Service) {
             Write-StagingLog -Level info -Component $LogComponent -Stage "health:$Service" -Message "service became healthy" -Data @{ service = $Service }
             return
         }
-        if ($health -eq "unhealthy") { Fail "Service healthcheck failed: $Service" }
+        if ($health -eq "unhealthy") {
+            Write-ServiceFailureDiagnostics $Service $containerId
+            Fail "Service healthcheck failed: $Service"
+        }
         Start-Sleep -Seconds 2
     }
+    Write-ServiceFailureDiagnostics $Service $containerId
     Fail "Service did not become healthy within 120 seconds: $Service"
 }
 
@@ -118,15 +159,15 @@ $context = Get-NativeText "docker" @("context", "show")
 if ($context -notin @("default", "desktop-linux")) { Fail "Docker context '$context' is not an accepted local context" }
 $dockerServer = Get-NativeText "docker" @("info", "--format", "{{.ServerVersion}}")
 if ([string]::IsNullOrWhiteSpace($dockerServer)) { Fail "Docker daemon is not reachable" }
-    $wslStatus = Get-NativeText "wsl.exe" @("--status")
+    $wslStatus = (& wsl.exe --status 2>$null | Out-String)
     if ([string]::IsNullOrWhiteSpace($wslStatus)) { Fail "WSL2 status could not be read" }
-    $wslDistros = Get-NativeText "wsl.exe" @("--list", "--verbose")
-    if ($wslDistros -notmatch '(?m)\s2\s*$') { Fail "No WSL2 distribution is available; Docker Desktop must be configured for WSL2" }
+    if (-not (Test-StagingWsl2Ready)) { Fail "No WSL2 distribution is available; Docker Desktop must be configured for WSL2" }
 
     Push-Location $RepositoryPath
 try {
+    Repair-ManifestLineEndings $RepositoryPath
     $dirty = @(git status --porcelain --untracked-files=all)
-    if ($dirty.Count -gt 0) { Fail "Working tree is not clean; Auto Pilot will not overwrite local work" }
+    if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
     Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=1")
     $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
     if ($remoteCommit.ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) {

@@ -6,19 +6,23 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "2896742ce2b2641c2830b9ded6a6f60617da0f8097e584f000064508dabad598"
+      "sha256": "ad2ebc820c5e245bfaf2ae028f3626740a421d57024a1575102d0e2b7cd203b5"
     },
     {
       "path": ".gitignore",
       "sha256": "2d9ced5ef0c35f272984b057fd68853d689a284b3b2eb43c7c1e512e8fc83523"
     },
     {
-      "path": "STAGING-WINDOWS.md",
-      "sha256": "6f837d5a402c510c60d9b8eaceb723ad64f90a45346946b19075d3d1283c7287"
+      "path": "autopilot-portable-staging/auto-deploy-policy.json",
+      "sha256": "b120ff9330f5ca20e338c7bd2050ed937a6b751d79a29913e59447768a929341"
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "sha256": "94d1072f9c51b516e6e7436139d632d6600da68c25d101a6989f2022dcaab4b0"
+    },
+    {
+      "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "sha256": "03800cc9365ed815041b2bfc85b34a1f76cc2b01bb7b285f002fc4392bba2f8b"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "998f929d11a7fe46cdad63691e51b3e5a847e0abac775395bb74dbf44a096d43"
+      "sha256": "27cd343e4ac6e3b40c3429dcf2a35f9c7613818a8aa74814241a982dcf8e0cbf"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -49,6 +53,10 @@
       "sha256": "d987c084391663997a7e24e50e6d4be2928497c94c3ebc4065d2129726bca7dd"
     },
     {
+      "path": "autopilot-portable-staging/staging-maintenance-policy.json",
+      "sha256": "fba9016e853092520ea3183478dc4579587bd365eb36c1e9627a45f0335b15eb"
+    },
+    {
       "path": "autopilot-portable-staging/Staging-Maintenance.cmd",
       "sha256": "eb028547c728b0d0c481ed1a6853068a46916e373138bde8a3b5ef52b505bbd4"
     },
@@ -58,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "6ab01bb1134dcc111ef9d50b086c91a3ef4e68a88a6dab2bdf5337ff5ff00566"
+      "sha256": "4fe98cb38001659ce3b2d95a0e4e032c02a207af7ba5eba2cade05823fbc119f"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -67,18 +75,6 @@
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
       "sha256": "8dd751eadac44215c2dbe150cc19564f9fafedada3b3b67191742de178d52885"
-    },
-    {
-      "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "b120ff9330f5ca20e338c7bd2050ed937a6b751d79a29913e59447768a929341"
-    },
-    {
-      "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "03800cc9365ed815041b2bfc85b34a1f76cc2b01bb7b285f002fc4392bba2f8b"
-    },
-    {
-      "path": "autopilot-portable-staging/staging-maintenance-policy.json",
-      "sha256": "fba9016e853092520ea3183478dc4579587bd365eb36c1e9627a45f0335b15eb"
     },
     {
       "path": "docs/staging-openapi-mcp-db-copy.md",
@@ -95,10 +91,6 @@
     {
       "path": "http-generic-api/.env.staging.example",
       "sha256": "fcef22d5a58872c7a1f4be9a6c66f6f25fdbffdf3166be8988941d73831dac1b"
-    },
-    {
-      "path": "http-generic-api/Dockerfile",
-      "sha256": "25cfaadebb9874f349bc13b3b365c39cdac6335f89a7406026fe6c6249b439dc"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -130,19 +122,27 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "2c1d43eee84c5d1a9bbd44b996af2124bf518c7da203a05c3d574f29d936e9d1"
+      "sha256": "227e8f46da016cc44f001067e85086818d942df535753bf525ff24164b5d5da8"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
       "sha256": "06539f972c22dc0d60be2c5b47dcb56818d50b913e881db057dbeb6de5bb59e8"
     },
     {
+      "path": "http-generic-api/Dockerfile",
+      "sha256": "25cfaadebb9874f349bc13b3b365c39cdac6335f89a7406026fe6c6249b439dc"
+    },
+    {
+      "path": "http-generic-api/Dockerfile.staging",
+      "sha256": "58f6b5a63838603bc0ec52f5df5c892a6da761d738faeb00cc757a4646c19091"
+    },
+    {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "3aa78905022bbbc8b6b7f655cca34302cf79cae05fbbe786e4a7f1c6c75d7d5a"
+      "sha256": "417d4fbdc0bf56b1d62c53ec33b279e93b643c9c6590a91dc52e5d71aba231fc"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "0e60414f3a3d723947a4990a5999d45d1f03577ae360393f32c404f81368653d"
+      "sha256": "eca0928fa06f3970f06041265226b683f1d726d8794c9de4ea5213786fb99460"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -162,7 +162,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "86a6792efd7a9c11fe3949ad676e06e565f79b9bbd5e2068c4db59dbdfbf38be"
+      "sha256": "5c8dfdecafadd0f165492fbf89d7372f4228cb8e206d072fb1fbd2609a9acb09"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -230,7 +230,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "83b169d7698170923613165a907f99e2a1850525588c9bc47dcd312f9473663a"
+      "sha256": "b20d8ec8457d2409864e9c3bab6718b2c90fe396a888ff970dd991250b224606"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
@@ -238,11 +238,11 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "972c90ffc2523c89c352351e614ee2affcbf8011fd7e5dbaa702c857e968df19"
+      "sha256": "54accf75ecf629ba1f575459aed35834dac4825a0dbc2e39796a16e850ee18a5"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "97a3447402367f7decac927708e51e075d4e0d529129b5012fa00808fe7ff2c5"
+      "sha256": "c8a59cea232d2074be1bf8f05e6a3fed6b6548f1f71cc3af3909ea048f9abb6c"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
@@ -259,6 +259,10 @@
     {
       "path": "http-generic-api/workspaceBrandLifecycle.js",
       "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337"
+    },
+    {
+      "path": "STAGING-WINDOWS.md",
+      "sha256": "6f837d5a402c510c60d9b8eaceb723ad64f90a45346946b19075d3d1283c7287"
     }
   ],
   "safety": {

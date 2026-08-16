@@ -7,22 +7,22 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,055 |
-| Total bytes | 66,970,442 |
-| Counted text lines | 1,566,260 |
-| Directories | 263 |
+| Tracked files | 7,065 |
+| Total bytes | 67,697,093 |
+| Counted text lines | 1,585,643 |
+| Directories | 264 |
 | Categories | 13 |
 
 ## Files by category
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,117 |
+| `tests-and-specs` | 2,118 |
 | `documentation` | 1,897 |
-| `api-runtime` | 1,420 |
+| `api-runtime` | 1,421 |
 | `database-migrations` | 782 |
-| `root-and-other` | 276 |
-| `api-contracts` | 173 |
+| `root-and-other` | 277 |
+| `api-contracts` | 180 |
 | `ci-workflows` | 161 |
 | `ci-config` | 103 |
 | `schemas-and-data` | 70 |
@@ -36,13 +36,13 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,494 |
-| `.mjs` | 1,651 |
+| `.mjs` | 1,655 |
 | `.js` | 984 |
 | `.sql` | 797 |
-| `.json` | 765 |
+| `.json` | 769 |
 | `.yml` | 164 |
 | `.yaml` | 110 |
-| `.ps1` | 15 |
+| `.ps1` | 16 |
 | `.ts` | 15 |
 | `.cs` | 14 |
 | `.jsx` | 9 |
@@ -62,6 +62,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.dockerignore` | 1 |
 | `.gcloudignore` | 1 |
 | `[no extension]` | 1 |
+| `.staging` | 1 |
 | `.png` | 1 |
 | `.html` | 1 |
 | `.sh` | 1 |
@@ -73,8 +74,8 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | GitHub Actions workflows | 161 |
 | Database migrations | 782 |
-| API/OpenAPI contracts | 173 |
-| Test/spec files (paths) | 2,194 |
+| API/OpenAPI contracts | 180 |
+| Test/spec files (paths) | 2,200 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -82,7 +83,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 65 | 9 | 0 |
-| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 19 | 0 | 4 |
+| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 22 | 0 | 4 |
 
 ## Largest tracked files
 
@@ -94,12 +95,14 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 990,965 | 23004 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 606,319 | 11469 |
+| `specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json` | api-contracts | 407,307 | 11364 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
+| `specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json` | api-contracts | 291,182 | 7445 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 255,773 | 6187 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 242,047 | 2073 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 242,258 | 2075 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 212,668 | 4536 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
 | `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
@@ -116,8 +119,6 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/work-maps/data-model-domain-map.md` | documentation | 120,658 | 871 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
-| `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml` | api-contracts | 112,100 | 3408 |
-| `deployment_parity_checklist.md` | documentation | 109,207 | 571 |
 
 ## Complete machine-readable inventory
 

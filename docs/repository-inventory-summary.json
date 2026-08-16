@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7055,
-    "bytes": 66970442,
-    "lines": 1566260,
-    "directories": 263,
+    "files": 7065,
+    "bytes": 67697093,
+    "lines": 1585643,
+    "directories": 264,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2117,
+      "tests-and-specs": 2118,
       "documentation": 1897,
-      "api-runtime": 1420,
+      "api-runtime": 1421,
       "database-migrations": 782,
-      "root-and-other": 276,
-      "api-contracts": 173,
+      "root-and-other": 277,
+      "api-contracts": 180,
       "ci-workflows": 161,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,13 +27,13 @@
     },
     "byExtension": {
       ".md": 2494,
-      ".mjs": 1651,
+      ".mjs": 1655,
       ".js": 984,
       ".sql": 797,
-      ".json": 765,
+      ".json": 769,
       ".yml": 164,
       ".yaml": 110,
-      ".ps1": 15,
+      ".ps1": 16,
       ".ts": 15,
       ".cs": 14,
       ".jsx": 9,
@@ -53,21 +53,22 @@
       ".dockerignore": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
+      ".staging": 1,
       ".png": 1,
       ".html": 1,
       ".sh": 1,
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3639,
+      "http-generic-api": 3644,
       "docs": 1801,
-      "specs": 863,
+      "specs": 867,
       ".github": 264,
       ".changes": 254,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
-      "autopilot-portable-staging": 17,
+      "autopilot-portable-staging": 18,
       "schemas": 17,
       ".specify": 15,
       "src": 12,
@@ -212,6 +213,9 @@
         "evaluation:test",
         "evaluation:network",
         "evaluation:environment",
+        "openapi:detail-batch:write",
+        "openapi:detail-batch:check",
+        "openapi:detail-batch:test",
         "evaluation:loop"
       ],
       "dependencies": 0,
@@ -221,8 +225,8 @@
   "surfaces": {
     "workflows": 161,
     "migrations": 782,
-    "apiContracts": 173,
-    "testSpecFiles": 2194
+    "apiContracts": 180,
+    "testSpecFiles": 2200
   },
   "largestFiles": [
     {
@@ -262,10 +266,22 @@
       "lines": 11469
     },
     {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
+      "category": "api-contracts",
+      "bytes": 407307,
+      "lines": 11364
+    },
+    {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
       "bytes": 325509,
       "lines": 8484
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "category": "api-contracts",
+      "bytes": 291182,
+      "lines": 7445
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -294,8 +310,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 242047,
-      "lines": 2073
+      "bytes": 242258,
+      "lines": 2075
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
@@ -332,18 +348,6 @@
       "category": "api-runtime",
       "bytes": 149366,
       "lines": 3363
-    },
-    {
-      "path": "AI_Agent_Knowledge_Guide.md",
-      "category": "documentation",
-      "bytes": 146641,
-      "lines": 1341
-    },
-    {
-      "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
-      "category": "api-contracts",
-      "bytes": 141224,
-      "lines": 3794
     }
   ]
 }
