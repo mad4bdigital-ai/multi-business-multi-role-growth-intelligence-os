@@ -3622,8 +3622,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions:0",
-      "source_line": 4506,
-      "source_offset": 211808,
+      "source_line": 4508,
+      "source_offset": 211902,
       "method": "POST",
       "path": "/admin/act-as-user/sessions",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3631,8 +3631,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions/:sessionId/revoke:1",
-      "source_line": 4521,
-      "source_offset": 212958,
+      "source_line": 4523,
+      "source_offset": 213052,
       "method": "POST",
       "path": "/admin/act-as-user/sessions/:sessionId/revoke",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3640,8 +3640,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:2",
-      "source_line": 4534,
-      "source_offset": 213900,
+      "source_line": 4536,
+      "source_offset": 213994,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3649,8 +3649,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:3",
-      "source_line": 4565,
-      "source_offset": 215055,
+      "source_line": 4567,
+      "source_offset": 215149,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -25670,10 +25670,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4506,
+        "source_line": 4508,
         "handler_window_lines": [
-          4506,
-          4520
+          4508,
+          4522
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25740,10 +25740,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4521,
+        "source_line": 4523,
         "handler_window_lines": [
-          4521,
-          4533
+          4523,
+          4535
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25800,10 +25800,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4565,
+        "source_line": 4567,
         "handler_window_lines": [
-          4565,
-          4619
+          4567,
+          4621
         ],
         "evidence_flags": {
           "handler_window_present": true,

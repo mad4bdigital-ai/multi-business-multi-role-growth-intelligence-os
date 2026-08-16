@@ -4499,7 +4499,9 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 
 export function buildGptToolsRoutes(deps) {
   const { requireBackendApiKey, runtimePersistencePoolFactory, actAsUserAdapter, actAsUserAuthorityResolver } = deps;
-  const runtimeDeps = { runtimePersistencePoolFactory, actAsUserAdapter: actAsUserAdapter || null };
+  const runtimeDeps = { runtimePersistencePoolFactory };
+  runtimeDeps.actAsUserAdapter = actAsUserAdapter || null;
+  runtimeDeps.actAsUserAuthorityResolver = actAsUserAuthorityResolver || null;
   const router = Router();
 
   // POST /admin/act-as-user/sessions
