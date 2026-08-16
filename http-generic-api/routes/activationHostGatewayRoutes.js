@@ -76,7 +76,8 @@ function requestHost(req, preferredHost = "") {
     req.headers?.host,
   ].map(normalizedRequestHost).filter(Boolean);
   const preferred = normalizedRequestHost(preferredHost);
-  return (preferred && candidates.includes(preferred)) ? preferred : (candidates[0] || "");
+  const firstCandidate = candidates.find((candidate) => Boolean(candidate)) || "";
+  return (preferred && candidates.includes(preferred)) ? preferred : firstCandidate;
 }
 
 function requestPath(req) {

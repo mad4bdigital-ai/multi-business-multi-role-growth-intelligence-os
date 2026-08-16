@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
-      "sha256": "8520de0bbc8075b5a6c4967864b7715e37310aa473a98910db534f22bdc2ff89"
+      "sha256": "5e8cd5668826bf062aabf398cc35ba11a2f552a509fc555a760c6efad609ab39"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPreset.js",

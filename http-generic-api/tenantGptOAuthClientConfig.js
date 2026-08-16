@@ -155,6 +155,9 @@ export async function readTenantGptOAuthClientConfig(options = null) {
         LIMIT 1`,
       [TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY]
     );
+    if (Array.isArray(rows) && rows.length > 1) {
+      throw new Error("tenant_gpt_oauth_client_config_ambiguous");
+    }
 
     const config = parseJsonConfig(Array.isArray(rows) ? rows[0]?.config_json : null);
     if (!config?.client_secret_ref && !config?.client_secret) {
@@ -217,6 +220,9 @@ export async function getTenantGptOAuthClientConfigStatus(options = {}) {
         LIMIT 1`,
       [TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY]
     );
+    if (Array.isArray(rows) && rows.length > 1) {
+      throw new Error("tenant_gpt_oauth_client_config_status_ambiguous");
+    }
     const row = Array.isArray(rows) ? rows[0] : null;
     const config = parseJsonConfig(row?.config_json);
     const clientSecretRef = cleanSecretRef(config?.client_secret_ref);
