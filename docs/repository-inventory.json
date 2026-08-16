@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7114,
-    "bytes": 68919080,
-    "lines": 1616204,
+    "bytes": 68916348,
+    "lines": 1616159,
     "directories": 265,
     "categories": 13
   },
@@ -10731,9 +10731,9 @@
       "path": ".github/workflows/hostinger-production-runtime-readback-r7.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 22629,
-      "lines": 409,
-      "sha256": "ee9bc1e4d50ca70d366b3ea71b4972047e846feac31d8b20fed9aa4f7f54a11f",
+      "bytes": 20154,
+      "lines": 369,
+      "sha256": "251c6540d2c826b6ade53c5ed680c05d1002d6283b4415f7f18984916e6a1b96",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64444,9 +64444,9 @@
       "path": "http-generic-api/test-governed-autopilot-production-deployment.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 4481,
-      "lines": 90,
-      "sha256": "2db5dea915d8a9651fd4a9252a3638afe46d8de43dd039452f2e0fe970280048",
+      "bytes": 4224,
+      "lines": 85,
+      "sha256": "9951df3bab8e47fd1162fdc2044a621ec77fa74083db9b1e2c7ececbb668d8e2",
       "mode": "644",
       "executable": false,
       "generated": false
