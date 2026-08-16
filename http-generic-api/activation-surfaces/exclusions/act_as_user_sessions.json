@@ -1,0 +1,10 @@
+{
+  "surface_key": "act_as_user_sessions",
+  "source_table": "act_as_user_sessions",
+  "reason": "Excluded because this table stores durable Act-as-User delegation session state for fail-closed authorization, replay protection, and audit correlation. It is not an activation surface, external provider surface, write-scope grant, or tenant-facing activation projection; session creation and dispatch remain governed by dedicated authority, preflight, and readback controls.",
+  "owner": "platform-governance",
+  "authority": "act_as_user_durable_control_plane",
+  "production_activation_allowed": false,
+  "external_write_allowed": false,
+  "review_after": "2026-12-31"
+}
