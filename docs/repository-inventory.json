@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7071,
-    "bytes": 67753278,
+    "bytes": 67753276,
     "lines": 1587126,
     "directories": 265,
     "categories": 13
@@ -12445,7 +12445,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "29d005319b12afafd3b2797995817cb4858042de97d70505730f0ac10d82cc27",
+      "sha256": "a67cbb92c2494c6d2c5bf9c3bdd89b76dee8a3b1097fa2c034e5c576ce40a2db",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70160,9 +70160,9 @@
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 8694,
+      "bytes": 8692,
       "lines": 120,
-      "sha256": "c8a59cea232d2074be1bf8f05e6a3fed6b6548f1f71cc3af3909ea048f9abb6c",
+      "sha256": "f7c2e98426356fd0b28ec4116a94b2235c8743a2531861de8adaed094226849b",
       "mode": "644",
       "executable": false,
       "generated": false
