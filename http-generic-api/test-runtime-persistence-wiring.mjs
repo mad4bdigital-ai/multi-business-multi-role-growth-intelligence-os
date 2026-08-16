@@ -37,6 +37,9 @@ assert.match(routeSource, /async function dispatchToolImpl\(callerType, toolKey,
 assert.match(routeSource, /maybeChunkToolResponseBody\([\s\S]*?runtimeDeps\)/u);
 assert.match(routeSource, /runtimePersistencePoolFactory: runtimeDeps\.runtimePersistencePoolFactory/u);
 assert.match(routeSource, /const runtimeDeps = \{ runtimePersistencePoolFactory \}/u);
+assert.match(routeSource, /runtimeDeps\.actAsUserAdapter = actAsUserAdapter \|\| null/u);
+assert.match(routeSource, /runtimeDeps\.actAsUserAuthorityResolver = actAsUserAuthorityResolver \|\| null/u);
+assert.match(routeSource, /act-as-user\/sessions/u);
 assert.doesNotMatch(routeSource, /chunkPersistenceDeps/u, "module-scope dispatch must not depend on a build-local lexical variable");
 assert.match(serverSource, /runtimePersistencePoolFactory: getRuntimePersistencePool/u);
 

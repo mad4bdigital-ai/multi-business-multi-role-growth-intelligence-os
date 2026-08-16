@@ -43,10 +43,15 @@
       "docs/governance/platform-configuration-entry-registry.json",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
-      ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
+      ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/scripts/frontend-surface-dispatch.mjs",
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs"
     ]
   },
-  "merge_contract": { "minimum_phase": "mvp" },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "phases": [
     {
       "id": "mvp",
@@ -75,13 +80,62 @@
             "The persisted OpenAPI detail-gap classification is regenerated deterministically from the current dispatch artifact and remains classification-only with zero blocking contract gaps."
           ],
           "tests": [
-            { "id": "spec020-identity-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-resource-identity-contract.mjs", "args": [] },
-            { "id": "spec020-operation-governance-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-operation-governance-contract.mjs", "args": [] },
-            { "id": "spec020-openapi-projection-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-projection-readiness.mjs", "args": [] },
-            { "id": "spec020-openapi-detail-gap-classification", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-detail-gap-classification.mjs", "args": [] },
-            { "id": "spec020-openapi-gap-closure-plan", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-gap-closure-plan.mjs", "args": [] },
-            { "id": "spec020-openapi-detail-closure-batch", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-detail-closure-batch.mjs", "args": [] },
-            { "id": "spec020-openapi-all-remaining-preflight", "runner": "node", "working_directory": "http-generic-api", "path": "test-openapi-all-remaining-preflight-batch.mjs", "args": [] }
+            {
+              "id": "spec020-identity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-identity-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-operation-governance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-operation-governance-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-projection-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-projection-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-detail-gap-classification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-detail-gap-classification.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-gap-closure-plan",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-gap-closure-plan.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-detail-closure-batch",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-detail-closure-batch.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-all-remaining-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-all-remaining-preflight-batch.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-frontend-surface-coverage-claims",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-coverage-claims.mjs",
+              "args": []
+            }
           ],
           "evidence_paths": [
             "specs/020-platform-resource-identity-brand-governance/spec.md",
@@ -97,7 +151,6 @@
             "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
             "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
             "http-generic-api/package.json",
-            "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
             "http-generic-api/scripts/openapi-detail-closure-batch.mjs",
             "http-generic-api/test-openapi-detail-closure-batch.mjs",
             "http-generic-api/scripts/openapi-all-remaining-preflight-batch.mjs",
@@ -121,12 +174,23 @@
             "docs/governance/configuration-drift-policy.json",
             "docs/governance/platform-configuration-entry-registry.json",
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+            "http-generic-api/frontend-surface-policy.json",
+            "http-generic-api/scripts/frontend-surface-dispatch.mjs",
+            "http-generic-api/test-frontend-surface-coverage-claims.mjs"
           ]
         }
       ]
     },
-    { "id": "resilient", "status": "planned", "objective": "Run separately authorized shadow parity and repository readback before any runtime authority." },
-    { "id": "production", "status": "planned", "objective": "Promote only after explicit authority, migration, security, canary, and exact runtime readback." }
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Run separately authorized shadow parity and repository readback before any runtime authority."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote only after explicit authority, migration, security, canary, and exact runtime readback."
+    }
   ]
 }
