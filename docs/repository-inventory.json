@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7116,
-    "bytes": 68923850,
-    "lines": 1616321,
+    "bytes": 68923776,
+    "lines": 1616317,
     "directories": 265,
     "categories": 13
   },
@@ -73356,9 +73356,9 @@
       "path": "http-generic-api/trustedRequestHost.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 1644,
-      "lines": 47,
-      "sha256": "48ba982b97e77790d20fcfbc9211b6e8392ca426c6f96fbf18334259b8c73e1e",
+      "bytes": 1570,
+      "lines": 43,
+      "sha256": "cfffcc7665ae312d4cea83da9e4fb1728937250a572a8d08b07a24db8fef5b75",
       "mode": "644",
       "executable": false,
       "generated": false
