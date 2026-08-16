@@ -19,8 +19,6 @@ const REMOTE_MCP_WRITE_SCOPE_RECIPE = "remote_mcp_write_scope_refresh";
 const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
 const TRUSTED_WRITER_AUTHORITY_MODE = "trusted_generated_artifact_writer";
 const STAGING_MANIFEST_PATH = "autopilot-portable-staging/manifest.json";
-const WORK_MAP_POLICY_PATH = ".specify/spec-kit-work-map-integration-policy.json";
-const WORK_MAP_READY_STATE = "ready_for_implementation";
 const WORK_MAP_MANIFEST_PATTERN = /^specs\/([0-9]{3}-[a-z0-9][a-z0-9-]*)\/work-map-integration\.json$/u;
 const EXPLICIT_RECIPES = new Set([
   FRONTEND_OPENAPI_RECIPE,
@@ -239,12 +237,12 @@ function readCandidateSourceFiles() {
 function readWorkMapPolicy() {
   let policy;
   try {
-    policy = JSON.parse(fs.readFileSync(path.join(repoRoot, WORK_MAP_POLICY_PATH), "utf8"));
+    policy = JSON.parse(fs.readFileSync(path.join(repoRoot, ".specify/spec-kit-work-map-integration-policy.json"), "utf8"));
   } catch (error) {
     throw new ToolFailure({
       code: "work_map_policy_invalid",
       step: "discover_work_map_bootstrap_bindings",
-      command: `parse ${WORK_MAP_POLICY_PATH}`,
+      command: "parse .specify/spec-kit-work-map-integration-policy.json",
       status: 1,
       stderr: error?.message || String(error),
     });
@@ -253,16 +251,16 @@ function readWorkMapPolicy() {
     throw new ToolFailure({
       code: "work_map_policy_shape_invalid",
       step: "discover_work_map_bootstrap_bindings",
-      command: `validate ${WORK_MAP_POLICY_PATH}`,
+      command: "validate .specify/spec-kit-work-map-integration-policy.json",
       status: 1,
       stderr: "Work Map bootstrap requires canonical specs/work-map-integration.json policy roots.",
     });
   }
-  if (!Array.isArray(policy.review_states) || !policy.review_states.includes(WORK_MAP_READY_STATE)) {
+  if (!Array.isArray(policy.review_states) || !policy.review_states.includes("ready_for_implementation")) {
     throw new ToolFailure({
       code: "work_map_policy_review_states_invalid",
       step: "discover_work_map_bootstrap_bindings",
-      command: `validate ${WORK_MAP_POLICY_PATH} review_states`,
+      command: "validate .specify/spec-kit-work-map-integration-policy.json review_states",
       status: 1,
       stderr: "Work Map policy must register ready_for_implementation.",
     });
@@ -312,7 +310,7 @@ function discoverReadyWorkMapBindingPaths() {
         stderr: "Work Map bootstrap manifest review_state is not registered by policy.",
       });
     }
-    if (manifest.review_state === WORK_MAP_READY_STATE) bindings.push(relativePath);
+    if (manifest.review_state === "ready_for_implementation") bindings.push(relativePath);
   }
   return bindings;
 }
@@ -324,7 +322,7 @@ function isDynamicReadyWorkMapBootstrapOutput(file) {
   if (!fs.existsSync(manifestFile)) return false;
   try {
     const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-    return manifest?.feature_key === match[1] && manifest?.review_state === WORK_MAP_READY_STATE;
+    return manifest?.feature_key === match[1] && manifest?.review_state === "ready_for_implementation";
   } catch {
     return false;
   }
