@@ -2,14 +2,13 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-evaluation",
   "deterministic": true,
-  "inputFingerprint": "059465ca6fd6a274bbb87046f526a50f51983698e814851aa3c7a378e15c4564",
+  "inputFingerprint": "eb6b42a6916e8bfad1d0126519416b09ed3315bc8cee6b34bd62c3e4f016a643",
   "gate": {
     "decision": "warn",
     "blockingGapIds": [],
     "warningGapIds": [
       "AUTO-CI-SURFACE-SIZE",
-      "MAINT-LARGE-TRACKED-FILES",
-      "SEC-CI-UNPINNED-ACTIONS"
+      "MAINT-LARGE-TRACKED-FILES"
     ]
   },
   "baselineDiff": {
@@ -20,17 +19,16 @@
     "resolvedGapIds": []
   },
   "gapCounts": {
-    "total": 3,
+    "total": 2,
     "bySeverity": {
       "critical": 0,
       "high": 0,
-      "medium": 1,
+      "medium": 0,
       "low": 2,
       "info": 0
     },
     "byDomain": {
-      "maintainability": 2,
-      "security": 1
+      "maintainability": 2
     }
   },
   "topGaps": [
@@ -46,14 +44,6 @@
       "gapId": "MAINT-LARGE-TRACKED-FILES",
       "domain": "maintainability",
       "severity": "low",
-      "status": "open",
-      "lifecycle": "new",
-      "blocking": false
-    },
-    {
-      "gapId": "SEC-CI-UNPINNED-ACTIONS",
-      "domain": "security",
-      "severity": "medium",
       "status": "open",
       "lifecycle": "new",
       "blocking": false

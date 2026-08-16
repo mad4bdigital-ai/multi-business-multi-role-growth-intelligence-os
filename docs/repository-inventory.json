@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7087,
-    "bytes": 67890124,
+    "bytes": 67890210,
     "lines": 1589748,
     "directories": 265,
     "categories": 13
@@ -11632,9 +11632,9 @@
       "path": ".github/workflows/staging-openapi-governance.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 1044,
+      "bytes": 1130,
       "lines": 36,
-      "sha256": "12a8855967bbcc3ca906b7d380b13929233d2fb37e5ecbc6d67920c4a0f1343a",
+      "sha256": "9fab9eb34f2b0bcee4cdd3995862aac80e643cfefd5ae4bbb0b128c8cfb598a6",
       "mode": "644",
       "executable": false,
       "generated": false

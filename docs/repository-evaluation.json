@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "059465ca6fd6a274bbb87046f526a50f51983698e814851aa3c7a378e15c4564",
+  "inputFingerprint": "eb6b42a6916e8bfad1d0126519416b09ed3315bc8cee6b34bd62c3e4f016a643",
   "inventory": {
     "files": 7087,
-    "bytes": 67890124,
+    "bytes": 67890210,
     "directories": 265,
     "categories": 13
   },
@@ -15,17 +15,8 @@
       "explicitPermissions": 162,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
-      "unpinnedActions": 2,
-      "unpinnedActionRefs": [
-        {
-          "path": ".github/workflows/staging-openapi-governance.yml",
-          "reference": "uses: actions/checkout@v4"
-        },
-        {
-          "path": ".github/workflows/staging-openapi-governance.yml",
-          "reference": "uses: actions/setup-node@v4"
-        }
-      ],
+      "unpinnedActions": 0,
+      "unpinnedActionRefs": [],
       "budget": {
         "max": 160,
         "warning": 155,
@@ -221,29 +212,6 @@
       "impact": "Large files without an explicit ownership and rationale policy increase review and change costs.",
       "recommendation": "Split or generate the file, or add a bounded rationale to the large-file policy.",
       "lifecycle": "new"
-    },
-    {
-      "gapId": "SEC-CI-UNPINNED-ACTIONS",
-      "domain": "security",
-      "severity": "medium",
-      "status": "open",
-      "blocking": false,
-      "evidence": {
-        "unpinnedActions": 2,
-        "samples": [
-          {
-            "path": ".github/workflows/staging-openapi-governance.yml",
-            "reference": "uses: actions/checkout@v4"
-          },
-          {
-            "path": ".github/workflows/staging-openapi-governance.yml",
-            "reference": "uses: actions/setup-node@v4"
-          }
-        ]
-      },
-      "impact": "Workflow action references are mutable tags or branches and can drift without review.",
-      "recommendation": "Pin every third-party or first-party action reference to a full commit SHA and retain the release tag in a comment.",
-      "lifecycle": "new"
     }
   ],
   "gate": {
@@ -251,8 +219,7 @@
     "blockingGapIds": [],
     "warningGapIds": [
       "AUTO-CI-SURFACE-SIZE",
-      "MAINT-LARGE-TRACKED-FILES",
-      "SEC-CI-UNPINNED-ACTIONS"
+      "MAINT-LARGE-TRACKED-FILES"
     ]
   },
   "baselineDiff": {
