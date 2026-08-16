@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7112,
-    "bytes": 68894593,
-    "lines": 1615814,
+    "files": 7113,
+    "bytes": 68902432,
+    "lines": 1615881,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2132,
-      "documentation": 1900,
+      "documentation": 1901,
       "api-runtime": 1429,
       "database-migrations": 783,
       "root-and-other": 281,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2501,
+      ".md": 2502,
       ".mjs": 1668,
       ".js": 987,
       ".sql": 798,
@@ -62,7 +62,7 @@
     },
     "topLevel": {
       "http-generic-api": 3663,
-      "docs": 1804,
+      "docs": 1805,
       "specs": 873,
       ".github": 271,
       ".changes": 257,
@@ -10729,9 +10729,9 @@
       "path": ".github/workflows/hostinger-production-runtime-readback-r7.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 15275,
-      "lines": 289,
-      "sha256": "abd48370e38497b79780aa8549679dc00522e9e48a62af8c79330b6e5b496766",
+      "bytes": 16369,
+      "lines": 313,
+      "sha256": "b23fd3a9fc4735a93d0bd04522e3d9af97748561b51e002421a18d2cf4e1677d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12601,7 +12601,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "7ce6c403abd7400f82de3f45c6e9617cb0ac1551989aec3575a7c939ffd76ada",
+      "sha256": "42e2ba47c1075608f52f0c2705500667601d020459807c9d9588be65b467e61d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30224,7 +30224,7 @@
       "bytes": 18140,
       "lines": 308,
       "sha256": "44edc1bceeb55efe373d2b2ec9fd46e847bb07c1198c2e5e19cc14fe6ebbbd48",
-      "mode": "644",
+      "mode": "600",
       "executable": false,
       "generated": false
     },
@@ -30246,6 +30246,17 @@
       "bytes": 1482,
       "lines": 28,
       "sha256": "3acd2f468ba1be9137d120d35444c6f39632c4f053b04beac4c6e59caa31ac90",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/governance/pr7384-deep-audit-ar.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 6405,
+      "lines": 38,
+      "sha256": "38fc3cb70a8cdd03d912901119de0d3f688084c0b9ad6cd68ba117a58205d991",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31620,7 +31631,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "e98c65feec4baa3d5759600d678230fca72faf2d09c840f51fd23dbeb4dab78c",
+      "sha256": "dac066649db5534c42791fc618612261344652c13b40e416d0e0eeaa6e1be9bf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33061,7 +33072,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "38e19dd49a83620a6d0caa2048c96cdb53bd95d6369a4a5eac3ed12b103ec095",
+      "sha256": "a228f4e8e54281e79da261e6d2d114e0f555f670d26e78137d64154394b27c6c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33224,9 +33235,9 @@
       "path": "docs/work-maps/repository-automation-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 48981,
+      "bytes": 48975,
       "lines": 529,
-      "sha256": "a5fd105927d3b46ef6b6811713b609dc363f4281380d9e537bce244cbc8ef46d",
+      "sha256": "e848710f97ce7cf0b4ed88de52bc70d1ecf2f922ca3a136aebcc15810181961d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51134,7 +51145,7 @@
       "extension": ".json",
       "bytes": 1935850,
       "lines": 58540,
-      "sha256": "bb372e86cad15a69cb5f931ef5f67bd64b529563d2602368929809c8705625f1",
+      "sha256": "37e7ce5eb7f9bfc7ed102aac15f7048baeba7bf6c16234f4f37fba4cc78eaa8c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64431,9 +64442,9 @@
       "path": "http-generic-api/test-governed-autopilot-production-deployment.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 2492,
-      "lines": 57,
-      "sha256": "0e8f3a810290f19f17cb08bc5f401b11489beb09d3e03c958082e50745c1feab",
+      "bytes": 2838,
+      "lines": 62,
+      "sha256": "acfdfd2b2d119a00d8a9fbed69e98ebbaa86b8b7c1d764598706dc7310a13c24",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82165,7 +82176,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "fa478fa5b1d5275f9119c2a44f0e96fc61b99d503e5a168e4c8f2c1a385ab2a6",
+      "sha256": "7eecab3fce91c897cf4d2b6f1353b079a99f09e0c24d75f26f09d62acf08d927",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83001,7 +83012,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "2a12f8ccceba1182c726f8ce16e1facdf7f1ce1c713715bd33557eedebe241de",
+      "sha256": "305d3620fb70463f15ab3a9501ab8f3f296993002b2c305d41fb1bc75d9be2b4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83232,7 +83243,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "baf9c0f714dc4ef2dccdf6c4083281f45f1a6466edf0ef9e1baf844973eaa871",
+      "sha256": "973a9caa5a26bcfd62986d871842f383e28c0d8ca4abce6410073cb8aef007f1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83551,7 +83562,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "392e1acfde214c9e17c8c9eda20fdff4c11aa07e348d9fd1c1fcb7406d38f905",
+      "sha256": "34355a88dd001ffd4836be1c236d5a5f348a8d6dd0ba04f80c96f5bc8c14b390",
       "mode": "644",
       "executable": false,
       "generated": false
