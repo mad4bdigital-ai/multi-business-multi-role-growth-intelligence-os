@@ -1,7 +1,7 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": null,
+    "ref": "main",
     "source_digest": "f48b5b999e8f8c50c59163e0be5a52fd38037d27e5c4d1762af6334e279d1cff",
     "authority": [
       {
