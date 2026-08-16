@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,063 |
-| Total bytes | 67,687,333 |
-| Counted text lines | 1,585,449 |
+| Tracked files | 7,064 |
+| Total bytes | 67,692,133 |
+| Counted text lines | 1,585,538 |
 | Directories | 263 |
 | Categories | 13 |
 
@@ -19,7 +19,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | `tests-and-specs` | 2,117 |
 | `documentation` | 1,897 |
-| `api-runtime` | 1,420 |
+| `api-runtime` | 1,421 |
 | `database-migrations` | 782 |
 | `root-and-other` | 277 |
 | `api-contracts` | 180 |
@@ -62,6 +62,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.dockerignore` | 1 |
 | `.gcloudignore` | 1 |
 | `[no extension]` | 1 |
+| `.staging` | 1 |
 | `.png` | 1 |
 | `.html` | 1 |
 | `.sh` | 1 |

@@ -41,6 +41,25 @@ try { . $loggerPath } catch {
     throw
 }
 $LogComponent = "auto-pilot"
+$script:AutoPilotRunMutex = $null
+function Acquire-AutoPilotRunLock {
+    try {
+        $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\\Mad4bPortableStagingAutoPilot")
+        if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Auto Pilot instance is already running; refusing overlapping execution" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Auto Pilot run lock acquired"
+    } catch [System.Threading.AbandonedMutexException] {
+        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Auto Pilot run lock"
+    } catch {
+        Fail "Unable to acquire Auto Pilot run lock: $($_.Exception.Message)"
+    }
+}
+function Release-AutoPilotRunLock {
+    if ($null -ne $script:AutoPilotRunMutex) {
+        try { $script:AutoPilotRunMutex.ReleaseMutex() } catch { }
+        try { $script:AutoPilotRunMutex.Dispose() } catch { }
+        $script:AutoPilotRunMutex = $null
+    }
+}
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "one-click process started" -Data @{ mode = $Mode; repository_path = $RepositoryPath }
 trap {
     $errorMessage = $_.Exception.Message
@@ -48,6 +67,7 @@ trap {
     Write-EarlyBootstrapLog "unhandled failure: $errorMessage"
     Write-Host "AUTO_PILOT_FAILURE_LOGGED: $(Join-Path $BootstrapLogRoot 'operations.jsonl')" -ForegroundColor Red
     Write-Host "AUTO_PILOT_EARLY_DIAGNOSTIC: $BootstrapFallbackLog" -ForegroundColor Yellow
+    Release-AutoPilotRunLock
     exit 1
 }
 
@@ -99,6 +119,7 @@ function Reinvoke-Elevated {
 }
 
 if (Reinvoke-Elevated) { return }
+Acquire-AutoPilotRunLock
 
 function Refresh-Path {
     $paths = @(
@@ -278,20 +299,25 @@ function Get-MainSha([string]$RepoPath) {
     } finally { Pop-Location }
 }
 
+function Get-EligibilityWorkflowRuns([string]$Sha) {
+    $raw = & gh run list --repo $ExpectedRepository --workflow "staging-main-deploy-eligibility.yml" --commit $Sha --limit 20 --json status,conclusion,headSha,databaseId,updatedAt 2>$null
+    if ($LASTEXITCODE -ne 0) { return @() }
+    try {
+        return @((($raw | Out-String) | ConvertFrom-Json) | Where-Object { $_.headSha -eq $Sha })
+    } catch { return @() }
+}
 function Wait-Eligibility([string]$Sha) {
     $deadline = (Get-Date).ToUniversalTime().AddSeconds($EligibilityWaitSeconds)
     while ($true) {
-        $raw = & gh api "repos/$ExpectedRepository/commits/$Sha/check-runs?per_page=100" 2>$null
-        if ($LASTEXITCODE -ne 0) { Fail "GitHub eligibility lookup failed; refusing deployment" }
-        $payload = (($raw | Out-String) | ConvertFrom-Json)
-        $checks = @($payload.check_runs | Where-Object { $_.name -eq "Staging Main Deploy Eligibility" } | Sort-Object completed_at -Descending)
-        if ($checks.Count -gt 0) {
-            $check = $checks[0]
-            if ($check.status -eq "completed" -and $check.conclusion -eq "success") { return }
-            if ($check.status -eq "completed" -and $check.conclusion -notin @("success", "neutral")) { Fail "main commit $Sha is blocked by CI eligibility: $($check.conclusion)" }
+        $runs = @(Get-EligibilityWorkflowRuns $Sha)
+        if ($runs.Count -gt 0) {
+            $run = $runs | Sort-Object updatedAt -Descending | Select-Object -First 1
+            Write-StagingLog -Level info -Component $LogComponent -Stage "eligibility-poll" -Message "workflow eligibility observed" -Data @{ sha = $Sha; status = $run.status; conclusion = $run.conclusion; run_id = $run.databaseId }
+            if ($run.status -eq "completed" -and $run.conclusion -eq "success") { return }
+            if ($run.status -eq "completed" -and $run.conclusion -notin @("success", "neutral")) { Fail "main commit $Sha is blocked by CI eligibility: $($run.conclusion)" }
         }
-        if ((Get-Date).ToUniversalTime() -gt $deadline) { Fail "Timed out waiting for Staging Main Deploy Eligibility for $Sha" }
-        Write-Host "Waiting for Staging Main Deploy Eligibility: sha=$Sha"
+        if ((Get-Date).ToUniversalTime() -gt $deadline) { Fail "Timed out waiting for Staging Main Deploy Eligibility workflow for exact SHA $Sha" }
+        Write-Host "Waiting for Staging Main Deploy Eligibility workflow: sha=$Sha"
         Start-Sleep -Seconds 15
     }
 }
