@@ -1,0 +1,104 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "derived-state-closure-governance-20260815",
+  "title": "Exact-candidate Repository Derived-State Closure governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/derived-state-governance.json",
+      ".github/tests/derived-state-closure.test.mjs",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "scripts/derived-state-closure.mjs",
+      "scripts/repository-inventory-verification-gate.mjs",
+      "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      ".changes/e2e/derived-state-closure-governance-20260815.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make dependency scope explicit and require one read-only exact-merge-candidate closure check across every registered derived-state family before main eligibility, while keeping every writer separate, stale Inventory fail-closed, and protected branches immutable.",
+      "e2e_journeys": [
+        {
+          "id": "exact-merge-candidate-derived-state-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer and release governance",
+          "entrypoint": "Any pull request targeting main",
+          "terminal_outcome": "Derived State Closure reports zero stale registered artifacts for the GitHub merge candidate, or fails closed with the exact governed repair authority set and no repository mutation.",
+          "steps": [
+            "Checkout github.sha for the pull-request merge candidate with persist-credentials disabled.",
+            "Use the already-trusted PR Generated Artifact Refresh workflow as the bootstrap carrier so the closure policy is exercised before the new standalone workflow reaches main.",
+            "Validate the machine-readable derived-state registry and unique artifact identities.",
+            "Run the closure evaluator as a code-owned read-only CI verifier under scripts/, separate from the governed mutating maintenance-tool authority surface.",
+            "Run every registered verifier from a hardcoded verifier allowlist rather than executable commands supplied by configuration.",
+            "After each verifier, prove the worktree remains clean; any verifier write is a blocking safety failure.",
+            "Collect all reached stale or failed artifact families and their governed repair identities.",
+            "Publish canonical JSON evidence bound to the exact candidate SHA.",
+            "Treat stale-but-repairable Repository Inventory as a failing detector signal while preserving structured bootstrap evidence so the existing trusted workflow_run dispatcher can invoke its bounded writer.",
+            "Treat governed generated outputs changed by reconciliation as explicit E2E scope rather than exempting runtime-adjacent generated state from coverage.",
+            "Perform no push, provider mutation, database mutation, Production mutation, or force update from closure detection.",
+            "Require Staging Main Deploy Eligibility to rerun the same closure on the exact main SHA before it may emit eligible evidence."
+          ],
+          "assertions": [
+            "The closure workflow has no path filter, so repository-wide dependencies such as git_index_shape cannot escape detection.",
+            "The existing PR Generated Artifact Refresh workflow has no path filter and no branch-prefix dependency routing.",
+            "Branch prefixes are not used as a dependency signal.",
+            "The workflow permission is contents:read and checkout credentials are not persisted.",
+            "The closure evaluator is a read-only CI verifier under scripts/ and does not gain repository mutation authority from the maintenance-tool registry.",
+            "The Remote MCP registry explicitly declares git_index_shape while the current generator materializes tracked file_count.",
+            "Each derived-state family maps to one existing governed repair identity.",
+            "Configuration cannot inject arbitrary verifier commands; verifier IDs resolve through code-owned allowlists.",
+            "Any verifier-created worktree change fails closed.",
+            "Repository Inventory bootstrap_pending emits current=false and a non-zero process result so the trusted dispatcher can repair stale state instead of treating it as success.",
+            "Repository Inventory trusted generator and mutation-authority files remain byte-identical to trusted main before automated repair eligibility is granted.",
+            "Governed Remote MCP generated output remains covered by the E2E contract when reconciliation changes it; the classifier is not weakened to hide generated runtime-adjacent files.",
+            "Protected branches and force push remain forbidden mutation targets.",
+            "Production requires same-SHA closure in addition to Staging eligibility, source pin, and explicit authorization.",
+            "Staging eligibility cannot report eligible unless exact-main Derived State Closure has passed in the same job."
+          ],
+          "tests": [
+            {
+              "id": "derived-state-closure-policy-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/derived-state-closure.test.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-inventory-bootstrap-fail-closed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-inventory-self-hosting-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            "scripts/derived-state-closure.mjs",
+            "scripts/repository-inventory-verification-gate.mjs",
+            "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            ".github/tests/derived-state-closure.test.mjs",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/derived-state-closure.yml",
+            ".github/workflows/staging-main-deploy-eligibility.yml"
+          ]
+        }
+      ]
+    }
+  ]
+}

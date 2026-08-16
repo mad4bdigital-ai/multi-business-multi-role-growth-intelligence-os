@@ -28,6 +28,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -48,6 +49,15 @@ jobs:
           test "$EXPECTED_REPOSITORY" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
           test "$STAGING_DEPLOY_ONLY" = "true"
+
+      - name: Verify repository derived-state closure
+        env:
+          DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/staging-derived-state-closure/report.json
+        run: >-
+          node scripts/derived-state-closure.mjs
+          --expected-sha "$EXPECTED_HEAD_SHA"
+          --candidate-kind "exact_main"
+          --report-file "$DERIVED_STATE_REPORT_FILE"
 
       - name: Verify canonical and Brand read-only contracts
         run: |
@@ -88,6 +98,7 @@ jobs:
             repository: process.env.EXPECTED_REPOSITORY,
             ref: process.env.EXPECTED_REF,
             exact_head_sha: process.env.EXPECTED_HEAD_SHA,
+            derived_state_closure: true,
             staging_deploy_only: true,
             production_deploy: false,
             database_mutation: false,
