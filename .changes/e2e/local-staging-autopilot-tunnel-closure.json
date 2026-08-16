@@ -58,7 +58,10 @@
       "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
       "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "docs/staging-openapi-mcp-db-copy.md"
+      "docs/staging-openapi-mcp-db-copy.md",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml"
     ]
   },
   "merge_contract": {
@@ -211,7 +214,10 @@
             "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
             "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-            "docs/staging-openapi-mcp-db-copy.md"
+            "docs/staging-openapi-mcp-db-copy.md",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+            "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml"
           ]
         }
       ]
