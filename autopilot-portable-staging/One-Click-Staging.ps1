@@ -44,7 +44,7 @@ $LogComponent = "auto-pilot"
 $script:AutoPilotRunMutex = $null
 function Acquire-AutoPilotRunLock {
     try {
-        $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\\Mad4bPortableStagingAutoPilot")
+        $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\Mad4bPortableStagingAutoPilot")
         if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Auto Pilot instance is already running; refusing overlapping execution" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Auto Pilot run lock acquired"
     } catch [System.Threading.AbandonedMutexException] {
