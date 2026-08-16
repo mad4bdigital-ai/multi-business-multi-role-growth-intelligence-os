@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7101,
-    "bytes": 68211663,
-    "lines": 1597700,
+    "bytes": 68211686,
+    "lines": 1597701,
     "directories": 265,
     "categories": 13
   },
@@ -6417,9 +6417,9 @@
       "path": ".changes/e2e/derived-state-closure-governance-20260815.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 11311,
-      "lines": 131,
-      "sha256": "745daab23bb78187b8686538ad47dfa6edc3baf2301770a0432635d2e7019189",
+      "bytes": 11394,
+      "lines": 132,
+      "sha256": "4f31554cd362373dfbad841c07b5392bd2322399cd246249d94b53eb8b0c1b7e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -56665,9 +56665,9 @@
       "path": "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 17910,
+      "bytes": 17850,
       "lines": 437,
-      "sha256": "79ee39246404bd7a6a82bfcede8fbcecfb22d928ef70b43cfdd048077d0a9207",
+      "sha256": "317f85ebb4f11150fee10de2fcfb16d8428d98744893d35b2e39383e965b9ec3",
       "mode": "644",
       "executable": false,
       "generated": false
