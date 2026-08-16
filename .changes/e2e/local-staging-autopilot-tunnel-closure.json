@@ -25,12 +25,16 @@
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/rootDiscoveryRoutes.js",
       "http-generic-api/scripts/build-staging-openapi.mjs",
+      "http-generic-api/scripts/generate-activation-staging-policy.mjs",
       "http-generic-api/scripts/split-openapi.mjs",
       "http-generic-api/test-connect-routes.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-activation-gateway.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "docs/staging-openapi-mcp-db-copy.md"
     ]
@@ -64,7 +68,7 @@
             "MIGRATION_APPLIED=false and DATABASE_MUTATED=false are required and exact.",
             "The staging SSO cookie mode is host_only and Production hostnames are rejected from the active tunnel list.",
             "The active tunnel hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com and their origin is exactly http://app:8080.",
-            "activation_dev.mad4b.com remains reserved-disabled and is not active Tunnel ingress.",
+            "activation-dev.mad4b.com remains reserved-disabled and is not active Tunnel ingress.",
             "cloudflared is behind the explicit tunnel profile, uses a digest-pinned image, depends only on app, and has no database or provider access.",
             "Auto Pilot performs no Cloudflare DNS mutation, Hostinger deployment, migration, database mutation, or credential payload read."
           ],
@@ -89,6 +93,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
               "args": []
+            },
+            {
+              "id": "activation-gateway-security-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-activation-gateway.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -110,12 +121,16 @@
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "http-generic-api/routes/rootDiscoveryRoutes.js",
             "http-generic-api/scripts/build-staging-openapi.mjs",
+            "http-generic-api/scripts/generate-activation-staging-policy.mjs",
             "http-generic-api/scripts/split-openapi.mjs",
             "http-generic-api/test-connect-routes.mjs",
             "http-generic-api/test-domain-family-policy.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/test-activation-gateway.mjs",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
             "docs/staging-openapi-mcp-db-copy.md"
           ]

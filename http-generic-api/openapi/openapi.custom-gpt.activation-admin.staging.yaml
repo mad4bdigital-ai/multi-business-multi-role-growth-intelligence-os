@@ -5,7 +5,7 @@ info:
   summary: Admin/service Activation orchestration and read surfaces.
   description: Staging Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com.
 servers:
-  - url: https://activation_dev.mad4b.com
+  - url: https://activation-dev.mad4b.com
     description: activation_admin surface
 tags:
   - name: activation

@@ -16,10 +16,10 @@ assert.equal(policy.ref, "main");
 assert.equal(policy.deployment_mode, "local_windows_task_scheduler");
 assert.equal(policy.requires_exact_commit, true);
 assert.equal(policy.requires_ci_eligibility, true);
-assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"]);
+assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"]);
 assert.deepEqual(policy.forbidden_hosts, ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]);
 assert.equal(policy.activation_gateway.enabled_by_env, "ACTIVATION_STAGING_GATEWAY_ENABLED");
-assert.equal(policy.activation_gateway.required_host, "activation_dev.mad4b.com");
+assert.equal(policy.activation_gateway.required_host, "activation-dev.mad4b.com");
 assert.deepEqual(policy.safety, {
   production_deploy: false,
   hostinger_mutation: false,

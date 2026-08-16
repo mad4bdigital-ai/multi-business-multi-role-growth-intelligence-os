@@ -25,7 +25,7 @@
   "staging": {
     "hostname": "dev.mad4b.com",
     "hostname_family_policy": "http-generic-api/config/domain-family-policy.json",
-    "hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation_dev.mad4b.com"],
+    "hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
     "source_branch": "main",
     "runtime_location": "local_device",
     "lifecycle_status": "planned",

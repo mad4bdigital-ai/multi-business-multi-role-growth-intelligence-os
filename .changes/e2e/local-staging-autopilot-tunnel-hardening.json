@@ -66,7 +66,7 @@
       "auth.mad4b.com",
       "activation.mad4b.com",
       "mcp.mad4b.com",
-      "activation_dev.mad4b.com",
+      "activation-dev.mad4b.com",
       "Hostinger Production deployment",
       "Cloudflare provider mutation"
     ]
@@ -98,9 +98,9 @@
           ],
           "assertions": [
             "Staging active hostnames are exactly dev.mad4b.com and mcp_dev.mad4b.com.",
-            "activation_dev.mad4b.com and all Production hostnames are excluded from Staging OAuth, MCP, DNS, and tunnel contracts.",
+            "activation-dev.mad4b.com and all Production hostnames are excluded from Staging OAuth, MCP, DNS, and tunnel contracts.",
             "The Staging OpenAPI artifact server, OAuth URLs, schema_url, scope links, and boundary metadata use dev.mad4b.com; activation_schema_url is empty.",
-            "The runtime discovery endpoint returns the Staging preset only for dev.mad4b.com and returns 404 for mcp_dev.mad4b.com and activation_dev.mad4b.com.",
+            "The runtime discovery endpoint returns the Staging preset only for dev.mad4b.com and returns 404 for mcp_dev.mad4b.com and activation-dev.mad4b.com.",
             "No raw OAuth, tunnel, database, JWT, or MCP secret is included in policy, OpenAPI, manifest, or test evidence.",
             "The API and Redis are not LAN-published, and cloudflared depends on app health.",
             "Database cloning remains schema_only by default and rejects unsafe production/provider paths and non-local Docker contexts.",

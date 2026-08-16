@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ff854faa98c678f4465c1e5b5b94ce936b252ac6ff866a283200dfddde27956b",
+    "source_digest": "f48b5b999e8f8c50c59163e0be5a52fd38037d27e5c4d1762af6334e279d1cff",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -126,7 +126,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-        "sha256": "f96bf27689e5f53614accee9a7d982fbc40f9c961d7096c6f34720cc798059e1",
+        "sha256": "a4d0e7e292f1430d4506d2b9ed4465cd3865257447ab350e7a6ccf1d40f4c1ae",
         "present": true
       },
       {
@@ -136,7 +136,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "7d7dd7432f37487176a8b1390fadd7c935ddd9927d074fee7301308d357b8f87",
+        "sha256": "bf5050b480ddd1e630b511d58af8aa9fee03ae5fbc394b7226ca15ab1aa5d26f",
         "present": true
       },
       {
@@ -161,12 +161,12 @@
       },
       {
         "file": "openapi/openapi.tenant-gpt.activation.staging.yaml",
-        "sha256": "92aedc36c4d79527584f0333e84cd53601a824fb0f048151abc2a4acdfaf27a6",
+        "sha256": "bc6214317f59ca2fc76572a97b2d14823a2920e814684ecd9fa0b65f22170265",
         "present": true
       },
       {
         "file": "openapi/openapi.tenant-gpt.staging.yaml",
-        "sha256": "0b968260740ce858fe6fdd4bf6ea8e0556e72919a46ba349f5a36e235eaad8aa",
+        "sha256": "db11794c939bfe5837ea7292e447db78f9aaf09293559bc092d3a0d4e579bac1",
         "present": true
       },
       {
@@ -386,7 +386,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "2513e9c2454e8573be91a0982172ab8243f418d22e7b005948c30d4e74b9cba3",
+        "sha256": "0db845e649117887f2a96ba503fb6f011ea33de4f331bb6bd69e25748005d378",
         "present": true
       },
       {
@@ -826,7 +826,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "2bdac7eaa897b8103de538204a10e0e054fe510dd0fe3dd815cee652de15ee3d",
+        "sha256": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
         "present": true
       },
       {
@@ -6981,7 +6981,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "2bdac7eaa897b8103de538204a10e0e054fe510dd0fe3dd815cee652de15ee3d",
+      "source_digest": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -7188,7 +7188,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "2bdac7eaa897b8103de538204a10e0e054fe510dd0fe3dd815cee652de15ee3d",
+      "source_digest": "1e692f6d2e723e922d977637cbd3b6da3c9dc9614866a062eae08568a759e42e",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -13415,11 +13415,11 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.tenant-gpt.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "userBearerAuth"
+                "userJwtAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -34382,11 +34382,11 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.tenant-gpt.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "userBearerAuth"
+                "userJwtAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -34446,11 +34446,11 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.tenant-gpt.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "userBearerAuth"
+                "userJwtAuth"
               ]
             ],
             "unknown_security_schemes": []

@@ -34,7 +34,7 @@ const schemaDefinitions = [
     surface: "remote-mcp",
   },
 ];
-const forbidden = /https:\/\/(?:auth|mcp|activation)\.mad4b\.com|activation_dev\.mad4b\.com/;
+const forbidden = /https:\/\/(?:auth|mcp|activation)\.mad4b\.com|activation-dev\.mad4b\.com/;
 for (const definition of schemaDefinitions) {
   const document = YAML.parse(read(definition.file));
   assert.equal(document.servers?.length, 1, `${definition.name} schema must have exactly one server`);

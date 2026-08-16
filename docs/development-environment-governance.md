@@ -2,9 +2,9 @@
 
 ## Purpose
 
-`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com` are reserved for the governed development/staging runtime. They are not customer brand sites and must not receive Production traffic.
+`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation-dev.mad4b.com` are reserved for the governed development/staging runtime. They are not customer brand sites and must not receive Production traffic.
 
-`main` is the source branch for the planned local staging hostname family at `dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation_dev.mad4b.com`. It is not the Hostinger Production deployment branch.
+`main` is the source branch for the planned local staging hostname family at `dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation-dev.mad4b.com`. It is not the Hostinger Production deployment branch.
 
 The machine-readable branch authority is `http-generic-api/config/deployment-branch-policy.json`.
 
@@ -12,7 +12,7 @@ The machine-readable branch authority is `http-generic-api/config/deployment-bra
 
 | Environment | Hostname family | Source branch | Runtime/deployment path | Current status |
 |---|---|---|---|---|
-| staging | `dev.mad4b.com`, `mcp_dev.mad4b.com`, `activation_dev.mad4b.com` | `main` | Local device through dedicated Dev Cloudflare Tunnel | Planned |
+| staging | `dev.mad4b.com`, `mcp_dev.mad4b.com`, `activation-dev.mad4b.com` | `main` | Local device through dedicated Dev Cloudflare Tunnel | Planned |
 | production | `auth.mad4b.com`, `mcp.mad4b.com`, `activation.mad4b.com` | `Production` | Hostinger Auto Deploy and separate Production edge | Active production path |
 | connector recovery | `connector.mad4b.com` | Managed separately | Cloudflare Tunnel to local Windows connector | Independent recovery path |
 
@@ -22,7 +22,7 @@ The machine-readable hostname contract is `http-generic-api/config/domain-family
 
 The local staging runtime will be built in a future governed implementation. Until then:
 
-- do not configure `dev.mad4b.com`, `mcp_dev.mad4b.com`, or `activation_dev.mad4b.com` as Hostinger Auto Deploy targets;
+- do not configure `dev.mad4b.com`, `mcp_dev.mad4b.com`, or `activation-dev.mad4b.com` as Hostinger Auto Deploy targets;
 - do not treat it as available merely because DNS exists;
 - do not use it as a production fallback;
 - do not route tenant or admin production traffic through it;
@@ -61,7 +61,7 @@ Staging and production use different deployment authorities:
 
 ```text
 main
-  -> planned local staging hostname family (dev.mad4b.com, mcp_dev.mad4b.com, activation_dev.mad4b.com)
+  -> planned local staging hostname family (dev.mad4b.com, mcp_dev.mad4b.com, activation-dev.mad4b.com)
   -> governed source-pinned promotion candidate
   -> protected Production
   -> Hostinger Auto Deploy to Production hostname family (auth.mad4b.com, mcp.mad4b.com, activation.mad4b.com)
@@ -109,7 +109,7 @@ The existence of `main` code or a local process never authorizes migration appli
 Current intended classification:
 
 ```text
-dev.mad4b.com,mcp_dev.mad4b.com,activation_dev.mad4b.com = planned_local_staging
+dev.mad4b.com,mcp_dev.mad4b.com,activation-dev.mad4b.com = planned_local_staging
 source_branch = main
 hostinger_auto_deploy = false
 production_traffic_allowed = false

@@ -475,6 +475,60 @@
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
+    },
+    {
+      "config_key": "remote.mcp.authorization.server.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "remote.mcp.resource.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "tenant.gpt.staging.resource.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
     }
   ],
   "ignored_changed_path_prefixes": [
@@ -494,5 +548,6 @@
     "database_mutation_allowed": false,
     "production_activation_allowed": false
   },
-  "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json"
+  "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
+  "entry_count": 30
 }

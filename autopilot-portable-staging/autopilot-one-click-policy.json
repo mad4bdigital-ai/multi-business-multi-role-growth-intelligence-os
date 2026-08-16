@@ -14,7 +14,7 @@
     "never_store_secrets_in_repository": true
   },
   "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
-  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation_dev.mad4b.com"],
+  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"],
   "database_seed": {
     "default_mode": "schema_only_if_local_bundle_exists",
     "required_files": ["runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz"],

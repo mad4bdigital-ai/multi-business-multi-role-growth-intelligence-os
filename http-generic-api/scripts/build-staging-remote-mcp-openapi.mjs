@@ -6,7 +6,7 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const apiRoot = path.resolve(here, "..");
 const targetPath = path.join(apiRoot, "openapi", "openapi.remote-mcp.staging.yaml");
 const resource = "https://mcp_dev.mad4b.com";
-const forbiddenHosts = ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation_dev.mad4b.com"];
+const forbiddenHosts = ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"];
 const document = {
   openapi: "3.1.0",
   info: {

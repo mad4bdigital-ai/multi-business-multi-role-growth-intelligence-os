@@ -19,7 +19,7 @@ export const TENANT_GPT_OAUTH_CLIENT_SECRET_REF = `platform_secret:${TENANT_GPT_
 export const TENANT_GPT_ACTIVATION_OAUTH_CLIENT_SECRET_ENV = "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET";
 function isActivationStagingRequest(options = {}) {
   return TENANT_GPT_IS_STAGING_RUNTIME
-    && String(options.requestHost || "").trim().toLowerCase().replace(/:\d+$/, "") === "activation_dev.mad4b.com"
+    && String(options.requestHost || "").trim().toLowerCase().replace(/:\d+$/, "") === "activation-dev.mad4b.com"
     && String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
 }
 

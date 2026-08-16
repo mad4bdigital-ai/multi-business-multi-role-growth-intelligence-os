@@ -255,7 +255,7 @@ export function buildRootDiscoveryRoutes() {
     const host = requestHost(req);
     const stagingPresetHost = TENANT_GPT_IS_STAGING_RUNTIME && host === "dev.mad4b.com";
     const stagingActivationPresetHost = TENANT_GPT_IS_STAGING_RUNTIME
-      && host === "activation_dev.mad4b.com"
+      && host === "activation-dev.mad4b.com"
       && String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
     if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com" && !stagingPresetHost && !stagingActivationPresetHost) {
       return res.status(404).json({

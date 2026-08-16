@@ -1,0 +1,18 @@
+{
+  "name": "mad4b-activation-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "policy:staging:generate": "node ../../http-generic-api/scripts/generate-activation-staging-policy.mjs --write",
+    "policy:staging:check": "node ../../http-generic-api/scripts/generate-activation-staging-policy.mjs --check",
+    "bundle:check": "npm run policy:staging:check && node ../../http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs --check",
+    "types": "wrangler types --config wrangler.staging.jsonc",
+    "dev": "wrangler dev --config wrangler.staging.jsonc",
+    "deploy:dry-run": "npm run policy:staging:check && wrangler deploy --config wrangler.staging.jsonc --dry-run",
+    "deploy": "npm run policy:staging:check && wrangler deploy --config wrangler.staging.jsonc",
+    "secrets:list": "wrangler secret list --config wrangler.staging.jsonc"
+  },
+  "devDependencies": {
+    "wrangler": "^4.34.0"
+  }
+}

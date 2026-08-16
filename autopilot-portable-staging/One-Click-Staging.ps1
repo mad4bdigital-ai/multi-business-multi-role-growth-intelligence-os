@@ -285,10 +285,12 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
     $effective = Get-Content -Raw -LiteralPath $envFile
     if ($effective -match '(?im)^(CLOUDFLARE_TUNNEL_HOSTNAMES|PUBLIC_BASE_URL|AUTH_BASE_URL|PLATFORM_JWT_ISSUER)=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Production hostname leaked into Staging environment" }
     $activationGatewayEnabled = (Get-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
+    if ($effective -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp_dev.mad4b.com; Activation uses a separate Worker custom domain" }
     if ($activationGatewayEnabled) {
-        if ($effective -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com,activation_dev\.mad4b\.com\s*$') { Fail "Enabled Activation Gateway requires exact Staging hostname allowlist" }
+        if ((Get-EnvValue $envFile "ACTIVATION_HOST_GATEWAY_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Gateway must use activation-dev.mad4b.com as its Worker custom domain" }
+        if ((Get-EnvValue $envFile "ACTIVATION_STAGING_AUTH_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation OAuth host must be activation-dev.mad4b.com" }
         if ([string]::IsNullOrWhiteSpace((Get-EnvValue $envFile "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET"))) { Fail "Enabled Activation Gateway requires its separate OAuth client secret" }
-    } elseif ($effective -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$') { Fail "Disabled Activation Gateway requires exactly dev.mad4b.com and mcp_dev.mad4b.com" }
+    }
     if ($effective -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { Fail "Staging cookie boundary drifted" }
     return $envFile
 }
