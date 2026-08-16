@@ -10,7 +10,12 @@
       "autopilot-portable-staging/**",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/docker-compose.staging.yml",
-      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs"
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/rootDiscoveryRoutes.js",
+      "http-generic-api/tenantGptOAuth*.js",
+      "http-generic-api/openapi/openapi.*activation*.staging.yaml",
+      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-staging-activation-gateway.mjs"
     ]
   },
   "merge_contract": {
@@ -41,6 +46,8 @@
             "Concurrent Auto Pilot runs are rejected by the valid Windows Global Mutex contract and no second Compose operation is started.",
             "Line-ending repair cannot hide non-line-ending content changes and manifest hashes remain deterministic.",
             "The Staging image contains the canonical manifest required by activationDynamicEvidenceLegacy.js.",
+            "activation_dev.mad4b.com is fail-closed unless ACTIVATION_STAGING_GATEWAY_ENABLED=true and uses dedicated Staging OpenAPI/OAuth contracts.",
+            "Tenant Activation and Admin Activation use separate Staging schema files with one server URI each.",
             "No Production hostname, Hostinger mutation, Cloudflare DNS mutation, migration apply, or database mutation is authorized by this journey."
           ],
           "tests": [
@@ -57,6 +64,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-staging-autopilot-closure.mjs",
               "args": []
+            },
+            {
+              "id": "validate-staging-activation-gateway",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-activation-gateway.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -65,7 +79,13 @@
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/Dockerfile.staging",
             "http-generic-api/docker-compose.staging.yml",
-            "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs"
+            "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/routes/activationHostGatewayRoutes.js",
+            "http-generic-api/routes/rootDiscoveryRoutes.js",
+            "http-generic-api/tenantGptOAuthResourceProfile.js",
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+            "http-generic-api/test-staging-activation-gateway.mjs"
           ]
         }
       ]
