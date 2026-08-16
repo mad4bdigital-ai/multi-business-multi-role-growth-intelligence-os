@@ -218,7 +218,7 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthResourceProfile.js",
-      "sha256": "51fb2ddde843c7056d3e3939125063d53a6b07e069a6a5fd7f3e66c895c20b9b"
+      "sha256": "35189f515358d2d91808ab07176b7e65e12ce6c93ad880e4c4ae402c6450982e"
     },
     {
       "path": "http-generic-api/test-canonical-business-operation-registry.mjs",

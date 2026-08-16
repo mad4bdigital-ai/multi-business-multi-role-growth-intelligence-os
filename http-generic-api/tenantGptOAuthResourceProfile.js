@@ -74,12 +74,11 @@ export function resolveTenantGptOAuthResourceProfile({
   const expectedClientId = resource === TENANT_GPT_ACTIVATION_RESOURCE
     ? TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID
     : TENANT_GPT_OAUTH_CLIENT_ID;
-  if (!resource || normalizedClientId !== expectedClientId) {
-    return { ok: false, error: "invalid_client", message: "OAuth client_id is not allowed for the requested Tenant GPT resource." };
-  }
-
   if (!resource) {
     return { ok: false, error: "invalid_target", message: "The OAuth request host is not registered as a Tenant GPT protected resource." };
+  }
+  if (normalizedClientId !== expectedClientId) {
+    return { ok: false, error: "invalid_client", message: "OAuth client_id is not allowed for the requested Tenant GPT resource." };
   }
 
   const explicitResource = String(requestedResource || "").trim();

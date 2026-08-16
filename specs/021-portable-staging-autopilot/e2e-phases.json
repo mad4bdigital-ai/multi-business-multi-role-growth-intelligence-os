@@ -24,7 +24,9 @@
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/config/staging-openapi-mcp-policy.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
-      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
     ]
   },
   "merge_contract": {
@@ -94,7 +96,9 @@
             "http-generic-api/tenantGptOAuthResourceProfile.js",
             "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
             "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-            "http-generic-api/test-staging-activation-gateway.mjs"
+            "http-generic-api/test-staging-activation-gateway.mjs",
+            "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
           ]
         }
       ]
