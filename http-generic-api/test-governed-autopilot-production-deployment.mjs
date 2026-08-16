@@ -10,6 +10,9 @@ const exactCandidate = read(".github/workflows/production-promotion-exact-candid
 const ci = read(".github/workflows/ci.yml");
 const authRoutes = read("http-generic-api/routes/authRoutes.js");
 
+assert.match(r7, /push:\n\s+branches: \[Production\]/);
+assert.match(r7, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/Production'/);
+assert.match(r7, /expected_production_sha=\$\{EVENT_SHA\}/);
 assert.match(r7, /expected_production_sha=\(\[0-9a-f\]\{40\}\)/);
 assert.match(r7, /test "\$\{?remote_production_sha\}?" = "\$\{EXPECTED_PRODUCTION_SHA\}"/);
 assert.match(r7, /version_sha_exact/);
@@ -23,6 +26,8 @@ assert.match(r7, /database_mutation_performed: false/);
 assert.match(r7, /secrets_included: false/);
 assert.match(r7, /runtime_activation_pending_or_sha_mismatch/);
 assert.match(r7, /production_current/);
+assert.match(r7, /trigger_mode=production_push/);
+assert.match(r7, /TRIGGER_MODE: \$\{\{ steps\.trigger\.outputs\.trigger_mode \}\}/);
 
 assert.match(exactCandidate, /VALIDATE_EXACT_PRODUCTION_CANDIDATE/);
 assert.match(exactCandidate, /expected_head_sha/);

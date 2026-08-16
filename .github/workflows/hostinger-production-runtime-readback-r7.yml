@@ -1,6 +1,8 @@
 name: Hostinger Production Runtime Readback R7
 
 on:
+  push:
+    branches: [Production]
   issue_comment:
     types: [created]
 
@@ -15,32 +17,48 @@ jobs:
   readback:
     name: Verify exact protected Production runtime through public GET
     if: >-
-      github.event.issue.pull_request != null &&
-      github.event.comment.user.id == 271942579 &&
-      startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=')
+      (github.event_name == 'push' && github.ref == 'refs/heads/Production') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       github.event.comment.user.id == 271942579 &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha='))
     permissions:
       contents: read
       pull-requests: read
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
+      EVENT_NAME: ${{ github.event_name }}
+      EVENT_REF: ${{ github.ref }}
+      EVENT_SHA: ${{ github.sha }}
       AUTHORIZATION_USER_ID: '271942579'
       TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7
       EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
-      EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+      EVENT_COMMENT_ID: ${{ github.event.comment.id || '' }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
     steps:
       - name: Resolve immutable trigger identity
         id: trigger
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
-          if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_production_sha=([0-9a-f]{40})$ ]]; then
-            echo "Invalid R7 trigger format." >&2
-            exit 1
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            test "${EVENT_REF}" = "refs/heads/Production"
+            if [[ ! "${EVENT_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Invalid Production push SHA." >&2
+              exit 1
+            fi
+            echo "expected_production_sha=${EVENT_SHA}" >> "${GITHUB_OUTPUT}"
+            echo "trigger_mode=production_push" >> "${GITHUB_OUTPUT}"
+          else
+            test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+            if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_production_sha=([0-9a-f]{40})$ ]]; then
+              echo "Invalid R7 trigger format." >&2
+              exit 1
+            fi
+            echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+            echo "trigger_mode=authorized_comment" >> "${GITHUB_OUTPUT}"
           fi
-          echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
 
       - name: Initialize bounded report directory after runner allocation
         shell: bash
@@ -70,7 +88,11 @@ jobs:
           [[ "${remote_main_sha}" =~ ^[0-9a-f]{40}$ ]]
           test "${remote_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
           git fetch --no-tags origin "${remote_main_sha}"
-          git merge-base --is-ancestor "${GITHUB_SHA}" "${remote_main_sha}"
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            test "${GITHUB_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
+          else
+            git merge-base --is-ancestor "${GITHUB_SHA}" "${remote_main_sha}"
+          fi
           echo "tooling_sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
           echo "observed_main_sha=${remote_main_sha}" >> "${GITHUB_OUTPUT}"
           echo "observed_production_sha=${remote_production_sha}" >> "${GITHUB_OUTPUT}"
@@ -206,6 +228,7 @@ jobs:
         env:
           EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
           TOOLING_SHA: ${{ steps.identity.outputs.tooling_sha }}
+          TRIGGER_MODE: ${{ steps.trigger.outputs.trigger_mode }}
           OBSERVED_MAIN_SHA: ${{ steps.identity.outputs.observed_main_sha }}
           OBSERVED_PRODUCTION_SHA: ${{ steps.identity.outputs.observed_production_sha }}
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
@@ -230,7 +253,8 @@ jobs:
             echo "# Hostinger Production Runtime Readback R7"
             echo
             echo "- Run: \`${GITHUB_RUN_ID}\`"
-            echo "- Trigger comment: \`${EVENT_COMMENT_ID}\`"
+            echo "- Trigger mode: \`${TRIGGER_MODE:-unknown}\`"
+            echo "- Trigger comment: \`${EVENT_COMMENT_ID:-none}\`"
             echo "- Tooling SHA: \`${TOOLING_SHA:-unresolved}\`"
             echo "- Observed main SHA: \`${OBSERVED_MAIN_SHA:-unresolved}\`"
             echo "- Expected Production SHA: \`${EXPECTED_PRODUCTION_SHA}\`"
