@@ -30224,7 +30224,7 @@
       "bytes": 18140,
       "lines": 308,
       "sha256": "44edc1bceeb55efe373d2b2ec9fd46e847bb07c1198c2e5e19cc14fe6ebbbd48",
-      "mode": "600",
+      "mode": "644",
       "executable": false,
       "generated": false
     },
