@@ -43,28 +43,28 @@ The first normal run creates `http-generic-api\.env.staging` with local-only dat
 
 ## Auto Deploy from main
 
-`Auto-Deploy-Staging.ps1` supports fail-closed deployment after a new push to `main`. GitHub Actions first evaluates the exact commit with the `Staging Main Deploy Eligibility` check. The Windows watcher then uses the exact SHA from `git ls-remote` and invokes `Start-AutoPilot.ps1` only after that same SHA has a successful eligibility check. A missing, running, or failed check is not deployed, and a successfully deployed SHA is not repeated.
+`Auto-Deploy-Staging.ps1` supports fail-closed deployment after a new push to `main`. GitHub Actions first evaluates the exact commit with the `Staging Main Deploy Eligibility` workflow. The Windows watcher then uses the exact SHA from `git ls-remote` and queries the matching Workflow Run for that same SHA before invoking `Start-AutoPilot.ps1`. Check Runs are not used as the sole authority because they can be stale or belong to a different attempt. A missing, running, or failed Workflow Run is not deployed, and a successfully deployed SHA is not repeated.
 
 For the recommended logon watcher, run PowerShell as Administrator:
 
 ```powershell
-.\Install-AutoDeployTask.ps1 -RepositoryPath M:\Users\Nagy\Repo -PollSeconds 300
+.\Install-AutoDeployTask.ps1 -RepositoryPath M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os -PollSeconds 300
 ```
 
 To include the already configured Staging tunnel explicitly:
 
 ```powershell
-.\Install-AutoDeployTask.ps1 -RepositoryPath M:\Users\Nagy\Repo -PollSeconds 300 -StartTunnel
+.\Install-AutoDeployTask.ps1 -RepositoryPath M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os -PollSeconds 300 -StartTunnel
 ```
 
 For a one-shot deployment or validation:
 
 ```powershell
-.\Auto-Deploy-Staging.ps1 -RepositoryPath M:\Users\Nagy\Repo -ValidateOnly
-.\Auto-Deploy-Staging.ps1 -RepositoryPath M:\Users\Nagy\Repo -SkipBuild
+.\Auto-Deploy-Staging.ps1 -RepositoryPath M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os -ValidateOnly
+.\Auto-Deploy-Staging.ps1 -RepositoryPath M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os -SkipBuild
 ```
 
-Remove the watcher without stopping Staging with `Uninstall-AutoDeployTask.ps1`; add `-StopStaging` only when the local services should also stop. This mechanism requires the Windows computer to be on and the user to be logged in. It uses outbound GitHub API/Git requests and does not expose an inbound webhook.
+Remove the watcher without stopping Staging with `Uninstall-AutoDeployTask.ps1`; add `-StopStaging` only when the local services should also stop. This mechanism requires the Windows computer to be on and the user to be logged in. It uses outbound GitHub CLI/Git requests and does not expose an inbound webhook. The scheduled-task principal uses the `Interactive` logon type supported by Windows PowerShell 5.1; no permanent execution-policy change is required because the task launches PowerShell with `-ExecutionPolicy Bypass` for that process only.
 
 ## Dev Tunnel
 

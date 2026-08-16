@@ -39,6 +39,10 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-all-remaining-preflight-batch.schema.json",
       "schemas/canonical-operation-governance.schema.json",
+      "docs/governance/configuration-drift-policy.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
       ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
     ]
   },
@@ -112,7 +116,11 @@
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
-            "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json"
+            "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
+            "docs/governance/configuration-drift-policy.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
           ]
         }
       ]
