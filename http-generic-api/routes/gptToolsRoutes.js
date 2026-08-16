@@ -2713,7 +2713,7 @@ async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
     assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule);
-  await authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps, descriptor });
+  const actAsUserDispatch = await authorizeActAsUserDispatchIfPresent({ callerType, toolKey, args, req, runtimeDeps, descriptor });
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
       callerType,
@@ -2729,6 +2729,22 @@ async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
     }));
   }
   const result = await dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps);
+  if (actAsUserDispatch?.context) {
+    const adapter = runtimeDeps.actAsUserAdapter;
+    if (!adapter || typeof adapter.recordReadback !== "function") {
+      const error = new Error("Act-as-User dispatch requires readback before completion.");
+      error.code = "act_as_user_readback_adapter_not_bound";
+      error.status = 503;
+      throw error;
+    }
+    const bodyForHash = result?.body === undefined ? null : result.body;
+    const readbackHash = crypto.createHash("sha256").update(JSON.stringify(bodyForHash)).digest("hex");
+    await adapter.recordReadback({
+      sessionId: actAsUserDispatch.sessionId,
+      context: actAsUserDispatch.context,
+      readback: { status: "dispatch_completed", http_status: result?.status || 200, body_hash: readbackHash },
+    });
+  }
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
@@ -4482,9 +4498,37 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 }
 
 export function buildGptToolsRoutes(deps) {
-  const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
-  const runtimeDeps = { runtimePersistencePoolFactory };
+  const { requireBackendApiKey, runtimePersistencePoolFactory, actAsUserAdapter, actAsUserAuthorityResolver } = deps;
+  const runtimeDeps = { runtimePersistencePoolFactory, actAsUserAdapter: actAsUserAdapter || null };
   const router = Router();
+
+  // POST /admin/act-as-user/sessions
+  router.post("/admin/act-as-user/sessions", requireBackendApiKey, async (req, res) => {
+    try {
+      if (!actAsUserAdapter || typeof actAsUserAdapter.createSession !== "function" || !actAsUserAuthorityResolver || typeof actAsUserAuthorityResolver.resolveCreateRequest !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "act_as_user_control_plane_not_bound", message: "Act-as-User authority and session adapters are not bound." }, activation_allowed: false });
+      }
+      const body = req.body || {};
+      const sessionInput = await actAsUserAuthorityResolver.resolveCreateRequest({ req, body });
+      const session = await actAsUserAdapter.createSession(sessionInput);
+      return res.status(202).json({ ok: true, session, shadow: session?.status === "shadow", activation_allowed: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 403).json({ ok: false, error: { code: err.code || "act_as_user_session_create_failed", message: err.message }, activation_allowed: false, secrets_included: false });
+    }
+  });
+
+  // POST /admin/act-as-user/sessions/:sessionId/revoke
+  router.post("/admin/act-as-user/sessions/:sessionId/revoke", requireBackendApiKey, async (req, res) => {
+    try {
+      if (!actAsUserAdapter || typeof actAsUserAdapter.revokeSession !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "act_as_user_control_plane_not_bound", message: "Act-as-User session adapter is not bound." }, activation_allowed: false });
+      }
+      const result = await actAsUserAdapter.revokeSession({ sessionId: req.params.sessionId, reason: req.body?.reason, expectedVersion: req.body?.expected_version ?? null });
+      return res.status(200).json({ ok: true, result, activation_allowed: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 409).json({ ok: false, error: { code: err.code || "act_as_user_session_revoke_failed", message: err.message }, activation_allowed: false, secrets_included: false });
+    }
+  });
 
   // GET /gpt/tools
   router.get("/gpt/tools", requireBackendApiKey, async (req, res) => {
@@ -4534,6 +4578,8 @@ export function buildGptToolsRoutes(deps) {
       const callerType = resolveCallerType(req);
       const requestRuntimeDeps = {
         ...runtimeDeps,
+        actAsUserSessionId: body.act_as_user_session_id || body.actAsUserSessionId || req?.auth?.act_as_user_session_id || null,
+        actAsUserOperation: "call_tool",
         executionCapsule: createGptExecutionCapsule({ operation_key: name }),
       };
 

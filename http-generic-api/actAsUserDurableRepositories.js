@@ -59,11 +59,13 @@ export function createActAsUserDurableRepositories({ pool, now = () => new Date(
         `INSERT INTO act_as_user_sessions
           (session_id, tenant_id, actor_principal_id, target_user_id, actor_role, target_role,
            delegation_id, requested_tool, requested_operation, effective_capabilities_json,
-           idempotency_key, status, issued_at, expires_at, environment, secrets_included)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, 0)`,
+           idempotency_key, request_hash, role_policy_version, catalog_version, status,
+           issued_at, expires_at, environment, secrets_included)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, 0)`,
         [sessionId, session.tenantId, session.actorId, session.targetId, session.actorRole, session.targetRole,
           session.delegationId, session.requestedTool || "", session.requestedOperation,
-          json(session.effectiveCapabilities), session.idempotencyKey, issuedAt, expiresAt, environment],
+          json(session.effectiveCapabilities), session.idempotencyKey, session.requestHash || null,
+          session.rolePolicyVersion || "unknown", session.catalogVersion || "unknown", issuedAt, expiresAt, environment],
       );
       if (!result || result.affectedRows !== 1) throw repositoryError("act_as_user_session_create_failed", "Act-as-User session was not created.");
       return { sessionId, version: 1, status: "active" };
@@ -72,10 +74,10 @@ export function createActAsUserDurableRepositories({ pool, now = () => new Date(
       const [rows] = await db.query(
         `SELECT session_id, tenant_id, actor_principal_id, target_user_id, actor_role, target_role,
                 delegation_id, requested_tool, requested_operation, effective_capabilities_json,
-                idempotency_key, status, issued_at, expires_at, revoked_at, revoked_reason, version,
-                environment, secrets_included
-           FROM act_as_user_sessions WHERE session_id = ? LIMIT 1`,
-        [sessionId],
+                idempotency_key, request_hash, role_policy_version, catalog_version, status,
+                issued_at, expires_at, revoked_at, revoked_reason, version, environment, secrets_included
+           FROM act_as_user_sessions WHERE session_id = ? AND environment = ? LIMIT 1`,
+        [sessionId, environment],
       );
       const row = rows?.[0] || null;
       if (row?.secrets_included) throw repositoryError("act_as_user_secret_contamination", "Act-as-User session contains forbidden secret state.");
@@ -83,9 +85,9 @@ export function createActAsUserDurableRepositories({ pool, now = () => new Date(
     },
     async revoke(sessionId, reason, expectedVersion = null) {
       const where = expectedVersion === null
-        ? "session_id = ? AND status = 'active'"
-        : "session_id = ? AND status = 'active' AND version = ?";
-      const params = expectedVersion === null ? [sessionId] : [sessionId, expectedVersion];
+        ? "session_id = ? AND environment = ? AND status = 'active'"
+        : "session_id = ? AND environment = ? AND status = 'active' AND version = ?";
+      const params = expectedVersion === null ? [sessionId, environment] : [sessionId, environment, expectedVersion];
       const [result] = await db.query(
         `UPDATE act_as_user_sessions
             SET status = 'revoked', revoked_at = ?, revoked_reason = ?, version = version + 1
@@ -100,8 +102,8 @@ export function createActAsUserDurableRepositories({ pool, now = () => new Date(
   const revocationRepository = {
     async isRevoked(sessionId) {
       const [rows] = await db.query(
-        `SELECT status, expires_at, revoked_at, secrets_included FROM act_as_user_sessions WHERE session_id = ? LIMIT 1`,
-        [sessionId],
+        `SELECT status, expires_at, revoked_at, secrets_included FROM act_as_user_sessions WHERE session_id = ? AND environment = ? LIMIT 1`,
+        [sessionId, environment],
       );
       const row = rows?.[0];
       if (!row) return true;

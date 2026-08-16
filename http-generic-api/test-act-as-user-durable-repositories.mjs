@@ -20,9 +20,9 @@ const pool = {
       return [[sessions.get(params[0])].filter(Boolean)];
     }
     if (compact.startsWith("UPDATE act_as_user_sessions")) {
-      const [revokedAt, reason, sessionId, expectedVersion] = params;
+      const [revokedAt, reason, sessionId, environment, expectedVersion] = params;
       const row = sessions.get(sessionId);
-      if (!row || row.status !== "active" || (expectedVersion !== undefined && row.version !== expectedVersion)) return [{ affectedRows: 0 }];
+      if (!row || row.status !== "active" || environment !== "staging" || (expectedVersion !== undefined && row.version !== expectedVersion)) return [{ affectedRows: 0 }];
       row.status = "revoked";
       row.revoked_at = revokedAt;
       row.revoked_reason = reason;

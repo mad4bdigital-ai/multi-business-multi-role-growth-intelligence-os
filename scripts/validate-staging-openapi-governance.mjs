@@ -21,6 +21,7 @@ const actAsUserDurableMigrationSource = read("http-generic-api/migrations/202608
 const actAsUserDurableTestSource = read("http-generic-api/test-act-as-user-durable-repositories.mjs");
 const actAsUserDispatchSource = read("http-generic-api/routes/gptToolsRoutes.js");
 const actAsUserDispatchTestSource = read("http-generic-api/test-act-as-user-dispatch-hook.mjs");
+const actAsUserControlSchemaPath = "http-generic-api/openapi/openapi.custom-gpt.staging-act-as-user-control.yaml";
 
 function assert(condition, message) {
   if (!condition) failures.push(message);
@@ -101,6 +102,8 @@ assert(actAsUserPolicySource.includes("act_as_user_revoked"), "Act-as-User resol
 assert(actAsUserTestSource.includes("act-as-user execution policy tests passed"), "Act-as-User regression test must remain present");
 assert(actAsUserAdapterSource.includes("authorizeDispatch") && actAsUserAdapterSource.includes("recordReadback"), "Act-as-User adapter must expose dispatch and readback boundaries");
 assert(actAsUserDurableRepositorySource.includes("version = version + 1") && actAsUserDurableRepositorySource.includes("act_as_user_revoke_conflict"), "Durable Act-as-User repository must enforce CAS revocation");
+assert(actAsUserDurableRepositorySource.includes("environment = ?"), "Durable Act-as-User repository must bind environment in read/revoke queries");
+assert(actAsUserDurableMigrationSource.includes("role_policy_version") && actAsUserDurableMigrationSource.includes("catalog_version"), "Durable Act-as-User session must retain role and catalog evidence versions");
 assert(actAsUserDurableRepositorySource.includes("act_as_user_audit_secret_denied") && actAsUserDurableRepositorySource.includes("act_as_user_readback_secret_denied"), "Durable Act-as-User repositories must reject secrets");
 assert(actAsUserDurableMigrationSource.includes("act_as_user_sessions") && actAsUserDurableMigrationSource.includes("act_as_user_audit_events") && actAsUserDurableMigrationSource.includes("act_as_user_readbacks"), "Durable Act-as-User migration must define session, audit, and readback tables");
 assert(actAsUserDurableMigrationSource.includes("ck_act_as_user_session_no_secrets"), "Durable Act-as-User migration must enforce no-secret session state");
@@ -109,10 +112,13 @@ assert(actAsUserDispatchSource.includes("authorizeActAsUserDispatchIfPresent"), 
 assert(actAsUserDispatchSource.includes("act_as_user_adapter_not_bound"), "Tool dispatch must fail closed when Act-as-User adapter is absent");
 assert(actAsUserDispatchSource.includes("await authorizeActAsUserDispatchIfPresent"), "Act-as-User hook must run before tool preflight");
 assert(actAsUserDispatchTestSource.includes("act-as-user dispatch hook tests passed"), "Act-as-User dispatch hook regression test must remain present");
+const actAsUserMigrationHasReadbackGate = actAsUserDispatchSource.includes("act_as_user_readback_adapter_not_bound") && actAsUserDispatchSource.includes("await adapter.recordReadback");
+assert(actAsUserMigrationHasReadbackGate === true, "Act-as-User runtime must require a post-dispatch readback gate");
 
 const schemas = [
   ["tenant", "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", policy.custom_gpt.schema_url],
   ["admin", "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml", policy.custom_gpt.admin_read_only.schema_url],
+  ["act_as_user_control", actAsUserControlSchemaPath, "https://dev.mad4b.com/openapi.custom-gpt.staging-act-as-user-control.yaml"],
 ];
 for (const [name, relativePath, expectedUrl] of schemas) {
   const text = read(relativePath);
@@ -123,6 +129,11 @@ for (const [name, relativePath, expectedUrl] of schemas) {
   assert(count <= 30, `${name} schema has ${count} operations; hard limit is 30`);
   assert(!/https:\/\/(auth|activation)\.mad4b\.com/.test(text), `${name} staging schema contains a production Auth/Activation host`);
   if (name === "tenant") assert(/https:\/\/dev\.mad4b\.com\/scopes\//.test(text), "tenant staging schema must use staging scopes");
+  if (name === "act_as_user_control") {
+    assert(count <= 30, "Act-as-User control schema must remain within the Custom GPT hard limit");
+    assert(/x-mad4b-boundary:[\s\S]*live_execution_allowed: false/.test(text), "Act-as-User control schema must remain live-disabled");
+    assert(/operationId: createActAsUserSession/.test(text) && /operationId: revokeActAsUserSession/.test(text), "Act-as-User control schema must expose create/revoke operations");
+  }
 }
 
 const result = { ok: failures.length === 0, failures, checked: { schemas: schemas.map(([name, p]) => ({ name, path: p, operation_count: operationCount(read(p)), server_urls: serverUrls(read(p)) })), policyPath, inspectionPath, runtime_guards: ["oauth_callback_https_chatgpt_host", "oauth_resource_profile_binding", "oauth_redirect_binding", "tenant_tool_dispatch_deny"] } };
