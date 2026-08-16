@@ -33,8 +33,10 @@ assert.match(dispatcher, /PR publication remains a separate governed/u);
 assert.doesNotMatch(dispatcher, /contents:\s*write/u);
 assert.match(workMapIntegration, /^\s*-\s*"\.github\/workflows\/\*\*"/mu);
 assert.match(workMapIntegration, /id: work_map_scope/u);
-assert.match(workMapIntegration, /currentness_required=false/u);
-assert.match(workMapIntegration, /git diff --name-only "origin\/main\.\.\.HEAD"/u);
+assert.match(workMapIntegration, /^\s*-\s*"\*\*"/mu);
+assert.match(workMapIntegration, /currentness_required=true/u);
+assert.doesNotMatch(workMapIntegration, /currentness_required=false/u);
+assert.doesNotMatch(workMapIntegration, /git diff --name-only "origin\/main\.\.\.HEAD"/u);
 assert.match(workMapIntegration, /specs\/\*/u);
 assert.match(workMapIntegration, /docs\/work-maps\/\*/u);
 assert.match(workMapIntegration, /steps\.work_map_scope\.outputs\.currentness_required == 'true'/u);
@@ -108,7 +110,7 @@ console.log(JSON.stringify({
   manual_main_convergence_mode: true,
   trusted_authority_on_main_readback: true,
   governed_work_branch_push_recovery: true,
-  work_map_trigger_scope_bounded: true,
+  work_map_currentness_all_main_bound_prs: true,
   candidate_mutation_before_main_trust: false,
   protected_branch_mutation: false,
   force_push: false,

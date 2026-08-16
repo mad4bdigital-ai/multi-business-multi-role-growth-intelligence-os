@@ -100,7 +100,7 @@
             "Verification dispatch evidence remains mad4b.generated-artifact-refresh-verification-dispatch.v1 with backward-compatible workflow and workflow_file fields plus the verifiers extension.",
             "Push-triggered and workflow_dispatch-triggered Inventory recovery preserve exact-head and fail-closed source identity contracts.",
             "A governed work-branch push may publish bootstrap evidence only within the Inventory gate's same-repository, main-base, non-protected branch contract; protected-ref pushes remain blocked.",
-            "Work Map Integration may retain the broad .github/workflows/** trigger required by pipeline connectivity, but its currentness and repair path must remain inactive for unrelated repository-state changes.",
+            "Work Map Integration runs currentness verification for every main-bound pull request without effective path narrowing; stale maps fail closed into the governed repair path, and ordinary validation performs no remote write.",
             "Main convergence creates only a non-protected branch and never turns the dispatcher into a direct protected-ref writer.",
             "The generated-artifact-refresh maintenance tool remains the sole registered mutating repository maintenance tool.",
             "A recovery PR that changes registered Repository Inventory, Repository Evaluation, or Remote MCP write-scope outputs carries this contract in its changed paths so E2E governance classifies it as repository-state recovery.",
