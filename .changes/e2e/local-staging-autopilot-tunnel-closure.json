@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
       "autopilot-portable-staging/README.md",
       "autopilot-portable-staging/manifest.json",
       "STAGING-WINDOWS.md",
@@ -30,8 +31,10 @@
       "http-generic-api/test-connect-routes.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-governed-autopilot-production-deployment.mjs",
       "http-generic-api/test-activation-gateway.mjs",
       "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
       "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
@@ -81,10 +84,24 @@
               "args": []
             },
             {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
               "id": "staging-autopilot-closure-validator",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-production-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-governed-autopilot-production-deployment.mjs",
               "args": []
             },
             {

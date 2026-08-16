@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7111,
-    "bytes": 68875693,
-    "lines": 1615489,
+    "files": 7112,
+    "bytes": 68894593,
+    "lines": 1615814,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2132,
-      "documentation": 1899,
+      "documentation": 1900,
       "api-runtime": 1429,
       "database-migrations": 783,
       "root-and-other": 281,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2500,
+      ".md": 2501,
       ".mjs": 1668,
       ".js": 987,
       ".sql": 798,
@@ -62,7 +62,7 @@
     },
     "topLevel": {
       "http-generic-api": 3663,
-      "docs": 1803,
+      "docs": 1804,
       "specs": 873,
       ".github": 271,
       ".changes": 257,
@@ -7110,9 +7110,9 @@
       "path": ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 9021,
-      "lines": 169,
-      "sha256": "a99fd70ba0499dc6271a705bc0df3ed8185219d28724d0e28098bf274f8c52a7",
+      "bytes": 9781,
+      "lines": 186,
+      "sha256": "07213de09e9338ee461941a772fd88893536b4299c594d15bf86d37339f6fd77",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30214,6 +30214,17 @@
       "lines": 98,
       "sha256": "ead449625ed78b179a0b6a71ddf2cd902353054eed66a135fa817ab27e3fa440",
       "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/governance/governed-production-autopilot-report-ar.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 18140,
+      "lines": 308,
+      "sha256": "44edc1bceeb55efe373d2b2ec9fd46e847bb07c1198c2e5e19cc14fe6ebbbd48",
+      "mode": "600",
       "executable": false,
       "generated": false
     },
