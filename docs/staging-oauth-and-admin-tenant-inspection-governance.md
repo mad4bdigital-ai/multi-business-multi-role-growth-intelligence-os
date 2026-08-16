@@ -49,6 +49,8 @@ The contract is currently `status=not_bound` and `deny_until_bound=true`. Theref
 
 These controls deliberately distinguish **design readiness** from **runtime activation**. The PR does not claim that live impersonation is already safe merely because the contract exists; it requires implementation evidence for each control before `status` can move from `not_bound`.
 
+The future adapter must execute before `evaluateGptToolDispatchPreflight`, preserve the original bearer and caller type, attach immutable actor/target context instead of replacing identity, recheck revocation at dispatch time, and require readback before completion. Any adapter that changes `callerType` from the original request or silently substitutes a Tenant token is non-conforming and must fail closed.
+
 ## Environment isolation
 
 Staging resources are `https://dev.mad4b.com`. Production resources are `https://auth.mad4b.com` and `https://activation.mad4b.com` where applicable. Cross-environment access is denied by policy and checked in CI. All Custom GPT schemas remain at or below the hard limit of 30 `operationId` entries.

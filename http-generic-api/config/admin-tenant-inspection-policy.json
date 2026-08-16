@@ -83,7 +83,17 @@
     },
     "production_mutation_allowed": false,
     "database_mutation_allowed": false,
-    "provider_mutation_allowed": false
+    "provider_mutation_allowed": false,
+    "runtime_adapter_integration": {
+      "status": "not_bound",
+      "deny_until_bound": true,
+      "required_hook": "before_evaluateGptToolDispatchPreflight",
+      "must_preserve_caller_type": true,
+      "must_not_replace_bearer_identity": true,
+      "must_attach_actor_target_context": true,
+      "must_recheck_revocation_at_dispatch": true,
+      "must_emit_readback_before_completion": true
+    }
   },
   "environment_isolation": {
     "staging_resource": "https://dev.mad4b.com",

@@ -65,6 +65,14 @@ assert(actAsUser.requires_target_membership === true && actAsUser.requires_activ
 for (const control of ["actor_identity_immutable", "target_identity_immutable", "no_token_substitution", "no_cross_tenant", "no_role_escalation", "replay_protection_required", "idempotency_key_required", "audit_secrets_forbidden", "explicit_per_tool_binding_required", "sensitive_tool_step_up_required"]) {
   assert(actAsUser.security_controls?.[control] === true, `Act-as-User security control must remain enabled: ${control}`);
 }
+const adapter = actAsUser.runtime_adapter_integration || {};
+assert(adapter.status === "not_bound" && adapter.deny_until_bound === true, "Act-as-User adapter must remain deny-until-bound");
+assert(adapter.required_hook === "before_evaluateGptToolDispatchPreflight", "Act-as-User adapter must run before tool preflight");
+assert(adapter.must_preserve_caller_type === true, "Act-as-User adapter must preserve caller type");
+assert(adapter.must_not_replace_bearer_identity === true, "Act-as-User adapter must not replace bearer identity");
+assert(adapter.must_attach_actor_target_context === true, "Act-as-User adapter must attach actor and target context");
+assert(adapter.must_recheck_revocation_at_dispatch === true, "Act-as-User adapter must recheck revocation at dispatch");
+assert(adapter.must_emit_readback_before_completion === true, "Act-as-User adapter must require readback before completion");
 
 assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_ID"), "staging preset must use a dedicated OAuth client ID namespace");
 assert(presetSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"), "staging preset must use a dedicated OAuth secret namespace");
