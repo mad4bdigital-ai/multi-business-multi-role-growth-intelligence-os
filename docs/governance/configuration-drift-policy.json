@@ -2039,7 +2039,10 @@
     "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|DEFAULT_REGISTRY|literal_declaration|registry",
     "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|changedFiles|environment_reference|changed.files.file",
     "http-generic-api/scripts/openapi-detail-closure-batch.mjs|batchId|literal_declaration|batchid",
-    "http-generic-api/scripts/openapi-all-remaining-preflight-batch.mjs|batchId|literal_declaration|batchid"
+    "http-generic-api/scripts/openapi-all-remaining-preflight-batch.mjs|batchId|literal_declaration|batchid",
+    "http-generic-api/actAsUserExecutionPolicy.js|MAX_TTL_SECONDS|literal_declaration|max.ttl.seconds",
+    "http-generic-api/tenantGptOAuthClientConfig.js|allowedHost|literal_declaration|allowedhost",
+    "scripts/validate-staging-openapi-governance.mjs|policyPath|literal_declaration|policypath"
   ],
   "max_existing_secret_candidates": 341,
   "fail_on_removed_candidates": false,
