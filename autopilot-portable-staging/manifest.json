@@ -90,7 +90,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "ad88ef94280378ea5d50163b60e15b43137037ebb66ad4f2992212f2804fe8cc"
+      "sha256": "2a181532d0aebb5a726e2646a20e73121d9ddd04177934704315831b9d47acde"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "c0d33a3034812338a1e665cd14ae5914f04e4920381f5b37d99046b310cf91b6"
+      "sha256": "227e8f46da016cc44f001067e85086818d942df535753bf525ff24164b5d5da8"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -162,7 +162,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "e7b800607dbc4ac9db4947b5f782058c4a72009d9fa67eac2ae1d06c132c8dc9"
+      "sha256": "fbcf939138ae9d5860195452aad05181384b1df44c6fdaadf4ad8b099e76d46f"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -230,7 +230,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "b20d8ec8457d2409864e9c3bab6718b2c90fe396a888ff970dd991250b224606"
+      "sha256": "e004bc91701258820915b9fbd9c377b9023022327282b9241019243abdd0b4f2"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
