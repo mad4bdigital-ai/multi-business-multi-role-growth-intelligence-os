@@ -10,7 +10,7 @@
     },
     {
       "path": ".changes/e2e/local-staging-autopilot-tunnel-closure.json",
-      "sha256": "8ea0c1cdf7dd1fad61415ab8b845eb68d49513d63fdb5ab13ff218db002e7745"
+      "sha256": "9ec3cc44774742051c5afd1ff562ed03e6c43251a73db1207c47fce3df9c02fc"
     },
     {
       "path": ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
@@ -222,7 +222,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "e9fbed495598bb3d9d227646116bea4374247e4dd11d1c14384c277144e11a8c"
+      "sha256": "bf5050b480ddd1e630b511d58af8aa9fee03ae5fbc394b7226ca15ab1aa5d26f"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -354,7 +354,7 @@
     },
     {
       "path": "specs/021-portable-staging-autopilot/e2e-phases.json",
-      "sha256": "ff9f3fd1d8e377b240e807cf9c0d9208262f919e93183631750f3601762fc885"
+      "sha256": "c1d963d0facebc790ce129b4322f548e355556e1e3e493dab8a355e3981371c9"
     }
   ],
   "safety": {

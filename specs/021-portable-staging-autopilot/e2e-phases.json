@@ -98,7 +98,10 @@
             "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
             "http-generic-api/test-staging-activation-gateway.mjs",
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+            "edge/activation-gateway/src/worker-staging.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json"
           ]
         }
       ]
