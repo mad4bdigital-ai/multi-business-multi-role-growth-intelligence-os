@@ -25,7 +25,7 @@ assert.deepEqual(artifact.scope_boundary, {
 });
 assert.equal(artifact.source.family_count, 167);
 assert.equal(artifact.source.detail_family_count, 74);
-assert.equal(artifact.source.dispatch_operation_count, 1039);
+assert.equal(artifact.source.dispatch_operation_count, 1041);
 assert.equal(artifact.summary.family_count, 74);
 assert.equal(artifact.summary.dispatch_family_count, 167);
 assert.equal(artifact.summary.operation_count, 315);

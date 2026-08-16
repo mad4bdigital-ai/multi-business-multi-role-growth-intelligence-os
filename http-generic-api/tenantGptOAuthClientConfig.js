@@ -48,12 +48,31 @@ function cleanSecretRef(value) {
   return normalized || "";
 }
 
+function isAllowedTenantGptCallbackUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    const hostname = url.hostname.toLowerCase();
+    const allowedHost = hostname === "chatgpt.com" || hostname === "chat.openai.com";
+    const callbackPath = /^\/aip\/(?:g-[a-z0-9]+|\{g-GPT-ID\})\/oauth\/callback$/i.test(url.pathname)
+      || url.pathname === "/aip/oauth/callback";
+    return url.protocol === "https:"
+      && allowedHost
+      && callbackPath
+      && !url.username
+      && !url.password
+      && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
 function cleanCallbackUrls(value) {
   const raw = Array.isArray(value) ? value : [];
   const cleaned = raw
     .map((item) => String(item || "").trim())
-    .filter(Boolean);
-  return [...new Set(cleaned.length ? cleaned : TENANT_GPT_CALLBACK_URLS_TO_ALLOW)];
+    .filter((item) => isAllowedTenantGptCallbackUrl(item));
+  const fallback = TENANT_GPT_CALLBACK_URLS_TO_ALLOW.filter(isAllowedTenantGptCallbackUrl);
+  return [...new Set(cleaned.length ? cleaned : fallback)];
 }
 
 function fixedTimeEqual(left, right) {

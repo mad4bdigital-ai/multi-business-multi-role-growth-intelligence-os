@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1b04a92526c873de57fbcbaf4540e0b641ba39085d2fe408655663de7d49d3dc",
+    "source_digest": "ff854faa98c678f4465c1e5b5b94ce936b252ac6ff866a283200dfddde27956b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "e36bc6c413a9a0446c5fe673f6befddc4ff9a510c76a71aba2663a9bdc68253f",
+        "sha256": "2185d5ce62c190777b31d331ac71d8d7ebd197d3377199b0ff8bb27bfe695b7a",
         "present": true
       },
       {
@@ -127,6 +127,11 @@
       {
         "file": "openapi/openapi.custom-gpt.activation-admin.staging.yaml",
         "sha256": "f96bf27689e5f53614accee9a7d982fbc40f9c961d7096c6f34720cc798059e1",
+        "present": true
+      },
+      {
+        "file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "sha256": "ca2fb18bade7df2a0384114be4bc390d4f35005c4b3d6b28e6b111b3d552fbc0",
         "present": true
       },
       {
@@ -616,7 +621,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "8519ebab02396f165e55e2a88d3faf961285f8b2fe76c5be820c52b2d5d36fa2",
+        "sha256": "7ec833a7aed512d285eaf328513d6eaeae68ddb1c7734027499c04d55256be25",
         "present": true
       },
       {
@@ -1086,7 +1091,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "95447f1296846f3eb23dfc2a46b7c9c6359163633b5d3c973c036df422c10cc7",
+        "sha256": "6ce06b89da09d363e22584593098276604c994c38ec5b98b0fb546df4f0b79a7",
         "present": true
       },
       {
@@ -1124,21 +1129,21 @@
     "mounted_family_count": 167,
     "mounted_route_file_count": 139,
     "mixed_scope_route_file_count": 23,
-    "operation_count": 1039,
-    "openapi_documented_count": 1023,
-    "openapi_canonical_documented_count": 708,
+    "operation_count": 1041,
+    "openapi_documented_count": 1025,
+    "openapi_canonical_documented_count": 710,
     "openapi_generated_index_count": 315,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 315,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1023,
+      "equivalent": 1025,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 630,
+    "non_get_candidate_count": 632,
     "unresolved_operation_class_count": 0,
     "classified_mutation_count": 13,
     "governed_mutation_operation_count": 13,
@@ -1146,7 +1151,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 167,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1039,
+    "test_owned_operation_count": 1041,
     "untested_operation_count": 0,
     "ready_task_count": 167,
     "blocked_task_count": 0,
@@ -35268,12 +35273,11 @@
             "controls": null,
             "parameter_bindings": null,
             "blockers": [],
-            "rule_id": "generated-gap-post-admin-support-tickets-tenant-user-create-simulation-routes-supportticketlifecycleintegrityroutes-js",
+            "rule_id": "support-ticket-lifecycle-source-post-admin-support-tickets-tenant-user-create-simulation-disabled",
             "owner": "support-platform",
-            "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+            "rationale": "Explicit fail-closed classification for the lifecycle route mount; the operation remains disabled until effect class, preflight, approval, readback, rollback, and test evidence are independently reviewed.",
             "evidence_refs": [
               "frontend-surface-dispatch.generated.json",
-              "openapi.yaml",
               "routes/supportTicketLifecycleIntegrityRoutes.js",
               "test-frontend-surface-coverage-claims.mjs"
             ]
@@ -35560,12 +35564,11 @@
             "controls": null,
             "parameter_bindings": null,
             "blockers": [],
-            "rule_id": "generated-gap-post-me-support-tickets-routes-supportticketlifecycleintegrityroutes-js",
+            "rule_id": "support-ticket-lifecycle-source-post-me-support-tickets-disabled",
             "owner": "support-platform",
-            "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+            "rationale": "Explicit fail-closed classification for the lifecycle route mount; the operation remains disabled until effect class, preflight, approval, readback, rollback, and test evidence are independently reviewed.",
             "evidence_refs": [
               "frontend-surface-dispatch.generated.json",
-              "openapi.yaml",
               "routes/supportTicketLifecycleIntegrityRoutes.js",
               "test-frontend-surface-coverage-claims.mjs"
             ]
@@ -36602,13 +36605,12 @@
             "controls": null,
             "parameter_bindings": null,
             "blockers": [],
-            "rule_id": "generated-gap-post-admin-support-tickets-tenant-user-create-simulation-routes-supportticketroutes-js",
+            "rule_id": "support-ticket-post-admin-support-tickets-tenant-user-create-simulation-disabled-until-classified",
             "owner": "support-platform",
-            "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+            "rationale": "Explicit fail-closed classification; this support-ticket lifecycle operation remains disabled until effect class, preflight, approval, readback, rollback, and test evidence are independently reviewed.",
             "evidence_refs": [
               "frontend-surface-dispatch.generated.json",
-              "openapi.yaml",
-              "routes/supportTicketRoutes.js",
+              "routes/supportTicketLifecycleIntegrityRoutes.js",
               "test-frontend-surface-coverage-claims.mjs"
             ]
           },
@@ -41774,13 +41776,12 @@
             "controls": null,
             "parameter_bindings": null,
             "blockers": [],
-            "rule_id": "generated-gap-post-me-support-tickets-routes-supportticketroutes-js",
+            "rule_id": "support-ticket-post-me-support-tickets-disabled-until-classified",
             "owner": "support-platform",
-            "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+            "rationale": "Explicit fail-closed classification; this support-ticket lifecycle operation remains disabled until effect class, preflight, approval, readback, rollback, and test evidence are independently reviewed.",
             "evidence_refs": [
               "frontend-surface-dispatch.generated.json",
-              "openapi.yaml",
-              "routes/supportTicketRoutes.js",
+              "routes/supportTicketLifecycleIntegrityRoutes.js",
               "test-frontend-surface-coverage-claims.mjs"
             ]
           },
@@ -45097,7 +45098,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "8519ebab02396f165e55e2a88d3faf961285f8b2fe76c5be820c52b2d5d36fa2",
+      "source_digest": "7ec833a7aed512d285eaf328513d6eaeae68ddb1c7734027499c04d55256be25",
       "mount_prefix": "/",
       "mount_order": 17677,
       "split_from_mixed_scope_file": false,
@@ -45106,6 +45107,164 @@
       "group": "agents",
       "scope": "developer",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/admin/act-as-user/sessions",
+          "signature": "POST /admin/act-as-user/sessions",
+          "source_file": "routes/gptToolsRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-frontend-surface-coverage-claims.mjs"
+          ],
+          "governance": {
+            "classification": "disabled",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": null,
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "act-as-user-session-create-disabled-until-runtime-binding",
+            "owner": "platform-governance",
+            "rationale": "Act-as-User session creation remains fail-closed and disabled until the durable runtime adapter, authority evidence, explicit per-tool scope, readback, and independent promotion evidence are bound.",
+            "evidence_refs": [
+              "actAsUserDurableRepositories.js",
+              "actAsUserExecutionPolicy.js",
+              "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+              "routes/gptToolsRoutes.js",
+              "test-act-as-user-dispatch-hook.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/act-as-user/sessions/{sessionId}/revoke",
+          "signature": "POST /admin/act-as-user/sessions/{sessionId}/revoke",
+          "source_file": "routes/gptToolsRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-frontend-surface-coverage-claims.mjs"
+          ],
+          "governance": {
+            "classification": "disabled",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": null,
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "act-as-user-session-revoke-disabled-until-runtime-binding",
+            "owner": "platform-governance",
+            "rationale": "Act-as-User revocation remains fail-closed and disabled until durable CAS revocation, actor/target binding, audit evidence, and independent promotion evidence are bound.",
+            "evidence_refs": [
+              "actAsUserDurableRepositories.js",
+              "actAsUserExecutionPolicy.js",
+              "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+              "routes/gptToolsRoutes.js",
+              "test-act-as-user-durable-repositories.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/gpt/tools",
@@ -45282,6 +45441,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
@@ -96380,6 +96540,7 @@
         "openapi/container-authority.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",

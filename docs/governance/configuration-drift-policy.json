@@ -366,6 +366,7 @@
     "edge/activation-gateway/src/gateway.mjs|cacheKey|literal_declaration|cachekey",
     "edge/activation-gateway/src/gateway.mjs|verificationCacheKey|literal_declaration|verificationcachekey",
     "edge/activation-gateway/src/gateway.mjs|verificationCache|literal_declaration|verificationcache",
+    "http-generic-api/actAsUserExecutionPolicy.js|MAX_TTL_SECONDS|literal_declaration|max.ttl.seconds",
     "http-generic-api/activation-gateway-runtime/src/gateway.mjs|cacheKey|literal_declaration|cachekey",
     "http-generic-api/activation-gateway-runtime/src/gateway.mjs|verificationCacheKey|literal_declaration|verificationcachekey",
     "http-generic-api/activation-gateway-runtime/src/gateway.mjs|verificationCache|literal_declaration|verificationcache",
@@ -1628,6 +1629,7 @@
     "http-generic-api/tenantGptOAuthClientConfig.js|TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY|literal_declaration|tenant.gpt.oauth.client.config.key",
     "http-generic-api/tenantGptOAuthClientConfig.js|TENANT_GPT_OAUTH_CLIENT_ID|environment_reference|tenant.gpt.oauth.client.id",
     "http-generic-api/tenantGptOAuthClientConfig.js|TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_ID|environment_reference|tenant.gpt.staging.activation.oauth.client.id",
+    "http-generic-api/tenantGptOAuthClientConfig.js|allowedHost|literal_declaration|allowedhost",
     "http-generic-api/tenantGptOAuthClientConfig.js|clientSecret|environment_reference|tenant.gpt.oauth.client.secret",
     "http-generic-api/tenantGptOAuthClientConfig.js|config|literal_declaration|config",
     "http-generic-api/tenantGptOAuthClientConfig.js|migration_seed:line|migration_seed|migration.seed:line",
@@ -2054,6 +2056,7 @@
     "scripts/repository-inventory.mjs|outputMarkdown|environment_reference|inventory.markdown",
     "scripts/repository-inventory.mjs|outputSummary|environment_reference|inventory.summary",
     "scripts/test-repository-evaluation.mjs|environmentProbe|literal_declaration|environmentprobe",
+    "scripts/validate-staging-openapi-governance.mjs|policyPath|literal_declaration|policypath",
     "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker"
   ],
   "max_existing_secret_candidates": 341,
@@ -2085,5 +2088,6 @@
     "runtime_mutation_allowed": false,
     "production_activation_allowed": false,
     "secrets_included": false
-  }
+  },
+  "entries": []
 }
