@@ -28,7 +28,7 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "Start-Staging-One-Click.cmd on the exact eligible main commit",
-          "terminal_outcome": "The launcher accepts only the exact eligible SHA, prevents overlapping runs, repairs protected line-ending drift, builds the Staging image with canonical-manifest.mjs, starts internal-only services, records actionable health diagnostics, and never mutates Production or provider DNS.",
+          "terminal_outcome": "The launcher accepts only the exact eligible SHA, prevents overlapping runs with a valid Windows Global Mutex name, repairs protected line-ending drift, builds the Staging image with canonical-manifest.mjs, starts internal-only services, records actionable health diagnostics, and never mutates Production or provider DNS.",
           "steps": [
             "Resolve the exact main SHA and read the Staging eligibility Workflow Run for that same SHA.",
             "Acquire the single-run lock and fail closed if another launcher is active.",
@@ -38,7 +38,7 @@
           ],
           "assertions": [
             "A missing, running, failed, or mismatched eligibility Workflow Run never deploys the SHA.",
-            "Concurrent Auto Pilot runs are rejected and no second Compose operation is started.",
+            "Concurrent Auto Pilot runs are rejected by the valid Windows Global Mutex contract and no second Compose operation is started.",
             "Line-ending repair cannot hide non-line-ending content changes and manifest hashes remain deterministic.",
             "The Staging image contains the canonical manifest required by activationDynamicEvidenceLegacy.js.",
             "No Production hostname, Hostinger mutation, Cloudflare DNS mutation, migration apply, or database mutation is authorized by this journey."
