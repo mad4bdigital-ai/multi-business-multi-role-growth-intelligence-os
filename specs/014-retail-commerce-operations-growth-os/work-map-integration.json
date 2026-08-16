@@ -3,8 +3,8 @@
   "feature_key": "014-retail-commerce-operations-growth-os",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "dfa9ea5cc3363d9e1e85e618992da3ff3204e0d8179f8ddfe5f0289dc6c39618",
-    "index_source_hash": "3a276e9d389c24e4aa9c3b2319901fefb2049d19fcf0040b50f59220ab1ba093",
+    "fingerprint": "a91491e4ba6e8e57636dc0a1170561ad14adc7e6d17d32036426e94a900be4a4",
+    "index_source_hash": "3388845a4afcf421d18aa34686b66abba7709e5c4cd713fdcd2e291d5027003a",
     "coverage_source_hash": "5561887910fbd8f4fabbb62eaa40f3384de80d1aeefb0bafc017372cfad0207a",
     "map_count": 19,
     "domain_count": 16,
