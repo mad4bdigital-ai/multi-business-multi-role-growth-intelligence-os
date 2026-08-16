@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7084,
-    "bytes": 68088422,
-    "lines": 1595278,
+    "bytes": 68088583,
+    "lines": 1595280,
     "directories": 265,
     "categories": 13
   },
@@ -7461,9 +7461,9 @@
       "path": ".changes/e2e/repository-inventory-governed-regeneration.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 16917,
+      "bytes": 16937,
       "lines": 176,
-      "sha256": "e390e6a0e26e6ae2492525a4b38c958a33bd8f53d71ac982048ae9559aa0a12a",
+      "sha256": "0b46ab0ddafa813c8e2a79756854e541b233b6925bda60e54771e745f2d145fd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32972,7 +32972,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "5301f2e97af42273f83b77c64f828e27ff549b8dd54f956acce3afa5dca74460",
+      "sha256": "5c2020f9e1cc0382d44144d30f754744c1aff15f6f7a98e46913499121236f5f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33137,7 +33137,7 @@
       "extension": ".md",
       "bytes": 48769,
       "lines": 526,
-      "sha256": "f5b81d07371b1a746645daa625452e5cbfbe9d2e6647b0b75e1eccd72ed1592d",
+      "sha256": "a88f15ac23f35c9bf4e2af108a7cc82113dd695c3dc3a24bfd4b35775e210d6c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -68566,9 +68566,9 @@
       "path": "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 6080,
-      "lines": 117,
-      "sha256": "0d2b1f3669971c00a3dbbd8bd9ceebc3d124d143a698c2f9dfaf9d3ed70c6ca8",
+      "bytes": 6221,
+      "lines": 119,
+      "sha256": "fc0df0e928c99534eb4160d8c17b4d6126dd5648cf3ff52da00697b8bfd35d5f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81262,7 +81262,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "f551823846a78c9f2e187de1d09f36ae20fd80fac523f07626af7985750270b0",
+      "sha256": "38f4d9bad46276162bc15d131ce81ab37af90cfb8db669829bc7dfdcfc5d6678",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81823,7 +81823,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "521e51e3dcfccba1c60d87f247673e00f96c0e693482798255db454eca351a8a",
+      "sha256": "4df3e36ae62208e113d7b29eb4c851c98288158ce8bb3b0f2bd37d2379d7c874",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82659,7 +82659,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "82fd5b66d9b42d3943508b5f4cb517414ef36b361c4a3836b5cf055dfe0442bf",
+      "sha256": "0eb181fe87f92371642ea75c9f3200c29fd35a04aeb061f32ed9442252f4e0eb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82890,7 +82890,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "2ac26ac70714e39f5ba48da2c3588027441ece870d7fda7b100f5b89680a57c5",
+      "sha256": "55b633dbd56b2a6c79d29d20c256e2dd0a2a61f62f15a1db01b90848196a5c1f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83209,7 +83209,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "411cb8ffc46854bab3e76328522a491d740a45229e07415a13cf3b3b376be238",
+      "sha256": "11e63d0b4d757d869c2785f9a95dabe36f438f032348eb7eb54e8bb08c88505c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83429,7 +83429,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "e38d4e449a38f4712985c76fb496190a5dd868cfd9ef87fd92bda01433d27ba6",
+      "sha256": "e759bfc2504be9701808ebee9b2df024f72ffca54af301919853dbe6562bcdf8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83506,7 +83506,7 @@
       "extension": ".json",
       "bytes": 49481,
       "lines": 1334,
-      "sha256": "e41bae4ac639130c9b69557f785d0a52b6967adfdb2ef853839aa660cbbf32e6",
+      "sha256": "4e98d3f9b6615d6d0c29aa9b6ba7cb64d9e0254023797f1efa43872aab7fa9d2",
       "mode": "644",
       "executable": false,
       "generated": false
