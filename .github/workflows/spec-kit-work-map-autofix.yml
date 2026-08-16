@@ -142,7 +142,12 @@ jobs:
           target_pr_files_api_sorted="${RUNNER_TEMP}/work-map-autofix-target-pr-files-api-sorted.txt"
           target_binding_candidates="${RUNNER_TEMP}/work-map-autofix-target-binding-candidates.txt"
           target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
+          registry_refresh_binding_candidates="${RUNNER_TEMP}/work-map-autofix-registry-refresh-binding-candidates.txt"
+          registry_refresh_binding_file="${RUNNER_TEMP}/work-map-autofix-registry-refresh-bindings.txt"
+          writer_binding_file="${RUNNER_TEMP}/work-map-autofix-writer-bindings.txt"
           : > "${target_binding_file}"
+          : > "${registry_refresh_binding_file}"
+          : > "${writer_binding_file}"
 
           git cat-file -e "${expected_base_sha}^{commit}"
           git cat-file -e "${EXPECTED_HEAD_SHA}^{commit}"
@@ -196,10 +201,97 @@ jobs:
             printf '%s\n' "${binding_path}" >> "${target_binding_file}"
           done < "${target_binding_candidates}"
 
+          policy_file=".specify/spec-kit-work-map-integration-policy.json"
+          test -f "${policy_file}"
+          spec_root="$(jq -er '.spec_root' "${policy_file}")"
+          work_map_root="$(jq -er '.work_map_root' "${policy_file}")"
+          manifest_filename="$(jq -er '.manifest_filename' "${policy_file}")"
+          template_filename="$(jq -er '.template_filename' "${policy_file}")"
+          work_map_root="${work_map_root%/}"
+          policy_template_path=".specify/templates/${template_filename}"
+          [[ -n "${spec_root}" && "${spec_root}" != */* ]]
+          [[ -n "${manifest_filename}" && "${manifest_filename}" != */* ]]
+          [[ -n "${template_filename}" && "${template_filename}" != */* ]]
+          [[ -n "${work_map_root}" ]]
+
+          registry_refresh_required=false
+          while IFS= read -r changed_file; do
+            [[ -z "${changed_file}" ]] && continue
+            if [[ "${changed_file}" = "${policy_file}" \
+              || "${changed_file}" = "${policy_template_path}" \
+              || "${changed_file}" = "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs" \
+              || "${changed_file}" = "${work_map_root}" \
+              || "${changed_file}" == "${work_map_root}/"* ]]; then
+              registry_refresh_required=true
+              break
+            fi
+          done < "${immutable_target_pr_files}"
+
+          generator_preview_file="${DIAGNOSTIC_ROOT}/platform-work-map-generator-preview.json"
+          set +e
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check > "${generator_preview_file}"
+          generator_preview_exit_code=$?
+          set -e
+          if [[ "${generator_preview_exit_code}" -ne 0 && "${generator_preview_exit_code}" -ne 1 ]]; then
+            echo "::error::Read-only Work Map generator preview failed with unexpected exit code ${generator_preview_exit_code}."
+            exit 1
+          fi
+          if ! jq -e '
+            .mode == "check"
+            and (.drift_files | type == "array")
+            and (.generated_files | type == "array")
+            and .secrets_included == false
+            and .image_assets_generated == false
+          ' "${generator_preview_file}" >/dev/null; then
+            echo "::error::Read-only Work Map generator preview returned an invalid or unsafe report."
+            exit 1
+          fi
+          if jq -e '.drift_files | length > 0' "${generator_preview_file}" >/dev/null; then
+            registry_refresh_required=true
+          fi
+
+          if [[ "${registry_refresh_required}" = "true" ]]; then
+            git ls-files -- "${spec_root}/[0-9][0-9][0-9]-*/${manifest_filename}" \
+              | sort -u > "${registry_refresh_binding_candidates}"
+
+            while IFS= read -r binding_path; do
+              [[ -z "${binding_path}" ]] && continue
+              feature_and_manifest="${binding_path#${spec_root}/}"
+              feature_key="${feature_and_manifest%/${manifest_filename}}"
+              if [[ "${binding_path}" != "${spec_root}/${feature_key}/${manifest_filename}" \
+                || ! "${feature_key}" =~ ^[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
+                echo "::error::Registry-refresh Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
+                exit 1
+              fi
+              test -f "${binding_path}"
+              manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
+              review_state="$(jq -er '.review_state' "${binding_path}")"
+              test "${manifest_feature_key}" = "${feature_key}"
+              if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
+                echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
+                exit 1
+              fi
+              if [[ "${review_state}" = "ready_for_implementation" ]]; then
+                printf '%s\n' "${binding_path}" >> "${registry_refresh_binding_file}"
+              fi
+            done < "${registry_refresh_binding_candidates}"
+          fi
+
+          cat "${target_binding_file}" "${registry_refresh_binding_file}" | sort -u > "${writer_binding_file}"
           target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"
+          registry_refresh_binding_count="$(wc -l < "${registry_refresh_binding_file}" | tr -d '[:space:]')"
+          writer_binding_count="$(wc -l < "${writer_binding_file}" | tr -d '[:space:]')"
+          generator_preview_drift_count="$(jq -r '.drift_files | length' "${generator_preview_file}")"
           echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
+          echo "REGISTRY_REFRESH_BINDING_FILE=${registry_refresh_binding_file}" >> "$GITHUB_ENV"
+          echo "WRITER_BINDING_FILE=${writer_binding_file}" >> "$GITHUB_ENV"
+          echo "REGISTRY_REFRESH_REQUIRED=${registry_refresh_required}" >> "$GITHUB_ENV"
           echo "pr_number=${actual_pr_number}" >> "$GITHUB_OUTPUT"
           echo "target_binding_count=${target_binding_count}" >> "$GITHUB_OUTPUT"
+          echo "registry_refresh_binding_count=${registry_refresh_binding_count}" >> "$GITHUB_OUTPUT"
+          echo "writer_binding_count=${writer_binding_count}" >> "$GITHUB_OUTPUT"
+          echo "registry_refresh_required=${registry_refresh_required}" >> "$GITHUB_OUTPUT"
+          echo "generator_preview_drift_count=${generator_preview_drift_count}" >> "$GITHUB_OUTPUT"
 
       - name: Verify and consume Recovery-issued writer delegation
         id: delegation
@@ -292,6 +384,8 @@ jobs:
             node http-generic-api/test-spec014-refresh-final-work-map-binding.mjs
           run_contract "work-map-autofix-spec014-binding-convergence-regression" \
             node http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs
+          run_contract "work-map-autofix-registry-refresh-scope-regression" \
+            node http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs
           run_contract "syntax-pipeline-connectivity-check" \
             node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
           run_contract "pipeline-connectivity-check" \
@@ -359,7 +453,7 @@ jobs:
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json|specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json) ;;
               *) governed_paths+=("${binding_path}") ;;
             esac
-          done < "${TARGET_BINDING_FILE}"
+          done < "${WRITER_BINDING_FILE}"
 
           refresh_target_bindings() {
             while IFS= read -r binding_path; do
@@ -371,7 +465,7 @@ jobs:
                 017-remote-mcp-host-isolation-oauth-readiness) continue ;;
               esac
               node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}"
-            done < "${TARGET_BINDING_FILE}"
+            done < "${WRITER_BINDING_FILE}"
           }
 
           assert_bounded_write_set() {
@@ -382,6 +476,9 @@ jobs:
                 docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json|specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json) continue ;;
               esac
               if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
+                continue
+              fi
+              if grep -Fxq "${changed_file}" "${REGISTRY_REFRESH_BINDING_FILE}"; then
                 continue
               fi
               unexpected_files+=("${changed_file}")
@@ -426,7 +523,7 @@ jobs:
               017-remote-mcp-host-isolation-oauth-readiness) continue ;;
             esac
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}" --check
-          done < "${TARGET_BINDING_FILE}"
+          done < "${WRITER_BINDING_FILE}"
 
       - name: Commit and push governed Work Maps and target bindings
         id: publish
@@ -456,7 +553,7 @@ jobs:
                 target_binding_paths+=("${binding_path}")
                 ;;
             esac
-          done < "${TARGET_BINDING_FILE}"
+          done < "${WRITER_BINDING_FILE}"
 
           if ! git diff --quiet -- "${governed_paths[@]}"; then
             unexpected_files=()
@@ -466,6 +563,9 @@ jobs:
                 docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json|specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json) continue ;;
               esac
               if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
+                continue
+              fi
+              if grep -Fxq "${changed_file}" "${REGISTRY_REFRESH_BINDING_FILE}"; then
                 continue
               fi
               unexpected_files+=("${changed_file}")
