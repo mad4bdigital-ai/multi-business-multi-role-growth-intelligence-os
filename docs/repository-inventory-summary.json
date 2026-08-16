@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7087,
-    "bytes": 67890210,
-    "lines": 1589748,
+    "files": 7090,
+    "bytes": 68093198,
+    "lines": 1595594,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2129,
+      "tests-and-specs": 2130,
       "documentation": 1898,
       "api-runtime": 1425,
       "database-migrations": 783,
       "root-and-other": 279,
-      "api-contracts": 182,
+      "api-contracts": 184,
       "ci-workflows": 162,
       "ci-config": 103,
       "schemas-and-data": 70,
@@ -27,12 +27,12 @@
     },
     "byExtension": {
       ".md": 2499,
-      ".mjs": 1661,
+      ".mjs": 1662,
       ".js": 987,
       ".sql": 798,
       ".json": 774,
       ".yml": 165,
-      ".yaml": 111,
+      ".yaml": 113,
       ".ps1": 16,
       ".ts": 15,
       ".cs": 14,
@@ -60,7 +60,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3655,
+      "http-generic-api": 3658,
       "docs": 1802,
       "specs": 873,
       ".github": 265,
@@ -225,8 +225,8 @@
   "surfaces": {
     "workflows": 162,
     "migrations": 783,
-    "apiContracts": 182,
-    "testSpecFiles": 2211
+    "apiContracts": 184,
+    "testSpecFiles": 2212
   },
   "largestFiles": [
     {
@@ -238,8 +238,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3445803,
-      "lines": 97566
+      "bytes": 3448128,
+      "lines": 97590
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -298,8 +298,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 255773,
-      "lines": 6187
+      "bytes": 256231,
+      "lines": 6194
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
@@ -310,8 +310,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 242557,
-      "lines": 2078
+      "bytes": 242574,
+      "lines": 2079
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",

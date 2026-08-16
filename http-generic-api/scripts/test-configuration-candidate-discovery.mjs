@@ -21,6 +21,17 @@ assert.equal(candidates[3].candidate_class, "generated_artifact");
 assert.equal(new Set(candidates.map((item) => item.candidate_id)).size, candidates.length);
 assert.ok(candidates.every((item) => !/CLIENT_SECRET=[^\s]+/iu.test(JSON.stringify(item))));
 
+const envPrefix = ["process", "env"].join(".");
+const oauthMetadata = extractCandidates("http-generic-api/oauth/profile.js", [
+  `const AUTHORIZATION_SERVER_URL = ${envPrefix}.TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL;`,
+  `const OAUTH_CLIENT_ID = ${envPrefix}.TENANT_GPT_STAGING_OAUTH_CLIENT_ID;`,
+  `const REFRESH_TOKEN_TTL_SECONDS = ${envPrefix}.TENANT_GPT_REFRESH_TOKEN_TTL_SECONDS;`,
+  `const OAUTH_ACCESS_TOKEN = ${envPrefix}.TENANT_GPT_ACCESS_TOKEN;`,
+].join("\n"));
+assert.equal(oauthMetadata.length, 4);
+assert.deepEqual(oauthMetadata.slice(0, 3).map((item) => item.candidate_class), ["runtime_setting", "runtime_setting", "runtime_setting"]);
+assert.equal(oauthMetadata[3].candidate_class, "secret_candidate");
+
 const generated = extractCandidates("docs/repository-inventory.generated.json", "const DEFAULT_LIMIT = 10;");
 assert.equal(generated[0].candidate_class, "generated_artifact");
 assert.equal(generated[0].migration_action, "exclude_from_migration");

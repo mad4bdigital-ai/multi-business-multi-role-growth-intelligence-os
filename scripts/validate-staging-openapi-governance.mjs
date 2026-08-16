@@ -87,7 +87,7 @@ assert(presetSource.includes("https://dev.mad4b.com"), "staging preset must reta
 assert(oauthConfigSource.includes("TENANT_GPT_OAUTH_CLIENT_SECRET_ENV") && oauthConfigSource.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"), "staging runtime must use the environment-selected staging OAuth secret variable");
 assert(oauthConfigSource.includes("url.protocol === \"https:\""), "OAuth callback normalization must require HTTPS");
 assert(oauthConfigSource.includes("hostname === \"chatgpt.com\" || hostname === \"chat.openai.com\""), "OAuth callback normalization must restrict hosts to ChatGPT");
-assert(resourceProfileSource.includes("TENANT_GPT_IS_STAGING_RUNTIME ? \"\" : \"https://activation.mad4b.com\""), "staging resource profile must not expose activation resource");
+assert(resourceProfileSource.includes("const ACTIVATION_STAGING_ENABLED") && resourceProfileSource.includes("TENANT_GPT_IS_STAGING_RUNTIME") && resourceProfileSource.includes("TENANT_GPT_STAGING_ACTIVATION_RESOURCE_URL") && resourceProfileSource.includes("TENANT_GPT_ACTIVATION_RESOURCE"), "staging resource profile must gate activation behind the explicit staging activation gateway");
 assert(resourceProfileSource.includes("clientId"), "resource profile must bind the request to a client ID");
 assert(oauthTokenSource.includes("equivalentRedirectUri"), "token exchange must enforce redirect binding");
 assert(oauthTokenSource.includes("resolveTenantGptOAuthResourceProfile"), "token exchange must enforce environment resource binding");

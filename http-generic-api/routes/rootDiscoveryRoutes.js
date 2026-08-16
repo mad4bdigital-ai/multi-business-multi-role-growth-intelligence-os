@@ -2,7 +2,16 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildTenantGptOAuthPreset, TENANT_GPT_BASE_URL, TENANT_GPT_IS_STAGING_RUNTIME } from "../tenantGptOAuthPreset.js";
+import {
+  buildTenantGptOAuthPreset,
+  TENANT_GPT_BASE_URL,
+  TENANT_GPT_IS_STAGING_RUNTIME,
+  TENANT_GPT_SCOPE_LINKS,
+} from "../tenantGptOAuthPreset.js";
+import {
+  TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER,
+  TENANT_GPT_ACTIVATION_RESOURCE,
+} from "../tenantGptOAuthResourceProfile.js";
 import { resolveTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -245,7 +254,10 @@ export function buildRootDiscoveryRoutes() {
   router.get("/tenant-gpt/oauth-preset", async (req, res) => {
     const host = requestHost(req);
     const stagingPresetHost = TENANT_GPT_IS_STAGING_RUNTIME && host === "dev.mad4b.com";
-    if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com" && !stagingPresetHost) {
+    const stagingActivationPresetHost = TENANT_GPT_IS_STAGING_RUNTIME
+      && host === "activation_dev.mad4b.com"
+      && String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
+    if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com" && !stagingPresetHost && !stagingActivationPresetHost) {
       return res.status(404).json({
         ok: false,
         error: {
@@ -255,7 +267,7 @@ export function buildRootDiscoveryRoutes() {
       });
     }
 
-    const clientConfig = await resolveTenantGptOAuthClientConfig();
+    const clientConfig = await resolveTenantGptOAuthClientConfig({ requestHost: host });
     const callbackUrlsToAllow = Array.isArray(clientConfig.config?.callback_urls_to_allow)
       ? clientConfig.config.callback_urls_to_allow
       : undefined;
@@ -267,6 +279,14 @@ export function buildRootDiscoveryRoutes() {
         callbackUrlsToAllow,
         ...(host === "activation.mad4b.com" ? {
           baseUrl: "https://activation.mad4b.com",
+        } : stagingActivationPresetHost ? {
+          baseUrl: TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER,
+          schemaUrl: `${TENANT_GPT_ACTIVATION_RESOURCE}/openapi.tenant-gpt.activation.staging.yaml`,
+          activationSchemaUrl: "",
+          clientId: clientConfig.config?.client_id,
+          clientSecretEnv: "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET",
+          scopeLinks: TENANT_GPT_SCOPE_LINKS.map((scope) => scope.replace(TENANT_GPT_BASE_URL, TENANT_GPT_ACTIVATION_RESOURCE)),
+          notes: ["Staging Activation uses a dedicated host, resource, OAuth client, and schema bundle."],
         } : stagingPresetHost ? {
           baseUrl: TENANT_GPT_BASE_URL,
         } : {}),

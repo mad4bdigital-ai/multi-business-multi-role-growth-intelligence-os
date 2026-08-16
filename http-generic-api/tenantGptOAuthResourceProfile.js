@@ -4,9 +4,19 @@ import {
   TENANT_GPT_OAUTH_CLIENT_ID,
 } from "./tenantGptOAuthPreset.js";
 
+export const TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID = TENANT_GPT_IS_STAGING_RUNTIME
+  ? (process.env.TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_ID || "mad4b-tenant-gpt-activation-staging")
+  : TENANT_GPT_OAUTH_CLIENT_ID;
 export const TENANT_GPT_AUTHORIZATION_SERVER = TENANT_GPT_BASE_URL;
 export const TENANT_GPT_CORE_RESOURCE = TENANT_GPT_BASE_URL;
-export const TENANT_GPT_ACTIVATION_RESOURCE = TENANT_GPT_IS_STAGING_RUNTIME ? "" : "https://activation.mad4b.com";
+const ACTIVATION_STAGING_ENABLED = TENANT_GPT_IS_STAGING_RUNTIME
+  && String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true";
+export const TENANT_GPT_ACTIVATION_RESOURCE = TENANT_GPT_IS_STAGING_RUNTIME
+  ? (ACTIVATION_STAGING_ENABLED ? (process.env.TENANT_GPT_STAGING_ACTIVATION_RESOURCE_URL || "https://activation_dev.mad4b.com") : "")
+  : "https://activation.mad4b.com";
+export const TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER = TENANT_GPT_IS_STAGING_RUNTIME
+  ? (ACTIVATION_STAGING_ENABLED ? (process.env.TENANT_GPT_STAGING_ACTIVATION_AUTHORIZATION_SERVER_URL || TENANT_GPT_ACTIVATION_RESOURCE) : "")
+  : "https://activation.mad4b.com";
 export const TENANT_GPT_LEGACY_AUDIENCE = "mad4b-tenant-gpt";
 export const TENANT_GPT_ACTIVATION_LEGACY_AUDIENCE_CUTOFF =
   process.env.TENANT_GPT_ACTIVATION_LEGACY_AUDIENCE_CUTOFF || "2026-10-31T23:59:59.000Z";
@@ -59,14 +69,16 @@ export function resolveTenantGptOAuthResourceProfile({
   requestedResource = "",
 } = {}) {
   const normalizedClientId = String(clientId || "").trim();
-  if (normalizedClientId !== TENANT_GPT_OAUTH_CLIENT_ID) {
-    return { ok: false, error: "invalid_client", message: "OAuth client_id is not allowed for the Tenant GPT client." };
-  }
-
   const host = normalizeTenantGptRequestHost(requestHost);
   const resource = RESOURCE_BY_HOST.get(host) || "";
+  const expectedClientId = resource === TENANT_GPT_ACTIVATION_RESOURCE
+    ? TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID
+    : TENANT_GPT_OAUTH_CLIENT_ID;
   if (!resource) {
     return { ok: false, error: "invalid_target", message: "The OAuth request host is not registered as a Tenant GPT protected resource." };
+  }
+  if (normalizedClientId !== expectedClientId) {
+    return { ok: false, error: "invalid_client", message: "OAuth client_id is not allowed for the requested Tenant GPT resource." };
   }
 
   const explicitResource = String(requestedResource || "").trim();
@@ -79,7 +91,9 @@ export function resolveTenantGptOAuthResourceProfile({
     ok: true,
     profile_key: resource === TENANT_GPT_ACTIVATION_RESOURCE ? "tenant_activation" : "tenant_core",
     client_id: normalizedClientId,
-    authorization_server: TENANT_GPT_AUTHORIZATION_SERVER,
+    authorization_server: resource === TENANT_GPT_ACTIVATION_RESOURCE
+      ? TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER
+      : TENANT_GPT_AUTHORIZATION_SERVER,
     request_host: host,
     resource,
     audience: resource,
