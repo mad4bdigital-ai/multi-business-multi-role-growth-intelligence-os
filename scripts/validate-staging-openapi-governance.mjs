@@ -15,6 +15,10 @@ const systemLayerSource = read("http-generic-api/routes/systemLayerRoutes.js");
 const oauthTokenSource = read("http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js");
 const actAsUserPolicySource = read("http-generic-api/actAsUserExecutionPolicy.js");
 const actAsUserTestSource = read("http-generic-api/test-act-as-user-execution-policy.mjs");
+const actAsUserAdapterSource = read("http-generic-api/actAsUserRuntimeAdapter.js");
+const actAsUserDurableRepositorySource = read("http-generic-api/actAsUserDurableRepositories.js");
+const actAsUserDurableMigrationSource = read("http-generic-api/migrations/20260816_act_as_user_durable_runtime_v1.sql");
+const actAsUserDurableTestSource = read("http-generic-api/test-act-as-user-durable-repositories.mjs");
 
 function assert(condition, message) {
   if (!condition) failures.push(message);
@@ -93,6 +97,12 @@ assert(actAsUserPolicySource.includes("act_as_user_capability_intersection_denie
 assert(actAsUserPolicySource.includes("act_as_user_idempotency_required"), "Act-as-User resolver must require replay protection");
 assert(actAsUserPolicySource.includes("act_as_user_revoked"), "Act-as-User resolver must enforce revocation");
 assert(actAsUserTestSource.includes("act-as-user execution policy tests passed"), "Act-as-User regression test must remain present");
+assert(actAsUserAdapterSource.includes("authorizeDispatch") && actAsUserAdapterSource.includes("recordReadback"), "Act-as-User adapter must expose dispatch and readback boundaries");
+assert(actAsUserDurableRepositorySource.includes("version = version + 1") && actAsUserDurableRepositorySource.includes("act_as_user_revoke_conflict"), "Durable Act-as-User repository must enforce CAS revocation");
+assert(actAsUserDurableRepositorySource.includes("act_as_user_audit_secret_denied") && actAsUserDurableRepositorySource.includes("act_as_user_readback_secret_denied"), "Durable Act-as-User repositories must reject secrets");
+assert(actAsUserDurableMigrationSource.includes("act_as_user_sessions") && actAsUserDurableMigrationSource.includes("act_as_user_audit_events") && actAsUserDurableMigrationSource.includes("act_as_user_readbacks"), "Durable Act-as-User migration must define session, audit, and readback tables");
+assert(actAsUserDurableMigrationSource.includes("ck_act_as_user_session_no_secrets"), "Durable Act-as-User migration must enforce no-secret session state");
+assert(actAsUserDurableTestSource.includes("act-as-user durable repository tests passed"), "Durable Act-as-User repository regression test must remain present");
 
 const schemas = [
   ["tenant", "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml", policy.custom_gpt.schema_url],

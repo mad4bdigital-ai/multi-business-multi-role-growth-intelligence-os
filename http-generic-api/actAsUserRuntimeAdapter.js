@@ -56,8 +56,8 @@ export function createActAsUserRuntimeAdapter({
     return Object.freeze({ ...context, sessionId, dispatchAuthorized: true });
   }
 
-  async function revokeSession({ sessionId, reason } = {}) {
-    const result = await sessionRevoke(sessionId, reason || "revoked");
+  async function revokeSession({ sessionId, reason, expectedVersion = null } = {}) {
+    const result = await sessionRevoke(sessionId, reason || "revoked", expectedVersion);
     await auditAppend({ event: "act_as_user_session_revoked", sessionId, reason: reason || "revoked", secretsIncluded: false });
     return result;
   }
