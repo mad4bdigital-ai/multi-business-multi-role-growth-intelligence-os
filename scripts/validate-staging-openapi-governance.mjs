@@ -34,6 +34,12 @@ assert(policy.custom_gpt.production_resources_forbidden.includes("https://auth.m
 assert(policy.custom_gpt.production_resources_forbidden.includes("https://activation.mad4b.com"), "activation production host must remain forbidden in staging");
 assert(inspection.fail_closed === true, "Admin/Tenant inspection must be fail-closed");
 assert(inspection.mode === "read_only_shadow", "inspection mode must remain read_only_shadow");
+assert(inspection.runtime_binding?.status === "not_bound", "inspection must not claim runtime binding before adapter implementation");
+assert(inspection.runtime_binding?.adapter_required === true, "inspection must require an explicit runtime adapter");
+assert(inspection.runtime_binding?.deny_until_bound === true, "inspection must deny requests until runtime binding is proven");
+for (const evidence of ["authority_resolution", "tenant_membership", "route_allowlist", "readback", "audit_record"]) {
+  assert(inspection.runtime_binding?.required_evidence?.includes(evidence), `inspection runtime binding must require ${evidence} evidence`);
+}
 assert(inspection.admin_context_may_borrow_tenant_authority === false, "Admin must not borrow Tenant authority");
 assert(inspection.required_request_fields.includes("tenant_id"), "inspection must require tenant_id");
 assert(inspection.required_request_fields.includes("expires_at"), "inspection must require expiry");

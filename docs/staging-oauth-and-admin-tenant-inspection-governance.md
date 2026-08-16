@@ -24,7 +24,7 @@ Tenant inspection requires an explicit read-only request containing:
 | `expires_at` | Mandatory expiry; maximum TTL is 900 seconds |
 | `correlation_id` | Durable audit and readback reference |
 
-The inspection contract permits only `list_routes`, `list_tools`, `list_catalogs`, and `read_schema`. It denies tool calls, execute, create, update, delete, deploy, activation, grant, and revoke operations. Context and authority resolution must both succeed, and Admin context may not borrow Tenant authority.
+The inspection contract permits only `list_routes`, `list_tools`, `list_catalogs`, and `read_schema`. It denies tool calls, execute, create, update, delete, deploy, activation, grant, and revoke operations. Context and authority resolution must both succeed, and Admin context may not borrow Tenant authority. The contract is explicitly `runtime_binding.status=not_bound` with `deny_until_bound=true`; it must not be interpreted as an already-live Admin-to-Tenant inspection endpoint.
 
 ## Environment isolation
 

@@ -2,6 +2,12 @@
   "schema_version": "mad4b.admin-tenant-inspection-policy.v1",
   "mode": "read_only_shadow",
   "fail_closed": true,
+  "runtime_binding": {
+    "status": "not_bound",
+    "adapter_required": true,
+    "deny_until_bound": true,
+    "required_evidence": ["authority_resolution", "tenant_membership", "route_allowlist", "readback", "audit_record"]
+  },
   "admin_context_may_borrow_tenant_authority": false,
   "required_request_fields": [
     "tenant_id",
