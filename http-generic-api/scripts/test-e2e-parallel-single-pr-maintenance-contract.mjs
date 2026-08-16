@@ -158,7 +158,7 @@ run("git", ["add", "."], root);
 run("git", ["commit", "-m", "baseline integrated feature"], root);
 const baseSha = run("git", ["rev-parse", "HEAD"], root).trim();
 
-function maintenanceContract({ secretsIncluded = false, includeRuntime = true } = {}) {
+function maintenanceContract({ includeSecretsDeclaration = true, includeRuntime = true } = {}) {
   return {
     $schema: "../../.specify/schemas/e2e-phases.schema.json",
     schema_version: 1,
@@ -166,7 +166,7 @@ function maintenanceContract({ secretsIncluded = false, includeRuntime = true } 
     title: "Single PR maintenance example",
     delivery_mode: "single_pr",
     current_phase: "mvp",
-    ...(secretsIncluded === undefined ? {} : { secrets_included: secretsIncluded }),
+    ...(includeSecretsDeclaration ? { secrets_included: false } : {}),
     scope: {
       include: [
         ".changes/e2e/maintenance-example.json",
@@ -238,7 +238,10 @@ assert.equal(phaseGoodReport.single_pr_maintenance_contract?.contract_path, ".ch
 run("git", ["checkout", "--detach", baseSha], root);
 fs.writeFileSync(path.join(root, "http-generic-api", "example", "runtime.mjs"), "export const value = 3;\n");
 writeJson(path.join(root, "specs", "014-example", "work-map-integration.json"), { version: 3 });
-writeJson(path.join(root, ".changes", "e2e", "maintenance-example.json"), maintenanceContract({ secretsIncluded: undefined }));
+writeJson(
+  path.join(root, ".changes", "e2e", "maintenance-example.json"),
+  maintenanceContract({ includeSecretsDeclaration: false }),
+);
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "unsafe maintenance without secret declaration"], root);
 const unsafeHead = run("git", ["rev-parse", "HEAD"], root).trim();
