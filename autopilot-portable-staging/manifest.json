@@ -154,7 +154,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "52ad3bec575f0308bf21f70870896b6f5ee88d50e81aa7d45febf374072d75fa"
+      "sha256": "b3e9c8038e5f43988bb1c53f526d5d3b0fbbee375c3c43f4bd36055af2fc8112"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "7e76fafb52066d5a370584d12a23e738b6d3f647631d2cf387e852d9414acd4e"
+      "sha256": "034b66300454e253a7e8ab2c0c37ab085abb4cd6d11b9f9b3456f4d14a1b1484"
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",

@@ -37,18 +37,6 @@ components:
             https://auth.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
             https://auth.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
             https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
-    backendBearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: Backend API Key or User JWT
-      description: |
-        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
-    backendApiKeyAuth:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
   schemas:
     SecurityDecisionTraceEventPublic:
       type: object
@@ -1522,8 +1510,12 @@ paths:
       tags:
         - local-connector
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listLocalGatewayTools
       summary: List tenant-safe local gateway tools
       description: Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false.
@@ -1588,8 +1580,12 @@ paths:
       tags:
         - system-layer
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
@@ -1630,8 +1626,12 @@ paths:
       tags:
         - system-layer
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
@@ -2900,8 +2900,12 @@ paths:
       tags:
         - session-archive
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: writeSessionTurn
       x-openai-isConsequential: false
       summary: Append one turn to a customer_sessions archive
@@ -3000,8 +3004,12 @@ paths:
       tags:
         - session-archive
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: endSession
       x-openai-isConsequential: false
       summary: Close a customer_sessions archive
