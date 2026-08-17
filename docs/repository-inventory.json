@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7151,
-    "bytes": 69783480,
-    "lines": 1639579,
+    "bytes": 69784430,
+    "lines": 1639590,
     "directories": 265,
     "categories": 13
   },
@@ -7360,9 +7360,9 @@
       "path": ".changes/e2e/production-readiness-oauth-db-parity-maintenance-20260817.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5751,
-      "lines": 106,
-      "sha256": "1d3adcb24d58c1e97f1b674dec804194853a0dc0be7e44aad64f7db3a6024a22",
+      "bytes": 6701,
+      "lines": 117,
+      "sha256": "0b71597c40bc4bedb8707af3734e00a0255a0f9dd19a5717f50dda5c7d018fc2",
       "mode": "644",
       "executable": false,
       "generated": false
