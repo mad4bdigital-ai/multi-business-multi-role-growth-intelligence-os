@@ -137,8 +137,24 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
 
+      - name: Validate repository governance control plane
+        run: node .github/tests/repository-governance-closure.test.mjs
+
       - name: Validate derived-state governance contract
         run: node .github/tests/derived-state-closure.test.mjs
+
+      - name: Verify repository governance at the exact candidate
+        env:
+          REPOSITORY_GOVERNANCE_REPORT_FILE: ${{ runner.temp }}/derived-state-closure/repository-governance.json
+          CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+          CANDIDATE_KIND: ${{ steps.target.outputs.candidate_kind }}
+          BASE_SHA: ${{ steps.target.outputs.base_sha }}
+        run: >-
+          node scripts/repository-governance-closure.mjs
+          --expected-sha "$CANDIDATE_SHA"
+          --candidate-kind "$CANDIDATE_KIND"
+          --base-sha "$BASE_SHA"
+          --report-file "$REPOSITORY_GOVERNANCE_REPORT_FILE"
 
       - name: Verify all registered derived state at the exact candidate
         env:
@@ -162,6 +178,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: derived-state-closure-${{ github.run_id }}
-          path: ${{ runner.temp }}/derived-state-closure/report.json
+          path: ${{ runner.temp }}/derived-state-closure/
           if-no-files-found: error
           retention-days: 30
