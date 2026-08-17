@@ -71,9 +71,10 @@ assert(
 );
 assert(
   tenantSchema.includes("userBearerAuth")
-    && tenantSchema.includes("backendApiKeyAuth")
-    && /\/system\/tools\/call:[\s\S]*?security:[\s\S]*?backendBearerAuth:[\s\S]*?backendApiKeyAuth:/u.test(tenantSchema),
-  "Tenant GPT schema must preserve user bearer auth for customer actions and backend auth for the protected system tool call"
+    && !tenantSchema.includes("backendApiKeyAuth")
+    && !tenantSchema.includes("backendBearerAuth")
+    && /\/system\/tools\/call:[\s\S]*?security:[\s\S]*?userBearerAuth:/u.test(tenantSchema),
+  "Tenant GPT schema must expose exactly one user bearer security scheme, including for the protected system tool call"
 );
 
 console.log("tenant system call connect escalation tests passed");
