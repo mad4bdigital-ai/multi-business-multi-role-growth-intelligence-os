@@ -73,10 +73,16 @@ assert.equal(isMcpCatalogSchemaNotReadyError({ code: "mcp_catalog_schema_migrati
 assert.equal(isMcpCatalogSchemaNotReadyError({ code: "ER_BAD_FIELD_ERROR" }), false);
 
 const routeSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const legacyRouteSource = fs.readFileSync(new URL("./routes/gptToolsRoutesLegacy.js", import.meta.url), "utf8");
 const deploymentInfoSource = fs.readFileSync(new URL("./routes/deploymentInfoRoutes.js", import.meta.url), "utf8");
 const serverSource = fs.readFileSync(new URL("./server.js", import.meta.url), "utf8");
 assert.match(routeSource, /schema_contract_not_ready/u);
 assert.match(routeSource, /buildMcpCatalogSchemaNotReadyResponse/u);
+assert.match(legacyRouteSource, /assertMcpCatalogLevelColumn/u);
+assert.match(legacyRouteSource, /buildMcpCatalogSchemaNotReadyResponse/u);
+assert.match(legacyRouteSource, /schema_contract_not_ready/u);
+assert.match(legacyRouteSource, /message: err\.code \? err\.message : "Tool call failed\."/u);
+assert.doesNotMatch(legacyRouteSource, /message: err\.message\s*,/u);
 assert.match(deploymentInfoSource, /include_mcp_catalog_schema_readiness/u);
 assert.match(deploymentInfoSource, /mcp_catalog_schema_startup_preflight/u);
 assert.match(serverSource, /runMcpCatalogSchemaStartupPreflight/u);
@@ -90,5 +96,6 @@ console.log(JSON.stringify({
   startup_non_blocking: true,
   migration_apply_performed: false,
   database_mutation_performed: false,
+  legacy_surface_covered: true,
   secrets_included: false,
 }, null, 2));

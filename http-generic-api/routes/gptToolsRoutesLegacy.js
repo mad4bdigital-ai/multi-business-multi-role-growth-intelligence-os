@@ -5,6 +5,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { getPool, getRuntimePersistencePool } from "../db.js";
+import {
+  assertMcpCatalogLevelColumn,
+  buildMcpCatalogSchemaNotReadyResponse,
+  isMcpCatalogSchemaNotReadyError,
+} from "../mcpCatalogSchemaGuard.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
@@ -2447,13 +2452,14 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
+  await assertMcpCatalogLevelColumn({ pool: getPool(), table });
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v3"),
+    sqlCacheKey("tools", callerType, "list", "v4"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
         `SELECT tool_key, display_name, description, http_method, http_path,
-                path_param_keys, input_schema, tags
+                path_param_keys, input_schema, tags, mcp_catalog_level
          FROM \`${table}\`
          WHERE is_enabled = 1
          ORDER BY sort_order ASC, tool_key ASC`
@@ -2483,6 +2489,8 @@ async function fetchTools(callerType) {
     method: r.http_method,
     path: r.http_path,
     tags: normalizeRegistryTags(r.tags),
+    catalogLevel: String(r.mcp_catalog_level || "core"),
+    catalog_level: String(r.mcp_catalog_level || "core"),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
@@ -2506,14 +2514,17 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     ? [TOOLS_TABLE.tenant, TOOLS_TABLE.admin]
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
+    await assertMcpCatalogLevelColumn({ pool: getPool(), table });
     const [rows] = await getPool().query(
-      `SELECT http_method, tags FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT http_method, tags, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
       [normalizedToolKey]
     );
     if (!rows?.[0]) continue;
     return {
       method: rows[0].http_method || "",
       tags: normalizeRegistryTags(rows[0].tags),
+      catalogLevel: String(rows[0].mcp_catalog_level || "core"),
+      catalog_level: String(rows[0].mcp_catalog_level || "core"),
       source: table,
     };
   }
@@ -2526,6 +2537,7 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
     return null;
   }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
+  await assertMcpCatalogLevelColumn({ pool: getPool(), table });
   try {
     const [rows] = await getPool().query(
       `SELECT input_schema FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
@@ -4312,7 +4324,15 @@ export function buildGptToolsRoutes(deps) {
         request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
       }));
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
+      if (isMcpCatalogSchemaNotReadyError(err)) {
+        return res.status(503).json({
+          ok: false,
+          error: buildMcpCatalogSchemaNotReadyResponse(err),
+          schema_readiness: { status: "schema_contract_not_ready", migration_apply_required: true, secrets_included: false },
+          secrets_included: false,
+        });
+      }
+      return res.status(err?.status || 500).json({ ok: false, error: { code: "tools_list_failed", message: "Tool catalog listing failed." }, secrets_included: false });
     }
   });
 
@@ -4351,14 +4371,22 @@ export function buildGptToolsRoutes(deps) {
       const result = await dispatchTool(callerType, name, args, req);
       return res.status(result.status).json(result.body);
     } catch (err) {
+      if (isMcpCatalogSchemaNotReadyError(err)) {
+        return res.status(503).json({
+          ok: false,
+          error: buildMcpCatalogSchemaNotReadyResponse(err),
+          schema_readiness: { status: "schema_contract_not_ready", migration_apply_required: true, secrets_included: false },
+          secrets_included: false,
+        });
+      }
       return res.status(err.status || 500).json({
         ok: false,
         error: {
-        code: err.code || "tool_call_failed",
-        message: err.message,
-        ...(err.details ? { details: err.details } : {}),
-      },
-      secrets_included: false
+          code: err.code || "tool_call_failed",
+          message: err.code ? err.message : "Tool call failed.",
+          ...(err.details ? { details: err.details } : {}),
+        },
+        secrets_included: false,
       });
     }
   });

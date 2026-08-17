@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,153 |
-| Total bytes | 69,812,068 |
-| Counted text lines | 1,640,187 |
+| Total bytes | 69,814,177 |
+| Counted text lines | 1,640,224 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -108,7 +108,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 221,663 | 4707 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 204,131 | 4368 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 205,571 | 4396 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |

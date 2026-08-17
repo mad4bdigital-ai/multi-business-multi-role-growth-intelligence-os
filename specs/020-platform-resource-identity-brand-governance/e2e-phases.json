@@ -58,6 +58,7 @@
       "http-generic-api/test-frontend-surface-coverage-claims.mjs",
       "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "http-generic-api/mcpCatalogSchemaGuard.js",
       "http-generic-api/server.js",
       "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
@@ -123,7 +124,7 @@
             "No DB connection, migration, credential read, provider call, external send, or Production mutation occurs.",
             "The persisted OpenAPI detail-gap classification is regenerated deterministically from the current dispatch artifact, including the unified tenant userBearerAuth parity contract, and remains classification-only with zero blocking contract gaps.",
             "MCP catalog schema startup preflight is read-only, non-blocking, secret-free, and reports schema_contract_not_ready with migration_apply_performed=false when mcp_catalog_level is unavailable.",
-            "GET /gpt/tools and POST /gpt/tools/call map MCP catalog schema drift to bounded HTTP 503 structured errors without exposing raw SQL messages.",
+            "GET /gpt/tools and POST /gpt/tools/call map MCP catalog schema drift to bounded HTTP 503 structured errors without exposing raw SQL messages on modern and legacy route builders.",
             "Production R7 classification strings are asserted from the authoritative decision module and its runtime readback remains public GET-only."
           ],
           "tests": [
@@ -304,6 +305,7 @@
             "http-generic-api/runtimePersistenceWriteAuthority.js",
             "http-generic-api/mcpCatalogSchemaGuard.js",
             "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/routes/gptToolsRoutesLegacy.js",
             "http-generic-api/server.js",
             "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
             "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
