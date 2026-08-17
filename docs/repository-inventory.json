@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7132,
-    "bytes": 69086262,
-    "lines": 1619515,
+    "files": 7135,
+    "bytes": 69095528,
+    "lines": 1619704,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2138,
-      "documentation": 1904,
+      "tests-and-specs": 2140,
+      "documentation": 1905,
       "api-runtime": 1435,
       "database-migrations": 783,
       "root-and-other": 282,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2505,
-      ".mjs": 1678,
+      ".md": 2506,
+      ".mjs": 1679,
       ".js": 991,
       ".sql": 798,
-      ".json": 783,
+      ".json": 784,
       ".yml": 170,
       ".yaml": 113,
       ".ps1": 16,
@@ -61,9 +61,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3675,
-      "docs": 1808,
-      "specs": 873,
+      "http-generic-api": 3676,
+      "docs": 1809,
+      "specs": 874,
       ".github": 274,
       ".changes": 258,
       "canonicals": 70,
@@ -2004,6 +2004,7 @@
       "http-generic-api/test-credential-resolver.mjs",
       "http-generic-api/test-credential-tenant-promotion.mjs",
       "http-generic-api/test-custom-gpt-contract-guard-paths.mjs",
+      "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
       "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs",
       "http-generic-api/test-custom-gpt-schemas.mjs",
       "http-generic-api/test-database-collation-policy.mjs",
@@ -3824,6 +3825,7 @@
       "specs/020-platform-resource-identity-brand-governance/completion.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/brand-identity-resolution.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/canonical-operation-governance.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-all-remaining-preflight-batch.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-detail-gap-classification.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json",
@@ -4227,6 +4229,7 @@
       "http-generic-api/test-credential-resolver.mjs",
       "http-generic-api/test-credential-tenant-promotion.mjs",
       "http-generic-api/test-custom-gpt-contract-guard-paths.mjs",
+      "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
       "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs",
       "http-generic-api/test-custom-gpt-schemas.mjs",
       "http-generic-api/test-database-collation-policy.mjs",
@@ -6047,6 +6050,7 @@
       "specs/020-platform-resource-identity-brand-governance/completion.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/brand-identity-resolution.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/canonical-operation-governance.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-all-remaining-preflight-batch.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-detail-gap-classification.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json",
@@ -29877,6 +29881,17 @@
       "bytes": 7546,
       "lines": 133,
       "sha256": "329e6d16a52b9ef2ed1b1c886ee90f7bf9c86d15ef4a2b86645fdc83bceb65bb",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/custom-gpt-environment-routing-instructions.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 2648,
+      "lines": 30,
+      "sha256": "cea6ee31a48e3dbb22b7187cc48dd0f1dfbde678c67553e1b9bc9e4875b2362e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -62684,6 +62699,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 4008,
+      "lines": 82,
+      "sha256": "a59fcb0389de299f5d931a86fe7b3236120ec4174d1f075c0d263322f1e45792",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -83832,6 +83858,17 @@
       "bytes": 2400,
       "lines": 39,
       "sha256": "84aca9465d2654152adc61522bb52f3ae232831aa372ca91719e64cb83260794",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json",
+      "category": "tests-and-specs",
+      "extension": ".json",
+      "bytes": 2610,
+      "lines": 77,
+      "sha256": "d7eaa408dbbe2da5c4a1350e701eb55d8aaf4e903f03dc4fb2ce5f48fe5d792e",
       "mode": "644",
       "executable": false,
       "generated": false
