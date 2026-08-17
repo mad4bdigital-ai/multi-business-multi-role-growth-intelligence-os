@@ -14,6 +14,8 @@
       "http-generic-api/test-openapi-split-governance.mjs",
       "http-generic-api/test-openapi-split-regeneration-parity.mjs",
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
+      "http-generic-api/test-runtime-database-role-contract.mjs",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-role-contract.json",
       "http-generic-api/platformResourceIdentityContract.js",
       "http-generic-api/brandIdentityResolver.js",
       "http-generic-api/platformOperationGovernanceContract.js",
@@ -158,6 +160,13 @@
               "args": []
             },
             {
+              "id": "spec020-runtime-database-role-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-database-role-contract.mjs",
+              "args": []
+            },
+            {
               "id": "spec020-frontend-surface-coverage-claims",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -174,6 +183,8 @@
             "http-generic-api/test-openapi-split-governance.mjs",
             "http-generic-api/test-openapi-split-regeneration-parity.mjs",
             "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
+            "http-generic-api/test-runtime-database-role-contract.mjs",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-role-contract.json",
             "specs/020-platform-resource-identity-brand-governance/completion.json",
             "http-generic-api/platformResourceIdentityContract.js",
             "http-generic-api/brandIdentityResolver.js",
