@@ -63,6 +63,7 @@
     "schemas/brand-identity-resolution.schema.json",
     "schemas/canonical-operation-governance.schema.json",
     "http-generic-api/test-spec020-long-term-runtime-remediation-contract.mjs",
+    "http-generic-api/runtimePersistenceWriteAuthority.js",
     "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
     ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
   ],

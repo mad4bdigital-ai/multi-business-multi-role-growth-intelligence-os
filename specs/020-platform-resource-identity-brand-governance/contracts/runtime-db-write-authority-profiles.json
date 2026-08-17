@@ -25,6 +25,16 @@
       "requires_same_cycle_readback",
       "status"
     ],
+    "prepared_template_fields": [
+      "profile_key",
+      "environment_keys",
+      "table_name",
+      "allowed_operations",
+      "identity_env_prefix",
+      "requires_same_cycle_readback",
+      "status"
+    ],
+    "prepared_template_materialization": "one-singular-environment-binding-per-environment",
     "duplicate_binding_is_invalid": true,
     "unbound_write_is_fail_closed": true,
     "generic_runtime_principal_fallback": false,
@@ -36,6 +46,8 @@
     {
       "profile_key": "runtime_inventory_writer",
       "purpose": "Bounded inventory, action, endpoint, and synchronization lifecycle writes.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_INVENTORY_DB_",
       "bindings": [
         {
@@ -63,6 +75,8 @@
     {
       "profile_key": "session_continuity_writer",
       "purpose": "Session row and bounded turn lifecycle persistence only.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_SESSION_DB_",
       "bindings": [
         {
@@ -80,6 +94,8 @@
     {
       "profile_key": "identity_oauth_writer",
       "purpose": "One-time OAuth authorization-code lifecycle persistence.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_IDENTITY_DB_",
       "bindings": [
         {
@@ -98,6 +114,8 @@
     {
       "profile_key": "observability_sink_writer",
       "purpose": "Bounded execution and JSON asset observability persistence.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_OBSERVABILITY_DB_",
       "bindings": [
         {
@@ -115,6 +133,8 @@
     {
       "profile_key": "runtime_chunk_writer",
       "purpose": "Governed tool response chunk persistence and expiry maintenance only.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_PERSISTENCE_DB_",
       "bindings": [
         {
@@ -128,6 +148,8 @@
     {
       "profile_key": "governance_writer",
       "purpose": "Governance authority store lifecycle, isolated from runtime and session writers.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
       "identity_env_prefix": "GOVERNANCE_DB_",
       "bindings": [
         {
@@ -139,7 +161,8 @@
     }
   ],
   "compiler_rules": [
-    "A write path must resolve exactly one profile and one environment binding before dispatch.",
+    "These profiles are prepared templates; future materialization must expand environment_keys into one singular environment binding per environment before dispatch.",
+    "A write path must resolve exactly one profile and one singular environment binding before dispatch.",
     "A dedicated profile must never fall back to DB_USER or another generic runtime principal.",
     "The compiler must reject an operation not listed in allowed_operations or maintenance_operations.",
     "The compiler must reject duplicate profile/environment/table bindings.",

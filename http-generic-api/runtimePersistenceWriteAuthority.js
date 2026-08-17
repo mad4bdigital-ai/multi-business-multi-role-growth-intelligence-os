@@ -103,10 +103,16 @@ function requiredOperationsFor(table, requested = undefined) {
 }
 
 export function resolveRuntimePersistenceExecutor(deps = {}) {
+  if (deps.pool || deps.connection) {
+    throw authorityError(
+      "RUNTIME_PERSISTENCE_GENERIC_FALLBACK_FORBIDDEN",
+      "Runtime persistence authority cannot fall back to a generic pool or connection.",
+      503,
+      { secrets_included: false },
+    );
+  }
   return deps.runtimePersistencePool
     || (typeof deps.runtimePersistencePoolFactory === "function" ? deps.runtimePersistencePoolFactory() : null)
-    || deps.pool
-    || deps.connection
     || getRuntimePersistencePool();
 }
 
