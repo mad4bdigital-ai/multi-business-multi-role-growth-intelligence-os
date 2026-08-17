@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7144,
-    "bytes": 69731904,
-    "lines": 1637556,
+    "bytes": 69732109,
+    "lines": 1637557,
     "directories": 265,
     "categories": 13
   },
@@ -70961,9 +70961,9 @@
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 10163,
+      "bytes": 10295,
       "lines": 136,
-      "sha256": "0576b2e05afd24323c39bc9045c09d08f8634c39c2beeb985f20eb3939478470",
+      "sha256": "a3d2efd3f6f37d72f8ae622a0e61a49a8b0b47a0ca2efaea84c180c653ccaa72",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84040,9 +84040,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 16245,
-      "lines": 283,
-      "sha256": "7b2e6c7ed2d1515ebabacc4c8c9d250a8af18f75679e5488b935f81e3a9b7037",
+      "bytes": 16318,
+      "lines": 284,
+      "sha256": "c6016af3b2e8975cf984bbdcbfe9a7436577895252dd89888a9ac319384baa83",
       "mode": "644",
       "executable": false,
       "generated": false
