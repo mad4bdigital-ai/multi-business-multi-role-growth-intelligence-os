@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,144 |
-| Total bytes | 69,727,113 |
-| Counted text lines | 1,637,205 |
+| Total bytes | 69,726,655 |
+| Counted text lines | 1,637,198 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -102,7 +102,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json` | api-contracts | 291,182 | 7445 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
-| `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 268,190 | 6363 |
+| `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 267,732 | 6356 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `docs/governance/configuration-drift-policy.json` | documentation | 245,456 | 2099 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
