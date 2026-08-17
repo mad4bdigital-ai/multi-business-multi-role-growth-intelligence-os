@@ -16,12 +16,16 @@ Use this guide together with live repo references, read through governed auth-ho
 2. `AI_Agent_Knowledge_Guide.md`
 3. `GPT_Admin_Assistant_Knowledge_Guide.md`
 4. `http-generic-api/openapi.yaml`
-5. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
-6. `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` (separate passive dispatcher for `dev.mad4b.com`)
-7. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
+5. `http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
+6. `http-generic-api/openapi/openapi.gpt-action.dev-dispatcher.yaml` (separate passive dispatcher for `dev.mad4b.com`)
+7. `http-generic-api/openapi/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
 8. Relevant `docs/*.md` files for the active task
 
 Admin GPT live loading rule: use `repo_inspect` via `callAdminTool` to read repo docs/files at runtime. Do not rely on stale GPT Builder uploads when the auth-host repo tool is available. Tenant GPTs must not use admin repo tools; they need tenant-exposed bounded docs tools only.
+
+## Environment and schema selection
+
+Use the canonical surface registry at `canonicals/openapi/custom-gpt-surfaces.yaml` before importing any Action schema. Production and Staging may use different server/resource/issuer hosts, but both use the shared OAuth scope authority `https://auth.mad4b.com/scopes/*`; never construct `https://dev.mad4b.com/scopes/*`. The production control-plane dispatcher is `http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml`; the passive Staging dispatcher is `http-generic-api/openapi/openapi.gpt-action.dev-dispatcher.yaml`; neither replaces the Tenant or Activation projections. If a requested schema or host is absent from the canonical registry, stop and classify the request as `degraded_contract` rather than guessing.
 
 ## GPT Action Auth
 
@@ -319,8 +323,8 @@ The Admin Assistant keeps production control in one auth-host connector, may add
 
 | Connector | File | Server URL | Purpose |
 |---|---|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | Production control-plane dispatcher. Activation, system/admin tool registries, `listAdminTools` / `callAdminTool`, and governed admin surfaces. |
-| **Dev dispatcher** | `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` | `https://dev.mad4b.com` | Separate passive staging dispatcher: health, deployment-info, protected dev DB status. No production mutation. |
+| **Platform** | `http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | Production control-plane dispatcher. Activation, system/admin tool registries, `listAdminTools` / `callAdminTool`, and governed admin surfaces. |
+| **Dev dispatcher** | `http-generic-api/openapi/openapi.gpt-action.dev-dispatcher.yaml` | `https://dev.mad4b.com` | Separate passive staging dispatcher: health, deployment-info, protected dev DB status. No production mutation. |
 | **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows host. |
 
 `auth.mad4b.com` is the governed production control plane and must be the first choice for admin work. Use `dev.mad4b.com` only to verify a branch deployment before promotion. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required.
