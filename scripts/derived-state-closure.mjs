@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const CONTRACT = "mad4b.repository-derived-state-closure.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const MAX_LOG = 3000;
+const ARTIFACT_CLASSES = new Set(["semantic", "observability"]);
 // Read-only CI verifier: lives with repository verifiers, not mutating maintenance tools.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const apiDir = path.join(repoRoot, "http-generic-api");
@@ -98,6 +99,10 @@ function validateRegistry(registry) {
   for (const artifact of registry.artifacts) {
     if (!artifact?.artifact_id || ids.has(artifact.artifact_id)) throw new Error(`duplicate or missing artifact_id: ${artifact?.artifact_id || "missing"}`);
     ids.add(artifact.artifact_id);
+    if (!ARTIFACT_CLASSES.has(artifact.artifact_class)) throw new Error(`invalid artifact_class for ${artifact.artifact_id}: ${artifact.artifact_class || "missing"}`);
+    if (typeof artifact.merge_blocking !== "boolean") throw new Error(`merge_blocking must be explicit for ${artifact.artifact_id}`);
+    if (artifact.artifact_class === "observability" && artifact.merge_blocking) throw new Error(`observability artifact cannot block merge: ${artifact.artifact_id}`);
+    if (artifact.artifact_class === "semantic" && !artifact.merge_blocking) throw new Error(`semantic artifact must block merge: ${artifact.artifact_id}`);
     if (!VERIFIERS[artifact.verifier_id]) throw new Error(`unregistered verifier_id: ${artifact.verifier_id}`);
     resolveRepairAuthority(artifact);
     if (!Array.isArray(artifact.outputs) || artifact.outputs.length === 0) throw new Error(`missing outputs for ${artifact.artifact_id}`);
@@ -145,6 +150,8 @@ for (const artifact of registry.artifacts) {
   const current = !verifierMutation && commandResults.length > 0 && commandResults.every((entry) => entry.ok);
   results.push({
     artifact_id: artifact.artifact_id,
+    artifact_class: artifact.artifact_class,
+    merge_blocking: artifact.merge_blocking,
     recipe: repairAuthority.recipe || null,
     repair_authority: repairAuthority,
     verifier_id: artifact.verifier_id,
@@ -157,11 +164,14 @@ for (const artifact of registry.artifacts) {
 }
 
 const failed = results.filter((entry) => !entry.current);
-const repairAuthorities = [...new Map(failed.map((entry) => [entry.repair_authority.id, entry.repair_authority])).values()];
+const blockingFailed = failed.filter((entry) => entry.merge_blocking);
+const observabilityFailed = failed.filter((entry) => entry.artifact_class === "observability");
+const repairAuthorities = [...new Map(blockingFailed.map((entry) => [entry.repair_authority.id, entry.repair_authority])).values()];
+const advisoryRepairAuthorities = [...new Map(observabilityFailed.map((entry) => [entry.repair_authority.id, entry.repair_authority])).values()];
 const repairRecipes = repairAuthorities
   .filter((entry) => entry.kind === "generated_artifact_recipe")
   .map((entry) => entry.recipe);
-const converged = failed.length === 0 && !verifierMutation && results.length === registry.artifacts.length;
+const converged = blockingFailed.length === 0 && !verifierMutation && results.length === registry.artifacts.length;
 const report = {
   contract: CONTRACT,
   generated_at: new Date().toISOString(),
@@ -178,8 +188,11 @@ const report = {
   checked_artifact_count: results.length,
   current_artifact_count: results.filter((entry) => entry.current).length,
   stale_or_failed_artifact_count: failed.length,
+  blocking_stale_or_failed_artifact_count: blockingFailed.length,
+  observability_stale_or_failed_artifact_count: observabilityFailed.length,
   converged,
   repair_authorities: repairAuthorities,
+  advisory_repair_authorities: advisoryRepairAuthorities,
   repair_recipes: repairRecipes,
   artifacts: results,
   verifier_mutation: verifierMutation,
@@ -204,7 +217,10 @@ process.stdout.write(`${JSON.stringify({
   base_sha: baseSha,
   converged,
   stale_or_failed_artifact_count: failed.length,
+  blocking_stale_or_failed_artifact_count: blockingFailed.length,
+  observability_stale_or_failed_artifact_count: observabilityFailed.length,
   repair_authority_ids: repairAuthorities.map((entry) => entry.id),
+  advisory_repair_authority_ids: advisoryRepairAuthorities.map((entry) => entry.id),
   repair_recipes: repairRecipes,
   verifier_mutation: Boolean(verifierMutation),
   secrets_included: false
