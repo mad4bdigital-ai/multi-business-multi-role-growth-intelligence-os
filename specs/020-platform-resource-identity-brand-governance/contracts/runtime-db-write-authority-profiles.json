@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.spec020.runtime-db-write-authority-profiles.v1",
+  "status": "prepared-only",
+  "authority": "shadow-library-only",
+  "runtime_mutation_allowed": false,
+  "production_activation_allowed": false,
+  "credentials_read_allowed": false,
+  "grant_mutation_allowed": false,
+  "migration_apply_allowed": false,
+  "secrets_included": false,
+  "registry_policy": {
+    "database_authority_source": "sql-primary-registry-planned",
+    "binding_key": [
+      "profile_key",
+      "environment_key",
+      "table_name"
+    ],
+    "required_binding_fields": [
+      "profile_key",
+      "environment_key",
+      "table_name",
+      "allowed_operations",
+      "identity_env_prefix",
+      "requires_same_cycle_readback",
+      "status"
+    ],
+    "prepared_template_fields": [
+      "profile_key",
+      "environment_keys",
+      "table_name",
+      "allowed_operations",
+      "identity_env_prefix",
+      "requires_same_cycle_readback",
+      "status"
+    ],
+    "prepared_template_materialization": "one-singular-environment-binding-per-environment",
+    "duplicate_binding_is_invalid": true,
+    "unbound_write_is_fail_closed": true,
+    "generic_runtime_principal_fallback": false,
+    "schema_wide_privileges_forbidden": true,
+    "global_privileges_forbidden": true,
+    "grant_option_forbidden": true
+  },
+  "profiles": [
+    {
+      "profile_key": "runtime_inventory_writer",
+      "purpose": "Bounded inventory, action, endpoint, and synchronization lifecycle writes.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
+      "identity_env_prefix": "RUNTIME_INVENTORY_DB_",
+      "bindings": [
+        {
+          "table_name": "actions",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        },
+        {
+          "table_name": "endpoints",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        },
+        {
+          "table_name": "dynamic_audit_scheduler_runs",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        },
+        {
+          "table_name": "openapi_endpoint_inventory_sync_runs",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        }
+      ]
+    },
+    {
+      "profile_key": "session_continuity_writer",
+      "purpose": "Session row and bounded turn lifecycle persistence only.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
+      "identity_env_prefix": "RUNTIME_SESSION_DB_",
+      "bindings": [
+        {
+          "table_name": "customer_sessions",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        },
+        {
+          "table_name": "gpt_session_turns",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        }
+      ]
+    },
+    {
+      "profile_key": "identity_oauth_writer",
+      "purpose": "One-time OAuth authorization-code lifecycle persistence.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
+      "identity_env_prefix": "RUNTIME_IDENTITY_DB_",
+      "bindings": [
+        {
+          "table_name": "tenant_gpt_oauth_authorization_codes",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+          "requires_same_cycle_readback": true,
+          "operation_constraints": [
+            "atomic_one_time_consumption",
+            "expiry_ttl_enforced",
+            "replay_protection",
+            "tenant_user_scope_validation"
+          ]
+        }
+      ]
+    },
+    {
+      "profile_key": "observability_sink_writer",
+      "purpose": "Bounded execution and JSON asset observability persistence.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
+      "identity_env_prefix": "RUNTIME_OBSERVABILITY_DB_",
+      "bindings": [
+        {
+          "table_name": "execution_log",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        },
+        {
+          "table_name": "json_assets",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        }
+      ]
+    },
+    {
+      "profile_key": "runtime_chunk_writer",
+      "purpose": "Governed tool response chunk persistence and expiry maintenance only.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
+      "identity_env_prefix": "RUNTIME_PERSISTENCE_DB_",
+      "bindings": [
+        {
+          "table_name": "governed_tool_response_chunks",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "maintenance_operations": ["DELETE"],
+          "requires_same_cycle_readback": true
+        }
+      ]
+    },
+    {
+      "profile_key": "governance_writer",
+      "purpose": "Governance authority store lifecycle, isolated from runtime and session writers.",
+      "environment_keys": ["staging", "production"],
+      "status": "prepared-only",
+      "identity_env_prefix": "GOVERNANCE_DB_",
+      "bindings": [
+        {
+          "table_name": "platform_resource_authority_bindings",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "requires_same_cycle_readback": true
+        }
+      ]
+    }
+  ],
+  "compiler_rules": [
+    "These profiles are prepared templates; future materialization must expand environment_keys into one singular environment binding per environment before dispatch.",
+    "A write path must resolve exactly one profile and one singular environment binding before dispatch.",
+    "A dedicated profile must never fall back to DB_USER or another generic runtime principal.",
+    "The compiler must reject an operation not listed in allowed_operations or maintenance_operations.",
+    "The compiler must reject duplicate profile/environment/table bindings.",
+    "The compiler must reject a binding whose identity_env_prefix does not match the resolved environment namespace.",
+    "Certification and same-cycle readback are required before any future dispatch activation.",
+    "This contract defines intended authority and does not grant, revoke, migrate, or connect to a database."
+  ],
+  "failure_codes": [
+    "DB_WRITE_AUTHORITY_PROFILE_MISSING",
+    "DB_WRITE_AUTHORITY_BINDING_AMBIGUOUS",
+    "DB_WRITE_AUTHORITY_OPERATION_UNBOUND",
+    "DB_WRITE_AUTHORITY_GENERIC_FALLBACK_FORBIDDEN",
+    "DB_WRITE_AUTHORITY_ENVIRONMENT_MISMATCH",
+    "DB_WRITE_AUTHORITY_READBACK_MISSING"
+  ],
+  "future_patch_dependencies": [
+    "runtime-environment-enforcement",
+    "session-continuity-writer",
+    "identity-oauth-writer",
+    "operational-writers",
+    "control-plane-persistence-resilience"
+  ],
+  "operator_approval_required": true
+}
+

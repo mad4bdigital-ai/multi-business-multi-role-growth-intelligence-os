@@ -5,32 +5,21 @@ on:
   workflow_run:
     workflows:
       - Repository Inventory
-    types:
-      - completed
+    types: [completed]
   workflow_dispatch:
     inputs:
       mode:
-        description: Recovery mode; pull_request handles a stale PR and main_convergence handles a stale exact main run
+        description: Only main_convergence may write observability state; pull_request mode is intentionally advisory-only
         required: false
-        default: pull_request
+        default: main_convergence
         type: choice
-        options:
-          - pull_request
-          - main_convergence
-      pr_number:
-        description: Open same-repository pull request number; unused for main_convergence
-        required: false
-        type: string
-      target_ref:
-        description: Governed work branch containing stale Repository Inventory; derived for main_convergence
-        required: false
-        type: string
+        options: [main_convergence, pull_request]
       expected_head_sha:
-        description: Exact current 40-character source SHA
+        description: Exact source SHA
         required: true
         type: string
       source_main_sha:
-        description: Exact main SHA authorizing main_convergence; must equal expected_head_sha
+        description: Exact main SHA for post-merge convergence
         required: false
         type: string
       confirmation:
@@ -38,394 +27,75 @@ on:
         required: true
         type: string
 
-# The dispatcher delegates all repository content mutation to the trusted writer.
-# It can classify both stale PR heads and stale exact main heads, but it never writes main or Production.
-# Post-merge convergence auto-seeds and verifies a work branch; PR publication remains outside Actions write authority.
-# Contract: mad4b.repository-inventory-self-hosting.v2.
-env:
-  INVENTORY_AUTOFIX_AUTHORITY_MODE: read_only_delegator
-
 permissions:
-  actions: read
+  actions: write
   contents: read
   pull-requests: read
 
 concurrency:
-  group: repository-inventory-regeneration-${{ github.event.workflow_run.head_sha || github.event.workflow_run.pull_requests[0].number || inputs.pr_number || github.run_id }}
+  group: repository-inventory-regeneration-${{ github.event.workflow_run.head_sha || inputs.expected_head_sha || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  classify:
-    name: Prove stale-inventory-only eligibility
+  dispatch:
+    name: Enforce policy-driven observability repair boundary
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
-    outputs:
-      eligible: ${{ steps.finalize.outputs.eligible }}
-      reason: ${{ steps.finalize.outputs.reason }}
-      mode: ${{ steps.classify.outputs.mode }}
-      pr_number: ${{ steps.classify.outputs.pr_number }}
-      target_ref: ${{ steps.classify.outputs.target_ref }}
-      expected_head_sha: ${{ steps.classify.outputs.expected_head_sha }}
-      source_main_sha: ${{ steps.classify.outputs.source_main_sha }}
+    timeout-minutes: 12
     steps:
-      - name: Classify source run and pin immutable source
-        id: classify
+      - name: Checkout trusted main policy
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve policy and dispatch only post-merge convergence
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
           SOURCE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || 'workflow_dispatch' }}
           SOURCE_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || 'manual' }}
           SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.expected_head_sha }}
           SOURCE_HEAD_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || '' }}
-          MANUAL_MODE: ${{ inputs.mode || 'pull_request' }}
-          MANUAL_PR_NUMBER: ${{ inputs.pr_number || '' }}
-          MANUAL_TARGET_REF: ${{ inputs.target_ref || '' }}
-          MANUAL_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+          MANUAL_MODE: ${{ inputs.mode || 'main_convergence' }}
           MANUAL_SOURCE_MAIN_SHA: ${{ inputs.source_main_sha || '' }}
           MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
         run: |
           set -euo pipefail
-          test "$INVENTORY_AUTOFIX_AUTHORITY_MODE" = "read_only_delegator"
-
-          emit_ineligible() {
-            local reason="$1"
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=${reason}" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          mode="pull_request"
-          source_main_sha=""
-          requested_target_ref=""
+          registry=".github/derived-state-governance.json"
+          test "$(jq -r '.policy.observability_artifacts_publish_post_merge_only' "$registry")" = "true"
+          test "$(jq -r '.policy.observability_premerge_mutation_forbidden' "$registry")" = "true"
+          test "$(jq -r '.artifacts[] | select(.artifact_id=="repository_inventory") | .artifact_class' "$registry")" = "observability"
+          test "$(jq -r '.artifacts[] | select(.artifact_id=="repository_inventory") | .merge_blocking' "$registry")" = "false"
 
           if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
-            [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "source_run_id_invalid"
-            [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_head_sha_invalid"
-            [[ "$SOURCE_CONCLUSION" == "failure" ]] || emit_ineligible "source_run_not_failed"
-
+            [[ "$SOURCE_CONCLUSION" == "failure" ]] || exit 0
+            [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
             if [[ "$SOURCE_EVENT" == "pull_request" ]]; then
-              pr_count="$(jq '.workflow_run.pull_requests | length' "$GITHUB_EVENT_PATH")"
-              [[ "$pr_count" == "1" ]] || emit_ineligible "source_run_not_bound_to_single_pr"
-              pr_number="$(jq -r '.workflow_run.pull_requests[0].number' "$GITHUB_EVENT_PATH")"
-              [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
-              requested_head_sha="$SOURCE_HEAD_SHA"
-            elif [[ "$SOURCE_EVENT" == "push" ]]; then
-              [[ "$SOURCE_HEAD_BRANCH" == "main" ]] || emit_ineligible "source_push_not_main"
-              current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-              [[ "$current_main_sha" == "$SOURCE_HEAD_SHA" ]] || emit_ineligible "source_main_head_is_stale"
-              mode="main_convergence"
-              pr_number=""
-              requested_head_sha="$SOURCE_HEAD_SHA"
-              source_main_sha="$SOURCE_HEAD_SHA"
-              target_ref="chore/repository-inventory-main-sync-${SOURCE_HEAD_SHA:0:12}"
-              echo "mode=${mode}" >> "$GITHUB_OUTPUT"
-              echo "pr_number=" >> "$GITHUB_OUTPUT"
-              echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
-              echo "expected_head_sha=${SOURCE_HEAD_SHA}" >> "$GITHUB_OUTPUT"
-              echo "source_main_sha=${source_main_sha}" >> "$GITHUB_OUTPUT"
-              echo "eligible=pending_reproduction" >> "$GITHUB_OUTPUT"
-              echo "reason=pending_reproduction" >> "$GITHUB_OUTPUT"
-              exit 0
-            else
-              emit_ineligible "source_event_not_supported"
-            fi
-          else
-            [[ "$MANUAL_CONFIRMATION" == "REQUEST_REPOSITORY_INVENTORY_REFRESH" ]] || emit_ineligible "manual_confirmation_invalid"
-            [[ "$MANUAL_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_head_sha_invalid"
-            case "$MANUAL_MODE" in
-              pull_request)
-                [[ "$MANUAL_PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
-                [[ "$MANUAL_TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]] || emit_ineligible "target_ref_not_governed"
-                [[ "$MANUAL_TARGET_REF" != "main" && "$MANUAL_TARGET_REF" != "Production" ]] || emit_ineligible "protected_target_forbidden"
-                pr_number="$MANUAL_PR_NUMBER"
-                requested_target_ref="$MANUAL_TARGET_REF"
-                requested_head_sha="$MANUAL_EXPECTED_HEAD_SHA"
-                ;;
-              main_convergence)
-                [[ "$MANUAL_SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_main_sha_invalid"
-                [[ "$MANUAL_SOURCE_MAIN_SHA" == "$MANUAL_EXPECTED_HEAD_SHA" ]] || emit_ineligible "source_main_sha_mismatch"
-                current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-                [[ "$current_main_sha" == "$MANUAL_SOURCE_MAIN_SHA" ]] || emit_ineligible "source_main_head_is_stale"
-                mode="main_convergence"
-                pr_number=""
-                requested_head_sha="$MANUAL_EXPECTED_HEAD_SHA"
-                source_main_sha="$MANUAL_SOURCE_MAIN_SHA"
-                target_ref="chore/repository-inventory-main-sync-${MANUAL_SOURCE_MAIN_SHA:0:12}"
-                echo "mode=${mode}" >> "$GITHUB_OUTPUT"
-                echo "pr_number=" >> "$GITHUB_OUTPUT"
-                echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
-                echo "expected_head_sha=${requested_head_sha}" >> "$GITHUB_OUTPUT"
-                echo "source_main_sha=${source_main_sha}" >> "$GITHUB_OUTPUT"
-                echo "eligible=pending_reproduction" >> "$GITHUB_OUTPUT"
-                echo "reason=pending_reproduction" >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-              *) emit_ineligible "manual_mode_not_supported" ;;
-            esac
-          fi
-
-          pr_json="${RUNNER_TEMP}/repository-inventory-autofix-pr.json"
-          gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr_json"
-          [[ "$(jq -r '.state' "$pr_json")" == "open" ]] || emit_ineligible "pr_not_open"
-          [[ "$(jq -r '.base.ref' "$pr_json")" == "main" ]] || emit_ineligible "pr_base_not_main"
-          [[ "$(jq -r '.head.repo.full_name' "$pr_json")" == "$GITHUB_REPOSITORY" ]] || emit_ineligible "fork_pr_not_eligible"
-
-          target_ref="$(jq -r '.head.ref' "$pr_json")"
-          expected_head_sha="$(jq -r '.head.sha' "$pr_json")"
-          [[ "$target_ref" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]] || emit_ineligible "target_ref_not_governed"
-          [[ "$target_ref" != "main" && "$target_ref" != "Production" ]] || emit_ineligible "protected_target_forbidden"
-          [[ "$expected_head_sha" == "$requested_head_sha" ]] || emit_ineligible "source_run_head_is_stale"
-          if [[ -n "$requested_target_ref" && "$target_ref" != "$requested_target_ref" ]]; then
-            emit_ineligible "pull_request_branch_mismatch"
-          fi
-
-          compare_json="${RUNNER_TEMP}/repository-inventory-autofix-compare.json"
-          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${expected_head_sha}" > "$compare_json"
-          [[ "$(jq -r '.behind_by' "$compare_json")" == "0" ]] || emit_ineligible "branch_requires_reconciliation"
-
-          echo "mode=${mode}" >> "$GITHUB_OUTPUT"
-          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
-          echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
-          echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
-          echo "source_main_sha=${source_main_sha}" >> "$GITHUB_OUTPUT"
-          echo "eligible=pending_reproduction" >> "$GITHUB_OUTPUT"
-          echo "reason=pending_reproduction" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout exact failed source head
-        if: steps.classify.outputs.eligible == 'pending_reproduction'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ steps.classify.outputs.expected_head_sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Prove trusted regeneration control surface
-        id: trust
-        if: steps.classify.outputs.eligible == 'pending_reproduction'
-        shell: bash
-        env:
-          MODE: ${{ steps.classify.outputs.mode }}
-          EXPECTED_HEAD_SHA: ${{ steps.classify.outputs.expected_head_sha }}
-        run: |
-          set -euo pipefail
-          git fetch origin main --depth=1
-
-          if [[ "$MODE" == "main_convergence" ]]; then
-            local_sha="$(git rev-parse HEAD)"
-            trusted_main_sha="$(git rev-parse origin/main)"
-            if [[ "$local_sha" != "$EXPECTED_HEAD_SHA" || "$trusted_main_sha" != "$EXPECTED_HEAD_SHA" ]]; then
-              echo "eligible=false" >> "$GITHUB_OUTPUT"
-              echo "reason=main_convergence_exact_head_not_trusted" >> "$GITHUB_OUTPUT"
+              echo "Repository Inventory drift is advisory before merge; feature-PR mutation intentionally suppressed." >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
-            echo "eligible=true" >> "$GITHUB_OUTPUT"
-            echo "reason=trusted_exact_main_head" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          trusted_paths=(
-            ".github/repository-maintenance-tool-governance.json"
-            ".github/workflows/governed-generated-artifact-refresh.yml"
-            ".github/workflows/repository-inventory.yml"
-            ".github/workflows/repository-inventory-autofix-dispatch.yml"
-            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"
-            "package.json"
-            "package-lock.json"
-            "scripts/repository-inventory.mjs"
-            "scripts/repository-inventory-rules.mjs"
-            "scripts/repository-inventory-fixtures.json"
-            "scripts/test-repository-inventory.mjs"
-          )
-          changed_control_paths="$(git diff --name-only origin/main...HEAD -- "${trusted_paths[@]}")"
-          if [[ -n "$changed_control_paths" ]]; then
-            {
-              echo "eligible=false"
-              echo "reason=governance_surface_changed_requires_manual_regeneration"
-            } >> "$GITHUB_OUTPUT"
-            printf '%s\n' "$changed_control_paths"
-            exit 0
-          fi
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "reason=trusted_control_surface" >> "$GITHUB_OUTPUT"
-
-      - name: Reproduce stale inventory without write authority
-        id: reproduce
-        if: steps.trust.outputs.eligible == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          outputs=(
-            "docs/repository-inventory.json"
-            "docs/repository-inventory-summary.json"
-            "docs/repository-inventory.md"
-          )
-
-          set +e
-          node scripts/repository-inventory.mjs
-          first_status=$?
-          set -e
-          if (( first_status != 0 )); then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=inventory_generation_failed" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          sha256sum "${outputs[@]}" > "${RUNNER_TEMP}/inventory-first.sha256"
-
-          set +e
-          node scripts/repository-inventory.mjs
-          second_status=$?
-          set -e
-          if (( second_status != 0 )); then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=inventory_second_generation_failed" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          sha256sum "${outputs[@]}" > "${RUNNER_TEMP}/inventory-second.sha256"
-          if ! cmp -s "${RUNNER_TEMP}/inventory-first.sha256" "${RUNNER_TEMP}/inventory-second.sha256"; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=inventory_generation_not_deterministic" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          set +e
-          node scripts/repository-inventory.mjs --check
-          check_status=$?
-          node scripts/test-repository-inventory.mjs
-          test_status=$?
-          set -e
-          if (( check_status != 0 || test_status != 0 )); then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=inventory_contract_verification_failed" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_file="${RUNNER_TEMP}/inventory-autofix-changed-files.txt"
-          {
-            git diff --name-only
-            git ls-files --others --exclude-standard
-          } | sed '/^$/d' | sort -u > "$changed_file"
-          [[ "$(wc -l < "$changed_file" | tr -d '[:space:]')" != "0" ]] || {
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=failure_not_reproduced_as_inventory_drift" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          unexpected="$(grep -Ev '^(docs/repository-inventory\.json|docs/repository-inventory-summary\.json|docs/repository-inventory\.md)$' "$changed_file" || true)"
-          if [[ -n "$unexpected" ]]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=dirty_set_exceeds_inventory_outputs" >> "$GITHUB_OUTPUT"
-            printf '%s\n' "$unexpected"
-            exit 0
-          fi
-
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "reason=repository_inventory_stale_only" >> "$GITHUB_OUTPUT"
-
-      - name: Finalize eligibility outputs
-        id: finalize
-        if: always()
-        shell: bash
-        env:
-          INITIAL_ELIGIBLE: ${{ steps.classify.outputs.eligible }}
-          INITIAL_REASON: ${{ steps.classify.outputs.reason }}
-          TRUST_ELIGIBLE: ${{ steps.trust.outputs.eligible }}
-          TRUST_REASON: ${{ steps.trust.outputs.reason }}
-          REPRODUCE_ELIGIBLE: ${{ steps.reproduce.outputs.eligible }}
-          REPRODUCE_REASON: ${{ steps.reproduce.outputs.reason }}
-          MODE: ${{ steps.classify.outputs.mode }}
-        run: |
-          set -euo pipefail
-          if [[ "$INITIAL_ELIGIBLE" != "pending_reproduction" ]]; then
-            final_eligible=false
-            final_reason="${INITIAL_REASON:-source_not_eligible}"
-          elif [[ "$TRUST_ELIGIBLE" != "true" ]]; then
-            final_eligible=false
-            final_reason="${TRUST_REASON:-trusted_control_surface_not_proven}"
-          elif [[ "$REPRODUCE_ELIGIBLE" != "true" ]]; then
-            final_eligible=false
-            final_reason="${REPRODUCE_REASON:-stale_only_not_proven}"
+            [[ "$SOURCE_EVENT" == "push" && "$SOURCE_HEAD_BRANCH" == "main" ]] || exit 0
+            source_main_sha="$SOURCE_HEAD_SHA"
           else
-            final_eligible=true
-            final_reason=repository_inventory_stale_only
-          fi
-          echo "eligible=${final_eligible}" >> "$GITHUB_OUTPUT"
-          echo "reason=${final_reason}" >> "$GITHUB_OUTPUT"
-          echo "Repository Inventory autofix eligibility: ${final_eligible} (${final_reason}) mode=${MODE:-unknown}" >> "$GITHUB_STEP_SUMMARY"
-
-  dispatch:
-    name: Dispatch existing governed writer
-    needs: classify
-    if: needs.classify.outputs.eligible == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      actions: write
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Revalidate immutable target and dispatch registered writer
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MODE: ${{ needs.classify.outputs.mode }}
-          PR_NUMBER: ${{ needs.classify.outputs.pr_number }}
-          TARGET_REF: ${{ needs.classify.outputs.target_ref }}
-          EXPECTED_HEAD_SHA: ${{ needs.classify.outputs.expected_head_sha }}
-          SOURCE_MAIN_SHA: ${{ needs.classify.outputs.source_main_sha }}
-        run: |
-          set -euo pipefail
-          test "$INVENTORY_AUTOFIX_AUTHORITY_MODE" = "read_only_delegator"
-          [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
-
-          if [[ "$MODE" == "pull_request" ]]; then
-            [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
-            pr_json="${RUNNER_TEMP}/repository-inventory-autofix-pr-readback.json"
-            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "$pr_json"
-            test "$(jq -r '.state' "$pr_json")" = "open"
-            test "$(jq -r '.base.ref' "$pr_json")" = "main"
-            test "$(jq -r '.head.repo.full_name' "$pr_json")" = "$GITHUB_REPOSITORY"
-            test "$(jq -r '.head.ref' "$pr_json")" = "$TARGET_REF"
-            current_head_sha="$(jq -r '.head.sha' "$pr_json")"
-            test "$current_head_sha" = "$EXPECTED_HEAD_SHA"
-
-            compare_json="${RUNNER_TEMP}/repository-inventory-autofix-compare-readback.json"
-            gh api "repos/${GITHUB_REPOSITORY}/compare/main...${EXPECTED_HEAD_SHA}" > "$compare_json"
-            test "$(jq -r '.behind_by' "$compare_json")" = "0"
-
-            payload="$(jq -cn \
-              --arg ref "$TARGET_REF" \
-              --arg target_ref "$TARGET_REF" \
-              --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
-              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",source_main_sha:""}}')"
-            summary="Dispatched governed Repository Inventory refresh for PR #${PR_NUMBER} at ${EXPECTED_HEAD_SHA}."
-          elif [[ "$MODE" == "main_convergence" ]]; then
-            [[ "$SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
-            test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
-            [[ "$TARGET_REF" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
-            current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            test "$current_main_sha" = "$SOURCE_MAIN_SHA"
-
-            payload="$(jq -cn \
-              --arg ref "main" \
-              --arg target_ref "$TARGET_REF" \
-              --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
-              --arg source_main_sha "$SOURCE_MAIN_SHA" \
-              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"true",source_main_sha:$source_main_sha}}')"
-            summary="Dispatched governed post-merge Repository Inventory convergence from main@${SOURCE_MAIN_SHA} into ${TARGET_REF}. PR publication remains a separate governed GitHub action after exact-head verification."
-          else
-            echo "Unsupported autofix mode: $MODE" >&2
-            exit 1
+            test "$MANUAL_CONFIRMATION" = "REQUEST_REPOSITORY_INVENTORY_REFRESH"
+            if [[ "$MANUAL_MODE" == "pull_request" ]]; then
+              echo "Pre-merge Repository Inventory mutation is forbidden by policy." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            [[ "$MANUAL_SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$MANUAL_SOURCE_MAIN_SHA" = "$SOURCE_HEAD_SHA"
+            source_main_sha="$MANUAL_SOURCE_MAIN_SHA"
           fi
 
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" \
-            --input - <<<"$payload"
-
-          echo "$summary" >> "$GITHUB_STEP_SUMMARY"
+          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main_sha" = "$source_main_sha"
+          target_ref="chore/repository-inventory-main-sync-${source_main_sha:0:12}"
+          payload="$(jq -cn \
+            --arg ref main \
+            --arg target_ref "$target_ref" \
+            --arg expected_head_sha "$source_main_sha" \
+            --arg source_main_sha "$source_main_sha" \
+            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"true",source_main_sha:$source_main_sha}}')"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" --input - <<<"$payload"
+          echo "Dispatched post-merge observability convergence from main@${source_main_sha}; no feature PR was mutated." >> "$GITHUB_STEP_SUMMARY"

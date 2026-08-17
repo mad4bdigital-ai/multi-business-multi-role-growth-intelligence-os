@@ -2977,8 +2977,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
-      pool: getPool(),
-      runtimePersistencePoolFactory: runtimeDeps.runtimePersistencePoolFactory,
+      runtimePersistencePoolFactory: runtimeDeps.runtimePersistencePoolFactory || getRuntimePersistencePool,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,

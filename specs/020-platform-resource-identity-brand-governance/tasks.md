@@ -43,6 +43,19 @@
 - [ ] Obtain separate Production approval and exact runtime readback.
 - [ ] Complete post-merge audit and update portfolio completion evidence.
 
+## Long-term runtime remediation preparation
+
+- [x] Define canonical DB write authority profiles for session, OAuth, inventory, observability, chunk, and governance writers without grants or fallback to `DB_USER`.
+- [x] Define the requested/resolved/credential/provider environment invariant and cross-environment fail-closed diagnostics.
+- [x] Define control-plane execution receipt, bounded-summary degradation, and pagination contracts independent from payload persistence.
+- [x] Define endpoint-scoped capability identity and generic certification/readback states without enabling dispatch.
+- [x] Add an Arabic long-term remediation roadmap and dependency graph for follow-up runtime PRs.
+- [x] Add synthetic contract regression coverage for all prepared-only remediation contracts.
+- [ ] Implement runtime environment enforcement after separate route-wiring approval.
+- [ ] Apply DB authority profiles, migrations, or grants after separate operational approval.
+- [ ] Implement dedicated session, OAuth, inventory, observability, and chunk writer pools in follow-up PRs.
+- [ ] Enable capability certification, Tenant graduated promotion, or Production release attestation in runtime.
+
 ## Explicit boundaries
 
 - No migration Apply in this PR cycle without a new authorization.

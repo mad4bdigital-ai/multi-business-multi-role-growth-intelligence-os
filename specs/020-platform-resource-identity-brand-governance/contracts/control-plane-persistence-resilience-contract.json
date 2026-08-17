@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.spec020.control-plane-persistence-resilience.v1",
+  "status": "prepared-only",
+  "authority": "shadow-library-only",
+  "runtime_mutation_allowed": false,
+  "production_activation_allowed": false,
+  "credentials_read_allowed": false,
+  "database_mutation_allowed": false,
+  "secrets_included": false,
+  "design_principles": [
+    "Tool execution must not depend on chunk persistence initialization.",
+    "A governed mutation must produce a small durable execution receipt before optional large payload persistence.",
+    "A large payload persistence failure must return the receipt and a bounded summary rather than require mutation replay.",
+    "List and report tools must support pagination and source-side limits.",
+    "The governed response chunk writer remains isolated to governed_tool_response_chunks.",
+    "A persistence degradation must never silently imply that the underlying operation did not execute."
+  ],
+  "execution_outcomes": {
+    "receipt_required_fields": [
+      "execution_id",
+      "operation_key",
+      "risk_class",
+      "requested_environment",
+      "resolved_environment",
+      "execution_status",
+      "started_at",
+      "completed_at",
+      "source_sha",
+      "secrets_included"
+    ],
+    "payload_persistence_statuses": [
+      "not_required",
+      "persisted",
+      "degraded_bounded_summary",
+      "failed_no_payload"
+    ],
+    "operation_status_is_independent_from_payload_status": true,
+    "replay_required_when_payload_persistence_fails": false
+  },
+  "bounded_summary": {
+    "required_on_large_payload_failure": true,
+    "max_bytes": 32768,
+    "must_include": [
+      "execution_id",
+      "operation_key",
+      "execution_status",
+      "payload_persistence_status",
+      "failure_code",
+      "source_sha"
+    ],
+    "must_exclude": [
+      "credentials",
+      "access_tokens",
+      "authorization_codes",
+      "unbounded_payload"
+    ]
+  },
+  "pagination_contract": {
+    "required_for_list_and_report_tools": true,
+    "default_page_size": 50,
+    "maximum_page_size": 200,
+    "source_side_limits_required": true,
+    "continuation_token_must_be_opaque": true,
+    "silent_truncation_forbidden": true,
+    "completeness_metadata_required": true
+  },
+  "failure_codes": [
+    "CONTROL_PLANE_RECEIPT_MISSING",
+    "CONTROL_PLANE_PAYLOAD_PERSISTENCE_DEGRADED",
+    "CONTROL_PLANE_PAYLOAD_PERSISTENCE_FAILED",
+    "CONTROL_PLANE_UNBOUNDED_RESPONSE_FORBIDDEN",
+    "CONTROL_PLANE_SILENT_TRUNCATION_FORBIDDEN",
+    "CONTROL_PLANE_CHUNK_WRITER_UNINITIALIZED"
+  ],
+  "prepared_actions": [
+    "define receipt and bounded-summary library types",
+    "add synthetic failure-path tests with mocked persistence adapters",
+    "add pagination metadata assertions to governed list/report contracts",
+    "defer runtime route integration and durable schema changes to separately approved follow-up PRs"
+  ],
+  "operator_approval_required": true
+}
+

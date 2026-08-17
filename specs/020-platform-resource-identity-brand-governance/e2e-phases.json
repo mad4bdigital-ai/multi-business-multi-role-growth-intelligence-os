@@ -8,6 +8,14 @@
   "scope": {
     "include": [
       "specs/020-platform-resource-identity-brand-governance/**",
+      "docs/custom-gpt-environment-routing-instructions.md",
+      "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+      "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/test-openapi-split-governance.mjs",
+      "http-generic-api/test-openapi-security-scheme-cardinality.mjs",
+      "http-generic-api/test-frontend-auth-openapi-parity.mjs",
+      "http-generic-api/test-openapi-split-regeneration-parity.mjs",
+      "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/platformResourceIdentityContract.js",
       "http-generic-api/brandIdentityResolver.js",
       "http-generic-api/platformOperationGovernanceContract.js",
@@ -52,7 +60,31 @@
       "http-generic-api/runtimeIntegrity.js",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
-      "http-generic-api/test-staging-autopilot-closure.mjs"
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/openapi/**",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+      "docs/runbooks/spec020-runtime-database-readiness.md",
+      "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
+      "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+      "http-generic-api/test-spec020-long-term-runtime-remediation-contract.mjs",
+      "http-generic-api/runtimePersistenceWriteAuthority.js",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/scripts/ci-path-format-guard.mjs",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+      ".github/workflows/pr-risk-labeler.yml",
+      "http-generic-api/scripts/single-owner-review-gate.mjs",
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      "scripts/test-ai-agent-instruction-reference-integrity.mjs"
     ]
   },
   "merge_contract": {
@@ -144,15 +176,59 @@
               "args": []
             },
             {
+              "id": "spec020-custom-gpt-environment-aware",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-custom-gpt-environment-aware-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-security-scheme-cardinality",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-security-scheme-cardinality.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            },
+            {
               "id": "spec020-frontend-surface-coverage-claims",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-frontend-surface-coverage-claims.mjs",
               "args": []
+            },
+            {
+              "id": "spec020-runtime-database-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec020-runtime-database-readiness-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-long-term-runtime-remediation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec020-long-term-runtime-remediation-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "specs/020-platform-resource-identity-brand-governance/spec.md",
+            "specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json",
+            "docs/custom-gpt-environment-routing-instructions.md",
+            "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+            "http-generic-api/scripts/split-openapi.mjs",
+            "http-generic-api/test-openapi-split-governance.mjs",
+            "http-generic-api/test-openapi-security-scheme-cardinality.mjs",
+            "http-generic-api/test-frontend-auth-openapi-parity.mjs",
+            "http-generic-api/test-openapi-split-regeneration-parity.mjs",
+            "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "specs/020-platform-resource-identity-brand-governance/completion.json",
             "http-generic-api/platformResourceIdentityContract.js",
             "http-generic-api/brandIdentityResolver.js",
@@ -198,7 +274,32 @@
             "http-generic-api/runtimeIntegrity.js",
             "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
             "http-generic-api/test-runtime-integrity.mjs",
-            "http-generic-api/test-staging-autopilot-closure.mjs"
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "docs/runbooks/spec020-runtime-database-readiness.md",
+            "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
+            "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+            "http-generic-api/runtimePersistenceWriteAuthority.js",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/control-plane-persistence-resilience-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/capability-identity-certification-contract.json",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/scripts/ci-path-format-guard.mjs",
+            "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+            ".github/workflows/pr-risk-labeler.yml",
+            "http-generic-api/scripts/single-owner-review-gate.mjs",
+            "scripts/test-ai-agent-instruction-reference-integrity.mjs"
           ],
           "secrets_included": false
         }

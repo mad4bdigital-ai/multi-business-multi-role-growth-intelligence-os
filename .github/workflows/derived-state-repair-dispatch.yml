@@ -3,8 +3,7 @@ run-name: Derived State Repair Dispatch · ${{ github.event.workflow_run.id || i
 
 on:
   workflow_run:
-    workflows:
-      - Derived State Closure
+    workflows: [Derived State Closure]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -13,7 +12,7 @@ on:
         required: true
         type: string
       expected_head_sha:
-        description: Exact current PR head SHA expected by the failed closure evidence
+        description: Exact current PR head SHA
         required: true
         type: string
       confirmation:
@@ -33,330 +32,111 @@ concurrency:
 
 jobs:
   dispatch:
-    name: Dispatch one registered repair authority
+    name: Route first topological repair authority
     if: >-
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
       (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'REQUEST_DERIVED_STATE_REPAIR')
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    env:
-      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
-      MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
-      REPAIR_RECEIPT_CONTRACT: mad4b.derived-state-repair-dispatch.v1
-      WORK_MAP_AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+    timeout-minutes: 15
     steps:
-      - name: Resolve canonical failed-candidate evidence
-        id: source
+      - name: Resolve exact failed candidate and repair authority
+        id: target
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
+          MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
         run: |
           set -euo pipefail
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            [[ "$MANUAL_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
-          fi
+          run="$RUNNER_TEMP/source-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$run"
+          test "$(jq -r '.path' "$run")" = ".github/workflows/derived-state-closure.yml"
+          test "$(jq -r '.conclusion' "$run")" = "failure"
 
-          report_dir="$RUNNER_TEMP/derived-state-repair"
-          rm -rf "$report_dir"
-          mkdir -p "$report_dir/closure"
-          echo "REPORT_DIR=$report_dir" >> "$GITHUB_ENV"
-
-          source_run="$report_dir/source-run.json"
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$source_run"
-          test "$(jq -r '.path' "$source_run")" = ".github/workflows/derived-state-closure.yml"
-          test "$(jq -r '.conclusion' "$source_run")" = "failure"
-
-          artifacts="$report_dir/artifacts.json"
+          artifacts="$RUNNER_TEMP/artifacts.json"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$artifacts"
-          count="$(jq '[.artifacts[] | select((.name | startswith("derived-state-closure-")) and (.expired == false))] | length' "$artifacts")"
-          test "$count" = "1"
-          artifact_id="$(jq -r '[.artifacts[] | select((.name | startswith("derived-state-closure-")) and (.expired == false))][0].id' "$artifacts")"
+          artifact_id="$(jq -r '[.artifacts[] | select((.name|startswith("derived-state-closure-")) and (.expired==false))][0].id // empty' "$artifacts")"
           [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$report_dir/closure.zip"
-          unzip -q "$report_dir/closure.zip" -d "$report_dir/closure"
-          mapfile -t reports < <(find "$report_dir/closure" -type f -name report.json -print)
-          test "${#reports[@]}" = "1"
-          closure_report="${reports[0]}"
-          cp "$closure_report" "$report_dir/closure-report.json"
-          echo "CLOSURE_REPORT=$report_dir/closure-report.json" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/closure"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$RUNNER_TEMP/closure.zip"
+          unzip -q "$RUNNER_TEMP/closure.zip" -d "$RUNNER_TEMP/closure"
+          report="$(find "$RUNNER_TEMP/closure" -type f -name report.json | head -n1)"
+          objections="$(find "$RUNNER_TEMP/closure" -type f -name policy-objections.json | head -n1)"
+          test -f "$report"
+          test "$(jq -r '.contract' "$report")" = "mad4b.repository-derived-state-closure.v1"
+          test "$(jq -r '.candidate.kind' "$report")" = "github_merge_candidate"
+          test "$(jq -r '.converged' "$report")" = "false"
 
-          test "$(jq -r '.contract' "$closure_report")" = "mad4b.repository-derived-state-closure.v1"
-          test "$(jq -r '.candidate.kind' "$closure_report")" = "github_merge_candidate"
-          test "$(jq -r '.converged' "$closure_report")" = "false"
-          test "$(jq -r '.verifier_mutation == null' "$closure_report")" = "true"
-          test "$(jq -r '.safety.remote_repository_mutation_performed' "$closure_report")" = "false"
-          test "$(jq -r '.safety.protected_branch_mutation_performed' "$closure_report")" = "false"
-          test "$(jq -r '.safety.force_push_performed' "$closure_report")" = "false"
-
-          pr_number="$(jq -r '.candidate.pr_number // 0' "$closure_report")"
-          head_sha="$(jq -r '.candidate.source_head_sha // empty' "$closure_report")"
-          base_sha="$(jq -r '.candidate.base_sha // empty' "$closure_report")"
-          candidate_sha="$(jq -r '.candidate.sha // empty' "$closure_report")"
+          pr_number="$(jq -r '.candidate.pr_number // 0' "$report")"
+          head_sha="$(jq -r '.candidate.source_head_sha // empty' "$report")"
+          base_sha="$(jq -r '.candidate.base_sha // empty' "$report")"
           [[ "$pr_number" =~ ^[1-9][0-9]*$ ]]
           [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
           [[ "$base_sha" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            test "$head_sha" = "$MANUAL_EXPECTED_HEAD_SHA"
-          fi
+          if [[ -n "$MANUAL_EXPECTED_HEAD_SHA" ]]; then test "$head_sha" = "$MANUAL_EXPECTED_HEAD_SHA"; fi
 
-          pr_file="$report_dir/pr.json"
-          gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr_file"
-          test "$(jq -r '.state' "$pr_file")" = "open"
-          test "$(jq -r '.base.ref' "$pr_file")" = "main"
-          test "$(jq -r '.base.sha' "$pr_file")" = "$base_sha"
-          test "$(jq -r '.head.repo.full_name' "$pr_file")" = "$GITHUB_REPOSITORY"
-          test "$(jq -r '.head.sha' "$pr_file")" = "$head_sha"
-          test "$(jq -r '.draft' "$pr_file")" = "false"
-          target_ref="$(jq -r '.head.ref' "$pr_file")"
+          pr="$RUNNER_TEMP/pr.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr"
+          test "$(jq -r '.state' "$pr")" = "open"
+          test "$(jq -r '.base.ref' "$pr")" = "main"
+          test "$(jq -r '.head.repo.full_name' "$pr")" = "$GITHUB_REPOSITORY"
+          test "$(jq -r '.head.sha' "$pr")" = "$head_sha"
+          # Draft is intentionally allowed for bounded repair. Draft remains forbidden for auto-merge.
+          target_ref="$(jq -r '.head.ref' "$pr")"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-          [[ "$target_ref" != "main" && "$target_ref" != "Production" ]] || { echo "Protected branch mutation forbidden" >&2; exit 1; }
-
-          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          test "$current_main_sha" = "$base_sha"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$base_sha"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${head_sha}" --jq '.behind_by')" = "0"
-          current_candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq '.merge_commit_sha // empty')"
-          test "$current_candidate_sha" = "$candidate_sha"
-          test "$(jq '.repair_authorities | length' "$closure_report")" -ge 1
 
+          authority="$(jq -c '.repair_authorities[0] // null' "$report")"
+          if [[ "$authority" == "null" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no_blocking_repair_authority" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           echo "eligible=true" >> "$GITHUB_OUTPUT"
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
           echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "main_sha=$base_sha" >> "$GITHUB_OUTPUT"
-          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+          echo "authority_b64=$(printf '%s' "$authority" | base64 -w0)" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout trusted exact main policy
-        if: steps.source.outputs.eligible == 'true'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ steps.source.outputs.main_sha }}
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Validate authority, self-mutation boundary, and convergence budget
-        id: authority
-        if: steps.source.outputs.eligible == 'true'
+      - name: Dispatch registered authority
+        if: steps.target.outputs.eligible == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-          MAIN_SHA: ${{ steps.source.outputs.main_sha }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          TARGET_REF: ${{ steps.target.outputs.target_ref }}
+          HEAD_SHA: ${{ steps.target.outputs.head_sha }}
+          AUTHORITY_B64: ${{ steps.target.outputs.authority_b64 }}
         run: |
           set -euo pipefail
-          registry=.github/derived-state-governance.json
-          test "$(jq -r '.contract' "$registry")" = "mad4b.repository-derived-state-governance.v1"
-          test "$(jq -r '.convergence.one_repair_authority_per_pass' "$registry")" = "true"
-          max_passes="$(jq -er '.max_convergence_passes' "$registry")"
-
-          expected_changed_files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')"
-          [[ "$expected_changed_files" =~ ^[0-9]+$ ]]
-          (( expected_changed_files <= 3000 ))
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename' | sort -u > "$RUNNER_TEMP/pr-files.txt"
-          test "$(wc -l < "$RUNNER_TEMP/pr-files.txt" | tr -d '[:space:]')" = "$expected_changed_files"
-          jq -er '.convergence.automation_control_paths[]' "$registry" | sort -u > "$RUNNER_TEMP/control-files.txt"
-          if [[ -n "$(comm -12 "$RUNNER_TEMP/pr-files.txt" "$RUNNER_TEMP/control-files.txt" || true)" ]]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=automation_control_surface_changed" >> "$GITHUB_OUTPUT"
-            exit 0
+          authority="$(printf '%s' "$AUTHORITY_B64" | base64 -d)"
+          kind="$(jq -r '.kind' <<<"$authority")"
+          id="$(jq -r '.id' <<<"$authority")"
+          if [[ "$kind" == "generated_artifact_recipe" ]]; then
+            recipe="$(jq -r '.recipe' <<<"$authority")"
+            payload="$(jq -cn --arg ref main --arg target_ref "$TARGET_REF" --arg head "$HEAD_SHA" --arg recipe "$recipe" \
+              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$head,recipe:$recipe,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",source_main_sha:""}}')"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" --input - <<<"$payload"
+            state="dispatched"
+          elif [[ "$kind" == "delegated_work_map_writer" ]]; then
+            body="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""')"
+            marker='<!-- work-map-autofix:authorized -->'
+            if grep -Fq "$marker" <<<"$body"; then
+              payload="$(jq -cn --arg ref main --arg pr "$PR_NUMBER" --arg head "$HEAD_SHA" \
+                '{ref:$ref,inputs:{pr_number:$pr,expected_head_sha:$head,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml/dispatches" --input - <<<"$payload"
+              state="delegated_recovery_dispatched"
+            else
+              state="manual_authorization_required"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+                -f body="DERIVED_STATE_REPAIR_DISPATCH contract=mad4b.derived-state-repair-dispatch.v2 state=${state} authority=${id} head_sha=${HEAD_SHA} draft_repair_allowed=true instruction=add_work_map_authorization_marker_to_pr_body" >/dev/null
+              exit 0
+            fi
+          else
+            echo "Unregistered repair authority kind: $kind" >&2
+            exit 1
           fi
-
-          authority_json="$(jq -c '.repair_authorities[0]' "$CLOSURE_REPORT")"
-          authority_id="$(jq -r '.id' <<<"$authority_json")"
-          authority_kind="$(jq -r '.kind' <<<"$authority_json")"
-          recipe="$(jq -r '.recipe // empty' <<<"$authority_json")"
-          case "$authority_kind" in
-            generated_artifact_recipe)
-              test -n "$recipe"
-              jq -e --arg recipe "$recipe" '[.artifacts[] | select(.recipe == $recipe)] | length > 0' "$registry" >/dev/null
-              ;;
-            delegated_work_map_writer)
-              jq -e --arg id "$authority_id" '.artifacts[] | select(.repair_authority.id == $id and .repair_authority.kind == "delegated_work_map_writer")' "$registry" >/dev/null
-              ;;
-            *) echo "Unregistered repair authority kind" >&2; exit 1 ;;
-          esac
-
-          comments="$RUNNER_TEMP/repair-comments.json"
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" > "$comments"
-          duplicate="$(jq --arg run "$SOURCE_RUN_ID" --arg contract "$REPAIR_RECEIPT_CONTRACT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("DERIVED_STATE_REPAIR_DISPATCH contract=" + $contract + " ")) and (.body | contains("source_run_id=" + $run + " ")))] | length' "$comments")"
-          if (( duplicate > 0 )); then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=source_run_already_dispatched" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          pass_count="$(jq --arg base "$MAIN_SHA" --arg contract "$REPAIR_RECEIPT_CONTRACT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("DERIVED_STATE_REPAIR_DISPATCH contract=" + $contract + " ")) and (.body | contains("base_sha=" + $base + " ")))] | length' "$comments")"
-          (( pass_count < max_passes )) || { echo "Convergence pass budget exhausted" >&2; exit 1; }
-
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')" = "$HEAD_SHA"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$MAIN_SHA"
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "authority_id=$authority_id" >> "$GITHUB_OUTPUT"
-          echo "authority_kind=$authority_kind" >> "$GITHUB_OUTPUT"
-          echo "recipe=$recipe" >> "$GITHUB_OUTPUT"
-          echo "pass_number=$((pass_count + 1))" >> "$GITHUB_OUTPUT"
-          echo "max_passes=$max_passes" >> "$GITHUB_OUTPUT"
-
-      - name: Dispatch and verify registered generated-artifact writer
-        id: generated
-        if: steps.authority.outputs.eligible == 'true' && steps.authority.outputs.authority_kind == 'generated_artifact_recipe'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          TARGET_REF: ${{ steps.source.outputs.target_ref }}
-          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-          MAIN_SHA: ${{ steps.source.outputs.main_sha }}
-          RECIPE: ${{ steps.authority.outputs.recipe }}
-        run: |
-          set -euo pipefail
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')" = "$HEAD_SHA"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$MAIN_SHA"
-          expected_title="Governed Generated Artifact Refresh · ${RECIPE} · ${TARGET_REF} · ${HEAD_SHA}"
-          started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
-          jq -cn --arg ref main --arg target_ref "$TARGET_REF" --arg expected_head_sha "$HEAD_SHA" --arg recipe "$RECIPE" '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:$recipe,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",source_main_sha:""}}' > "$REPORT_DIR/generated-dispatch.json"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" --input "$REPORT_DIR/generated-dispatch.json"
-          writer_run_id=""
-          for _ in $(seq 1 30); do
-            writer_run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/runs?event=workflow_dispatch&branch=main&per_page=50" --jq "[.workflow_runs[] | select(.created_at >= \"${started_at}\" and .display_title == \"${expected_title}\")] | sort_by(.created_at) | last | .id // empty")"
-            [[ -n "$writer_run_id" ]] && break
-            sleep 2
-          done
-          [[ "$writer_run_id" =~ ^[1-9][0-9]*$ ]]
-          conclusion=""
-          for _ in $(seq 1 150); do
-            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${writer_run_id}")"
-            [[ "$(jq -r '.status' <<<"$state")" == "completed" ]] && { conclusion="$(jq -r '.conclusion' <<<"$state")"; break; }
-            sleep 5
-          done
-          test "$conclusion" = "success"
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${writer_run_id}/artifacts?per_page=100" > "$REPORT_DIR/generated-artifacts.json"
-          artifact_id="$(jq -r --arg name "governed-generated-artifact-refresh-${writer_run_id}" '[.artifacts[] | select(.name == $name and .expired == false)][0].id // empty' "$REPORT_DIR/generated-artifacts.json")"
-          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
-          mkdir -p "$REPORT_DIR/generated"
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$REPORT_DIR/generated.zip"
-          unzip -q "$REPORT_DIR/generated.zip" -d "$REPORT_DIR/generated"
-          report="$REPORT_DIR/generated/generated-artifact-refresh-report.json"
-          test "$(jq -r '.outcome' "$report")" = "passed"
-          test "$(jq -r '.expected_head_sha' "$report")" = "$HEAD_SHA"
-          test "$(jq -r '.recipe' "$report")" = "$RECIPE"
-          test "$(jq -r '.mutation.force_push' "$report")" = "false"
-          result_head_sha="$(jq -r '.result_head_sha' "$report")"
-          [[ "$result_head_sha" =~ ^[0-9a-f]{40}$ ]]
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')" = "$result_head_sha"
-          echo "requested=true" >> "$GITHUB_OUTPUT"
-          echo "writer_run_id=$writer_run_id" >> "$GITHUB_OUTPUT"
-          echo "result_head_sha=$result_head_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Authorize and verify delegated Work Map recovery
-        id: workmap
-        if: steps.authority.outputs.eligible == 'true' && steps.authority.outputs.authority_kind == 'delegated_work_map_writer'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-          MAIN_SHA: ${{ steps.source.outputs.main_sha }}
-        run: |
-          set -euo pipefail
-          pr_file="$REPORT_DIR/work-map-pr.json"
-          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "$pr_file"
-          test "$(jq -r '.head.sha' "$pr_file")" = "$HEAD_SHA"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$MAIN_SHA"
-          body="$(jq -r '.body // ""' "$pr_file")"
-          ! grep -Fq "$WORK_MAP_AUTHORIZATION_MARKER" <<<"$body"
-          jq -n --arg body "${body}"$'\n\n'"${WORK_MAP_AUTHORIZATION_MARKER}" '{body:$body}' > "$REPORT_DIR/marker.json"
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --input "$REPORT_DIR/marker.json" >/dev/null
-
-          started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
-          jq -cn --arg ref main --arg pr_number "$PR_NUMBER" --arg expected_head_sha "$HEAD_SHA" '{ref:$ref,inputs:{pr_number:$pr_number,expected_head_sha:$expected_head_sha,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}' > "$REPORT_DIR/workmap-dispatch.json"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml/dispatches" --input "$REPORT_DIR/workmap-dispatch.json"
-          expected_title="Spec Kit Work Map Autofix Recovery Dispatch · PR ${PR_NUMBER}"
-          recovery_run_id=""
-          for _ in $(seq 1 30); do
-            recovery_run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml/runs?event=workflow_dispatch&branch=main&per_page=30" --jq "[.workflow_runs[] | select(.created_at >= \"${started_at}\" and .display_title == \"${expected_title}\")] | sort_by(.created_at) | last | .id // empty")"
-            [[ -n "$recovery_run_id" ]] && break
-            sleep 2
-          done
-          [[ "$recovery_run_id" =~ ^[1-9][0-9]*$ ]]
-          conclusion=""
-          for _ in $(seq 1 150); do
-            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${recovery_run_id}")"
-            [[ "$(jq -r '.status' <<<"$state")" == "completed" ]] && { conclusion="$(jq -r '.conclusion' <<<"$state")"; break; }
-            sleep 5
-          done
-          test "$conclusion" = "success"
-          ! gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""' | grep -Fq "$WORK_MAP_AUTHORIZATION_MARKER"
-
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" > "$REPORT_DIR/workmap-comments.json"
-          receipt="$(jq -r --arg run "$recovery_run_id" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("WORK_MAP_AUTOFIX_RECOVERY ")) and (.body | contains("recovery_run_id=" + $run + " ")))] | last | .body // empty' "$REPORT_DIR/workmap-comments.json")"
-          test -n "$receipt"
-          writer_run_id="$(sed -n 's/.* delegated_run_id=\([0-9][0-9]*\) .*/\1/p' <<<"$receipt")"
-          [[ "$writer_run_id" =~ ^[1-9][0-9]*$ ]]
-          writer_conclusion=""
-          for _ in $(seq 1 180); do
-            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${writer_run_id}")"
-            [[ "$(jq -r '.status' <<<"$state")" == "completed" ]] && { writer_conclusion="$(jq -r '.conclusion' <<<"$state")"; break; }
-            sleep 5
-          done
-          test "$writer_conclusion" = "success"
-          result_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
-          [[ "$result_head_sha" =~ ^[0-9a-f]{40}$ ]]
-          echo "requested=true" >> "$GITHUB_OUTPUT"
-          echo "recovery_run_id=$recovery_run_id" >> "$GITHUB_OUTPUT"
-          echo "writer_run_id=$writer_run_id" >> "$GITHUB_OUTPUT"
-          echo "result_head_sha=$result_head_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Dispatch exact candidate reverification
-        id: reverify
-        if: steps.generated.outputs.requested == 'true' || steps.workmap.outputs.requested == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          TARGET_REF: ${{ steps.source.outputs.target_ref }}
-          MAIN_SHA: ${{ steps.source.outputs.main_sha }}
-          GENERATED_HEAD: ${{ steps.generated.outputs.result_head_sha }}
-          WORK_MAP_HEAD: ${{ steps.workmap.outputs.result_head_sha }}
-        run: |
-          set -euo pipefail
-          result_head_sha="${GENERATED_HEAD:-${WORK_MAP_HEAD:-}}"
-          [[ "$result_head_sha" =~ ^[0-9a-f]{40}$ ]]
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$MAIN_SHA"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')" = "$result_head_sha"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${result_head_sha}" --jq '.behind_by')" = "0"
-          jq -cn --arg ref main --arg pr_number "$PR_NUMBER" --arg expected_head_sha "$result_head_sha" '{ref:$ref,inputs:{pr_number:$pr_number,expected_head_sha:$expected_head_sha}}' > "$REPORT_DIR/reverify.json"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/derived-state-closure.yml/dispatches" --input "$REPORT_DIR/reverify.json"
-          for workflow in ci.yml e2e-phase-governance.yml; do
-            jq -cn --arg ref "$TARGET_REF" '{ref:$ref}' > "$REPORT_DIR/verify.json"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" --input "$REPORT_DIR/verify.json"
-          done
-          echo "requested=true" >> "$GITHUB_OUTPUT"
-          echo "result_head_sha=$result_head_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Publish immutable repair receipt
-        if: steps.reverify.outputs.requested == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          TARGET_REF: ${{ steps.source.outputs.target_ref }}
-          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-          MAIN_SHA: ${{ steps.source.outputs.main_sha }}
-          CANDIDATE_SHA: ${{ steps.source.outputs.candidate_sha }}
-          RESULT_HEAD_SHA: ${{ steps.reverify.outputs.result_head_sha }}
-          AUTHORITY_ID: ${{ steps.authority.outputs.authority_id }}
-          AUTHORITY_KIND: ${{ steps.authority.outputs.authority_kind }}
-          RECIPE: ${{ steps.authority.outputs.recipe }}
-          PASS_NUMBER: ${{ steps.authority.outputs.pass_number }}
-          MAX_PASSES: ${{ steps.authority.outputs.max_passes }}
-          GENERATED_WRITER_RUN_ID: ${{ steps.generated.outputs.writer_run_id }}
-          WORK_MAP_WRITER_RUN_ID: ${{ steps.workmap.outputs.writer_run_id }}
-          RECOVERY_RUN_ID: ${{ steps.workmap.outputs.recovery_run_id }}
-        run: |
-          set -euo pipefail
-          writer_run_id="${GENERATED_WRITER_RUN_ID:-${WORK_MAP_WRITER_RUN_ID:-none}}"
-          receipt="DERIVED_STATE_REPAIR_DISPATCH contract=${REPAIR_RECEIPT_CONTRACT} state=dispatched source_run_id=${SOURCE_RUN_ID} pr_number=${PR_NUMBER} target_ref=${TARGET_REF} base_sha=${MAIN_SHA} expected_head_sha=${HEAD_SHA} candidate_sha=${CANDIDATE_SHA} result_head_sha=${RESULT_HEAD_SHA} authority_id=${AUTHORITY_ID} authority_kind=${AUTHORITY_KIND} recipe=${RECIPE:-none} pass=${PASS_NUMBER}/${MAX_PASSES} writer_run_id=${writer_run_id} recovery_run_id=${RECOVERY_RUN_ID:-none} closure_reverification_requested=true protected_branch_mutation=false force_push=false"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$receipt" >/dev/null
-          echo "$receipt" >> "$GITHUB_STEP_SUMMARY"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            -f body="DERIVED_STATE_REPAIR_DISPATCH contract=mad4b.derived-state-repair-dispatch.v2 state=${state} authority=${id} head_sha=${HEAD_SHA} draft_repair_allowed=true topological_order=true" >/dev/null

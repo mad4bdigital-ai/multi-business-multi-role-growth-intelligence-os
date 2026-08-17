@@ -1,0 +1,56 @@
+name: Policy Objection CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-objection-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  objections:
+    name: Policy Objection Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+      - name: Evaluate dynamic repository policies
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OUT: ${{ runner.temp }}/policy-objections
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          set +e
+          node scripts/repository-governance-closure.mjs \
+            --expected-sha "$HEAD_SHA" \
+            --base-sha "$BASE_SHA" \
+            --candidate-kind source_head \
+            --report-file "$OUT/repository-governance.json"
+          set -e
+          node scripts/repository-governance-objection-gate.mjs \
+            --mode source \
+            --governance-report "$OUT/repository-governance.json" \
+            --report-file "$OUT/policy-objections.json"
+      - name: Upload objection evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: policy-objections-${{ github.run_id }}
+          path: ${{ runner.temp }}/policy-objections/
+          if-no-files-found: error
+          retention-days: 30

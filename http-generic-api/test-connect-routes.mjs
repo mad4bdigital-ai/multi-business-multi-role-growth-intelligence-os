@@ -24,12 +24,7 @@ const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.install",
   "https://auth.mad4b.com/scopes/tenant.system-tools",
 ];
-// Tenant Local/System Tools use the canonical userBearerAuth contract.
-// Only internal session continuation endpoints retain the backend profile.
-const BACKEND_AUTH_PATHS = new Set([
-  "/gpt/sessions/{id}/turn",
-  "/gpt/sessions/{id}/end",
-]);
+// Every Tenant Custom GPT operation uses the single canonical userBearerAuth contract.
 
 let passed = 0;
 let failed = 0;
@@ -157,20 +152,16 @@ try {
     // MCP schema: scopes are declared in the flows object; individual operations use userBearerAuth: []
     // (no per-operation scope arrays — authentication is enforced, scope grant is in the OAuth consent)
     assert("tenant GPT schema root security uses userBearerAuth", "userBearerAuth" in (doc.security?.[0] ?? {}), JSON.stringify(doc.security));
-    assert("tenant GPT schema operations use their governed auth profile",
-      allOperations.every(({ pathKey, operation }) => {
+    assert("tenant GPT schema operations use the single user bearer auth profile",
+      allOperations.every(({ operation }) => {
         const security = operation.security || [];
         const schemeNames = new Set(security.flatMap((requirement) => Object.keys(requirement || {})));
-        return BACKEND_AUTH_PATHS.has(pathKey)
-          ? schemeNames.has("backendBearerAuth") && schemeNames.has("backendApiKeyAuth")
-          : schemeNames.has("userBearerAuth");
+        return schemeNames.size === 1 && schemeNames.has("userBearerAuth");
       }),
       allOperations.filter(({ pathKey, operation }) => {
         const security = operation.security || [];
         const schemeNames = new Set(security.flatMap((requirement) => Object.keys(requirement || {})));
-        return BACKEND_AUTH_PATHS.has(pathKey)
-          ? !(schemeNames.has("backendBearerAuth") && schemeNames.has("backendApiKeyAuth"))
-          : !schemeNames.has("userBearerAuth");
+        return !(schemeNames.size === 1 && schemeNames.has("userBearerAuth"));
       }).map(({ pathKey }) => pathKey).join(", "));
 
     assert("tenant GPT schema carries action auth preset", doc["x-gpt-action-auth-preset"]?.client_id === "mad4b-tenant-gpt", JSON.stringify(securityScheme));

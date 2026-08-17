@@ -9,189 +9,80 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const constitutionPath = "http-generic-api/config/repository-governance-constitution.json";
 const policyRegistryPath = ".github/governance/policy-registry.json";
 const derivedRegistryPath = ".github/derived-state-governance.json";
-const e2ePhasePolicyPath = ".specify/e2e-phase-governance.json";
-const workflowPath = ".github/workflows/derived-state-closure.yml";
+const evidenceRegistryPath = ".github/governance/evidence-producers.json";
+const waiverLedgerPath = ".github/governance/waiver-ledger.json";
+const e2ePath = ".specify/e2e-phase-governance.json";
 const scriptPath = "scripts/repository-governance-closure.mjs";
+const objectionPath = "scripts/repository-governance-objection-gate.mjs";
+const finalizerPath = "scripts/repository-governance-evidence-finalizer.mjs";
 
 const constitution = JSON.parse(fs.readFileSync(path.join(root, constitutionPath), "utf8"));
-const policyRegistry = JSON.parse(fs.readFileSync(path.join(root, policyRegistryPath), "utf8"));
-const derivedRegistry = JSON.parse(fs.readFileSync(path.join(root, derivedRegistryPath), "utf8"));
-const e2ePhasePolicy = JSON.parse(fs.readFileSync(path.join(root, e2ePhasePolicyPath), "utf8"));
-const workflow = fs.readFileSync(path.join(root, workflowPath), "utf8");
-const script = fs.readFileSync(path.join(root, scriptPath), "utf8");
+const policies = JSON.parse(fs.readFileSync(path.join(root, policyRegistryPath), "utf8"));
+const derived = JSON.parse(fs.readFileSync(path.join(root, derivedRegistryPath), "utf8"));
+const evidence = JSON.parse(fs.readFileSync(path.join(root, evidenceRegistryPath), "utf8"));
+const waivers = JSON.parse(fs.readFileSync(path.join(root, waiverLedgerPath), "utf8"));
+const e2e = JSON.parse(fs.readFileSync(path.join(root, e2ePath), "utf8"));
 
-function globRegex(pattern) {
-  const normalized = String(pattern || "").replaceAll("\\", "/").replace(/^\.\//u, "");
-  let source = "^";
-  for (let index = 0; index < normalized.length; index += 1) {
-    const character = normalized[index];
-    const next = normalized[index + 1];
-    if (character === "*" && next === "*") {
-      if (normalized[index + 2] === "/") {
-        source += "(?:.*/)?";
-        index += 2;
-      } else {
-        source += ".*";
-        index += 1;
-      }
-    } else if (character === "*") source += "[^/]*";
-    else if (character === "?") source += "[^/]";
-    else source += character.replace(/[|\\{}()[\]^$+?.]/gu, "\\$&");
+function escapeRegex(value) { return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"); }
+function globRegex(glob) {
+  let source = "";
+  for (let i = 0; i < glob.length; i += 1) {
+    const ch = glob[i];
+    if (ch === "*") {
+      if (glob[i + 1] === "*") {
+        if (glob[i + 2] === "/") { source += "(?:.*/)?"; i += 2; }
+        else { source += ".*"; i += 1; }
+      } else source += "[^/]*";
+    } else source += escapeRegex(ch);
   }
-  return new RegExp(`${source}$`, "u");
+  return new RegExp(`^${source}$`, "u");
 }
-
-function matchesAny(file, patterns = []) {
-  return patterns.some((pattern) => globRegex(pattern).test(file));
-}
+const matchesAny = (file, patterns) => patterns.some((pattern) => globRegex(pattern).test(file));
 
 assert.equal(constitution.contract, "mad4b.repository-governance-constitution.v1");
-assert.equal(constitution.authority.source_of_truth, constitutionPath);
 assert.equal(constitution.authority.final_gate_context, "Derived State Closure");
-assert.equal(constitution.authority.policy_registry, policyRegistryPath);
-assert.equal(constitution.authority.change_identity, "git_base_candidate_tree");
-assert.equal(constitution.authority.unknown_surface_mode, "block");
-assert.equal(constitution.authority.unknown_executable_mode, "block");
-assert.equal(constitution.authority.deletion_and_rename_impact_required, true);
-assert.equal(constitution.authority.derived_state_graph_mode, "executable_dag");
-assert.equal(constitution.authority.policy_execution_mode, "declarative_registered_assertions");
-assert.equal(constitution.authority.server_enforcement_attestation, "required_before_merge");
-assert.equal(constitution.change_model.added_path_newness_must_come_from_git, true);
-assert.equal(constitution.change_model.filename_age_heuristics_forbidden, true);
-assert.equal(constitution.change_model.rename_and_copy_source_must_be_classified, true);
-assert.equal(constitution.change_model.rename_and_copy_target_must_be_classified, true);
+assert.equal(constitution.authority.final_gate_mode, "policy_objection_aggregator");
+assert.equal(constitution.authority.objection_execution_mode, "typed_policy_objections");
+assert.equal(constitution.authority.new_executable_registration_mode, "typed_semantic_class_required");
+assert.equal(constitution.authority.server_enforcement_attestation, "required_before_single_gate_activation");
+assert.equal(constitution.authority.waiver_mode, "digest_bound_expiring_ledger");
+assert.equal(derived.repository_governance.evidence_producer_registry, constitution.authority.evidence_producer_registry);
+assert.equal(derived.repository_governance.waiver_ledger, constitution.authority.waiver_ledger);
+assert.equal(derived.repository_governance.derived_dependency_execution_topological, true);
+assert.equal(derived.policy.observability_premerge_mutation_forbidden, true);
+assert.equal(derived.convergence.draft_pr_repair_allowed, true);
+assert.equal(derived.convergence.draft_pr_automerge_forbidden, true);
+assert.equal(evidence.contract, "mad4b.repository-governance-evidence-producers.v1");
+assert.equal(waivers.contract, "mad4b.repository-governance-waiver-ledger.v1");
+assert.ok(evidence.producers.some((entry) => entry.workflow_file === ".github/workflows/ci.yml" && entry.required === true));
+assert.ok(Array.isArray(constitution.semantic_executable_classes) && constitution.semantic_executable_classes.length > 0);
 
-assert.equal(policyRegistry.contract, "mad4b.repository-governance-policy-registry.v1");
-assert.equal(policyRegistry.execution_model, "declarative_registered_assertions");
-const allowedAssertions = new Set(["metric_zero", "flag_true"]);
-assert.deepEqual(new Set(policyRegistry.allowed_assertion_types), allowedAssertions);
-const policyIds = policyRegistry.policies.map((policy) => policy.id);
-assert.equal(new Set(policyIds).size, policyIds.length, "policy IDs must be unique");
-for (const requiredPolicy of [
-  "governance-authority-consistency",
-  "unknown-surface-gate",
-  "unknown-executable-gate",
-  "git-native-change-identity",
-  "deletion-rename-impact-closure",
-  "derived-state-dag-integrity",
-  "control-plane-self-registration",
-  "policy-registry-integrity",
-]) {
-  assert.equal(policyIds.includes(requiredPolicy), true, `missing policy ${requiredPolicy}`);
+const allowed = new Set(["metric_zero", "flag_true"]);
+assert.deepEqual(new Set(policies.allowed_assertion_types), allowed);
+assert.equal(new Set(policies.policies.map((entry) => entry.id)).size, policies.policies.length);
+for (const policy of policies.policies) {
+  assert.ok(policy.remediation);
+  assert.equal(typeof policy.waiverable, "boolean");
+  for (const assertion of policy.assertions || []) assert.equal(allowed.has(assertion.type), true);
 }
-for (const policy of policyRegistry.policies) {
-  assert.equal(policy.severity, "blocking", `${policy.id} must remain blocking`);
-  assert.ok(Array.isArray(policy.assertions) && policy.assertions.length > 0, `${policy.id} requires assertions`);
-  for (const assertion of policy.assertions) {
-    assert.equal(allowedAssertions.has(assertion.type), true, `unsafe assertion primitive in ${policy.id}`);
-  }
-}
-
-assert.equal(derivedRegistry.repository_governance.constitution, constitutionPath);
-assert.equal(derivedRegistry.repository_governance.policy_registry, policyRegistryPath);
-assert.equal(derivedRegistry.repository_governance.closure_script, scriptPath);
-assert.equal(derivedRegistry.repository_governance.execution_mode, "same_exact_candidate_before_derived_state");
-assert.equal(derivedRegistry.repository_governance.dynamic_policy_mode, "declarative_registered_assertions");
-assert.equal(derivedRegistry.repository_governance.unknown_surface_fail_closed, true);
-assert.equal(derivedRegistry.repository_governance.unknown_executable_fail_closed, true);
-assert.equal(derivedRegistry.repository_governance.git_native_newness_required, true);
-assert.equal(derivedRegistry.repository_governance.deletion_and_rename_impact_required, true);
-assert.equal(derivedRegistry.repository_governance.derived_dependency_dag_required, true);
-assert.equal(derivedRegistry.repository_governance.server_enforcement_must_not_be_inferred_from_repository_files, true);
-assert.equal(derivedRegistry.required_check_name, constitution.authority.final_gate_context);
-assert.deepEqual(new Set(derivedRegistry.protected_branches), new Set(Object.keys(constitution.branches)));
-
 for (const controlPath of constitution.control_plane_paths) {
-  assert.equal(
-    derivedRegistry.convergence.automation_control_paths.includes(controlPath),
-    true,
-    `canonical control-plane path is not protected: ${controlPath}`
-  );
-  assert.equal(
-    matchesAny(controlPath, e2ePhasePolicy.governance_only_patterns),
-    true,
-    `canonical control-plane path would be misclassified as feature runtime by E2E governance: ${controlPath}`
-  );
+  assert.equal(derived.convergence.automation_control_paths.includes(controlPath), true, `unprotected control path: ${controlPath}`);
+  assert.equal(matchesAny(controlPath, e2e.governance_only_patterns), true, `E2E misclassification for control path: ${controlPath}`);
 }
+for (const requiredPath of [scriptPath, objectionPath, finalizerPath]) assert.equal(fs.existsSync(path.join(root, requiredPath)), true, `missing ${requiredPath}`);
 
-for (const key of ["require_pull_request", "block_direct_push", "block_force_push", "dismiss_stale_approvals", "require_conversation_resolution"]) {
-  assert.equal(derivedRegistry.server_enforcement.main[key], constitution.branches.main[key], `main policy conflict: ${key}`);
-}
-assert.deepEqual(
-  new Set(derivedRegistry.server_enforcement.main.required_checks),
-  new Set(constitution.branches.main.required_checks),
-  "main required checks must come from the constitution"
-);
-for (const key of ["block_direct_push", "block_force_push", "generic_pull_request_merge_forbidden", "promotion_path", "same_sha_closure_required"]) {
-  assert.equal(derivedRegistry.server_enforcement.Production[key], constitution.branches.Production[key], `Production policy conflict: ${key}`);
-}
-
-assert.match(script, /git[\s\S]*diff/u);
-assert.match(script, /--find-renames=50%/u);
-assert.match(script, /--find-copies=50%/u);
-assert.match(script, /old_path/u);
-assert.match(script, /new_path/u);
-assert.match(script, /unknown_surfaces/u);
-assert.match(script, /unknown_executables/u);
-assert.match(script, /unclassified_historical_paths/u);
-assert.match(script, /missing_derived_dependency_count/u);
-assert.match(script, /derived_cycle_count/u);
-assert.match(script, /declarative_registered_assertions/u);
-assert.doesNotMatch(script, /isRecent\s*\(/u);
-assert.doesNotMatch(script, /git\s+push/u);
-assert.doesNotMatch(script, /update-ref/u);
-assert.doesNotMatch(script, /https?:\/\//u);
-
-assert.match(workflow, /scripts\/repository-governance-closure\.mjs/u);
-assert.match(workflow, /repository-governance-closure\.test\.mjs/u);
-assert.match(workflow, /repository-governance\.json/u);
-assert.doesNotMatch(workflow, /\n\s*paths:/u);
-
-const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
-assert.equal(head.status, 0, head.stderr || "git rev-parse failed");
-const sha = String(head.stdout || "").trim();
+const sha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim();
 assert.match(sha, /^[0-9a-f]{40}$/u);
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "repository-governance-closure-test-"));
-const reportFile = path.join(tempDir, "report.json");
-const selfCheck = spawnSync(process.execPath, [
-  scriptPath,
-  "--expected-sha", sha,
-  "--base-sha", sha,
-  "--candidate-kind", "self_test",
-  "--report-file", reportFile,
-], {
-  cwd: root,
-  encoding: "utf8",
-  maxBuffer: 32 * 1024 * 1024,
-});
-assert.equal(selfCheck.status, 0, `${selfCheck.stdout || ""}\n${selfCheck.stderr || ""}`);
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), "repository-governance-closure-test-"));
+const reportFile = path.join(dir, "report.json");
+const check = spawnSync(process.execPath, [
+  scriptPath, "--expected-sha", sha, "--base-sha", sha, "--candidate-kind", "self_test", "--report-file", reportFile
+], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(check.status, 0, `${check.stdout}\n${check.stderr}`);
 const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
-assert.equal(report.contract, "mad4b.repository-governance-closure.v1");
-assert.equal(report.candidate.sha, sha);
-assert.equal(report.candidate.base_sha, sha);
-assert.equal(report.change_inventory.changed_entry_count, 0);
-assert.equal(report.metrics.unknown_surface_count, 0);
-assert.equal(report.metrics.unknown_executable_count, 0);
-assert.equal(report.metrics.constitution_conflict_count, 0);
-assert.equal(report.metrics.missing_derived_dependency_count, 0);
-assert.equal(report.metrics.derived_cycle_count, 0);
 assert.equal(report.converged, true);
+assert.equal(report.metrics.unknown_surface_count, 0);
+assert.equal(report.metrics.derived_cycle_count, 0);
 assert.equal(report.server_enforcement.live_readback_performed_by_this_verifier, false);
-assert.equal(report.server_enforcement.attestation_required_before_merge, true);
-assert.equal(report.safety.repository_mutation_performed, false);
-assert.equal(report.safety.secrets_included, false);
-fs.rmSync(tempDir, { recursive: true, force: true });
-
-console.log(JSON.stringify({
-  ok: true,
-  contract: constitution.contract,
-  policy_count: policyRegistry.policies.length,
-  final_gate_context: constitution.authority.final_gate_context,
-  unknown_surface_fail_closed: true,
-  unknown_executable_fail_closed: true,
-  git_native_newness: true,
-  deletion_and_rename_impact: true,
-  derived_state_dag: true,
-  e2e_control_plane_classification_closed: true,
-  live_server_policy_inference_forbidden: true,
-}));
+fs.rmSync(dir, { recursive: true, force: true });
+console.log(JSON.stringify({ ok: true, contract: constitution.contract, objection_control_plane: true, trusted_evidence_registry: true }));

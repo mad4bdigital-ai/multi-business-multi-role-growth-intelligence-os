@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Staging Tenant Activation Actions
+  title: Growth Intelligence Platform - Tenant Activation Actions - staging
   version: 3.0.0-platform
-  summary: Tenant-scoped Activation session, awareness, attention, and dynamic-tab reads.
-  description: Staging Tenant Staging Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com.
+  summary: Tenant-scoped Activation session, awareness, attention, and dynamic-tab reads. (staging).
+  description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by dev.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
 servers:
   - url: https://activation-dev.mad4b.com
-    description: tenant_activation surface
+    description: tenant_activation_staging surface
 tags:
   - name: activation
     description: Once-per-session activation probes, session history, and scope context.
@@ -21,23 +21,11 @@ components:
           authorizationUrl: https://activation-dev.mad4b.com/auth/oauth/authorize
           tokenUrl: https://activation-dev.mad4b.com/auth/oauth/token
           scopes:
-            https://activation-dev.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
-            https://activation-dev.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
-            https://activation-dev.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
-            https://activation-dev.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
-            https://activation-dev.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
-    backendBearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: Backend API Key or User JWT
-      description: |
-        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
-    backendApiKeyAuth:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+            https://auth.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
   schemas:
     OperationalAlert:
       type: object
@@ -887,11 +875,11 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 security:
   - userBearerAuth:
-      - https://activation-dev.mad4b.com/scopes/tenant.links
-      - https://activation-dev.mad4b.com/scopes/tenant.status
-      - https://activation-dev.mad4b.com/scopes/tenant.activation
-      - https://activation-dev.mad4b.com/scopes/tenant.install
-      - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+      - https://auth.mad4b.com/scopes/tenant.links
+      - https://auth.mad4b.com/scopes/tenant.status
+      - https://auth.mad4b.com/scopes/tenant.activation
+      - https://auth.mad4b.com/scopes/tenant.install
+      - https://auth.mad4b.com/scopes/tenant.system-tools
 paths:
   /tenant/activation/session-context:
     get:
@@ -1065,22 +1053,22 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
   /tenant/activation/operational-attention:
     get:
       tags:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantActivationOperationalAttention
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
@@ -1179,11 +1167,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantActivationAwareness
       x-openai-isConsequential: false
       summary: Read signed-in tenant activation awareness
@@ -1246,11 +1234,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantResolutionProblemCards
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -1328,11 +1316,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listTenantResolutionCases
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -1489,11 +1477,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: createTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -1601,11 +1589,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -1700,11 +1688,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: transitionTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -1833,11 +1821,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: runTenantResolutionDiagnosticAction
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2178,11 +2166,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: previewTenantTaskSourceRepair
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2450,11 +2438,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: applyTenantTaskSourceRepair
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2760,11 +2748,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: verifyTenantTaskSourceRepair
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2884,11 +2872,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantActivationDynamicTabDetail
       x-openai-isConsequential: false
       summary: Read one tenant-authorized Dynamic Tab detail page
@@ -3083,18 +3071,18 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
-          description: Staging Tenant Activation session list failure
+          description: Tenant Activation session list failure
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
   /tenant/activation/sessions/{id}/turns:
     post:
       tags:
@@ -3275,17 +3263,20 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
         - userBearerAuth:
-            - https://activation-dev.mad4b.com/scopes/tenant.links
-            - https://activation-dev.mad4b.com/scopes/tenant.status
-            - https://activation-dev.mad4b.com/scopes/tenant.activation
-            - https://activation-dev.mad4b.com/scopes/tenant.install
-            - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
+  source_openapi_sha256: 1226ab6d48d1a88035d68ac3c49fad638e6c314c23aa532a65fc541291ad9ae2
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
+  registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
+  domain_family_policy: http-generic-api/config/domain-family-policy.json
+  domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
+  environment: staging
   registry_version: 2
   selector_model: marker_required
   candidate_policy:
@@ -3297,83 +3288,83 @@ x-custom-gpt-generation:
     omission: fail
     exclusion_records:
       - operation_id: listSessions
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: writeGptSessionTurns
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: getActivationHardRunSummary
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: getActivationRunArchive
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: getTenantActivationRunArchive
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: readActivationAwareness
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: readActivationOperationalAttention
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: synchronizeActivationOperationalAttention
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: ingestActivationOperationalCiSignal
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: updateActivationOperationalAlertLifecycle
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: readActivationDynamicTabDetail
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: acknowledgeActivationRun
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: runLegacyFullHardActivation
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: runHardActivation
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: getActivationSessionContext
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: getActivationPlatformAccess
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: listTenantSkillApprovals
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: decideTenantSkillApproval
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: writeGptSessionTurn
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: endGptSession
-        reason: Core, Admin, or internal activation candidate remains outside the Staging Tenant Activation OAuth surface boundary.
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
         owner: platform-governance
         review_after: 2026-09-30
   catalog_policy: null
@@ -3386,11 +3377,11 @@ x-custom-gpt-generation:
   secrets_included: false
 x-gpt-action-auth-preset:
   authentication_type: OAuth
-  schema_url: https://activation-dev.mad4b.com/openapi.tenant-gpt.auth.yaml
+  schema_url: https://dev.mad4b.com/openapi.tenant-gpt.auth.yaml
   activation_schema_url: https://activation-dev.mad4b.com/tenant-gpt/activation-openapi
-  client_id: mad4b-tenant-gpt-activation-staging
+  client_id: mad4b-tenant-gpt
   client_secret: <resolved-from-governed-platform-secret>
-  client_secret_ref: platform_secret:TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET
+  client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
   client_secret_config_key: tenant_gpt.oauth.client
   authorization_url: https://activation-dev.mad4b.com/auth/oauth/authorize
   token_url: https://activation-dev.mad4b.com/auth/oauth/token
@@ -3400,8 +3391,8 @@ x-gpt-action-auth-preset:
     - https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback
     - https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback
   scope_links:
-    - https://activation-dev.mad4b.com/scopes/tenant.links
-    - https://activation-dev.mad4b.com/scopes/tenant.status
-    - https://activation-dev.mad4b.com/scopes/tenant.activation
-    - https://activation-dev.mad4b.com/scopes/tenant.install
-    - https://activation-dev.mad4b.com/scopes/tenant.system-tools
+    - https://auth.mad4b.com/scopes/tenant.links
+    - https://auth.mad4b.com/scopes/tenant.status
+    - https://auth.mad4b.com/scopes/tenant.activation
+    - https://auth.mad4b.com/scopes/tenant.install
+    - https://auth.mad4b.com/scopes/tenant.system-tools
