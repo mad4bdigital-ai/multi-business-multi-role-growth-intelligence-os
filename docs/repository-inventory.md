@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,130 |
-| Total bytes | 69,073,332 |
-| Counted text lines | 1,619,281 |
+| Tracked files | 7,131 |
+| Total bytes | 69,076,077 |
+| Counted text lines | 1,619,343 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -19,7 +19,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | `tests-and-specs` | 2,138 |
 | `documentation` | 1,904 |
-| `api-runtime` | 1,434 |
+| `api-runtime` | 1,435 |
 | `database-migrations` | 783 |
 | `root-and-other` | 281 |
 | `api-contracts` | 184 |
@@ -36,7 +36,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,505 |
-| `.mjs` | 1,677 |
+| `.mjs` | 1,678 |
 | `.js` | 991 |
 | `.sql` | 798 |
 | `.json` | 782 |
@@ -84,7 +84,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `edge/activation-gateway/package.json` | `mad4b-activation-gateway` | `—` | 8 | 0 | 1 |
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 66 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 67 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 22 | 0 | 4 |
 
 ## Largest tracked files

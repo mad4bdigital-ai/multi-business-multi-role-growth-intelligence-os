@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7130,
-    "bytes": 69073332,
-    "lines": 1619281,
+    "files": 7131,
+    "bytes": 69076077,
+    "lines": 1619343,
     "directories": 265,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2138,
       "documentation": 1904,
-      "api-runtime": 1434,
+      "api-runtime": 1435,
       "database-migrations": 783,
       "root-and-other": 281,
       "api-contracts": 184,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2505,
-      ".mjs": 1677,
+      ".mjs": 1678,
       ".js": 991,
       ".sql": 798,
       ".json": 782,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3674,
+      "http-generic-api": 3675,
       "docs": 1808,
       "specs": 873,
       ".github": 274,
@@ -173,6 +173,7 @@
         "readiness:interruptions:ci",
         "readiness:verify-plan",
         "manifest:deployment",
+        "manifest:portable-staging",
         "production:config-preflight",
         "supervisor:readiness",
         "runtime-persistence:readiness",

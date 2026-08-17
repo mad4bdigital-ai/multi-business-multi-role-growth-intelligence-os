@@ -94,7 +94,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "ffa0138dd61c580a93d06c5d7b5ee3c56b5088ace7675a4a660b4407b9e739ed"
+      "sha256": "8d6e3eb3e5275e73bf6b80753c20d76e552d131fee56b75cf8c5e2feb7872f65"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -142,11 +142,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "417d4fbdc0bf56b1d62c53ec33b279e93b643c9c6590a91dc52e5d71aba231fc"
+      "sha256": "f091df95420786961be3212cb37fcdbfdb94b1dff3703dfcb5fdf6d79f5481fe"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "004be6dac970463868338e69f72ad1590a10d149cd4cdc6f40b43f5b4952d2bc"
+      "sha256": "e406e4955b31592a154dc29e5190f8ccc61aa28a4cff12b7f95d038ef4e446a8"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -154,7 +154,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "bf5050b480ddd1e630b511d58af8aa9fee03ae5fbc394b7226ca15ab1aa5d26f"
+      "sha256": "52ad3bec575f0308bf21f70870896b6f5ee88d50e81aa7d45febf374072d75fa"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -162,11 +162,11 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
-      "sha256": "db11794c939bfe5837ea7292e447db78f9aaf09293559bc092d3a0d4e579bac1"
+      "sha256": "eed6536df7f07cd91d4d498785d895485ed7512a61e8cc1531422607a66669d4"
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "025a64a9620d2e452fe8f48cef01df20ebb487e882ba18ed5c91d9c12c6b1b8e"
+      "sha256": "f58daca909ec0ef70099c0c95464e6ed87e13007383bcb1fad74bf8ea2fccf60"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -186,7 +186,7 @@
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "0268da962b9406e86b6987350d1e6fdf0bd2be9403e594c7e80d52729ab1fe76"
+      "sha256": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee"
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -198,11 +198,11 @@
     },
     {
       "path": "http-generic-api/scripts/build-staging-admin-openapi.mjs",
-      "sha256": "f5476b64081f167218a7a51108397d5146e80e4ec195f808161b14fb8cc5c20c"
+      "sha256": "60ba01779511231b9af87b405ae47175fc511b8003ba8cf9b6a34f41aea9b3a2"
     },
     {
       "path": "http-generic-api/scripts/build-staging-openapi.mjs",
-      "sha256": "d3fb4b312c44cea78246d62b930819b2ee3c50a28721eb28b66e2d3219209507"
+      "sha256": "0c4e4d51ebda9fc6c78a17be0d84299ad47b6bd800a6178e69ed0cbbc399f85f"
     },
     {
       "path": "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "3363dfc74b11f5b27707aabb4f897fc5fb2f64b258767892df2897cf01a7dfdc"
+      "sha256": "b4d8c548b7b3739a474eadb4ccba626c23303346f7c3b44f18cf154cfbc1aff8"
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
@@ -218,7 +218,7 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthPreset.js",
-      "sha256": "92f5535bb5080dfc59d1df4ae174399d092c1c285440315cbf82d57e04881643"
+      "sha256": "f32170c09ffa8c94c8bfbc1055bfb102bbb617e2e9b2bc1b59e678c19bb3af4a"
     },
     {
       "path": "http-generic-api/tenantGptOAuthResourceProfile.js",
@@ -238,7 +238,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "b5fe042051ac31a0079f045cff3f5380c6331dc87d344ed1e957b71f30602541"
+      "sha256": "d831047818de1444a9938b2ab3570ca754aa550257ef3e499791aa4d56129c70"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
-      "sha256": "e2559dd7a5ce6b047e1d718b778cee65d7939b32b87ceda50a1d4b46d867b878"
+      "sha256": "879f3d7b09e7d4aa149bcce3a401ac57b0b81ca786d8da3fb2cb48717e9550f3"
     },
     {
       "path": "http-generic-api/test-workspace-brand-create.mjs",
