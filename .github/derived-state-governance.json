@@ -23,6 +23,21 @@
     "production_requires_source_pin": true,
     "production_requires_explicit_authorization": true
   },
+  "repository_governance": {
+    "constitution": "http-generic-api/config/repository-governance-constitution.json",
+    "policy_registry": ".github/governance/policy-registry.json",
+    "closure_script": "scripts/repository-governance-closure.mjs",
+    "test": ".github/tests/repository-governance-closure.test.mjs",
+    "execution_mode": "same_exact_candidate_before_derived_state",
+    "dynamic_policy_mode": "declarative_registered_assertions",
+    "unknown_surface_fail_closed": true,
+    "unknown_executable_fail_closed": true,
+    "git_native_newness_required": true,
+    "deletion_and_rename_impact_required": true,
+    "derived_dependency_dag_required": true,
+    "server_enforcement_readback_workflow": ".github/workflows/github-repository-policy-readback.yml",
+    "server_enforcement_must_not_be_inferred_from_repository_files": true
+  },
   "convergence": {
     "orchestration_mode": "workflow_run_one_authority_per_pass",
     "repair_dispatch_workflow": ".github/workflows/derived-state-repair-dispatch.yml",
@@ -35,12 +50,16 @@
     "automation_control_surface_changes_require_manual_review": true,
     "automation_control_paths": [
       ".github/derived-state-governance.json",
+      ".github/governance/policy-registry.json",
       ".github/tests/derived-state-closure.test.mjs",
+      ".github/tests/repository-governance-closure.test.mjs",
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/derived-state-repair-dispatch.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
       ".github/workflows/derived-state-main-convergence-publisher.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
       "scripts/derived-state-closure.mjs",
+      "scripts/repository-governance-closure.mjs",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
