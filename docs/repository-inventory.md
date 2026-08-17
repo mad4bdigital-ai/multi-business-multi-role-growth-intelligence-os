@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,132 |
-| Total bytes | 69,083,770 |
-| Counted text lines | 1,619,492 |
+| Tracked files | 7,138 |
+| Total bytes | 69,697,804 |
+| Counted text lines | 1,636,694 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -22,7 +22,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `api-runtime` | 1,435 |
 | `database-migrations` | 783 |
 | `root-and-other` | 282 |
-| `api-contracts` | 184 |
+| `api-contracts` | 190 |
 | `ci-workflows` | 167 |
 | `ci-config` | 107 |
 | `schemas-and-data` | 70 |
@@ -41,7 +41,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.sql` | 798 |
 | `.json` | 783 |
 | `.yml` | 170 |
-| `.yaml` | 113 |
+| `.yaml` | 119 |
 | `.ps1` | 16 |
 | `.ts` | 16 |
 | `.cs` | 14 |
@@ -75,7 +75,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | GitHub Actions workflows | 167 |
 | Database migrations | 783 |
-| API/OpenAPI contracts | 184 |
+| API/OpenAPI contracts | 190 |
 | Test/spec files (paths) | 2,221 |
 | package.json manifests | 3 |
 
@@ -113,14 +113,14 @@ This report is generated deterministically from the Git index. It is intentional
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 146,641 | 1341 |
-| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 142,010 | 3806 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml` | api-contracts | 142,249 | 3809 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 142,207 | 3809 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml` | api-contracts | 142,080 | 3809 |
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
 | `http-generic-api/openapi/openapi.tenant-gpt.staging.yaml` | api-contracts | 136,287 | 3637 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
-| `docs/work-maps/data-model-domain-map.md` | documentation | 120,993 | 874 |
-| `http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml` | api-contracts | 113,264 | 3408 |
 
 ## Complete machine-readable inventory
 
