@@ -20,6 +20,14 @@ assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: pool })
 assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePoolFactory: () => pool }), pool);
 const sentinel = { query() {} };
 assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: sentinel }), sentinel);
+assert.throws(
+  () => resolveRuntimePersistenceExecutor({ pool: sentinel }),
+  (error) => error.code === "RUNTIME_PERSISTENCE_GENERIC_FALLBACK_FORBIDDEN",
+);
+assert.throws(
+  () => resolveRuntimePersistenceExecutor({ connection: sentinel }),
+  (error) => error.code === "RUNTIME_PERSISTENCE_GENERIC_FALLBACK_FORBIDDEN",
+);
 
 const dbSource = fs.readFileSync(new URL("./db.js", import.meta.url), "utf8");
 const authoritySource = fs.readFileSync(new URL("./runtimePersistenceWriteAuthority.js", import.meta.url), "utf8");

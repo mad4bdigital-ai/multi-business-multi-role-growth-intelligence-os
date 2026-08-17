@@ -27,6 +27,12 @@ assert.equal(authority.registry_policy.generic_runtime_principal_fallback, false
 assert.equal(authority.registry_policy.schema_wide_privileges_forbidden, true);
 assert.equal(authority.registry_policy.global_privileges_forbidden, true);
 assert.equal(authority.registry_policy.grant_option_forbidden, true);
+assert.equal(authority.registry_policy.prepared_template_materialization, "one-singular-environment-binding-per-environment");
+for (const profile of authority.profiles) {
+  assert.deepEqual(profile.environment_keys, ["staging", "production"]);
+  assert.equal(profile.status, "prepared-only");
+  assert.ok(profile.identity_env_prefix, `${profile.profile_key} must declare an identity environment prefix`);
+}
 
 const profileKeys = new Set(authority.profiles.map((profile) => profile.profile_key));
 for (const required of [
@@ -69,6 +75,11 @@ assert.equal(resilience.execution_outcomes.replay_required_when_payload_persiste
 assert.equal(resilience.bounded_summary.required_on_large_payload_failure, true);
 assert.equal(resilience.pagination_contract.silent_truncation_forbidden, true);
 assert.equal(resilience.pagination_contract.maximum_page_size, 200);
+
+const authoritySource = fs.readFileSync(path.join(root, "runtimePersistenceWriteAuthority.js"), "utf8");
+assert.match(authoritySource, /RUNTIME_PERSISTENCE_GENERIC_FALLBACK_FORBIDDEN/u);
+assert.doesNotMatch(authoritySource, /\|\| deps\.pool\s*\n\s*\|\| deps\.connection/u);
+
 for (const forbidden of ["credentials", "access_tokens", "authorization_codes", "unbounded_payload"]) {
   assert.ok(resilience.bounded_summary.must_exclude.includes(forbidden));
 }
