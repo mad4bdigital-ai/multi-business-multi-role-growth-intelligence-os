@@ -139,8 +139,9 @@ jobs:
           fetch_endpoint mcp-protected-resource https://mcp.mad4b.com/.well-known/oauth-protected-resource
           fetch_endpoint mcp-authorization-server https://auth.mad4b.com/.well-known/oauth-authorization-server/auth/mcp
           node --input-type=module - "${REPORT_DIR}" "${EXPECTED_PRODUCTION_SHA}" <<'NODE'
-          import fs from 'node:fs';
-          import path from 'node:path';
+          import fs from 'fs';
+          import path from 'path';
+          import { resolveR7Decision } from './.github/scripts/production-r7-decision.mjs';
 
           const [directory, expectedSha] = process.argv.slice(2);
           const readJson = (name) => JSON.parse(fs.readFileSync(path.join(directory, `${name}.json`), 'utf8'));
@@ -171,44 +172,29 @@ jobs:
           const runtimeSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || '').toLowerCase();
           const runtimeBranch = String(deployment?.branch || manifest?.branch || '');
           const versionShas = collectShas(version);
-          const identityStatuses = [statuses.health, statuses.version, statuses.deployment_info, statuses.connector_agent_version];
-          const identityHttpSuccess = identityStatuses.every((status) => status === 200);
-          const allHttpSuccess = Object.values(statuses).every((status) => status === 200);
-          const versionShaExact = versionShas.includes(expectedSha);
-          const deploymentShaExact = runtimeSha === expectedSha;
-          const branchExact = runtimeBranch === 'Production';
-          const expectedResource = 'https://mcp.mad4b.com';
-          const expectedIssuer = 'https://auth.mad4b.com/auth/mcp';
-          const protectedResourceReady = statuses.mcp_protected_resource === 200
-            && protectedResource?.resource === expectedResource
-            && Array.isArray(protectedResource?.authorization_servers)
-            && protectedResource.authorization_servers.includes(expectedIssuer)
-            && protectedResource?.trusted_ingress?.ready === true;
-          const authorizationServerReady = statuses.mcp_authorization_server === 200
-            && authorizationServer?.issuer === expectedIssuer
-            && authorizationServer?.authorization_endpoint === `${expectedIssuer}/oauth/authorize`
-            && authorizationServer?.token_endpoint === `${expectedIssuer}/oauth/token`
-            && authorizationServer?.trusted_ingress?.ready === true;
-          const trustedIngressAttestationRequired = [protectedResource, authorizationServer]
-            .some((body) => errorCode(body) === 'TRUSTED_INGRESS_ATTESTATION_REQUIRED');
-          const oauthDiscoveryReady = protectedResourceReady && authorizationServerReady;
-          const productionCurrent = identityHttpSuccess
-            && versionShaExact
-            && deploymentShaExact
-            && branchExact
-            && oauthDiscoveryReady
-            ;
-          const classification = productionCurrent
-            ? 'production_current'
-            : trustedIngressAttestationRequired
-              ? 'trusted_ingress_attestation_required'
-              : versionShaExact && deploymentShaExact && !branchExact
-                ? 'runtime_sha_current_branch_provenance_mismatch'
-                : !identityHttpSuccess || !versionShaExact || !deploymentShaExact
-                  ? 'runtime_activation_pending_or_sha_mismatch'
-                  : !oauthDiscoveryReady
-                    ? 'oauth_discovery_not_ready'
-                    : 'runtime_parity_incomplete';
+          const decision = resolveR7Decision({
+            expectedSha,
+            expectedBranch: 'Production',
+            statuses,
+            versionShas,
+            runtimeSha,
+            runtimeBranch,
+            protectedResource,
+            authorizationServer,
+          });
+          const {
+            identityHttpSuccess,
+            allHttpSuccess,
+            versionShaExact,
+            deploymentShaExact,
+            branchExact,
+            protectedResourceReady,
+            authorizationServerReady,
+            trustedIngressAttestationRequired,
+            oauthDiscoveryReady,
+            productionCurrent,
+            classification,
+          } = decision;
 
           const report = {
             contract: 'mad4b.hostinger-production-runtime-readback-r7.v1',
