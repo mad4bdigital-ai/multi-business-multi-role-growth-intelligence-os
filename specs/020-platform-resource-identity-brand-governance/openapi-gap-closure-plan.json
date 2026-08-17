@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "cbc61ba8735f5dca974177c5aed48622940664ab74ea4e1d6e70ac63e95090eb",
-    "dispatch_artifact_sha256": "004be6dac970463868338e69f72ad1590a10d149cd4cdc6f40b43f5b4952d2bc"
+    "dispatch_source_digest": "1863ab027035f8db76e286528d4d0007961082085be9a8879bd0d159c7c8fe01",
+    "dispatch_artifact_sha256": "e406e4955b31592a154dc29e5190f8ccc61aa28a4cff12b7f95d038ef4e446a8"
   },
   "coverage": {
     "operation_count": 1041,
@@ -2036,6 +2036,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.tenant-gpt.staging.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -6072,6 +6073,7 @@
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "openapi/openapi.tenant-gpt.staging.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
