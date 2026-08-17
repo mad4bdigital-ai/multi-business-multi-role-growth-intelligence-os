@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7155,
-    "bytes": 69840998,
-    "lines": 1640807,
+    "bytes": 69841022,
+    "lines": 1640808,
     "directories": 265,
     "categories": 13
   },
@@ -264,8 +264,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936093,
-      "lines": 58550
+      "bytes": 1936117,
+      "lines": 58551
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
