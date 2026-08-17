@@ -1,0 +1,76 @@
+{
+  "schema_version": "mad4b.custom-gpt-environment-aware-contract.v1",
+  "contract_status": "prepared_only",
+  "assistant_profile": "custom-admin-gpt",
+  "default_environment": "staging",
+  "environment_selection": {
+    "selector": "explicit_environment",
+    "allowed_values": ["staging", "production"],
+    "missing_environment_action": "deny_and_request_explicit_selection",
+    "unknown_environment_action": "deny_and_do_not_fallback",
+    "cross_environment_fallback": false,
+    "environment_binding_required": true
+  },
+  "environments": {
+    "staging": {
+      "schema_file": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "server_url": "https://dev.mad4b.com",
+      "credential_namespace": "staging.auth",
+      "surface": "admin-custom-gpt-read-only",
+      "allowed_methods": ["GET"],
+      "read_only": true,
+      "default_request": true,
+      "provider_calls": false,
+      "database_mutation": false,
+      "secrets_included": false
+    },
+    "production": {
+      "schema_file": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "server_url": "https://auth.mad4b.com",
+      "credential_namespace": "production.auth",
+      "surface": "admin-custom-gpt-production-gated",
+      "allowed_methods": ["GET"],
+      "read_only": true,
+      "default_request": false,
+      "provider_calls": false,
+      "database_mutation": false,
+      "production_mutation_allowed": false,
+      "promotion_required_for_non_get": true,
+      "secrets_included": false
+    }
+  },
+  "operation_policy": {
+    "schema_method_mismatch_action": "deny",
+    "production_non_get_action": "deny_and_require_separate_promotion",
+    "staging_non_get_action": "deny",
+    "credential_namespace_mismatch_action": "deny_and_do_not_fallback",
+    "host_environment_mismatch_action": "deny_and_do_not_fallback",
+    "confirmation_required_for_production": true,
+    "audit_fields_required": [
+      "environment",
+      "schema_file",
+      "schema_version",
+      "operation_id",
+      "principal",
+      "authorization_decision",
+      "correlation_id"
+    ]
+  },
+  "activation_boundary": {
+    "route_wiring": false,
+    "runtime_authority": false,
+    "production_activation": false,
+    "migrations": false,
+    "grants": false,
+    "db_provider_mutations": false,
+    "deployment": false
+  },
+  "required_before_production_promotion": [
+    "independent_owner_attestation",
+    "staging_shadow_evidence",
+    "same_cycle_schema_data_readback",
+    "rollback_reconciliation_evidence",
+    "durable_receipt_and_audit_evidence",
+    "production_change_approval"
+  ]
+}

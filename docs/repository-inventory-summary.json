@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7132,
-    "bytes": 69083770,
-    "lines": 1619492,
+    "bytes": 69086262,
+    "lines": 1619515,
     "directories": 265,
     "categories": 13
   },
@@ -236,6 +236,7 @@
         "openapi:detail-batch:write",
         "openapi:detail-batch:check",
         "openapi:detail-batch:test",
+        "custom-gpt:environment:test",
         "evaluation:loop"
       ],
       "dependencies": 0,

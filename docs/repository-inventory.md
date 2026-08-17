@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,132 |
-| Total bytes | 69,083,770 |
-| Counted text lines | 1,619,492 |
+| Total bytes | 69,086,262 |
+| Counted text lines | 1,619,515 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -85,7 +85,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---|---:|---:|---:|
 | `edge/activation-gateway/package.json` | `mad4b-activation-gateway` | `—` | 8 | 0 | 1 |
 | `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 67 | 9 | 0 |
-| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 22 | 0 | 4 |
+| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 23 | 0 | 4 |
 
 ## Largest tracked files
 
