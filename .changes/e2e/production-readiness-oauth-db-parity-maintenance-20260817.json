@@ -25,6 +25,7 @@
             "Verify generated OpenAPI, Custom GPT, frontend dispatch, portable staging manifest, and configuration catalog artifacts are deterministic.",
             "Verify unified userBearerAuth coverage for Tenant Local Tools and System Tools across Staging and Production schemas.",
             "Verify DB-backed configuration entry registration requires schema, owner, risk, scope binding, resolver, and readback evidence.",
+            "Verify Spec 020 v2 keeps Runtime, Governance, and Runtime Persistence database identities and table ownership separate, with mcp_catalog_level owned by Runtime and governed_tool_response_chunks owned by Runtime Persistence.",
             "Preserve fail-closed behavior for unavailable write authority and prohibit migration apply, provider dispatch, secret transport, and Production activation."
           ],
           "assertions": [
@@ -32,6 +33,7 @@
             "All runtime files changed by the PR are covered by this contract scope.",
             "Generated artifacts are deterministic and no uncommitted drift remains after their generators run.",
             "Tenant tool security uses the canonical userBearerAuth contract in both Staging and Production surfaces.",
+            "The Spec 020 runtime database readiness v2 contract is prepared-only, uses no DB_USER fallback for persistence, and requires distinct Runtime, Governance, and Runtime Persistence identities.",
             "No secrets are included and no provider dispatch, live mutation, SQL Apply, Production promotion, or protected-ref mutation occurs."
           ],
           "tests": [
@@ -71,6 +73,9 @@
             "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
             "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
             "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "docs/runbooks/spec020-runtime-database-readiness.md",
+            "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "autopilot-portable-staging/manifest.json"
