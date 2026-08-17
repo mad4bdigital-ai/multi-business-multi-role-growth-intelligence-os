@@ -1,0 +1,60 @@
+name: Staging Admin Schema Contract
+
+on:
+  pull_request:
+    branches:
+      - main
+      - Production
+    paths:
+      - "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml"
+      - "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml"
+      - "http-generic-api/scripts/build-staging-admin-openapi.mjs"
+      - "http-generic-api/test-staging-independent-schema-contract.mjs"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - ".github/workflows/staging-admin-schema-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml"
+      - "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml"
+      - "http-generic-api/scripts/build-staging-admin-openapi.mjs"
+      - "http-generic-api/test-staging-independent-schema-contract.mjs"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - ".github/workflows/staging-admin-schema-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-admin-schema-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Verify Staging Admin OpenAPI contract
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install production dependencies
+        run: npm ci
+      - name: Regenerate and verify canonical Staging Admin schema
+        run: |
+          set -euo pipefail
+          node scripts/build-staging-admin-openapi.mjs
+          git diff --exit-code -- openapi/openapi.custom-gpt.staging-admin.yaml
+      - name: Run independent schema contract tests
+        run: node test-staging-independent-schema-contract.mjs

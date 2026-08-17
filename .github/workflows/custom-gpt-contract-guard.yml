@@ -18,8 +18,6 @@ on:
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/split-openapi.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
-      - "http-generic-api/scripts/build-staging-admin-openapi.mjs"
-      - "http-generic-api/test-staging-independent-schema-contract.mjs"
       - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
       - "http-generic-api/scripts/openapi-response-object-guard.mjs"
       - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
@@ -73,8 +71,6 @@ on:
       - "http-generic-api/package.json"
       - "http-generic-api/scripts/split-openapi.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
-      - "http-generic-api/scripts/build-staging-admin-openapi.mjs"
-      - "http-generic-api/test-staging-independent-schema-contract.mjs"
       - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
       - "http-generic-api/scripts/openapi-response-object-guard.mjs"
       - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
@@ -137,11 +133,6 @@ jobs:
       - run: npm ci
       - name: Enforce canonical parity and Builder-safe schemas
         run: npm run schemas:guard
-      - name: Verify Staging Admin Custom GPT schema invariants
-        run: |
-          node scripts/build-staging-admin-openapi.mjs
-          git diff --exit-code -- openapi/openapi.custom-gpt.staging-admin.yaml
-          node test-staging-independent-schema-contract.mjs
       - name: Verify Contract Guard trigger coverage
         run: node test-custom-gpt-contract-guard-paths.mjs
       - name: Verify auth edge proxy envelope

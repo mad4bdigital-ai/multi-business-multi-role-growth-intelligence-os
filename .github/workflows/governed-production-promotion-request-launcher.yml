@@ -488,7 +488,8 @@ jobs:
           path: |
             ${{ env.EVIDENCE_PATH }}
             ${{ runner.temp }}/governed-production-promotion/
-          if-no-files-found: ignore
+          if-no-files-found: error
+
           retention-days: 30
 
       - name: Record request outcome without making comment transport authoritative
