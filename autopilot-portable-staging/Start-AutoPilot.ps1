@@ -137,6 +137,19 @@ function Ensure-EnvDefault([string]$Path, [string]$Name, [string]$Value) {
     }
     Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
 }
+function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
+    if ($Value -match '[\r\n]') { Fail "Invalid newline in environment value: $Name" }
+    $text = Get-Content -LiteralPath $Path -Raw
+    $pattern = "(?im)^$([regex]::Escape($Name))=.*$"
+    $matches = [regex]::Matches($text, $pattern)
+    if ($matches.Count -gt 1) { Fail "Duplicate environment key is forbidden: $Name" }
+    if ($matches.Count -eq 0) {
+        $text = $text.TrimEnd() + "`r`n$Name=$Value`r`n"
+    } else {
+        $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
+    }
+    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+}
 function Quarantine-KnownBackupFiles([string]$RepoPath) {
     $backupRoot = Join-Path $env:USERPROFILE "MAD4B-Staging-Backups"
     $backupFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepoPath "autopilot-portable-staging") -Filter "*.backup" -File -ErrorAction SilentlyContinue)
@@ -253,7 +266,10 @@ try {
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
     Ensure-EnvDefault $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
-
+    # Keep runtime deployment readback bound to the immutable commit selected above.
+    Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
+    Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
+    Set-EnvValue $EnvFile "DEPLOY_BRANCH" $Ref
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $StartTunnel) { Fail "StartTunnel requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
