@@ -75,6 +75,7 @@
       "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
       "scripts/derived-state-closure.mjs",
       "scripts/remote-mcp-write-scope-inventory.mjs",
+      "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
       "scripts/test-remote-mcp-write-scope-inventory.mjs",
       "scripts/repository-governance-closure.mjs"
     ],
@@ -137,6 +138,15 @@
       "merge_blocking": true,
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "remote_mcp_write_scope_currentness",
+      "currentness_projection": {
+        "mode": "semantic_projection",
+        "ignored_json_fields": [
+          "file_count"
+        ],
+        "ignored_markdown_line_patterns": [
+          "^\\| Tracked files scanned \\|"
+        ]
+      },
       "dependency_scope": [
         {
           "type": "path_glob",
