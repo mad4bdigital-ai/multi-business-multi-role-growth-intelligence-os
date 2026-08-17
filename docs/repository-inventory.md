@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,138 |
-| Total bytes | 69,697,804 |
-| Counted text lines | 1,636,694 |
+| Total bytes | 69,697,105 |
+| Counted text lines | 1,636,666 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -113,9 +113,9 @@ This report is generated deterministically from the Git index. It is intentional
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 146,641 | 1341 |
-| `http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml` | api-contracts | 142,249 | 3809 |
-| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 142,207 | 3809 |
-| `http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml` | api-contracts | 142,080 | 3809 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml` | api-contracts | 142,240 | 3805 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 142,198 | 3805 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml` | api-contracts | 142,061 | 3805 |
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
 | `http-generic-api/openapi/openapi.tenant-gpt.staging.yaml` | api-contracts | 136,287 | 3637 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
