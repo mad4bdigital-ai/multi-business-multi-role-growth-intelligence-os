@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7132,
-    "bytes": 69083350,
-    "lines": 1619489,
+    "bytes": 69083539,
+    "lines": 1619490,
     "directories": 265,
     "categories": 13
   },
@@ -61861,9 +61861,9 @@
       "path": "http-generic-api/test-connect-routes.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 83926,
-      "lines": 1301,
-      "sha256": "8decff6043fda34fd14168a3fdd05c828ce4f75b7e8b6dcc164fa38403a516bc",
+      "bytes": 84013,
+      "lines": 1300,
+      "sha256": "fb4bf88c96cfad47c73bcbf0e0d96afe8a64a4c9a487e63f9416b009ea53120c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83940,7 +83940,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "fbcea1a4475e07b68acd63e6f1c1c058b5d06326b25c87cf4c24f103a0f6afb9",
+      "sha256": "b47e2abe83b62f237462ac874bb506110f82e2adbd946687721af599f1af1f87",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83949,9 +83949,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
       "extension": ".json",
-      "bytes": 268088,
-      "lines": 6361,
-      "sha256": "77738c59ae748762e82b59d916afdb33e61f3ddf592d862545b1351de81aa8b8",
+      "bytes": 268190,
+      "lines": 6363,
+      "sha256": "e3cdf612f4d5bc3c445c58a631811f8958f467e840b8a0430c90f07b44f4b383",
       "mode": "644",
       "executable": false,
       "generated": false
