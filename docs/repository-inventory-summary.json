@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7120,
-    "bytes": 69010685,
-    "lines": 1617920,
+    "files": 7126,
+    "bytes": 69044664,
+    "lines": 1618711,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2135,
-      "documentation": 1902,
-      "api-runtime": 1430,
+      "tests-and-specs": 2137,
+      "documentation": 1903,
+      "api-runtime": 1433,
       "database-migrations": 783,
       "root-and-other": 281,
       "api-contracts": 184,
@@ -26,9 +26,9 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2503,
-      ".mjs": 1673,
-      ".js": 988,
+      ".md": 2504,
+      ".mjs": 1676,
+      ".js": 990,
       ".sql": 798,
       ".json": 782,
       ".yml": 169,
@@ -61,8 +61,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3667,
-      "docs": 1806,
+      "http-generic-api": 3672,
+      "docs": 1807,
       "specs": 873,
       ".github": 273,
       ".changes": 257,
@@ -173,6 +173,7 @@
         "readiness:interruptions:ci",
         "readiness:verify-plan",
         "manifest:deployment",
+        "production:config-preflight",
         "supervisor:readiness",
         "runtime-persistence:readiness",
         "database:collation:check",
@@ -244,7 +245,7 @@
     "workflows": 166,
     "migrations": 783,
     "apiContracts": 184,
-    "testSpecFiles": 2218
+    "testSpecFiles": 2220
   },
   "largestFiles": [
     {
@@ -256,7 +257,7 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3472209,
+      "bytes": 3472207,
       "lines": 97919
     },
     {

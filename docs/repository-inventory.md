@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,120 |
-| Total bytes | 69,010,685 |
-| Counted text lines | 1,617,920 |
+| Tracked files | 7,126 |
+| Total bytes | 69,044,664 |
+| Counted text lines | 1,618,711 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -17,9 +17,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,135 |
-| `documentation` | 1,902 |
-| `api-runtime` | 1,430 |
+| `tests-and-specs` | 2,137 |
+| `documentation` | 1,903 |
+| `api-runtime` | 1,433 |
 | `database-migrations` | 783 |
 | `root-and-other` | 281 |
 | `api-contracts` | 184 |
@@ -35,9 +35,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,503 |
-| `.mjs` | 1,673 |
-| `.js` | 988 |
+| `.md` | 2,504 |
+| `.mjs` | 1,676 |
+| `.js` | 990 |
 | `.sql` | 798 |
 | `.json` | 782 |
 | `.yml` | 169 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 166 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 184 |
-| Test/spec files (paths) | 2,218 |
+| Test/spec files (paths) | 2,220 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -84,7 +84,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `edge/activation-gateway/package.json` | `mad4b-activation-gateway` | `—` | 8 | 0 | 1 |
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 65 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 66 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 22 | 0 | 4 |
 
 ## Largest tracked files
@@ -92,7 +92,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,472,209 | 97919 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,472,207 | 97919 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,935,850 | 58540 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 991,287 | 23008 |
