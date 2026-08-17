@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7144,
-    "bytes": 69728237,
-    "lines": 1637220,
+    "bytes": 69730635,
+    "lines": 1637531,
     "directories": 265,
     "categories": 13
   },
@@ -56727,9 +56727,9 @@
       "path": "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 5984,
-      "lines": 137,
-      "sha256": "1d1e764d5396d442a423fe6427d8985c93c38e72d57625d9d3db82dfb04d58e7",
+      "bytes": 6189,
+      "lines": 140,
+      "sha256": "3d9ac5e0bd373a4e3f41bce1eda742001347bd7b232f276258960ed6b1a8e1f9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81576,9 +81576,9 @@
       "path": "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 8063,
-      "lines": 2,
-      "sha256": "8d042e2a20b034de0b3a1299e7210dd4f6cf43a076d9b7ff50047302e51736a0",
+      "bytes": 10256,
+      "lines": 310,
+      "sha256": "c837b5ad045db86b290dbd0fd8a82032796c5429ca0782c6a8e45fe53eb289e4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82524,7 +82524,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "cbdbe8f831b3343a26005da8a1d306e0fb830e8ed91cdc09d2ff7aa6460039c0",
+      "sha256": "f43e501a0a1b475c7cda7f3a1ee1e6ac6156413da7e160684accb413ad816ab1",
       "mode": "644",
       "executable": false,
       "generated": false
