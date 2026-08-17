@@ -2551,8 +2551,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:0",
-      "source_line": 178,
-      "source_offset": 5442,
+      "source_line": 180,
+      "source_offset": 5503,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
