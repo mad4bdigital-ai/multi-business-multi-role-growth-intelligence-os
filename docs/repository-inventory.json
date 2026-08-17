@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7135,
-    "bytes": 69095528,
-    "lines": 1619704,
+    "bytes": 69095607,
+    "lines": 1619705,
     "directories": 265,
     "categories": 13
   },
@@ -83932,9 +83932,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 12539,
-      "lines": 228,
-      "sha256": "aa3c8a1ea8b88e4e508f67a94377f20b5cb1c28a562cb8d651aa04e6b28216eb",
+      "bytes": 12618,
+      "lines": 229,
+      "sha256": "cfb8b897a3d8de7382312c30f55400151d044cde3b2e2ac07de2977d9e7f5a8e",
       "mode": "644",
       "executable": false,
       "generated": false

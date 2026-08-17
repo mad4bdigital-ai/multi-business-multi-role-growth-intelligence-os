@@ -162,6 +162,7 @@
             "specs/020-platform-resource-identity-brand-governance/spec.md",
             "specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json",
             "docs/custom-gpt-environment-routing-instructions.md",
+            "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
             "specs/020-platform-resource-identity-brand-governance/completion.json",
             "http-generic-api/platformResourceIdentityContract.js",
             "http-generic-api/brandIdentityResolver.js",
