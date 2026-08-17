@@ -291,6 +291,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
 - `http-generic-api/test-openapi-schema-output-paths.mjs`
+- `http-generic-api/test-openapi-security-scheme-cardinality.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - `http-generic-api/test-openapi-split-regeneration-parity.mjs`
 - `http-generic-api/test-operation-orchestrator-openapi-contract.mjs`
@@ -334,8 +335,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-support-ticket-admin-remaining-openapi-contracts.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
-- `http-generic-api/test-tenant-database-schema-read.mjs`
-- ...and 13 more
+- ...and 14 more
 
 ## Maintenance Contract
 
