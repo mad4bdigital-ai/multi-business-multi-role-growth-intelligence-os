@@ -316,6 +316,7 @@ import {
   firstPopulated
 } from "./domainAdapters/wordpressAdapter.js";
 import { getRuntimePersistencePool, testConnection } from "./db.js";
+import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js";
 import {
   toJobSummary,
   inferLocalDispatchHttpStatus,
@@ -3248,6 +3249,18 @@ if (!isBackendApiKeyEnabled(process.env)) {
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
+  runMcpCatalogSchemaStartupPreflight()
+    .catch((error) => {
+      console.error(JSON.stringify({
+        event: "mcp_catalog_schema_startup_preflight",
+        status: "schema_contract_not_ready",
+        ready: false,
+        error_code: error?.code || "mcp_catalog_schema_startup_preflight_failed",
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        secrets_included: false,
+      }));
+    });
   const configuredParityDelay = Number(process.env.RUNTIME_PARITY_STARTUP_RECONCILE_DELAY_MS || 5000);
   const parityDelayMs = Number.isFinite(configuredParityDelay)
     ? Math.max(0, configuredParityDelay)

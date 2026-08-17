@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7152,
-    "bytes": 69799634,
-    "lines": 1639891,
+    "files": 7153,
+    "bytes": 69823930,
+    "lines": 1640429,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2148,
+      "tests-and-specs": 2149,
       "documentation": 1907,
       "api-runtime": 1435,
       "database-migrations": 783,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2508,
-      ".mjs": 1683,
+      ".mjs": 1684,
       ".js": 991,
       ".sql": 798,
       ".json": 789,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3685,
+      "http-generic-api": 3686,
       "docs": 1811,
       "specs": 879,
       ".github": 274,
@@ -246,7 +246,7 @@
     "workflows": 167,
     "migrations": 783,
     "apiContracts": 191,
-    "testSpecFiles": 2232
+    "testSpecFiles": 2233
   },
   "largestFiles": [
     {
@@ -264,8 +264,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936027,
-      "lines": 58546
+      "bytes": 1936093,
+      "lines": 58550
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -342,8 +342,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 220777,
-      "lines": 4686
+      "bytes": 221663,
+      "lines": 4707
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
@@ -354,8 +354,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
-      "bytes": 204131,
-      "lines": 4368
+      "bytes": 207503,
+      "lines": 4441
     },
     {
       "path": "http-generic-api/supportTicketService.js",
