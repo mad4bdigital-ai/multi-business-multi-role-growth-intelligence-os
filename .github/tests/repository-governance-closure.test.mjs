@@ -9,14 +9,41 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const constitutionPath = "http-generic-api/config/repository-governance-constitution.json";
 const policyRegistryPath = ".github/governance/policy-registry.json";
 const derivedRegistryPath = ".github/derived-state-governance.json";
+const e2ePhasePolicyPath = ".specify/e2e-phase-governance.json";
 const workflowPath = ".github/workflows/derived-state-closure.yml";
 const scriptPath = "scripts/repository-governance-closure.mjs";
 
 const constitution = JSON.parse(fs.readFileSync(path.join(root, constitutionPath), "utf8"));
 const policyRegistry = JSON.parse(fs.readFileSync(path.join(root, policyRegistryPath), "utf8"));
 const derivedRegistry = JSON.parse(fs.readFileSync(path.join(root, derivedRegistryPath), "utf8"));
+const e2ePhasePolicy = JSON.parse(fs.readFileSync(path.join(root, e2ePhasePolicyPath), "utf8"));
 const workflow = fs.readFileSync(path.join(root, workflowPath), "utf8");
 const script = fs.readFileSync(path.join(root, scriptPath), "utf8");
+
+function globRegex(pattern) {
+  const normalized = String(pattern || "").replaceAll("\\", "/").replace(/^\.\//u, "");
+  let source = "^";
+  for (let index = 0; index < normalized.length; index += 1) {
+    const character = normalized[index];
+    const next = normalized[index + 1];
+    if (character === "*" && next === "*") {
+      if (normalized[index + 2] === "/") {
+        source += "(?:.*/)?";
+        index += 2;
+      } else {
+        source += ".*";
+        index += 1;
+      }
+    } else if (character === "*") source += "[^/]*";
+    else if (character === "?") source += "[^/]";
+    else source += character.replace(/[|\\{}()[\]^$+?.]/gu, "\\$&");
+  }
+  return new RegExp(`${source}$`, "u");
+}
+
+function matchesAny(file, patterns = []) {
+  return patterns.some((pattern) => globRegex(pattern).test(file));
+}
 
 assert.equal(constitution.contract, "mad4b.repository-governance-constitution.v1");
 assert.equal(constitution.authority.source_of_truth, constitutionPath);
@@ -79,6 +106,11 @@ for (const controlPath of constitution.control_plane_paths) {
     derivedRegistry.convergence.automation_control_paths.includes(controlPath),
     true,
     `canonical control-plane path is not protected: ${controlPath}`
+  );
+  assert.equal(
+    matchesAny(controlPath, e2ePhasePolicy.governance_only_patterns),
+    true,
+    `canonical control-plane path would be misclassified as feature runtime by E2E governance: ${controlPath}`
   );
 }
 
@@ -160,5 +192,6 @@ console.log(JSON.stringify({
   git_native_newness: true,
   deletion_and_rename_impact: true,
   derived_state_dag: true,
+  e2e_control_plane_classification_closed: true,
   live_server_policy_inference_forbidden: true,
 }));
