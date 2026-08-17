@@ -17,7 +17,9 @@
     "mutation_requires_exact_head_sha": true,
     "protected_branch_mutation_forbidden": true,
     "force_push_forbidden": true,
-    "main_requires_zero_stale_registered_artifacts": true,
+    "main_requires_zero_stale_registered_artifacts": false,
+    "main_requires_zero_stale_blocking_semantic_artifacts": true,
+    "observability_artifacts_publish_post_merge_only": true,
     "production_requires_same_sha_closure": true,
     "production_requires_staging_eligibility": true,
     "production_requires_source_pin": true,
@@ -61,15 +63,20 @@
       ".github/workflows/github-repository-policy-readback.yml",
       ".github/workflows/github-main-review-policy-live-activation.yml",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
-      "http-generic-api/config/repository-governance-constitution.json",
-      "http-generic-api/githubRepositoryPolicyController.js",
-      "http-generic-api/test-github-repository-policy-controller.mjs",
-      "scripts/derived-state-closure.mjs",
-      "scripts/repository-governance-closure.mjs",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-      ".github/workflows/spec-kit-work-map-autofix.yml"
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      ".specify/e2e-phase-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+      "scripts/derived-state-closure.mjs",
+      "scripts/remote-mcp-write-scope-inventory.mjs",
+      "scripts/test-remote-mcp-write-scope-inventory.mjs",
+      "scripts/repository-governance-closure.mjs"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
@@ -85,6 +92,8 @@
   "artifacts": [
     {
       "artifact_id": "repository_inventory",
+      "artifact_class": "observability",
+      "merge_blocking": false,
       "recipe": "repository_inventory_refresh",
       "verifier_id": "repository_inventory_currentness",
       "dependency_scope": [
@@ -103,6 +112,8 @@
     },
     {
       "artifact_id": "repository_evaluation",
+      "artifact_class": "observability",
+      "merge_blocking": false,
       "recipe": "repository_inventory_refresh",
       "verifier_id": "repository_evaluation_currentness",
       "dependency_scope": [
@@ -122,13 +133,11 @@
     },
     {
       "artifact_id": "remote_mcp_write_scope_inventory",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "remote_mcp_write_scope_currentness",
       "dependency_scope": [
-        {
-          "type": "git_index_shape",
-          "reason": "current generator materializes tracked file_count"
-        },
         {
           "type": "path_glob",
           "pattern": "http-generic-api/routes/**/*.js"
@@ -157,6 +166,8 @@
     },
     {
       "artifact_id": "frontend_openapi_projection",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "recipe": "frontend_openapi_refresh",
       "verifier_id": "frontend_openapi_currentness",
       "dependency_scope": [
@@ -184,6 +195,8 @@
     },
     {
       "artifact_id": "work_maps",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "repair_authority": {
         "id": "spec_kit_work_map_autofix",
         "kind": "delegated_work_map_writer",
@@ -203,6 +216,8 @@
     },
     {
       "artifact_id": "portable_staging_manifest",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "portable_staging_manifest_currentness",
       "dependency_scope": [
