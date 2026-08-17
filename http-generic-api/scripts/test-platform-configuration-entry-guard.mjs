@@ -93,10 +93,25 @@ assert.deepEqual(registered.safety, {
   production_activation_allowed: false,
 });
 
+const baselineIgnored = evaluateConfigurationEntryGuard({
+  repositoryRoot,
+  registry: baseRegistry,
+  candidates: {
+    candidates: [{
+      ...candidate("secret_candidate", "provider.api.key"),
+      symbol: "KNOWN_BASELINE_SETTING",
+      expression_kind: "literal_declaration",
+    }],
+  },
+  changedFiles: ["http-generic-api/routes/exampleRoutes.js"],
+  baselineFingerprints: new Set(["http-generic-api/routes/exampleRoutes.js|KNOWN_BASELINE_SETTING|literal_declaration|provider.api.key"]),
+});
+assert.equal(baselineIgnored.ok, true);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.platform-configuration-entry-guard-regression.v1",
-  cases: 5,
+  cases: 6,
   repository_mutation_executed: false,
   database_mutation_executed: false,
   production_activation_executed: false,
