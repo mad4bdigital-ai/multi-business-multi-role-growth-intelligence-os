@@ -27,6 +27,9 @@ assert.equal(registry.policy.branch_prefix_dependency_inference_forbidden, true)
 assert.equal(registry.policy.detection_mode, "read_only");
 assert.equal(registry.policy.mutation_mode, "separate_governed_writer");
 assert.equal(registry.policy.protected_branch_mutation_forbidden, true);
+assert.equal(registry.policy.main_requires_zero_stale_registered_artifacts, false);
+assert.equal(registry.policy.main_requires_zero_stale_blocking_semantic_artifacts, true);
+assert.equal(registry.policy.observability_artifacts_publish_post_merge_only, true);
 assert.equal(registry.server_enforcement.main.required_checks.includes("Derived State Closure"), true);
 assert.equal(registry.server_enforcement.Production.same_sha_closure_required, true);
 
@@ -56,6 +59,11 @@ for (const controlPath of [
   ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
   ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
   ".github/workflows/spec-kit-work-map-autofix.yml",
+  ".specify/e2e-phase-governance.json",
+  "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+  "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+  "scripts/remote-mcp-write-scope-inventory.mjs",
+  "scripts/test-remote-mcp-write-scope-inventory.mjs",
 ]) {
   assert.equal(registry.convergence.automation_control_paths.includes(controlPath), true, `missing automation control path ${controlPath}`);
 }
@@ -65,8 +73,19 @@ assert.equal(new Set(artifactIds).size, artifactIds.length);
 for (const required of ["repository_inventory", "repository_evaluation", "remote_mcp_write_scope_inventory", "frontend_openapi_projection", "work_maps", "portable_staging_manifest"]) {
   assert.equal(artifactIds.includes(required), true, `missing registered derived-state family ${required}`);
 }
+const inventory = registry.artifacts.find((entry) => entry.artifact_id === "repository_inventory");
+const evaluation = registry.artifacts.find((entry) => entry.artifact_id === "repository_evaluation");
+assert.equal(inventory.artifact_class, "observability");
+assert.equal(inventory.merge_blocking, false);
+assert.equal(evaluation.artifact_class, "observability");
+assert.equal(evaluation.merge_blocking, false);
+for (const artifact of registry.artifacts.filter((entry) => !["repository_inventory", "repository_evaluation"].includes(entry.artifact_id))) {
+  assert.equal(artifact.artifact_class, "semantic", `${artifact.artifact_id} must be semantic`);
+  assert.equal(artifact.merge_blocking, true, `${artifact.artifact_id} must block merge when stale`);
+}
 const remote = registry.artifacts.find((entry) => entry.artifact_id === "remote_mcp_write_scope_inventory");
-assert.equal(remote.dependency_scope.some((entry) => entry.type === "git_index_shape"), true);
+assert.equal(remote.dependency_scope.some((entry) => entry.type === "git_index_shape"), false, "Remote MCP semantics must not depend on whole-repository file count");
+assert.equal(remote.dependency_scope.some((entry) => entry.type === "tracked_registry_evidence_scan"), true);
 const workMaps = registry.artifacts.find((entry) => entry.artifact_id === "work_maps");
 assert.equal(workMaps.recipe, undefined);
 assert.equal(workMaps.repair_authority?.id, "spec_kit_work_map_autofix");
@@ -110,6 +129,13 @@ assert.match(stagingWorkflow, /scripts\/derived-state-closure\.mjs/u);
 
 assert.match(script, /Read-only CI verifier/u);
 assert.match(script, /git status/u);
+assert.match(script, /ARTIFACT_CLASSES/u);
+assert.match(script, /artifact_class/u);
+assert.match(script, /merge_blocking/u);
+assert.match(script, /blockingFailed/u);
+assert.match(script, /observabilityFailed/u);
+assert.match(script, /blocking_stale_or_failed_artifact_count/u);
+assert.match(script, /advisory_repair_authorities/u);
 assert.match(script, /verifierMutation/u);
 assert.match(script, /repair_authorities/u);
 assert.match(script, /repair_recipes/u);
@@ -182,6 +208,8 @@ console.log(JSON.stringify({
   contract: registry.contract,
   artifact_count: registry.artifacts.length,
   read_only_detector: true,
+  semantic_state_blocks_merge: true,
+  observability_state_publishes_post_merge: true,
   one_authority_per_pass: true,
   bounded_automatic_repair: true,
   exact_merge_candidate_reverification: true,
