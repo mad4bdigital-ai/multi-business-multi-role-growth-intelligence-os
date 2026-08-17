@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Tenant Core Actions
+  title: Growth Intelligence Platform - Tenant Core Actions - production
   version: 3.0.0-platform
-  summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes.
-  description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args.
+  summary: Tenant resources, dashboard, session, plugin, and bounded operation surface without Activation routes. (production).
+  description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args. Env.
 servers:
   - url: https://auth.mad4b.com
-    description: tenant_core surface
+    description: tenant_core_production surface
 tags:
   - name: resource-api
     description: Governed logical resources, safe projections, lifecycle operations, changes, revisions, permissions, and readback.
@@ -3224,7 +3224,7 @@ x-custom-gpt-generation:
   registry_sha256: 65321641fd54bc3984efac560ffaec47b523e7e7fe9b96b76608b985e3d1ab3e
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
-  environment: unspecified
+  environment: production
   registry_version: 3
   selector_model: marker_required
   candidate_policy:

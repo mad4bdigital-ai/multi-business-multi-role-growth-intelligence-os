@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Admin Core Actions
+  title: Growth Intelligence Platform - Admin Core Actions - production
   version: 3.0.0-platform
-  summary: Admin and system MCP facades with a bounded operation surface.
-  description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven.
+  summary: Admin and system MCP facades with a bounded operation surface. (production).
+  description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven. Environment is resolved from the fail-closed domain-family po.
 servers:
   - url: https://auth.mad4b.com
-    description: admin_core surface
+    description: admin_core_production surface
 tags:
   - name: admin-control
     description: Personal administrator control surface for CLI, database, and runtime environment operations.
@@ -2009,7 +2009,7 @@ x-custom-gpt-generation:
   registry_sha256: 65321641fd54bc3984efac560ffaec47b523e7e7fe9b96b76608b985e3d1ab3e
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
-  environment: unspecified
+  environment: production
   registry_version: 3
   selector_model: marker_required
   candidate_policy:

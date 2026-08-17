@@ -5,6 +5,7 @@ import YAML from "yaml";
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const REGISTRY_PATH = "../canonicals/openapi/custom-gpt-surfaces.yaml";
 const registry = YAML.parse(readFileSync(REGISTRY_PATH, "utf8"));
+const domainPolicy = JSON.parse(readFileSync("config/domain-family-policy.json", "utf8"));
 const GENERATED_SURFACES = Object.entries(registry.surfaces)
   .filter(([, surface]) => surface.mode === "generated_from_openapi")
   .map(([surfaceKey, surface]) => ({ surfaceKey, ...surface }));
@@ -54,17 +55,28 @@ const mainText = readFileSync("openapi.yaml", "utf8");
 const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 const orchestrator = readFileSync("scripts/generate-custom-gpt-schemas.mjs", "utf8");
 
-assert.equal(registry.version, 2);
+assert.equal(registry.version, 3);
+assert.equal(domainPolicy.schema_version, "mad4b.domain-family-policy.v1");
+assert.equal(domainPolicy.enforcement_mode, "fail_closed");
 assert.deepEqual(registry.shared_surface_allowlist, ["listSystemTools", "callSystemTool"]);
 assert.equal(registry.oauth_client_contract.authorization_server, "https://auth.mad4b.com");
 assert.equal(registry.oauth_client_contract.activation_gateway_alias, true);
 assert.equal(registry.oauth_client_contract.consent_model, "one_client_resource_bound");
-assert.equal(GENERATED_SURFACES.length, 4, "registry must define four generated Core/Activation surfaces");
+assert.equal(GENERATED_SURFACES.length, 12, "registry must define four base and eight environment-specific generated surfaces");
+const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
+const environmentSurfaceKeys = baseSurfaceKeys.flatMap((base) => [
+  `${base}_production`,
+  `${base}_staging`,
+]);
+for (const key of [...baseSurfaceKeys, ...environmentSurfaceKeys]) assert(registry.surfaces[key], `registry must define ${key}`);
 for (const surface of GENERATED_SURFACES) {
-  assert.deepEqual(surface.selector?.source_markers, [surface.surfaceKey], `${surface.surfaceKey} must use its source marker as the selector`);
-  assert.equal(surface.candidate_policy?.mode, "marker_required");
-  assert.equal(surface.candidate_policy?.required_marker, surface.surfaceKey);
-  assert.equal(surface.candidate_policy?.omission, "fail");
+  const base = surface.base_surface ? registry.surfaces[surface.base_surface] : surface;
+  const effectiveSurface = { ...base, ...surface, selector: surface.selector || base.selector, candidate_policy: surface.candidate_policy || base.candidate_policy };
+  const expectedSourceMarker = surface.base_surface || surface.surfaceKey;
+  assert.deepEqual(effectiveSurface.selector?.source_markers, [expectedSourceMarker], `${surface.surfaceKey} must use its base source marker as the selector`);
+  assert.equal(effectiveSurface.candidate_policy?.mode, "marker_required");
+  assert.equal(effectiveSurface.candidate_policy?.required_marker, expectedSourceMarker);
+  assert.equal(effectiveSurface.candidate_policy?.omission, "fail");
 }
 assert.equal(registry.surfaces.admin_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.tenant_core.server_url, "https://auth.mad4b.com");
@@ -75,6 +87,14 @@ assert.equal(registry.surfaces.tenant_activation.oauth_endpoints.token_url, "htt
 assert.equal(registry.surfaces.tenant_activation.oauth_authority.authorization_server, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.tenant_activation.oauth_authority.gateway_alias, true);
 assert.equal(registry.surfaces.tenant_activation.oauth_authority.same_client_id, true);
+for (const surfaceKey of environmentSurfaceKeys) {
+  const surface = registry.surfaces[surfaceKey];
+  assert.equal(surface.mode, "generated_from_openapi");
+  assert(baseSurfaceKeys.includes(surface.base_surface), `${surfaceKey} must reference a base surface`);
+  assert(["production", "staging"].includes(surface.environment), `${surfaceKey} must declare a supported environment`);
+  assert(["auth", "activation"].includes(surface.domain_service), `${surfaceKey} must declare a supported domain service`);
+  assert.match(surface.output_file, /\.(production|staging)\.yaml$/u);
+}
 assert.equal(registry.surfaces.local_connector_admin.mode, "canonical_copy");
 assert.equal(registry.surfaces.local_connector_admin.server_url, "https://connector.mad4b.com");
 assert.equal(registry.gateway_policies.activation_gateway.upstream_origin, "https://auth.mad4b.com");
@@ -102,16 +122,22 @@ for (const entry of sourceMarkedOperations) {
 }
 
 for (const surface of GENERATED_SURFACES) {
+  const base = surface.base_surface ? registry.surfaces[surface.base_surface] : surface;
+  const effectiveSurface = { ...base, ...surface, selector: surface.selector || base.selector, candidate_policy: surface.candidate_policy || base.candidate_policy };
   const doc = loadYaml(surface.output_file);
   const operations = collectOperations(doc);
-  assert.equal(doc["x-custom-gpt-generation"]?.registry_version, 2, `${surface.surfaceKey} must carry registry provenance`);
+  assert.equal(doc["x-custom-gpt-generation"]?.registry_version, 3, `${surface.surfaceKey} must carry registry provenance`);
   assert.match(doc["x-custom-gpt-generation"]?.source_openapi_sha256 || "", /^[a-f0-9]{64}$/u);
   assert.match(doc["x-custom-gpt-generation"]?.registry_sha256 || "", /^[a-f0-9]{64}$/u);
   assert.equal(doc["x-custom-gpt-generation"]?.operation_count, operations.length);
   assert.equal(typeof doc["x-custom-gpt-generation"]?.warning_budget_exceeded, "boolean");
   assert(operations.length > 0, `${surface.output_file} must contain operations`);
-  assert.equal(doc.servers?.[0]?.url, surface.server_url, `${surface.surfaceKey} server must match registry`);
-  assert(operations.length <= surface.hard_operation_limit, `${surface.surfaceKey} must remain below its hard operation limit`);
+  assert.equal(doc.servers?.length, 1, `${surface.surfaceKey} must declare exactly one server`);
+  const expectedServer = surface.server_url || `https://${domainPolicy.environments[surface.environment].hostnames[surface.domain_service].hostname}`;
+  assert.equal(doc.servers?.[0]?.url, expectedServer, `${surface.surfaceKey} server must match domain-family policy`);
+  assert.equal(doc["x-custom-gpt-generation"]?.environment, surface.environment || "unspecified");
+  assert.match(doc["x-custom-gpt-generation"]?.domain_family_policy_sha256 || "", /^[a-f0-9]{64}$/u);
+  assert(operations.length <= effectiveSurface.hard_operation_limit, `${surface.surfaceKey} must remain below its hard operation limit`);
 
   for (const entry of operations) {
     const pair = `${entry.method.toUpperCase()} ${entry.pathKey}`;
@@ -145,6 +171,18 @@ assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authoriz
 assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://auth.mad4b.com/auth/oauth/token");
 assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://activation.mad4b.com/auth/oauth/authorize");
 assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
+for (const environment of ["production", "staging"]) {
+  const authHost = domainPolicy.environments[environment].hostnames.auth.hostname;
+  const activationHost = domainPolicy.environments[environment].hostnames.activation.hostname;
+  const tenantAuth = loadYaml(registry.surfaces[`tenant_core_${environment}`].output_file);
+  const tenantActivationVariant = loadYaml(registry.surfaces[`tenant_activation_${environment}`].output_file);
+  assert.equal(tenantAuth.servers[0].url, `https://${authHost}`);
+  assert.equal(tenantActivationVariant.servers[0].url, `https://${activationHost}`);
+  assert.equal(tenantAuth.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, `https://${authHost}/auth/oauth/authorize`);
+  assert.equal(tenantAuth.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, `https://${authHost}/auth/oauth/token`);
+  assert.equal(tenantActivationVariant.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, `https://${activationHost}/auth/oauth/authorize`);
+  assert.equal(tenantActivationVariant.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, `https://${activationHost}/auth/oauth/token`);
+}
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");
 assert(splitScript.includes("source_markers"), "split generator must support source marker selectors");
@@ -152,6 +190,9 @@ assert(splitScript.includes("validateSourceMarkerCoverage"), "split generator mu
 assert(splitScript.includes("validateCandidatePolicy"), "split generator must fail closed on candidate omission");
 assert(splitScript.includes("validateMarkerOverlapAllowlist"), "split generator must enforce shared marker allowlist");
 assert(splitScript.includes("source_openapi_sha256"), "split generator must stamp source provenance");
+assert(splitScript.includes("DOMAIN_FAMILY_POLICY_FILE"), "split generator must read the canonical domain-family policy");
+assert(splitScript.includes("resolveEnvironmentVariant"), "split generator must resolve environment-specific server URLs dynamically");
+assert(splitScript.includes("domain_family_policy_sha256"), "split generator must stamp domain-family provenance");
 assert(splitScript.includes("validateGeneratedDoc"), "split generator must validate generated operations against the source OpenAPI");
 assert(splitScript.includes("validateUniqueTenantAliases"), "split generator must reject duplicate tenant aliases");
 assert(splitScript.includes("selector.operation_ids") && splitScript.includes("selector.tenant_operation_ids") && splitScript.includes("selector.include_tags"));
