@@ -60,6 +60,7 @@
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/mcpCatalogSchemaGuard.js",
       "http-generic-api/server.js",
+      "http-generic-api/test-mcp-catalog-schema-guard.mjs",
       "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
       "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
       "http-generic-api/runtimeIntegrity.js",
@@ -233,6 +234,13 @@
               "args": []
             },
             {
+              "id": "spec020-mcp-catalog-schema-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mcp-catalog-schema-guard.mjs",
+              "args": []
+            },
+            {
               "id": "spec020-hostinger-production-runtime-readback-r7",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -305,6 +313,7 @@
             "http-generic-api/mcpCatalogSchemaGuard.js",
             "http-generic-api/routes/gptToolsRoutes.js",
             "http-generic-api/server.js",
+            "http-generic-api/test-mcp-catalog-schema-guard.mjs",
             "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
             "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
             "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
