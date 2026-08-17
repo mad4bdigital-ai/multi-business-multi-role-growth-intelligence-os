@@ -67,7 +67,7 @@ assert.match(automerge, /manual_count/u);
 assert.match(automerge, /automerge_allowed/u);
 assert.match(automerge, /test "\$\(jq -r '\.draft'/u);
 assert.match(automerge, /--match-head-commit/u);
-assert.doesNotMatch(automerge, /test .*stale_or_failed_artifact_count/u);
+assert.doesNotMatch(automerge, /jq -r '\.stale_or_failed_artifact_count'/u);
 
 assert.match(inventoryDispatch, /observability_premerge_mutation_forbidden/u);
 assert.match(inventoryDispatch, /feature-PR mutation intentionally suppressed/u);
