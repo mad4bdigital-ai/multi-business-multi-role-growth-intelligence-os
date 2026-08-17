@@ -9,6 +9,7 @@ param(
     [int]$PollSeconds = 300,
     [int]$EligibilityWaitSeconds = 1800,
     [switch]$NoTunnel,
+    [switch]$EnableActivationGateway,
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
     [switch]$SkipBuild
@@ -257,6 +258,7 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
         "TENANT_GPT_SSO_SIGNING_SECRET" = New-Secret
         "TOKEN_ENCRYPTION_KEY" = New-Secret
         "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET" = New-Secret
+        "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" = New-Secret
         "REMOTE_MCP_OAUTH_SIGNING_SECRET" = New-Secret
         "REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS" = "https://chatgpt.com,https://www.chatgpt.com,https://claude.ai,https://www.claude.ai"
     }
@@ -265,6 +267,11 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
         if ([string]::IsNullOrWhiteSpace($current) -or $current -match "change_me") { Set-EnvValue $envFile $key $generated[$key] }
     }
 
+    if ($EnableActivationGateway) {
+        Set-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "true"
+        Set-EnvValue $envFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
+        Set-EnvValue $envFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
+    }
     if ($NoTunnel) {
         Set-EnvValue $envFile "CLOUDFLARE_TUNNEL_ENABLED" "false"
     } else {
@@ -412,8 +419,8 @@ $statePath = Join-Path $scriptRoot "one-click-state.json"
     hostinger_mutation = $false
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
 } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 -LiteralPath $statePath
-Write-Host "AUTO_PILOT_ONE_CLICK_COMPLETE: staging=$repo commit=$sha tunnel=$(-not $NoTunnel) auto_deploy=$(-not $NoAutoDeploy) database_seed=$databaseState"
+Write-Host "AUTO_PILOT_ONE_CLICK_COMPLETE: staging=$repo commit=$sha tunnel=$(-not $NoTunnel) activation_gateway=$EnableActivationGateway auto_deploy=$(-not $NoAutoDeploy) database_seed=$databaseState"
 Write-Host "URLs: https://dev.mad4b.com | https://mcp_dev.mad4b.com"
 Write-Host "OpenAPI: Tenant/Admin on dev.mad4b.com; Remote MCP on mcp_dev.mad4b.com"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "one-click staging completed" -Data @{ sha = $sha; repository_path = $repo; database_seed = $databaseState }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "one-click staging completed" -Data @{ sha = $sha; repository_path = $repo; database_seed = $databaseState; activation_gateway = [bool]$EnableActivationGateway }
 Write-Host "AUTO_PILOT_LOG: $(Get-StagingLogRoot)"

@@ -19,6 +19,8 @@ assert.equal(policy.enforcement_mode, "fail_closed");
 assert.equal(policy.routing_authority.staging_ingress_source_of_truth, "cloudflare_remote_tunnel_configuration");
 assert.equal(policy.routing_authority.staging_env_hostname_role, "declaration_only");
 assert.equal(policy.routing_authority.staging_origin_source_of_truth, "docker_compose_app_service");
+assert.equal(policy.routing_authority.production_dns_source_of_truth, "cloudflare_dns_and_hostinger_edge");
+assert.equal(policy.routing_authority.production_dns_record_type_invariant, "proxied_allowed_set_to_hostinger_production");
 assert.equal(policy.routing_authority.provider_mutation_required_to_activate, true);
 assert.equal(policy.routing_authority.mismatch_action, "deny_and_do_not_fallback");
 assert.deepEqual(policy.default_route, {
@@ -35,6 +37,13 @@ assert.deepEqual(productionNames, ["auth.mad4b.com", "mcp.mad4b.com", "activatio
 assert.deepEqual(stagingNames, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"]);
 assert.equal(new Set([...productionNames, ...stagingNames]).size, 6);
 assert.equal(production.some((entry) => entry.origin_kind !== "hostinger_production"), false);
+for (const entry of production) {
+  assert.equal(entry.dns_proxy_required, true);
+  assert.equal(entry.dns_record_type_role, "preferred_not_exclusive");
+  assert.equal(entry.dns_record_type_enforcement, "allowed_set");
+  assert.deepEqual(entry.dns_record_types_allowed, ["A", "CNAME"]);
+  assert.equal(entry.dns_record_types_allowed.includes(entry.dns_record_type), true);
+}
 assert.equal(staging.filter((entry) => entry.service !== "activation").some((entry) => entry.origin_kind !== "local_staging_app"), false);
 assert.equal(policy.environments.staging.hostnames.activation.origin_kind, "cloudflare_worker_staging");
 assert.equal(policy.environments.staging.hostnames.auth.exposure_status, "active_opt_in");

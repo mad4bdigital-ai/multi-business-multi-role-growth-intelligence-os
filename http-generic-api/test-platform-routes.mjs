@@ -51,6 +51,8 @@ function ok(label, condition, detail = "") {
 function section(name) { console.log(`\n== ${name}`); }
 
 // ── Build Express app with all tested routers ─────────────────────────────────
+// This test intentionally exercises forwarded-host routing; production defaults remain fail-closed.
+process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
 const DEPS = { requireBackendApiKey: (_req, _res, next) => next() };
 const HEALTH_DEPS = {

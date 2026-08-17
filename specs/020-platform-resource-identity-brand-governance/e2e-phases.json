@@ -14,6 +14,7 @@
       "http-generic-api/test-platform-resource-identity-contract.mjs",
       "http-generic-api/test-platform-operation-governance-contract.mjs",
       "http-generic-api/test-openapi-projection-readiness.mjs",
+      "http-generic-api/test-openapi-route-coverage.mjs",
       "http-generic-api/test-openapi-detail-gap-classification.mjs",
       "http-generic-api/test-openapi-gap-closure-plan.mjs",
       "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
@@ -70,7 +71,8 @@
             "Resolve exact, probable, none, conflict, and ambiguous Brand candidates.",
             "Validate tenant filtering and identity-only disclosure.",
             "Validate internal, external, destructive, and commercial operation effect floors.",
-            "Verify caller input cannot lower registered risk or approval."
+            "Verify caller input cannot lower registered risk or approval.",
+            "Re-run the governed OpenAPI projection and work-map integration readback with route wiring, runtime authority, database mutation, provider call, migration apply, and Production activation disabled."
           ],
           "assertions": [
             "No identity or relationship result implies authority.",
@@ -99,6 +101,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-openapi-projection-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-openapi-route-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-route-coverage.mjs",
               "args": []
             },
             {
@@ -145,8 +154,10 @@
             "http-generic-api/platformOperationGovernanceContract.js",
             "http-generic-api/test-platform-resource-identity-contract.mjs",
             "http-generic-api/test-platform-operation-governance-contract.mjs",
-            "http-generic-api/test-openapi-projection-readiness.mjs",
-            "http-generic-api/test-openapi-detail-gap-classification.mjs",
+                    "http-generic-api/test-openapi-projection-readiness.mjs",
+        "http-generic-api/test-openapi-route-coverage.mjs",
+        "http-generic-api/test-openapi-detail-gap-classification.mjs",
+
             "http-generic-api/test-openapi-gap-closure-plan.mjs",
             "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
             "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
@@ -177,8 +188,10 @@
             "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
             "http-generic-api/frontend-surface-policy.json",
             "http-generic-api/scripts/frontend-surface-dispatch.mjs",
-            "http-generic-api/test-frontend-surface-coverage-claims.mjs"
-          ]
+            "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json"
+          ],
+          "secrets_included": false
         }
       ]
     },

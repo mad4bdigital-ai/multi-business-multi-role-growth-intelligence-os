@@ -125,6 +125,41 @@ function Read-EnvValue([string]$Path, [string]$Name) {
     if (-not $line) { Fail "Missing $Name in .env.staging" }
     return $line -replace "^$([regex]::Escape($Name))=", ""
 }
+function Ensure-EnvDefault([string]$Path, [string]$Name, [string]$Value) {
+    $text = Get-Content -LiteralPath $Path -Raw
+    $pattern = "(?im)^$([regex]::Escape($Name))=.*$"
+    $matches = [regex]::Matches($text, $pattern)
+    if ($matches.Count -gt 1) { Fail "Duplicate environment key is forbidden: $Name" }
+    if ($matches.Count -eq 0) {
+        $text = $text.TrimEnd() + "`r`n$Name=$Value`r`n"
+    } elseif ([string]::IsNullOrWhiteSpace(($matches[0].Value -replace "^[^=]+=", ""))) {
+        $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
+    }
+    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+}
+function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
+    if ($Value -match '[\r\n]') { Fail "Invalid newline in environment value: $Name" }
+    $text = Get-Content -LiteralPath $Path -Raw
+    $pattern = "(?im)^$([regex]::Escape($Name))=.*$"
+    $matches = [regex]::Matches($text, $pattern)
+    if ($matches.Count -gt 1) { Fail "Duplicate environment key is forbidden: $Name" }
+    if ($matches.Count -eq 0) {
+        $text = $text.TrimEnd() + "`r`n$Name=$Value`r`n"
+    } else {
+        $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
+    }
+    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+}
+function Quarantine-KnownBackupFiles([string]$RepoPath) {
+    $backupRoot = Join-Path $env:USERPROFILE "MAD4B-Staging-Backups"
+    $backupFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepoPath "autopilot-portable-staging") -Filter "*.backup" -File -ErrorAction SilentlyContinue)
+    foreach ($file in $backupFiles) {
+        New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+        $destination = Join-Path $backupRoot ("{0}-{1}{2}" -f $file.BaseName, (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss"), $file.Extension)
+        Move-Item -LiteralPath $file.FullName -Destination $destination -Force
+        Write-StagingLog -Level warn -Component $LogComponent -Stage "working-tree" -Message "quarantined known AutoPilot backup outside repository" -Data @{ source = $file.Name; destination = $destination }
+    }
+}
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($RepositoryPath)) {
@@ -165,6 +200,7 @@ if ([string]::IsNullOrWhiteSpace($dockerServer)) { Fail "Docker daemon is not re
 
     Push-Location $RepositoryPath
 try {
+    Quarantine-KnownBackupFiles $RepositoryPath
     Repair-ManifestLineEndings $RepositoryPath
     $dirty = @(git status --porcelain --untracked-files=all)
     if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
@@ -216,17 +252,24 @@ try {
         "TENANT_GPT_SSO_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
         "TOKEN_ENCRYPTION_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
         "REMOTE_MCP_OAUTH_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
     }
     $envText = Get-Content -Raw $EnvFile
     foreach ($key in $generatedLocalSecrets.Keys) {
         if ($envText -notmatch "(?im)^$([regex]::Escape($key))=") {
             $envText = $envText.TrimEnd() + "`r`n$key=$($generatedLocalSecrets[$key])`r`n"
-        } elseif ($envText -match "(?im)^$([regex]::Escape($key))=local_[^\r\n]*change_me\s*$") {
+        } elseif ($envText -match "(?im)^$([regex]::Escape($key))=\s*$" -or $envText -match "(?im)^$([regex]::Escape($key))=local_[^\r\n]*change_me\s*$") {
             $envText = [regex]::Replace($envText, "(?im)^$([regex]::Escape($key))=.*$", "$key=$($generatedLocalSecrets[$key])")
         }
     }
     Set-Content -Encoding utf8 $EnvFile $envText
-
+    Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
+    Ensure-EnvDefault $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
+    Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
+    # Keep runtime deployment readback bound to the immutable commit selected above.
+    Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
+    Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
+    Set-EnvValue $EnvFile "DEPLOY_BRANCH" $Ref
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $StartTunnel) { Fail "StartTunnel requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }

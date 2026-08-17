@@ -39,7 +39,15 @@ Set-Location M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os
 .\Start-AutoPilot.ps1 -ExpectedCommit <exact-main-sha>
 ```
 
-The first normal run creates `http-generic-api\.env.staging` with local-only database passwords and a local API key. It never fills `CLOUDFLARE_TUNNEL_TOKEN`; that value must be placed manually in the ignored `.env.staging` only after the dedicated Dev Tunnel has been created.
+The first normal run creates `http-generic-api\.env.staging` with local-only database passwords, API keys, MCP signing material, and a separate Activation OAuth client secret. It also repairs missing non-secret Activation host defaults without overwriting non-empty values. It never fills `CLOUDFLARE_TUNNEL_TOKEN`; that value must be placed manually in the ignored `.env.staging` only after the dedicated Dev Tunnel has been created. Secrets are never printed to logs or responses.
+
+To enable the independent Staging Activation Gateway explicitly through the reusable one-click path, use:
+
+```powershell
+.\One-Click-Staging.ps1 -Mode Install -RepositoryPath M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os -EnableActivationGateway
+```
+
+This sets only `ACTIVATION_STAGING_GATEWAY_ENABLED=true`, `ACTIVATION_HOST_GATEWAY_HOST=activation-dev.mad4b.com`, and `ACTIVATION_STAGING_AUTH_HOST=activation-dev.mad4b.com` in the ignored local env file. The Activation hostname is served by its independent Worker; it is never added to the Tunnel allowlist.
 
 ## Auto Deploy from main
 
@@ -68,7 +76,7 @@ Remove the watcher without stopping Staging with `Uninstall-AutoDeployTask.ps1`;
 
 ## Dev Tunnel
 
-Before exposing anything publicly, configure one dedicated Cloudflare Tunnel identity for Staging with two active opt-in ingress hostnames: `dev.mad4b.com` and `mcp_dev.mad4b.com`, both targeting `http://app:8080`. The remote configuration must have an explicit unmatched-hostname fallback that denies traffic. Do not create ingress for `activation-dev.mad4b.com`; it remains reserved-disabled until its independent gateway bundle exists.
+Before exposing anything publicly, configure one dedicated Cloudflare Tunnel identity for Staging with two active opt-in ingress hostnames: `dev.mad4b.com` and `mcp_dev.mad4b.com`, both targeting `http://app:8080`. The remote configuration must have an explicit unmatched-hostname fallback that denies traffic. `activation-dev.mad4b.com` is deliberately excluded from the Tunnel because it is served by the independent `mad4b-activation-gateway-staging` Worker.
 
 After the remote configuration has been reviewed, put only the Staging tunnel token in the ignored `.env.staging`, then run:
 
@@ -88,4 +96,4 @@ Stop the local services without deleting SSD data:
 
 Do not use `docker compose down -v` unless you intentionally want to delete the bind-mounted Redis, app, Runtime DB, Governance DB, and Persistence DB data. If the SSD is moved to another Windows machine, run `-ValidateOnly` first; the launcher will stop on Docker/WSL2/context/commit/manifest mismatch instead of modifying the environment.
 
-Production remains on Hostinger Cloud and never uses the local `.env.staging`, local bind mounts, Staging tunnel token, or Staging Tunnel identity. `mcp.mad4b.com`, `activation.mad4b.com`, and `auth.mad4b.com` are not valid local targets. `activation-dev.mad4b.com` is also not a valid target until its independent gateway bundle exists.
+Production remains on Hostinger Cloud and never uses the local `.env.staging`, local bind mounts, Staging tunnel token, or Staging Tunnel identity. `mcp.mad4b.com`, `activation.mad4b.com`, and `auth.mad4b.com` are not valid local targets. `activation-dev.mad4b.com` is valid only through the independent Staging Activation Gateway Worker, not through the local Tunnel.

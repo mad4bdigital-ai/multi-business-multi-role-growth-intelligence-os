@@ -1,50 +1,23 @@
 import {
   REMOTE_MCP_RESOURCE,
-  envFlag,
   normalizeRemoteMcpResource,
 } from "./remoteMcpOAuthProfile.js";
-
-function headerValue(headers, name) {
-  if (!headers || typeof headers !== "object") return "";
-  const lowered = String(name || "").toLowerCase();
-  for (const [key, value] of Object.entries(headers)) {
-    if (String(key).toLowerCase() !== lowered) continue;
-    if (Array.isArray(value)) return value.length === 1 ? String(value[0] ?? "") : "";
-    return String(value ?? "");
-  }
-  return "";
-}
+import {
+  normalizeTrustedRequestHost,
+  resolveTrustedRequestHost,
+  trustedProxyHostHeadersEnabled,
+} from "./trustedRequestHost.js";
 
 export function normalizeRemoteMcpRequestHost(value) {
-  const raw = String(value || "").trim();
-  if (!raw || raw.includes(",") || /[\s/?#@\\]/u.test(raw)) return "";
-  try {
-    const url = new URL(`https://${raw}`);
-    if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) return "";
-    return url.hostname.toLowerCase();
-  } catch {
-    return "";
-  }
+  return normalizeTrustedRequestHost(value);
 }
 
 export function remoteMcpTrustedProxyHostHeadersEnabled(env = process.env) {
-  return envFlag(env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS);
+  return trustedProxyHostHeadersEnabled(env);
 }
 
 export function resolveRemoteMcpEffectiveRequestHost(requestOrHeaders = {}, env = process.env) {
-  const headers = requestOrHeaders?.headers || requestOrHeaders || {};
-
-  if (remoteMcpTrustedProxyHostHeadersEnabled(env)) {
-    const originalHost = headerValue(headers, "x-original-host");
-    if (originalHost) return normalizeRemoteMcpRequestHost(originalHost);
-
-    const forwardedHost = headerValue(headers, "x-forwarded-host");
-    if (forwardedHost) return normalizeRemoteMcpRequestHost(forwardedHost);
-  }
-
-  return normalizeRemoteMcpRequestHost(
-    headerValue(headers, ":authority") || headerValue(headers, "host"),
-  );
+  return resolveTrustedRequestHost(requestOrHeaders, env);
 }
 
 export function resolveRemoteMcpConfiguredResource(env = process.env) {

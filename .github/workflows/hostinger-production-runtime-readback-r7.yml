@@ -1,6 +1,8 @@
 name: Hostinger Production Runtime Readback R7
 
 on:
+  push:
+    branches: [Production]
   issue_comment:
     types: [created]
 
@@ -13,34 +15,50 @@ concurrency:
 
 jobs:
   readback:
-    name: Verify exact protected Production runtime through public GET
+    name: Verify exact protected Production runtime through public protocol probes
     if: >-
-      github.event.issue.pull_request != null &&
-      github.event.comment.user.id == 271942579 &&
-      startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=')
+      (github.event_name == 'push' && github.ref == 'refs/heads/Production') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       github.event.comment.user.id == 271942579 &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha='))
     permissions:
       contents: read
       pull-requests: read
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
+      EVENT_NAME: ${{ github.event_name }}
+      EVENT_REF: ${{ github.ref }}
+      EVENT_SHA: ${{ github.sha }}
       AUTHORIZATION_USER_ID: '271942579'
       TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7
       EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
-      EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+      EVENT_COMMENT_ID: ${{ github.event.comment.id || '' }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
     steps:
       - name: Resolve immutable trigger identity
         id: trigger
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
-          if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_production_sha=([0-9a-f]{40})$ ]]; then
-            echo "Invalid R7 trigger format." >&2
-            exit 1
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            test "${EVENT_REF}" = "refs/heads/Production"
+            if [[ ! "${EVENT_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Invalid Production push SHA." >&2
+              exit 1
+            fi
+            echo "expected_production_sha=${EVENT_SHA}" >> "${GITHUB_OUTPUT}"
+            echo "trigger_mode=production_push" >> "${GITHUB_OUTPUT}"
+          else
+            test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+            if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_production_sha=([0-9a-f]{40})$ ]]; then
+              echo "Invalid R7 trigger format." >&2
+              exit 1
+            fi
+            echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+            echo "trigger_mode=authorized_comment" >> "${GITHUB_OUTPUT}"
           fi
-          echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
 
       - name: Initialize bounded report directory after runner allocation
         shell: bash
@@ -70,7 +88,11 @@ jobs:
           [[ "${remote_main_sha}" =~ ^[0-9a-f]{40}$ ]]
           test "${remote_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
           git fetch --no-tags origin "${remote_main_sha}"
-          git merge-base --is-ancestor "${GITHUB_SHA}" "${remote_main_sha}"
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            test "${GITHUB_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
+          else
+            git merge-base --is-ancestor "${GITHUB_SHA}" "${remote_main_sha}"
+          fi
           echo "tooling_sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
           echo "observed_main_sha=${remote_main_sha}" >> "${GITHUB_OUTPUT}"
           echo "observed_production_sha=${remote_production_sha}" >> "${GITHUB_OUTPUT}"
@@ -85,16 +107,8 @@ jobs:
           set -Eeuo pipefail
           mkdir -p "${REPORT_DIR}"
 
-          fetch_endpoint() {
-            local name="$1" url="$2" raw="${REPORT_DIR}/${1}.raw" safe="${REPORT_DIR}/${1}.json"
-            local status rc
-            set +e
-            status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
-              --proto '=https' --tlsv1.2 --header 'accept: application/json' \
-              --output "${raw}" --write-out '%{http_code}' "${url}")"
-            rc=$?
-            set -e
-            [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
+          persist_bounded_json() {
+            local name="$1" url="$2" raw="$3" status="$4" rc="$5" safe="${REPORT_DIR}/${1}.json"
             printf '%s\n' "${status}" > "${REPORT_DIR}/${name}.http-status"
             printf '%s\n' "${rc}" > "${REPORT_DIR}/${name}.curl-exit"
             if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
@@ -106,11 +120,24 @@ jobs:
             rm -f "${raw}"
           }
 
+          fetch_endpoint() {
+            local name="$1" url="$2" raw="${REPORT_DIR}/${1}.raw"
+            local status rc
+            set +e
+            status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
+              --proto '=https' --tlsv1.2 --header 'accept: application/json' \
+              --output "${raw}" --write-out '%{http_code}' "${url}")"
+            rc=$?
+            set -e
+            [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
+            persist_bounded_json "${name}" "${url}" "${raw}" "${status}" "${rc}"
+          }
           fetch_endpoint health https://auth.mad4b.com/health
           fetch_endpoint version https://auth.mad4b.com/version
           fetch_endpoint deployment-info https://auth.mad4b.com/deployment-info
           fetch_endpoint connector-agent-version https://auth.mad4b.com/connector-agent/version
-
+          fetch_endpoint mcp-protected-resource https://mcp.mad4b.com/.well-known/oauth-protected-resource
+          fetch_endpoint mcp-authorization-server https://auth.mad4b.com/.well-known/oauth-authorization-server/auth/mcp
           node --input-type=module - "${REPORT_DIR}" "${EXPECTED_PRODUCTION_SHA}" <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
@@ -124,33 +151,64 @@ jobs:
             else if (typeof value === 'string' && /^[0-9a-f]{40}$/i.test(value.trim())) found.add(value.trim().toLowerCase());
             return [...found];
           };
+          const errorCode = (value) => String(value?.error?.code || '');
 
           const health = readJson('health');
           const version = readJson('version');
           const deployment = readJson('deployment-info');
           const connector = readJson('connector-agent-version');
+          const protectedResource = readJson('mcp-protected-resource');
+          const authorizationServer = readJson('mcp-authorization-server');
           const statuses = {
             health: readStatus('health'),
             version: readStatus('version'),
             deployment_info: readStatus('deployment-info'),
             connector_agent_version: readStatus('connector-agent-version'),
+            mcp_protected_resource: readStatus('mcp-protected-resource'),
+            mcp_authorization_server: readStatus('mcp-authorization-server'),
           };
           const manifest = deployment?.deployment && typeof deployment.deployment === 'object' ? deployment.deployment : {};
           const runtimeSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || '').toLowerCase();
           const runtimeBranch = String(deployment?.branch || manifest?.branch || '');
           const versionShas = collectShas(version);
+          const identityStatuses = [statuses.health, statuses.version, statuses.deployment_info, statuses.connector_agent_version];
+          const identityHttpSuccess = identityStatuses.every((status) => status === 200);
           const allHttpSuccess = Object.values(statuses).every((status) => status === 200);
           const versionShaExact = versionShas.includes(expectedSha);
           const deploymentShaExact = runtimeSha === expectedSha;
           const branchExact = runtimeBranch === 'Production';
-          const productionCurrent = allHttpSuccess && versionShaExact && deploymentShaExact && branchExact;
+          const expectedResource = 'https://mcp.mad4b.com';
+          const expectedIssuer = 'https://auth.mad4b.com/auth/mcp';
+          const protectedResourceReady = statuses.mcp_protected_resource === 200
+            && protectedResource?.resource === expectedResource
+            && Array.isArray(protectedResource?.authorization_servers)
+            && protectedResource.authorization_servers.includes(expectedIssuer)
+            && protectedResource?.trusted_ingress?.ready === true;
+          const authorizationServerReady = statuses.mcp_authorization_server === 200
+            && authorizationServer?.issuer === expectedIssuer
+            && authorizationServer?.authorization_endpoint === `${expectedIssuer}/oauth/authorize`
+            && authorizationServer?.token_endpoint === `${expectedIssuer}/oauth/token`
+            && authorizationServer?.trusted_ingress?.ready === true;
+          const trustedIngressAttestationRequired = [protectedResource, authorizationServer]
+            .some((body) => errorCode(body) === 'TRUSTED_INGRESS_ATTESTATION_REQUIRED');
+          const oauthDiscoveryReady = protectedResourceReady && authorizationServerReady;
+          const productionCurrent = identityHttpSuccess
+            && versionShaExact
+            && deploymentShaExact
+            && branchExact
+            && oauthDiscoveryReady
+            ;
           const classification = productionCurrent
             ? 'production_current'
-            : versionShaExact && deploymentShaExact && !branchExact
-              ? 'runtime_sha_current_branch_provenance_mismatch'
-              : !versionShaExact || !deploymentShaExact
-                ? 'runtime_activation_pending_or_sha_mismatch'
-                : 'runtime_parity_incomplete';
+            : trustedIngressAttestationRequired
+              ? 'trusted_ingress_attestation_required'
+              : versionShaExact && deploymentShaExact && !branchExact
+                ? 'runtime_sha_current_branch_provenance_mismatch'
+                : !identityHttpSuccess || !versionShaExact || !deploymentShaExact
+                  ? 'runtime_activation_pending_or_sha_mismatch'
+                  : !oauthDiscoveryReady
+                    ? 'oauth_discovery_not_ready'
+                    : 'runtime_parity_incomplete';
 
           const report = {
             contract: 'mad4b.hostinger-production-runtime-readback-r7.v1',
@@ -167,8 +225,22 @@ jobs:
               deployment_branch: runtimeBranch || null,
               deployment_branch_source: String(deployment?.branch_source || manifest?.branch_source || '') || null,
               deployed_at: String(deployment?.deployed_at || manifest?.deployed_at || '') || null,
+              protected_resource_error_code: errorCode(protectedResource) || null,
+              authorization_server_error_code: errorCode(authorizationServer) || null,
+              protected_resource_trusted_ingress_ready: protectedResource?.trusted_ingress?.ready ?? null,
+              authorization_server_trusted_ingress_ready: authorizationServer?.trusted_ingress?.ready ?? null,
             },
-            checks: { all_http_success: allHttpSuccess, version_sha_exact: versionShaExact, deployment_sha_exact: deploymentShaExact, branch_exact: branchExact },
+            checks: {
+              identity_http_success: identityHttpSuccess,
+              all_http_success: allHttpSuccess,
+              version_sha_exact: versionShaExact,
+              deployment_sha_exact: deploymentShaExact,
+              branch_exact: branchExact,
+              trusted_ingress_attestation_required: trustedIngressAttestationRequired,
+              oauth_protected_resource_ready: protectedResourceReady,
+              oauth_authorization_server_ready: authorizationServerReady,
+              oauth_discovery_ready: oauthDiscoveryReady,
+            },
             classification,
             production_current: productionCurrent,
             public_get_only: true,
@@ -206,6 +278,7 @@ jobs:
         env:
           EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
           TOOLING_SHA: ${{ steps.identity.outputs.tooling_sha }}
+          TRIGGER_MODE: ${{ steps.trigger.outputs.trigger_mode }}
           OBSERVED_MAIN_SHA: ${{ steps.identity.outputs.observed_main_sha }}
           OBSERVED_PRODUCTION_SHA: ${{ steps.identity.outputs.observed_production_sha }}
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
@@ -224,13 +297,16 @@ jobs:
           version_status="$(jq -r '.statuses.version // 0' "${summary}")"
           deployment_status="$(jq -r '.statuses.deployment_info // 0' "${summary}")"
           connector_status="$(jq -r '.statuses.connector_agent_version // 0' "${summary}")"
+          protected_status="$(jq -r '.statuses.mcp_protected_resource // 0' "${summary}")"
+          authorization_status="$(jq -r '.statuses.mcp_authorization_server // 0' "${summary}")"
           runtime_sha="$(jq -r '.observations.deployment_commit_sha // "unverified"' "${summary}")"
           runtime_branch="$(jq -r '.observations.deployment_branch // "unverified"' "${summary}")"
           {
             echo "# Hostinger Production Runtime Readback R7"
             echo
             echo "- Run: \`${GITHUB_RUN_ID}\`"
-            echo "- Trigger comment: \`${EVENT_COMMENT_ID}\`"
+            echo "- Trigger mode: \`${TRIGGER_MODE:-unknown}\`"
+            echo "- Trigger comment: \`${EVENT_COMMENT_ID:-none}\`"
             echo "- Tooling SHA: \`${TOOLING_SHA:-unresolved}\`"
             echo "- Observed main SHA: \`${OBSERVED_MAIN_SHA:-unresolved}\`"
             echo "- Expected Production SHA: \`${EXPECTED_PRODUCTION_SHA}\`"
@@ -240,10 +316,12 @@ jobs:
             echo "- Runtime SHA: \`${runtime_sha}\`"
             echo "- Runtime branch: \`${runtime_branch}\`"
             echo "- HTTP health/version/deployment/connector: \`${health_status}/${version_status}/${deployment_status}/${connector_status}\`"
+            echo "- HTTP MCP protected-resource/authorization-server: \`${protected_status}/${authorization_status}\`"
             echo "- Collect outcome: \`${COLLECT_OUTCOME}\`"
             echo "- Repository mutation: \`false\`"
             echo "- Provider mutation: \`false\`"
             echo "- Deployment: \`false\`"
+            echo "- Authenticated request: \`false\`"
             echo "- SQL / Migration Apply: \`false / false\`"
             echo "- Secrets included: \`false\`"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -269,6 +347,8 @@ jobs:
             .contract == "mad4b.hostinger-production-runtime-readback-r7.v1" and
             .production_current == true and
             .classification == "production_current" and
+            .checks.identity_http_success == true and
+            .checks.oauth_discovery_ready == true and
             .public_get_only == true and
             .repository_content_mutation_performed == false and
             .repository_issue_comment_authorized == false and

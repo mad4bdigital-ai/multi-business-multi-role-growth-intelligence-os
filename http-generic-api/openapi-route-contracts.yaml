@@ -1,5 +1,19 @@
 # Canonical precise route contracts consumed by the governed OpenAPI maintenance sync.
 contracts:
+  POST /admin/act-as-user/sessions:
+    route_file: 'routes/gptToolsRoutes.js'
+    path_item_ref: './openapi/openapi.custom-gpt.staging-act-as-user-control.yaml#/paths/~1admin~1act-as-user~1sessions'
+    owner: staging_act_as_user_control
+    exposure: admin_tool
+    notes: Precise contract for bounded Staging Act-as-User session creation; authority, tenant, role, capability intersection, and fail-closed runtime checks remain server-side.
+
+  POST /admin/act-as-user/sessions/{sessionId}/revoke:
+    route_file: 'routes/gptToolsRoutes.js'
+    path_item_ref: './openapi/openapi.custom-gpt.staging-act-as-user-control.yaml#/paths/~1admin~1act-as-user~1sessions~1{sessionId}~1revoke'
+    owner: staging_act_as_user_control
+    exposure: admin_tool
+    notes: Precise contract for bounded Act-as-User session revocation; no provider mutation, database migration, or secret output is authorized by the contract.
+
   POST /admin/container-authority/override-governance-smokes:
     route_file: 'routes/dynamicContainerOverrideGovernanceSmokeRoutes.js'
     path_item_ref: './openapi/container-authority-override-governance-smoke.yaml#/adminContainerAuthorityOverrideGovernanceSmokes'
