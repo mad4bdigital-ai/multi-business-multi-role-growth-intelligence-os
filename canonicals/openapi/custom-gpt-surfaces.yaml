@@ -1,4 +1,4 @@
-version: 3
+version: 2
 source_openapi: http-generic-api/openapi.yaml
 shared_surface_allowlist:
   - listSystemTools
