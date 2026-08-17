@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       "specs/020-platform-resource-identity-brand-governance/**",
+      "docs/custom-gpt-environment-routing-instructions.md",
+      "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
       "http-generic-api/platformResourceIdentityContract.js",
       "http-generic-api/brandIdentityResolver.js",
       "http-generic-api/platformOperationGovernanceContract.js",
