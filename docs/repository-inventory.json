@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7155,
-    "bytes": 69841022,
+    "bytes": 69841024,
     "lines": 1640808,
     "directories": 265,
     "categories": 13
@@ -38992,9 +38992,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3474185,
+      "bytes": 3474187,
       "lines": 97972,
-      "sha256": "8bb09c182dee1aa8654bc73b3c2ba346170efa67095334be15a23c4fc2715250",
+      "sha256": "cbca04520ea302df8589e1db1d1103c50c0fcfc49790f736ec46ea5ed9baeeed",
       "mode": "644",
       "executable": false,
       "generated": false
