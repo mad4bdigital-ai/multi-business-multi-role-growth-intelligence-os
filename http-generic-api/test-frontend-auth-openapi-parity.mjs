@@ -104,6 +104,16 @@ assert.equal(operation("GET /connector-agent/installer.ps1").auth_parity.state, 
 assert.equal(operation("POST /connector-agent/heartbeat").runtime_auth.profile, "connector_bearer");
 assert.equal(operation("POST /connector-agent/heartbeat").auth_parity.state, "equivalent");
 
+for (const signature of [
+  "POST /admin/act-as-user/sessions",
+  "POST /admin/act-as-user/sessions/{sessionId}/revoke",
+]) {
+  const entry = operation(signature, "routes/gptToolsRoutes.js");
+  assert.equal(entry.runtime_auth.profile, "backend_api_key_surface", `${signature} must use the published backend API-key surface profile`);
+  assert.deepEqual(entry.runtime_auth.alternatives, [["backendApiKeyAuth"]]);
+  assert.equal(entry.auth_parity.state, "equivalent", `${signature} must have complete published OpenAPI parity`);
+}
+
 const resourceMutationSignatures = [
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",

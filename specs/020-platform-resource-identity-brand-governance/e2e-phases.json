@@ -13,6 +13,7 @@
       "http-generic-api/scripts/split-openapi.mjs",
       "http-generic-api/test-openapi-split-governance.mjs",
       "http-generic-api/test-openapi-security-scheme-cardinality.mjs",
+      "http-generic-api/test-frontend-auth-openapi-parity.mjs",
       "http-generic-api/test-openapi-split-regeneration-parity.mjs",
       "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "http-generic-api/platformResourceIdentityContract.js",
@@ -189,6 +190,13 @@
               "args": []
             },
             {
+              "id": "spec020-frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            },
+            {
               "id": "spec020-frontend-surface-coverage-claims",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -218,6 +226,7 @@
             "http-generic-api/scripts/split-openapi.mjs",
             "http-generic-api/test-openapi-split-governance.mjs",
             "http-generic-api/test-openapi-security-scheme-cardinality.mjs",
+            "http-generic-api/test-frontend-auth-openapi-parity.mjs",
             "http-generic-api/test-openapi-split-regeneration-parity.mjs",
             "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
             "specs/020-platform-resource-identity-brand-governance/completion.json",

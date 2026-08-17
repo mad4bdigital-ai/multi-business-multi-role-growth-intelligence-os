@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,152 |
-| Total bytes | 69,786,331 |
-| Counted text lines | 1,639,630 |
+| Total bytes | 69,797,423 |
+| Counted text lines | 1,639,883 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -92,17 +92,17 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,468,897 | 97845 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,185 | 97972 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,027 | 58546 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 991,444 | 23015 |
-| `http-generic-api/frontend-surface-policy.json` | api-runtime | 607,641 | 11495 |
+| `http-generic-api/frontend-surface-policy.json` | api-runtime | 610,355 | 11546 |
 | `edge/activation-gateway/worker-configuration.d.ts` | connectors-and-edge | 573,853 | 15183 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json` | api-contracts | 407,307 | 11364 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json` | api-contracts | 291,182 | 7445 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
-| `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 267,732 | 6356 |
+| `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 269,236 | 6392 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `docs/governance/configuration-drift-policy.json` | documentation | 245,456 | 2099 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |

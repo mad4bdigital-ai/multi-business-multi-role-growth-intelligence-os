@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7152,
-    "bytes": 69786331,
-    "lines": 1639630,
+    "bytes": 69797423,
+    "lines": 1639883,
     "directories": 265,
     "categories": 13
   },
@@ -258,8 +258,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3468897,
-      "lines": 97845
+      "bytes": 3474185,
+      "lines": 97972
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -282,8 +282,8 @@
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 607641,
-      "lines": 11495
+      "bytes": 610355,
+      "lines": 11546
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -318,8 +318,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 267732,
-      "lines": 6356
+      "bytes": 269236,
+      "lines": 6392
     },
     {
       "path": "docs/surface-contract-safety-attestations.json",

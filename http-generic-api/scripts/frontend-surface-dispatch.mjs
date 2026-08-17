@@ -40,6 +40,7 @@ const AUTH_PROFILES = {
   user_jwt: { alternatives: [["userJwtAuth"]], principal: "tenant_user", configuration_dependencies: ["JWT_SECRET"] },
   admin_backend: { alternatives: [["adminBearerAuth"], ["backendApiKeyAuth"]], principal: "admin", configuration_dependencies: ["BACKEND_API_KEY"] },
   backend_or_user: { alternatives: [["backendBearerAuth"], ["backendApiKeyAuth"]], principal: "authenticated", configuration_dependencies: ["BACKEND_API_KEY", "JWT_SECRET"] },
+  backend_api_key_surface: { alternatives: [["backendApiKeyAuth"]], principal: "admin", configuration_dependencies: ["BACKEND_API_KEY"] },
   connector_bearer: { alternatives: [["connectorBearerAuth"]], principal: "local_connector", configuration_dependencies: ["BACKEND_API_KEY"] },
   local_manager: { alternatives: [["localManagerBearerAuth"]], principal: "local_manager", configuration_dependencies: ["JWT_SECRET"] },
   mcp_query_token: { alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client", configuration_dependencies: ["MCP_QUERY_TOKEN"] },
@@ -299,18 +300,7 @@ const TENANT_USER_TOOL_SIGNATURES = new Set([
   "GET /system/tools",
   "POST /system/tools/call",
 ]);
-const ACT_AS_USER_PUBLISHED_SIGNATURES = new Set([
-  "POST /admin/act-as-user/sessions",
-  "POST /admin/act-as-user/sessions/{sessionId}/revoke",
-]);
-
 export function canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives = [], signature = "") {
-  // The runtime keeps a legacy x-api-key compatibility guard, but the published
-  // Act-as-User contract is intentionally bearer-only. This is a contract
-  // projection rule; it does not mutate route middleware or runtime authority.
-  if (ACT_AS_USER_PUBLISHED_SIGNATURES.has(signature)) {
-    return [["backendBearerAuth"]];
-  }
   if (openapiAuth?.source_file === "openapi/openapi.custom-gpt.staging-admin.yaml") {
     return [["backendApiKeyAuth"]];
   }
@@ -628,7 +618,11 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
       }
       return { ...discovered, evidence: unique([...(discovered.evidence || []), ...(override.evidence_refs || [])]) };
     }
-    if (discovered.profile !== override.profile) {
+    const publishedSurfaceCompatibility = override.profile === "backend_api_key_surface"
+      && discovered.profile === "backend_or_user"
+      && guardChain.includes("requireBackendApiKey")
+      && override.runtime_compatibility === "backend_api_key_guard";
+    if (discovered.profile !== override.profile && !publishedSurfaceCompatibility) {
       return {
         state: "unresolved",
         profile: "auth_policy_conflicts_with_runtime_guard",
@@ -637,6 +631,20 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
         guard_chain: guardChain,
         evidence: unique([...evidence, ...(override.evidence_refs || [])]),
         configuration_dependencies: discovered.configuration_dependencies || [],
+      };
+    }
+    if (publishedSurfaceCompatibility) {
+      const selected = AUTH_PROFILES[override.profile];
+      return {
+        state: "resolved",
+        profile: override.profile,
+        ...selected,
+        guard_chain: guardChain,
+        evidence: unique([
+          ...(discovered.evidence || []),
+          ...(override.evidence_refs || []),
+          "runtime_compatibility:backend_api_key_guard",
+        ]),
       };
     }
     return { ...discovered, evidence: unique([...(discovered.evidence || []), ...(override.evidence_refs || [])]) };
