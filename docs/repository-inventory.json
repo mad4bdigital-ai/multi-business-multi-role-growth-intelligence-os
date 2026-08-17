@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7151,
-    "bytes": 69772382,
-    "lines": 1638322,
+    "bytes": 69782770,
+    "lines": 1639574,
     "directories": 265,
     "categories": 13
   },
@@ -81623,7 +81623,7 @@
       "extension": ".json",
       "bytes": 10256,
       "lines": 310,
-      "sha256": "c837b5ad045db86b290dbd0fd8a82032796c5429ca0782c6a8e45fe53eb289e4",
+      "sha256": "6d32d2890069f42b2a665e6e9b2bd2674821bcf7baf68c07752d4e507082db5e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82008,7 +82008,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "00c2a144e042fcf064d9f2e31281c6f64c99e59d10cefdda3763d9d30d715d98",
+      "sha256": "f9168fbf4d08f9f3df442f53cd6ff184e65565a3a3ec48a377ddab9c5163cea5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82569,7 +82569,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "f43e501a0a1b475c7cda7f3a1ee1e6ac6156413da7e160684accb413ad816ab1",
+      "sha256": "adb17808f87d44861181b1c97d213b0cbe16d72d527f1e70bf2b27859d131785",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82963,9 +82963,9 @@
       "path": "specs/015-tenant-operating-system-studio/work-map-integration.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 21131,
-      "lines": 2,
-      "sha256": "645295f8b47f3a2112692e4f96a01b918c48e303348bbde86256fd039a011b75",
+      "bytes": 31379,
+      "lines": 1252,
+      "sha256": "20bc1d225d949a3655fd7a329c01f918e581a8ac4668e6b830b815c273e97042",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83405,7 +83405,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "34bd42ed30c7867ec4fc554503c8095fc62096bc7dea09891fc05462b1551d07",
+      "sha256": "046652718813f11a957286b84e1c47cf92d1b3867858fd89a5f49fab4846095e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83636,7 +83636,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "675bc5669505b21539ef0187ba86f97843c62a88f4da0edf0e1a30b8919f9549",
+      "sha256": "44e2f698fd6147177b74d628cc43a3ba8a8cc88164534f4639c80cbfc55d4781",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83955,7 +83955,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "3fb7251e7b6966771aef925905b7b61aa403b71ad34cb0048e7e864d7df853c4",
+      "sha256": "d7ea140e998b45a6948e85a4e9d214d8fbba73f1f84a6d8d4055e7d6baac3036",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84129,9 +84129,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 17342,
-      "lines": 298,
-      "sha256": "31864cb1dc9dbf81ab1f02769a614f055c177ad58e34906913641db9fc73c848",
+      "bytes": 17482,
+      "lines": 300,
+      "sha256": "16e8b93bf747d13b95987859b2a636925946aa7e6bdf48a5aa934545d19d807d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84241,7 +84241,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "820fe4595fe07b453d645187a44477958d908b506ab59e71ec6b3f3333ac3fbf",
+      "sha256": "ae2bb2500acb9a48fd867ec6b60c717170ea4d4e0819b34048928e6a73bb9786",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84318,7 +84318,7 @@
       "extension": ".json",
       "bytes": 49481,
       "lines": 1334,
-      "sha256": "7bc7d96ba3c85048f0e2523e34100eb06d401f3ba0e9db8c794620f5102bb457",
+      "sha256": "890d6a4d69f2270258f179ae72c6149528361c2005f3a99c19286bb5cdf20ae7",
       "mode": "644",
       "executable": false,
       "generated": false
