@@ -13,10 +13,10 @@ servers:
   - url: https://dev.mad4b.com
     description: Staging-only Act-as-User control surface
 security:
-  - backendBearerAuth: []
+  - backendApiKeyAuth: []
 components:
   securitySchemes:
-    backendBearerAuth:
+    backendApiKeyAuth:
       type: http
       scheme: bearer
       bearerFormat: User JWT or backend service credential
@@ -99,7 +99,7 @@ paths:
   /admin/act-as-user/sessions:
     post:
       security:
-        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: createActAsUserSession
       x-openai-isConsequential: true
       summary: Create a bounded Act-as-User session in Staging
@@ -132,7 +132,7 @@ paths:
   /admin/act-as-user/sessions/{sessionId}/revoke:
     post:
       security:
-        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: revokeActAsUserSession
       x-openai-isConsequential: true
       summary: Revoke a bounded Act-as-User session

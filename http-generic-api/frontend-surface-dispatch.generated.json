@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "d886153b2225651315456c4877fc24f793d5568844c6e996e0b11bbbe893b13c",
+    "ref": null,
+    "source_digest": "a5a367c3c15b8a654084dfbb0534b4726f85c79a87b9e396d301ee942b4c0f21",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "1fc1d6d1ae32383c42e8f4654b971969a86f7b031f4735787c0c1d4ee1b61bd2",
+        "sha256": "532ef5af14f96de1dda600c44a2a7646156eeba01b708640f8fd15a470c95676",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "2185d5ce62c190777b31d331ac71d8d7ebd197d3377199b0ff8bb27bfe695b7a",
+        "sha256": "55cd4cf658195011219fbe135db11b7613b830b9c8b6614f9648854d108a3669",
         "present": true
       },
       {
@@ -126,7 +126,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "sha256": "ca2fb18bade7df2a0384114be4bc390d4f35005c4b3d6b28e6b111b3d552fbc0",
+        "sha256": "962f59dc68c414bedef05162ee30bf740c9c2ac8de1bc0030faa3bd7d8c6dad0",
         "present": true
       },
       {
@@ -156,7 +156,7 @@
       },
       {
         "file": "openapi/openapi.tenant-gpt.staging.yaml",
-        "sha256": "eed6536df7f07cd91d4d498785d895485ed7512a61e8cc1531422607a66669d4",
+        "sha256": "f4b4a429934ca53907d346242d06c9d09d557bde0cf2d3e03cade06eaf5a9206",
         "present": true
       },
       {
@@ -1056,12 +1056,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "3a002b787dbc0253ba201c04ee8d50a7e16c07aedae37933cd1c5e6d3f2888b3",
+        "sha256": "006ee2b24b21a492cbe8234cd669d339840af010c5c6a6f002ea0473eaeda3ba",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "38321778ca541e801e9ef0d51805d5184c60ef9e3b5c4adcd04b1e54e0d85868",
+        "sha256": "c5c4102849d0a789c0c36e0e8f3a22f00abb34c2bd48844000c7f54d2e469f27",
         "present": true
       },
       {
@@ -1116,9 +1116,9 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 167,
+    "mounted_family_count": 168,
     "mounted_route_file_count": 139,
-    "mixed_scope_route_file_count": 23,
+    "mixed_scope_route_file_count": 24,
     "operation_count": 1041,
     "openapi_documented_count": 1025,
     "openapi_canonical_documented_count": 710,
@@ -1139,11 +1139,11 @@
     "governed_mutation_operation_count": 13,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 167,
+    "test_owned_family_count": 168,
     "untested_family_count": 0,
     "test_owned_operation_count": 1041,
     "untested_operation_count": 0,
-    "ready_task_count": 167,
+    "ready_task_count": 168,
     "blocked_task_count": 0,
     "coverage_complete": true
   },
@@ -45135,45 +45135,47 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "gpt-tools",
-      "label": "gpt tools",
+      "family_key": "gpt-tools.admin",
+      "label": "gpt tools (admin)",
       "source_file": "routes/gptToolsRoutes.js",
       "source_digest": "4578b4b93013390724127c48f66577b8924b7ff288f233fce8fc8941c357a65c",
       "mount_prefix": "/",
       "mount_order": 17681,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "agents",
-      "scope": "developer",
+      "scope": "admin",
       "operations": [
         {
           "method": "POST",
           "path": "/admin/act-as-user/sessions",
           "signature": "POST /admin/act-as-user/sessions",
           "source_file": "routes/gptToolsRoutes.js",
-          "scope": "developer",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "backend_api_key_surface",
             "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ],
             "guard_chain": [
               "requireBackendApiKey"
             ],
             "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+              "route:requireBackendApiKey",
+              "routes/gptToolsRoutes.js",
+              "runtimeGuards.js",
+              "runtime_compatibility:backend_api_key_guard",
+              "test-frontend-auth-openapi-parity.mjs",
+              "test-governed-autopilot-production-deployment.mjs"
             ]
           },
           "openapi_auth": {
@@ -45182,9 +45184,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -45231,28 +45230,30 @@
           "path": "/admin/act-as-user/sessions/{sessionId}/revoke",
           "signature": "POST /admin/act-as-user/sessions/{sessionId}/revoke",
           "source_file": "routes/gptToolsRoutes.js",
-          "scope": "developer",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "backend_api_key_surface",
             "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ],
             "guard_chain": [
               "requireBackendApiKey"
             ],
             "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+              "route:requireBackendApiKey",
+              "routes/gptToolsRoutes.js",
+              "runtimeGuards.js",
+              "runtime_compatibility:backend_api_key_guard",
+              "test-frontend-auth-openapi-parity.mjs",
+              "test-governed-autopilot-production-deployment.mjs"
             ]
           },
           "openapi_auth": {
@@ -45261,9 +45262,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -45304,7 +45302,82 @@
           },
           "mutation_candidate": true,
           "mutation": false
-        },
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "untested_operations": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptToolsRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "surface_decision": {
+        "decision": "internal_only",
+        "rationale": "The Act-as-User control endpoints are a prepared-only internal contract. They remain disabled until durable CAS revocation/creation, actor-target binding, explicit scope, audit evidence, readback, and independent promotion evidence are bound; this decision does not authorize browser navigation, runtime activation, or live mutation.",
+        "owner": "platform-governance",
+        "rule_id": "gpt-tools-admin-act-as-user-internal-only",
+        "evidence_refs": [
+          "actAsUserDurableRepositories.js",
+          "actAsUserExecutionPolicy.js",
+          "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+          "routes/gptToolsRoutes.js",
+          "test-governed-autopilot-production-deployment.mjs"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 7,
+        "class": "high"
+      },
+      "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "gpt-tools.developer",
+      "label": "gpt tools (developer)",
+      "source_file": "routes/gptToolsRoutes.js",
+      "source_digest": "4578b4b93013390724127c48f66577b8924b7ff288f233fce8fc8941c357a65c",
+      "mount_prefix": "/",
+      "mount_order": 17681,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "agents",
+      "scope": "developer",
+      "operations": [
         {
           "method": "GET",
           "path": "/gpt/tools",
@@ -45494,9 +45567,9 @@
       ],
       "surface_decision": {
         "decision": "internal_only",
-        "rationale": "This exact discovered route family is an API/internal contract and is not authorized as a new browser navigation surface by this pre-promotion policy. The rule is generated from the clean route-dispatch baseline and does not enable write scopes or live mutations.",
+        "rationale": "The GPT tools discovery and call endpoints remain an internal governed contract; this split-family decision preserves the pre-promotion no-browser-surface boundary and does not authorize live tool execution or external mutation.",
         "owner": "agent-platform",
-        "rule_id": "generated-gap-gpt-tools-routes-gpttoolsroutes-js",
+        "rule_id": "gpt-tools-developer-internal-only",
         "evidence_refs": [
           "frontend-surface-dispatch.generated.json",
           "openapi.yaml",
@@ -92788,6 +92861,54 @@
       ]
     },
     {
+      "task_key": "frontend.gpt-tools.admin",
+      "title": "Resolve and deliver gpt tools (admin)",
+      "wave": "F3-admin-workspaces",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptToolsRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.growth-intelligence",
       "title": "Resolve and deliver growth intelligence",
       "wave": "F3-admin-workspaces",
@@ -96761,8 +96882,8 @@
       ]
     },
     {
-      "task_key": "frontend.gpt-tools",
-      "title": "Resolve and deliver gpt tools",
+      "task_key": "frontend.gpt-tools.developer",
+      "title": "Resolve and deliver gpt tools (developer)",
       "wave": "F5-developer-evidence",
       "state": "ready",
       "blockers": [],

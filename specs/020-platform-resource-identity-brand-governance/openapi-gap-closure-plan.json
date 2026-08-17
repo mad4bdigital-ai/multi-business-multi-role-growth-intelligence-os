@@ -6,12 +6,12 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "d886153b2225651315456c4877fc24f793d5568844c6e996e0b11bbbe893b13c",
-    "dispatch_artifact_sha256": "daeefb62c77ff557c9602973b18969db5ae34c4370dc88fd0064e0f11816daaa"
+    "dispatch_source_digest": "a5a367c3c15b8a654084dfbb0534b4726f85c79a87b9e396d301ee942b4c0f21",
+    "dispatch_artifact_sha256": "43f7fe0fb08989d242f81c019f2c5312572ce29becc89dcd714f515aba9e4155"
   },
   "coverage": {
     "operation_count": 1041,
-    "mounted_family_count": 167,
+    "mounted_family_count": 168,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
@@ -28,12 +28,12 @@
     "priority_family_counts": {
       "P1_surface_decision": 0,
       "P2_detail_traceability": 74,
-      "P3_observe": 93
+      "P3_observe": 94
     },
     "surface_decision_family_counts": {
       "api_only": 38,
       "embedded_ui": 6,
-      "internal_only": 116,
+      "internal_only": 117,
       "legacy_compatibility": 6,
       "unified_ui": 1
     },
@@ -4426,13 +4426,49 @@
       ]
     },
     {
-      "family_key": "gpt-tools",
-      "label": "gpt tools",
+      "family_key": "gpt-tools.admin",
+      "label": "gpt tools (admin)",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 2,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptToolsRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "gpt-tools.developer",
+      "label": "gpt tools (developer)",
       "scope": "developer",
       "surface_decision": "internal_only",
       "priority": "P3_observe",
       "detail_gap_count": 0,
-      "operation_count": 4,
+      "operation_count": 2,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "continue_deterministic_observation_and_regression_checks",

@@ -1395,6 +1395,38 @@
       ]
     },
     {
+      "rule_id": "gpt-tools-admin-act-as-user-internal-only",
+      "family_key": "gpt-tools.admin",
+      "source_file": "routes/gptToolsRoutes.js",
+      "scope": "admin",
+      "decision": "internal_only",
+      "owner": "platform-governance",
+      "rationale": "The Act-as-User control endpoints are a prepared-only internal contract. They remain disabled until durable CAS revocation/creation, actor-target binding, explicit scope, audit evidence, readback, and independent promotion evidence are bound; this decision does not authorize browser navigation, runtime activation, or live mutation.",
+      "evidence_refs": [
+        "routes/gptToolsRoutes.js",
+        "actAsUserExecutionPolicy.js",
+        "actAsUserDurableRepositories.js",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "test-governed-autopilot-production-deployment.mjs"
+      ]
+    },
+    {
+      "rule_id": "gpt-tools-developer-internal-only",
+      "family_key": "gpt-tools.developer",
+      "source_file": "routes/gptToolsRoutes.js",
+      "scope": "developer",
+      "decision": "internal_only",
+      "owner": "agent-platform",
+      "rationale": "The GPT tools discovery and call endpoints remain an internal governed contract; this split-family decision preserves the pre-promotion no-browser-surface boundary and does not authorize live tool execution or external mutation.",
+      "evidence_refs": [
+        "routes/gptToolsRoutes.js",
+        "routes/index.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-platform-graph-routes-platformgraphroutes-js",
       "family_key": "platform-graph",
       "source_file": "routes/platformGraphRoutes.js",
@@ -2826,6 +2858,25 @@
       "evidence_refs": [
         "routes/platformSmokeRoutes.js",
         "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "act-as-user-create-published-backend-api-key-auth",
+      "operations": [
+        "POST /admin/act-as-user/sessions",
+        "POST /admin/act-as-user/sessions/{sessionId}/revoke"
+      ],
+      "source_file": "routes/gptToolsRoutes.js",
+      "profile": "backend_api_key_surface",
+      "runtime_compatibility": "backend_api_key_guard",
+      "owner": "platform-governance",
+      "rationale": "The published Act-as-User Custom GPT contract exposes exactly one backendApiKeyAuth scheme. The runtime middleware retains its bounded compatibility parser for bearer-form backend credentials and user JWTs, but those alternatives are not published as Custom GPT security schemes; the route remains fail-closed and additionally requires the privileged Act-as-User principal guard.",
+      "evidence_refs": [
+        "runtimeGuards.js",
+        "routes/gptToolsRoutes.js",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "test-frontend-auth-openapi-parity.mjs",
+        "test-governed-autopilot-production-deployment.mjs"
       ]
     }
   ],
