@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,144 |
-| Total bytes | 69,729,997 |
-| Counted text lines | 1,637,512 |
+| Tracked files | 7,145 |
+| Total bytes | 69,739,321 |
+| Counted text lines | 1,637,650 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -17,7 +17,7 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,142 |
+| `tests-and-specs` | 2,143 |
 | `documentation` | 1,906 |
 | `api-runtime` | 1,435 |
 | `database-migrations` | 783 |
@@ -36,7 +36,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,507 |
-| `.mjs` | 1,680 |
+| `.mjs` | 1,681 |
 | `.js` | 991 |
 | `.sql` | 798 |
 | `.json` | 785 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 167 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 190 |
-| Test/spec files (paths) | 2,225 |
+| Test/spec files (paths) | 2,226 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -112,7 +112,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |
-| `AI_Agent_Knowledge_Guide.md` | documentation | 146,641 | 1341 |
+| `AI_Agent_Knowledge_Guide.md` | documentation | 148,022 | 1352 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml` | api-contracts | 142,249 | 3809 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml` | api-contracts | 142,235 | 3809 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 142,207 | 3809 |
