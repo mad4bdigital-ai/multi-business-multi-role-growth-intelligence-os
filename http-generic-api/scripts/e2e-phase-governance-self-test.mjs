@@ -72,6 +72,22 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
 
 {
   const root = tempRepo();
+  const changedFiles = [
+    ".specify/e2e-phase-governance.json",
+    "http-generic-api/config/repository-governance-constitution.json",
+    "scripts/repository-governance-closure.mjs",
+    "scripts/derived-state-closure.mjs",
+    "scripts/remote-mcp-write-scope-semantic-currentness.mjs"
+  ];
+  for (const file of changedFiles) write(root, file, file.endsWith(".json") ? "{}\n" : "export default true;\n");
+  const result = evaluateRepository({ root, policy, changedFiles });
+  assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+  assert.equal(result.report.change_class, "governance_only");
+  assert.deepEqual(result.report.runtime_files, []);
+}
+
+{
+  const root = tempRepo();
   write(root, "http-generic-api/example/service.mjs");
   const result = evaluateRepository({ root, policy, changedFiles: ["http-generic-api/example/service.mjs"] });
   assert.equal(result.report.ok, false);
@@ -126,7 +142,6 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
   assert.equal(result.report.ok, false);
   assert(result.report.findings.some((row) => row.code === "runtime_change_not_covered_by_e2e_contract"));
 }
-
 
 {
   const root = tempRepo();
@@ -183,4 +198,4 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
   assert(result.report.findings.some((row) => row.code === "e2e_phase_contract_not_changed_with_feature"));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_phase_governance", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 10, gate: "e2e_phase_governance", repository_governance_classification: "governance_only", secrets_included: false }));
