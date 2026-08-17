@@ -26,18 +26,6 @@ components:
             https://dev.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
             https://dev.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
             https://dev.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
-    backendBearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: Backend API Key or User JWT
-      description: |
-        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
-    backendApiKeyAuth:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
   schemas:
     OperationalAlert:
       type: object
