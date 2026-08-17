@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7131,
-    "bytes": 69076077,
+    "bytes": 69076088,
     "lines": 1619343,
     "directories": 265,
     "categories": 13
@@ -56097,9 +56097,9 @@
       "path": "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 10419,
+      "bytes": 10430,
       "lines": 223,
-      "sha256": "38241dccf61fc06aedc7368602f54da981180ff198c2fc492263499e194e4781",
+      "sha256": "0c21378929ddb750fa01ab641e3e567b4f5af7145898eef93b241d7d97dfe936",
       "mode": "644",
       "executable": false,
       "generated": false

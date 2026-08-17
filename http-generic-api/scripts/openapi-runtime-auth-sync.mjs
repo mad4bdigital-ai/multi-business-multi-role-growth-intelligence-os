@@ -57,7 +57,7 @@ function canonicalAuthDrift(plan) {
     for (const [signature, contract] of contracts) {
       const operation = runtimeAuthority.get(signature);
       if (!operation) continue;
-      const expected = canonicalOpenApiSecurityAlternatives(contract, PROFILE_SECURITY[operation.runtime_auth.profile]);
+      const expected = canonicalOpenApiSecurityAlternatives(contract, PROFILE_SECURITY[operation.runtime_auth.profile], signature);
       const current = normalizedAlternatives(contract.security_alternatives || []);
       const normalizedExpected = normalizedAlternatives(expected);
       const equivalent = contract.security_alternatives !== null && JSON.stringify(current) === JSON.stringify(normalizedExpected);
