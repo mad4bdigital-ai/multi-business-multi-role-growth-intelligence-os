@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7141,
-    "bytes": 69706716,
-    "lines": 1636858,
+    "bytes": 69707149,
+    "lines": 1636865,
     "directories": 265,
     "categories": 13
   },
@@ -72288,9 +72288,9 @@
       "path": "http-generic-api/test-tenant-system-call-connect-escalate.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3808,
-      "lines": 80,
-      "sha256": "bc07340c48b67770b45549c20fe8a10736e437ce8e586841a4f324b20f1fdb5f",
+      "bytes": 3825,
+      "lines": 81,
+      "sha256": "a8e958e09425625e3f57f0b88aec163afce656792704d62f2f2b736d637cd2d7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84003,9 +84003,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 12901,
-      "lines": 234,
-      "sha256": "2a0f16aea3e4a19045dc4cd59cfc9090dd1d49124acaf48ec09f43b639a6dceb",
+      "bytes": 13317,
+      "lines": 240,
+      "sha256": "7e26d1817545642aa0a348518170b12bdec3def392d0548228aaf3b3f73809d1",
       "mode": "644",
       "executable": false,
       "generated": false
