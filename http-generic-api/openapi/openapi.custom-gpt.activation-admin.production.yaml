@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Activation Admin Actions - staging
+  title: Growth Intelligence Platform - Activation Admin Actions - production
   version: 3.0.0-platform
-  summary: Admin/service Activation orchestration and read surfaces. (staging).
-  description: Activation-only admin transport. Authentication and business authorization remain on dev.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
+  summary: Admin/service Activation orchestration and read surfaces. (production).
+  description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
 servers:
-  - url: https://activation-dev.mad4b.com
-    description: activation_admin_staging surface
+  - url: https://activation.mad4b.com
+    description: activation_admin_production surface
 tags:
   - name: activation
     description: Once-per-session activation probes, session history, and scope context.
@@ -1702,7 +1702,7 @@ x-custom-gpt-generation:
   registry_sha256: 65321641fd54bc3984efac560ffaec47b523e7e7fe9b96b76608b985e3d1ab3e
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
-  environment: staging
+  environment: production
   registry_version: 3
   selector_model: marker_required
   candidate_policy:
