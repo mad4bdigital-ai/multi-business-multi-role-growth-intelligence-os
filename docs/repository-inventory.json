@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7135,
-    "bytes": 69095741,
-    "lines": 1619707,
+    "bytes": 69095595,
+    "lines": 1619706,
     "directories": 265,
     "categories": 13
   },
@@ -503,7 +503,6 @@
         "openapi:detail-batch:write",
         "openapi:detail-batch:check",
         "openapi:detail-batch:test",
-        "custom-gpt:environment:test",
         "evaluation:loop"
       ],
       "dependencies": 0,
@@ -74384,9 +74383,9 @@
       "path": "package.json",
       "category": "build-and-dependencies",
       "extension": ".json",
-      "bytes": 2603,
-      "lines": 51,
-      "sha256": "09902dca3561c166244daafa95020db9d8bb7e25387cafce68f2bf9ef8ff0050",
+      "bytes": 2457,
+      "lines": 50,
+      "sha256": "cc52830b79430680af84288a780168c61241545a1487215aae15fa77ff2d66e5",
       "mode": "644",
       "executable": false,
       "generated": false
