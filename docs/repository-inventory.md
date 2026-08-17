@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,152 |
-| Total bytes | 69,806,310 |
-| Counted text lines | 1,640,065 |
+| Tracked files | 7,153 |
+| Total bytes | 69,810,487 |
+| Counted text lines | 1,640,160 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -17,7 +17,7 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,148 |
+| `tests-and-specs` | 2,149 |
 | `documentation` | 1,907 |
 | `api-runtime` | 1,435 |
 | `database-migrations` | 783 |
@@ -36,7 +36,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,508 |
-| `.mjs` | 1,683 |
+| `.mjs` | 1,684 |
 | `.js` | 991 |
 | `.sql` | 798 |
 | `.json` | 789 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 167 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,232 |
+| Test/spec files (paths) | 2,233 |
 | package.json manifests | 3 |
 
 ## Package manifests

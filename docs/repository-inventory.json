@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7152,
-    "bytes": 69806310,
-    "lines": 1640065,
+    "files": 7153,
+    "bytes": 69810487,
+    "lines": 1640160,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2148,
+      "tests-and-specs": 2149,
       "documentation": 1907,
       "api-runtime": 1435,
       "database-migrations": 783,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2508,
-      ".mjs": 1683,
+      ".mjs": 1684,
       ".js": 991,
       ".sql": 798,
       ".json": 789,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3685,
+      "http-generic-api": 3686,
       "docs": 1811,
       "specs": 879,
       ".github": 274,
@@ -2387,6 +2387,7 @@
       "http-generic-api/test-managed-git-worker-migration.mjs",
       "http-generic-api/test-mariadb-collation-ci-guard.mjs",
       "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+      "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
       "http-generic-api/test-memory-scope-links-foundation.mjs",
       "http-generic-api/test-memory-scope-links-migration.mjs",
       "http-generic-api/test-migrate-sql-adapter.mjs",
@@ -4621,6 +4622,7 @@
       "http-generic-api/test-managed-git-worker-migration.mjs",
       "http-generic-api/test-mariadb-collation-ci-guard.mjs",
       "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+      "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
       "http-generic-api/test-memory-scope-links-foundation.mjs",
       "http-generic-api/test-memory-scope-links-migration.mjs",
       "http-generic-api/test-migrate-sql-adapter.mjs",
@@ -31763,7 +31765,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "a667d047385ff03a13a4f96be500b933f495fa659bb9aa7601d4a895439a190b",
+      "sha256": "d3a2f7622a270453a7a447bc0993c2356f12ea756796a98480f89f46959227f6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51398,7 +51400,7 @@
       "extension": ".json",
       "bytes": 1936060,
       "lines": 58548,
-      "sha256": "70d25cbfba62748a1f74d4d6d3274ef8971b37b75c4fff77a147cd799d0637bf",
+      "sha256": "c833a4a98e383b3c19e522e4c7e6477c4620b5385dfe4cbb9fcf4d2ac0fbf6f9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -66953,6 +66955,17 @@
       "bytes": 1981,
       "lines": 55,
       "sha256": "571aa02713d2f5e237410a41aeb422969f5ca1d6aae451dc8a6eab06d3cbaead",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 4177,
+      "lines": 95,
+      "sha256": "1bfba381a654f8bf15d46251a12d689138c2ee37d1d4d8f906d557a17e5db307",
       "mode": "644",
       "executable": false,
       "generated": false
