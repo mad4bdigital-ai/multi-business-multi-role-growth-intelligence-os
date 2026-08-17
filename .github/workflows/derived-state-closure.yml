@@ -219,6 +219,7 @@ jobs:
 
       - name: Resolve typed policy objections
         id: objections
+        continue-on-error: true
         shell: bash
         env:
           MODE: ${{ steps.target.outputs.pr_number != '0' && 'finalizer' || 'source' }}
@@ -231,6 +232,32 @@ jobs:
           args=(--mode "$MODE" --governance-report "$GOV_REPORT" --derived-report "$DERIVED_REPORT" --report-file "$OBJECTION_REPORT")
           if [[ "$MODE" == "finalizer" ]]; then args+=(--evidence-report "$EVIDENCE_REPORT"); fi
           node scripts/repository-governance-objection-gate.mjs "${args[@]}"
+
+      - name: Enforce zero blocking governance objections
+        if: always()
+        shell: bash
+        env:
+          OBJECTION_REPORT: ${{ runner.temp }}/derived-state-closure/policy-objections.json
+          EXPECTED_CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          node - "$OBJECTION_REPORT" "$EXPECTED_CANDIDATE_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const [file, expectedSha] = process.argv.slice(2);
+          if (!fs.existsSync(file)) throw new Error('Policy objection report is missing; fail closed.');
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (report.contract !== 'mad4b.repository-policy-objections.v1') throw new Error('Policy objection contract mismatch.');
+          if (report.candidate_sha !== expectedSha) throw new Error(`Policy objection candidate mismatch: ${report.candidate_sha} != ${expectedSha}`);
+          const blocking_count = Number(report.blocking_count);
+          const manual_count = Number(report.manual_count);
+          const advisory_count = Number(report.advisory_count);
+          const activation_count = Number(report.activation_count);
+          for (const [name, value] of Object.entries({ blocking_count, manual_count, advisory_count, activation_count })) {
+            if (!Number.isInteger(value) || value < 0) throw new Error(`Invalid ${name}: ${value}`);
+          }
+          console.log(JSON.stringify({ blocking_count, manual_count, advisory_count, activation_count }));
+          if (blocking_count !== 0) throw new Error(`Blocking governance objections remain: ${blocking_count}`);
+          NODE
 
       - name: Upload canonical closure evidence
         if: always()

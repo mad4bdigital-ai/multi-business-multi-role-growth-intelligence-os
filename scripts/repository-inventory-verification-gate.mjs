@@ -44,7 +44,7 @@ function restoreOutputs() {
 }
 const input = args(process.argv);
 const output = input.output || "repository-inventory-verification.json";
-const expected = input.expected_head_sha || process.env.GITHUB_SHA || "";
+const expected = input.expected_head_sha || "";
 const actual = git(["rev-parse", "HEAD"]).stdout.trim();
 const registry = JSON.parse(fs.readFileSync(".github/derived-state-governance.json", "utf8"));
 const artifact = (registry.artifacts || []).find((entry) => entry.artifact_id === "repository_inventory");

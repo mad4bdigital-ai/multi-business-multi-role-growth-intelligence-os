@@ -11,6 +11,16 @@ function tempRepo() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-phase-governance-"));
   fs.mkdirSync(path.join(root, ".specify"), { recursive: true });
   fs.writeFileSync(path.join(root, ".specify", "e2e-phase-governance.json"), `${JSON.stringify(policy, null, 2)}\n`);
+  fs.mkdirSync(path.join(root, ".github"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".github", "derived-state-governance.json"), `${JSON.stringify({
+    repository_governance: { constitution: "http-generic-api/config/repository-governance-constitution.json" }
+  }, null, 2)}\n`);
+  const constitutionPath = path.join(root, "http-generic-api", "config", "repository-governance-constitution.json");
+  fs.mkdirSync(path.dirname(constitutionPath), { recursive: true });
+  fs.writeFileSync(constitutionPath, `${JSON.stringify({
+    contract: "mad4b.repository-governance-constitution.v1",
+    control_plane_paths: ["scripts/dynamic-governance-controller.mjs"]
+  }, null, 2)}\n`);
   return root;
 }
 
@@ -77,9 +87,13 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
     "http-generic-api/config/repository-governance-constitution.json",
     "scripts/repository-governance-closure.mjs",
     "scripts/derived-state-closure.mjs",
-    "scripts/remote-mcp-write-scope-semantic-currentness.mjs"
+    "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
+    "scripts/dynamic-governance-controller.mjs"
   ];
-  for (const file of changedFiles) write(root, file, file.endsWith(".json") ? "{}\n" : "export default true;\n");
+  for (const file of changedFiles) {
+    if (file === "http-generic-api/config/repository-governance-constitution.json") continue;
+    write(root, file, file.endsWith(".json") ? "{}\n" : "export default true;\n");
+  }
   const result = evaluateRepository({ root, policy, changedFiles });
   assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
   assert.equal(result.report.change_class, "governance_only");
@@ -198,4 +212,4 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
   assert(result.report.findings.some((row) => row.code === "e2e_phase_contract_not_changed_with_feature"));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 10, gate: "e2e_phase_governance", repository_governance_classification: "governance_only", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 10, gate: "e2e_phase_governance", repository_governance_classification: "constitution_control_plane_paths", secrets_included: false }));

@@ -91,6 +91,10 @@ jobs:
           current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           test "$current_main_sha" = "$source_main_sha"
           target_ref="chore/repository-inventory-main-sync-${source_main_sha:0:12}"
+          case "$target_ref" in
+            main|Production) echo "Protected branch mutation target is forbidden: $target_ref" >&2; exit 1 ;;
+          esac
+          [[ "$target_ref" =~ ^chore/repository-inventory-main-sync-[0-9a-f]{12}$ ]]
           payload="$(jq -cn \
             --arg ref main \
             --arg target_ref "$target_ref" \
