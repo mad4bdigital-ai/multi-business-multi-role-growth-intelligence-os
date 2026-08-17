@@ -134,12 +134,8 @@ for (const surface of GENERATED_SURFACES) {
   assert(operations.length > 0, `${surface.output_file} must contain operations`);
   assert.equal(doc.servers?.length, 1, `${surface.surfaceKey} must declare exactly one server`);
   const securitySchemeNames = Object.keys(doc.components?.securitySchemes || {});
-  const environmentAwareTenantSchemes = new Set(["userBearerAuth", "backendBearerAuth", "backendApiKeyAuth"]);
-  const allowsTenantSessionBackendProfile = effectiveSurface.auth_profile === "tenant_oauth"
-    && securitySchemeNames.length === environmentAwareTenantSchemes.size
-    && securitySchemeNames.every((name) => environmentAwareTenantSchemes.has(name));
-  assert.equal(allowsTenantSessionBackendProfile ? securitySchemeNames.length : 1, securitySchemeNames.length, `${surface.surfaceKey} must declare exactly one security scheme unless it contains the reviewed tenant session backend profile`);
-  const allowedSecuritySchemes = allowsTenantSessionBackendProfile ? environmentAwareTenantSchemes : new Set([securitySchemeNames[0]]);
+  assert.equal(securitySchemeNames.length, 1, `${surface.surfaceKey} must declare exactly one security scheme`);
+  const allowedSecuritySchemes = new Set([securitySchemeNames[0]]);
   const securityRequirements = [];
   if (Array.isArray(doc.security)) securityRequirements.push(...doc.security);
   for (const operation of operations) {
