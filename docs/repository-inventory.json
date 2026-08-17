@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7141,
-    "bytes": 69713130,
-    "lines": 1636968,
+    "bytes": 69714481,
+    "lines": 1636985,
     "directories": 265,
     "categories": 13
   },
@@ -33801,7 +33801,7 @@
       "extension": ".json",
       "bytes": 743,
       "lines": 26,
-      "sha256": "3ac5ad73835381e065b67808eda62402752d0118d4f0147a260486aa622a393d",
+      "sha256": "91033b5fed7cf6e810845d9f1be7afe41540f081041c1bcb1488e3c2674c1bff",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33812,7 +33812,7 @@
       "extension": ".json",
       "bytes": 15158,
       "lines": 615,
-      "sha256": "c9badd956b9975a5fd78a80987aaf4fd4e410832846ee8f84c164327b205e53e",
+      "sha256": "c9966460383d4662590c5e992862c40b10b3cec6b36ec0a64649eb11a49bb364",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49672,9 +49672,9 @@
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 112321,
+      "bytes": 112411,
       "lines": 3411,
-      "sha256": "eb198f5e7a1d53dbb56c93420c818fa77c939b92f75c41781f89401014302c56",
+      "sha256": "8ec83d7104d9704c79b4122e6d676092e51299c6fbb4455af881ef4d1dc2c34c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49705,9 +49705,9 @@
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 142080,
+      "bytes": 142235,
       "lines": 3809,
-      "sha256": "c76600c361c50c078a4c50591855f6ede76e38dd6f8739bb69fce1f0eed50dee",
+      "sha256": "880fe18a52988e37e147a72146ccbc38f8ca2c543f1193fbb4a11a601b07ac10",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -56745,9 +56745,9 @@
       "path": "http-generic-api/scripts/split-openapi.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 35248,
-      "lines": 654,
-      "sha256": "128e4db9ae1440ed4f1a5616f9c50d2746f57a14aefd2b948e0f89fc563084d8",
+      "bytes": 35487,
+      "lines": 657,
+      "sha256": "7e76fafb52066d5a370584d12a23e738b6d3f647631d2cf387e852d9414acd4e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67250,9 +67250,9 @@
       "path": "http-generic-api/test-openapi-split-governance.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 21311,
-      "lines": 268,
-      "sha256": "106ed3fddd82c4971204f9c22e52067f21988bd354cf9f24d222f013cc97dbdd",
+      "bytes": 22178,
+      "lines": 282,
+      "sha256": "cb77ccf1928dfdc5d491784163f38cc66f79aee59bdb5e450c1c5d60054b7073",
       "mode": "644",
       "executable": false,
       "generated": false
