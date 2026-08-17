@@ -62,7 +62,11 @@
       "http-generic-api/openapi/**",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "docs/runbooks/spec020-runtime-database-readiness.md",
-      "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs"
+      "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/scripts/ci-path-format-guard.mjs"
     ]
   },
   "merge_contract": {
@@ -232,7 +236,11 @@
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
             "docs/runbooks/spec020-runtime-database-readiness.md",
-            "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs"
+            "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/scripts/ci-path-format-guard.mjs"
           ],
           "secrets_included": false
         }

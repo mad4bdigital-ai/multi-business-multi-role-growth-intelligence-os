@@ -142,11 +142,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "09538176075c6445bae1c84c6761898d535a0cd6c07893729373262be08b7df1"
+      "sha256": "1fc1d6d1ae32383c42e8f4654b971969a86f7b031f4735787c0c1d4ee1b61bd2"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "df93a4c840610ef152070b3c1cf313780c052c662c67938ded5368da426d666d"
+      "sha256": "ddbae01965c43df64a81497dcc93c5860a643be05433e1d4ab91d2d33a2e4fbc"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -166,7 +166,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "a7fb0ed88a0888af66fe895436481928df42ac9ba078f1435a4edef40e1907f0"
+      "sha256": "d930f1feef85df7f04a13b9dbe9bb23067060140ec615c143ae63bf15fe87faf"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "af163105c40569368d657762b00d066ea666111d0018e315d15c8aaa495d2707"
+      "sha256": "7e76fafb52066d5a370584d12a23e738b6d3f647631d2cf387e852d9414acd4e"
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
