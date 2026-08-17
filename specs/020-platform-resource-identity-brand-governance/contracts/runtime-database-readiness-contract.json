@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.spec020.runtime-database-readiness.v1",
+  "status": "prepared-only",
+  "authority": "shadow-library-only",
+  "runtime_mutation_allowed": false,
+  "production_activation_allowed": false,
+  "credentials_read_allowed": false,
+  "scope": {
+    "included": [
+      "runtime session-context persistence",
+      "dynamic MCP/tool catalog schema readiness",
+      "durable governed response chunk persistence"
+    ],
+    "excluded_actions": [
+      "GRANT",
+      "REVOKE",
+      "ALTER TABLE",
+      "CREATE TABLE",
+      "DROP TABLE",
+      "migration apply",
+      "Hard Activation"
+    ]
+  },
+  "required_preflight_evidence": {
+    "runtime_database": {
+      "user": "u338416126_growthOS",
+      "database_role": "runtime_data",
+      "required_table_privileges": {
+        "customer_sessions": ["SELECT", "INSERT", "UPDATE"],
+        "governed_tool_response_chunks": ["SELECT", "INSERT", "UPDATE"]
+      },
+      "maintenance_privileges": {
+        "governed_tool_response_chunks": ["DELETE"]
+      },
+      "constraints": {
+        "no_global_write_privileges": true,
+        "no_schema_wide_write_privileges": true,
+        "no_grant_option": true,
+        "no_column_level_privileges": true,
+        "direct_table_scope_only": true
+      },
+      "failure_codes": [
+        "RUNTIME_SESSION_CONTEXT_INSERT_DENIED",
+        "RUNTIME_RESPONSE_CHUNK_PERSISTENCE_DENIED",
+        "RUNTIME_PERSISTENCE_PRIVILEGE_DRIFT"
+      ]
+    },
+    "tool_catalog_schema": {
+      "required_field": "mcp_catalog_level",
+      "field_owner": "dynamic_mcp_tool_catalog",
+      "required_evidence": [
+        "schema_readback proves the field exists",
+        "migration checksum is recorded",
+        "application projection and database schema agree",
+        "repo_inspect and listAdminTools read-only probes pass"
+      ],
+      "failure_codes": [
+        "MCP_CATALOG_SCHEMA_DRIFT",
+        "MCP_CATALOG_LEVEL_COLUMN_MISSING",
+        "MCP_CATALOG_SCHEMA_MIGRATION_UNVERIFIED"
+      ]
+    },
+    "activation_gate": {
+      "required": [
+        "provider bootstrap active",
+        "binding resolved",
+        "activation registry parity valid",
+        "session-context preflight passed",
+        "tool catalog schema preflight passed",
+        "response chunk persistence preflight passed"
+      ],
+      "degraded_if_any_required_evidence_missing": true,
+      "hard_activation_blocked_until_all_required_evidence": true
+    }
+  },
+  "prepared_actions": [
+    "produce a least-privilege GRANT plan for explicit table targets",
+    "identify and checksum the migration that introduces mcp_catalog_level",
+    "run read-only INFORMATION_SCHEMA and SHOW GRANTS preflight checks",
+    "re-run session-context, repo_inspect, listAdminTools, and response-chunk probes after an operator-approved change"
+  ],
+  "operator_approval_required": true,
+  "secrets_included": false
+}
+

@@ -134,15 +134,19 @@ for (const surface of GENERATED_SURFACES) {
   assert(operations.length > 0, `${surface.output_file} must contain operations`);
   assert.equal(doc.servers?.length, 1, `${surface.surfaceKey} must declare exactly one server`);
   const securitySchemeNames = Object.keys(doc.components?.securitySchemes || {});
-  assert.equal(securitySchemeNames.length, 1, `${surface.surfaceKey} must declare exactly one security scheme`);
-  const allowedSecurityScheme = securitySchemeNames[0];
+  const environmentAwareTenantSchemes = new Set(["userBearerAuth", "backendBearerAuth", "backendApiKeyAuth"]);
+  const allowsTenantSessionBackendProfile = effectiveSurface.auth_profile === "tenant_oauth"
+    && securitySchemeNames.length === environmentAwareTenantSchemes.size
+    && securitySchemeNames.every((name) => environmentAwareTenantSchemes.has(name));
+  assert.equal(allowsTenantSessionBackendProfile ? securitySchemeNames.length : 1, securitySchemeNames.length, `${surface.surfaceKey} must declare exactly one security scheme unless it contains the reviewed tenant session backend profile`);
+  const allowedSecuritySchemes = allowsTenantSessionBackendProfile ? environmentAwareTenantSchemes : new Set([securitySchemeNames[0]]);
   const securityRequirements = [];
   if (Array.isArray(doc.security)) securityRequirements.push(...doc.security);
   for (const operation of operations) {
     if (Array.isArray(operation.operation?.security)) securityRequirements.push(...operation.operation.security);
   }
   for (const requirement of securityRequirements) {
-    assert.deepEqual(Object.keys(requirement), [allowedSecurityScheme], `${surface.surfaceKey} security requirements must use only ${allowedSecurityScheme}`);
+    assert(Object.keys(requirement).every((name) => allowedSecuritySchemes.has(name)), `${surface.surfaceKey} security requirements must use only ${[...allowedSecuritySchemes].join(", ")}`);
   }
   const expectedServer = surface.server_url || `https://${domainPolicy.environments[surface.environment].hostnames[surface.domain_service].hostname}`;
   assert.equal(doc.servers?.[0]?.url, expectedServer, `${surface.surfaceKey} server must match domain-family policy`);
@@ -193,6 +197,20 @@ for (const environment of ["production", "staging"]) {
   assert.equal(tenantAuth.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, `https://${authHost}/auth/oauth/token`);
   assert.equal(tenantActivationVariant.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, `https://${activationHost}/auth/oauth/authorize`);
   assert.equal(tenantActivationVariant.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, `https://${activationHost}/auth/oauth/token`);
+}
+
+const sharedTenantScopeUris = [
+  "https://auth.mad4b.com/scopes/tenant.links",
+  "https://auth.mad4b.com/scopes/tenant.status",
+  "https://auth.mad4b.com/scopes/tenant.activation",
+  "https://auth.mad4b.com/scopes/tenant.install",
+  "https://auth.mad4b.com/scopes/tenant.system-tools",
+];
+for (const environment of ["production", "staging"]) {
+  const variant = loadYaml(registry.surfaces[`tenant_core_${environment}`].output_file);
+  const scopes = Object.keys(variant.components.securitySchemes.userBearerAuth.flows.authorizationCode.scopes || {}).sort();
+  assert.deepEqual(scopes, [...sharedTenantScopeUris].sort(), `${environment} Tenant schema must use the shared OAuth scope authority`);
+  assert(!scopes.some((scope) => scope.startsWith("https://dev.mad4b.com/scopes/")), `${environment} Tenant schema must not mint environment-local scope authorities`);
 }
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");

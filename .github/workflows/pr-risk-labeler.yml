@@ -6,8 +6,8 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
+  pull-requests: read
+  issues: read
 
 jobs:
   label:
@@ -69,53 +69,12 @@ jobs:
             if (matches([/(^|\/)test-[^/]+\.mjs$/, /^tests\//, /\.test\.ts$/])) labels.add("tests");
             if (matches([/(^|\/)package(?:-lock)?\.json$/])) labels.add("dependencies");
 
-            const warnOnPermissionDenied = (action, error) => {
-              if (error.status === 403) {
-                core.warning(`${action} skipped because GITHUB_TOKEN cannot write labels: ${error.message}`);
-                return true;
-              }
-              return false;
-            };
-
-            for (const [name, details] of Object.entries(managedLabels)) {
-              try {
-                await github.rest.issues.createLabel({ owner, repo, name, ...details });
-              } catch (error) {
-                if (error.status !== 422 && !warnOnPermissionDenied(`create label ${name}`, error)) throw error;
-              }
-            }
-
-            let current = [];
-            try {
-              const response = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number, per_page: 100 });
-              current = response.data || [];
-            } catch (error) {
-              if (error.status === 404) {
-                core.warning(`list PR labels skipped because labels endpoint returned 404 for PR #${issue_number}: ${error.message}`);
-              } else if (!warnOnPermissionDenied("list PR labels", error)) {
-                throw error;
-              }
-            }
-            const currentManaged = current.map((label) => label.name).filter((name) => managedLabels[name]);
-            const toRemove = currentManaged.filter((name) => !labels.has(name));
-            for (const name of toRemove) {
-              try {
-                await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
-              } catch (error) {
-                if (!warnOnPermissionDenied(`remove label ${name}`, error)) throw error;
-              }
-            }
-
-            if (labels.size > 0) {
-              try {
-                await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [...labels].sort() });
-              } catch (error) {
-                if (!warnOnPermissionDenied("add PR labels", error)) throw error;
-              }
-            }
-
+            // Pull-request workflows are intentionally read-only. The computed labels
+            // are published as evidence; a separately dispatched governed tool may
+            // apply labels after an explicit expected-head check.
             core.summary
-              .addHeading("PR risk labels")
+              .addHeading("PR risk classification (read-only)")
               .addRaw(`Changed files: ${names.length}\n\n`)
-              .addRaw(`Applied labels: ${[...labels].sort().join(", ") || "none"}\n`)
+              .addRaw(`Recommended labels: ${[...labels].sort().join(", ") || "none"}\n`)
+              .addRaw("No GitHub labels were created, removed, or applied by this workflow.\n")
               .write();

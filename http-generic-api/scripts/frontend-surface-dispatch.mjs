@@ -1285,7 +1285,7 @@ function taskFor(family) {
   };
 }
 
-export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = process.env.GITHUB_SHA || "working-tree" } = {}) {
+export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = null } = {}) {
   const generatorPath = fileURLToPath(import.meta.url);
   const indexPath = path.join(apiRoot, "routes", "index.js");
   const openapiPath = path.join(apiRoot, "openapi.yaml");

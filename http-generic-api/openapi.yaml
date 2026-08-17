@@ -11740,7 +11740,9 @@ paths:
   /system/tools:
     get:
       tags: [system-layer]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: listSystemTools
       x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: listTools
@@ -11908,7 +11910,9 @@ paths:
   /system/tools/call:
     post:
       tags: [system-layer]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: callSystemTool
       x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: callTool

@@ -5,7 +5,7 @@
   "batch_id": "spec020-openapi-all-remaining-preflight-batch-03",
   "source": {
     "dispatch_path": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_sha256": "7c0d504a309585498e252ef8b11b7ef95bdba32525e243bb24e3608c9233c89a",
+    "dispatch_sha256": "daeefb62c77ff557c9602973b18969db5ae34c4370dc88fd0064e0f11816daaa",
     "contract_level": "operation-index-only",
     "detail_gap_scope": "all_remaining"
   },

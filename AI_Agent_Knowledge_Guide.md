@@ -2,7 +2,7 @@
 
 ## In-app Activation Host Gateway
 
-Production Tenant GPT OAuth verification uses `http-generic-api/scripts/tenant-gpt-oauth-live-smoke.mjs` only after CI, merge, and production deployment readback. It requires typed confirmation plus an active user and tenant membership, resolves credentials internally, verifies `authorize -> code -> token`, tenant binding and replay rejection, cleans transient activation context, and returns no raw token, code, credential, or secret. See `docs/tenant-gpt-oauth-live-smoke.md`.
+Production Tenant GPT OAuth verification uses `http-generic-api/scripts/tenant-gpt-oauth-live-smoke.mjs` only after CI, merge, and production deployment readback. It requires typed confirmation plus an active user and tenant membership, resolves credentials internally, verifies `authorize -> code -> token`, tenant binding and replay rejection, cleans transient activation context, and returns no raw token, code, credential, or secret. See the existing delivery reference `docs/custom-gpt-openapi-oauth-delivery.md`; do not invent or cite a nonexistent `docs/tenant-gpt-oauth-live-smoke.md`.
 
 ### Tenant GPT JIT onboarding authority
 
@@ -16,7 +16,7 @@ Tenant onboarding should call `connect_bootstrap` when available. The operation 
 
 Activation host requests may serve only `/`, `/health`, Activation OpenAPI schemas, `/activation/*`, `/tenant/activation/*`, and the exact Tenant GPT OAuth handoffs `GET /auth/oauth/authorize`, `POST /auth/oauth/code`, and `POST /auth/oauth/token`. The in-app gateway serves `openapi.tenant-gpt.activation.yaml`, `openapi.custom-gpt.activation-admin.yaml`, and the extensionless Tenant Activation import URL `/tenant-gpt/activation-openapi` directly before root-level protected routers. Tenant GPT builders should import Tenant Activation from `https://activation.mad4b.com/tenant-gpt/activation-openapi`; that schema uses activation-host authorization and token URLs, while the three handoffs enter the same shared `authRoutes` implementation backed by `auth.mad4b.com`. Wrong methods, wildcard OAuth paths, `/auth/login`, `/auth/register`, `/auth/google`, admin auth, and unrelated core routes remain blocked. The gateway strips cookies, preserves bearer-token activation transport, returns `secrets_included=false`, and must not itself mint tokens, perform business authorization, call providers, or transform Activation business responses.
 
-This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the governed GitHub-to-Hostinger path: merge the approved change to `main`, then synchronize the protected `Production` branch from the exact latest `main` through a CI-gated and typed-approved pull request. Hostinger must create a fresh build from the resulting `Production` merge, and release readiness remains blocked until the deployment manifest equals that exact merge SHA and same-cycle health readback passes. A push, ancestry match, merge acceptance, or build acceptance alone is not deployment proof. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
+This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production promotion is the governed GitHub-to-Hostinger path: approved change to `main`, exact-SHA promotion to protected `Production`, fresh Hostinger build, and deployment-manifest plus same-cycle health readback. A push, ancestry match, merge, or build alone is not deployment proof. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path; the separate Activation Gateway remains disabled until its attestation, binding, feature gate, dark-deploy readback, and custom-domain evidence pass.
 
 ## Tenant Tool Input-Schema Authority
 
@@ -1013,24 +1013,35 @@ Before governed writes:
 
 If any required readback or duplicate check is unavailable, prefer `degraded`, `blocked`, or `requires_review` over pretending the mutation is complete.
 
+## Environment and authority navigation
+
+Use this matrix before selecting a schema, server, issuer, resource, or tool:
+
+| Context | Public server/resource | OAuth scope authority | Allowed agent side |
+|---|---|---|---|
+| Production Admin/Tenant | `https://auth.mad4b.com` or the explicitly named `https://activation.mad4b.com` surface | `https://auth.mad4b.com/scopes/*` | Admin or signed-in Tenant, according to the schema |
+| Staging Admin/Tenant | `https://dev.mad4b.com` or the explicitly named staging activation surface | `https://auth.mad4b.com/scopes/*` (shared authority; never `https://dev.mad4b.com/scopes/*`) | Admin or signed-in Tenant, according to the schema |
+
+The environment changes the server/resource/issuer family and deployment evidence; it does **not** change OAuth scope authority. Admin GPTs may inspect admin schemas and governed repo tools. Tenant GPTs must use only Tenant-exposed schemas/tools and must never use Admin repo tools, raw migrations, database dumps, or cross-tenant diagnostics. When a reference is ambiguous, resolve it from `canonicals/openapi/custom-gpt-surfaces.yaml` and the generated schema named by that registry; fail closed rather than guessing.
+
 ## 8. Connector model
 The repo includes a root runtime and a connector subtree.
 
 ### `http-generic-api`
-This is the clearest connector-style boundary currently visible.
+This is the clearest connector-style boundary currently visible. Resolve every module reference relative to the repository root; do not search for these filenames at the root or substitute similarly named files.
 
 Key modules and their authority domains:
-- `server.js` - orchestration and route handlers only
-- `executionRouting.js` - HTTP execution context resolution, guard chain, transport/native routing classification
-- `auth.js` - Google OAuth scope resolution, policy enforcement, resilience and retry mutation helpers
-- `normalization.js` - canonical normalization layer for execution payloads and routing fields
-- `mutationGovernance.js` / `governedChangeControl.js` - mutation classification, duplicate detection, exemption rules
-- `jobRunner.js` / `jobUtils.js` - async job dispatch and lifecycle management
-- `authInjection.js` / `authCredentialResolution.js` - credential resolution and auth header injection
-- `governanceValidationEngine.js` (new) - centralized validation and policy enforcement
-- `driveFileLoader.js` - Drive-backed schema and OAuth config loading (`supportsAllDrives: true`)
-- `github.js` / `hostinger.js` - provider connector entrypoints
-- `wordpress/` - 16 phase modules (A-P) for governed site migration
+- `http-generic-api/server.js` - orchestration and route handlers only
+- `http-generic-api/executionRouting.js` - HTTP execution context resolution, guard chain, transport/native routing classification
+- `http-generic-api/auth.js` - Google OAuth scope resolution, policy enforcement, resilience and retry mutation helpers
+- `http-generic-api/normalization.js` - canonical normalization layer for execution payloads and routing fields
+- `http-generic-api/mutationGovernance.js` / `http-generic-api/governedChangeControl.js` - mutation classification, duplicate detection, exemption rules
+- `http-generic-api/jobRunner.js` / `http-generic-api/jobUtils.js` - async job dispatch and lifecycle management
+- `http-generic-api/authInjection.js` / `http-generic-api/authCredentialResolution.js` - credential resolution and auth header injection
+- `http-generic-api/services/governanceValidationEngine.js` - centralized validation and policy enforcement
+- `http-generic-api/driveFileLoader.js` - Drive-backed schema and OAuth config loading (`supportsAllDrives: true`)
+- `http-generic-api/github.js` / `http-generic-api/hostinger.js` - provider connector entrypoints
+- `http-generic-api/wordpress/` - 16 phase modules (A-P) for governed site migration
 
 Use it as a pattern for:
 - policy-enforced transport execution

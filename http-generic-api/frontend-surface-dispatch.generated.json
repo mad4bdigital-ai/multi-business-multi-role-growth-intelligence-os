@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": null,
-    "source_digest": "2f9181b68560ddeaa4b8b99b6835bb6ef7adf79a96e0554b9402b63df93f941c",
+    "ref": "main",
+    "source_digest": "d886153b2225651315456c4877fc24f793d5568844c6e996e0b11bbbe893b13c",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "09538176075c6445bae1c84c6761898d535a0cd6c07893729373262be08b7df1",
+        "sha256": "1fc1d6d1ae32383c42e8f4654b971969a86f7b031f4735787c0c1d4ee1b61bd2",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "0771e20cf0a29904588fb1fe1171c3b08e10d972b7d65231d07fc9c3ff56cb24",
+        "sha256": "1226ab6d48d1a88035d68ac3c49fad638e6c314c23aa532a65fc541291ad9ae2",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "52ad3bec575f0308bf21f70870896b6f5ee88d50e81aa7d45febf374072d75fa",
+        "sha256": "b3e9c8038e5f43988bb1c53f526d5d3b0fbbee375c3c43f4bd36055af2fc8112",
         "present": true
       },
       {
@@ -1056,12 +1056,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "99e6773679b43850425dcc3d841900c5a5e66a8cc7d095cc8710194b0eacc6cb",
+        "sha256": "3a002b787dbc0253ba201c04ee8d50a7e16c07aedae37933cd1c5e6d3f2888b3",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "e31415528deabf9914ed60971283fec4f6d289941759cea7547359f15bb254c4",
+        "sha256": "38321778ca541e801e9ef0d51805d5184c60ef9e3b5c4adcd04b1e54e0d85868",
         "present": true
       },
       {

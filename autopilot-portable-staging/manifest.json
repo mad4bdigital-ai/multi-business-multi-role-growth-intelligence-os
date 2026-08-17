@@ -142,11 +142,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "09538176075c6445bae1c84c6761898d535a0cd6c07893729373262be08b7df1"
+      "sha256": "1fc1d6d1ae32383c42e8f4654b971969a86f7b031f4735787c0c1d4ee1b61bd2"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "df93a4c840610ef152070b3c1cf313780c052c662c67938ded5368da426d666d"
+      "sha256": "daeefb62c77ff557c9602973b18969db5ae34c4370dc88fd0064e0f11816daaa"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -154,7 +154,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "52ad3bec575f0308bf21f70870896b6f5ee88d50e81aa7d45febf374072d75fa"
+      "sha256": "b3e9c8038e5f43988bb1c53f526d5d3b0fbbee375c3c43f4bd36055af2fc8112"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -166,7 +166,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "a7fb0ed88a0888af66fe895436481928df42ac9ba078f1435a4edef40e1907f0"
+      "sha256": "d930f1feef85df7f04a13b9dbe9bb23067060140ec615c143ae63bf15fe87faf"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "af163105c40569368d657762b00d066ea666111d0018e315d15c8aaa495d2707"
+      "sha256": "1184c2a02120d652b2c88e2e24a00496ddf47e0b6dd1d8c88e43d95fcdccf1f2"
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
@@ -246,7 +246,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "0576b2e05afd24323c39bc9045c09d08f8634c39c2beeb985f20eb3939478470"
+      "sha256": "a3d2efd3f6f37d72f8ae622a0e61a49a8b0b47a0ca2efaea84c180c653ccaa72"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",

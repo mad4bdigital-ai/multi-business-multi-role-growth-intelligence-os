@@ -56,7 +56,8 @@ function fail(message) {
 }
 
 const registry = loadYaml(registryPath);
-assert.equal(registry.version, 2, "surface registry version must remain 2");
+const registryVersion = Number(registry.version);
+assert.ok([2, 3].includes(registryVersion), "surface registry version must be 2 or the reviewed environment-aware version 3");
 assert.deepEqual(
   registry.shared_surface_allowlist,
   expectedSharedSurfaceAllowlist,
@@ -67,8 +68,31 @@ assert.equal(registry.source_openapi, "http-generic-api/openapi.yaml", "surface 
 const generatedSurfaces = Object.entries(registry.surfaces || {})
   .filter(([, surface]) => surface?.mode === "generated_from_openapi")
   .map(([surfaceKey, surface]) => ({ surfaceKey, ...surface }));
-assert.equal(generatedSurfaces.length, 4, "exactly four generated Custom GPT surfaces are expected");
-for (const surface of generatedSurfaces) {
+const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
+const baseGeneratedSurfaces = generatedSurfaces.filter((surface) => !surface.base_surface);
+const environmentGeneratedSurfaces = generatedSurfaces.filter((surface) => Boolean(surface.base_surface));
+assert.deepEqual(
+  baseGeneratedSurfaces.map((surface) => surface.surfaceKey).sort(),
+  baseSurfaceKeys.slice().sort(),
+  "base generated Custom GPT surfaces must remain the four reviewed canonical surfaces",
+);
+assert.equal(generatedSurfaces.length, 12, "environment-aware registry must contain four base surfaces plus eight environment projections");
+assert.equal(environmentGeneratedSurfaces.length, 8, "environment-aware registry must contain exactly eight environment projections");
+const projectionKeys = new Set();
+for (const surface of environmentGeneratedSurfaces) {
+  assert.ok(baseSurfaceKeys.includes(surface.base_surface), `${surface.surfaceKey} must derive from a reviewed base surface`);
+  assert.ok(["staging", "production"].includes(surface.environment), `${surface.surfaceKey} must declare staging or production`);
+  const projectionKey = `${surface.base_surface}:${surface.environment}`;
+  assert(!projectionKeys.has(projectionKey), `${surface.surfaceKey} duplicates environment projection ${projectionKey}`);
+  projectionKeys.add(projectionKey);
+  assert.match(String(surface.output_file), new RegExp(`\\.${surface.environment}\\.yaml$`), `${surface.surfaceKey} output must be environment-specific`);
+}
+for (const baseSurfaceKey of baseSurfaceKeys) {
+  for (const environment of ["staging", "production"]) {
+    assert(projectionKeys.has(`${baseSurfaceKey}:${environment}`), `missing ${environment} projection for ${baseSurfaceKey}`);
+  }
+}
+for (const surface of baseGeneratedSurfaces) {
   assert.equal(surface.candidate_policy?.mode, "marker_required", `${surface.surfaceKey} candidate policy must be marker_required`);
   assert.equal(surface.candidate_policy?.required_marker, surface.surfaceKey, `${surface.surfaceKey} required marker drifted`);
   assert.equal(surface.candidate_policy?.omission, "fail", `${surface.surfaceKey} omission policy must remain fail`);

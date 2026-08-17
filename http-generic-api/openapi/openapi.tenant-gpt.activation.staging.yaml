@@ -21,11 +21,23 @@ components:
           authorizationUrl: https://activation-dev.mad4b.com/auth/oauth/authorize
           tokenUrl: https://activation-dev.mad4b.com/auth/oauth/token
           scopes:
-            https://dev.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
-            https://dev.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
-            https://dev.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
-            https://dev.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
-            https://dev.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.status: Read tenant connection status for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
+            https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
   schemas:
     OperationalAlert:
       type: object
@@ -875,11 +887,11 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 security:
   - userBearerAuth:
-      - https://dev.mad4b.com/scopes/tenant.links
-      - https://dev.mad4b.com/scopes/tenant.status
-      - https://dev.mad4b.com/scopes/tenant.activation
-      - https://dev.mad4b.com/scopes/tenant.install
-      - https://dev.mad4b.com/scopes/tenant.system-tools
+      - https://auth.mad4b.com/scopes/tenant.links
+      - https://auth.mad4b.com/scopes/tenant.status
+      - https://auth.mad4b.com/scopes/tenant.activation
+      - https://auth.mad4b.com/scopes/tenant.install
+      - https://auth.mad4b.com/scopes/tenant.system-tools
 paths:
   /tenant/activation/session-context:
     get:
@@ -1053,22 +1065,22 @@ paths:
           $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
   /tenant/activation/operational-attention:
     get:
       tags:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantActivationOperationalAttention
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
@@ -1167,11 +1179,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantActivationAwareness
       x-openai-isConsequential: false
       summary: Read signed-in tenant activation awareness
@@ -1234,11 +1246,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantResolutionProblemCards
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -1316,11 +1328,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listTenantResolutionCases
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -1477,11 +1489,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: createTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -1589,11 +1601,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: getTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
@@ -1688,11 +1700,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: transitionTenantResolutionCase
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -1821,11 +1833,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: runTenantResolutionDiagnosticAction
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2166,11 +2178,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: previewTenantTaskSourceRepair
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2438,11 +2450,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: applyTenantTaskSourceRepair
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2748,11 +2760,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: verifyTenantTaskSourceRepair
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
@@ -2872,11 +2884,11 @@ paths:
         - activation
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: readTenantActivationDynamicTabDetail
       x-openai-isConsequential: false
       summary: Read one tenant-authorized Dynamic Tab detail page
@@ -3078,11 +3090,11 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
   /tenant/activation/sessions/{id}/turns:
     post:
       tags:
@@ -3263,15 +3275,15 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
         - userBearerAuth:
-            - https://dev.mad4b.com/scopes/tenant.links
-            - https://dev.mad4b.com/scopes/tenant.status
-            - https://dev.mad4b.com/scopes/tenant.activation
-            - https://dev.mad4b.com/scopes/tenant.install
-            - https://dev.mad4b.com/scopes/tenant.system-tools
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 0771e20cf0a29904588fb1fe1171c3b08e10d972b7d65231d07fc9c3ff56cb24
+  source_openapi_sha256: 1226ab6d48d1a88035d68ac3c49fad638e6c314c23aa532a65fc541291ad9ae2
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
@@ -3391,8 +3403,8 @@ x-gpt-action-auth-preset:
     - https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback
     - https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback
   scope_links:
-    - https://dev.mad4b.com/scopes/tenant.links
-    - https://dev.mad4b.com/scopes/tenant.status
-    - https://dev.mad4b.com/scopes/tenant.activation
-    - https://dev.mad4b.com/scopes/tenant.install
-    - https://dev.mad4b.com/scopes/tenant.system-tools
+    - https://auth.mad4b.com/scopes/tenant.links
+    - https://auth.mad4b.com/scopes/tenant.status
+    - https://auth.mad4b.com/scopes/tenant.activation
+    - https://auth.mad4b.com/scopes/tenant.install
+    - https://auth.mad4b.com/scopes/tenant.system-tools
