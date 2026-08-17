@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7141,
-    "bytes": 69714481,
-    "lines": 1636985,
+    "files": 7144,
+    "bytes": 69725261,
+    "lines": 1637175,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2140,
-      "documentation": 1905,
+      "tests-and-specs": 2142,
+      "documentation": 1906,
       "api-runtime": 1435,
       "database-migrations": 783,
       "root-and-other": 282,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2506,
-      ".mjs": 1679,
+      ".md": 2507,
+      ".mjs": 1680,
       ".js": 991,
       ".sql": 798,
-      ".json": 784,
+      ".json": 785,
       ".yml": 170,
       ".yaml": 119,
       ".ps1": 16,
@@ -61,9 +61,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3682,
-      "docs": 1809,
-      "specs": 874,
+      "http-generic-api": 3683,
+      "docs": 1810,
+      "specs": 875,
       ".github": 274,
       ".changes": 258,
       "canonicals": 70,
@@ -2736,6 +2736,7 @@
       "http-generic-api/test-spec017-fixture-context-readback.mjs",
       "http-generic-api/test-spec017-protected-managed-execution-canary.mjs",
       "http-generic-api/test-spec019-database-lifecycle-contract.mjs",
+      "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
       "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs",
       "http-generic-api/test-sprint69-1043-apply-contract.mjs",
       "http-generic-api/test-sprint69-1043-readback-certification-contract.mjs",
@@ -3836,6 +3837,7 @@
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/platform-resource-identity.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "specs/020-platform-resource-identity-brand-governance/manifest.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
@@ -4961,6 +4963,7 @@
       "http-generic-api/test-spec017-fixture-context-readback.mjs",
       "http-generic-api/test-spec017-protected-managed-execution-canary.mjs",
       "http-generic-api/test-spec019-database-lifecycle-contract.mjs",
+      "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
       "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs",
       "http-generic-api/test-sprint69-1043-apply-contract.mjs",
       "http-generic-api/test-sprint69-1043-readback-certification-contract.mjs",
@@ -6061,6 +6064,7 @@
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-gap-closure-plan.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/platform-resource-identity.schema.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "specs/020-platform-resource-identity-brand-governance/manifest.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json",
@@ -32014,6 +32018,17 @@
       "generated": false
     },
     {
+      "path": "docs/runbooks/spec020-runtime-database-readiness.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 4125,
+      "lines": 38,
+      "sha256": "e90ec4fec2aa8cf2f02b07107de1c4a45c2eafa1250ad3373e8c67c9ae17a7bf",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/runbooks/sql-cache-operations.md",
       "category": "documentation",
       "extension": ".md",
@@ -57218,9 +57233,9 @@
       "path": "http-generic-api/scripts/test-manifest.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8856,
-      "lines": 167,
-      "sha256": "e31415528deabf9914ed60971283fec4f6d289941759cea7547359f15bb254c4",
+      "bytes": 8919,
+      "lines": 168,
+      "sha256": "38321778ca541e801e9ef0d51805d5184c60ef9e3b5c4adcd04b1e54e0d85868",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70767,6 +70782,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2836,
+      "lines": 51,
+      "sha256": "e2bc0775b018b4f38dc232fa2be9b9715cfc411c4469b6fe7382d1524017e398",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -84000,12 +84026,23 @@
       "generated": false
     },
     {
+      "path": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+      "category": "tests-and-specs",
+      "extension": ".json",
+      "bytes": 2944,
+      "lines": 87,
+      "sha256": "7fe84329f22f2ad82bd38f4efcf17141a99db40dcfdc7e5304af0c8cbc3d2faa",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 13317,
-      "lines": 240,
-      "sha256": "7e26d1817545642aa0a348518170b12bdec3def392d0548228aaf3b3f73809d1",
+      "bytes": 14129,
+      "lines": 253,
+      "sha256": "eb7007551e42368c1ecac8c38b08156475b8b4ab5b38662ac9be0b6c7f43ba68",
       "mode": "644",
       "executable": false,
       "generated": false
