@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7144,
-    "bytes": 69726655,
-    "lines": 1637198,
+    "bytes": 69726955,
+    "lines": 1637202,
     "directories": 265,
     "categories": 13
   },
@@ -49524,7 +49524,7 @@
       "extension": ".json",
       "bytes": 25519,
       "lines": 613,
-      "sha256": "2a8be91a4b5653241f3db2910697950893dba4563458301d9a4b6f4f5691d638",
+      "sha256": "6012a75386292cf97cddbfcfaae8258af1167f226cc3a46fe3ed21bbcdb2925d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84040,9 +84040,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 15713,
-      "lines": 275,
-      "sha256": "c69a5d835bdddf52785d6fd400dc5324374d883021d1f0d5f520b79c8129e084",
+      "bytes": 16013,
+      "lines": 279,
+      "sha256": "8d23ada7d161ef844e615aa41a68d753ddc0ddf0ab6d4e6b1deddcd706440278",
       "mode": "644",
       "executable": false,
       "generated": false

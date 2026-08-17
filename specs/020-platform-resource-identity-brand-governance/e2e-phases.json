@@ -73,7 +73,9 @@
       "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
       "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
       "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
-      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml"
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
     ]
   },
   "merge_contract": {
@@ -254,7 +256,9 @@
             "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
             "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
             "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
-            "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml"
+            "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
           ],
           "secrets_included": false
         }
