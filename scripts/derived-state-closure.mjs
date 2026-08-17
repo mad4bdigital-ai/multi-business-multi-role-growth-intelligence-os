@@ -21,7 +21,7 @@ const VERIFIERS = Object.freeze({
     { cwd: repoRoot, command: process.execPath, args: ["scripts/repository-evaluation.mjs", "--check", "--enforce"] }
   ],
   remote_mcp_write_scope_currentness: [
-    { cwd: repoRoot, command: process.execPath, args: ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"] },
+    { cwd: repoRoot, command: process.execPath, args: ["scripts/remote-mcp-write-scope-semantic-currentness.mjs"] },
     { cwd: repoRoot, command: process.execPath, args: ["scripts/test-remote-mcp-write-scope-inventory.mjs"] }
   ],
   frontend_openapi_currentness: [
