@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7152,
-    "bytes": 69797426,
+    "bytes": 69798778,
     "lines": 1639884,
     "directories": 265,
     "categories": 13
@@ -258,7 +258,7 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3474187,
+      "bytes": 3474185,
       "lines": 97972
     },
     {
@@ -342,8 +342,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 220771,
-      "lines": 4687
+      "bytes": 220777,
+      "lines": 4686
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
@@ -354,7 +354,7 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
-      "bytes": 203999,
+      "bytes": 204131,
       "lines": 4368
     },
     {

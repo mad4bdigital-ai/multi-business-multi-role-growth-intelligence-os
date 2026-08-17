@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { getPool } from "../db.js";
+import { getPool, getRuntimePersistencePool } from "../db.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
@@ -2763,7 +2763,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
-      pool: getPool(),
+      runtimePersistencePoolFactory: runtimePersistencePoolFactory || getRuntimePersistencePool,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -4287,7 +4287,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 }
 
 export function buildGptToolsRoutes(deps) {
-  const { requireBackendApiKey } = deps;
+  const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
   const router = Router();
 
   // GET /gpt/tools

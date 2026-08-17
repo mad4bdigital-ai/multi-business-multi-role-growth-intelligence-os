@@ -8,7 +8,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,152 |
-| Total bytes | 69,797,426 |
+| Total bytes | 69,798,778 |
 | Counted text lines | 1,639,884 |
 | Directories | 265 |
 | Categories | 13 |
@@ -92,7 +92,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,187 | 97972 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,185 | 97972 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,027 | 58546 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 991,444 | 23015 |
@@ -106,9 +106,9 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `docs/governance/configuration-drift-policy.json` | documentation | 245,456 | 2099 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 220,771 | 4687 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 220,777 | 4686 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 204,131 | 4368 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |
