@@ -62,19 +62,29 @@ export function evaluateReviewGate({ owner, author, headSha, collaborators = [],
 }
 
 async function api(url, token, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  const body = response.status === 204 ? null : await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`GitHub API ${response.status}: ${body?.message || url}`);
-  return body;
+  const retryable = new Set([429, 502, 503, 504]);
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+    const body = response.status === 204 ? null : await response.json().catch(() => ({}));
+    if (response.ok) return body;
+    if (!retryable.has(response.status) || attempt === maxAttempts) {
+      throw new Error(`GitHub API ${response.status}: ${body?.message || url}`);
+    }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const delayMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 10_000) : 500 * (2 ** (attempt - 1));
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  throw new Error(`GitHub API retry budget exhausted: ${url}`);
 }
 
 async function listAll(url, token) {

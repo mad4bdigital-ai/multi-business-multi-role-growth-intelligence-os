@@ -92,6 +92,8 @@ jobs:
             } catch (error) {
               if (error.status === 404) {
                 core.warning(`list PR labels skipped because labels endpoint returned 404 for PR #${issue_number}: ${error.message}`);
+              } else if (error.status === 422 || error.status === 429 || error.status === 502 || error.status === 503) {
+                core.warning(`list PR labels skipped because GitHub labels endpoint returned ${error.status}: ${error.message}`);
               } else if (!warnOnPermissionDenied("list PR labels", error)) {
                 throw error;
               }
@@ -110,7 +112,9 @@ jobs:
               try {
                 await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [...labels].sort() });
               } catch (error) {
-                if (!warnOnPermissionDenied("add PR labels", error)) throw error;
+                if (error.status === 422 || error.status === 429 || error.status === 502 || error.status === 503) {
+                  core.warning(`add PR labels skipped because GitHub labels endpoint returned ${error.status}: ${error.message}`);
+                } else if (!warnOnPermissionDenied("add PR labels", error)) throw error;
               }
             }
 

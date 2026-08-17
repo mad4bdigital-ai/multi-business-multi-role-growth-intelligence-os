@@ -75,7 +75,9 @@
       "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
       "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
       "http-generic-api/openapi/openapi-mutation-policy.generated.json",
-      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
+      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+      ".github/workflows/pr-risk-labeler.yml",
+      "http-generic-api/scripts/single-owner-review-gate.mjs"
     ]
   },
   "merge_contract": {
@@ -258,7 +260,9 @@
             "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
             "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
             "http-generic-api/openapi/openapi-mutation-policy.generated.json",
-            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
+            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+            ".github/workflows/pr-risk-labeler.yml",
+            "http-generic-api/scripts/single-owner-review-gate.mjs"
           ],
           "secrets_included": false
         }
