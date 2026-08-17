@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7153,
-    "bytes": 69821813,
-    "lines": 1640381,
+    "bytes": 69823930,
+    "lines": 1640429,
     "directories": 265,
     "categories": 13
   },
@@ -12691,7 +12691,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "dd0219f7981f5ad042f07c74f3ac8ecb74460af9ca49077121d9653cb6cb4573",
+      "sha256": "a33c8728bca55bc5df0373d4c3a6db70827a6236435d81dfe6b14c646c6bf7ab",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51400,7 +51400,7 @@
       "extension": ".json",
       "bytes": 1936093,
       "lines": 58550,
-      "sha256": "78679f5fb95e3f2827b0a9af54794b345b8fbc838d6c1d5bcef07ee6a457664a",
+      "sha256": "3665b749f3086b30c7e9ff6cb7d22d46fbe61ccb926bd0e8d2f2ab32469d7c10",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52586,9 +52586,9 @@
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 205571,
-      "lines": 4396,
-      "sha256": "ebac43be14aaa443f61753ec5c1b5a540081733210879167ef541b77d6a9fbfe",
+      "bytes": 207503,
+      "lines": 4441,
+      "sha256": "7f38038d59a172a466c54c644020c4bf896643fa1f5a531d87b59722c287462a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -66963,9 +66963,9 @@
       "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 6466,
-      "lines": 132,
-      "sha256": "3db6be0facf2cb1321907a0703f2579be162e8ad77dd7300b72d78978917788b",
+      "bytes": 6651,
+      "lines": 135,
+      "sha256": "b1cb692c44cbf742b7c98cb7b166a9cc945347afd62d11f20e359797eef28ea0",
       "mode": "644",
       "executable": false,
       "generated": false

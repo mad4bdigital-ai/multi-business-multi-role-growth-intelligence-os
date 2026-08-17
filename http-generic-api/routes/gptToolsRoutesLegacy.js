@@ -288,6 +288,25 @@ function attachSessionArchiveCaptureGate(resultForClient, archiveResult) {
   return resultForClient;
 }
 
+function resolveLatestActiveSessionCandidate(rows) {
+  const candidates = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  if (!candidates.length) return { row: null };
+  const ordered = [...candidates].sort((left, right) => {
+    const startedAtOrder = String(right.started_at || "").localeCompare(String(left.started_at || ""));
+    if (startedAtOrder !== 0) return startedAtOrder;
+    return String(right.session_id || "").localeCompare(String(left.session_id || ""));
+  });
+  const [candidate, nextCandidate] = ordered;
+  if (nextCandidate && String(candidate.started_at || "") === String(nextCandidate.started_at || "")) {
+    const error = new Error("Active GPT session context is ambiguous.");
+    error.code = "ACTIVE_SESSION_CONTEXT_AMBIGUOUS";
+    error.status = 409;
+    error.details = { candidate_count: candidates.length, ambiguity_key: "started_at", secrets_included: false };
+    throw error;
+  }
+  return { row: candidate };
+}
+
 async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
@@ -309,13 +328,14 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
       LIMIT 1`,
       [pinnedSessionId, tenantId, userId]
     );
-    if (!rows[0]) return null;
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+    const [pinnedSession] = Array.isArray(rows) ? rows : [];
+    if (!pinnedSession) return null;
+    const counts = await countConversationTurns(pool, pinnedSession.session_id);
     if (counts.conversation_turns > 0 || allowUncapturedConversation) {
-      return { ...rows[0], archive_binding: "explicit_session_pin", turn_counts: counts };
+      return { ...pinnedSession, archive_binding: "explicit_session_pin", turn_counts: counts };
     }
     return {
-      ...rows[0],
+      ...pinnedSession,
       archive_binding: "explicit_session_pin_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -338,10 +358,11 @@ async function findActiveSessionForCaller(pool, req, args = {}, options = {}) {
       return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
     }
   }
-  if (rows?.[0]) {
-    const counts = await countConversationTurns(pool, rows[0].session_id);
+  const { row: fallbackSession } = resolveLatestActiveSessionCandidate(rows);
+  if (fallbackSession) {
+    const counts = await countConversationTurns(pool, fallbackSession.session_id);
     return {
-      ...rows[0],
+      ...fallbackSession,
       archive_binding: "latest_active_session_pre_final_capture_required",
       turn_counts: counts,
       pre_final_capture_required: true,
@@ -2516,15 +2537,22 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
   for (const table of candidateTables) {
     await assertMcpCatalogLevelColumn({ pool: getPool(), table });
     const [rows] = await getPool().query(
-      `SELECT http_method, tags, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+      `SELECT http_method, tags, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [normalizedToolKey]
     );
-    if (!rows?.[0]) continue;
+    const [row, ambiguousRow] = Array.isArray(rows) ? rows : [];
+    if (ambiguousRow) {
+      const error = new Error("Tool descriptor lookup is ambiguous.");
+      error.code = "TOOL_DESCRIPTOR_LOOKUP_AMBIGUOUS";
+      error.status = 409;
+      throw error;
+    }
+    if (!row) continue;
     return {
-      method: rows[0].http_method || "",
-      tags: normalizeRegistryTags(rows[0].tags),
-      catalogLevel: String(rows[0].mcp_catalog_level || "core"),
-      catalog_level: String(rows[0].mcp_catalog_level || "core"),
+      method: row.http_method || "",
+      tags: normalizeRegistryTags(row.tags),
+      catalogLevel: String(row.mcp_catalog_level || "core"),
+      catalog_level: String(row.mcp_catalog_level || "core"),
       source: table,
     };
   }
@@ -3415,11 +3443,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   let grantContext = null;
 
   if (callerType === "tenant") {
-    const [tenantRowExists] = await getPool().query(
-      `SELECT 1 FROM \`${TOOLS_TABLE.tenant}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 1`,
+    const [tenantToolCountRows] = await getPool().query(
+      `SELECT COUNT(*) AS matching_tool_count
+         FROM \`${TOOLS_TABLE.tenant}\`
+        WHERE tool_key = ? AND is_enabled = 1`,
       [toolKey]
     );
-    if (!tenantRowExists.length) {
+    const tenantToolCount = Number(tenantToolCountRows?.[0]?.matching_tool_count || 0);
+    if (tenantToolCount === 0) {
       const tenantId = req?.auth?.tenant_id || null;
       const userId = req?.auth?.user_id || null;
       const grant = tenantId && userId ? await findActiveGrantForTool(tenantId, userId, toolKey) : null;
@@ -3450,15 +3481,29 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     `SELECT http_method, http_path, path_param_keys, fixed_body
      FROM \`${table}\`
      WHERE tool_key = ? AND is_enabled = 1
-     LIMIT 1`,
+     LIMIT 2`,
     [toolKey]
   );
-
-  if (!rows[0]) {
+  const [toolRow, ambiguousToolRow] = Array.isArray(rows) ? rows : [];
+  if (ambiguousToolRow) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        error: {
+          code: "TOOL_DESCRIPTOR_LOOKUP_AMBIGUOUS",
+          message: "Tool descriptor lookup is ambiguous.",
+          details: { tool_key: toolKey, table, secrets_included: false },
+        },
+        secrets_included: false,
+      },
+    };
+  }
+  if (!toolRow) {
     return { status: 404, body: { ok: false, error: { code: "tool_not_found", message: `Tool '${toolKey}' not found.` } } };
   }
 
-  const { http_method: method, http_path: pathTemplate } = rows[0];
+  const { http_method: method, http_path: pathTemplate } = toolRow;
   if (callerType === "tenant" && (isTenantBlockedToolPath(pathTemplate) || isTenantBlockedToolName(toolKey))) {
     return {
       status: 403,
@@ -3472,8 +3517,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       },
     };
   }
-  const pathParamKeys = parseJson(rows[0].path_param_keys) || [];
-  const fixedBody = parseJson(rows[0].fixed_body) || {};
+  const pathParamKeys = parseJson(toolRow.path_param_keys) || [];
+  const fixedBody = parseJson(toolRow.fixed_body) || {};
   const remaining = { ...args };
 
   // Substitute path parameters

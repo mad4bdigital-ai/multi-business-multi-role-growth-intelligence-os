@@ -3658,8 +3658,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#GET:/gpt/tools:0",
-      "source_line": 4306,
-      "source_offset": 201897,
+      "source_line": 4351,
+      "source_offset": 203829,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -3667,8 +3667,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#POST:/gpt/tools/call:1",
-      "source_line": 4340,
-      "source_offset": 203234,
+      "source_line": 4385,
+      "source_offset": 205166,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -25870,10 +25870,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
-        "source_line": 4340,
+        "source_line": 4385,
         "handler_window_lines": [
-          4340,
-          4396
+          4385,
+          4441
         ],
         "evidence_flags": {
           "handler_window_present": true,
