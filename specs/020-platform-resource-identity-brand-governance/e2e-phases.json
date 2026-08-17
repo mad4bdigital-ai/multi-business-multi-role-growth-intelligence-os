@@ -59,7 +59,10 @@
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
-      "http-generic-api/openapi/**"
+      "http-generic-api/openapi/**",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+      "docs/runbooks/spec020-runtime-database-readiness.md",
+      "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs"
     ]
   },
   "merge_contract": {
@@ -163,6 +166,13 @@
               "working_directory": "http-generic-api",
               "path": "test-frontend-surface-coverage-claims.mjs",
               "args": []
+            },
+            {
+              "id": "spec020-runtime-database-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec020-runtime-database-readiness-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -219,7 +229,10 @@
             "http-generic-api/runtimeIntegrity.js",
             "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
             "http-generic-api/test-runtime-integrity.mjs",
-            "http-generic-api/test-staging-autopilot-closure.mjs"
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "docs/runbooks/spec020-runtime-database-readiness.md",
+            "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs"
           ],
           "secrets_included": false
         }
