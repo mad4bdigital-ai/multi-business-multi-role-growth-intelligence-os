@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "contract": "mad4b.spec020.runtime-database-readiness.v1",
+  "contract": "mad4b.spec020.runtime-database-readiness.v2",
   "status": "prepared-only",
   "authority": "shadow-library-only",
   "runtime_mutation_allowed": false,
@@ -10,7 +10,8 @@
     "included": [
       "runtime session-context persistence",
       "dynamic MCP/tool catalog schema readiness",
-      "durable governed response chunk persistence"
+      "durable governed response chunk persistence",
+      "three-database role and identity separation"
     ],
     "excluded_actions": [
       "GRANT",
@@ -22,33 +23,77 @@
       "Hard Activation"
     ]
   },
-  "required_preflight_evidence": {
-    "runtime_database": {
-      "user": "u338416126_growthOS",
-      "database_role": "runtime_data",
+  "database_roles": {
+    "runtime": {
+      "database_name_env": "DB_NAME",
+      "principal_env": "DB_USER",
+      "role": "runtime_data",
+      "owned_tables": [
+        "customer_sessions",
+        "tenant_platform_endpoint_tools"
+      ],
       "required_table_privileges": {
-        "customer_sessions": ["SELECT", "INSERT", "UPDATE"],
+        "customer_sessions": ["SELECT", "INSERT", "UPDATE"]
+      },
+      "constraints": {
+        "no_fallback_to_other_role": true,
+        "no_global_write_privileges": true,
+        "no_schema_wide_write_privileges": true,
+        "no_grant_option": true,
+        "no_column_level_privileges": true,
+        "direct_table_scope_only": true
+      }
+    },
+    "governance": {
+      "database_name_env": "GOVERNANCE_DB_NAME",
+      "principal_env": "GOVERNANCE_DB_USER",
+      "role": "governance_control_plane",
+      "owned_tables": [
+        "capability_resolution_envelope_ledger",
+        "approval_holds",
+        "governed_migration_authorization_registry",
+        "capability_apply_authorization_policy_registry",
+        "runtime_dispatch_certification_registry",
+        "governed_migration_ledger",
+        "platform_resource_authority_bindings"
+      ],
+      "constraints": {
+        "no_fallback_to_runtime_role": true,
+        "no_fallback_to_persistence_role": true,
+        "no_global_write_privileges": true,
+        "no_schema_wide_write_privileges": true,
+        "no_grant_option": true,
+        "direct_table_scope_only": true
+      }
+    },
+    "runtime_persistence": {
+      "database_name_env": "RUNTIME_PERSISTENCE_DB_NAME",
+      "principal_env": "RUNTIME_PERSISTENCE_DB_USER",
+      "role": "dedicated_runtime_persistence_writer",
+      "owned_tables": ["governed_tool_response_chunks"],
+      "required_table_privileges": {
         "governed_tool_response_chunks": ["SELECT", "INSERT", "UPDATE"]
       },
       "maintenance_privileges": {
         "governed_tool_response_chunks": ["DELETE"]
       },
       "constraints": {
+        "no_fallback_to_runtime_role": true,
+        "no_fallback_to_governance_role": true,
         "no_global_write_privileges": true,
         "no_schema_wide_write_privileges": true,
         "no_grant_option": true,
         "no_column_level_privileges": true,
-        "direct_table_scope_only": true
-      },
-      "failure_codes": [
-        "RUNTIME_SESSION_CONTEXT_INSERT_DENIED",
-        "RUNTIME_RESPONSE_CHUNK_PERSISTENCE_DENIED",
-        "RUNTIME_PERSISTENCE_PRIVILEGE_DRIFT"
-      ]
-    },
+        "direct_table_scope_only": true,
+        "delete_scope": "maintenance_only"
+      }
+    }
+  },
+  "required_preflight_evidence": {
     "tool_catalog_schema": {
       "required_field": "mcp_catalog_level",
-      "field_owner": "dynamic_mcp_tool_catalog",
+      "field_owner": "runtime.tenant_platform_endpoint_tools",
+      "database_role": "runtime",
       "required_evidence": [
         "schema_readback proves the field exists",
         "migration checksum is recorded",
@@ -68,19 +113,19 @@
         "activation registry parity valid",
         "session-context preflight passed",
         "tool catalog schema preflight passed",
-        "response chunk persistence preflight passed"
+        "response chunk persistence preflight passed",
+        "runtime, governance, and runtime persistence identities are distinct"
       ],
       "degraded_if_any_required_evidence_missing": true,
       "hard_activation_blocked_until_all_required_evidence": true
     }
   },
   "prepared_actions": [
-    "produce a least-privilege GRANT plan for explicit table targets",
-    "identify and checksum the migration that introduces mcp_catalog_level",
-    "run read-only INFORMATION_SCHEMA and SHOW GRANTS preflight checks",
+    "produce a least-privilege GRANT plan for explicit table targets in each database role",
+    "identify and checksum the migration that introduces mcp_catalog_level in the runtime role",
+    "run read-only INFORMATION_SCHEMA and SHOW GRANTS preflight checks for each role",
     "re-run session-context, repo_inspect, listAdminTools, and response-chunk probes after an operator-approved change"
   ],
   "operator_approval_required": true,
   "secrets_included": false
 }
-
