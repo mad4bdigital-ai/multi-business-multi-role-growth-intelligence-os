@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7117,
-    "bytes": 68983361,
-    "lines": 1617343,
+    "bytes": 68992462,
+    "lines": 1617564,
     "directories": 265,
     "categories": 13
   },
@@ -30238,9 +30238,9 @@
       "path": "docs/governance/platform-configuration-entry-registry.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 22209,
-      "lines": 554,
-      "sha256": "a5602e46593f21cada81d534650753f9f09bac75042e97214fd50f57b41e707a",
+      "bytes": 31310,
+      "lines": 775,
+      "sha256": "3e2f5c0665badec600f3666dc08f6cff86ee11f3c64db1d0446a32f2a9d2fd83",
       "mode": "644",
       "executable": false,
       "generated": false
