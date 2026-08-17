@@ -73,6 +73,10 @@ components:
         commit_source: { type: string }
         deployed_at: { type: string }
         expected_dev_branch: { type: string }
+        production_activation_readiness:
+          type: object
+          additionalProperties: true
+          description: Optional read-only readiness projection for MCP schema, Governance DB, and Runtime Persistence activation prerequisites.
         evidence:
           type: object
           additionalProperties: true
@@ -119,6 +123,14 @@ paths:
       description: Public read-only branch and commit metadata for deployment verification.
       x-openai-isConsequential: false
       security: []
+      parameters:
+        - name: include_production_activation_readiness
+          in: query
+          required: false
+          description: Return the read-only combined Production activation readiness projection.
+          schema:
+            type: string
+            enum: ["1"]
       responses:
         '200':
           description: Deployment metadata.

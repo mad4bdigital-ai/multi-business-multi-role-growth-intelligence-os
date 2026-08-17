@@ -20,6 +20,7 @@ const upstreamCommands = [
   "node test-control-plane-write-authority.mjs",
   "node test-mcp-catalog-schema-guard.mjs",
   "node test-mcp-catalog-schema-preflight.mjs",
+  "node test-production-activation-readiness.mjs",
   "node test-staging-independent-schema-contract.mjs",
 ];
 

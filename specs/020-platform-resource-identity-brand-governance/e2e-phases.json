@@ -63,6 +63,12 @@
       "http-generic-api/server.js",
       "http-generic-api/test-mcp-catalog-schema-guard.mjs",
       "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+      "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/activationHardEvidence.js",
+      "http-generic-api/routes/activationHardRunRoutes.js",
+      "http-generic-api/routes/activationRoutes.js",
+      "http-generic-api/test-production-activation-readiness.mjs",
+      "http-generic-api/test-activation-hard-evidence.mjs",
       "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
       "http-generic-api/runtimeIntegrity.js",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
@@ -242,6 +248,20 @@
               "args": []
             },
             {
+              "id": "spec020-production-activation-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-activation-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-activation-hard-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-hard-evidence.mjs",
+              "args": []
+            },
+            {
               "id": "spec020-hostinger-production-runtime-readback-r7",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -302,8 +322,14 @@
             "http-generic-api/test-frontend-surface-coverage-claims.mjs",
             "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
             "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/productionActivationReadiness.js",
+            "http-generic-api/activationHardEvidence.js",
+            "http-generic-api/routes/activationHardRunRoutes.js",
+            "http-generic-api/routes/activationRoutes.js",
             "http-generic-api/runtimeIntegrity.js",
             "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "http-generic-api/test-production-activation-readiness.mjs",
+            "http-generic-api/test-activation-hard-evidence.mjs",
             "http-generic-api/test-runtime-integrity.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",

@@ -8,6 +8,8 @@ export const HARD_ACTIVATION_REASON_CODES = Object.freeze({
   REPO_CANONICALS_FAILED: "degraded_repo_canonical_evidence_failed",
   MISSING_DYNAMIC_TOOL_CATALOG: "degraded_missing_dynamic_tool_catalog_evidence",
   DYNAMIC_TOOL_CATALOG_FAILED: "degraded_dynamic_tool_catalog_failed",
+  MISSING_DATABASE_READINESS: "degraded_missing_database_readiness_evidence",
+  DATABASE_READINESS_FAILED: "degraded_database_readiness_failed",
 });
 
 function isObject(value) {
@@ -115,11 +117,32 @@ export function summarizeDynamicToolCatalogEvidence(toolCatalog = null) {
   };
 }
 
+export function summarizeDatabaseReadinessEvidence(databaseReadiness = null) {
+  const attempted = isObject(databaseReadiness) && (
+    databaseReadiness.attempted === true
+    || Object.hasOwn(databaseReadiness, "ok")
+    || Object.hasOwn(databaseReadiness, "ready")
+  );
+  const ok = attempted && (databaseReadiness.ok === true || databaseReadiness.ready === true);
+  return {
+    attempted,
+    ok,
+    status: attempted ? databaseReadiness.status || (ok ? "ready" : "blocked") : null,
+    contract: attempted ? databaseReadiness.contract || null : null,
+    reason: attempted ? databaseReadiness.reason || null : null,
+    checks: attempted && isObject(databaseReadiness.checks) ? databaseReadiness.checks : {},
+    read_only_probe: attempted && databaseReadiness.read_only_probe === true,
+    hard_activation_blocked_until_ready: !ok,
+    evidence_source: attempted ? "production_activation_readiness" : null,
+  };
+}
+
 export function classifyHardActivationEvidence(matrix = {}) {
   const session = matrix.session_context || {};
   const provider = matrix.provider_bootstrap || {};
   const repo = matrix.repo_canonicals || {};
   const tools = matrix.tool_catalog || {};
+  const database = matrix.database_readiness || {};
 
   if (!session.attempted) {
     return { activation_status: "degraded", activation_complete: false, status_authority: "runtime_canonical", reason_code: HARD_ACTIVATION_REASON_CODES.MISSING_SESSION_CONTEXT };
@@ -145,15 +168,22 @@ export function classifyHardActivationEvidence(matrix = {}) {
   if (!tools.ok) {
     return { activation_status: "degraded", activation_complete: false, status_authority: "runtime_canonical", reason_code: tools.reason_code || HARD_ACTIVATION_REASON_CODES.DYNAMIC_TOOL_CATALOG_FAILED };
   }
+  if (!database.attempted) {
+    return { activation_status: "degraded", activation_complete: false, status_authority: "runtime_canonical", reason_code: HARD_ACTIVATION_REASON_CODES.MISSING_DATABASE_READINESS };
+  }
+  if (!database.ok) {
+    return { activation_status: "degraded", activation_complete: false, status_authority: "runtime_canonical", reason_code: database.reason_code || database.reason || HARD_ACTIVATION_REASON_CODES.DATABASE_READINESS_FAILED };
+  }
   return { activation_status: "active", activation_complete: true, status_authority: "runtime_canonical", reason_code: HARD_ACTIVATION_REASON_CODES.ACTIVE };
 }
 
-export function buildHardActivationEvidenceMatrix({ sessionContext = null, providerBootstrap = null, repoCanonicals = null, toolCatalog = null } = {}) {
+export function buildHardActivationEvidenceMatrix({ sessionContext = null, providerBootstrap = null, repoCanonicals = null, toolCatalog = null, databaseReadiness = null } = {}) {
   const matrix = {
     session_context: summarizeSessionContextEvidence(sessionContext),
     provider_bootstrap: summarizeProviderBootstrapEvidence(providerBootstrap),
     repo_canonicals: summarizeRepoCanonicalEvidence(repoCanonicals),
     tool_catalog: summarizeDynamicToolCatalogEvidence(toolCatalog),
+    database_readiness: summarizeDatabaseReadinessEvidence(databaseReadiness),
   };
   const classification = classifyHardActivationEvidence(matrix);
   return {
@@ -167,7 +197,35 @@ export function buildHardActivationEvidenceMatrix({ sessionContext = null, provi
       matrix.repo_canonicals.attempted && !matrix.repo_canonicals.ok ? { surface: "repo_canonicals", reason_code: matrix.repo_canonicals.reason_code || HARD_ACTIVATION_REASON_CODES.REPO_CANONICALS_FAILED } : null,
       !matrix.tool_catalog.attempted ? { surface: "tool_catalog", reason_code: HARD_ACTIVATION_REASON_CODES.MISSING_DYNAMIC_TOOL_CATALOG } : null,
       matrix.tool_catalog.attempted && !matrix.tool_catalog.ok ? { surface: "tool_catalog", reason_code: matrix.tool_catalog.reason_code || HARD_ACTIVATION_REASON_CODES.DYNAMIC_TOOL_CATALOG_FAILED } : null,
+      !matrix.database_readiness.attempted ? { surface: "database_readiness", reason_code: HARD_ACTIVATION_REASON_CODES.MISSING_DATABASE_READINESS } : null,
+      matrix.database_readiness.attempted && !matrix.database_readiness.ok ? { surface: "database_readiness", reason_code: matrix.database_readiness.reason || HARD_ACTIVATION_REASON_CODES.DATABASE_READINESS_FAILED } : null,
     ].filter(Boolean),
+  };
+}
+
+export function buildHardActivationDatabaseBlockedResponse(databaseReadiness = null) {
+  const database = summarizeDatabaseReadinessEvidence(databaseReadiness);
+  const reasonCode = !database.attempted
+    ? HARD_ACTIVATION_REASON_CODES.MISSING_DATABASE_READINESS
+    : (database.reason || HARD_ACTIVATION_REASON_CODES.DATABASE_READINESS_FAILED);
+  return {
+    ok: false,
+    activation_layer: "hard_activation_orchestrator",
+    activation_complete: false,
+    runtime_classification: {
+      activation_status: "degraded",
+      status_authority: "runtime_canonical",
+      reason_code: reasonCode,
+    },
+    evidence_matrix: { database_readiness: database },
+    database_readiness: database,
+    degraded_surfaces: [{ surface: "database_readiness", reason_code: reasonCode }],
+    report_policy: {
+      may_report_session_context_loaded: false,
+      may_report_activation_complete: false,
+      session_context_claim_requires: "database readiness must pass before activation evidence collection",
+    },
+    secrets_included: false,
   };
 }
 

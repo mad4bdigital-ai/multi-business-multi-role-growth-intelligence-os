@@ -118,6 +118,8 @@ assert.match(legacyRouteSource, /ACTIVE_SESSION_CONTEXT_AMBIGUOUS/u);
 assert.match(legacyRouteSource, /LIMIT 2/u);
 assert.match(deploymentInfoSource, /include_mcp_catalog_schema_readiness/u);
 assert.match(deploymentInfoSource, /mcp_catalog_schema_startup_preflight/u);
+assert.match(deploymentInfoSource, /include_production_activation_readiness/u);
+assert.match(deploymentInfoSource, /production_activation_readiness/u);
 assert.match(serverSource, /runMcpCatalogSchemaStartupPreflight/u);
 assert.match(serverSource, /migration_apply_performed: false/u);
 

@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,153 |
-| Total bytes | 69,823,930 |
-| Counted text lines | 1,640,429 |
+| Tracked files | 7,155 |
+| Total bytes | 69,840,998 |
+| Counted text lines | 1,640,807 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -17,9 +17,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,149 |
+| `tests-and-specs` | 2,150 |
 | `documentation` | 1,907 |
-| `api-runtime` | 1,435 |
+| `api-runtime` | 1,436 |
 | `database-migrations` | 783 |
 | `root-and-other` | 282 |
 | `api-contracts` | 191 |
@@ -36,8 +36,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,508 |
-| `.mjs` | 1,684 |
-| `.js` | 991 |
+| `.mjs` | 1,685 |
+| `.js` | 992 |
 | `.sql` | 798 |
 | `.json` | 789 |
 | `.yml` | 170 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 167 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,233 |
+| Test/spec files (paths) | 2,234 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -92,10 +92,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,187 | 97972 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,185 | 97972 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,093 | 58550 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
-| `http-generic-api/openapi.yaml` | api-contracts | 991,444 | 23015 |
+| `http-generic-api/openapi.yaml` | api-contracts | 991,977 | 23027 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 610,355 | 11546 |
 | `edge/activation-gateway/worker-configuration.d.ts` | connectors-and-edge | 573,853 | 15183 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json` | api-contracts | 407,307 | 11364 |
