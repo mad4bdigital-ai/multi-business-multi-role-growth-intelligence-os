@@ -216,6 +216,8 @@ jobs:
             printf '%s' "$run_id"
           }
 
+          APPROVAL_REQUIRED=0
+          APPROVAL_MANIFEST="$RUNNER_TEMP/governed-production-promotion/approval-manifest.json"
           wait_run_success() {
             local run_id="$1" label="$2" allow_action_required="$3"
             local deadline=$(( $(date +%s) + RUN_POLL_DEADLINE_SECONDS )) status="" conclusion=""
@@ -229,15 +231,22 @@ jobs:
                   [[ "$conclusion" == success ]] && return 0
                   if [[ "$conclusion" == action_required && "$allow_action_required" == true ]]; then
                     mkdir -p "$RUNNER_TEMP/governed-production-promotion"
-                    jq -n \
-                      --arg operation_id "${OPERATION_ID:-unresolved}" \
+                    if [[ ! -s "$APPROVAL_MANIFEST" ]]; then
+                      jq -n \
+                        --arg operation_id "${OPERATION_ID:-unresolved}" \
+                        '{schema_version:"governed_production_promotion_approval_manifest.v1",operation_id:$operation_id,state:"APPROVAL_REQUIRED",approvals_required:[],merge_executed:false,deployment_executed:false,secrets_included:false}' \
+                        > "$APPROVAL_MANIFEST"
+                    fi
+                    jq \
                       --arg run_id "$run_id" \
                       --arg workflow "$label" \
                       --arg url "$(jq -r '.url // ""' "$file")" \
-                      '{schema_version:"governed_production_promotion_approval_manifest.v1",operation_id:$operation_id,state:"APPROVAL_REQUIRED",approvals_required:[{run_id:$run_id,workflow:$workflow,url:$url,reason:"github_action_required",safe_scope:"read_only_supporting_gate"}],merge_executed:false,deployment_executed:false,secrets_included:false}' \
-                      > "$RUNNER_TEMP/governed-production-promotion/approval-manifest.json"
-                    echo "::error::$label run $run_id requires human action; approval manifest was written for resumable execution"
-                    return 78
+                      '.approvals_required += [{run_id:$run_id,workflow:$workflow,url:$url,reason:"github_action_required",safe_scope:"read_only_supporting_gate"}]' \
+                      "$APPROVAL_MANIFEST" > "$APPROVAL_MANIFEST.next"
+                    mv "$APPROVAL_MANIFEST.next" "$APPROVAL_MANIFEST"
+                    APPROVAL_REQUIRED=1
+                    echo "::warning::$label run $run_id requires human action; added to resumable approval manifest"
+                    return 0
                   else
                     echo "::error::$label run $run_id completed with $conclusion"
                     return 1
@@ -281,8 +290,20 @@ jobs:
           VALIDATION_JSON="$(gh pr list --repo "$REPOSITORY" --state open --head "$VALIDATION_BRANCH" --base "$VALIDATION_BASE_BRANCH" --limit 1 --json number,title,headRefOid,headRefName,baseRefName)"
           EXISTING_RELEASE_PR="$(jq -r '.[0].number // empty' <<<"$RELEASE_JSON")"
           EXISTING_VALIDATION_PR="$(jq -r '.[0].number // empty' <<<"$VALIDATION_JSON")"
+          RELEASE_REF_EXISTS=0
+          VALIDATION_REF_EXISTS=0
+          gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" >/dev/null 2>&1 && RELEASE_REF_EXISTS=1 || true
+          gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BRANCH}" >/dev/null 2>&1 && VALIDATION_REF_EXISTS=1 || true
+          if [[ "$RELEASE_REF_EXISTS" == 1 && -z "$EXISTING_RELEASE_PR" ]] || [[ "$VALIDATION_REF_EXISTS" == 1 && -z "$EXISTING_VALIDATION_PR" ]]; then
+            echo "::error::stale promotion branch exists without an open PR; refusing reuse or overwrite"
+            exit 78
+          fi
           BUILDER_RUN_ID="reused"
-          if [[ -z "$EXISTING_RELEASE_PR" || -z "$EXISTING_VALIDATION_PR" ]]; then
+          if [[ -n "$EXISTING_RELEASE_PR" && -z "$EXISTING_VALIDATION_PR" ]] || [[ -z "$EXISTING_RELEASE_PR" && -n "$EXISTING_VALIDATION_PR" ]]; then
+            echo "::error::partial idempotent promotion surfaces detected; refusing builder retry to prevent duplicate PRs"
+            exit 78
+          fi
+          if [[ -z "$EXISTING_RELEASE_PR" && -z "$EXISTING_VALIDATION_PR" ]]; then
             BUILDER_RUN_ID="$(dispatch_and_capture production-promotion-candidate.yml "$REQUEST_HEAD_BRANCH" "$EXPECTED_REQUEST_HEAD_SHA" "$ATTEMPT_STARTED_AT" \
               --field expected_main_sha="$RELEASE_CUT_SHA" \
               --field expected_head_sha="$EXPECTED_REQUEST_HEAD_SHA" \
@@ -320,7 +341,7 @@ jobs:
           for _ in $(seq 1 60); do
             CERTIFIED_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-certified-release-cut-validation.yml/runs?event=pull_request_target&per_page=100" \
               | jq --argjson pr "$VALIDATION_PR" --arg title "$VALIDATION_TITLE" --arg candidate "$CANDIDATE_SHA" -r \
-                '[.workflow_runs[] | select(((.pull_requests // []) | map(.number) | index($pr)) != null or .display_title == $title) | select(.head_sha == $candidate)] | sort_by(.created_at, .id) | last | .id // empty')"
+                '[.workflow_runs[] | select(((.pull_requests // []) | map(.number) | index($pr)) != null or .display_title == $title) | select(.head_sha == $candidate) | select(.status != "completed" or .conclusion == "success")] | sort_by(.created_at, .id) | last | .id // empty')"
             [[ -n "$CERTIFIED_RUN_ID" ]] && break
             sleep 5
           done
@@ -372,6 +393,10 @@ jobs:
             gate_run_id="$(jq -r --arg id "$gate_id" '.[$id]' <<<"$SUPPORTING_RUNS")"
             wait_run_success "$gate_run_id" "$label" "$ALLOW_ACTION_REQUIRED"
           done < <(jq -c '.gates[]' "$GATE_PLAN")
+          if [[ "$APPROVAL_REQUIRED" == 1 ]]; then
+            echo "::error::one or more supporting gates require approval; resume the same operation after approving approval-manifest.json"
+            exit 78
+          fi
 
           git fetch --no-tags origin \
             '+refs/heads/main:refs/remotes/origin/main' \
