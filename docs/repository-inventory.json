@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7152,
-    "bytes": 69798778,
-    "lines": 1639884,
+    "bytes": 69799397,
+    "lines": 1639890,
     "directories": 265,
     "categories": 13
   },
@@ -12689,7 +12689,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "464b7f674ad7888575d68b15c4ebc105e4ce669e772485a17ddbce6318b71019",
+      "sha256": "4597d74eb080fc3b007b8fa973bb3f4afef22445dc74aff8412b586a54178547",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -69766,9 +69766,9 @@
       "path": "http-generic-api/test-runtime-persistence-wiring.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3733,
-      "lines": 60,
-      "sha256": "a5d07bd7251121321a5841c7715fce596001380f2d36c517598bf0341abbf724",
+      "bytes": 4352,
+      "lines": 66,
+      "sha256": "fe43ac9bef2a320b3c2e33e0e3137e1de0ca2d961cb5604bab89f025e4f33d0c",
       "mode": "644",
       "executable": false,
       "generated": false
