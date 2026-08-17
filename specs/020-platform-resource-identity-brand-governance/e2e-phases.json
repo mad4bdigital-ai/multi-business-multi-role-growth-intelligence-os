@@ -80,7 +80,8 @@
       "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
       ".github/workflows/pr-risk-labeler.yml",
       "http-generic-api/scripts/single-owner-review-gate.mjs",
-      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      "scripts/test-ai-agent-instruction-reference-integrity.mjs"
     ]
   },
   "merge_contract": {
@@ -277,7 +278,8 @@
             "http-generic-api/openapi/openapi-mutation-policy.generated.json",
             "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
             ".github/workflows/pr-risk-labeler.yml",
-            "http-generic-api/scripts/single-owner-review-gate.mjs"
+            "http-generic-api/scripts/single-owner-review-gate.mjs",
+            "scripts/test-ai-agent-instruction-reference-integrity.mjs"
           ],
           "secrets_included": false
         }
