@@ -299,8 +299,18 @@ const TENANT_USER_TOOL_SIGNATURES = new Set([
   "GET /system/tools",
   "POST /system/tools/call",
 ]);
+const ACT_AS_USER_PUBLISHED_SIGNATURES = new Set([
+  "POST /admin/act-as-user/sessions",
+  "POST /admin/act-as-user/sessions/{sessionId}/revoke",
+]);
 
 export function canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives = [], signature = "") {
+  // The runtime keeps a legacy x-api-key compatibility guard, but the published
+  // Act-as-User contract is intentionally bearer-only. This is a contract
+  // projection rule; it does not mutate route middleware or runtime authority.
+  if (ACT_AS_USER_PUBLISHED_SIGNATURES.has(signature)) {
+    return [["backendBearerAuth"]];
+  }
   if (openapiAuth?.source_file === "openapi/openapi.custom-gpt.staging-admin.yaml") {
     return [["backendApiKeyAuth"]];
   }
