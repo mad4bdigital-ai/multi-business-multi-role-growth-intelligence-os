@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "8a9ef244bba7649a6ed7f32c145313a99af82c0cc901de7b25999de72b85b573"
+      "sha256": "aae90bdad3b67c080c844634a2c8a8cd8fb9d22cdeec98153dcff6a4296727d4"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -134,7 +134,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "227e8f46da016cc44f001067e85086818d942df535753bf525ff24164b5d5da8"
+      "sha256": "6a8adbd0e09e8d5fa32923cdbf6365a58e9f7b5ca6f8f5038167aeb5a52f7a1e"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
