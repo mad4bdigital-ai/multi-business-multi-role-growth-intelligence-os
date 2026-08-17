@@ -82,8 +82,11 @@ try {
   process.env.DEPLOYMENT_MANIFEST_PATH = manifestPath;
 
   const app = express();
+  let integrityReaderInput;
   app.use(buildDeploymentInfoRoutes({
-    runtimeIntegrityReader: async () => ({
+    runtimeIntegrityReader: async (input) => {
+      integrityReaderInput = input;
+      return ({
       contract: "mad4b.runtime-integrity.v1",
       state: "degraded",
       verified: false,
@@ -99,7 +102,10 @@ try {
       untracked_files_ignored: true,
       reason_codes: ["unapproved_dirty_runtime"],
       secrets_included: false,
-    }),
+      provenance_verified: false,
+      provenance_source: null,
+    });
+    },
   }));
   server = await new Promise((resolve) => {
     const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
@@ -121,6 +127,9 @@ try {
   assert.equal(deploymentInfo.deployment.commit_sha, commitSha);
   assert.equal(deploymentInfo.evidence.canonical_manifest_detected, true);
   assert.equal(deploymentInfo.evidence.manifest_error, null);
+  assert.equal(integrityReaderInput.provenanceCommitSha, commitSha);
+  assert.equal(integrityReaderInput.provenanceDetected, true);
+  assert.equal(integrityReaderInput.provenanceSource, manifestPath);
   assert.equal(deploymentInfo.runtime_integrity.state, "degraded");
   assert.equal(deploymentInfo.runtime_integrity.verified, false);
   assert.equal(deploymentInfo.runtime_integrity.local_application_code_mutation_detected, true);

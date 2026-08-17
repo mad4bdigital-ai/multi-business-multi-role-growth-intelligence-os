@@ -68,6 +68,42 @@ const shaB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 }
 
 {
+  const integrity = classifyRuntimeIntegrity({
+    expectedCommitSha: shaA,
+    checkoutCommitSha: "",
+    checkoutDetected: false,
+    statusReadbackAvailable: false,
+    provenanceCommitSha: shaA,
+    provenanceDetected: true,
+    provenanceSource: "/app/deployment-manifest.json",
+    dirtyTrackedFileCount: 0,
+  });
+  assert.equal(integrity.state, "verified");
+  assert.equal(integrity.verified, true);
+  assert.equal(integrity.provenance_verified, true);
+  assert.equal(integrity.provenance_source, "/app/deployment-manifest.json");
+  assert.equal(integrity.commit_matches, true);
+  assert.equal(integrity.readback_available, true);
+  assert.deepEqual(integrity.reason_codes, []);
+}
+
+{
+  const integrity = classifyRuntimeIntegrity({
+    expectedCommitSha: shaA,
+    checkoutCommitSha: "",
+    checkoutDetected: false,
+    statusReadbackAvailable: false,
+    provenanceCommitSha: shaB,
+    provenanceDetected: true,
+    provenanceSource: "/app/deployment-manifest.json",
+    dirtyTrackedFileCount: 0,
+  });
+  assert.equal(integrity.state, "degraded");
+  assert.equal(integrity.verified, false);
+  assert(integrity.reason_codes.includes("runtime_provenance_mismatch"));
+}
+
+{
   const calls = [];
   const execFileImpl = (command, args, options, callback) => {
     calls.push({ command, args, options });

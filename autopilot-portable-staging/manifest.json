@@ -234,7 +234,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "657737c50c9dc8e4833298f62ce4ace6bc92aa2fd9a17d770296c870d4d38f97"
+      "sha256": "9bac02d3a23e4e0524afb748f88b8033d52ad2c2c966d6cd9db34c69744a7372"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
