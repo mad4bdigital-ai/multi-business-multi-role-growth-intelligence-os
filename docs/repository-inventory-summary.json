@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7132,
-    "bytes": 69083350,
-    "lines": 1619489,
+    "bytes": 69083452,
+    "lines": 1619491,
     "directories": 265,
     "categories": 13
   },
@@ -318,8 +318,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 268088,
-      "lines": 6361
+      "bytes": 268190,
+      "lines": 6363
     },
     {
       "path": "docs/surface-contract-safety-attestations.json",
