@@ -54,7 +54,10 @@
       "http-generic-api/runtimeIntegrity.js",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
-      "http-generic-api/test-staging-autopilot-closure.mjs"
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/openapi/**",
+      "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/test-openapi-split-governance.mjs"
     ]
   },
   "merge_contract": {
