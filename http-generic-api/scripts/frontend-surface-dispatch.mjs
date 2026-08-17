@@ -300,7 +300,6 @@ const TENANT_USER_TOOL_SIGNATURES = new Set([
   "GET /system/tools",
   "POST /system/tools/call",
 ]);
-
 export function canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives = [], signature = "") {
   if (openapiAuth?.source_file === "openapi/openapi.custom-gpt.staging-admin.yaml") {
     return [["backendApiKeyAuth"]];

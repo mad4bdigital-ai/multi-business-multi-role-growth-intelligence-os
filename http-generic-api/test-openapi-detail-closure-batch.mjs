@@ -4,7 +4,9 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const artifactPath = path.join(root, "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json");
+const dispatchPath = path.join(root, "http-generic-api/frontend-surface-dispatch.generated.json");
 const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+const dispatch = JSON.parse(await readFile(dispatchPath, "utf8"));
 
 assert.equal(artifact.schema_version, "spec020-openapi-detail-closure-batch-v1");
 assert.equal(artifact.status, "shadow_detail_evidence_batch");
@@ -23,11 +25,11 @@ assert.deepEqual(artifact.scope_boundary, {
   credential_read: false,
   production_activation: false,
 });
-assert.equal(artifact.source.family_count, 168);
+assert.equal(artifact.source.family_count, dispatch.coverage.mounted_family_count);
 assert.equal(artifact.source.detail_family_count, 74);
 assert.equal(artifact.source.dispatch_operation_count, 1041);
 assert.equal(artifact.summary.family_count, 74);
-assert.equal(artifact.summary.dispatch_family_count, 168);
+assert.equal(artifact.summary.dispatch_family_count, dispatch.coverage.mounted_family_count);
 assert.equal(artifact.summary.operation_count, 315);
 assert.equal(artifact.operations.length, 315);
 
