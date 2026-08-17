@@ -294,14 +294,24 @@ export function parseOpenApiContracts(source = "", { sourcePath, apiRoot } = {})
   return contracts;
 }
 
-export function canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives = []) {
+const TENANT_USER_TOOL_SIGNATURES = new Set([
+  "GET /local/tools",
+  "GET /system/tools",
+  "POST /system/tools/call",
+]);
+
+export function canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives = [], signature = "") {
   if (openapiAuth?.source_file === "openapi/openapi.custom-gpt.staging-admin.yaml") {
     return [["backendApiKeyAuth"]];
+  }
+  const tenantSchema = ["openapi/openapi.tenant-gpt.auth.yaml", "openapi/openapi.tenant-gpt.staging.yaml"].includes(openapiAuth?.source_file);
+  if (tenantSchema && TENANT_USER_TOOL_SIGNATURES.has(signature)) {
+    return [["userJwtAuth"]];
   }
   return runtimeAlternatives;
 }
 
-function authParity(runtimeAuth, openapiAuth) {
+function authParity(runtimeAuth, openapiAuth, signature = "") {
   if (!openapiAuth) return { state: "missing_openapi", reasons: ["operation_not_documented"] };
   if (openapiAuth.unknown_security_schemes?.length) {
     return { state: "undefined_scheme", reasons: openapiAuth.unknown_security_schemes.map((scheme) => `undefined_security_scheme:${scheme}`) };
@@ -309,7 +319,7 @@ function authParity(runtimeAuth, openapiAuth) {
   if (runtimeAuth?.state !== "resolved") return { state: "unknown", reasons: [runtimeAuth?.profile || "runtime_auth_unresolved"] };
   if (openapiAuth.security_alternatives === null) return { state: "unknown", reasons: ["openapi_security_inheritance_unresolved"] };
   const runtimeAlternatives = canonicalAlternativeList(runtimeAuth.alternatives);
-  const expectedAlternatives = canonicalAlternativeList(canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives));
+  const expectedAlternatives = canonicalAlternativeList(canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives, signature));
   const contractAlternatives = canonicalAlternativeList(openapiAuth.security_alternatives);
   const runtime = JSON.stringify(expectedAlternatives);
   const contract = JSON.stringify(contractAlternatives);
@@ -1368,7 +1378,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
           security_alternatives: openapi.security_alternatives,
           unknown_security_schemes: openapi.unknown_security_schemes,
         } : null,
-        auth_parity: openapiExempt ? { state: "exempt", reasons: ["repository_openapi_allowlist"] } : authParity(runtimeAuth, openapi),
+        auth_parity: openapiExempt ? { state: "exempt", reasons: ["repository_openapi_allowlist"] } : authParity(runtimeAuth, openapi, operation.signature),
         openapi_documented: Boolean(openapi),
         openapi_canonical_documented: Boolean(canonicalOpenApi),
         openapi_exempt: openapiExempt,

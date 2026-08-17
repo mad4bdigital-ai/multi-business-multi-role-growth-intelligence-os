@@ -130,8 +130,11 @@ for (const [name, relativePath, expectedUrl] of schemas) {
   assert(urls.length === 1 && urls[0] === policy.custom_gpt.resource, `${name} schema must have exactly one staging server URI`);
   assert(expectedUrl.startsWith(policy.custom_gpt.resource + "/"), `${name} schema URL must be under staging resource`);
   assert(count <= 30, `${name} schema has ${count} operations; hard limit is 30`);
-  assert(!/https:\/\/(auth|activation)\.mad4b\.com/.test(text), `${name} staging schema contains a production Auth/Activation host`);
-  if (name === "tenant") assert(/https:\/\/dev\.mad4b\.com\/scopes\//.test(text), "tenant staging schema must use staging scopes");
+  assert(!/https:\/\/(?:auth|activation)\.mad4b\.com(?:\/(?!scopes\/)|$)/.test(text), `${name} staging schema contains a production Auth/Activation host outside the shared scope authority`);
+  if (name === "tenant") {
+    assert(/https:\/\/auth\.mad4b\.com\/scopes\/tenant\.(?:links|status|activation|install|system-tools)/.test(text), "tenant staging schema must use the shared Auth scope authority");
+    assert(!/https:\/\/dev\.mad4b\.com\/scopes\//.test(text), "tenant staging schema must not mint environment-local scope URIs");
+  }
   if (name === "act_as_user_control") {
     assert(count <= 30, "Act-as-User control schema must remain within the Custom GPT hard limit");
     assert(/x-mad4b-boundary:[\s\S]*live_execution_allowed: false/.test(text), "Act-as-User control schema must remain live-disabled");

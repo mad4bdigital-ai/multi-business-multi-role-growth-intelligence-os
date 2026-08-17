@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7129,
-    "bytes": 69059096,
-    "lines": 1618997,
+    "files": 7130,
+    "bytes": 69073084,
+    "lines": 1619278,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2138,
-      "documentation": 1903,
+      "documentation": 1904,
       "api-runtime": 1434,
       "database-migrations": 783,
       "root-and-other": 281,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2504,
+      ".md": 2505,
       ".mjs": 1677,
       ".js": 991,
       ".sql": 798,
@@ -62,7 +62,7 @@
     },
     "topLevel": {
       "http-generic-api": 3674,
-      "docs": 1807,
+      "docs": 1808,
       "specs": 873,
       ".github": 274,
       ".changes": 257,
@@ -257,8 +257,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3471257,
-      "lines": 97877
+      "bytes": 3471362,
+      "lines": 97875
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -275,8 +275,8 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 991287,
-      "lines": 23008
+      "bytes": 991410,
+      "lines": 23011
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",

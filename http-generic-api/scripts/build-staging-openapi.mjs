@@ -7,18 +7,18 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(here, "..");
 const source = path.join(apiRoot, "openapi", "openapi.tenant-gpt.auth.yaml");
 const target = path.join(apiRoot, "openapi", "openapi.tenant-gpt.staging.yaml");
-const productionHosts = [/https:\/\/auth\.mad4b\.com/gu, /https:\/\/activation\.mad4b\.com/gu];
 const stagingHost = "https://dev.mad4b.com";
+const SHARED_SCOPE_URI = /^https:\/\/auth\.mad4b\.com\/scopes\//u;
+const forbiddenProductionHostPattern = /https:\/\/(?:auth|activation|mcp)\.mad4b\.com(?:\/(?!scopes\/)|$)/gu;
 const BACKEND_ONLY_PATHS = new Set([
-  "/local/tools",
-  "/system/tools",
-  "/system/tools/call",
   "/gpt/sessions/{id}/turn",
   "/gpt/sessions/{id}/end"
 ]);
 
 function replaceHostname(value) {
-  return String(value)
+  const text = String(value);
+  if (SHARED_SCOPE_URI.test(text)) return text;
+  return text
     .replaceAll("https://auth.mad4b.com", stagingHost)
     .replaceAll("https://activation.mad4b.com", stagingHost)
     .replaceAll("auth.mad4b.com", "dev.mad4b.com")
@@ -73,8 +73,8 @@ document["x-staging-generation"] = {
   secrets_included: false
 };
 const output = YAML.stringify(document, { lineWidth: -1, aliasDuplicateObjects: false });
-const forbiddenMatches = ["auth.mad4b.com", "activation.mad4b.com", "mcp.mad4b.com"].filter((host) => output.includes(host));
-if (productionHosts.some((pattern) => pattern.test(output)) || forbiddenMatches.length > 0) {
+const forbiddenMatches = [...new Set(output.match(forbiddenProductionHostPattern) || [])];
+if (forbiddenMatches.length > 0) {
   throw new Error(`Staging OpenAPI artifact contains forbidden Production hostnames: ${forbiddenMatches.join(",")}`);
 }
 fs.writeFileSync(target, output, "utf8");

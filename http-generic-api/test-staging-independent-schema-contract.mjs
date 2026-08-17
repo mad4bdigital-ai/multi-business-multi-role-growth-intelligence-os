@@ -35,7 +35,7 @@ const schemaDefinitions = [
     surface: "remote-mcp",
   },
 ];
-const forbidden = /https:\/\/(?:auth|mcp|activation)\.mad4b\.com|activation-dev\.mad4b\.com/;
+const forbidden = /https:\/\/(?:auth|mcp|activation)\.mad4b\.com(?:\/(?!scopes\/)|$)|activation-dev\.mad4b\.com/;
 for (const definition of schemaDefinitions) {
   const document = YAML.parse(read(definition.file));
   assert.equal(document.servers?.length, 1, `${definition.name} schema must have exactly one server`);
@@ -48,6 +48,16 @@ for (const definition of schemaDefinitions) {
 }
 
 const tenant = YAML.parse(read(schemaDefinitions[0].file));
+const tenantToolScopes = [
+  "https://auth.mad4b.com/scopes/tenant.links",
+  "https://auth.mad4b.com/scopes/tenant.status",
+  "https://auth.mad4b.com/scopes/tenant.activation",
+  "https://auth.mad4b.com/scopes/tenant.install",
+  "https://auth.mad4b.com/scopes/tenant.system-tools",
+];
+for (const [route, method] of [["/local/tools", "get"], ["/system/tools", "get"], ["/system/tools/call", "post"]]) {
+  assert.deepEqual(tenant.paths?.[route]?.[method]?.security, [{ userBearerAuth: tenantToolScopes }], `${method.toUpperCase()} ${route} must use the shared Tenant OAuth security contract`);
+}
 const admin = YAML.parse(read(schemaDefinitions[1].file));
 const remoteMcp = YAML.parse(read(schemaDefinitions[2].file));
 assert.ok(Object.keys(tenant.paths ?? {}).length > 0);

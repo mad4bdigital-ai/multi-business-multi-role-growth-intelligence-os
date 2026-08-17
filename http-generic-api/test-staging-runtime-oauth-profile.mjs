@@ -19,11 +19,11 @@ assert.equal(preset.TENANT_GPT_IS_STAGING_RUNTIME, true);
 assert.equal(preset.TENANT_GPT_OAUTH_CLIENT_ID, "mad4b-tenant-gpt-staging");
 assert.equal(preset.TENANT_GPT_BASE_URL, "https://dev.mad4b.com");
 assert.deepEqual(preset.TENANT_GPT_SCOPE_LINKS, [
-  "https://dev.mad4b.com/scopes/tenant.links",
-  "https://dev.mad4b.com/scopes/tenant.status",
-  "https://dev.mad4b.com/scopes/tenant.activation",
-  "https://dev.mad4b.com/scopes/tenant.install",
-  "https://dev.mad4b.com/scopes/tenant.system-tools",
+  "https://auth.mad4b.com/scopes/tenant.links",
+  "https://auth.mad4b.com/scopes/tenant.status",
+  "https://auth.mad4b.com/scopes/tenant.activation",
+  "https://auth.mad4b.com/scopes/tenant.install",
+  "https://auth.mad4b.com/scopes/tenant.system-tools",
 ]);
 assert.equal(profile.TENANT_GPT_AUTHORIZATION_SERVER, "https://dev.mad4b.com");
 assert.equal(profile.TENANT_GPT_CORE_RESOURCE, "https://dev.mad4b.com");

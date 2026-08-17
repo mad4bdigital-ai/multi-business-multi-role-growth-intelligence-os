@@ -6,6 +6,7 @@ import {
   buildTenantGptOAuthPreset,
   TENANT_GPT_BASE_URL,
   TENANT_GPT_IS_STAGING_RUNTIME,
+  TENANT_GPT_SCOPE_AUTHORITY_URL,
   TENANT_GPT_SCOPE_LINKS,
 } from "../tenantGptOAuthPreset.js";
 import {
@@ -291,7 +292,7 @@ export function buildRootDiscoveryRoutes(deps = {}) {
           activationSchemaUrl: "",
           clientId: clientConfig.config?.client_id,
           clientSecretEnv: "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET",
-          scopeLinks: TENANT_GPT_SCOPE_LINKS.map((scope) => scope.replace(TENANT_GPT_BASE_URL, TENANT_GPT_ACTIVATION_RESOURCE)),
+          scopeLinks: TENANT_GPT_SCOPE_LINKS.map((scope) => scope.replace(TENANT_GPT_SCOPE_AUTHORITY_URL, TENANT_GPT_ACTIVATION_RESOURCE)),
           notes: ["Staging Activation uses a dedicated host, resource, OAuth client, and schema bundle."],
         } : stagingPresetHost ? {
           baseUrl: TENANT_GPT_BASE_URL,

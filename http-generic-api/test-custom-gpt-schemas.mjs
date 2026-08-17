@@ -491,6 +491,17 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
+  const expectedTenantToolSecurity = [{ userBearerAuth: [
+    "https://auth.mad4b.com/scopes/tenant.links",
+    "https://auth.mad4b.com/scopes/tenant.status",
+    "https://auth.mad4b.com/scopes/tenant.activation",
+    "https://auth.mad4b.com/scopes/tenant.install",
+    "https://auth.mad4b.com/scopes/tenant.system-tools",
+  ] }];
+  for (const [route, method] of [["/local/tools", "get"], ["/system/tools", "get"], ["/system/tools/call", "post"]]) {
+    assert(`tenant ${method.toUpperCase()} ${route} uses the single scoped userBearerAuth contract`,
+      JSON.stringify(tenantDoc.paths?.[route]?.[method]?.security) === JSON.stringify(expectedTenantToolSecurity));
+  }
   const tenantSurfaceRegistry = YAML.parse(readFileSync(resolve(__dirname, "../canonicals/openapi/custom-gpt-surfaces.yaml"), "utf8"));
   const tenantSurface = tenantSurfaceRegistry.surfaces?.tenant_core;
   const tenantMcpMigration = readFileSync(resolve(__dirname, "migrations/20260815_custom_gpt_mcp_catalog_levels.sql"), "utf8");
