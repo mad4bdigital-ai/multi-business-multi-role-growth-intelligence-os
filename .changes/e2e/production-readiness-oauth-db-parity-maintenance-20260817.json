@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "feature_key": "production-readiness-oauth-db-parity-maintenance-20260817",
+  "title": "Production readiness OAuth, DB parity, schema drift, and tenant auth maintenance",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reconcile the production-readiness fixes, DB-backed configuration guards, staging-admin schema hardening, runtime parity evidence, and unified tenant tool authentication in one governed PR without Production mutation, migration apply, provider dispatch, or secret transport.",
+      "e2e_journeys": [
+        {
+          "id": "production-readiness-maintenance-to-deterministic-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed-maintenance-integrator",
+          "entrypoint": "PR head evaluation against main",
+          "terminal_outcome": "The exact PR head is evaluated with deterministic generated artifacts, schema/auth parity, configuration-entry guards, staging manifest/readback checks, and fail-closed governance; no live or Production mutation is authorized.",
+          "steps": [
+            "Resolve the exact PR head, base ref, changed runtime files, and affected governance artifacts.",
+            "Verify generated OpenAPI, Custom GPT, frontend dispatch, portable staging manifest, and configuration catalog artifacts are deterministic.",
+            "Verify unified userBearerAuth coverage for Tenant Local Tools and System Tools across Staging and Production schemas.",
+            "Verify DB-backed configuration entry registration requires schema, owner, risk, scope binding, resolver, and readback evidence.",
+            "Preserve fail-closed behavior for unavailable write authority and prohibit migration apply, provider dispatch, secret transport, and Production activation."
+          ],
+          "assertions": [
+            "This maintenance contract is valid only for base main, an implemented mvp, and a single bounded PR.",
+            "All runtime files changed by the PR are covered by this contract scope.",
+            "Generated artifacts are deterministic and no uncommitted drift remains after their generators run.",
+            "Tenant tool security uses the canonical userBearerAuth contract in both Staging and Production surfaces.",
+            "No secrets are included and no provider dispatch, live mutation, SQL Apply, Production promotion, or protected-ref mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "frontend-dispatch-determinism",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/frontend-operation-governance-generator.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "staging-openapi-governance",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/validate-staging-openapi-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "configuration-entry-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-platform-configuration-entry-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "manifest-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-manifest.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-readiness-oauth-db-parity-maintenance-20260817.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "docs/governance/configuration-drift-policy.json",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "autopilot-portable-staging/manifest.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "scope": {
+    "include": [
+      ".changes/e2e/**",
+      ".github/workflows/**",
+      "autopilot-portable-staging/**",
+      "docs/**",
+      "http-generic-api/**",
+      "scripts/**",
+      "specs/014-governed-hostinger-storage-orchestration/**",
+      "specs/014-retail-commerce-operations-growth-os/**",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/**",
+      "specs/018-environment-promotion-runtime-integrity/**",
+      "specs/019-governed-database-lifecycle-pressure-relief/**",
+      "specs/020-platform-resource-identity-brand-governance/**",
+      "specs/021-portable-staging-autopilot/**"
+    ]
+  },
+  "secrets_included": false
+}
