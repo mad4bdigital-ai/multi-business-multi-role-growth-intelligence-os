@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7144,
-    "bytes": 69732175,
-    "lines": 1637557,
+    "bytes": 69729997,
+    "lines": 1637512,
     "directories": 265,
     "categories": 13
   },
@@ -11330,9 +11330,9 @@
       "path": ".github/workflows/pr-risk-labeler.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 6731,
-      "lines": 126,
-      "sha256": "24c127f560af0fbcaf46eea4b4a51dcf1b7dc36765274f7a39ad39c1548166b1",
+      "bytes": 4553,
+      "lines": 81,
+      "sha256": "c7b0bcaa2c2afa1e0fc0be34efd92cfd21d5c2c525a257ec70072e1aa351484d",
       "mode": "644",
       "executable": false,
       "generated": false
