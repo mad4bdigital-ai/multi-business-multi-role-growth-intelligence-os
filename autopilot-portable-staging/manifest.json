@@ -142,11 +142,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "f091df95420786961be3212cb37fcdbfdb94b1dff3703dfcb5fdf6d79f5481fe"
+      "sha256": "532ef5af14f96de1dda600c44a2a7646156eeba01b708640f8fd15a470c95676"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "9ac2688042eaf7e67cd29e691d29f3add65d9875b3508aad09b3632af0147517"
+      "sha256": "5be0ee292507f56947489989285e5c7128cc0c09c11b7d64304547780e67d6b4"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -154,7 +154,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "52ad3bec575f0308bf21f70870896b6f5ee88d50e81aa7d45febf374072d75fa"
+      "sha256": "b3e9c8038e5f43988bb1c53f526d5d3b0fbbee375c3c43f4bd36055af2fc8112"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -162,11 +162,11 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.staging.yaml",
-      "sha256": "eed6536df7f07cd91d4d498785d895485ed7512a61e8cc1531422607a66669d4"
+      "sha256": "f4b4a429934ca53907d346242d06c9d09d557bde0cf2d3e03cade06eaf5a9206"
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "be7050ada75541aad99732b6f13228a6446204c5903d26e2244892c6fca295aa"
+      "sha256": "940bb2fc7d9e9d5c8b79ecb2c4e2cc5796107df3803ac9feed417b782fa1472e"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "b4d8c548b7b3739a474eadb4ccba626c23303346f7c3b44f18cf154cfbc1aff8"
+      "sha256": "3e0a6f339eb3c53d32c1cf29e3193475e6c686dee99e4433349d69bab8058021"
     },
     {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
@@ -246,7 +246,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "0576b2e05afd24323c39bc9045c09d08f8634c39c2beeb985f20eb3939478470"
+      "sha256": "a3d2efd3f6f37d72f8ae622a0e61a49a8b0b47a0ca2efaea84c180c653ccaa72"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",

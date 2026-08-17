@@ -8,6 +8,7 @@ const tenantMigration = readFileSync("migrations/100_sprint63_onboarding_recover
 const tenantInstructions = readFileSync("../GPT_Tenant_Connector_Instructions.md", "utf8");
 const tenantKnowledge = readFileSync("../GPT_Tenant_Connector_Knowledge.md", "utf8");
 const tenantSchema = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
+const pathBlock = (path) => tenantSchema.split(`\n  ${path}:`)[1]?.split("\n  /")[0] || "";
 
 assert(
   tenantMigration.includes("connect_escalate") && tenantMigration.includes("/connect/escalate"),
@@ -69,11 +70,25 @@ assert(
   tenantSchema.includes("/system/tools/call") && tenantSchema.includes("operationId: callTool"),
   "Tenant GPT schema must bind callTool to /system/tools/call"
 );
+const systemToolsBlock = pathBlock("/system/tools");
+const systemToolsCallBlock = pathBlock("/system/tools/call");
+const sessionTurnBlock = pathBlock("/gpt/sessions/{id}/turn");
+const sessionEndBlock = pathBlock("/gpt/sessions/{id}/end");
 assert(
   tenantSchema.includes("userBearerAuth")
-    && tenantSchema.includes("backendApiKeyAuth")
-    && /\/system\/tools\/call:[\s\S]*?security:[\s\S]*?backendBearerAuth:[\s\S]*?backendApiKeyAuth:/u.test(tenantSchema),
-  "Tenant GPT schema must preserve user bearer auth for customer actions and backend auth for the protected system tool call"
+    && /security:[\s\S]*?userBearerAuth:/u.test(systemToolsCallBlock)
+    && !systemToolsCallBlock.includes("backendApiKeyAuth")
+    && !systemToolsBlock.includes("backendApiKeyAuth"),
+  "Tenant GPT system-tool operations must use the scoped user bearer contract"
+);
+assert(
+  !sessionTurnBlock.includes("backendBearerAuth")
+    && !sessionTurnBlock.includes("backendApiKeyAuth")
+    && !sessionEndBlock.includes("backendBearerAuth")
+    && !sessionEndBlock.includes("backendApiKeyAuth")
+    && /security:[\s\S]*?userBearerAuth:/u.test(sessionTurnBlock)
+    && /security:[\s\S]*?userBearerAuth:/u.test(sessionEndBlock),
+  "Tenant GPT session continuation operations must use the single user bearer contract"
 );
 
 console.log("tenant system call connect escalation tests passed");

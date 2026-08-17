@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.spec020.capability-identity-certification.v1",
+  "status": "prepared-only",
+  "authority": "shadow-library-only",
+  "runtime_mutation_allowed": false,
+  "production_activation_allowed": false,
+  "credentials_read_allowed": false,
+  "provider_dispatch_allowed": false,
+  "secrets_included": false,
+  "identity_input_tuple": [
+    "tool_name",
+    "parent_action_key",
+    "endpoint_key",
+    "resource_scope"
+  ],
+  "canonical_identity_rule": "The full endpoint binding tuple resolves to exactly one canonical capability_key.",
+  "ambiguity_policy": {
+    "tool_name_alone_is_sufficient": false,
+    "multi_capability_tool_is_invalid": false,
+    "ambiguous_endpoint_binding_is_fail_closed": true,
+    "missing_resource_scope_is_fail_closed": true,
+    "missing_parent_action_key_is_fail_closed": true
+  },
+  "certification_contract": {
+    "states": [
+      "registered",
+      "authority-ready",
+      "preflight-passed",
+      "certified",
+      "dispatch-allowed",
+      "apply",
+      "same-cycle-readback",
+      "exported"
+    ],
+    "required_evidence_by_state": {
+      "authority-ready": ["authority_profile_binding", "environment_binding"],
+      "preflight-passed": ["preflight_contract", "resource_binding", "risk_policy"],
+      "certified": ["preflight_evidence", "apply_contract", "readback_contract", "rollback_contract"],
+      "dispatch-allowed": ["certification_evidence", "fresh_evidence_ttl", "single_owner_attestation"],
+      "same-cycle-readback": ["requested_identity", "resolved_identity", "resource_revision", "response_fingerprint"]
+    },
+    "dispatch_allowed_manual_override": false,
+    "dispatch_allowed_without_readback": false,
+    "dispatch_allowed_without_resource_binding": false,
+    "dispatch_allowed_without_certification": false
+  },
+  "uniform_operation_contract": {
+    "required_fields": [
+      "capability_key",
+      "risk_class",
+      "preflight_contract",
+      "apply_contract",
+      "readback_contract",
+      "rollback_contract",
+      "resource_binding",
+      "evidence_ttl"
+    ],
+    "risk_classes": ["read_only", "internal_write", "external_write", "destructive", "commercial"],
+    "resource_binding_required": true,
+    "same_cycle_readback_required": true
+  },
+  "failure_codes": [
+    "CAPABILITY_IDENTITY_MISSING",
+    "CAPABILITY_AMBIGUOUS",
+    "CAPABILITY_RESOURCE_BINDING_MISSING",
+    "CAPABILITY_PREFLIGHT_EVIDENCE_MISSING",
+    "CAPABILITY_CERTIFICATION_MISSING",
+    "CAPABILITY_READBACK_EVIDENCE_MISSING",
+    "CAPABILITY_DISPATCH_NOT_ALLOWED",
+    "CAPABILITY_EVIDENCE_EXPIRED"
+  ],
+  "prepared_actions": [
+    "add a deterministic endpoint-scoped identity resolver",
+    "add synthetic ambiguity and missing-binding tests",
+    "add generic certification/readback evidence envelopes",
+    "keep Tenant graduated promotion and provider-write activation in separately approved follow-up work"
+  ],
+  "operator_approval_required": true
+}
+

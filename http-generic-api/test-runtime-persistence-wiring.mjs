@@ -20,10 +20,20 @@ assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: pool })
 assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePoolFactory: () => pool }), pool);
 const sentinel = { query() {} };
 assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: sentinel }), sentinel);
+assert.throws(
+  () => resolveRuntimePersistenceExecutor({ pool: sentinel }),
+  (error) => error.code === "RUNTIME_PERSISTENCE_GENERIC_FALLBACK_FORBIDDEN",
+);
+assert.throws(
+  () => resolveRuntimePersistenceExecutor({ connection: sentinel }),
+  (error) => error.code === "RUNTIME_PERSISTENCE_GENERIC_FALLBACK_FORBIDDEN",
+);
 
 const dbSource = fs.readFileSync(new URL("./db.js", import.meta.url), "utf8");
 const authoritySource = fs.readFileSync(new URL("./runtimePersistenceWriteAuthority.js", import.meta.url), "utf8");
 const routeSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const legacyRouteSource = fs.readFileSync(new URL("./routes/gptToolsRoutesLegacy.js", import.meta.url), "utf8");
+const smokeSource = fs.readFileSync(new URL("./governedResponseChunkDurableRecoverySmoke.js", import.meta.url), "utf8");
 const serverSource = fs.readFileSync(new URL("./server.js", import.meta.url), "utf8");
 assert.match(dbSource, /export function getRuntimePersistencePool\(\)/u);
 assert.match(routeSource, /getPool, getRuntimePersistencePool/u);
@@ -36,6 +46,10 @@ assert.match(routeSource, /dispatchToolImpl\(callerType, toolKey, args, req, run
 assert.match(routeSource, /async function dispatchToolImpl\(callerType, toolKey, args, req, runtimeDeps = \{\}\)/u);
 assert.match(routeSource, /maybeChunkToolResponseBody\([\s\S]*?runtimeDeps\)/u);
 assert.match(routeSource, /runtimePersistencePoolFactory: runtimeDeps\.runtimePersistencePoolFactory/u);
+assert.match(legacyRouteSource, /runtimePersistencePoolFactory: runtimePersistencePoolFactory \|\| getRuntimePersistencePool/u);
+assert.match(smokeSource, /const pool = deps\.runtimePersistencePool/u);
+assert.match(smokeSource, /runtimePersistencePool: pool/u);
+assert.doesNotMatch(smokeSource, /const pool = deps\.pool/u, "durable recovery smoke must not use generic pool fallback");
 assert.match(routeSource, /const runtimeDeps = \{ runtimePersistencePoolFactory \}/u);
 assert.match(routeSource, /runtimeDeps\.actAsUserAdapter = actAsUserAdapter \|\| null/u);
 assert.match(routeSource, /runtimeDeps\.actAsUserAuthorityResolver = actAsUserAuthorityResolver \|\| null/u);

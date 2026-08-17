@@ -81,7 +81,10 @@ if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.ta
 }
 
 const manifest = readJson(manifestPath);
-if (manifest.feature_key !== featureKey || manifest.review_state !== "ready_for_implementation") {
+const preparedOnlyBindingRefresh = manifest.review_state === "draft"
+  && manifest.implementation_readiness?.status === "blocked"
+  && manifest.secrets_included === false;
+if (manifest.feature_key !== featureKey || (manifest.review_state !== "ready_for_implementation" && !preparedOnlyBindingRefresh)) {
   throw new Error(`Work Map manifest ${featureKey} is not eligible for deterministic refresh`);
 }
 

@@ -42,7 +42,11 @@
     "checklists/requirements.md",
     "contracts/platform-resource-identity.schema.json",
     "contracts/brand-identity-resolution.schema.json",
-    "contracts/canonical-operation-governance.schema.json"
+    "contracts/canonical-operation-governance.schema.json",
+    "contracts/runtime-db-write-authority-profiles.json",
+    "contracts/runtime-environment-invariant-contract.json",
+    "contracts/control-plane-persistence-resilience-contract.json",
+    "contracts/capability-identity-certification-contract.json"
   ],
   "implementation_artifacts": [
     "http-generic-api/platformResourceIdentityContract.js",
@@ -58,6 +62,9 @@
     "schemas/platform-resource-identity-contract.schema.json",
     "schemas/brand-identity-resolution.schema.json",
     "schemas/canonical-operation-governance.schema.json",
+    "http-generic-api/test-spec020-long-term-runtime-remediation-contract.mjs",
+    "http-generic-api/runtimePersistenceWriteAuthority.js",
+    "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
     ".changes/e2e/platform-resource-identity-brand-governance-20260815.json"
   ],
   "implementation_state": {

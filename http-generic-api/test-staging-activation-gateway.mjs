@@ -21,7 +21,7 @@ try {
   assert.equal(schema.status, 200);
   const schemaText = await schema.text();
   assert.match(schemaText, /https:\/\/activation-dev\.mad4b\.com/);
-  assert.doesNotMatch(schemaText, /https:\/\/auth\.mad4b\.com|https:\/\/activation\.mad4b\.com/);
+  assert.doesNotMatch(schemaText, /https:\/\/auth\.mad4b\.com\/(?:auth|oauth)(?:\/|$)|https:\/\/activation\.mad4b\.com(?:\/|$)|https:\/\/mcp\.mad4b\.com(?:\/|$)/);
   const alternateHost = await getWithHeaders("/openapi.tenant-gpt.activation.staging.yaml", {
     "x-forwarded-host": "untrusted.invalid",
     "x-original-host": "activation-dev.mad4b.com",

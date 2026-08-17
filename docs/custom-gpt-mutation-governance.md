@@ -23,6 +23,14 @@
 
 قبل أي تفعيل مستقل لمسار OpenAPI mutations، يجب أن يثبت route contract على الأقل هوية المستخدم والـtenant، membership وrole، operation effect، idempotency عند الحاجة، approval أو capability، وسجلًا قابلًا للتدقيق مع readback عندما تكون العملية provider-facing. إذا كان أحد هذه الشروط غير موجود في route بعينها، تبقى العملية في review/staging ولا تُعتبر mutation-governance-ready.
 
+## عقد Production وStaging المزدوج
+
+يستخدم Custom Admin GPT عقدًا واعيًا بالبيئة لكنه لا يساوي بين البيئتين. العقد canonical هو `specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json`، والتعليمات التشغيلية المقابلة هي `docs/custom-gpt-environment-routing-instructions.md`.
+
+Staging هو البيئة الافتراضية وعقده `openapi/openapi.custom-gpt.staging-admin.yaml` read-only وGET-only على `https://dev.mad4b.com`. Production يظل عقدًا منفصلًا على `https://auth.mad4b.com`، لكن Custom GPT boundary يسمح حاليًا بالقراءة فقط؛ أي POST أو tools/call يحتاج promotion وتفويضًا مستقلًا. لا يُسمح بالfallback بين البيئتين، ولا بخلط credential namespaces أو hosts.
+
+هذا العقد يثبت أن environment selection يجب أن يكون صريحًا، وأن mismatch بين environment وschema أو host أو credentials يؤدي إلى deny-and-do-not-fallback. كما يثبت أن route wiring وruntime authority وProduction activation وmigrations وgrants وDB/provider mutations وdeployment تظل `false` في هذه الدفعة.
+
 ## حدود هذه الدفعة
 
 لم تُفعّل write scopes، ولم تُطبّق migrations، ولم تُنفذ provider mutations، ولم تُعدل Cloudflare أو Hostinger، ولم تُنشر Production، ولم يُدمج PR #7072. لذلك فإن نتيجة القبول الصحيحة هي فصل transport مع shared adapter fail-closed، وإبقاء أي promotion لعملية write مؤجلًا إلى registry تفصيلي ومراجعة مستقلة.
@@ -44,6 +52,9 @@
 | `http-generic-api/openapi/openapi-mutation-policy.generated.json` | registry لجميع 29 mutation operations مع unbound fail-closed status |
 | `http-generic-api/tenantGptOperationalReadiness.js` | تجميع readiness للـDB/ingress/canary/client evidence |
 | `docs/tenant-gpt-secret-and-canary-runbook.md` | خطوات التشغيل الخارجي والتدوير دون تنفيذ ضمن الدفعة |
+| `specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json` | environment selector وhost/credential isolation وpromotion boundary |
+| `docs/custom-gpt-environment-routing-instructions.md` | التعليمات التشغيلية لـCustom Admin GPT عند التعامل مع البيئتين |
+| `http-generic-api/test-custom-gpt-environment-aware-contract.mjs` | regression guard للعقد والـschemas والـGET-only boundary |
 
 ## References
 

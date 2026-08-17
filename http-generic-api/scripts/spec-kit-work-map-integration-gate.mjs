@@ -522,6 +522,31 @@ function implementationChanged(changedFiles, policy) {
   return changedFiles.some((file) => !exempt.some((prefix) => file === prefix || file.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`)));
 }
 
+function preparedOnlyBindingRefresh(feature, changedFiles, root, policy) {
+  const featureRoot = normalizePath(path.join(policy.spec_root, feature));
+  const manifestPath = `${featureRoot}/${policy.manifest_filename}`;
+  const featureFiles = changedFiles.filter((file) => file === manifestPath || file.startsWith(`${featureRoot}/`));
+  if (featureFiles.length !== 1 || featureFiles[0] !== manifestPath) return false;
+  try {
+    const current = readJson(path.join(root, manifestPath));
+    const base = JSON.parse(execFileSync("git", ["show", `origin/main:${manifestPath}`], { cwd: root, encoding: "utf8" }));
+    const withoutRegistry = (value) => {
+      const clone = JSON.parse(JSON.stringify(value));
+      delete clone.registry;
+      return clone;
+    };
+    return JSON.stringify(withoutRegistry(base)) === JSON.stringify(withoutRegistry(current))
+      && JSON.stringify(base.registry || {}) !== JSON.stringify(current.registry || {});
+  } catch {
+    return false;
+  }
+}
+
+function featureImplementationChanged(feature, changedFiles, root, policy, globalRuntimeChanged) {
+  if (!globalRuntimeChanged) return false;
+  return !preparedOnlyBindingRefresh(feature, changedFiles, root, policy);
+}
+
 export function validateRepository(options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(path.join(root, DEFAULT_POLICY_PATH));
@@ -572,7 +597,7 @@ export function validateRepository(options = {}) {
       root,
       policy,
       registry,
-      implementationRequired: runtimeChanged,
+      implementationRequired: featureImplementationChanged(feature, changedFiles, root, policy, runtimeChanged),
     }));
   }
 

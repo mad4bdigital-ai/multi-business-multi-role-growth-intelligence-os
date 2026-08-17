@@ -20,7 +20,7 @@ const diagnosticPool = {
     throw new Error(`Unexpected diagnostic SQL: ${sql}`);
   },
 };
-const diagnostic = await inspectGovernedResponseChunkSchema({ pool: diagnosticPool });
+const diagnostic = await inspectGovernedResponseChunkSchema({ runtimePersistencePool: diagnosticPool });
 if (diagnostic.base_migration_file !== "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql"
   || diagnostic.recovery_migration_file !== "1048_transport_response_chunk_schema_recovery.sql"
   || diagnostic.migration_file !== diagnostic.base_migration_file
@@ -127,7 +127,7 @@ function createFakeChunkPool() {
 async function main() {
   const now = Date.parse("2026-06-18T20:00:00.000Z");
   const pool = createFakeChunkPool();
-  const deps = { pool, now };
+  const deps = { runtimePersistencePool: pool, now };
   const tenantA = { tenant_id: "tenant-a", user_id: "user-a", workspace_id: "workspace-a" };
   const tenantB = { tenant_id: "tenant-b", user_id: "user-b", workspace_id: "workspace-b" };
   const admin = { is_admin: true, user_id: "admin-user" };
@@ -174,7 +174,7 @@ async function main() {
       cursor: 0,
       max_chars: 5000,
       auth: tenantB,
-    }, { pool, now: now + 500 }),
+    }, { runtimePersistencePool: pool, now: now + 500 }),
     (err) => err?.status === 404 && err?.code === "response_chunk_not_found",
   );
   assert.equal(new Date(pool.rows.get(firstChunk.chunk_id).expires_at).getTime(), initialExpiry);
@@ -185,7 +185,7 @@ async function main() {
     cursor: 0,
     max_chars: 5000,
     auth: tenantA,
-  }, { pool, now: now + 750 });
+  }, { runtimePersistencePool: pool, now: now + 750 });
   assert.equal(ownerMemoryRead.source, "tool_response_cache");
   assert.equal(ownerMemoryRead.cache.read_count, 1, "denied reads must not increment memory read count");
   assert.equal(pool.state.ttl_update_count, 1);
@@ -213,7 +213,7 @@ async function main() {
       cursor: 0,
       max_chars: 5000,
       auth: tenantB,
-    }, { pool, now: now + 900 }),
+    }, { runtimePersistencePool: pool, now: now + 900 }),
     (err) => err?.status === 404 && err?.code === "response_chunk_not_found",
   );
   assert.equal(pool.state.ttl_update_count, ttlUpdatesBeforeDurableDenial);
@@ -223,7 +223,7 @@ async function main() {
     cursor: 0,
     max_chars: 5000,
     auth: tenantA,
-  }, { pool, now: now + 1000 });
+  }, { runtimePersistencePool: pool, now: now + 1000 });
   assert.equal(recoveredFirstChunk.source, "governed_tool_response_chunk_store");
   assert.equal(recoveredFirstChunk.chunk, firstChunk.chunk);
   assert.equal(recoveredFirstChunk.cache.durable, true);
@@ -233,7 +233,7 @@ async function main() {
     cursor: recoveredFirstChunk.page.next_cursor,
     max_chars: 5000,
     auth: tenantA,
-  }, { pool, now: now + 2000 });
+  }, { runtimePersistencePool: pool, now: now + 2000 });
 
   assert.equal(secondChunk.response_chunked, true);
   assert.equal(secondChunk.chunk_id, firstChunk.chunk_id);
@@ -247,7 +247,7 @@ async function main() {
     cursor: 0,
     max_chars: 5000,
     auth: admin,
-  }, { pool, now: now + 2500 });
+  }, { runtimePersistencePool: pool, now: now + 2500 });
   assert.equal(adminRead.chunk_id, firstChunk.chunk_id);
 
   const ttlUpdatesBeforeUnresolvedRead = pool.state.ttl_update_count;
@@ -256,7 +256,7 @@ async function main() {
       chunk_id: firstChunk.chunk_id,
       cursor: 0,
       max_chars: 5000,
-    }, { pool, now: now + 2600 }),
+    }, { runtimePersistencePool: pool, now: now + 2600 }),
     (err) => err?.status === 404 && err?.code === "response_chunk_not_found",
   );
   assert.equal(pool.state.ttl_update_count, ttlUpdatesBeforeUnresolvedRead);
@@ -269,7 +269,7 @@ async function main() {
       cursor,
       max_chars: 5000,
       auth: tenantA,
-    }, { pool, now: now + 3000 + cursor });
+    }, { runtimePersistencePool: pool, now: now + 3000 + cursor });
     reconstructed += page.chunk;
     cursor = page.page.next_cursor;
   } while (cursor !== null);
@@ -302,7 +302,7 @@ async function main() {
       source_tool_key: "test_degraded_chunk_store",
       request_id: "request-degraded-1",
       auth: tenantA,
-    }, { pool: degradedPool, now });
+    }, { runtimePersistencePool: degradedPool, now });
   } finally {
     console.warn = originalWarn;
   }
@@ -330,7 +330,7 @@ async function main() {
         source_tool_key: "test_degraded_budget_limit",
         request_id: "request-degraded-budget-1",
         auth: tenantA,
-      }, { pool: degradedPool, now }),
+      }, { runtimePersistencePool: degradedPool, now }),
       (error) => error?.code === "response_chunk_persistence_unavailable_inline_limit_exceeded"
         && error?.status === 503
         && error?.details?.bounded_inline_max_chars === 5000,

@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Activation Admin Actions
+  title: Growth Intelligence Platform - Activation Admin Actions - staging
   version: 3.0.0-platform
-  summary: Admin/service Activation orchestration and read surfaces.
-  description: Staging Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com.
+  summary: Admin/service Activation orchestration and read surfaces. (staging).
+  description: Activation-only admin transport. Authentication and business authorization remain on dev.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
 servers:
   - url: https://activation-dev.mad4b.com
-    description: activation_admin surface
+    description: activation_admin_staging surface
 tags:
   - name: activation
     description: Once-per-session activation probes, session history, and scope context.
@@ -20,13 +20,6 @@ components:
       bearerFormat: Backend API Key or User JWT
       description: |
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
-    backendApiKeyAuth:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Send the Staging-only backend API key in the x-api-key header.
-
   schemas:
     ActivationHardRunSummaryResponse:
       type: object
@@ -913,7 +906,6 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 security:
   - backendBearerAuth: []
-  - backendApiKeyAuth: []
 paths:
   /activation/hard-run/summary:
     get:
@@ -926,7 +918,6 @@ paths:
         Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph. Use this endpoint when tool/client response budgets cannot safely receive full activation evidence.
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       responses:
         "200":
           description: Compact hard activation summary.
@@ -942,7 +933,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: readActivationAwareness
       x-openai-isConsequential: false
       summary: Read complete activation awareness manifests
@@ -1007,7 +997,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: readActivationOperationalAttention
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
@@ -1100,7 +1089,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: readActivationDynamicTabDetail
       x-openai-isConsequential: false
       summary: Read one authorized Dynamic Tab detail page
@@ -1161,7 +1149,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: acknowledgeActivationRun
       x-openai-isConsequential: false
       summary: Record consumer acknowledgement for an activation run
@@ -1208,7 +1195,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: runLegacyFullHardActivation
       x-openai-isConsequential: false
       summary: Run legacy full hard activation response
@@ -1323,7 +1309,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: runHardActivation
       x-openai-isConsequential: false
       summary: Run evidence-first hard activation with complete awareness
@@ -1438,7 +1423,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: getActivationSessionContext
       summary: Read previous session history and platform scope context
       description: Hard activation layer that reads prior user session envelopes as a paginated history log, scoped user request transcripts, plus audit activity, developer scopes, API credential scopes, and connected-system scopes. Admin/service sessions may also receive execution-log prompt and response summaries..
@@ -1598,7 +1582,6 @@ paths:
         - activation
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
       operationId: getActivationPlatformAccess
       summary: Read platform-wide activation access and registry counts
       description: |
@@ -1714,9 +1697,12 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 9cf0208b463ca12e78e3ee9030f31501e0f35ce675eafd02a215425b3e45ac0f
+  source_openapi_sha256: 1226ab6d48d1a88035d68ac3c49fad638e6c314c23aa532a65fc541291ad9ae2
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
+  registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
+  domain_family_policy: http-generic-api/config/domain-family-policy.json
+  domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
+  environment: staging
   registry_version: 2
   selector_model: marker_required
   candidate_policy:

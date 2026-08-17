@@ -10,10 +10,12 @@ const API_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const SOURCE_OPENAPI_FILE = path.join(API_ROOT, "openapi.yaml");
 const SURFACE_REGISTRY_FILE = path.join(REPO_ROOT, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
+const DOMAIN_FAMILY_POLICY_FILE = path.join(API_ROOT, "config", "domain-family-policy.json");
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const DESCRIPTION_LIMIT = 300;
 const SOURCE_OPENAPI_SHA256 = createHash("sha256").update(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8")).digest("hex");
 const SURFACE_REGISTRY_SHA256 = createHash("sha256").update(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8")).digest("hex");
+const DOMAIN_FAMILY_POLICY_SHA256 = createHash("sha256").update(fs.readFileSync(DOMAIN_FAMILY_POLICY_FILE, "utf8")).digest("hex");
 
 function cliValue(name) {
   const inline = process.argv.find((arg) => String(arg).startsWith(`${name}=`));
@@ -26,6 +28,45 @@ const OUTPUT_DIR = path.resolve(cliValue("--output-dir") || API_ROOT);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function loadDomainFamilyPolicy() {
+  const policy = JSON.parse(fs.readFileSync(DOMAIN_FAMILY_POLICY_FILE, "utf8"));
+  if (policy?.schema_version !== "mad4b.domain-family-policy.v1" || policy?.enforcement_mode !== "fail_closed") {
+    throw new Error("domain-family policy must use the fail-closed v1 contract");
+  }
+  return policy;
+}
+
+function resolveEnvironmentVariant(surfaceKey, surface, domainPolicy) {
+  if (!surface.environment || !surface.domain_service) return { ...surface, surface_key: surfaceKey, source_surface_key: surface.source_surface_key || surfaceKey };
+  const environment = String(surface.environment);
+  const service = String(surface.domain_service);
+  const host = domainPolicy.environments?.[environment]?.hostnames?.[service]?.hostname;
+  if (!host) throw new Error(`${surfaceKey}: no ${service} hostname registered for environment ${environment}`);
+  const effective = { ...clone(surface), surface_key: surfaceKey, server_url: `https://${host}` };
+  if (effective.auth_profile === "tenant_oauth") {
+    const authHost = domainPolicy.environments?.[environment]?.hostnames?.auth?.hostname;
+    if (!authHost) throw new Error(`${surfaceKey}: tenant OAuth requires an auth hostname for ${environment}`);
+    effective.oauth_authority = {
+      ...(effective.oauth_authority || {}),
+      authorization_server: `https://${authHost}`,
+    };
+    const oauthHost = host;
+    effective.oauth_endpoints = {
+      authorization_url: `https://${oauthHost}/auth/oauth/authorize`,
+      token_url: `https://${oauthHost}/auth/oauth/token`,
+    };
+  }
+  return effective;
+}
+
+function resolveConfiguredSurface(surfaceKey, surface, registry, domainPolicy) {
+  if (!surface.base_surface) return resolveEnvironmentVariant(surfaceKey, surface, domainPolicy);
+  const base = registry.surfaces?.[surface.base_surface];
+  if (!base) throw new Error(`${surfaceKey}: base_surface is not registered: ${surface.base_surface}`);
+  const merged = { ...clone(base), ...clone(surface), selector: clone(surface.selector || base.selector), candidate_policy: clone(surface.candidate_policy || base.candidate_policy), info: clone(surface.info || base.info) };
+  return resolveEnvironmentVariant(surfaceKey, { ...merged, source_surface_key: surface.base_surface }, domainPolicy);
 }
 
 function outputPath(file) {
@@ -325,14 +366,15 @@ function validateMarkerOverlapAllowlist(sourceOperations, registry) {
 }
 
 function validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface) {
+  const sourceSurfaceKey = surface.source_surface_key || surfaceKey;
   validateCandidatePolicy(sourceOperations, surfaceKey, surface);
   const markers = new Set(surface.selector?.source_markers || []);
   if (!markers.size) return;
-  if (!markers.has(surfaceKey)) throw new Error(`${surfaceKey}: source_markers must include the surface key`);
+  if (!markers.has(sourceSurfaceKey)) throw new Error(`${surfaceKey}: source_markers must include the source surface key ${sourceSurfaceKey}`);
   if (!surface.selector?.coverage) return;
   const coverage = selectCoverageOperations(sourceOperations, surfaceKey, surface);
-  const missingMarkers = coverage.filter((entry) => !(entry.operation?.["x-custom-gpt-surfaces"] || []).includes(surfaceKey));
-  const markerOnly = sourceOperations.filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(surfaceKey));
+  const missingMarkers = coverage.filter((entry) => !(entry.operation?.["x-custom-gpt-surfaces"] || []).includes(sourceSurfaceKey));
+  const markerOnly = sourceOperations.filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(sourceSurfaceKey));
   const outsideCoverage = markerOnly.filter((entry) => !coverage.some((candidate) => candidate.pathKey === entry.pathKey && candidate.method === entry.method));
   if (missingMarkers.length > 0 || outsideCoverage.length > 0) {
     const missing = missingMarkers.map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`).join(", ");
@@ -356,8 +398,9 @@ function selectOperations(sourceOperations, surfaceKey, surface) {
     if (unknownDynamic.length > 0) throw new Error(`${surfaceKey}: dynamic operationIds missing: ${unknownDynamic.join(", ")}`);
     const overlap = staticIds.filter((id) => dynamicIds.has(id));
     if (overlap.length > 0) throw new Error(`${surfaceKey}: static and dynamic operationIds overlap: ${overlap.join(", ")}`);
+    const markerKey = surface.source_surface_key || surfaceKey;
     const markedIds = new Set(sourceOperations
-      .filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(surfaceKey))
+      .filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(markerKey))
       .map((entry) => tenantOperationId(entry.operation))
       .filter(Boolean));
     const accountedIds = new Set([...staticIds, ...dynamicIds]);
@@ -423,26 +466,17 @@ function applySecurityProfile(doc, sourceDoc, surface) {
       throw new Error("x-tenant-gpt-auth security configuration missing from source OpenAPI");
     }
     const schemeName = String(tenantConfig.security_scheme_name || "userBearerAuth");
-    const backendSchemeNames = ["backendBearerAuth", "backendApiKeyAuth"];
     doc.components.securitySchemes = { [schemeName]: clone(tenantConfig.security_scheme) };
-    for (const backendSchemeName of backendSchemeNames) {
-      const sourceScheme = sourceDoc.components?.securitySchemes?.[backendSchemeName];
-      if (sourceScheme) doc.components.securitySchemes[backendSchemeName] = clone(sourceScheme);
-    }
+    // Tenant contracts are public-facing Custom GPT contracts. They must expose
+    // exactly one scheme; backend authentication remains an internal runtime
+    // concern and must never be published in the Tenant schema.
     doc.security = clone(tenantConfig.security);
     if (tenantConfig.action_auth_preset) doc["x-gpt-action-auth-preset"] = clone(tenantConfig.action_auth_preset);
     applyTenantOAuthEndpointOverride(doc, surface);
     for (const [pathKey, item] of Object.entries(doc.paths || {})) {
       for (const [method, operation] of Object.entries(item || {})) {
         if (!METHOD_NAMES.has(method)) continue;
-        const sourceOperation = sourceDoc.paths?.[pathKey]?.[method] || {};
-        const sourceSecurity = sourceOperation.security;
-        const tenantSecurityMarker = sourceOperation["x-tenant-gpt-security"];
-        const usesBackendSecurity = Array.isArray(sourceSecurity)
-          && sourceSecurity.some((requirement) => Object.keys(requirement || {}).some((name) => backendSchemeNames.includes(name)));
-        operation.security = tenantSecurityMarker === "tenant_user"
-          ? clone(tenantConfig.security)
-          : usesBackendSecurity ? clone(sourceSecurity) : clone(tenantConfig.security);
+        operation.security = clone(tenantConfig.security);
         normalizeTenantToolCallBody(operation);
       }
     }
@@ -451,7 +485,34 @@ function applySecurityProfile(doc, sourceDoc, surface) {
   throw new Error(`Unsupported generated auth profile: ${surface.auth_profile}`);
 }
 
-function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, registry) {
+function rewriteEnvironmentDomainReferences(value, environment, domainPolicy) {
+  if (environment !== "staging") return value;
+  const replacements = new Map([
+    ["auth.mad4b.com", domainPolicy.environments.staging.hostnames.auth.hostname],
+    ["activation.mad4b.com", domainPolicy.environments.staging.hostnames.activation.hostname],
+    ["mcp.mad4b.com", domainPolicy.environments.staging.hostnames.mcp.hostname],
+  ]);
+  if (typeof value === "string") {
+    // Scope authority is intentionally shared across environments. Only issuer,
+    // resource, server, and activation host references are environment-specific.
+    if (/^https:\/\/auth\.mad4b\.com\/scopes\//u.test(value)) return value;
+    let result = value;
+    for (const [from, to] of replacements) result = result.split(from).join(to);
+    return result;
+  }
+  if (Array.isArray(value)) return value.map((item) => rewriteEnvironmentDomainReferences(item, environment, domainPolicy));
+  if (!value || typeof value !== "object") return value;
+  const entries = Object.entries(value);
+  for (const [key, child] of entries) {
+    const rewrittenKey = rewriteEnvironmentDomainReferences(key, environment, domainPolicy);
+    const rewrittenChild = rewriteEnvironmentDomainReferences(child, environment, domainPolicy);
+    if (rewrittenKey !== key) delete value[key];
+    value[rewrittenKey] = rewrittenChild;
+  }
+  return value;
+}
+
+function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, registry, domainPolicy) {
   const paths = {};
   for (const entry of selectedOperations) {
     if (!paths[entry.pathKey]) {
@@ -460,7 +521,6 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     }
     paths[entry.pathKey][entry.method] = clone(entry.operation);
     delete paths[entry.pathKey][entry.method]["x-custom-gpt-surfaces"];
-    delete paths[entry.pathKey][entry.method]["x-tenant-gpt-security"];
   }
   const doc = clone(sourceDoc);
   doc.info = {
@@ -478,6 +538,9 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     source_openapi_sha256: SOURCE_OPENAPI_SHA256,
     registry_file: path.relative(REPO_ROOT, SURFACE_REGISTRY_FILE),
     registry_sha256: SURFACE_REGISTRY_SHA256,
+    domain_family_policy: path.relative(REPO_ROOT, DOMAIN_FAMILY_POLICY_FILE),
+    domain_family_policy_sha256: DOMAIN_FAMILY_POLICY_SHA256,
+    environment: surface.environment || "unspecified",
     registry_version: Number(registry.version || 1),
     selector_model: surface.candidate_policy?.mode || "unspecified",
     candidate_policy: surface.candidate_policy || null,
@@ -500,6 +563,12 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     }
   }
   applySecurityProfile(doc, sourceDoc, surface);
+  for (const item of Object.values(doc.paths || {})) {
+    for (const [method, operation] of Object.entries(item || {})) {
+      if (METHOD_NAMES.has(method)) delete operation["x-tenant-gpt-security"];
+    }
+  }
+  rewriteEnvironmentDomainReferences(doc, surface.environment, domainPolicy);
   pruneComponents(doc);
   trimDescriptions(doc);
   normalizeObjects(doc);
@@ -508,6 +577,24 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
 
 function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
   assertOpenApiResponseObjects(doc, { source: surface.output_file || surfaceKey });
+  const securitySchemes = doc.components?.securitySchemes || {};
+  const securitySchemeNames = Object.keys(securitySchemes);
+  if (securitySchemeNames.length !== 1) {
+    throw new Error(`${surfaceKey}: generated contract must contain exactly one security scheme; found ${securitySchemeNames.join(", ")}`);
+  }
+  const allowedSecuritySchemes = new Set([securitySchemeNames[0]]);
+  const securityObjects = [];
+  if (Array.isArray(doc.security)) securityObjects.push(...doc.security);
+  for (const entry of collectOperations(doc)) {
+    if (Array.isArray(entry.operation?.security)) securityObjects.push(...entry.operation.security);
+  }
+  for (const requirement of securityObjects) {
+    for (const name of Object.keys(requirement || {})) {
+      if (!allowedSecuritySchemes.has(name)) {
+        throw new Error(`${surfaceKey}: security requirement references scheme ${name}, but only ${[...allowedSecuritySchemes].join(", ")} are permitted`);
+      }
+    }
+  }
   const sourcePairs = new Set(collectOperations(sourceDoc).map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`));
   const seenIds = new Set();
   for (const entry of collectOperations(doc)) {
@@ -526,13 +613,14 @@ function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
   return count;
 }
 
-function generateConfiguredSurfaces(sourceDoc, sourceOperations, registry) {
+function generateConfiguredSurfaces(sourceDoc, sourceOperations, registry, domainPolicy) {
   validateMarkerOverlapAllowlist(sourceOperations, registry);
   const generated = [];
-  for (const [surfaceKey, surface] of Object.entries(registry.surfaces || {})) {
-    if (surface.mode !== "generated_from_openapi") continue;
+  for (const [surfaceKey, rawSurface] of Object.entries(registry.surfaces || {})) {
+    if (rawSurface.mode !== "generated_from_openapi") continue;
+    const surface = resolveConfiguredSurface(surfaceKey, rawSurface, registry, domainPolicy);
     const selected = selectOperations(sourceOperations, surfaceKey, surface);
-    const doc = buildSurfaceDoc(sourceDoc, selected, surfaceKey, surface, registry);
+    const doc = buildSurfaceDoc(sourceDoc, selected, surfaceKey, surface, registry, domainPolicy);
     const count = validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface);
     const target = outputPath(surface.output_file);
     fs.writeFileSync(target, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
@@ -548,10 +636,12 @@ function main() {
   const sourceDoc = YAML.parse(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8"));
   assertOpenApiResponseObjects(sourceDoc, { source: path.relative(REPO_ROOT, SOURCE_OPENAPI_FILE) });
   const registry = YAML.parse(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8"));
+  const domainPolicy = loadDomainFamilyPolicy();
   validateUniqueTenantAliases(collectOperations(sourceDoc));
-  const generated = generateConfiguredSurfaces(sourceDoc, collectOperations(sourceDoc), registry);
+  const generated = generateConfiguredSurfaces(sourceDoc, collectOperations(sourceDoc), registry, domainPolicy);
   console.log(`\nGenerated ${generated.length} registry-owned OpenAPI surfaces.`);
   for (const item of generated) console.log(`  ${item.file} - ${item.surfaceKey} (${item.authProfile}, ${item.count} operations)`);
+  console.log(`  domain-family policy: ${path.relative(REPO_ROOT, DOMAIN_FAMILY_POLICY_FILE)} (${DOMAIN_FAMILY_POLICY_SHA256})`);
   console.log("  openapi.gpt-action.local-connector.yaml - copied from canonicals/openapi/local-connector.openapi.yaml by the schema orchestrator");
   console.log("  openapi.gpt-action.dev-dispatcher.yaml - externally managed development surface");
 }

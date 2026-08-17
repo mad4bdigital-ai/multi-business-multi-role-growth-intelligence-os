@@ -128,7 +128,7 @@ async function main() {
 
   await assert.rejects(
     () => runGovernedResponseChunkDurableRecoverySmoke({}, {
-      pool: createFakePool(),
+      runtimePersistencePool: createFakePool(),
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -142,7 +142,7 @@ async function main() {
     repeat_count: 40,
     chunk_ttl_minutes: 5,
   }, {
-    pool,
+    runtimePersistencePool: pool,
     now: Date.parse("2026-06-20T01:00:00.000Z"),
     maybeChunkToolResponseBody,
     evictToolResponseChunkMemoryCache,
