@@ -3,6 +3,10 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { readDeploymentManifest } from "../deploymentManifest.js";
 import { getGovernanceDbPrivilegeReadinessSnapshot } from "../governanceDbPrivilegeReadinessRuntime.js";
+import {
+  getMcpCatalogSchemaStartupPreflight,
+  readMcpCatalogSchemaReadinessSafe,
+} from "../mcpCatalogSchemaGuard.js";
 import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
 
 async function fileMtimeIso(file) {
@@ -234,6 +238,11 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
     const governanceDbPrivilegeReadiness = includeGovernanceDbReadiness
       ? await getGovernanceDbPrivilegeReadinessSnapshot()
       : undefined;
+    const includeMcpCatalogSchemaReadiness = String(req.query?.include_mcp_catalog_schema_readiness || "").trim() === "1";
+    const mcpCatalogSchemaReadiness = includeMcpCatalogSchemaReadiness
+      ? await readMcpCatalogSchemaReadinessSafe()
+      : undefined;
+    const mcpCatalogSchemaStartupPreflight = getMcpCatalogSchemaStartupPreflight();
 
     res.status(200).json({
       ok: true,
@@ -281,6 +290,10 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
       runtime_integrity: runtimeIntegrity,
       ...(includeGovernanceDbReadiness ? {
         governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
+      } : {}),
+      ...(includeMcpCatalogSchemaReadiness ? {
+        mcp_catalog_schema_readiness: mcpCatalogSchemaReadiness,
+        mcp_catalog_schema_startup_preflight: mcpCatalogSchemaStartupPreflight,
       } : {}),
       evidence: {
         commit_sha_available: Boolean(commitSha),

@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,152 |
-| Total bytes | 69,799,634 |
-| Counted text lines | 1,639,891 |
+| Tracked files | 7,153 |
+| Total bytes | 69,823,930 |
+| Counted text lines | 1,640,429 |
 | Directories | 265 |
 | Categories | 13 |
 
@@ -17,7 +17,7 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,148 |
+| `tests-and-specs` | 2,149 |
 | `documentation` | 1,907 |
 | `api-runtime` | 1,435 |
 | `database-migrations` | 783 |
@@ -36,7 +36,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,508 |
-| `.mjs` | 1,683 |
+| `.mjs` | 1,684 |
 | `.js` | 991 |
 | `.sql` | 798 |
 | `.json` | 789 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 167 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,232 |
+| Test/spec files (paths) | 2,233 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -93,7 +93,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,187 | 97972 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,027 | 58546 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,093 | 58550 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 991,444 | 23015 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 610,355 | 11546 |
@@ -106,9 +106,9 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `docs/governance/configuration-drift-policy.json` | documentation | 245,456 | 2099 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 220,777 | 4686 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 221,663 | 4707 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 204,131 | 4368 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 207,503 | 4441 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |
