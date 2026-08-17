@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7153,
-    "bytes": 69814177,
-    "lines": 1640224,
+    "bytes": 69814210,
+    "lines": 1640226,
     "directories": 265,
     "categories": 13
   },
@@ -51398,9 +51398,9 @@
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 1936060,
-      "lines": 58548,
-      "sha256": "c833a4a98e383b3c19e522e4c7e6477c4620b5385dfe4cbb9fcf4d2ac0fbf6f9",
+      "bytes": 1936093,
+      "lines": 58550,
+      "sha256": "78679f5fb95e3f2827b0a9af54794b345b8fbc838d6c1d5bcef07ee6a457664a",
       "mode": "644",
       "executable": false,
       "generated": false

@@ -3658,8 +3658,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#GET:/gpt/tools:0",
-      "source_line": 4294,
-      "source_offset": 201262,
+      "source_line": 4306,
+      "source_offset": 201897,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -3667,8 +3667,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#POST:/gpt/tools/call:1",
-      "source_line": 4320,
-      "source_offset": 202189,
+      "source_line": 4340,
+      "source_offset": 203234,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -25870,17 +25870,17 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
-        "source_line": 4320,
+        "source_line": 4340,
         "handler_window_lines": [
-          4320,
-          4368
+          4340,
+          4396
         ],
         "evidence_flags": {
           "handler_window_present": true,
           "provider_signal": true,
           "db_registry_signal": false,
           "authority_signal": true,
-          "readback_signal": false,
+          "readback_signal": true,
           "mutation_signal": true
         },
         "signals": {
@@ -25891,7 +25891,9 @@
           "authority": [
             "admin"
           ],
-          "readback": [],
+          "readback": [
+            "response"
+          ],
           "mutation": [
             "dispatch"
           ]
@@ -52113,7 +52115,7 @@
       "route_to_provider_signal": 94,
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 405,
-      "route_to_readback_signal": 365,
+      "route_to_readback_signal": 366,
       "route_to_mutation_signal": 372,
       "route_to_explicit_scope_candidate": 38
     },
