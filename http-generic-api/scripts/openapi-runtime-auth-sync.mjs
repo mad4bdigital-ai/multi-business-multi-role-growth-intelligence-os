@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
-import { buildDispatchPlan, canonicalOpenApiAuthority, isDirectExecution, parseOpenApiContracts } from "./frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, canonicalOpenApiAuthority, canonicalOpenApiSecurityAlternatives, isDirectExecution, parseOpenApiContracts } from "./frontend-surface-dispatch.mjs";
 
 const API_ROOT = process.cwd();
 const OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
@@ -57,7 +57,7 @@ function canonicalAuthDrift(plan) {
     for (const [signature, contract] of contracts) {
       const operation = runtimeAuthority.get(signature);
       if (!operation) continue;
-      const expected = PROFILE_SECURITY[operation.runtime_auth.profile];
+      const expected = canonicalOpenApiSecurityAlternatives(contract, PROFILE_SECURITY[operation.runtime_auth.profile]);
       const current = normalizedAlternatives(contract.security_alternatives || []);
       const normalizedExpected = normalizedAlternatives(expected);
       const equivalent = contract.security_alternatives !== null && JSON.stringify(current) === JSON.stringify(normalizedExpected);

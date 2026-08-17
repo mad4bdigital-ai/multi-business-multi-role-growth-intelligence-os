@@ -62,6 +62,20 @@ for (const pathKey of allowedReadOnlyPaths) {
 
 document.paths = paths;
 document.servers = [{ url: stagingHost, description: "Staging Admin read-only Custom GPT surface" }];
+const apiKeyScheme = {
+  type: "apiKey",
+  in: "header",
+  name: "x-api-key",
+  description: "Staging Admin Custom GPT API key. Runtime still requires the admin-principal guard; no user or Production credential is accepted.",
+};
+document.components = {
+  ...document.components,
+  securitySchemes: { backendApiKeyAuth: clone(apiKeyScheme) },
+};
+document.security = [{ backendApiKeyAuth: [] }];
+for (const operation of Object.values(document.paths).flatMap((methods) => Object.values(methods))) {
+  operation.security = [{ backendApiKeyAuth: [] }];
+}
 document.info = {
   ...document.info,
   title: "Growth Intelligence Platform - Staging Admin Read-only Actions",
@@ -74,7 +88,7 @@ document["x-mad4b-surface"] = "admin-custom-gpt-read-only";
 document["x-mad4b-staging-boundary"] = {
   resource: stagingHost,
   server_uri_count: 1,
-  authorization_mode: "backend_bearer_or_user_jwt",
+  authorization_mode: "backend_api_key_only",
   production_hosts_forbidden_policy: "http-generic-api/config/domain-family-policy.json",
   mutation_contract: "read_only_schema_only",
   admin_write_activation: false,
@@ -96,6 +110,18 @@ if (!Array.isArray(document.servers) || document.servers.length !== 1 || documen
 }
 if ([...Object.values(document.paths)].some((methods) => Object.keys(methods).some((method) => method !== "get"))) {
   fail("generated Admin Staging schema contains a non-GET operation");
+}
+const securitySchemes = document.components?.securitySchemes || {};
+if (Object.keys(securitySchemes).length !== 1 || !securitySchemes.backendApiKeyAuth) {
+  fail("generated Admin Staging schema must expose exactly one security scheme: backendApiKeyAuth");
+}
+if (JSON.stringify(document.security) !== JSON.stringify([{ backendApiKeyAuth: [] }])) {
+  fail("generated Admin Staging schema must use backendApiKeyAuth globally");
+}
+for (const operation of Object.values(document.paths).flatMap((methods) => Object.values(methods))) {
+  if (JSON.stringify(operation.security) !== JSON.stringify([{ backendApiKeyAuth: [] }])) {
+    fail("generated Admin Staging operations must use backendApiKeyAuth only");
+  }
 }
 for (const host of forbiddenHosts) if (output.includes(host)) fail(`forbidden host leaked: ${host}`);
 if (output.includes("CLOUDFLARE_TUNNEL_TOKEN") || output.includes("TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET")) fail("secret reference leaked into Admin schema");

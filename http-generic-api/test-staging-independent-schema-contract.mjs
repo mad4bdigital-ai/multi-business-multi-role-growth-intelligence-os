@@ -54,6 +54,15 @@ assert.ok(Object.keys(tenant.paths ?? {}).length > 0);
 assert.ok(Object.keys(admin.paths ?? {}).length > 0);
 assert.ok(Object.keys(remoteMcp.paths ?? {}).includes("/mcp"));
 assert.ok(Object.values(admin.paths ?? {}).every((methods) => Object.keys(methods).every((method) => method === "get")), "Admin Staging schema must be GET-only");
+assert.deepEqual(Object.keys(admin.components?.securitySchemes ?? {}), ["backendApiKeyAuth"], "Admin Staging schema must expose exactly one security scheme");
+assert.deepEqual(admin.components.securitySchemes.backendApiKeyAuth, {
+  type: "apiKey",
+  in: "header",
+  name: "x-api-key",
+  description: "Staging Admin Custom GPT API key. Runtime still requires the admin-principal guard; no user or Production credential is accepted."
+});
+assert.deepEqual(admin.security, [{ backendApiKeyAuth: [] }], "Admin Staging schema must use x-api-key globally");
+assert.ok(Object.values(admin.paths ?? {}).every((methods) => methods.get?.security?.length === 1 && methods.get.security[0]?.backendApiKeyAuth), "Admin Staging operations must use the single x-api-key scheme");
 assert.equal(remoteMcp["x-mad4b-staging-boundary"]?.write_activation, false);
 assert.equal(admin["x-mad4b-staging-boundary"]?.admin_write_activation, false);
 assert.notEqual(tenant.info?.title, admin.info?.title);
