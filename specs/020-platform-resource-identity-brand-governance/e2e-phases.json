@@ -62,7 +62,9 @@
       "http-generic-api/openapi/**",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "docs/runbooks/spec020-runtime-database-readiness.md",
+      "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
       "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+      "http-generic-api/test-spec020-long-term-runtime-remediation-contract.mjs",
       "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
       "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
       "http-generic-api/openapi.yaml",
@@ -189,6 +191,13 @@
               "working_directory": "http-generic-api",
               "path": "test-spec020-runtime-database-readiness-contract.mjs",
               "args": []
+            },
+            {
+              "id": "spec020-long-term-runtime-remediation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec020-long-term-runtime-remediation-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -248,7 +257,12 @@
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
             "docs/runbooks/spec020-runtime-database-readiness.md",
+            "docs/runbooks/spec020-long-term-runtime-remediation-roadmap.md",
             "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/control-plane-persistence-resilience-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/capability-identity-certification-contract.json",
             "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
             "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
             "http-generic-api/openapi.yaml",

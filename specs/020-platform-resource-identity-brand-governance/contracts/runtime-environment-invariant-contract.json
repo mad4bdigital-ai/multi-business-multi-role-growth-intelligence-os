@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.spec020.runtime-environment-invariant.v1",
+  "status": "prepared-only",
+  "authority": "shadow-library-only",
+  "runtime_mutation_allowed": false,
+  "production_activation_allowed": false,
+  "credentials_read_allowed": false,
+  "provider_dispatch_allowed": false,
+  "secrets_included": false,
+  "environment_keys": ["production", "staging"],
+  "resolution_chain": [
+    "requested_environment",
+    "resolved_environment",
+    "credential_environment",
+    "provider_host_environment"
+  ],
+  "invariant": "requested_environment == resolved_environment == credential_environment == provider_host_environment",
+  "routing_rules": [
+    {
+      "environment_key": "staging",
+      "default_for_custom_gpt": true,
+      "allowed_hosts": [
+        "dev.mad4b.com",
+        "mcp_dev.mad4b.com",
+        "activation-dev.mad4b.com"
+      ],
+      "credential_namespace_prefixes": [
+        "TENANT_GPT_STAGING_",
+        "REMOTE_MCP_STAGING_",
+        "ACTIVATION_STAGING_"
+      ],
+      "production_hosts_forbidden": [
+        "auth.mad4b.com",
+        "activation.mad4b.com",
+        "mcp.mad4b.com"
+      ]
+    },
+    {
+      "environment_key": "production",
+      "default_for_custom_gpt": false,
+      "explicit_selection_required": true,
+      "allowed_hosts": [
+        "auth.mad4b.com",
+        "activation.mad4b.com",
+        "mcp.mad4b.com"
+      ],
+      "credential_namespace_prefixes": [
+        "TENANT_GPT_PRODUCTION_",
+        "REMOTE_MCP_PRODUCTION_",
+        "ACTIVATION_PRODUCTION_"
+      ],
+      "staging_hosts_forbidden": [
+        "dev.mad4b.com",
+        "mcp_dev.mad4b.com",
+        "activation-dev.mad4b.com"
+      ]
+    }
+  ],
+  "fail_closed_conditions": [
+    "requested_environment_missing",
+    "resolved_environment_missing",
+    "credential_environment_missing",
+    "provider_host_environment_missing",
+    "environment_chain_mismatch",
+    "cross_environment_credential_namespace",
+    "cross_environment_provider_host",
+    "implicit_production_selection",
+    "production_to_staging_fallback",
+    "staging_to_production_fallback"
+  ],
+  "same_cycle_readback": {
+    "required": true,
+    "fields": [
+      "requested_environment",
+      "resolved_environment",
+      "credential_environment",
+      "provider_host_environment",
+      "source_sha",
+      "schema_version",
+      "authority_profile_version"
+    ],
+    "activation_allowed_only_when_all_fields_match": true
+  },
+  "runtime_integration_boundary": {
+    "prompt_router_must_carry_environment_key": true,
+    "module_loader_must_carry_environment_key": true,
+    "system_bootstrap_must_carry_environment_key": true,
+    "provider_dispatch_must_validate_environment_key": true,
+    "route_wiring_in_this_pr": false,
+    "runtime_activation_in_this_pr": false
+  },
+  "prepared_actions": [
+    "define environment-aware execution context types",
+    "add read-only resolver and mismatch diagnostics",
+    "add synthetic tests for cross-environment fallback rejection",
+    "defer runtime route wiring and Production activation to a separately approved follow-up PR"
+  ],
+  "operator_approval_required": true
+}
+
