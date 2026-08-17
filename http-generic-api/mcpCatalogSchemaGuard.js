@@ -134,3 +134,123 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
     secrets_included: false,
   };
 }
+
+
+const mcpCatalogSchemaStartupPreflightState = {
+  contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
+  status: "not_run",
+  ready: false,
+  startup_blocked: false,
+  database_connection_performed: false,
+  sql_readback_performed: false,
+  migration_apply_performed: false,
+  database_mutation_performed: false,
+  readiness: null,
+  secrets_included: false,
+};
+
+function boundedSchemaErrorCode(error, fallback = "mcp_catalog_schema_metadata_unavailable") {
+  const value = String(error?.code || error?.errno || fallback).trim();
+  return value.slice(0, 128) || fallback;
+}
+
+function unavailableSchemaReadiness(error) {
+  const originalErrorCode = boundedSchemaErrorCode(error);
+  return {
+    ok: false,
+    migration: MCP_CATALOG_LEVEL_MIGRATION,
+    tables: MCP_CATALOG_TABLES.map((table) => ({
+      ok: false,
+      table,
+      column: MCP_CATALOG_LEVEL_COLUMN,
+      available: false,
+      code: "mcp_catalog_schema_metadata_unavailable",
+      original_error_code: originalErrorCode,
+      migration: MCP_CATALOG_LEVEL_MIGRATION,
+      migration_apply_required: true,
+      secrets_included: false,
+    })),
+    migration_apply_required: true,
+    database_connection_performed: false,
+    sql_readback_performed: false,
+    secrets_included: false,
+  };
+}
+
+export async function readMcpCatalogSchemaReadinessSafe({ pool } = {}) {
+  try {
+    const targetPool = pool || getPool();
+    const readiness = await readMcpCatalogSchemaReadiness({ pool: targetPool });
+    return {
+      ...readiness,
+      database_connection_performed: true,
+      sql_readback_performed: true,
+      secrets_included: false,
+    };
+  } catch (error) {
+    return unavailableSchemaReadiness(error);
+  }
+}
+
+export function getMcpCatalogSchemaStartupPreflight() {
+  return JSON.parse(JSON.stringify(mcpCatalogSchemaStartupPreflightState));
+}
+
+export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = process.env.NODE_ENV || "unknown" } = {}) {
+  const targetPool = pool || (() => {
+    try {
+      return getPool();
+    } catch {
+      return null;
+    }
+  })();
+  const readiness = targetPool
+    ? await readMcpCatalogSchemaReadinessSafe({ pool: targetPool })
+    : unavailableSchemaReadiness({ code: "DB_CONFIG_MISSING" });
+  const result = {
+    contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
+    environment: String(environment || "unknown"),
+    status: readiness.ok ? "ready" : "schema_contract_not_ready",
+    ready: readiness.ok === true,
+    startup_blocked: false,
+    database_connection_performed: readiness.database_connection_performed === true,
+    sql_readback_performed: readiness.sql_readback_performed === true,
+    migration_apply_performed: false,
+    database_mutation_performed: false,
+    readiness,
+    secrets_included: false,
+  };
+  Object.keys(mcpCatalogSchemaStartupPreflightState).forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(result, key)) mcpCatalogSchemaStartupPreflightState[key] = result[key];
+  });
+  const event = { event: "mcp_catalog_schema_startup_preflight", ...result, secrets_included: false };
+  if (result.ready) logger.log?.(JSON.stringify(event));
+  else logger.warn?.(JSON.stringify(event));
+  return getMcpCatalogSchemaStartupPreflight();
+}
+
+export function isMcpCatalogSchemaNotReadyError(error) {
+  return [
+    "mcp_catalog_schema_migration_required",
+    "mcp_catalog_schema_metadata_unavailable",
+    "MCP_CATALOG_SCHEMA_DRIFT",
+    "MCP_CATALOG_LEVEL_COLUMN_MISSING",
+    "MCP_CATALOG_SCHEMA_MIGRATION_UNVERIFIED",
+  ].includes(String(error?.code || ""));
+}
+
+export function buildMcpCatalogSchemaNotReadyResponse(error = {}) {
+  return {
+    code: "schema_contract_not_ready",
+    message: "MCP catalog schema is not ready; apply the governed migration before serving catalog operations.",
+    details: {
+      migration: MCP_CATALOG_LEVEL_MIGRATION,
+      table: String(error?.details?.table || "") || null,
+      column: MCP_CATALOG_LEVEL_COLUMN,
+      migration_apply_required: true,
+      original_error_code: boundedSchemaErrorCode(error, "mcp_catalog_schema_migration_required"),
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}

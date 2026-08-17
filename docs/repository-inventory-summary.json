@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7152,
-    "bytes": 69799634,
-    "lines": 1639891,
+    "bytes": 69806310,
+    "lines": 1640065,
     "directories": 265,
     "categories": 13
   },
@@ -258,14 +258,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3474187,
+      "bytes": 3474185,
       "lines": 97972
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936027,
-      "lines": 58546
+      "bytes": 1936060,
+      "lines": 58548
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -342,8 +342,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 220777,
-      "lines": 4686
+      "bytes": 221663,
+      "lines": 4707
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",

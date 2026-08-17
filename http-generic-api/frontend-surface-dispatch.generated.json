@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "b5a0e069b152ccc1d0dfe8c2e9369efe5e404ccad54b2f0f0668886fefa4d721",
+    "ref": null,
+    "source_digest": "f0cd0121d964c780f05f6aabc4fc6eee162da4d037ebba0fda5ff2c4447f294f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "532ef5af14f96de1dda600c44a2a7646156eeba01b708640f8fd15a470c95676",
+        "sha256": "df6bff3019ee95dfa4810bd62248c4d646a5a726203ecbf65ebf206da6163dd8",
         "present": true
       },
       {
@@ -541,7 +541,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "1dd355545fbc710de97525247d14385e3e6ba65d2f1032b7ec051522eef75164",
+        "sha256": "558ef43f185bcb2959a5a4dce00f3456b9d69e07ff932ce5a9bc3da8c0ce9a16",
         "present": true
       },
       {
@@ -611,7 +611,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "4f241d597b580fde65cdbde16bffdae804c20fe9911047f768825c2360c53918",
+        "sha256": "e22b99538ba519722d92a9398dff7d25cbed35d867b90fe97da1b1dd944d55ac",
         "present": true
       },
       {
@@ -1061,7 +1061,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "c5c4102849d0a789c0c36e0e8f3a22f00abb34c2bd48844000c7f54d2e469f27",
+        "sha256": "25293f68d65345b2cfe31a56366909ccb0abbd0e71c51f6b0297f67fff334ca9",
         "present": true
       },
       {
@@ -1812,7 +1812,7 @@
       "family_key": "deployment-info",
       "label": "deployment info",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "1dd355545fbc710de97525247d14385e3e6ba65d2f1032b7ec051522eef75164",
+      "source_digest": "558ef43f185bcb2959a5a4dce00f3456b9d69e07ff932ce5a9bc3da8c0ce9a16",
       "mount_prefix": "/",
       "mount_order": 12450,
       "split_from_mixed_scope_file": false,
@@ -45138,7 +45138,7 @@
       "family_key": "gpt-tools.admin",
       "label": "gpt tools (admin)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "4f241d597b580fde65cdbde16bffdae804c20fe9911047f768825c2360c53918",
+      "source_digest": "e22b99538ba519722d92a9398dff7d25cbed35d867b90fe97da1b1dd944d55ac",
       "mount_prefix": "/",
       "mount_order": 17681,
       "split_from_mixed_scope_file": true,
@@ -45369,7 +45369,7 @@
       "family_key": "gpt-tools.developer",
       "label": "gpt tools (developer)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "4f241d597b580fde65cdbde16bffdae804c20fe9911047f768825c2360c53918",
+      "source_digest": "e22b99538ba519722d92a9398dff7d25cbed35d867b90fe97da1b1dd944d55ac",
       "mount_prefix": "/",
       "mount_order": 17681,
       "split_from_mixed_scope_file": true,

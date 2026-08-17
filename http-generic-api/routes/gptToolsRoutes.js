@@ -6,7 +6,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { getPool, getRuntimePersistencePool } from "../db.js";
-import { assertMcpCatalogLevelColumn, readMcpCatalogSchemaReadiness } from "../mcpCatalogSchemaGuard.js";
+import {
+  assertMcpCatalogLevelColumn,
+  readMcpCatalogSchemaReadiness,
+  buildMcpCatalogSchemaNotReadyResponse,
+  isMcpCatalogSchemaNotReadyError,
+} from "../mcpCatalogSchemaGuard.js";
 import { getGovernancePool } from "../governanceDb.js";
 import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
 import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
@@ -4624,7 +4629,15 @@ export function buildGptToolsRoutes(deps) {
         }, requestRuntimeDeps));
 
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
+      if (isMcpCatalogSchemaNotReadyError(err)) {
+        return res.status(503).json({
+          ok: false,
+          error: buildMcpCatalogSchemaNotReadyResponse(err),
+          schema_readiness: { status: "schema_contract_not_ready", migration_apply_required: true, secrets_included: false },
+          secrets_included: false,
+        });
+      }
+      return res.status(err?.status || 500).json({ ok: false, error: { code: "tools_list_failed", message: "Tool catalog listing failed." }, secrets_included: false });
     }
   });
 
@@ -4669,14 +4682,22 @@ export function buildGptToolsRoutes(deps) {
       const result = await dispatchTool(callerType, name, args, req, requestRuntimeDeps);
       return res.status(result.status).json(result.body);
     } catch (err) {
+      if (isMcpCatalogSchemaNotReadyError(err)) {
+        return res.status(503).json({
+          ok: false,
+          error: buildMcpCatalogSchemaNotReadyResponse(err),
+          schema_readiness: { status: "schema_contract_not_ready", migration_apply_required: true, secrets_included: false },
+          secrets_included: false,
+        });
+      }
       return res.status(err.status || 500).json({
         ok: false,
         error: {
-        code: err.code || "tool_call_failed",
-        message: err.message,
-        ...(err.details ? { details: err.details } : {}),
-      },
-      secrets_included: false
+          code: err.code || "tool_call_failed",
+          message: err.code ? err.message : "Tool call failed.",
+          ...(err.details ? { details: err.details } : {}),
+        },
+        secrets_included: false,
       });
     }
   });
