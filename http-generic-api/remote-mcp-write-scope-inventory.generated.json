@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7156,
+  "file_count": 7157,
   "route_count": 1076,
   "write_route_count": 654,
   "classified_write_surface_count": 38,
@@ -17,7 +17,7 @@
   "intentionally_unmapped_write_route_count": 616,
   "sensitive_intentionally_unmapped_write_route_count": 616,
   "migration_count": 446,
-  "registry_evidence_count": 106,
+  "registry_evidence_count": 107,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
   "write_scopes": [
@@ -58450,6 +58450,12 @@
       "path": "http-generic-api/test-spec-011-phase0-contract-baseline.mjs",
       "registries": [
         "platform_resource_operation_registry"
+      ]
+    },
+    {
+      "path": "http-generic-api/test-spec020-runtime-database-readiness-contract.mjs",
+      "registries": [
+        "platform_resource_authority_bindings"
       ]
     },
     {
