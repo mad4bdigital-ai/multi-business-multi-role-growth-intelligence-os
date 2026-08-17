@@ -82,11 +82,13 @@ assert(
   "Tenant GPT system-tool operations must use the scoped user bearer contract"
 );
 assert(
-  sessionTurnBlock.includes("backendBearerAuth")
-    && sessionTurnBlock.includes("backendApiKeyAuth")
-    && sessionEndBlock.includes("backendBearerAuth")
-    && sessionEndBlock.includes("backendApiKeyAuth"),
-  "Tenant GPT internal session continuation operations must retain the reviewed backend profile"
+  !sessionTurnBlock.includes("backendBearerAuth")
+    && !sessionTurnBlock.includes("backendApiKeyAuth")
+    && !sessionEndBlock.includes("backendBearerAuth")
+    && !sessionEndBlock.includes("backendApiKeyAuth")
+    && /security:[\s\S]*?userBearerAuth:/u.test(sessionTurnBlock)
+    && /security:[\s\S]*?userBearerAuth:/u.test(sessionEndBlock),
+  "Tenant GPT session continuation operations must use the single user bearer contract"
 );
 
 console.log("tenant system call connect escalation tests passed");

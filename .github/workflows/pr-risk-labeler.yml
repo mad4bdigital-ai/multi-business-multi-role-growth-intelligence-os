@@ -38,12 +38,30 @@ jobs:
               "dependencies": { color: "F9D0C4", description: "Package manifests or lockfiles changed." }
             };
 
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner,
-              repo,
-              pull_number: issue_number,
-              per_page: 100
-            });
+            let files = [];
+            let fileListingStatus = "ok";
+            let fileListingWarning = "";
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+              try {
+                files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner,
+                  repo,
+                  pull_number: issue_number,
+                  per_page: 100
+                });
+                break;
+              } catch (error) {
+                const status = Number(error?.status || error?.response?.status || 0);
+                const transient = [429, 500, 502, 503, 504].includes(status);
+                if (!transient || attempt === 2) {
+                  fileListingStatus = "unavailable";
+                  fileListingWarning = `GitHub changed-file listing unavailable after bounded read-only attempts (status=${status || "unknown"}); no labels were mutated.`;
+                  core.warning(fileListingWarning);
+                  break;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+              }
+            }
             const names = files.map((file) => file.filename);
 
             const matches = (patterns) => names.some((name) => patterns.some((pattern) => pattern.test(name)));
@@ -74,7 +92,9 @@ jobs:
             // apply labels after an explicit expected-head check.
             core.summary
               .addHeading("PR risk classification (read-only)")
-              .addRaw(`Changed files: ${names.length}\n\n`)
+              .addRaw(`Changed files: ${names.length}\n`)
+              .addRaw(`Listing status: ${fileListingStatus}\n`)
+              .addRaw(fileListingWarning ? `Warning: ${fileListingWarning}\n` : "")
               .addRaw(`Recommended labels: ${[...labels].sort().join(", ") || "none"}\n`)
               .addRaw("No GitHub labels were created, removed, or applied by this workflow.\n")
               .write();
