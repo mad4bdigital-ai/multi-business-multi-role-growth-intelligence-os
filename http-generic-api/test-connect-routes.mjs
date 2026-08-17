@@ -24,10 +24,9 @@ const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.install",
   "https://auth.mad4b.com/scopes/tenant.system-tools",
 ];
+// Tenant Local/System Tools use the canonical userBearerAuth contract.
+// Only internal session continuation endpoints retain the backend profile.
 const BACKEND_AUTH_PATHS = new Set([
-  "/local/tools",
-  "/system/tools",
-  "/system/tools/call",
   "/gpt/sessions/{id}/turn",
   "/gpt/sessions/{id}/end",
 ]);
