@@ -196,7 +196,7 @@ export function getMcpCatalogSchemaStartupPreflight() {
   return JSON.parse(JSON.stringify(mcpCatalogSchemaStartupPreflightState));
 }
 
-export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = process.env.NODE_ENV || "unknown" } = {}) {
+export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = "unknown" } = {}) {
   const targetPool = pool || (() => {
     try {
       return getPool();

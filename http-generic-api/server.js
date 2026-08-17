@@ -3249,7 +3249,7 @@ if (!isBackendApiKeyEnabled(process.env)) {
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
-  runMcpCatalogSchemaStartupPreflight({ environment: process.env.NODE_ENV || "production" })
+  runMcpCatalogSchemaStartupPreflight()
     .catch((error) => {
       console.error(JSON.stringify({
         event: "mcp_catalog_schema_startup_preflight",

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7153,
-    "bytes": 69810487,
-    "lines": 1640160,
+    "bytes": 69812068,
+    "lines": 1640187,
     "directories": 265,
     "categories": 13
   },
@@ -12691,7 +12691,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "8661bf446a6225ba9e35de8193d6ed272e31ebb5fde85b3e5574e12ebdc12f20",
+      "sha256": "9bc8f9c4b1e341e97067765dc51b4d61013b339542872eab6115468ad881e22f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38990,9 +38990,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3474185,
+      "bytes": 3474187,
       "lines": 97972,
-      "sha256": "54a99c77d93d4d6108b24bd71550441320682f5a11794acd9a80a48850dd5722",
+      "sha256": "4ad0c84425d99a9b94a7e4cd42d4ea82b0ed8ad2e0638d24dedc02e82dc4fdaa",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -40453,9 +40453,9 @@
       "path": "http-generic-api/mcpCatalogSchemaGuard.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 8578,
+      "bytes": 8554,
       "lines": 257,
-      "sha256": "f395705cc1084e4f2f62222d770f411c9af60ab1d613fe6b1c8964ba7be52845",
+      "sha256": "a0f4e411260b50729385dc517682ed442bb716a351bb6659149dd0524be4a5a9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -57690,9 +57690,9 @@
       "path": "http-generic-api/server.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 107818,
+      "bytes": 107765,
       "lines": 3321,
-      "sha256": "c2b53ec3aacc54da99ea8bbaa384a606064b66709987cbbcc1d40657659aa585",
+      "sha256": "18044341ca4116ed5b45866ba6be65e38aaa7d7be75b657c053c9eabd802ceec",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84156,9 +84156,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 18436,
-      "lines": 320,
-      "sha256": "eb1c52ea4a94d89e77e44113d303cbd8e2bb3d705fe5f0cfac0c745b4e5f88d8",
+      "bytes": 20092,
+      "lines": 347,
+      "sha256": "6f54d1edc36ea7f9698a88c3198ad3832870fd6bfa2f110247448cb695c35f75",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84191,7 +84191,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "e13677004dcdba3b7c8267ecb8ef2b9c79ade2806f9acc2a74cd1ab3fba5f1f0",
+      "sha256": "43699f810862bede104352a52e0d4e7871fc498aabb9336b6891fd9840c07438",
       "mode": "644",
       "executable": false,
       "generated": false
