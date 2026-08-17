@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7117,
-    "bytes": 68978373,
-    "lines": 1617235,
+    "bytes": 68979494,
+    "lines": 1617254,
     "directories": 265,
     "categories": 13
   },
@@ -7127,9 +7127,9 @@
       "path": ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 18957,
+      "bytes": 18937,
       "lines": 294,
-      "sha256": "f7ad9c3719b00f9b6840ac0bdced83ae7f60d224d71a4fa4726ad7d4fc7a9e17",
+      "sha256": "ba0586f04876cf84719060ea0e307818c0e07f01f5e9da413df8356883cd004d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12550,9 +12550,9 @@
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
       "category": "root-and-other",
       "extension": ".ps1",
-      "bytes": 20549,
-      "lines": 304,
-      "sha256": "8a9ef244bba7649a6ed7f32c145313a99af82c0cc901de7b25999de72b85b573",
+      "bytes": 21449,
+      "lines": 320,
+      "sha256": "aae90bdad3b67c080c844634a2c8a8cd8fb9d22cdeec98153dcff6a4296727d4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12607,7 +12607,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "a9052086a0174a6fd3174572f6fc1f6e27b19aceebfbc2f8743e243b6bdba685",
+      "sha256": "655ab107e0dfa2709f5384900bef78ab244449381225ddea011b017ee4039e3a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38059,9 +38059,9 @@
       "path": "http-generic-api/docker-compose.staging.yml",
       "category": "api-runtime",
       "extension": ".yml",
-      "bytes": 5439,
-      "lines": 121,
-      "sha256": "227e8f46da016cc44f001067e85086818d942df535753bf525ff24164b5d5da8",
+      "bytes": 5680,
+      "lines": 124,
+      "sha256": "6a8adbd0e09e8d5fa32923cdbf6365a58e9f7b5ca6f8f5038167aeb5a52f7a1e",
       "mode": "644",
       "executable": false,
       "generated": false
