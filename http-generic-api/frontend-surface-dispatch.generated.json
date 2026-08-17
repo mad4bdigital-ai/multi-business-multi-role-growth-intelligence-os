@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "ecda23b4a33d8fa1975a00929ef8909a5ebc0c696482b9846e32609e6e3e81a4",
+    "ref": null,
+    "source_digest": "7a49e71a98e1f3d24c4172cdf92edeaa89494b0aaeb368d42f090ad1db2222ec",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -126,7 +126,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "sha256": "ca2fb18bade7df2a0384114be4bc390d4f35005c4b3d6b28e6b111b3d552fbc0",
+        "sha256": "8ef46b0e5ad25b1e5248fe3e37a289efe9e0bb1de1fef0e2234b8562df56f696",
         "present": true
       },
       {
@@ -1056,7 +1056,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "3a002b787dbc0253ba201c04ee8d50a7e16c07aedae37933cd1c5e6d3f2888b3",
+        "sha256": "bacdfbedfc4e8de7be20cc6cbe090a8a898fe535a58c4d727f090e037e1566ee",
         "present": true
       },
       {
@@ -45181,9 +45181,6 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
-              ],
-              [
                 "backendBearerAuth"
               ]
             ],
@@ -45259,9 +45256,6 @@
             "source_file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
               [
                 "backendBearerAuth"
               ]
