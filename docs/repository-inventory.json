@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7152,
-    "bytes": 69797423,
-    "lines": 1639883,
+    "bytes": 69797659,
+    "lines": 1639885,
     "directories": 265,
     "categories": 13
   },
@@ -67148,9 +67148,9 @@
       "path": "http-generic-api/test-openapi-detail-closure-batch.mjs",
       "category": "api-contracts",
       "extension": ".mjs",
-      "bytes": 2401,
-      "lines": 57,
-      "sha256": "d4cc443603639bebe1b53e3cc109921e0880e04d60200aa7b15d183aa63c7c7f",
+      "bytes": 2637,
+      "lines": 59,
+      "sha256": "bfb48e5d88a6b35e31ea073f770040c07ad8303631edcd8c505811ef938e5931",
       "mode": "644",
       "executable": false,
       "generated": false
