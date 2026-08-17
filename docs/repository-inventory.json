@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7152,
-    "bytes": 69785988,
-    "lines": 1639626,
+    "bytes": 69786471,
+    "lines": 1639636,
     "directories": 265,
     "categories": 13
   },
@@ -55455,9 +55455,9 @@
       "path": "http-generic-api/scripts/frontend-surface-dispatch.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 81473,
-      "lines": 1662,
-      "sha256": "3a002b787dbc0253ba201c04ee8d50a7e16c07aedae37933cd1c5e6d3f2888b3",
+      "bytes": 81956,
+      "lines": 1672,
+      "sha256": "bacdfbedfc4e8de7be20cc6cbe090a8a898fe535a58c4d727f090e037e1566ee",
       "mode": "644",
       "executable": false,
       "generated": false
