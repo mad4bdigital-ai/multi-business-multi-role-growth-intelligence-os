@@ -24,6 +24,7 @@ export const CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT = fileURLToPath(new URL("../sc
 export const CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-create.mjs", import.meta.url));
 export const CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-approve.mjs", import.meta.url));
 export const GOVERNED_MIGRATION_RUNNER_PATH = fileURLToPath(new URL("../scripts/governed-migration-runner.mjs", import.meta.url));
+export const GOVERNED_MIGRATION_RECONCILER_PATH = fileURLToPath(new URL("../scripts/governed-migration-reconciler.mjs", import.meta.url));
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
 const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
 const GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST = new Set(["superseded"]);
@@ -2036,7 +2037,7 @@ function builtInShellAllowlist() {
     },
     migration_reconciliation_dry_run: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/governed-migration-reconciler.mjs", "--dry-run"],
+      args: [GOVERNED_MIGRATION_RECONCILER_PATH, "--dry-run"],
       display_name: "Dynamic governed migration reconciliation dry-run",
       allow_extra_args: true,
       max_extra_args: 4,
@@ -2045,7 +2046,7 @@ function builtInShellAllowlist() {
     },
     migration_reconciliation_apply: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/governed-migration-reconciler.mjs", "--apply"],
+      args: [GOVERNED_MIGRATION_RECONCILER_PATH, "--apply"],
       display_name: "Dynamic governed migration reconciliation apply",
       allow_extra_args: true,
       max_extra_args: 6,

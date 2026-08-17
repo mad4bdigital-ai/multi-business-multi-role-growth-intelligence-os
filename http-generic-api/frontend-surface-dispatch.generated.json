@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "cbc61ba8735f5dca974177c5aed48622940664ab74ea4e1d6e70ac63e95090eb",
+    "source_digest": "1863ab027035f8db76e286528d4d0007961082085be9a8879bd0d159c7c8fe01",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "417d4fbdc0bf56b1d62c53ec33b279e93b643c9c6590a91dc52e5d71aba231fc",
+        "sha256": "f091df95420786961be3212cb37fcdbfdb94b1dff3703dfcb5fdf6d79f5481fe",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "aa4b203f28c5f910773fd146be7f51ddbc86ecf912e43fcc700d3dfa8c0cc21a",
+        "sha256": "0771e20cf0a29904588fb1fe1171c3b08e10d972b7d65231d07fc9c3ff56cb24",
         "present": true
       },
       {
@@ -136,7 +136,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "bf5050b480ddd1e630b511d58af8aa9fee03ae5fbc394b7226ca15ab1aa5d26f",
+        "sha256": "52ad3bec575f0308bf21f70870896b6f5ee88d50e81aa7d45febf374072d75fa",
         "present": true
       },
       {
@@ -166,7 +166,7 @@
       },
       {
         "file": "openapi/openapi.tenant-gpt.staging.yaml",
-        "sha256": "db11794c939bfe5837ea7292e447db78f9aaf09293559bc092d3a0d4e579bac1",
+        "sha256": "eed6536df7f07cd91d4d498785d895485ed7512a61e8cc1531422607a66669d4",
         "present": true
       },
       {
@@ -391,7 +391,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "bab8a557125c0e0293d96d5e4b8a89b07cd99e80a45c39d47f7de8d7bd111ece",
+        "sha256": "c9aae1af01d1813d136117291897b458efbf2bcb318afdd3d4230b836055d095",
         "present": true
       },
       {
@@ -461,7 +461,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "32f7a90c1211718c9c499bcf5c8ebf1313a70cca15ee8af295753e5ffb275df9",
+        "sha256": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
         "present": true
       },
       {
@@ -621,7 +621,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "7ec833a7aed512d285eaf328513d6eaeae68ddb1c7734027499c04d55256be25",
+        "sha256": "4578b4b93013390724127c48f66577b8924b7ff288f233fce8fc8941c357a65c",
         "present": true
       },
       {
@@ -826,7 +826,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "0268da962b9406e86b6987350d1e6fdf0bd2be9403e594c7e80d52729ab1fe76",
+        "sha256": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee",
         "present": true
       },
       {
@@ -1011,7 +1011,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "903249ba9063d44d4218a36c12cac57fc8fabe0e4f1db3f7bc89c58800b437be",
+        "sha256": "bff550725ca1699f3101c053d7f4afdff6bc458136f11e0b0d75f5be120915ac",
         "present": true
       },
       {
@@ -1066,12 +1066,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "87b33a7f2db580ca2be38f229a9dc0b492c23e2abeb76166928efe4aa225d0ba",
+        "sha256": "99e6773679b43850425dcc3d841900c5a5e66a8cc7d095cc8710194b0eacc6cb",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "303ed2d44d6a8e8a0ff876aad1687c9f24f9ae083e10057855c9115a0e1c5ac0",
+        "sha256": "ed996ad722cce905994d4b2b200071f7fdd6adbb339477eb09baf1969545100e",
         "present": true
       },
       {
@@ -1649,7 +1649,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "903249ba9063d44d4218a36c12cac57fc8fabe0e4f1db3f7bc89c58800b437be",
+      "source_digest": "bff550725ca1699f3101c053d7f4afdff6bc458136f11e0b0d75f5be120915ac",
       "mount_prefix": "/",
       "mount_order": 12351,
       "split_from_mixed_scope_file": false,
@@ -7003,7 +7003,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "0268da962b9406e86b6987350d1e6fdf0bd2be9403e594c7e80d52729ab1fe76",
+      "source_digest": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -7211,7 +7211,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "0268da962b9406e86b6987350d1e6fdf0bd2be9403e594c7e80d52729ab1fe76",
+      "source_digest": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee",
       "mount_prefix": "/",
       "mount_order": 13640,
       "split_from_mixed_scope_file": true,
@@ -9917,9 +9917,6 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
                 "backendApiKeyAuth"
               ]
             ],
@@ -9986,9 +9983,6 @@
             "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
@@ -10057,9 +10051,6 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
                 "backendApiKeyAuth"
               ]
             ],
@@ -10126,9 +10117,6 @@
             "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
@@ -10276,9 +10264,6 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
                 "backendApiKeyAuth"
               ]
             ],
@@ -10345,9 +10330,6 @@
             "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
@@ -10494,9 +10476,6 @@
             "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
             "security_declared": true,
             "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
@@ -10709,14 +10688,11 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
+            "source_file": "openapi/openapi.tenant-gpt.staging.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
+                "userBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -10783,9 +10759,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -10925,14 +10898,11 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.tenant-gpt.staging.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
+                "userBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -11008,9 +10978,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -11077,9 +11044,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -11136,6 +11100,7 @@
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "openapi/openapi.tenant-gpt.staging.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -11172,7 +11137,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "32f7a90c1211718c9c499bcf5c8ebf1313a70cca15ee8af295753e5ffb275df9",
+      "source_digest": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
       "mount_prefix": "/auth",
       "mount_order": 14001,
       "split_from_mixed_scope_file": true,
@@ -11320,7 +11285,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "32f7a90c1211718c9c499bcf5c8ebf1313a70cca15ee8af295753e5ffb275df9",
+      "source_digest": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
       "mount_prefix": "/auth",
       "mount_order": 14001,
       "split_from_mixed_scope_file": true,
@@ -15483,7 +15448,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "bab8a557125c0e0293d96d5e4b8a89b07cd99e80a45c39d47f7de8d7bd111ece",
+      "source_digest": "c9aae1af01d1813d136117291897b458efbf2bcb318afdd3d4230b836055d095",
       "mount_prefix": "/",
       "mount_order": 14544,
       "split_from_mixed_scope_file": false,
@@ -45190,7 +45155,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "7ec833a7aed512d285eaf328513d6eaeae68ddb1c7734027499c04d55256be25",
+      "source_digest": "4578b4b93013390724127c48f66577b8924b7ff288f233fce8fc8941c357a65c",
       "mount_prefix": "/",
       "mount_order": 17681,
       "split_from_mixed_scope_file": false,
@@ -45392,9 +45357,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -75313,9 +75275,6 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "adminBearerAuth"
-              ],
-              [
                 "backendApiKeyAuth"
               ]
             ],
@@ -88404,9 +88363,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -88616,14 +88572,11 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi.yaml",
+            "source_file": "openapi/openapi.tenant-gpt.staging.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
+                "userBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -88760,6 +88713,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.tenant-gpt.staging.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -97149,6 +97103,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.tenant-gpt.staging.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -97685,6 +97640,7 @@
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "openapi/openapi.tenant-gpt.staging.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",

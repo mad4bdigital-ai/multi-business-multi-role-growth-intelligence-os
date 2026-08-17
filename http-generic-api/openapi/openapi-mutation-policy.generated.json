@@ -10,7 +10,7 @@
   "unbound_operation_count": 34,
   "all_operations_accounted_for": true,
   "write_activation_allowed": false,
-  "source_fingerprint_sha256": "4a8d8cb913688d2f9e3fdb69642b30fe9b58de4251e34c621bdc5fab369b29d9",
+  "source_fingerprint_sha256": "868a5bfd707b4ecc87a478c9a4afffc803a98af996f8fc9573e1e429742fc417",
   "operations": [
     {
       "surface": "openapi.tenant-gpt.auth",
@@ -295,7 +295,13 @@
       "path": "/system/tools/call",
       "operation_id": "callTool",
       "effect_class": "internal_write",
-      "declared_security_scopes": [],
+      "declared_security_scopes": [
+        "tenant.activation",
+        "tenant.install",
+        "tenant.links",
+        "tenant.status",
+        "tenant.system-tools"
+      ],
       "policy_status": "unbound",
       "required_scope": null,
       "reason": "No write scope is promoted; operation remains explicitly denied until independent resource-operation approval, capability, lease, and readback policy is reviewed.",

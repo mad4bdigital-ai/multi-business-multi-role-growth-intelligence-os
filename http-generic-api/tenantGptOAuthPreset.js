@@ -12,6 +12,10 @@ export const TENANT_GPT_OAUTH_CLIENT_ID = STAGING_RUNTIME
   ? (process.env.TENANT_GPT_STAGING_OAUTH_CLIENT_ID || "mad4b-tenant-gpt-staging")
   : (process.env.TENANT_GPT_OAUTH_CLIENT_ID || "mad4b-tenant-gpt");
 
+// Scope URIs identify the shared Auth authority, not the environment-specific API resource.
+// Staging still uses dev.mad4b.com as issuer/resource while consenting to the same tenant scope authority.
+export const TENANT_GPT_SCOPE_AUTHORITY_URL = "https://auth.mad4b.com";
+
 const TENANT_GPT_SCOPE_KEYS = [
   "tenant.links",
   "tenant.status",
@@ -20,7 +24,7 @@ const TENANT_GPT_SCOPE_KEYS = [
   "tenant.system-tools",
 ];
 
-export const TENANT_GPT_SCOPE_LINKS = TENANT_GPT_SCOPE_KEYS.map((key) => `${TENANT_GPT_BASE_URL}/scopes/${key}`);
+export const TENANT_GPT_SCOPE_LINKS = TENANT_GPT_SCOPE_KEYS.map((key) => `${TENANT_GPT_SCOPE_AUTHORITY_URL}/scopes/${key}`);
 export const TENANT_GPT_SCOPE = TENANT_GPT_SCOPE_LINKS.join(" ");
 
 export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [

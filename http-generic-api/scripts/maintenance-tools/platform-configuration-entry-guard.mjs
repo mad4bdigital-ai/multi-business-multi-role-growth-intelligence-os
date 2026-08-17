@@ -103,7 +103,11 @@ function safetyFindings(registry) {
   return findings;
 }
 
-function classifyChangedCandidates(candidates, changedFiles, ignoredPrefixes, entriesByKey) {
+function candidateFingerprint(candidate) {
+  return [candidate.path, candidate.symbol, candidate.expression_kind, candidate.suggested_config_key].join("|");
+}
+
+function classifyChangedCandidates(candidates, changedFiles, ignoredPrefixes, entriesByKey, baselineFingerprints = new Set()) {
   const findings = [];
   const changed = new Set(changedFiles.map(normalizePath));
   for (const candidate of candidates || []) {
@@ -111,6 +115,7 @@ function classifyChangedCandidates(candidates, changedFiles, ignoredPrefixes, en
     if (!changed.has(filePath) || ignoredPath(filePath, ignoredPrefixes)) continue;
     const candidateClass = String(candidate.candidate_class || "");
     const configKey = normalizeKey(candidate.suggested_config_key);
+    if (baselineFingerprints.has(candidateFingerprint(candidate))) continue;
     if (candidateClass === "generated_artifact") continue;
     if (candidateClass === "secret_candidate") {
       findings.push(finding("NEW_SECRET_CONFIGURATION_CANDIDATE", "critical", "A new secret candidate cannot enter the Config Catalog.", { path: filePath, line: candidate.line, candidate_id: candidate.candidate_id }));
@@ -131,7 +136,7 @@ function classifyChangedCandidates(candidates, changedFiles, ignoredPrefixes, en
   return findings;
 }
 
-export function evaluateConfigurationEntryGuard({ repositoryRoot = ROOT, registry, candidates, changedFiles = [] } = {}) {
+export function evaluateConfigurationEntryGuard({ repositoryRoot = ROOT, registry, candidates, changedFiles = [], baselineFingerprints = new Set() } = {}) {
   const effectiveRegistry = registry || readJson(path.join(repositoryRoot, DEFAULT_REGISTRY));
   const effectiveCandidates = candidates || readJson(path.join(repositoryRoot, DEFAULT_CANDIDATES));
   const entries = Array.isArray(effectiveRegistry.entries) ? effectiveRegistry.entries : [];
@@ -146,13 +151,14 @@ export function evaluateConfigurationEntryGuard({ repositoryRoot = ROOT, registr
     entriesByKey.set(key, entry);
     findings.push(...entryShapeFindings(entry, index, repositoryRoot));
   });
-  findings.push(...classifyChangedCandidates(effectiveCandidates.candidates || [], changedFiles, ignoredPrefixes, entriesByKey));
+  findings.push(...classifyChangedCandidates(effectiveCandidates.candidates || [], changedFiles, ignoredPrefixes, entriesByKey, baselineFingerprints));
   const result = {
     contract: CONTRACT,
     schema_version: 1,
     ok: findings.length === 0,
     changed_files: changedFiles.map(normalizePath).sort(),
     candidate_count: Array.isArray(effectiveCandidates.candidates) ? effectiveCandidates.candidates.length : 0,
+    baseline_candidate_count: baselineFingerprints.size,
     registry_entry_count: entries.length,
     registered_config_keys: [...entriesByKey.keys()].sort(),
     findings,
@@ -187,7 +193,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const registry = readJson(path.resolve(repositoryRoot, args.registry || DEFAULT_REGISTRY));
   const candidates = readJson(path.resolve(repositoryRoot, args.candidates || DEFAULT_CANDIDATES));
   const changedFiles = parseChangedFilesFile(args.changed_files || process.env.CHANGED_FILES_FILE);
-  const result = evaluateConfigurationEntryGuard({ repositoryRoot, registry, candidates, changedFiles });
+  const baselineDocument = args.baseline_policy ? readJson(path.resolve(repositoryRoot, args.baseline_policy)) : null;
+  const baselineFingerprints = new Set(Array.isArray(baselineDocument?.baseline_fingerprints) ? baselineDocument.baseline_fingerprints : []);
+  const result = evaluateConfigurationEntryGuard({ repositoryRoot, registry, candidates, changedFiles, baselineFingerprints });
   const outputPath = path.resolve(repositoryRoot, args.output || DEFAULT_OUTPUT);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");

@@ -25,6 +25,7 @@ const readyPool = {
   async query(sql) {
     if (String(sql).includes("information_schema.tables")) return [[{ present: 1 }]];
     if (String(sql).includes("information_schema.statistics")) return [[{ index_count: 5 }]];
+    if (String(sql).includes("information_schema.columns")) return [[{ column_count: 1 }]];
     throw new Error(`unexpected readiness query: ${sql}`);
   },
   async getConnection() {
@@ -36,7 +37,9 @@ assert.equal(refreshReady.refresh_readiness.ready, true);
 assert.equal(refreshReady.refresh_readiness.migration_present, true);
 assert.equal(refreshReady.refresh_readiness.indexes_present, true);
 assert.equal(refreshReady.refresh_readiness.transaction_probe_ready, true);
+assert.equal(refreshReady.checks.mcp_catalog_schema_ready, true);
 assert.equal(readiness.checks.openapi_coverage_ready, true);
+assert.ok(readiness.blocking_checks.includes("mcp_catalog_schema_ready"));
 assert.equal(readiness.checks.mutation_governance_ready, false);
 assert.ok(readiness.blocking_checks.includes("external_canary_ready"));
 assert.ok(readiness.blocking_checks.includes("chatgpt_client_evidence_ready"));

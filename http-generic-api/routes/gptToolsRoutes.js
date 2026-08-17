@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { getPool, getRuntimePersistencePool } from "../db.js";
+import { assertMcpCatalogLevelColumn, readMcpCatalogSchemaReadiness } from "../mcpCatalogSchemaGuard.js";
 import { getGovernancePool } from "../governanceDb.js";
 import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
 import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
@@ -2551,6 +2552,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
 
 async function fetchTools(callerType, executionCapsule = null) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
+  await assertMcpCatalogLevelColumn({ pool: getPool(), table });
   const rows = await cachedSqlRead(
     sqlCacheKey("tools", callerType, "list", "v4"),
     toolCacheTtl(),
@@ -2591,6 +2593,10 @@ async function fetchTools(callerType, executionCapsule = null) {
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
 }
 
+export async function readGptToolsCatalogSchemaReadiness() {
+  return readMcpCatalogSchemaReadiness({ pool: getPool() });
+}
+
 async function resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule = null) {
   const normalizedToolKey = String(toolKey || "").trim();
   if (!normalizedToolKey) return null;
@@ -2617,6 +2623,7 @@ async function resolveToolPreflightDescriptor(callerType, toolKey, executionCaps
     ? [TOOLS_TABLE.tenant, TOOLS_TABLE.admin]
     : [TOOLS_TABLE.admin];
   for (const table of candidateTables) {
+    await assertMcpCatalogLevelColumn({ pool: getPool(), table });
     const [rows] = await getPool().query(
       `SELECT http_method, tags, input_schema, mcp_catalog_level FROM \`${table}\` WHERE tool_key = ? AND is_enabled = 1 LIMIT 2`,
       [normalizedToolKey]

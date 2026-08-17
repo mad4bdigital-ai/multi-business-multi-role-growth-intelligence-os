@@ -20,7 +20,7 @@ const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
 const { buildTenantGptOAuthMetadataRoutes } = await import("./routes/tenantGptOAuthMetadataRoutes.js");
 const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
-const { deriveTenantGptPkceChallenge } = await import("./tenantGptOAuthPkce.js");
+const { deriveTenantGptPkceChallenge, resolveTenantGptPkceMode } = await import("./tenantGptOAuthPkce.js");
 await import("./test-tenant-gpt-access-token-verifier.mjs");
 await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
 await import("./test-tenant-gpt-google-jit-recovery.mjs");
@@ -59,6 +59,27 @@ function assert(label, condition, detail = "") {
 function section(name) {
   console.log(`\n== ${name}`);
 }
+
+section("pkce compatibility contract");
+const s256Mode = resolveTenantGptPkceMode({
+  clientId: "mad4b-tenant-gpt",
+  codeChallenge: PKCE_CHALLENGE,
+  codeChallengeMethod: "S256",
+  env: { TENANT_GPT_OAUTH_CLIENT_ID: "mad4b-tenant-gpt" },
+});
+assert("S256 mode still requires verifier", s256Mode.pkce_mode === "s256" && s256Mode.code_verifier_required === true);
+const confidentialMode = resolveTenantGptPkceMode({
+  clientId: "mad4b-tenant-gpt",
+  env: { TENANT_GPT_OAUTH_CLIENT_ID: "mad4b-tenant-gpt", TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true" },
+});
+assert("confidential compatibility requires client secret", confidentialMode.pkce_mode === "confidential_client" && confidentialMode.client_secret_required === true);
+let rejectedPublicClient = false;
+try {
+  resolveTenantGptPkceMode({ clientId: "other-client", env: { TENANT_GPT_OAUTH_CLIENT_ID: "mad4b-tenant-gpt", TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true" } });
+} catch (error) {
+  rejectedPublicClient = error.code === "oauth_pkce_required";
+}
+assert("non-Tenant-GPT clients remain PKCE-required", rejectedPublicClient);
 
 section("identity normalization");
 assert("email normalization trims and lowercases", normalizeAuthEmail("  User@Example.COM  ") === "user@example.com");

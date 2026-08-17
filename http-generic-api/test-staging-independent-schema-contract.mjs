@@ -35,7 +35,7 @@ const schemaDefinitions = [
     surface: "remote-mcp",
   },
 ];
-const forbidden = /https:\/\/(?:auth|mcp|activation)\.mad4b\.com|activation-dev\.mad4b\.com/;
+const forbidden = /https:\/\/(?:auth|mcp|activation)\.mad4b\.com(?:\/(?!scopes\/)|$)|activation-dev\.mad4b\.com/;
 for (const definition of schemaDefinitions) {
   const document = YAML.parse(read(definition.file));
   assert.equal(document.servers?.length, 1, `${definition.name} schema must have exactly one server`);
@@ -48,12 +48,31 @@ for (const definition of schemaDefinitions) {
 }
 
 const tenant = YAML.parse(read(schemaDefinitions[0].file));
+const tenantToolScopes = [
+  "https://auth.mad4b.com/scopes/tenant.links",
+  "https://auth.mad4b.com/scopes/tenant.status",
+  "https://auth.mad4b.com/scopes/tenant.activation",
+  "https://auth.mad4b.com/scopes/tenant.install",
+  "https://auth.mad4b.com/scopes/tenant.system-tools",
+];
+for (const [route, method] of [["/local/tools", "get"], ["/system/tools", "get"], ["/system/tools/call", "post"]]) {
+  assert.deepEqual(tenant.paths?.[route]?.[method]?.security, [{ userBearerAuth: tenantToolScopes }], `${method.toUpperCase()} ${route} must use the shared Tenant OAuth security contract`);
+}
 const admin = YAML.parse(read(schemaDefinitions[1].file));
 const remoteMcp = YAML.parse(read(schemaDefinitions[2].file));
 assert.ok(Object.keys(tenant.paths ?? {}).length > 0);
 assert.ok(Object.keys(admin.paths ?? {}).length > 0);
 assert.ok(Object.keys(remoteMcp.paths ?? {}).includes("/mcp"));
 assert.ok(Object.values(admin.paths ?? {}).every((methods) => Object.keys(methods).every((method) => method === "get")), "Admin Staging schema must be GET-only");
+assert.deepEqual(Object.keys(admin.components?.securitySchemes ?? {}), ["backendApiKeyAuth"], "Admin Staging schema must expose exactly one security scheme");
+assert.deepEqual(admin.components.securitySchemes.backendApiKeyAuth, {
+  type: "apiKey",
+  in: "header",
+  name: "x-api-key",
+  description: "Staging Admin Custom GPT API key. Runtime still requires the admin-principal guard; no user or Production credential is accepted."
+});
+assert.deepEqual(admin.security, [{ backendApiKeyAuth: [] }], "Admin Staging schema must use x-api-key globally");
+assert.ok(Object.values(admin.paths ?? {}).every((methods) => methods.get?.security?.length === 1 && methods.get.security[0]?.backendApiKeyAuth), "Admin Staging operations must use the single x-api-key scheme");
 assert.equal(remoteMcp["x-mad4b-staging-boundary"]?.write_activation, false);
 assert.equal(admin["x-mad4b-staging-boundary"]?.admin_write_activation, false);
 assert.notEqual(tenant.info?.title, admin.info?.title);

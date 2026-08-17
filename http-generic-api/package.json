@@ -39,6 +39,8 @@
     "readiness:interruptions:ci": "node scripts/interruption-readiness.mjs --ci",
     "readiness:verify-plan": "node scripts/run-interruption-verification-plan.mjs",
     "manifest:deployment": "node scripts/generate-deployment-manifest.mjs",
+    "manifest:portable-staging": "node scripts/generate-portable-staging-manifest.mjs",
+    "production:config-preflight": "node scripts/production-config-preflight.mjs",
     "supervisor:readiness": "node scripts/supervisor-runtime-readiness.mjs",
     "runtime-persistence:readiness": "node scripts/runtime-persistence-operational-readiness.mjs",
     "database:collation:check": "node scripts/mariadb-collation-ci-guard.mjs",

@@ -24,6 +24,7 @@ import {
 } from "../activationHardResponseService.js";
 import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
+import { MCP_CATALOG_LEVEL_MIGRATION } from "../mcpCatalogSchemaGuard.js";
 import { loadTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import {
   REGISTRY_SPREADSHEET_ID,
@@ -172,13 +173,26 @@ async function safeQuery(sql, params) {
     const [rows] = await getPool().query(sql, params);
     return { ok: true, rows: Array.isArray(rows) ? rows : [] };
   } catch (err) {
+    const sqlText = String(sql || "");
+    const mcpCatalogQuery = /mcp_catalog_level/i.test(sqlText)
+      && /admin_platform_endpoint_tools|tenant_platform_endpoint_tools/i.test(sqlText);
     return {
       ok: false,
       rows: [],
-      error: {
-        code: err.code || "query_failed",
-        message: err.message
-      }
+      error: mcpCatalogQuery && String(err.code || "") === "ER_BAD_FIELD_ERROR"
+        ? {
+            code: "mcp_catalog_schema_migration_required",
+            message: "MCP catalog schema is missing mcp_catalog_level; apply the governed migration before serving the catalog.",
+            details: {
+              migration: MCP_CATALOG_LEVEL_MIGRATION,
+              migration_apply_required: true,
+              secrets_included: false,
+            },
+          }
+        : {
+            code: err.code || "query_failed",
+            message: err.message,
+          },
     };
   }
 }

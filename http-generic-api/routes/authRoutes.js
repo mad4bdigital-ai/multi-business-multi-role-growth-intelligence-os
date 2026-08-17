@@ -42,7 +42,7 @@ import {
   revokeTenantGptSsoSessionsForUser,
   verifyTenantGptSsoSession,
 } from "../tenantGptSsoSession.js";
-import { validateTenantGptPkceChallenge, verifyTenantGptPkce } from "../tenantGptOAuthPkce.js";
+import { resolveTenantGptPkceMode } from "../tenantGptOAuthPkce.js";
 
 function requireConfiguredJwtSecret(env = process.env) {
   const secret = String(env?.JWT_SECRET || "").trim();
@@ -569,6 +569,7 @@ function buildOAuthAuthorizeHtml({
   ssoAvailable = false,
   codeChallenge = "",
   codeChallengeMethod = "S256",
+  pkceMode = "s256",
 }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
@@ -654,7 +655,8 @@ function buildOAuthAuthorizeHtml({
     const OAUTH_CLIENT_ID = ${JSON.stringify(String(oauthClientId || TENANT_GPT_OAUTH_CLIENT_ID))};
     const OAUTH_RESOURCE = ${JSON.stringify(String(oauthResource || ""))};
     const CODE_CHALLENGE = ${JSON.stringify(String(codeChallenge || ""))};
-    const CODE_CHALLENGE_METHOD = ${JSON.stringify(String(codeChallengeMethod || "S256"))};
+    const CODE_CHALLENGE_METHOD = ${JSON.stringify(codeChallengeMethod === null ? "" : String(codeChallengeMethod || "S256"))};
+    const PKCE_MODE = ${JSON.stringify(String(pkceMode || "s256"))};
     const SSO_AVAILABLE = ${JSON.stringify(ssoAvailable === true)};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
@@ -669,7 +671,7 @@ function buildOAuthAuthorizeHtml({
       const codeRes = await fetch("/auth/oauth/code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, code_challenge: CODE_CHALLENGE, code_challenge_method: CODE_CHALLENGE_METHOD, activation_context: ACTIVATION_CONTEXT })
+        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, code_challenge: CODE_CHALLENGE, code_challenge_method: CODE_CHALLENGE_METHOD, pkce_mode: PKCE_MODE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
       if (!codeRes.ok || !codeData.redirect_to) {
@@ -1129,9 +1131,11 @@ export function buildAuthRoutes(deps) {
     const requestedResource = String(req.query.resource || "").trim();
     let pkce;
     try {
-      pkce = validateTenantGptPkceChallenge({
+      pkce = resolveTenantGptPkceMode({
+        clientId: oauthClientId,
         codeChallenge: req.query.code_challenge,
         codeChallengeMethod: req.query.code_challenge_method,
+        env: authEnv,
       });
     } catch (error) {
       return res.status(400).type("text/plain").send(error.message);
@@ -1186,6 +1190,7 @@ export function buildAuthRoutes(deps) {
         ssoAvailable,
         codeChallenge: pkce.code_challenge,
         codeChallengeMethod: pkce.code_challenge_method,
+        pkceMode: pkce.pkce_mode,
       }));
   });
 
@@ -1197,7 +1202,12 @@ export function buildAuthRoutes(deps) {
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
       let pkce;
       try {
-        pkce = validateTenantGptPkceChallenge({ codeChallenge: code_challenge, codeChallengeMethod: code_challenge_method });
+        pkce = resolveTenantGptPkceMode({
+          clientId: oauth_client_id || TENANT_GPT_OAUTH_CLIENT_ID,
+          codeChallenge: code_challenge,
+          codeChallengeMethod: code_challenge_method,
+          env: authEnv,
+        });
       } catch (error) {
         return res.status(400).json({ ok: false, error: { code: error.code, message: error.message } });
       }
@@ -1283,6 +1293,7 @@ export function buildAuthRoutes(deps) {
           resource: resourceProfile.resource,
           code_challenge: pkce.code_challenge,
           code_challenge_method: pkce.code_challenge_method,
+          pkce_mode: pkce.pkce_mode,
           activation_context,
         },
         jwtSecret,

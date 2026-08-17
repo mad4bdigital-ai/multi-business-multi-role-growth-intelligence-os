@@ -1522,8 +1522,12 @@ paths:
       tags:
         - local-connector
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listLocalGatewayTools
       summary: List tenant-safe local gateway tools
       description: Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false.
@@ -1588,8 +1592,12 @@ paths:
       tags:
         - system-layer
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read befo.
@@ -1630,8 +1638,12 @@ paths:
       tags:
         - system-layer
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
@@ -3207,7 +3219,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: aa4b203f28c5f910773fd146be7f51ddbc86ecf912e43fcc700d3dfa8c0cc21a
+  source_openapi_sha256: 0771e20cf0a29904588fb1fe1171c3b08e10d972b7d65231d07fc9c3ff56cb24
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 1fa2a3034f671292e23ed81d7cb28480e1e398e6665cb6e4ac171af9d31f32f7
   registry_version: 2

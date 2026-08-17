@@ -435,10 +435,14 @@ function applySecurityProfile(doc, sourceDoc, surface) {
     for (const [pathKey, item] of Object.entries(doc.paths || {})) {
       for (const [method, operation] of Object.entries(item || {})) {
         if (!METHOD_NAMES.has(method)) continue;
-        const sourceSecurity = sourceDoc.paths?.[pathKey]?.[method]?.security;
+        const sourceOperation = sourceDoc.paths?.[pathKey]?.[method] || {};
+        const sourceSecurity = sourceOperation.security;
+        const tenantSecurityMarker = sourceOperation["x-tenant-gpt-security"];
         const usesBackendSecurity = Array.isArray(sourceSecurity)
           && sourceSecurity.some((requirement) => Object.keys(requirement || {}).some((name) => backendSchemeNames.includes(name)));
-        operation.security = usesBackendSecurity ? clone(sourceSecurity) : clone(tenantConfig.security);
+        operation.security = tenantSecurityMarker === "tenant_user"
+          ? clone(tenantConfig.security)
+          : usesBackendSecurity ? clone(sourceSecurity) : clone(tenantConfig.security);
         normalizeTenantToolCallBody(operation);
       }
     }
@@ -456,6 +460,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     }
     paths[entry.pathKey][entry.method] = clone(entry.operation);
     delete paths[entry.pathKey][entry.method]["x-custom-gpt-surfaces"];
+    delete paths[entry.pathKey][entry.method]["x-tenant-gpt-security"];
   }
   const doc = clone(sourceDoc);
   doc.info = {

@@ -16,6 +16,10 @@ const upstreamCommands = [
   "node test-workflow-plan-snapshot-persistence.mjs",
   "node test-growth-control-authority-map.mjs",
   "node test-growth-control-provider-approval-holds.mjs",
+  "node test-production-config-preflight.mjs",
+  "node test-control-plane-write-authority.mjs",
+  "node test-mcp-catalog-schema-guard.mjs",
+  "node test-staging-independent-schema-contract.mjs",
 ];
 
 // Some repository guards intentionally verify canonical manifest membership from

@@ -46,7 +46,15 @@ async function main() {
     new URL("./migrations/20260815_custom_gpt_mcp_catalog_levels.sql", import.meta.url),
     "utf8",
   );
+  const mcpCatalogGuard = readFileSync(
+    new URL("./mcpCatalogSchemaGuard.js", import.meta.url),
+    "utf8",
+  );
   assert.match(gptToolsRoutes, /mcp_catalog_level/);
+  assert.match(gptToolsRoutes, /assertMcpCatalogLevelColumn/);
+  assert.match(gptToolsRoutes, /readGptToolsCatalogSchemaReadiness/);
+  assert.match(mcpCatalogGuard, /mcp_catalog_schema_migration_required/);
+  assert.match(mcpCatalogGuard, /migration_apply_required: true/);
   assert.match(gptToolsRoutes, /catalogLevel/);
   assert.match(gptToolsRoutes, /sqlCacheKey\("tools", callerType, "list", "v4"\)/);
   assert.match(mcpCatalogMigration, /mcp_catalog_level/);

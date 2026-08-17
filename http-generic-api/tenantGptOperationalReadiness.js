@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tenantGptRefreshReady } from "./tenantGptOAuthGrantStore.js";
 import { buildTrustedIngressReadiness } from "./trustedIngressContract.js";
+import { readMcpCatalogSchemaReadiness } from "./mcpCatalogSchemaGuard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const mutationRegistryFile = path.resolve(__dirname, "openapi/openapi-mutation-policy.generated.json");
@@ -26,6 +27,7 @@ function readMutationRegistry() {
 export async function buildTenantGptOperationalReadiness({ env = process.env, pool = null } = {}) {
   const refresh = await tenantGptRefreshReady(env, pool);
   const trustedIngress = buildTrustedIngressReadiness(env);
+  const mcpCatalogSchema = await readMcpCatalogSchemaReadiness({ pool: pool || undefined });
   const registry = readMutationRegistry();
   const ssoSecretReady = secretReady(env.TENANT_GPT_SSO_SIGNING_SECRET);
   const jwtSecretReady = secretReady(env.JWT_SECRET);
@@ -43,6 +45,7 @@ export async function buildTenantGptOperationalReadiness({ env = process.env, po
     scope_minimization_ready: true,
     refresh_ready: refresh.ready === true,
     openapi_coverage_ready: openapiCoverageReady,
+    mcp_catalog_schema_ready: mcpCatalogSchema.ok === true,
     mutation_governance_ready: mutationGovernanceReady,
     external_canary_ready: externalCanaryPassed,
     chatgpt_client_evidence_ready: browserClientEvidence,
@@ -55,6 +58,7 @@ export async function buildTenantGptOperationalReadiness({ env = process.env, po
     blocking_checks: blocking,
     refresh_readiness: refresh,
     trusted_ingress: trustedIngress,
+    mcp_catalog_schema: mcpCatalogSchema,
     openapi_mutation_registry: {
       present: Boolean(registry),
       operation_count: Number(registry?.operation_count || 0),

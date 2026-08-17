@@ -193,6 +193,7 @@ jobs:
             trustedIngressAttestationRequired,
             oauthDiscoveryReady,
             productionCurrent,
+            // Bounded fail-closed classifications include oauth_discovery_not_ready.
             classification,
           } = decision;
 

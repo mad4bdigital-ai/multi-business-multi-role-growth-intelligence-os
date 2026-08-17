@@ -6,6 +6,8 @@
     "http-generic-api/test-platform-routes.mjs|REMOTE_MCP_TRUST_PROXY_HOST_HEADERS|environment_reference|remote.mcp.trust.proxy.host.headers",
     "http-generic-api/test-staging-independent-schema-contract.mjs|REMOTE_MCP_TRUST_PROXY_HOST_HEADERS|environment_reference|remote.mcp.trust.proxy.host.headers",
     "http-generic-api/test-staging-runtime-oauth-profile.mjs|REMOTE_MCP_TRUST_PROXY_HOST_HEADERS|environment_reference|remote.mcp.trust.proxy.host.headers",
+    "http-generic-api/mcpCatalogSchemaGuard.js|CACHE_TTL_MS|literal_declaration|cache.ttl.ms",
+    "http-generic-api/tenantGptOAuthPreset.js|TENANT_GPT_SCOPE_AUTHORITY_URL|literal_declaration|tenant.gpt.scope.authority.url",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|BASE|environment_reference|runtime.base.url",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|DIR|environment_reference|evidence.dir",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|GH|environment_reference|gh.read.token",

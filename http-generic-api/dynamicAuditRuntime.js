@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { getPool } from "./db.js";
+import { getControlPlaneWritePool } from "./controlPlaneWriteAuthority.js";
 import {
   DATABASE_LIFECYCLE_DAILY_SNAPSHOT_CONFIRMATION,
   runDatabaseLifecycleDailySnapshotCycle,
@@ -895,7 +895,7 @@ export async function startDynamicAuditScheduler(options = {}) {
       secrets_included: false,
     };
   }
-  const pool = options.pool || getPool();
+  const pool = options.pool || getControlPlaneWritePool();
   const connection = await pool.getConnection();
   let config;
   let writeAuthorityProbe;
