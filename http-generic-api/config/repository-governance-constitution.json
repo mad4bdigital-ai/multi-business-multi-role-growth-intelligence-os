@@ -1,0 +1,164 @@
+{
+  "contract": "mad4b.repository-governance-constitution.v1",
+  "schema_version": 1,
+  "authority": {
+    "source_of_truth": "http-generic-api/config/repository-governance-constitution.json",
+    "final_gate_context": "Derived State Closure",
+    "policy_registry": ".github/governance/policy-registry.json",
+    "change_identity": "git_base_candidate_tree",
+    "unknown_surface_mode": "block",
+    "unknown_executable_mode": "block",
+    "deletion_and_rename_impact_required": true,
+    "derived_state_graph_mode": "executable_dag",
+    "policy_execution_mode": "declarative_registered_assertions",
+    "control_plane_change_mode": "manual_review_required",
+    "server_enforcement_attestation": "required_before_merge",
+    "waiver_mode": "digest_bound_expiring_ledger",
+    "legacy_runtime_policy_controller": "compatibility_executor_not_source_of_truth"
+  },
+  "branches": {
+    "main": {
+      "role": "development_authority",
+      "ref": "refs/heads/main",
+      "require_pull_request": true,
+      "block_direct_push": true,
+      "block_force_push": true,
+      "dismiss_stale_approvals": true,
+      "require_conversation_resolution": true,
+      "strict_required_status_checks": true,
+      "required_checks": [
+        "Derived State Closure"
+      ]
+    },
+    "Production": {
+      "role": "governed_release",
+      "ref": "refs/heads/Production",
+      "require_pull_request": true,
+      "block_direct_push": true,
+      "block_force_push": true,
+      "generic_pull_request_merge_forbidden": true,
+      "promotion_path": "Governed Production Promotion",
+      "same_sha_closure_required": true,
+      "strict_required_status_checks": true,
+      "required_checks": []
+    }
+  },
+  "change_model": {
+    "supported_git_statuses": [
+      "A",
+      "M",
+      "D",
+      "R",
+      "C",
+      "T"
+    ],
+    "rename_and_copy_source_must_be_classified": true,
+    "rename_and_copy_target_must_be_classified": true,
+    "added_path_newness_must_come_from_git": true,
+    "filename_age_heuristics_forbidden": true
+  },
+  "executable_extensions": [
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".py",
+    ".sh",
+    ".ps1",
+    ".sql"
+  ],
+  "surface_classes": [
+    {
+      "id": "governance_control_plane",
+      "risk": "critical",
+      "patterns": [
+        ".github/**",
+        "docs/governance/**",
+        ".changes/e2e/**"
+      ]
+    },
+    {
+      "id": "repository_governance_runtime",
+      "risk": "critical",
+      "patterns": [
+        "scripts/repository-governance-closure.mjs",
+        "scripts/derived-state-closure.mjs",
+        "http-generic-api/config/repository-governance-constitution.json"
+      ]
+    },
+    {
+      "id": "application_runtime",
+      "risk": "high",
+      "patterns": [
+        "http-generic-api/**",
+        "src/**",
+        "edge/**",
+        "wordpress/**"
+      ]
+    },
+    {
+      "id": "repository_automation",
+      "risk": "high",
+      "patterns": [
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    {
+      "id": "portable_staging",
+      "risk": "high",
+      "patterns": [
+        "autopilot-portable-staging/**"
+      ]
+    },
+    {
+      "id": "specification_contract",
+      "risk": "medium",
+      "patterns": [
+        "specs/**"
+      ]
+    },
+    {
+      "id": "documentation_evidence",
+      "risk": "low",
+      "patterns": [
+        "docs/**",
+        "README.md",
+        "SECURITY.md",
+        "CONTRIBUTING.md"
+      ]
+    },
+    {
+      "id": "repository_toolchain",
+      "risk": "high",
+      "patterns": [
+        "package.json",
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "tsconfig.json",
+        "tsconfig.*.json",
+        ".nvmrc",
+        ".node-version",
+        ".editorconfig",
+        ".gitignore",
+        ".gitattributes"
+      ]
+    }
+  ],
+  "control_plane_paths": [
+    "http-generic-api/config/repository-governance-constitution.json",
+    ".github/governance/policy-registry.json",
+    "scripts/repository-governance-closure.mjs",
+    ".github/tests/repository-governance-closure.test.mjs",
+    ".github/derived-state-governance.json",
+    ".github/tests/derived-state-closure.test.mjs",
+    ".github/workflows/derived-state-closure.yml"
+  ],
+  "derived_state": {
+    "registry": ".github/derived-state-governance.json",
+    "artifact_dependency_type": "artifact",
+    "missing_dependency_mode": "block",
+    "cycle_mode": "block"
+  }
+}
