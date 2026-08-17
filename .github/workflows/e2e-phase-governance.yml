@@ -81,7 +81,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
           HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
           HEAD_REF: ${{ github.head_ref || github.ref_name }}
-          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
+          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || github.event.repository.default_branch || 'main' }}
         run: |
           set -euo pipefail
           args=(check
