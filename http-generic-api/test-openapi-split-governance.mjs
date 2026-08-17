@@ -133,6 +133,17 @@ for (const surface of GENERATED_SURFACES) {
   assert.equal(typeof doc["x-custom-gpt-generation"]?.warning_budget_exceeded, "boolean");
   assert(operations.length > 0, `${surface.output_file} must contain operations`);
   assert.equal(doc.servers?.length, 1, `${surface.surfaceKey} must declare exactly one server`);
+  const securitySchemeNames = Object.keys(doc.components?.securitySchemes || {});
+  assert.equal(securitySchemeNames.length, 1, `${surface.surfaceKey} must declare exactly one security scheme`);
+  const allowedSecurityScheme = securitySchemeNames[0];
+  const securityRequirements = [];
+  if (Array.isArray(doc.security)) securityRequirements.push(...doc.security);
+  for (const operation of operations) {
+    if (Array.isArray(operation.operation?.security)) securityRequirements.push(...operation.operation.security);
+  }
+  for (const requirement of securityRequirements) {
+    assert.deepEqual(Object.keys(requirement), [allowedSecurityScheme], `${surface.surfaceKey} security requirements must use only ${allowedSecurityScheme}`);
+  }
   const expectedServer = surface.server_url || `https://${domainPolicy.environments[surface.environment].hostnames[surface.domain_service].hostname}`;
   assert.equal(doc.servers?.[0]?.url, expectedServer, `${surface.surfaceKey} server must match domain-family policy`);
   assert.equal(doc["x-custom-gpt-generation"]?.environment, surface.environment || "unspecified");
