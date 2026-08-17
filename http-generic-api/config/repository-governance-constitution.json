@@ -84,7 +84,8 @@
       "patterns": [
         "scripts/repository-governance-closure.mjs",
         "scripts/derived-state-closure.mjs",
-        "http-generic-api/config/repository-governance-constitution.json"
+        "http-generic-api/config/repository-governance-constitution.json",
+        "http-generic-api/githubRepositoryPolicyController.js"
       ]
     },
     {
@@ -148,12 +149,19 @@
   ],
   "control_plane_paths": [
     "http-generic-api/config/repository-governance-constitution.json",
+    "http-generic-api/githubRepositoryPolicyController.js",
+    "http-generic-api/test-github-repository-policy-controller.mjs",
     ".github/governance/policy-registry.json",
-    "scripts/repository-governance-closure.mjs",
-    ".github/tests/repository-governance-closure.test.mjs",
     ".github/derived-state-governance.json",
+    ".github/ops/github-repository-policy-readback.mjs",
     ".github/tests/derived-state-closure.test.mjs",
-    ".github/workflows/derived-state-closure.yml"
+    ".github/tests/repository-governance-closure.test.mjs",
+    ".github/workflows/derived-state-closure.yml",
+    ".github/workflows/github-repository-policy-readback.yml",
+    ".github/workflows/github-main-review-policy-live-activation.yml",
+    ".github/workflows/governed-production-promotion-request-launcher.yml",
+    "scripts/derived-state-closure.mjs",
+    "scripts/repository-governance-closure.mjs"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
