@@ -47,7 +47,12 @@
       ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
       "http-generic-api/frontend-surface-policy.json",
       "http-generic-api/scripts/frontend-surface-dispatch.mjs",
-      "http-generic-api/test-frontend-surface-coverage-claims.mjs"
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/runtimeIntegrity.js",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      "http-generic-api/test-runtime-integrity.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs"
     ]
   },
   "merge_contract": {
@@ -154,10 +159,9 @@
             "http-generic-api/platformOperationGovernanceContract.js",
             "http-generic-api/test-platform-resource-identity-contract.mjs",
             "http-generic-api/test-platform-operation-governance-contract.mjs",
-                    "http-generic-api/test-openapi-projection-readiness.mjs",
-        "http-generic-api/test-openapi-route-coverage.mjs",
-        "http-generic-api/test-openapi-detail-gap-classification.mjs",
-
+            "http-generic-api/test-openapi-projection-readiness.mjs",
+            "http-generic-api/test-openapi-route-coverage.mjs",
+            "http-generic-api/test-openapi-detail-gap-classification.mjs",
             "http-generic-api/test-openapi-gap-closure-plan.mjs",
             "http-generic-api/scripts/openapi-detail-gap-classification.mjs",
             "http-generic-api/scripts/openapi-gap-closure-plan.mjs",
@@ -189,7 +193,12 @@
             "http-generic-api/frontend-surface-policy.json",
             "http-generic-api/scripts/frontend-surface-dispatch.mjs",
             "http-generic-api/test-frontend-surface-coverage-claims.mjs",
-            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json"
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/runtimeIntegrity.js",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "http-generic-api/test-runtime-integrity.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs"
           ],
           "secrets_included": false
         }

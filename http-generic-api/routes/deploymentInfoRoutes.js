@@ -165,6 +165,8 @@ function runtimeIntegrityFailure(reason = "runtime_integrity_readback_failed") {
     commit_matches: null,
     checkout_detected: false,
     readback_available: false,
+    provenance_verified: false,
+    provenance_source: null,
     read_only_check: true,
     untracked_files_ignored: true,
     reason_codes: [reason],
@@ -218,6 +220,9 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
       runtimeIntegrity = await Promise.resolve(runtimeIntegrityReader({
         expectedCommitSha: commitSha,
         checkoutCommitSha: git?.commit_sha || null,
+        provenanceCommitSha: canonicalDeployment?.commit_sha || null,
+        provenanceDetected: Boolean(canonicalDeployment?.commit_sha),
+        provenanceSource: canonicalDeployment?.source || null,
       }));
     } catch {
       runtimeIntegrity = runtimeIntegrityFailure();

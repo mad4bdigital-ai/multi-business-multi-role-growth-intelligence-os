@@ -57,10 +57,300 @@
       "secrets_included": false
     },
     {
+      "config_key": "app.env",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "branch.name",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "build.timestamp",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "commit.sha",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "deploy.branch",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "deploy.commit",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "deployed.at",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "dev.deployment.branch",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "git.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "github.ref.name",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "github.sha",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "internal.base.url",
+      "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "staging",
+        "platform"
+      ],
+      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.tool.response.chunk.ttl.ms",
+      "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
+      "owner": "platform-runtime",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "tenant"
+      ],
+      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.ttl.seconds",
+      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "tenant"
+      ],
+      "binding_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
+      "resolver_ref": "http-generic-api/actAsUserExecutionPolicy.js",
+      "readback_ref": "http-generic-api/test-act-as-user-execution-policy.mjs",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "min.tool.response.chunk.ttl.ms",
+      "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
+      "owner": "platform-runtime",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "tenant"
+      ],
+      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "node.env",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
       "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "release.created.at",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "remote.mcp.authorization.server.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
       "scope_types": [
         "platform",
         "tenant",
@@ -85,6 +375,92 @@
         "staging"
       ],
       "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "remote.mcp.resource.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "repo.inspect.root",
+      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "admin"
+      ],
+      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "repo.patch.allow.protected.branch",
+      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
+      "owner": "platform-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "admin"
+      ],
+      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "repo.patch.max.bytes",
+      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
+      "owner": "platform-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "admin"
+      ],
+      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
+      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "revision.sha",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
       "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
       "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
       "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
@@ -273,18 +649,19 @@
       "secrets_included": false
     },
     {
-      "config_key": "max.ttl.seconds",
-      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
+      "config_key": "tenant.gpt.staging.resource.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
       "risk_class": "high",
       "scope_types": [
         "platform",
-        "tenant"
+        "tenant",
+        "staging"
       ],
-      "binding_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
-      "resolver_ref": "http-generic-api/actAsUserExecutionPolicy.js",
-      "readback_ref": "http-generic-api/test-act-as-user-execution-policy.mjs",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -307,7 +684,7 @@
       "secrets_included": false
     },
     {
-      "config_key": "tool.response.max.chars",
+      "config_key": "tool.response.chunk.ttl.ms",
       "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
       "owner": "platform-runtime",
       "risk_class": "medium",
@@ -358,7 +735,7 @@
       "secrets_included": false
     },
     {
-      "config_key": "tool.response.chunk.ttl.ms",
+      "config_key": "tool.response.max.chars",
       "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
       "owner": "platform-runtime",
       "risk_class": "medium",
@@ -370,162 +747,6 @@
       "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
       "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
       "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "max.tool.response.chunk.ttl.ms",
-      "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
-      "owner": "platform-runtime",
-      "risk_class": "medium",
-      "scope_types": [
-        "platform",
-        "tenant"
-      ],
-      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "min.tool.response.chunk.ttl.ms",
-      "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
-      "owner": "platform-runtime",
-      "risk_class": "medium",
-      "scope_types": [
-        "platform",
-        "tenant"
-      ],
-      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "repo.patch.max.bytes",
-      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
-      "owner": "platform-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "admin"
-      ],
-      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "internal.base.url",
-      "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "staging",
-        "platform"
-      ],
-      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "repo.inspect.root",
-      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "admin"
-      ],
-      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "repo.patch.allow.protected.branch",
-      "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
-      "owner": "platform-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "admin"
-      ],
-      "binding_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
-      "readback_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "remote.mcp.authorization.server.url",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "tenant",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/.env.staging.example",
-      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
-      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
-      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "remote.mcp.resource.url",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "tenant",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/.env.staging.example",
-      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
-      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
-      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "tenant.gpt.staging.resource.url",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "tenant",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/.env.staging.example",
-      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
-      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
-      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -549,5 +770,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 30
+  "entry_count": 43
 }

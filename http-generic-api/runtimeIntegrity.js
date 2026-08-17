@@ -37,19 +37,31 @@ export function classifyRuntimeIntegrity({
   checkoutDetected = true,
   statusReadbackAvailable = true,
   dirtyTrackedFileCount = 0,
+  provenanceCommitSha,
+  provenanceDetected = false,
+  provenanceSource = "",
 } = {}) {
   const expected = normalizeSha(expectedCommitSha);
   const checkout = normalizeSha(checkoutCommitSha);
+  const provenance = normalizeSha(provenanceCommitSha);
+  const artifactProvenanceVerified = Boolean(
+    provenanceDetected &&
+    provenance &&
+    expected &&
+    provenance === expected &&
+    !checkout
+  );
   const dirtyCount = Number.isFinite(Number(dirtyTrackedFileCount))
     ? Math.max(0, Math.floor(Number(dirtyTrackedFileCount)))
     : 0;
   const reasons = [];
 
-  if (!statusReadbackAvailable) reasons.push("runtime_checkout_integrity_unavailable");
-  if (!checkoutDetected) reasons.push("runtime_checkout_not_detected");
+  if (!artifactProvenanceVerified && !statusReadbackAvailable) reasons.push("runtime_checkout_integrity_unavailable");
+  if (!artifactProvenanceVerified && !checkoutDetected) reasons.push("runtime_checkout_not_detected");
   if (!expected) reasons.push("runtime_expected_commit_unavailable");
-  if (!checkout) reasons.push("runtime_checkout_commit_unavailable");
+  if (!artifactProvenanceVerified && !checkout) reasons.push("runtime_checkout_commit_unavailable");
   if (expected && checkout && expected !== checkout) reasons.push("runtime_commit_mismatch");
+  if (provenanceDetected && provenance && expected && provenance !== expected) reasons.push("runtime_provenance_mismatch");
   if (dirtyCount > 0) reasons.push("unapproved_dirty_runtime");
 
   const verified = reasons.length === 0;
@@ -57,14 +69,20 @@ export function classifyRuntimeIntegrity({
     contract: "mad4b.runtime-integrity.v1",
     state: verified ? "verified" : "degraded",
     verified,
-    tracked_checkout_clean: statusReadbackAvailable && dirtyCount === 0,
+    tracked_checkout_clean: artifactProvenanceVerified || (statusReadbackAvailable && dirtyCount === 0),
     local_application_code_mutation_detected: dirtyCount > 0,
     dirty_tracked_file_count: dirtyCount,
     expected_commit_sha_available: Boolean(expected),
     checkout_commit_sha_available: Boolean(checkout),
-    commit_matches: expected && checkout ? expected === checkout : null,
+    commit_matches: expected && checkout
+      ? expected === checkout
+      : artifactProvenanceVerified
+        ? true
+        : null,
     checkout_detected: Boolean(checkoutDetected),
-    readback_available: Boolean(statusReadbackAvailable),
+    readback_available: Boolean(statusReadbackAvailable || artifactProvenanceVerified),
+    provenance_verified: artifactProvenanceVerified,
+    provenance_source: artifactProvenanceVerified ? String(provenanceSource || "artifact") : null,
     read_only_check: true,
     untracked_files_ignored: true,
     reason_codes: reasons,
@@ -76,6 +94,9 @@ export async function inspectRuntimeIntegrity({
   repoRoot = REPO_ROOT,
   expectedCommitSha,
   checkoutCommitSha,
+  provenanceCommitSha,
+  provenanceDetected = false,
+  provenanceSource = "",
   execFileImpl = execFile,
   env = process.env,
 } = {}) {
@@ -111,5 +132,8 @@ export async function inspectRuntimeIntegrity({
     checkoutDetected,
     statusReadbackAvailable,
     dirtyTrackedFileCount,
+    provenanceCommitSha,
+    provenanceDetected,
+    provenanceSource,
   });
 }
