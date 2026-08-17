@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { evaluateRepository, matchesPattern } from "../../http-generic-api/scripts/e2e-phase-governance.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const constitutionPath = "http-generic-api/config/repository-governance-constitution.json";
@@ -22,22 +23,6 @@ const derived = JSON.parse(fs.readFileSync(path.join(root, derivedRegistryPath),
 const evidence = JSON.parse(fs.readFileSync(path.join(root, evidenceRegistryPath), "utf8"));
 const waivers = JSON.parse(fs.readFileSync(path.join(root, waiverLedgerPath), "utf8"));
 const e2e = JSON.parse(fs.readFileSync(path.join(root, e2ePath), "utf8"));
-
-function escapeRegex(value) { return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"); }
-function globRegex(glob) {
-  let source = "";
-  for (let i = 0; i < glob.length; i += 1) {
-    const ch = glob[i];
-    if (ch === "*") {
-      if (glob[i + 1] === "*") {
-        if (glob[i + 2] === "/") { source += "(?:.*/)?"; i += 2; }
-        else { source += ".*"; i += 1; }
-      } else source += "[^/]*";
-    } else source += escapeRegex(ch);
-  }
-  return new RegExp(`^${source}$`, "u");
-}
-const matchesAny = (file, patterns) => patterns.some((pattern) => globRegex(pattern).test(file));
 
 assert.equal(constitution.contract, "mad4b.repository-governance-constitution.v1");
 assert.equal(constitution.authority.final_gate_context, "Derived State Closure");
@@ -65,9 +50,25 @@ for (const policy of policies.policies) {
   assert.equal(typeof policy.waiverable, "boolean");
   for (const assertion of policy.assertions || []) assert.equal(allowed.has(assertion.type), true);
 }
+
+const staticGovernancePatterns = e2e.governance_only_patterns || [];
+const dynamicallyOwnedControlPaths = constitution.control_plane_paths.filter(
+  (controlPath) => !staticGovernancePatterns.some((pattern) => matchesPattern(controlPath, pattern))
+);
+assert.ok(
+  dynamicallyOwnedControlPaths.length > 0,
+  "Regression fixture must contain at least one control-plane path whose E2E governance classification comes only from the Constitution."
+);
 for (const controlPath of constitution.control_plane_paths) {
   assert.equal(derived.convergence.automation_control_paths.includes(controlPath), true, `unprotected control path: ${controlPath}`);
-  assert.equal(matchesAny(controlPath, e2e.governance_only_patterns), true, `E2E misclassification for control path: ${controlPath}`);
+  const evaluation = evaluateRepository({ root, policy: e2e, changedFiles: [controlPath] });
+  assert.equal(evaluation.report.ok, true, `E2E governance rejected canonical control path ${controlPath}: ${JSON.stringify(evaluation.report.findings)}`);
+  assert.equal(evaluation.report.change_class, "governance_only", `E2E misclassification for control path: ${controlPath}`);
+  assert.deepEqual(evaluation.report.runtime_files, [], `Control-plane path leaked into E2E runtime ownership: ${controlPath}`);
+}
+for (const controlPath of dynamicallyOwnedControlPaths) {
+  const evaluation = evaluateRepository({ root, policy: e2e, changedFiles: [controlPath] });
+  assert.equal(evaluation.report.change_class, "governance_only", `Constitution-only governance path is not dynamically consumed: ${controlPath}`);
 }
 for (const requiredPath of [scriptPath, objectionPath, finalizerPath]) assert.equal(fs.existsSync(path.join(root, requiredPath)), true, `missing ${requiredPath}`);
 
@@ -85,4 +86,4 @@ assert.equal(report.metrics.unknown_surface_count, 0);
 assert.equal(report.metrics.derived_cycle_count, 0);
 assert.equal(report.server_enforcement.live_readback_performed_by_this_verifier, false);
 fs.rmSync(dir, { recursive: true, force: true });
-console.log(JSON.stringify({ ok: true, contract: constitution.contract, objection_control_plane: true, trusted_evidence_registry: true }));
+console.log(JSON.stringify({ ok: true, contract: constitution.contract, objection_control_plane: true, trusted_evidence_registry: true, e2e_control_plane_classification: "constitution_dynamic" }));
