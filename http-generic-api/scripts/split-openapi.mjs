@@ -497,6 +497,9 @@ function rewriteEnvironmentDomainReferences(value, environment, domainPolicy) {
     ["mcp.mad4b.com", domainPolicy.environments.staging.hostnames.mcp.hostname],
   ]);
   if (typeof value === "string") {
+    // Scope authority is intentionally shared across environments. Only issuer,
+    // resource, server, and activation host references are environment-specific.
+    if (/^https:\/\/auth\.mad4b\.com\/scopes\//u.test(value)) return value;
     let result = value;
     for (const [from, to] of replacements) result = result.split(from).join(to);
     return result;

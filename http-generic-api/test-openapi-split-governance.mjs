@@ -199,6 +199,20 @@ for (const environment of ["production", "staging"]) {
   assert.equal(tenantActivationVariant.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, `https://${activationHost}/auth/oauth/token`);
 }
 
+const sharedTenantScopeUris = [
+  "https://auth.mad4b.com/scopes/tenant.links",
+  "https://auth.mad4b.com/scopes/tenant.status",
+  "https://auth.mad4b.com/scopes/tenant.activation",
+  "https://auth.mad4b.com/scopes/tenant.install",
+  "https://auth.mad4b.com/scopes/tenant.system-tools",
+];
+for (const environment of ["production", "staging"]) {
+  const variant = loadYaml(registry.surfaces[`tenant_core_${environment}`].output_file);
+  const scopes = Object.keys(variant.components.securitySchemes.userBearerAuth.flows.authorizationCode.scopes || {}).sort();
+  assert.deepEqual(scopes, [...sharedTenantScopeUris].sort(), `${environment} Tenant schema must use the shared OAuth scope authority`);
+  assert(!scopes.some((scope) => scope.startsWith("https://dev.mad4b.com/scopes/")), `${environment} Tenant schema must not mint environment-local scope authorities`);
+}
+
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");
 assert(splitScript.includes("source_markers"), "split generator must support source marker selectors");
 assert(splitScript.includes("validateSourceMarkerCoverage"), "split generator must validate source marker coverage");
