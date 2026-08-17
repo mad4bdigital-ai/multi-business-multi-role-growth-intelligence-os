@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7126,
-    "bytes": 69044664,
-    "lines": 1618711,
+    "files": 7128,
+    "bytes": 69057516,
+    "lines": 1618944,
     "directories": 265,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2137,
+      "tests-and-specs": 2138,
       "documentation": 1903,
-      "api-runtime": 1433,
+      "api-runtime": 1434,
       "database-migrations": 783,
       "root-and-other": 281,
       "api-contracts": 184,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2504,
-      ".mjs": 1676,
-      ".js": 990,
+      ".mjs": 1677,
+      ".js": 991,
       ".sql": 798,
       ".json": 782,
       ".yml": 169,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3672,
+      "http-generic-api": 3674,
       "docs": 1807,
       "specs": 873,
       ".github": 273,
@@ -245,7 +245,7 @@
     "workflows": 166,
     "migrations": 783,
     "apiContracts": 184,
-    "testSpecFiles": 2220
+    "testSpecFiles": 2221
   },
   "largestFiles": [
     {
@@ -257,8 +257,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3472207,
-      "lines": 97919
+      "bytes": 3471257,
+      "lines": 97877
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -341,8 +341,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 220408,
-      "lines": 4680
+      "bytes": 220771,
+      "lines": 4687
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
