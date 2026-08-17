@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7144,
-    "bytes": 69732109,
+    "bytes": 69732175,
     "lines": 1637557,
     "directories": 265,
     "categories": 13
@@ -70906,9 +70906,9 @@
       "path": "http-generic-api/test-staging-activation-gateway.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 2101,
+      "bytes": 2167,
       "lines": 40,
-      "sha256": "a43222b8e04885dd8093d60d401f2f4b893644d4a51aa391d6f98b6ea08146cb",
+      "sha256": "df1955e264a0e9caabb0e4ccdc77dd90ade66d9c7a35ed7513bcbe450c6d0c01",
       "mode": "644",
       "executable": false,
       "generated": false
