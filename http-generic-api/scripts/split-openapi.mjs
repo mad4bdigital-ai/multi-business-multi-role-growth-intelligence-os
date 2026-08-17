@@ -467,13 +467,20 @@ function applySecurityProfile(doc, sourceDoc, surface) {
     }
     const schemeName = String(tenantConfig.security_scheme_name || "userBearerAuth");
     doc.components.securitySchemes = { [schemeName]: clone(tenantConfig.security_scheme) };
+    const backendSchemeNames = ["backendBearerAuth", "backendApiKeyAuth"];
+    for (const backendSchemeName of backendSchemeNames) {
+      const backendScheme = sourceDoc.components?.securitySchemes?.[backendSchemeName];
+      if (backendScheme) doc.components.securitySchemes[backendSchemeName] = clone(backendScheme);
+    }
     doc.security = clone(tenantConfig.security);
     if (tenantConfig.action_auth_preset) doc["x-gpt-action-auth-preset"] = clone(tenantConfig.action_auth_preset);
     applyTenantOAuthEndpointOverride(doc, surface);
     for (const [pathKey, item] of Object.entries(doc.paths || {})) {
       for (const [method, operation] of Object.entries(item || {})) {
         if (!METHOD_NAMES.has(method)) continue;
-        operation.security = clone(tenantConfig.security);
+        const sourceSchemeNames = new Set((operation.security || []).flatMap((requirement) => Object.keys(requirement || {})));
+        const retainsBackendProfile = sourceSchemeNames.has("backendBearerAuth") && sourceSchemeNames.has("backendApiKeyAuth");
+        operation.security = retainsBackendProfile ? clone(operation.security) : clone(tenantConfig.security);
         normalizeTenantToolCallBody(operation);
       }
     }
@@ -569,13 +576,17 @@ function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
   assertOpenApiResponseObjects(doc, { source: surface.output_file || surfaceKey });
   const securitySchemes = doc.components?.securitySchemes || {};
   const securitySchemeNames = Object.keys(securitySchemes);
-  if (securitySchemeNames.length > 1) {
+  const environmentAwareTenantSchemes = new Set(["userBearerAuth", "backendBearerAuth", "backendApiKeyAuth"]);
+  const allowsTenantSessionBackendProfile = surface.auth_profile === "tenant_oauth"
+    && securitySchemeNames.length === environmentAwareTenantSchemes.size
+    && securitySchemeNames.every((name) => environmentAwareTenantSchemes.has(name));
+  if (!allowsTenantSessionBackendProfile && securitySchemeNames.length > 1) {
     throw new Error(`${surfaceKey}: generated contract must contain at most one security scheme; found ${securitySchemeNames.join(", ")}`);
   }
-  if (securitySchemeNames.length !== 1) {
+  if (!allowsTenantSessionBackendProfile && securitySchemeNames.length !== 1) {
     throw new Error(`${surfaceKey}: generated contract must contain exactly one security scheme`);
   }
-  const allowedSecurityScheme = securitySchemeNames[0];
+  const allowedSecuritySchemes = allowsTenantSessionBackendProfile ? environmentAwareTenantSchemes : new Set([securitySchemeNames[0]]);
   const securityObjects = [];
   if (Array.isArray(doc.security)) securityObjects.push(...doc.security);
   for (const entry of collectOperations(doc)) {
@@ -583,8 +594,8 @@ function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
   }
   for (const requirement of securityObjects) {
     for (const name of Object.keys(requirement || {})) {
-      if (name !== allowedSecurityScheme) {
-        throw new Error(`${surfaceKey}: security requirement references scheme ${name}, but only ${allowedSecurityScheme} is permitted`);
+      if (!allowedSecuritySchemes.has(name)) {
+        throw new Error(`${surfaceKey}: security requirement references scheme ${name}, but only ${[...allowedSecuritySchemes].join(", ")} are permitted`);
       }
     }
   }

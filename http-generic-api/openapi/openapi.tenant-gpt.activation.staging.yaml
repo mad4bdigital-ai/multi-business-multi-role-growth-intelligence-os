@@ -26,6 +26,18 @@ components:
             https://dev.mad4b.com/scopes/tenant.activation: Activate managed or dedicated tenant connection mode for the signed-in user.
             https://dev.mad4b.com/scopes/tenant.install: Provision tenant local connector install bundles for the signed-in user.
             https://dev.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools for the signed-in user.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
   schemas:
     OperationalAlert:
       type: object
@@ -3271,7 +3283,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 0771e20cf0a29904588fb1fe1171c3b08e10d972b7d65231d07fc9c3ff56cb24
+  source_openapi_sha256: b624525c462c2c566a45ce0155b2b99fdb58a96d00fe7497c705a7a52d80b098
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json

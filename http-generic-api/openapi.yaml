@@ -11740,7 +11740,13 @@ paths:
   /system/tools:
     get:
       tags: [system-layer]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listSystemTools
       x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: listTools
@@ -11908,7 +11914,13 @@ paths:
   /system/tools/call:
     post:
       tags: [system-layer]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: callSystemTool
       x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: callTool
@@ -16053,8 +16065,12 @@ paths:
     get:
       tags: [local-connector]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
       operationId: listLocalGatewayTools
       x-custom-gpt-surfaces: [tenant_core]
       x-tenant-gpt-security: tenant_user
