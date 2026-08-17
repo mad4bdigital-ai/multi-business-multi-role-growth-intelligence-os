@@ -10,7 +10,7 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Decision | **warn** |
 | Blocking gaps | 0 |
 | Warning or informational gaps | 2 |
-| Input fingerprint | `a69eb86fa0d2695eec6f062cbebd4e9ac18758a420638ed9727dbd7f3436eef2` |
+| Input fingerprint | `ce160f7519379e0119bf8f6df218a6a103a77a75f93bba8b4df9e8e7fc0fae9c` |
 
 ## Repository signals
 
