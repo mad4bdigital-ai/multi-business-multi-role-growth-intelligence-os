@@ -10,7 +10,7 @@ import {
   resolveTenantGptOAuthResourceProfile,
   tenantGptRequestHostFromHeaders,
 } from "../tenantGptOAuthResourceProfile.js";
-import { verifyTenantGptPkce } from "../tenantGptOAuthPkce.js";
+import { verifyTenantGptAuthorizationBinding } from "../tenantGptOAuthPkce.js";
 import { validateTenantGptOAuthClientCredentials } from "../tenantGptOAuthClientConfig.js";
 import { consumeTenantGptOAuthAuthorizationCode } from "../tenantGptOAuthAuthorizationCodeStore.js";
 import {
@@ -488,13 +488,20 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
 
       const codePayload = verifyCode(code);
       try {
-        verifyTenantGptPkce({
+        const pkceMode = codePayload?.pkce_mode
+          || (codePayload?.code_challenge ? "s256" : null);
+        verifyTenantGptAuthorizationBinding({
+          clientId: clientValidation.client_id,
+          pkceMode,
           codeChallenge: codePayload?.code_challenge,
           codeChallengeMethod: codePayload?.code_challenge_method,
           codeVerifier: req.body?.code_verifier,
+          clientSecretRequired: clientValidation.client_secret_required === true,
+          clientSecretValidated: clientValidation.ok === true,
+          env: deps.env || process.env,
         });
       } catch (error) {
-        return invalidGrant(error.code || "pkce_verification_failed");
+        return invalidGrant(error.code || "oauth_authorization_binding_failed");
       }
       tokenLogContext.code = {
         ...tokenLogContext.code,

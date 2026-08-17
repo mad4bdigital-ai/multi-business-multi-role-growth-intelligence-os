@@ -125,6 +125,24 @@
       "secrets_included": false
     },
     {
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "resolver_ref": "http-generic-api/productionConfigPreflight.js",
+      "readback_ref": "http-generic-api/test-production-config-preflight.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false,
+      "config_key": "control.plane.write.authority",
+      "risk_class": "critical",
+      "binding_ref": "http-generic-api/.env.example"
+    },
+    {
       "config_key": "deploy.branch",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -330,6 +348,60 @@
       "secrets_included": false
     },
     {
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "resolver_ref": "http-generic-api/productionConfigPreflight.js",
+      "readback_ref": "http-generic-api/test-production-config-preflight.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false,
+      "config_key": "oauth.client.secret",
+      "risk_class": "critical",
+      "binding_ref": "http-generic-api/.env.example"
+    },
+    {
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "resolver_ref": "http-generic-api/productionConfigPreflight.js",
+      "readback_ref": "http-generic-api/test-production-config-preflight.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false,
+      "config_key": "oauth.gpt.actions.confidential.compat",
+      "risk_class": "high",
+      "binding_ref": "http-generic-api/.env.example"
+    },
+    {
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "resolver_ref": "http-generic-api/productionConfigPreflight.js",
+      "readback_ref": "http-generic-api/test-production-config-preflight.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false,
+      "config_key": "oauth.trusted.ingress.attestation",
+      "risk_class": "critical",
+      "binding_ref": "http-generic-api/.env.example"
+    },
+    {
       "config_key": "release.created.at",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -467,6 +539,42 @@
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
+    },
+    {
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "resolver_ref": "http-generic-api/productionConfigPreflight.js",
+      "readback_ref": "http-generic-api/test-production-config-preflight.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false,
+      "config_key": "runtime.parity.deployment.branch",
+      "risk_class": "high",
+      "binding_ref": "http-generic-api/.env.example"
+    },
+    {
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "resolver_ref": "http-generic-api/productionConfigPreflight.js",
+      "readback_ref": "http-generic-api/test-production-config-preflight.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false,
+      "config_key": "runtime.production.config.preflight",
+      "risk_class": "high",
+      "binding_ref": "http-generic-api/productionConfigPreflight.js"
     },
     {
       "config_key": "tenant.gpt.activation.legacy.audience.cutoff",
@@ -770,5 +878,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 43
+  "entry_count": 49
 }

@@ -268,7 +268,10 @@ export async function createRepositoryMainMovedTriggerEvent(rawInput = {}, actor
   const enqueueOutbox = deps.enqueuePlatformOutboxEvent || enqueuePlatformOutboxEvent;
   const runVerification = deps.createRuntimeVerificationRun || createRuntimeVerificationRun;
   const runAdvisor = deps.createReleaseAdvisorRun || createReleaseAdvisorRun;
-  const event = normalizeRepositoryMainMovedEvent(rawInput, { env: deps.env || process.env });
+  const event = normalizeRepositoryMainMovedEvent(rawInput, {
+    env: deps.env || process.env,
+    allowDeploymentBranch: deps.allowDeploymentBranch === true,
+  });
   const fingerprint = buildRepositoryMainMovedFingerprint(event);
   const existing = await loadByFingerprint(pool, fingerprint);
   if (existing) {

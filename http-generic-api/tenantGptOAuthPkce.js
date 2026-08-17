@@ -4,6 +4,10 @@ export const TENANT_GPT_PKCE_METHOD = "S256";
 export const TENANT_GPT_PKCE_VERIFIER_MIN_LENGTH = 43;
 export const TENANT_GPT_PKCE_VERIFIER_MAX_LENGTH = 128;
 export const TENANT_GPT_PKCE_CHALLENGE_LENGTH = 43;
+export const TENANT_GPT_PKCE_MODE = Object.freeze({
+  S256: "s256",
+  CONFIDENTIAL_CLIENT: "confidential_client",
+});
 
 function pkceError(code, message) {
   const error = new Error(message);
@@ -17,6 +21,12 @@ function normalized(value, max = TENANT_GPT_PKCE_VERIFIER_MAX_LENGTH) {
 
 function isUnreserved(value) {
   return /^[A-Za-z0-9._~-]+$/u.test(value);
+}
+
+function flagEnabled(value, defaultValue = false) {
+  const normalizedValue = String(value ?? "").trim().toLowerCase();
+  if (!normalizedValue) return defaultValue;
+  return normalizedValue === "true" || normalizedValue === "1" || normalizedValue === "yes";
 }
 
 export function validateTenantGptPkceChallenge({ codeChallenge, codeChallengeMethod } = {}) {
@@ -58,4 +68,67 @@ export function verifyTenantGptPkce({ codeChallenge, codeChallengeMethod, codeVe
     throw pkceError("oauth_pkce_verifier_mismatch", "OAuth PKCE code_verifier does not match the authorization request.");
   }
   return true;
+}
+
+export function isTenantGptConfidentialActionClient({ clientId, env = process.env } = {}) {
+  const normalizedClientId = String(clientId || "").trim();
+  const productionClientId = String(env.TENANT_GPT_OAUTH_CLIENT_ID || "mad4b-tenant-gpt").trim();
+  const compatibilityEnabled = flagEnabled(
+    env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED,
+    false,
+  );
+  return compatibilityEnabled && normalizedClientId === productionClientId && normalizedClientId === "mad4b-tenant-gpt";
+}
+
+export function resolveTenantGptPkceMode({
+  clientId,
+  codeChallenge,
+  codeChallengeMethod,
+  env = process.env,
+} = {}) {
+  const challengePresent = Boolean(String(codeChallenge || "").trim());
+  const methodPresent = Boolean(String(codeChallengeMethod || "").trim());
+  if (challengePresent || methodPresent) {
+    return {
+      ...validateTenantGptPkceChallenge({ codeChallenge, codeChallengeMethod }),
+      pkce_mode: TENANT_GPT_PKCE_MODE.S256,
+      code_verifier_required: true,
+      client_secret_required: false,
+    };
+  }
+
+  if (isTenantGptConfidentialActionClient({ clientId, env })) {
+    return {
+      code_challenge: null,
+      code_challenge_method: null,
+      pkce_mode: TENANT_GPT_PKCE_MODE.CONFIDENTIAL_CLIENT,
+      code_verifier_required: false,
+      client_secret_required: true,
+    };
+  }
+
+  throw pkceError("oauth_pkce_required", "OAuth PKCE code_challenge and code_challenge_method are required.");
+}
+
+export function verifyTenantGptAuthorizationBinding({
+  clientId,
+  pkceMode,
+  codeChallenge,
+  codeChallengeMethod,
+  codeVerifier,
+  clientSecretRequired = false,
+  clientSecretValidated = false,
+  env = process.env,
+} = {}) {
+  if (pkceMode === TENANT_GPT_PKCE_MODE.CONFIDENTIAL_CLIENT) {
+    if (!isTenantGptConfidentialActionClient({ clientId, env })) {
+      throw pkceError("oauth_confidential_client_not_allowed", "Confidential-client OAuth compatibility is not enabled for this client.");
+    }
+    if (clientSecretRequired !== true || clientSecretValidated !== true) {
+      throw pkceError("oauth_confidential_client_required", "OAuth client_secret validation is required when PKCE is not supplied.");
+    }
+    return true;
+  }
+
+  return verifyTenantGptPkce({ codeChallenge, codeChallengeMethod, codeVerifier });
 }

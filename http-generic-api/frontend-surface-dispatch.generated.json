@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "cbc61ba8735f5dca974177c5aed48622940664ab74ea4e1d6e70ac63e95090eb",
+    "ref": null,
+    "source_digest": "ac035dbae104ed49877beb83643b52869e8caa85ad9bafc74830eb31a6cb3d80",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "417d4fbdc0bf56b1d62c53ec33b279e93b643c9c6590a91dc52e5d71aba231fc",
+        "sha256": "d51b31df25e44caf37d6227f0b22250766980e835fc72e15a16ce33ea4401dc2",
         "present": true
       },
       {
@@ -461,7 +461,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "32f7a90c1211718c9c499bcf5c8ebf1313a70cca15ee8af295753e5ffb275df9",
+        "sha256": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
         "present": true
       },
       {
@@ -1011,7 +1011,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "903249ba9063d44d4218a36c12cac57fc8fabe0e4f1db3f7bc89c58800b437be",
+        "sha256": "bff550725ca1699f3101c053d7f4afdff6bc458136f11e0b0d75f5be120915ac",
         "present": true
       },
       {
@@ -1071,7 +1071,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "303ed2d44d6a8e8a0ff876aad1687c9f24f9ae083e10057855c9115a0e1c5ac0",
+        "sha256": "a1f40ff6c983a80a6e57b0a9a24a50399bd187a7a83892a82d8d664725860251",
         "present": true
       },
       {
@@ -1649,7 +1649,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "903249ba9063d44d4218a36c12cac57fc8fabe0e4f1db3f7bc89c58800b437be",
+      "source_digest": "bff550725ca1699f3101c053d7f4afdff6bc458136f11e0b0d75f5be120915ac",
       "mount_prefix": "/",
       "mount_order": 12351,
       "split_from_mixed_scope_file": false,
@@ -11172,7 +11172,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "32f7a90c1211718c9c499bcf5c8ebf1313a70cca15ee8af295753e5ffb275df9",
+      "source_digest": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
       "mount_prefix": "/auth",
       "mount_order": 14001,
       "split_from_mixed_scope_file": true,
@@ -11320,7 +11320,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "32f7a90c1211718c9c499bcf5c8ebf1313a70cca15ee8af295753e5ffb275df9",
+      "source_digest": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
       "mount_prefix": "/auth",
       "mount_order": 14001,
       "split_from_mixed_scope_file": true,

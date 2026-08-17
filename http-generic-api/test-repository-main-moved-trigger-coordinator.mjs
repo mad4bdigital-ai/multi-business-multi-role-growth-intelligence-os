@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildRepositoryMainMovedFingerprint,
+  createRepositoryMainMovedTriggerEvent,
   deriveRepositoryMainMovedOutcome,
   normalizeRepositoryMainMovedEvent,
   resolveConfiguredReleaseBranch,
@@ -71,6 +72,66 @@ assert.equal(productionNormalized.branch, "Production");
 assert.equal(productionNormalized.source_branch, "main");
 assert.equal(productionNormalized.deployment_branch, "Production");
 assert.equal(productionNormalized.trigger_mode, "runtime_deployment_reconciliation");
+
+const triggerQueries = [];
+const triggerConnection = {
+  async beginTransaction() {},
+  async query(sql) { triggerQueries.push(sql); return [[], {}]; },
+  async commit() {},
+  async rollback() {},
+  release() {},
+};
+const triggerPool = {
+  async query(sql) {
+    if (sql.includes("event_fingerprint_sha256")) return [[], {}];
+    if (sql.includes("WHERE trigger_event_id")) {
+      return [[{
+        trigger_event_id: "trigger-fixture",
+        event_fingerprint_sha256: "f".repeat(64),
+        source_event_id: "delivery-production-runtime",
+        outbox_event_id: "outbox-fixture",
+        repository_full_name: repository,
+        branch_name: "Production",
+        before_sha: beforeSha,
+        after_sha: afterSha,
+        forced: 0,
+        deleted: 0,
+        environment_key: "production",
+        coordination_status: "approval_required",
+        next_action_key: "release.await_typed_approval",
+        summary_json: "{}",
+      }], {}];
+    }
+    return [[], {}];
+  },
+  async getConnection() { return triggerConnection; },
+};
+const runtimeTrigger = await createRepositoryMainMovedTriggerEvent({
+  source_event_id: "delivery-production-runtime",
+  repository,
+  branch: "Production",
+  before_sha: beforeSha,
+  after_sha: afterSha,
+  environment_key: "production",
+  occurred_at: "2026-07-16T12:00:00.000Z",
+}, { mode: "runtime_parity_startup_reconciler" }, {
+  pool: triggerPool,
+  env: productionEnv,
+  allowDeploymentBranch: true,
+  enqueuePlatformOutboxEvent: async () => {},
+  createRuntimeVerificationRun: async () => ({
+    run_id: "verification-fixture",
+    production_parity: "verified",
+    expected_commit_sha: afterSha,
+    deployed_commit_sha: afterSha,
+    summary: { blocking_gap_count: 0 },
+  }),
+  createReleaseAdvisorRun: async () => ({
+    advisor_run: { advisor_run_id: "advisor-fixture", advisor_status: "no_action", requires_approval: false },
+  }),
+});
+assert.equal(runtimeTrigger.ok, true);
+assert.equal(triggerQueries.some((sql) => sql.includes("INSERT INTO repository_main_moved_trigger_events")), true);
 
 assert.throws(
   () => normalizeRepositoryMainMovedEvent({ ...normalized, repository: "other/repository" }, { env }),

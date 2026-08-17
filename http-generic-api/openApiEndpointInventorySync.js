@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
-import { getPool } from "./db.js";
+import { getControlPlaneWritePool } from "./controlPlaneWriteAuthority.js";
 import {
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
@@ -600,7 +600,7 @@ async function writeRun(pool, fields) {
 }
 
 export async function getOpenApiEndpointInventorySyncStatus(deps = {}) {
-  const pool = deps.pool || getPool();
+  const pool = deps.pool || getControlPlaneWritePool();
   try {
     const [config, run, rows] = await Promise.all([readConfig(pool), latestRun(pool), loadExistingRows(pool)]);
     const activeRows = rows.filter((row) => !["deprecated", "archived"].includes(String(row.status || "").toLowerCase()));
@@ -632,7 +632,7 @@ export async function getOpenApiEndpointInventorySyncStatus(deps = {}) {
 }
 
 export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
-  const pool = deps.pool || getPool();
+  const pool = deps.pool || getControlPlaneWritePool();
   const mode = String(input.mode || "dry_run").trim().toLowerCase();
   if (!new Set(["dry_run", "apply"]).has(mode)) {
     throw syncError(400, "openapi_inventory_mode_invalid", "mode must be dry_run or apply.");
@@ -827,7 +827,7 @@ function logOpenApiWriteAuthorityUnavailable(error) {
 }
 
 export async function startOpenApiEndpointInventorySync(deps = {}) {
-  const pool = deps.pool || getPool();
+  const pool = deps.pool || getControlPlaneWritePool();
   if (String(process.env.OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED || "").trim().toLowerCase() === "true") {
     return { ok: true, started: false, status: "disabled_by_environment_kill_switch", secrets_included: false };
   }

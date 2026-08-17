@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7123,
+  "file_count": 7126,
   "route_count": 1076,
   "write_route_count": 654,
   "classified_write_surface_count": 38,
@@ -1228,8 +1228,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/platform-jwt/issue:0",
-      "source_line": 1027,
-      "source_offset": 41424,
+      "source_line": 1029,
+      "source_offset": 41545,
       "method": "POST",
       "path": "/platform-jwt/issue",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1237,8 +1237,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#GET:/oauth/authorize:1",
-      "source_line": 1123,
-      "source_offset": 44835,
+      "source_line": 1125,
+      "source_offset": 44956,
       "method": "GET",
       "path": "/oauth/authorize",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1246,8 +1246,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/code:2",
-      "source_line": 1192,
-      "source_offset": 47814,
+      "source_line": 1197,
+      "source_offset": 48018,
       "method": "POST",
       "path": "/oauth/code",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1255,8 +1255,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/token:3",
-      "source_line": 1374,
-      "source_offset": 56339,
+      "source_line": 1385,
+      "source_offset": 56694,
       "method": "POST",
       "path": "/oauth/token",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1264,8 +1264,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/register:4",
-      "source_line": 1542,
-      "source_offset": 64445,
+      "source_line": 1553,
+      "source_offset": 64800,
       "method": "POST",
       "path": "/register",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1273,8 +1273,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/login:5",
-      "source_line": 1551,
-      "source_offset": 64788,
+      "source_line": 1562,
+      "source_offset": 65143,
       "method": "POST",
       "path": "/login",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1282,8 +1282,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/revoke:6",
-      "source_line": 1560,
-      "source_offset": 65118,
+      "source_line": 1571,
+      "source_offset": 65473,
       "method": "POST",
       "path": "/oauth/revoke",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1291,8 +1291,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/forgot:7",
-      "source_line": 1575,
-      "source_offset": 66173,
+      "source_line": 1586,
+      "source_offset": 66528,
       "method": "POST",
       "path": "/password/forgot",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1300,8 +1300,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#GET:/password/reset:8",
-      "source_line": 1637,
-      "source_offset": 69232,
+      "source_line": 1648,
+      "source_offset": 69587,
       "method": "GET",
       "path": "/password/reset",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1309,8 +1309,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/reset:9",
-      "source_line": 1650,
-      "source_offset": 71406,
+      "source_line": 1661,
+      "source_offset": 71761,
       "method": "POST",
       "path": "/password/reset",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1318,8 +1318,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/google:10",
-      "source_line": 1711,
-      "source_offset": 74221,
+      "source_line": 1722,
+      "source_offset": 74576,
       "method": "POST",
       "path": "/google",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -8932,8 +8932,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-protected-resource:1",
-      "source_line": 162,
-      "source_offset": 6468,
+      "source_line": 170,
+      "source_offset": 6806,
       "method": "GET",
       "path": "/.well-known/oauth-protected-resource",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -8942,7 +8942,7 @@
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js#POST:/auth/oauth/token:0",
       "source_line": 287,
-      "source_offset": 10966,
+      "source_offset": 10982,
       "method": "POST",
       "path": "/auth/oauth/token",
       "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
@@ -14538,10 +14538,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1027,
+        "source_line": 1029,
         "handler_window_lines": [
-          1027,
-          1121
+          1029,
+          1123
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14604,10 +14604,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1192,
+        "source_line": 1197,
         "handler_window_lines": [
-          1192,
-          1372
+          1197,
+          1383
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14671,10 +14671,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1374,
+        "source_line": 1385,
         "handler_window_lines": [
-          1374,
-          1541
+          1385,
+          1552
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14737,10 +14737,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1542,
+        "source_line": 1553,
         "handler_window_lines": [
-          1542,
-          1550
+          1553,
+          1561
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14797,10 +14797,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1551,
+        "source_line": 1562,
         "handler_window_lines": [
-          1551,
-          1559
+          1562,
+          1570
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14857,10 +14857,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1560,
+        "source_line": 1571,
         "handler_window_lines": [
-          1560,
-          1574
+          1571,
+          1585
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14917,10 +14917,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1575,
+        "source_line": 1586,
         "handler_window_lines": [
-          1575,
-          1636
+          1586,
+          1647
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14980,10 +14980,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1650,
+        "source_line": 1661,
         "handler_window_lines": [
-          1650,
-          1710
+          1661,
+          1721
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15046,10 +15046,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1711,
+        "source_line": 1722,
         "handler_window_lines": [
-          1711,
-          1721
+          1722,
+          1732
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -48761,7 +48761,7 @@
         "source_line": 287,
         "handler_window_lines": [
           287,
-          572
+          567
         ],
         "evidence_flags": {
           "handler_window_present": true,
