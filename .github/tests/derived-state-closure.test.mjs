@@ -52,7 +52,7 @@ assert.match(workflow, /continue-on-error:\s*true/u);
 assert.match(workflow, /blocking_count/u);
 assert.doesNotMatch(workflow, /\n\s*paths:/u);
 
-assert.match(repair, /Draft is intentionally allowed for bounded repair/u);
+assert.match(repair, /draft_repair_allowed=true/u);
 assert.doesNotMatch(repair, /\.draft.*false/u);
 assert.match(repair, /\.repair_authorities\[0\]/u);
 assert.match(repair, /generated_artifact_recipe/u);
