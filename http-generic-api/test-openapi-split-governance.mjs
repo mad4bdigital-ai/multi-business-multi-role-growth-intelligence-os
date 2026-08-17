@@ -55,7 +55,7 @@ const mainText = readFileSync("openapi.yaml", "utf8");
 const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 const orchestrator = readFileSync("scripts/generate-custom-gpt-schemas.mjs", "utf8");
 
-assert.equal(registry.version, 3);
+assert.equal(registry.version, 2);
 assert.equal(domainPolicy.schema_version, "mad4b.domain-family-policy.v1");
 assert.equal(domainPolicy.enforcement_mode, "fail_closed");
 assert.deepEqual(registry.shared_surface_allowlist, ["listSystemTools", "callSystemTool"]);
@@ -126,7 +126,7 @@ for (const surface of GENERATED_SURFACES) {
   const effectiveSurface = { ...base, ...surface, selector: surface.selector || base.selector, candidate_policy: surface.candidate_policy || base.candidate_policy };
   const doc = loadYaml(surface.output_file);
   const operations = collectOperations(doc);
-  assert.equal(doc["x-custom-gpt-generation"]?.registry_version, 3, `${surface.surfaceKey} must carry registry provenance`);
+  assert.equal(doc["x-custom-gpt-generation"]?.registry_version, 2, `${surface.surfaceKey} must carry registry provenance`);
   assert.match(doc["x-custom-gpt-generation"]?.source_openapi_sha256 || "", /^[a-f0-9]{64}$/u);
   assert.match(doc["x-custom-gpt-generation"]?.registry_sha256 || "", /^[a-f0-9]{64}$/u);
   assert.equal(doc["x-custom-gpt-generation"]?.operation_count, operations.length);

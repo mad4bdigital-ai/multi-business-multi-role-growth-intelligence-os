@@ -2006,11 +2006,11 @@ x-custom-gpt-generation:
   source_openapi: http-generic-api/openapi.yaml
   source_openapi_sha256: 0771e20cf0a29904588fb1fe1171c3b08e10d972b7d65231d07fc9c3ff56cb24
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 65321641fd54bc3984efac560ffaec47b523e7e7fe9b96b76608b985e3d1ab3e
+  registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: production
-  registry_version: 3
+  registry_version: 2
   selector_model: marker_required
   candidate_policy:
     mode: marker_required

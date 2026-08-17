@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "41e861988b0ac9793920276c4941b72728e6c8d92e96078d06c7d6178db79737",
+  "content_hash_sha256": "0850b608e025b6f86049e3ac4c6cf7f407e36ccb8ccfe9f4cdd4997677785ebc",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -594,8 +594,8 @@
     "activation_admin",
     "tenant_activation"
   ],
-  "surface_registry_sha256": "65321641fd54bc3984efac560ffaec47b523e7e7fe9b96b76608b985e3d1ab3e",
-  "surface_registry_version": 3,
+  "surface_registry_sha256": "866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6",
+  "surface_registry_version": 2,
   "upstream_origin": "https://auth.mad4b.com",
   "warning_budget": [
     {
