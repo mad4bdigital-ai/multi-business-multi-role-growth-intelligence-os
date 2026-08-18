@@ -158,7 +158,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
           PR_NUMBER: ${{ needs.attest.outputs.pr_number }}
-          HEAD_SHA: ${{ needs.attest.outputs.source_head_sha }}
+          EXPECTED_HEAD_SHA: ${{ needs.attest.outputs.source_head_sha }}
           BASE_SHA: ${{ needs.attest.outputs.base_sha }}
           CANDIDATE_SHA: ${{ needs.attest.outputs.candidate_sha }}
         shell: bash
@@ -169,10 +169,10 @@ jobs:
           test "$(jq -r '.state' "$pr")" = "open"
           test "$(jq -r '.draft' "$pr")" = "false"
           test "$(jq -r '.base.ref' "$pr")" = "main"
-          test "$(jq -r '.head.sha' "$pr")" = "$HEAD_SHA"
+          test "$(jq -r '.head.sha' "$pr")" = "$EXPECTED_HEAD_SHA"
           test "$(jq -r '.base.sha' "$pr")" = "$BASE_SHA"
           test "$(jq -r '.merge_commit_sha' "$pr")" = "$CANDIDATE_SHA"
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}" --jq '[.labels[].name]')"
           jq -e 'index("do-not-auto-merge")==null and index("manual-merge")==null' <<<"$labels" >/dev/null
-          gh pr merge "$PR_NUMBER" --auto --squash --delete-branch --match-head-commit "$HEAD_SHA"
-          gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=registered candidate_sha=${CANDIDATE_SHA} source_head_sha=${HEAD_SHA} exact_candidate=true blocking_objections=0 manual_objections=0" >/dev/null
+          gh pr merge "$PR_NUMBER" --auto --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA"
+          gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=registered candidate_sha=${CANDIDATE_SHA} source_head_sha=${EXPECTED_HEAD_SHA} exact_candidate=true blocking_objections=0 manual_objections=0" >/dev/null
