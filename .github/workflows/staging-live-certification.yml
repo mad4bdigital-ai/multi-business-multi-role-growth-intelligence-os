@@ -1,0 +1,126 @@
+name: Staging Live Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_candidate_sha:
+        description: Exact immutable Production candidate SHA whose first parent is the main release cut
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-live-certification-${{ inputs.expected_candidate_sha }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    name: Staging Live Certification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      EXPECTED_CANDIDATE_SHA: ${{ inputs.expected_candidate_sha }}
+      STAGING_CERT_APP_BASE_URL: https://dev.mad4b.com
+      STAGING_CERT_EXPECTED_BRANCH: main
+      STAGING_CERT_REQUIRE_GATEWAY: "true"
+      STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true"
+      STAGING_CERT_REQUIRE_READY: "true"
+      STAGING_CERT_GATEWAY_POLICY_PATH: edge/activation-gateway/generated/route-policy.staging.json
+      STAGING_CERT_REPORT_FILE: ${{ runner.temp }}/staging-live-certification/report.json
+      STAGING_AUTHORITY_REPORT_FILE: ${{ runner.temp }}/staging-environment-authority-closure/report.json
+    steps:
+      - name: Checkout exact immutable candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      - name: Resolve exact main release cut from certified candidate
+        id: identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$EXPECTED_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_candidate_sha must be an exact lowercase SHA"; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_CANDIDATE_SHA" ]] || { echo "::error::workflow head differs from expected candidate"; exit 1; }
+          parent_line="$(git rev-list --parents -n 1 HEAD)"
+          parent_count=$(( $(wc -w <<<"$parent_line") - 1 ))
+          [[ "$parent_count" -ge 1 ]] || { echo "::error::candidate has no release-cut parent"; exit 1; }
+          release_cut_sha="$(git rev-parse HEAD^1)"
+          [[ "$release_cut_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release cut is not an exact SHA"; exit 1; }
+          git diff --quiet "$release_cut_sha" HEAD || { echo "::error::candidate tree differs from its main release cut"; exit 1; }
+          echo "release_cut_sha=$release_cut_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Verify repository environment authorities converge
+        env:
+          EXPECTED_HEAD_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        run: >-
+          node http-generic-api/scripts/staging-environment-authority-closure.mjs
+          --expected-sha "$EXPECTED_HEAD_SHA"
+          --report-file "$STAGING_AUTHORITY_REPORT_FILE"
+
+      - name: Certify live Staging against exact main release cut
+        env:
+          STAGING_CERT_EXPECTED_COMMIT: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$(dirname "$STAGING_CERT_REPORT_FILE")"
+          node http-generic-api/scripts/staging-live-certification.mjs | tee "$STAGING_CERT_REPORT_FILE"
+          jq -e --arg cut "$STAGING_CERT_EXPECTED_COMMIT" '
+            .contract == "mad4b.staging-live-certification.v1" and
+            .outcome == "ready" and .ready == true and
+            .expected.branch == "main" and .expected.commit_sha == $cut and
+            .observed.branch == "main" and .observed.commit_sha == $cut and
+            .blocking_failures == [] and .degraded_reasons == [] and
+            .safety.read_only_probe == true and
+            .safety.database_mutation == false and
+            .safety.migration_apply == false and
+            .safety.provider_mutation == false and
+            .safety.production_deploy == false and
+            .safety.ruleset_mutation == false and
+            .safety.secrets_included == false
+          ' "$STAGING_CERT_REPORT_FILE" >/dev/null
+
+      - name: Publish bounded certification evidence
+        shell: bash
+        env:
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        run: |
+          set -Eeuo pipefail
+          output="$RUNNER_TEMP/staging-live-certification/evidence.json"
+          mkdir -p "$(dirname "$output")"
+          jq -n \
+            --arg candidate "$EXPECTED_CANDIDATE_SHA" \
+            --arg cut "$RELEASE_CUT_SHA" \
+            --slurpfile authority "$STAGING_AUTHORITY_REPORT_FILE" \
+            --slurpfile live "$STAGING_CERT_REPORT_FILE" \
+            '{
+              contract:"mad4b.staging-live-certification-evidence.v1",
+              candidate_sha:$candidate,
+              main_release_cut_sha:$cut,
+              authority_closure:$authority[0],
+              live_certification:$live[0],
+              production_merge:false,
+              deployment:false,
+              migration_apply:false,
+              grant_apply:false,
+              provider_mutation:false,
+              credential_payload_read:false,
+              secrets_included:false
+            }' > "$output"
+
+      - name: Upload Staging live certification evidence
+        uses: actions/upload-artifact@ea165f8d65b5e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-live-certification-${{ inputs.expected_candidate_sha }}
+          path: ${{ runner.temp }}/staging-live-certification/evidence.json
+          if-no-files-found: error
+          retention-days: 30
