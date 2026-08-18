@@ -18,7 +18,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "57e86077312f8b6802a11b84455e84c915e508e4bd68b6300c6f2cd889ade316"
+      "sha256": "1f30dd6c6ed2da64787761ccfd0a8d3e494cd8aadb147125a4db33134113f7e8"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "7fe3b56d4d45202c92a6c1b3f75ab8342d19cc9d52bd4f039a3bb63d69100da1"
+      "sha256": "02c0996fd5d3bdfa13de950756a189f002e194abb6bcd593930968c85f900b8b"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -102,7 +102,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "5b42eaf25cfe37b7abad88e79dfa348ad4829b9324d8b9e28ff897e42aaa869c"
+      "sha256": "ecdc16561f5b971a3b0b694dedf3828cbc9013d4a58444998cde3e628580acbf"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -166,7 +166,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "e4a52199e1cfe79ec1a20dbad0ec056eeed19a825e300378cfc91b317d7b593e"
+      "sha256": "ece92be5e3d2ca24f7371b2cc17db07809eb2150897b185c5bccf4d919a02f3d"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
