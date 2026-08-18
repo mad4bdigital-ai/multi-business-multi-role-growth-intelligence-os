@@ -11,6 +11,7 @@
       ".github/**",
       "docs/work-maps/**",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "specs/*/work-map-integration.json",
       "specs/020-platform-resource-identity-brand-governance/**"
     ]
