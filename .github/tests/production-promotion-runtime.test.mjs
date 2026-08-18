@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { buildReleaseCutPromotionEvidence } from "../scripts/production-promotion-release-cut-evidence.mjs";
 import { resolveSupportingGates, validateGateRegistry } from "../scripts/production-promotion-supporting-gates.mjs";
+import { buildPromotionRehearsalReport } from "../scripts/production-promotion-rehearsal.mjs";
 import { selectPromotionRun } from "../scripts/production-promotion-run-selector.mjs";
 import {
   buildApprovalManifest,
@@ -160,6 +161,45 @@ test("release-cut helpers fail closed on unsafe policy or identity", () => {
   assert.throws(() => buildReleaseCutPromotionEvidence({ ...evidenceInput(), candidate_sha: "short" }), /candidate_sha/u);
 });
 
+test("promotion rehearsal classifies real ancestry blockers without relaxing fail-closed policy", () => {
+  const blocked = buildPromotionRehearsalReport({
+    mainSha: sha(1),
+    productionSha: sha(2),
+    productionIsAncestorOfMain: false,
+    protectedRefsStable: true,
+    supportingGatesReadOnly: true,
+  });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.stage, "BLOCKED_PRODUCTION_HISTORY_NOT_CONTAINED_BY_MAIN");
+  assert.equal(blocked.classification, "production_history_not_contained_by_main");
+  assert.equal(blocked.fail_closed.stale_authorization_reusable, false);
+  assert.match(blocked.fail_closed.required_next_action, /ancestry reconciliation/u);
+  assert.equal(blocked.mutation_summary.production_merge, false);
+
+  const casBlocked = buildPromotionRehearsalReport({
+    mainSha: sha(1),
+    productionSha: sha(2),
+    productionIsAncestorOfMain: true,
+    protectedRefsStable: false,
+    supportingGatesReadOnly: true,
+  });
+  assert.equal(casBlocked.classification, "protected_ref_moved_during_rehearsal");
+  assert.equal(casBlocked.stage, "BLOCKED_CAS_RECHECK_REQUIRED");
+
+  const ready = buildPromotionRehearsalReport({
+    mainSha: sha(1),
+    productionSha: sha(2),
+    productionIsAncestorOfMain: true,
+    protectedRefsStable: true,
+    supportingGatesReadOnly: true,
+  });
+  assert.equal(ready.ok, true);
+  assert.equal(ready.stage, "READY_FOR_CERTIFIED_CANDIDATE_REHEARSAL");
+  assert.equal(ready.operation.retry_is_idempotent, true);
+  assert.equal(ready.operation.cas_recheck_required_before_mutation, true);
+  assert.equal(ready.mutation_summary.external_write, false);
+});
+
 test("run selector still prefers terminal exact-head success over a newer queued duplicate", () => {
   const selected = selectPromotionRun([
     run("100", "2026-08-14T17:15:00Z", "completed", "success"),
@@ -174,6 +214,8 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   const mainGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
   const releaseGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
   const postGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
+  const rehearsal = read(".github/workflows/production-promotion-rehearsal.yml");
+  const rehearsalScript = read(".github/scripts/production-promotion-rehearsal.mjs");
   const derivedClosure = read(".github/workflows/derived-state-closure.yml");
   const stagingEligibility = read(".github/workflows/staging-main-deploy-eligibility.yml");
   const stagingCertification = read(".github/workflows/staging-live-certification.yml");
@@ -203,6 +245,15 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(releaseGate, /release_cut_is_ancestor_of_current_main:true/u);
   assert.match(postGuard, /release_cut_not_in_current_main/u);
   assert.doesNotMatch(postGuard, /REASON=main_moved_after_finalization/u);
+  assert.match(rehearsal, /REHEARSE_GOVERNED_PRODUCTION_PROMOTION/u);
+  assert.match(rehearsal, /production-promotion-rehearsal\.mjs/u);
+  assert.match(rehearsal, /mutation_summary\.production_merge == false/u);
+  assert.match(rehearsal, /persist-credentials: false/u);
+  assert.match(rehearsal, /MAIN_CAS_READBACK/u);
+  assert.match(rehearsal, /PRODUCTION_CAS_READBACK/u);
+  assert.doesNotMatch(rehearsal, /git push|gh pr create|gh workflow run/u);
+  assert.match(rehearsalScript, /production_history_not_contained_by_main/u);
+  assert.match(rehearsalScript, /stale_authorization_reusable: false/u);
   for (const workflow of [derivedClosure, stagingEligibility, stagingCertification]) {
     assert.match(workflow, /environment-impact-closure\.mjs/u, "environment impact closure must be wired into every staging/promotion readiness surface");
     assert.match(workflow, /migration compatibility closure/u, "migration compatibility must be explicit in the readiness step");
