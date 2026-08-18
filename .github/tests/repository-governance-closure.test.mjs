@@ -83,5 +83,40 @@ for (const metric of ["unknown_surface_count", "unknown_executable_count", "unkn
 assert.equal(report.flags.workflow_surface_ratchet_enforced, true);
 assert.deepEqual(report.semantic_graph.dangling_references, []);
 assert.equal(report.server_enforcement.live_readback_performed_by_this_verifier, false);
+
+const requiredProducer = evidence.producers.find((entry) => entry.required === true);
+const snapshotFile = path.join(dir, "producer-snapshot.json");
+const finalizerReportFile = path.join(dir, "producer-finalizer.json");
+fs.writeFileSync(snapshotFile, `${JSON.stringify({
+  source_head_sha: sha,
+  base_sha: sha,
+  merge_candidate_sha: sha,
+  executed_sha: sha,
+  pr_number: 1,
+  producers: [{
+    contract: "mad4b.repository-governance-producer-evidence.v1",
+    producer_id: requiredProducer.id,
+    workflow: requiredProducer.workflow,
+    workflow_file: requiredProducer.workflow_file,
+    event: requiredProducer.event,
+    run_id: 1,
+    pr_number: 1,
+    source_head_sha: sha,
+    base_sha: sha,
+    merge_candidate_sha: sha,
+    executed_sha: sha,
+    status: "completed",
+    conclusion: evidence.required_conclusion,
+    secrets_included: false,
+  }],
+}, null, 2)}\n`);
+const finalizer = spawnSync(process.execPath, ["scripts/repository-governance-evidence-finalizer.mjs", "--snapshot-file", snapshotFile, "--report-file", finalizerReportFile], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(finalizer.status, 0, `${finalizer.stdout}\n${finalizer.stderr}`);
+const finalizerReport = JSON.parse(fs.readFileSync(finalizerReportFile, "utf8"));
+assert.equal(finalizerReport.converged, true);
+assert.equal(finalizerReport.failed_or_missing_required_count, 0);
+assert.equal(finalizerReport.producers.find((entry) => entry.id === requiredProducer.id)?.identity_ok, true);
+assert.equal(finalizerReport.producers.find((entry) => entry.id === requiredProducer.id)?.run_id, 1);
+
 fs.rmSync(dir, { recursive: true, force: true });
-console.log(JSON.stringify({ ok: true, contract: constitution.contract, semantic_graph: true, inverse_deletion_closure: true, dynamic_policy_resolver: true, workflow_surface_ratchet: true, trusted_evidence_registry: true, traversal_hardening: true, canonical_route_authority: true }));
+console.log(JSON.stringify({ ok: true, contract: constitution.contract, semantic_graph: true, inverse_deletion_closure: true, dynamic_policy_resolver: true, workflow_surface_ratchet: true, trusted_evidence_registry: true, canonical_producer_id_finalization: true, traversal_hardening: true, canonical_route_authority: true }));
