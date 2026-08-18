@@ -118,7 +118,7 @@ jobs:
             }' > "$output"
 
       - name: Upload Staging live certification evidence
-        uses: actions/upload-artifact@ea165f8d65b5e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: staging-live-certification-${{ inputs.expected_candidate_sha }}
           path: ${{ runner.temp }}/staging-live-certification/evidence.json
