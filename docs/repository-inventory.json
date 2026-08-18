@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7176,
-    "bytes": 69953639,
-    "lines": 1642868,
+    "files": 7177,
+    "bytes": 69957859,
+    "lines": 1642954,
     "directories": 266,
     "categories": 13
   },
@@ -15,7 +15,7 @@
       "documentation": 1908,
       "api-runtime": 1440,
       "database-migrations": 783,
-      "root-and-other": 288,
+      "root-and-other": 289,
       "api-contracts": 191,
       "ci-workflows": 169,
       "ci-config": 112,
@@ -30,7 +30,7 @@
       ".mjs": 1696,
       ".js": 992,
       ".sql": 798,
-      ".json": 795,
+      ".json": 796,
       ".yml": 172,
       ".yaml": 119,
       ".ps1": 17,
@@ -65,7 +65,7 @@
       "docs": 1812,
       "specs": 880,
       ".github": 281,
-      ".changes": 259,
+      ".changes": 260,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -8466,6 +8466,17 @@
       "generated": false
     },
     {
+      "path": ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 4068,
+      "lines": 84,
+      "sha256": "ea0926152eea2e8fa43d4e077263fd01a74bb2341689fdc5273fc848f725c9bb",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".changes/e2e/staging-oauth-act-as-user-maintenance-20260816.json",
       "category": "root-and-other",
       "extension": ".json",
@@ -9613,9 +9624,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 10819,
-      "lines": 192,
-      "sha256": "872e9e4ffd3da5cec5e7d68392fe43da914d94727b7fb94fa8bbb1940154878a",
+      "bytes": 10896,
+      "lines": 193,
+      "sha256": "3a1dd1be2ae9a9c90ce495ee936406ff727207b9f08402b4789197f7124b6344",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37179,9 +37190,9 @@
       "path": "http-generic-api/config/repository-governance-constitution.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 8318,
-      "lines": 115,
-      "sha256": "54055ad4dca8314e7d2abb7f10748804a414a614c3b86ad730ab69cb2073b992",
+      "bytes": 8393,
+      "lines": 116,
+      "sha256": "16ce8cd036368a5fd8364e334e4d99528594e0140594c40bafeeb7250b689423",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82292,7 +82303,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "a92654cfa40f36743bc5a600c4c173ee8715526b11c4e318c7d51b7eb0ae572c",
+      "sha256": "655afd77c55d95fd0b915de9a93fd6292a8b7f69751377760d8a12cca60d55b9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -82853,7 +82864,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "3987f7e5685c15864929558b7149cdea4869b6895fade728a62b9c796c013ff9",
+      "sha256": "0ea615886d4c733376fce9462faecd37b426b872d25823df72d762b2921fb679",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83689,7 +83700,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "58dec771c9d98e0550a87eca66d15caa67246c020c8321b60ed7cb0c01c46c49",
+      "sha256": "0588ccf6875366d69cda4acf4335a70093eebefbdf9c00b3d6bec699d34a1261",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83931,7 +83942,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "5a0de0627c13490519c3b51c1d942406303cf5d919351ccf3cd9d31106933a29",
+      "sha256": "234f7cba07d0907193bc8b27328efe0d97200be284977bc5c76af6ea54f1753e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84250,7 +84261,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "3210f19f4e7ef914d874f1a33e985a336eb1c5afcd28016124d7d439e3a90f3c",
+      "sha256": "21a73156420b424a05c51aa18555c85931c7d65c20d6552bd7cd954c8119c0c4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84536,7 +84547,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "7333d6f6e221968c545e3199112e959d9752cb2200d53d806ffbc17e50274454",
+      "sha256": "9b8cf91de2866e10befd9f11b57ffbeb032167f8339ac6b15778c247224785d8",
       "mode": "644",
       "executable": false,
       "generated": false
