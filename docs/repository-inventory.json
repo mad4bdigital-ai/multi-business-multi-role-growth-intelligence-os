@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7176,
-    "bytes": 69964572,
-    "lines": 1644455,
+    "bytes": 69965234,
+    "lines": 1644470,
     "directories": 266,
     "categories": 13
   },
@@ -71202,9 +71202,9 @@
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7642,
-      "lines": 194,
-      "sha256": "c84523ae1e5108f0bdd548fd19876ef86fcfaedd9893a3f141c84ce5e73e544c",
+      "bytes": 8304,
+      "lines": 209,
+      "sha256": "0d67d512d2286b467f7510a6b21230b2d9adb152dee6807414b3c73d10978594",
       "mode": "644",
       "executable": false,
       "generated": false
