@@ -5,15 +5,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
-    paths:
-      - ".github/workflows/**"
-      - "http-generic-api/governedMigrationReconciliationRuntime.js"
-      - "http-generic-api/scripts/**/*.mjs"
-      - "http-generic-api/scripts/taxonomy/*.json"
-      - "http-generic-api/test-automation-overlap-analyzer.mjs"
-      - "http-generic-api/test-governed-migration-reconciliation-runtime-lock.mjs"
-      - "http-generic-api/package.json"
-      - "docs/automation-overlap-governance.md"
   push:
     branches: [main]
     paths:
