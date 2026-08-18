@@ -42,6 +42,7 @@
       "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
       "http-generic-api/test-e2e-contract-reference-integrity.mjs",
       "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance-contract.mjs",
+      "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
       "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
       "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
       "scripts/derived-state-closure.mjs",
