@@ -50,6 +50,15 @@ function evaluate(root, base, head, baseRef = "main") {
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-maintenance-evaluator-"));
 fs.mkdirSync(path.join(root, ".specify"), { recursive: true });
 fs.copyFileSync(POLICY, path.join(root, ".specify", "e2e-phase-governance.json"));
+writeJson(path.join(root, ".github", "derived-state-governance.json"), {
+  repository_governance: {
+    constitution: "http-generic-api/config/repository-governance-constitution.json",
+  },
+});
+writeJson(path.join(root, "http-generic-api", "config", "repository-governance-constitution.json"), {
+  contract: "mad4b.repository-governance-constitution.v1",
+  control_plane_paths: [],
+});
 fs.mkdirSync(path.join(root, "http-generic-api", "example"), { recursive: true });
 fs.writeFileSync(path.join(root, "pass.mjs"), "process.exit(0);\n");
 fs.writeFileSync(path.join(root, "http-generic-api", "example", "service.mjs"), "export const version = 1;\n");

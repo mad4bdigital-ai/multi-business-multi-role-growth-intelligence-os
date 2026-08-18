@@ -206,9 +206,7 @@ function validateContract(contract, contractPath, context) {
   if (!validText(contract?.title)) addFinding(findings, "missing_feature_title", { feature_key: featureKey, contract_path: contractPath });
   if (!policy.delivery_modes.includes(contract?.delivery_mode)) addFinding(findings, "invalid_delivery_mode", { feature_key: featureKey, value: contract?.delivery_mode });
   if (phaseRank(contract?.current_phase, policy) < 0) addFinding(findings, "invalid_current_phase", { feature_key: featureKey, value: contract?.current_phase });
-  if (!contract?.merge_contract || contract.merge_contract.minimum_phase !== "mvp") {
-    addFinding(findings, "minimum_merge_phase_must_be_mvp", { feature_key: featureKey });
-  }
+  if (!contract?.merge_contract || contract.merge_contract.minimum_phase !== "mvp") addFinding(findings, "minimum_merge_phase_must_be_mvp", { feature_key: featureKey });
   const scopePatterns = contract?.scope?.include;
   if (!Array.isArray(scopePatterns) || !scopePatterns.length) addFinding(findings, "missing_scope_include", { feature_key: featureKey });
   for (const pattern of scopePatterns || []) {
@@ -228,44 +226,41 @@ function validateContract(contract, contractPath, context) {
       addFinding(findings, "unknown_phase", { feature_key: featureKey, phase: phase?.id });
       continue;
     }
-    if (!["implemented", "planned", "blocked", "not_applicable"].includes(phase?.status)) {
-      addFinding(findings, "invalid_phase_status", { feature_key: featureKey, phase: phase?.id, status: phase?.status });
-    }
+    if (!["implemented", "planned", "blocked", "not_applicable"].includes(phase?.status)) addFinding(findings, "invalid_phase_status", { feature_key: featureKey, phase: phase?.id, status: phase?.status });
     if (!validText(phase?.objective)) addFinding(findings, "missing_phase_objective", { feature_key: featureKey, phase: phase?.id });
     if (phase?.status === "implemented") {
-      if (!Array.isArray(phase.e2e_journeys) || !phase.e2e_journeys.length) {
-        addFinding(findings, "implemented_phase_has_no_e2e_journey", { feature_key: featureKey, phase: phase?.id });
-      }
+      if (!Array.isArray(phase.e2e_journeys) || !phase.e2e_journeys.length) addFinding(findings, "implemented_phase_has_no_e2e_journey", { feature_key: featureKey, phase: phase?.id });
       for (const journey of phase.e2e_journeys || []) validateJourney(journey, { findings, featureKey, phaseId: phase.id, root, policy });
     }
-    if (phase?.status === "blocked" && (!Array.isArray(phase.blockers) || !phase.blockers.length)) {
-      addFinding(findings, "blocked_phase_has_no_blockers", { feature_key: featureKey, phase: phase?.id });
-    }
+    if (phase?.status === "blocked" && (!Array.isArray(phase.blockers) || !phase.blockers.length)) addFinding(findings, "blocked_phase_has_no_blockers", { feature_key: featureKey, phase: phase?.id });
   }
   const current = phases.find((phase) => phase?.id === contract?.current_phase);
-  if (policy.require_current_phase_implemented && current?.status !== "implemented") {
-    addFinding(findings, "current_phase_not_implemented", { feature_key: featureKey, current_phase: contract?.current_phase, status: current?.status });
-  }
-  if (policy.require_mvp_or_later_for_merge && phaseRank(contract?.current_phase, policy) < phaseRank("mvp", policy)) {
-    addFinding(findings, "current_phase_below_mvp", { feature_key: featureKey, current_phase: contract?.current_phase });
-  }
+  if (policy.require_current_phase_implemented && current?.status !== "implemented") addFinding(findings, "current_phase_not_implemented", { feature_key: featureKey, current_phase: contract?.current_phase, status: current?.status });
+  if (policy.require_mvp_or_later_for_merge && phaseRank(contract?.current_phase, policy) < phaseRank("mvp", policy)) addFinding(findings, "current_phase_below_mvp", { feature_key: featureKey, current_phase: contract?.current_phase });
   const mvp = phases.find((phase) => phase?.id === "mvp");
-  if (policy.require_mvp_or_later_for_merge && mvp?.status !== "implemented") {
-    addFinding(findings, "mvp_not_implemented", { feature_key: featureKey, status: mvp?.status });
-  }
+  if (policy.require_mvp_or_later_for_merge && mvp?.status !== "implemented") addFinding(findings, "mvp_not_implemented", { feature_key: featureKey, status: mvp?.status });
   const contractRuntimeFiles = changedFiles.filter((file) => matchesAny(file, policy.runtime_patterns));
   const covered = contractRuntimeFiles.filter((file) => (scopePatterns || []).some((pattern) => matchesPattern(file, pattern)));
-  return {
-    featureKey,
-    contractPath,
-    contract,
-    currentPhase: current || null,
-    coveredRuntimeFiles: covered,
-    digest: sha256(JSON.stringify(contract))
-  };
+  return { featureKey, contractPath, contract, currentPhase: current || null, coveredRuntimeFiles: covered, digest: sha256(JSON.stringify(contract)) };
 }
 
-function discoverContractPaths(policy, changedFiles) {
+function walkJson(root, relativeDirectory) {
+  const start = path.join(root, relativeDirectory);
+  if (!fs.existsSync(start)) return [];
+  const files = [];
+  const visit = (absolute, relative) => {
+    for (const entry of fs.readdirSync(absolute, { withFileTypes: true })) {
+      const nextAbsolute = path.join(absolute, entry.name);
+      const nextRelative = normalize(path.posix.join(relative, entry.name));
+      if (entry.isDirectory()) visit(nextAbsolute, nextRelative);
+      else if (entry.isFile() && entry.name.endsWith(".json")) files.push(nextRelative);
+    }
+  };
+  visit(start, normalize(relativeDirectory));
+  return files;
+}
+
+function directContractPaths(policy, changedFiles) {
   const paths = new Set();
   const changedSpecs = new Set(changedFiles.map((file) => specKeyFromFile(file, policy)).filter(Boolean));
   for (const feature of changedSpecs) paths.add(contractPathForSpec(feature, policy));
@@ -273,7 +268,32 @@ function discoverContractPaths(policy, changedFiles) {
     if (file.endsWith(`/${policy.spec_contract_file}`) || file === policy.spec_contract_file) paths.add(file);
     if (file.startsWith(`${normalize(policy.non_spec_contract_root)}/`) && file.endsWith(".json")) paths.add(file);
   }
+  return paths;
+}
+
+function allRegisteredContractPaths(root, policy) {
+  const paths = new Set(walkJson(root, normalize(policy.non_spec_contract_root)).filter((file) => file.endsWith(".json")));
+  const specsRoot = path.join(root, normalize(policy.spec_root));
+  if (fs.existsSync(specsRoot)) {
+    for (const entry of fs.readdirSync(specsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const relative = contractPathForSpec(entry.name, policy);
+      if (fs.existsSync(path.join(root, relative))) paths.add(relative);
+    }
+  }
   return [...paths].sort();
+}
+
+function reverseScopeAffectedContractPaths(root, policy, changedFiles) {
+  const affected = new Set();
+  for (const contractPath of allRegisteredContractPaths(root, policy)) {
+    try {
+      const contract = readJson(path.join(root, contractPath));
+      const scope = Array.isArray(contract?.scope?.include) ? contract.scope.include : [];
+      if (changedFiles.some((file) => scope.some((pattern) => matchesPattern(file, pattern)))) affected.add(contractPath);
+    } catch {}
+  }
+  return affected;
 }
 
 export function evaluateRepository(options = {}) {
@@ -283,16 +303,21 @@ export function evaluateRepository(options = {}) {
   const classification = classifyChanges(changedFiles, policy);
   const findings = [];
   const contracts = [];
-  if (classification.changeClass === "feature") {
-    const contractPaths = discoverContractPaths(policy, changedFiles);
-    if (!contractPaths.length) addFinding(findings, "feature_change_missing_e2e_phase_contract");
+  const directPaths = directContractPaths(policy, changedFiles);
+  const reversePaths = reverseScopeAffectedContractPaths(root, policy, changedFiles);
+  const contractPaths = [...new Set([...directPaths, ...reversePaths])].sort();
+  const shouldEvaluate = !["empty", "docs_only"].includes(classification.changeClass);
+
+  if (shouldEvaluate) {
+    if (classification.changeClass === "feature" && !contractPaths.length) addFinding(findings, "feature_change_missing_e2e_phase_contract");
     for (const contractPath of contractPaths) {
       const absolute = path.join(root, contractPath);
       if (!fs.existsSync(absolute)) {
         addFinding(findings, "missing_spec_e2e_phase_contract", { contract_path: contractPath });
         continue;
       }
-      if (policy.require_changed_contract && !changedFiles.includes(contractPath)) {
+      const directSpecOwnership = directPaths.has(contractPath) && !changedFiles.includes(contractPath) && contractPath.startsWith(`${normalize(policy.spec_root)}/`);
+      if (classification.changeClass === "feature" && policy.require_changed_contract && directSpecOwnership) {
         addFinding(findings, "e2e_phase_contract_not_changed_with_feature", { contract_path: contractPath });
       }
       try {
@@ -301,13 +326,14 @@ export function evaluateRepository(options = {}) {
         addFinding(findings, "invalid_e2e_phase_contract_json", { contract_path: contractPath, message: error.message });
       }
     }
-    if (policy.require_all_runtime_changes_covered) {
+    if (classification.changeClass === "feature" && policy.require_all_runtime_changes_covered) {
       const uncovered = classification.runtimeFiles.filter((file) => !contracts.some((contract) => contract.coveredRuntimeFiles.includes(file)));
       for (const file of uncovered) addFinding(findings, "runtime_change_not_covered_by_e2e_contract", { file });
     }
   }
+
   const report = {
-    schema_version: 1,
+    schema_version: 2,
     policy_key: policy.policy_key,
     enforcement_mode: policy.enforcement_mode,
     ok: findings.length === 0,
@@ -315,6 +341,8 @@ export function evaluateRepository(options = {}) {
     changed_files: changedFiles,
     runtime_files: classification.runtimeFiles,
     spec_files: classification.specFiles,
+    impacted_contracts: contractPaths,
+    reverse_scope_affected_contracts: [...reversePaths].sort(),
     contracts: contracts.map((entry) => ({
       feature_key: entry.featureKey,
       contract_path: entry.contractPath,
@@ -391,12 +419,7 @@ export function executePhaseTests(evaluation, options = {}) {
       exit_code: result.error ? 1 : (result.status ?? 1),
       duration_ms: Date.now() - startedAt,
       ...(result.error ? { error: redactDiagnosticOutput(result.error.message) } : {}),
-      ...(failed ? {
-        diagnostic: {
-          stdout: buildDiagnosticStream(result.stdout),
-          stderr: buildDiagnosticStream(result.stderr)
-        }
-      } : {})
+      ...(failed ? { diagnostic: { stdout: buildDiagnosticStream(result.stdout), stderr: buildDiagnosticStream(result.stderr) } } : {})
     });
     if (failed) break;
   }
@@ -404,94 +427,7 @@ export function executePhaseTests(evaluation, options = {}) {
     ok: results.length === tests.length && results.every((row) => row.status === "passed"),
     test_count: tests.length,
     results,
-    diagnostics: {
-      capture_mode: "bounded_redacted_failure_tail",
-      max_chars_per_stream: 12_000,
-      job_logs_role: "diagnostic_only"
-    },
+    diagnostics: { capture_mode: "bounded_redacted_failure_tail", max_chars_per_stream: 12_000, job_logs_role: "diagnostic_only" },
     secrets_included: false
   };
 }
-
-function writeAtomic(file, data) {
-  if (!file) return;
-  const resolved = path.resolve(file);
-  fs.mkdirSync(path.dirname(resolved), { recursive: true });
-  const temporary = `${resolved}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, `${JSON.stringify(data, null, 2)}\n`);
-  fs.renameSync(temporary, resolved);
-}
-
-function appendSummary(report, execution = null) {
-  const summary = process.env.GITHUB_STEP_SUMMARY;
-  if (!summary) return;
-  const lines = [
-    "## E2E Phase Governance",
-    "",
-    `- Result: **${report.ok && (!execution || execution.ok) ? "PASS" : "FAIL"}**`,
-    `- Change class: \`${report.change_class}\``,
-    `- Contracts: ${report.contracts.length}`,
-    `- Findings: ${report.findings.length}`
-  ];
-  for (const contract of report.contracts) lines.push(`- ${contract.feature_key}: \`${contract.current_phase}\` (${contract.current_phase_status})`);
-  if (execution) lines.push(`- Executed phase tests: ${execution.test_count}`);
-  if (report.findings.length) {
-    lines.push("", "### Blocking findings", "");
-    for (const finding of report.findings.slice(0, 50)) lines.push(`- \`${finding.code}\`${finding.file ? ` — ${finding.file}` : ""}`);
-  }
-  fs.appendFileSync(summary, `${lines.join("\n")}\n`);
-}
-
-function parseArgs(argv) {
-  const options = { command: "check", base: null, head: "HEAD", reportFile: null, executionReportFile: null, root: REPO_ROOT };
-  if (argv[0] && !argv[0].startsWith("--")) options.command = argv.shift();
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    const read = () => {
-      const value = argv[index + 1];
-      if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
-      index += 1;
-      return value;
-    };
-    if (arg === "--base") options.base = read();
-    else if (arg.startsWith("--base=")) options.base = arg.slice(7);
-    else if (arg === "--head") options.head = read();
-    else if (arg.startsWith("--head=")) options.head = arg.slice(7);
-    else if (arg === "--report-file") options.reportFile = read();
-    else if (arg.startsWith("--report-file=")) options.reportFile = arg.slice(14);
-    else if (arg === "--execution-report-file") options.executionReportFile = read();
-    else if (arg.startsWith("--execution-report-file=")) options.executionReportFile = arg.slice(24);
-    else if (arg === "--root") options.root = path.resolve(read());
-    else if (arg.startsWith("--root=")) options.root = path.resolve(arg.slice(7));
-    else if (arg === "--ci" || arg === "--changed") {}
-    else throw new Error(`Unknown argument: ${arg}`);
-  }
-  return options;
-}
-
-function main() {
-  const options = parseArgs(process.argv.slice(2));
-  const evaluation = evaluateRepository(options);
-  writeAtomic(options.reportFile, evaluation.report);
-  if (!evaluation.report.ok) {
-    appendSummary(evaluation.report);
-    console.error(JSON.stringify(evaluation.report, null, 2));
-    process.exit(1);
-  }
-  let execution = null;
-  if (options.command === "run") {
-    execution = executePhaseTests(evaluation, options);
-    writeAtomic(options.executionReportFile, execution);
-    if (!execution.ok) {
-      appendSummary(evaluation.report, execution);
-      console.error(JSON.stringify(execution, null, 2));
-      process.exit(1);
-    }
-  } else if (options.command !== "check") {
-    throw new Error(`Unknown command: ${options.command}`);
-  }
-  appendSummary(evaluation.report, execution);
-  console.log(JSON.stringify({ ...evaluation.report, execution }, null, 2));
-}
-
-if (path.resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) main();

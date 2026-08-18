@@ -1,10 +1,7 @@
 {
   "contract": "mad4b.repository-derived-state-governance.v1",
   "schema_version": 1,
-  "protected_branches": [
-    "main",
-    "Production"
-  ],
+  "protected_branches": ["main", "Production"],
   "required_check_name": "Derived State Closure",
   "max_convergence_passes": 3,
   "policy": {
@@ -17,11 +14,36 @@
     "mutation_requires_exact_head_sha": true,
     "protected_branch_mutation_forbidden": true,
     "force_push_forbidden": true,
-    "main_requires_zero_stale_registered_artifacts": true,
+    "main_requires_zero_stale_registered_artifacts": false,
+    "main_requires_zero_stale_blocking_semantic_artifacts": true,
+    "observability_artifacts_publish_post_merge_only": true,
+    "observability_premerge_mutation_forbidden": true,
     "production_requires_same_sha_closure": true,
     "production_requires_staging_eligibility": true,
     "production_requires_source_pin": true,
     "production_requires_explicit_authorization": true
+  },
+  "repository_governance": {
+    "constitution": "http-generic-api/config/repository-governance-constitution.json",
+    "policy_registry": ".github/governance/policy-registry.json",
+    "evidence_producer_registry": ".github/governance/evidence-producers.json",
+    "waiver_ledger": ".github/governance/waiver-ledger.json",
+    "closure_script": "scripts/repository-governance-closure.mjs",
+    "objection_gate": "scripts/repository-governance-objection-gate.mjs",
+    "evidence_finalizer": "scripts/repository-governance-evidence-finalizer.mjs",
+    "test": ".github/tests/repository-governance-closure.test.mjs",
+    "objection_test": ".github/tests/repository-governance-objection-gate.test.mjs",
+    "execution_mode": "same_exact_candidate_before_derived_state",
+    "dynamic_policy_mode": "declarative_registered_assertions",
+    "dynamic_objection_mode": "typed_policy_objections",
+    "unknown_surface_fail_closed": true,
+    "unknown_executable_fail_closed": true,
+    "git_native_newness_required": true,
+    "deletion_and_rename_impact_required": true,
+    "derived_dependency_dag_required": true,
+    "derived_dependency_execution_topological": true,
+    "server_enforcement_readback_workflow": ".github/workflows/github-repository-policy-readback.yml",
+    "server_enforcement_must_not_be_inferred_from_repository_files": true
   },
   "convergence": {
     "orchestration_mode": "workflow_run_one_authority_per_pass",
@@ -29,30 +51,59 @@
     "auto_merge_workflow": ".github/workflows/derived-state-converged-automerge.yml",
     "post_merge_publisher_workflow": ".github/workflows/derived-state-main-convergence-publisher.yml",
     "one_repair_authority_per_pass": true,
-    "repair_receipt_contract": "mad4b.derived-state-repair-dispatch.v1",
+    "repair_order": "derived_dependency_topological_order",
+    "repair_receipt_contract": "mad4b.derived-state-repair-dispatch.v2",
     "main_convergence_receipt_contract": "mad4b.derived-state-main-convergence.v1",
-    "automerge_receipt_contract": "mad4b.derived-state-automerge.v1",
-    "automation_control_surface_changes_require_manual_review": true,
+    "automerge_receipt_contract": "mad4b.derived-state-automerge.v2",
+    "draft_pr_repair_allowed": true,
+    "draft_pr_automerge_forbidden": true,
+    "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".changes/e2e/derived-state-closure-governance-20260815.json",
+      ".changes/e2e/e2e-contract-reference-integrity.json",
+      ".changes/e2e/repository-inventory-governed-regeneration.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+      ".github/governance/policy-registry.json",
+      ".github/governance/evidence-producers.json",
+      ".github/governance/waiver-ledger.json",
       ".github/derived-state-governance.json",
+      ".github/ops/github-repository-policy-readback.mjs",
       ".github/tests/derived-state-closure.test.mjs",
+      ".github/tests/repository-governance-closure.test.mjs",
+      ".github/tests/repository-governance-objection-gate.test.mjs",
       ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-repair-dispatch.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
       ".github/workflows/derived-state-main-convergence-publisher.yml",
-      "scripts/derived-state-closure.mjs",
+      ".github/workflows/github-repository-policy-readback.yml",
+      ".github/workflows/github-main-review-policy-live-activation.yml",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/repository-inventory-autofix-dispatch.yml",
+      ".github/workflows/repository-inventory.yml",
+      ".github/workflows/repository-evaluation.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-      ".github/workflows/spec-kit-work-map-autofix.yml"
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      ".specify/e2e-phase-governance.json",
+      "scripts/derived-state-closure.mjs",
+      "scripts/repository-governance-closure.mjs",
+      "scripts/repository-governance-objection-gate.mjs",
+      "scripts/repository-governance-evidence-finalizer.mjs",
+      "scripts/repository-inventory-verification-gate.mjs",
+      "scripts/remote-mcp-write-scope-inventory.mjs",
+      "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
+      "scripts/test-remote-mcp-write-scope-inventory.mjs"
     ],
-    "automerge_opt_out_labels": [
-      "do-not-auto-merge",
-      "manual-merge"
-    ],
-    "post_merge_publishable_recipes": [
-      "repository_inventory_refresh"
-    ],
+    "automerge_opt_out_labels": ["do-not-auto-merge", "manual-merge"],
+    "post_merge_publishable_recipes": ["repository_inventory_refresh"],
     "auto_merge_requires_current_head_convergence_receipt": true,
     "receipt_must_bind_result_head": true,
     "closure_reverification_mode": "exact_merge_candidate_workflow_dispatch"
@@ -60,158 +111,74 @@
   "artifacts": [
     {
       "artifact_id": "repository_inventory",
+      "artifact_class": "observability",
+      "merge_blocking": false,
       "recipe": "repository_inventory_refresh",
       "verifier_id": "repository_inventory_currentness",
-      "dependency_scope": [
-        {
-          "type": "git_index_shape"
-        },
-        {
-          "type": "repository_inventory_rules"
-        }
-      ],
-      "outputs": [
-        "docs/repository-inventory.json",
-        "docs/repository-inventory-summary.json",
-        "docs/repository-inventory.md"
-      ]
+      "dependency_scope": [{"type":"git_index_shape"},{"type":"repository_inventory_rules"}],
+      "outputs": ["docs/repository-inventory.json","docs/repository-inventory-summary.json","docs/repository-inventory.md"]
     },
     {
       "artifact_id": "repository_evaluation",
+      "artifact_class": "observability",
+      "merge_blocking": false,
       "recipe": "repository_inventory_refresh",
       "verifier_id": "repository_evaluation_currentness",
-      "dependency_scope": [
-        {
-          "type": "artifact",
-          "artifact_id": "repository_inventory"
-        },
-        {
-          "type": "repository_evaluation_rules"
-        }
-      ],
-      "outputs": [
-        "docs/repository-evaluation.json",
-        "docs/repository-evaluation-summary.json",
-        "docs/repository-evaluation.md"
-      ]
+      "dependency_scope": [{"type":"artifact","artifact_id":"repository_inventory"},{"type":"repository_evaluation_rules"}],
+      "outputs": ["docs/repository-evaluation.json","docs/repository-evaluation-summary.json","docs/repository-evaluation.md"]
     },
     {
       "artifact_id": "remote_mcp_write_scope_inventory",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "remote_mcp_write_scope_currentness",
+      "currentness_projection": {"mode":"semantic_projection","ignored_json_fields":["file_count"],"ignored_markdown_line_patterns":["^\\| Tracked files scanned \\|"]},
       "dependency_scope": [
-        {
-          "type": "git_index_shape",
-          "reason": "current generator materializes tracked file_count"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/routes/**/*.js"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/migrations/**/*.sql"
-        },
-        {
-          "type": "file",
-          "path": "http-generic-api/remote-mcp-scope-catalog.generated.json"
-        },
-        {
-          "type": "tracked_registry_evidence_scan",
-          "extensions": [
-            ".js",
-            ".mjs",
-            ".sql"
-          ]
-        }
+        {"type":"path_glob","pattern":"http-generic-api/routes/**/*.js"},
+        {"type":"path_glob","pattern":"http-generic-api/migrations/**/*.sql"},
+        {"type":"file","path":"http-generic-api/remote-mcp-scope-catalog.generated.json"},
+        {"type":"tracked_registry_evidence_scan","extensions":[".js",".mjs",".sql"]}
       ],
-      "outputs": [
-        "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-        "docs/remote-mcp-write-scope-inventory.md"
-      ]
+      "outputs": ["http-generic-api/remote-mcp-write-scope-inventory.generated.json","docs/remote-mcp-write-scope-inventory.md"]
     },
     {
       "artifact_id": "frontend_openapi_projection",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "recipe": "frontend_openapi_refresh",
       "verifier_id": "frontend_openapi_currentness",
       "dependency_scope": [
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/routes/**"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/openapi/**"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "canonicals/openapi/**"
-        },
-        {
-          "type": "registered_generator_contract"
-        }
+        {"type":"path_glob","pattern":"http-generic-api/routes/**"},
+        {"type":"path_glob","pattern":"http-generic-api/openapi/**"},
+        {"type":"path_glob","pattern":"canonicals/openapi/**"},
+        {"type":"registered_generator_contract"}
       ],
-      "outputs": [
-        "http-generic-api/frontend-operation-governance.generated.json",
-        "http-generic-api/frontend-surface-dispatch.generated.json",
-        "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
-      ]
+      "outputs": ["http-generic-api/frontend-operation-governance.generated.json","http-generic-api/frontend-surface-dispatch.generated.json","http-generic-api/openapi/frontend-runtime-routes.generated.yaml"]
     },
     {
       "artifact_id": "work_maps",
-      "repair_authority": {
-        "id": "spec_kit_work_map_autofix",
-        "kind": "delegated_work_map_writer",
-        "workflow": ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-        "writer_workflow": ".github/workflows/spec-kit-work-map-autofix.yml"
-      },
+      "artifact_class": "semantic",
+      "merge_blocking": true,
+      "repair_authority": {"id":"spec_kit_work_map_autofix","kind":"delegated_work_map_writer","workflow":".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml","writer_workflow":".github/workflows/spec-kit-work-map-autofix.yml"},
       "verifier_id": "work_map_currentness",
-      "dependency_scope": [
-        {
-          "type": "registered_work_map_source_universe"
-        }
-      ],
-      "outputs": [
-        "docs/work-maps/**",
-        "specs/*/work-map-integration.json"
-      ]
+      "dependency_scope": [{"type":"registered_work_map_source_universe"}],
+      "outputs": ["docs/work-maps/**","specs/*/work-map-integration.json"]
     },
     {
       "artifact_id": "portable_staging_manifest",
+      "artifact_class": "semantic",
+      "merge_blocking": true,
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "portable_staging_manifest_currentness",
-      "dependency_scope": [
-        {
-          "type": "manifest_declared_files"
-        },
-        {
-          "type": "artifact",
-          "artifact_id": "remote_mcp_write_scope_inventory"
-        }
-      ],
-      "outputs": [
-        "autopilot-portable-staging/manifest.json"
-      ]
+      "dependency_scope": [{"type":"manifest_declared_files"},{"type":"artifact","artifact_id":"remote_mcp_write_scope_inventory"}],
+      "outputs": ["autopilot-portable-staging/manifest.json"]
     }
   ],
   "server_enforcement": {
     "required_ruleset_state": "active",
-    "main": {
-      "require_pull_request": true,
-      "block_direct_push": true,
-      "block_force_push": true,
-      "dismiss_stale_approvals": true,
-      "require_conversation_resolution": true,
-      "required_checks": [
-        "Derived State Closure"
-      ]
-    },
-    "Production": {
-      "block_direct_push": true,
-      "block_force_push": true,
-      "generic_pull_request_merge_forbidden": true,
-      "promotion_path": "Governed Production Promotion",
-      "same_sha_closure_required": true
-    }
+    "activation_guard": "trusted_evidence_finalizer_and_live_readback",
+    "main": {"require_pull_request":true,"block_direct_push":true,"block_force_push":true,"dismiss_stale_approvals":true,"require_conversation_resolution":true,"required_checks":["Derived State Closure"]},
+    "Production": {"block_direct_push":true,"block_force_push":true,"generic_pull_request_merge_forbidden":true,"promotion_path":"Governed Production Promotion","same_sha_closure_required":true}
   }
 }

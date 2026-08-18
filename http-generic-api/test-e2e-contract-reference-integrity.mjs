@@ -34,20 +34,12 @@ function contract(featureKey, evidencePaths) {
             terminal_outcome: "Every implemented evidence reference resolves to a regular repository file on the candidate head.",
             steps: ["Load the contract.", "Resolve every evidence path."],
             assertions: ["Missing, deleted, non-file, or symbolic-link evidence fails closed."],
-            tests: [
-              {
-                id: `${featureKey}-test`,
-                runner: "node",
-                working_directory: ".",
-                path: "test.mjs",
-                args: [],
-              },
-            ],
-            evidence_paths: evidencePaths,
-          },
-        ],
-      },
-    ],
+            tests: [{ id: `${featureKey}-test`, runner: "node", working_directory: ".", path: "test.mjs", args: [] }],
+            evidence_paths: evidencePaths
+          }
+        ]
+      }
+    ]
   };
 }
 
@@ -62,17 +54,30 @@ writeContract(root, ".changes/e2e/valid.json", contract("valid", ["evidence/pres
 
 const valid = evaluateEvidenceIntegrity({
   root,
-  changedEntries: [{ status: "M", path: ".changes/e2e/valid.json", old_path: null }],
+  changedEntries: [{ status: "M", path: ".changes/e2e/valid.json", old_path: null }]
 });
 assert.equal(valid.ok, true);
 assert.deepEqual(valid.targeted_contracts, [".changes/e2e/valid.json"]);
 assert.equal(valid.checked_evidence[0].regular_file, true);
 assert.equal(valid.checked_evidence[0].symbolic_link, false);
+assert.equal(valid.unverified_impacted_contract_count, 0);
+
+write(root, "evidence/modified.json", "{\"version\":2}\n");
+writeContract(root, ".changes/e2e/modified-reference.json", contract("modified-reference", ["evidence/modified.json"]));
+const modifiedReference = evaluateEvidenceIntegrity({
+  root,
+  changedEntries: [{ status: "M", path: "evidence/modified.json", old_path: null }]
+});
+assert.equal(modifiedReference.ok, true);
+assert.deepEqual(modifiedReference.modified_reference_affected_contracts, [".changes/e2e/modified-reference.json"]);
+assert.deepEqual(modifiedReference.impacted_contracts, [".changes/e2e/modified-reference.json"]);
+assert.equal(modifiedReference.checked_evidence[0].modified_in_change, true);
+assert.equal(modifiedReference.unverified_impacted_contract_count, 0);
 
 writeContract(root, ".changes/e2e/missing.json", contract("missing", ["evidence/not-created.json"]));
 const missing = evaluateEvidenceIntegrity({
   root,
-  changedEntries: [{ status: "A", path: ".changes/e2e/missing.json", old_path: null }],
+  changedEntries: [{ status: "A", path: ".changes/e2e/missing.json", old_path: null }]
 });
 assert.equal(missing.ok, false);
 assert(missing.findings.some((finding) => finding.code === "missing_implemented_journey_evidence"));
@@ -82,7 +87,7 @@ writeContract(root, ".changes/e2e/deletion.json", contract("deletion", ["evidenc
 fs.unlinkSync(path.join(root, "evidence/deleted.json"));
 const deletion = evaluateEvidenceIntegrity({
   root,
-  changedEntries: [{ status: "D", path: "evidence/deleted.json", old_path: null }],
+  changedEntries: [{ status: "D", path: "evidence/deleted.json", old_path: null }]
 });
 assert.equal(deletion.ok, false);
 assert(deletion.deletion_affected_contracts.includes(".changes/e2e/deletion.json"));
@@ -92,18 +97,17 @@ writeContract(root, ".changes/e2e/retired.json", contract("retired", ["evidence/
 fs.unlinkSync(path.join(root, ".changes/e2e/retired.json"));
 const deletedContract = evaluateEvidenceIntegrity({
   root,
-  changedEntries: [{ status: "D", path: ".changes/e2e/retired.json", old_path: null }],
+  changedEntries: [{ status: "D", path: ".changes/e2e/retired.json", old_path: null }]
 });
 assert.equal(deletedContract.ok, false);
 assert.deepEqual(deletedContract.deleted_contracts, [".changes/e2e/retired.json"]);
-assert(deletedContract.findings.some((finding) =>
-  finding.code === "deleted_or_renamed_e2e_contract_requires_explicit_retirement"));
+assert(deletedContract.findings.some((finding) => finding.code === "deleted_or_renamed_e2e_contract_requires_explicit_retirement"));
 
 fs.symlinkSync("present.json", path.join(root, "evidence/symbolic.json"));
 writeContract(root, ".changes/e2e/symbolic.json", contract("symbolic", ["evidence/symbolic.json"]));
 const symbolic = evaluateEvidenceIntegrity({
   root,
-  changedEntries: [{ status: "A", path: ".changes/e2e/symbolic.json", old_path: null }],
+  changedEntries: [{ status: "A", path: ".changes/e2e/symbolic.json", old_path: null }]
 });
 assert.equal(symbolic.ok, false);
 assert(symbolic.findings.some((finding) => finding.code === "symbolic_link_evidence_not_allowed"));
@@ -111,19 +115,16 @@ assert(symbolic.findings.some((finding) => finding.code === "symbolic_link_evide
 writeContract(root, ".changes/e2e/legacy-stale.json", contract("legacy-stale", ["evidence/legacy-missing.json"]));
 const ratchet = evaluateEvidenceIntegrity({
   root,
-  changedEntries: [{ status: "M", path: "docs/unrelated.md", old_path: null }],
+  changedEntries: [{ status: "M", path: "docs/unrelated.md", old_path: null }]
 });
 assert.equal(ratchet.ok, true);
 assert.equal(ratchet.targeted_contracts.length, 0);
+assert.equal(ratchet.modified_reference_affected_contracts.length, 0);
 
 const fullAudit = evaluateEvidenceIntegrity({ root, all: true });
 assert.equal(fullAudit.ok, false);
-assert(fullAudit.findings.some((finding) =>
-  finding.code === "missing_implemented_journey_evidence"
-  && finding.contract_path === ".changes/e2e/legacy-stale.json"));
-assert(fullAudit.findings.some((finding) =>
-  finding.code === "symbolic_link_evidence_not_allowed"
-  && finding.contract_path === ".changes/e2e/symbolic.json"));
+assert(fullAudit.findings.some((finding) => finding.code === "missing_implemented_journey_evidence" && finding.contract_path === ".changes/e2e/legacy-stale.json"));
+assert(fullAudit.findings.some((finding) => finding.code === "symbolic_link_evidence_not_allowed" && finding.contract_path === ".changes/e2e/symbolic.json"));
 
 fs.rmSync(root, { recursive: true, force: true });
 console.log("E2E contract reference integrity tests passed");

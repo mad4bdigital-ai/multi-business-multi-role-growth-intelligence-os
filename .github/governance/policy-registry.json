@@ -1,0 +1,135 @@
+{
+  "contract": "mad4b.repository-governance-policy-registry.v1",
+  "schema_version": 1,
+  "execution_model": "declarative_registered_assertions",
+  "allowed_assertion_types": [
+    "metric_zero",
+    "flag_true"
+  ],
+  "objection_defaults": {
+    "severity": "blocking",
+    "waiverable": false
+  },
+  "policies": [
+    {
+      "id": "governance-authority-consistency",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Repository governance authorities must agree with the canonical constitution.",
+      "remediation": "Align every repository governance authority with the Constitution before merge.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "constitution_conflict_count"
+        }
+      ]
+    },
+    {
+      "id": "unknown-surface-gate",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Every changed path, including removed and renamed paths, must be classified.",
+      "remediation": "Register or classify the changed repository surface.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "unknown_surface_count"
+        }
+      ]
+    },
+    {
+      "id": "unknown-executable-gate",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Every changed executable surface must belong to a known repository surface class.",
+      "remediation": "Register the executable surface and its semantic class.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "unknown_executable_count"
+        }
+      ]
+    },
+    {
+      "id": "git-native-change-identity",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Add/delete/rename/copy classification must come from Git base/candidate trees.",
+      "remediation": "Use Git-native candidate identity and supported statuses.",
+      "assertions": [
+        {
+          "type": "flag_true",
+          "flag": "git_native_newness"
+        },
+        {
+          "type": "metric_zero",
+          "metric": "unsupported_git_status_count"
+        }
+      ]
+    },
+    {
+      "id": "deletion-rename-impact-closure",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Both sides of rename/copy changes and deleted historical paths must be classified.",
+      "remediation": "Register historical and target surfaces for deletes/renames/copies.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "unclassified_historical_path_count"
+        }
+      ]
+    },
+    {
+      "id": "derived-state-dag-integrity",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Registered derived-state artifact dependencies must resolve and remain acyclic.",
+      "remediation": "Repair missing dependency references or dependency cycles.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "missing_derived_dependency_count"
+        },
+        {
+          "type": "metric_zero",
+          "metric": "derived_cycle_count"
+        }
+      ]
+    },
+    {
+      "id": "control-plane-self-registration",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Every canonical governance control-plane file must be protected by the manual-review control surface.",
+      "remediation": "Register canonical control-plane paths in the convergence authority.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "unregistered_control_plane_path_count"
+        }
+      ]
+    },
+    {
+      "id": "policy-registry-integrity",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Policy registry must be uniquely keyed and use safe declarative assertion primitives.",
+      "remediation": "Repair the policy registry contract and assertion declarations.",
+      "assertions": [
+        {
+          "type": "metric_zero",
+          "metric": "policy_registry_error_count"
+        }
+      ]
+    }
+  ]
+}
