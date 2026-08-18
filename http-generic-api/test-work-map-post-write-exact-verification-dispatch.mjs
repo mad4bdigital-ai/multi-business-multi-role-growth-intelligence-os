@@ -37,10 +37,11 @@ assert.match(writerWorkflow, /\[\[ "\$\{ci_run_id\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\
 assert.match(writerWorkflow, /\[\[ "\$\{integration_run_id\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/u);
 
 const exactCiCheckout = "ref: ${{ github.event.pull_request.head.sha || github.sha }}";
+const exactCiCheckoutCount = ciWorkflow.split(exactCiCheckout).length - 1;
 assert.equal(
-  ciWorkflow.split(exactCiCheckout).length - 1,
-  4,
-  "Every load-bearing CI job must check out the exact PR head or workflow-dispatch event SHA.",
+  exactCiCheckoutCount,
+  5,
+  "Every load-bearing CI job must check out the exact PR head or workflow-dispatch event SHA; the canonical CI matrix currently has five such jobs.",
 );
 assert.ok(
   ciWorkflow.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'),
@@ -61,6 +62,6 @@ assert.doesNotMatch(
   "Work Map Integration must not use runner.temp in job-level env.",
 );
 assert.ok(integrationWorkflow.includes('repair_root="${RUNNER_TEMP}/work-map-repair-candidate"'));
-assert.ok(integrationWorkflow.includes('path: ${{ runner.temp }}/work-map-repair-candidate'));
+assert.ok(integrationWorkflow.includes('path: ${{ env.WORK_MAP_REPAIR_ROOT }}/'));
 
 console.log("Work Map post-write exact verification dispatch contract tests passed");

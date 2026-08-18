@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7187,
-    "bytes": 70085893,
-    "lines": 1645471,
+    "bytes": 70085986,
+    "lines": 1645472,
     "directories": 266,
     "categories": 13
   },
@@ -73611,9 +73611,9 @@
       "path": "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3248,
-      "lines": 67,
-      "sha256": "62c8d9f47f2bb9eeaaee56166d0d75ef745181915dc82fc60fb2992a4f41a654",
+      "bytes": 3341,
+      "lines": 68,
+      "sha256": "504cff7b917eeca9a9bc26c16c6aeafefec09cfffd6fd99523d94a6f3b54a540",
       "mode": "644",
       "executable": false,
       "generated": false
