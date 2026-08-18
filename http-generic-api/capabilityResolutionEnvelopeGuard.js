@@ -1,4 +1,3 @@
-import { getGovernancePool } from "./governanceDb.js";
 import * as runtime from "./capabilityResolutionEnvelopeGuardRuntime.js";
 
 export const extractCapabilityEnvelopeId = runtime.extractCapabilityEnvelopeId;
@@ -32,11 +31,11 @@ function invalidTransactionPoolError() {
   return error;
 }
 
-function resolveLifecycleMutationPool({
+async function resolveLifecycleMutationPool({
   writerPool = null,
   transactionPool = null,
   legacyPool = null,
-  governancePoolFactory = getGovernancePool,
+  governancePoolFactory = null,
 } = {}) {
   if (writerPool) return writerPool;
   if (transactionPool) {
@@ -44,7 +43,8 @@ function resolveLifecycleMutationPool({
     return transactionPool;
   }
   if (isExplicitLifecycleTransaction(legacyPool)) return legacyPool;
-  return governancePoolFactory();
+  if (typeof governancePoolFactory === "function") return governancePoolFactory();
+  return (await import("./governanceDb.js")).getGovernancePool();
 }
 
 /**
@@ -74,7 +74,7 @@ export async function markCapabilityEnvelopeReferenced(options = {}) {
   } = options || {};
   return runtime.markCapabilityEnvelopeReferenced({
     ...rest,
-    pool: resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
+    pool: await resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
   });
 }
 
@@ -94,7 +94,7 @@ export async function transitionCapabilityEnvelopeLifecycle(options = {}) {
   } = options || {};
   return runtime.transitionCapabilityEnvelopeLifecycle({
     ...rest,
-    pool: resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
+    pool: await resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
   });
 }
 
@@ -125,7 +125,7 @@ export async function runCapabilityEnvelopeBatchExpire(options = {}) {
   return runtime.runCapabilityEnvelopeBatchExpire({
     ...rest,
     mode: "apply",
-    pool: writerPool || getGovernancePool(),
+    pool: writerPool || (await import("./governanceDb.js")).getGovernancePool(),
   });
 }
 

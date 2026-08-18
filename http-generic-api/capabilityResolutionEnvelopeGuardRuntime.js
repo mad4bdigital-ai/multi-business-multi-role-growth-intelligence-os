@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
-import { getPool } from "./db.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
-import { resolveExactAdminResourceAuthority } from "./scripts/capability-resolution-dry-run.mjs";
+
+async function resolvePool(pool = null) {
+  if (pool) return pool;
+  return (await import("./db.js")).getPool();
+}
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
@@ -173,7 +176,7 @@ export async function resolveCapabilityExecutionEnvelope({
     });
   }
 
-  const db = pool || getPool();
+  const db = await resolvePool(pool);
   const row = await loadEnvelopeRow(db, resolvedEnvelopeId);
   if (!row) return capabilityEnvelopeFailure("capability_resolution_envelope_not_found", { envelope_id: resolvedEnvelopeId });
 
@@ -338,6 +341,7 @@ export async function resolveCapabilityExecutionEnvelope({
       });
     }
 
+    const { resolveExactAdminResourceAuthority } = await import("./scripts/capability-resolution-dry-run.mjs");
     const revalidated = resolveExactAdminResourceAuthority({
       principal: { principal_type: principalType, principal_id: principalId },
       bindings: [liveBinding],
@@ -450,7 +454,7 @@ export async function resolveCapabilityExecutionEnvelope({
 export async function markCapabilityEnvelopeReferenced({ pool = null, envelopeId = "", executionRef = "" } = {}) {
   const id = compact(envelopeId, 64);
   if (!id) return { ok: false, status: "capability_resolution_envelope_id_missing", secrets_included: false };
-  const db = pool || getPool();
+  const db = await resolvePool(pool);
   await db.query(
     `UPDATE capability_resolution_envelope_ledger
         SET execution_status = CASE WHEN execution_status = 'not_executed' THEN 'referenced' ELSE execution_status END,
@@ -503,7 +507,7 @@ export async function transitionCapabilityEnvelopeLifecycle({
     });
   }
 
-  const db = pool || getPool();
+  const db = await resolvePool(pool);
   const before = await loadEnvelopeRow(db, id);
   if (!before) return capabilityEnvelopeFailure("capability_resolution_envelope_not_found", { envelope_id: id });
   if (boolNumber(before.secrets_included)) {
@@ -659,7 +663,7 @@ export async function planCapabilityEnvelopeBatchExpire({
   maxItems = 50,
   lockRows = false,
 } = {}) {
-  const db = pool || getPool();
+  const db = await resolvePool(pool);
   const normalizedRequestedBy = compact(requestedBy, 191);
   if (!normalizedRequestedBy) {
     throw batchExpireError("capability_envelope_batch_expire_requested_by_required", "requested_by is required.", 400);
@@ -717,7 +721,7 @@ export async function runCapabilityEnvelopeBatchExpire({
   if (!CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES.includes(normalizedMode)) {
     throw batchExpireError("capability_envelope_batch_expire_mode_invalid", "mode must be dry_run or apply.", 400);
   }
-  const db = pool || getPool();
+  const db = await resolvePool(pool);
   if (normalizedMode === "dry_run") {
     const plan = await planCapabilityEnvelopeBatchExpire({ pool: db, requestedBy, expiredBefore, maxItems });
     return {
