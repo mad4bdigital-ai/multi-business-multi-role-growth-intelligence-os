@@ -25,7 +25,7 @@ test("promotion launcher keeps bounded human and AI policy review modes", () => 
 test("supporting-gate registry is the single read-only review-gate source", () => {
   assert.equal(registry.contract, "mad4b.production-promotion-supporting-gates.v1");
   assert.equal(registry.version, 1);
-  assert.equal(registry.gates.length, 6);
+  assert.equal(registry.gates.length, 7);
   assert.equal(new Set(registry.gates.map((gate) => gate.id)).size, registry.gates.length);
   for (const gate of registry.gates) {
     assert.equal(gate.required, true);

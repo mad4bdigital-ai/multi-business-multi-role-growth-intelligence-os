@@ -73,6 +73,7 @@
     ".github/governance/policy-registry.json",
     ".github/governance/evidence-producers.json",
     ".github/governance/waiver-ledger.json",
+    ".github/contracts/production-promotion-supporting-gates.v1.json",
     ".github/derived-state-governance.json",
     ".github/ops/github-repository-policy-readback.mjs",
     ".github/tests/derived-state-closure.test.mjs",
@@ -87,6 +88,8 @@
     ".github/workflows/github-main-review-policy-live-activation.yml",
     ".github/workflows/governed-production-promotion-request-launcher.yml",
     ".github/workflows/governed-generated-artifact-refresh.yml",
+    ".github/workflows/staging-live-certification.yml",
+    ".github/workflows/staging-main-deploy-eligibility.yml",
     ".github/workflows/repository-inventory-autofix-dispatch.yml",
     ".github/workflows/repository-inventory.yml",
     ".github/workflows/repository-evaluation.yml",
@@ -103,6 +106,7 @@
     "scripts/remote-mcp-write-scope-inventory.mjs",
     "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
     "scripts/test-remote-mcp-write-scope-inventory.mjs",
+    "docs/governance/production-readiness-consolidated-fix.md",
     "docs/governance/spec018-runtime-readiness-evidence-closeout.md"
   ],
   "derived_state": {"registry":".github/derived-state-governance.json","artifact_dependency_type":"artifact","missing_dependency_mode":"block","cycle_mode":"block"}
