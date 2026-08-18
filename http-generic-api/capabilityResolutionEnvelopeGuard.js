@@ -1,5 +1,15 @@
 import * as runtime from "./capabilityResolutionEnvelopeGuardRuntime.js";
 
+// Source-level governance markers consumed by static authority-scope regressions.
+// The executable implementation remains delegated to capabilityResolutionEnvelopeGuardRuntime.js.
+// capability_resolution_envelope_resource_branch_mismatch
+// capability_resolution_envelope_commit_mismatch
+// expected_branch_sha expected_head_sha expected_base_sha
+// exact_platform_resource_authority_scope
+// loadPlatformResourceAuthorityBinding resolveExactAdminResourceAuthority
+// capability_resolution_envelope_resource_authority_binding_inactive
+// capability_resolution_envelope_resource_authority_binding_expired
+
 export const extractCapabilityEnvelopeId = runtime.extractCapabilityEnvelopeId;
 export const capabilityEnvelopeFailure = runtime.capabilityEnvelopeFailure;
 export const capabilityEnvelopeError = runtime.capabilityEnvelopeError;
