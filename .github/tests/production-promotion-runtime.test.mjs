@@ -26,6 +26,8 @@ const run = (id, createdAt, status, conclusion, headSha = sha(1), event = "workf
 const root = new URL("../../", import.meta.url);
 const read = (path) => fs.readFileSync(new URL(path, root), "utf8");
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
+const constitution = JSON.parse(read("http-generic-api/config/repository-governance-constitution.json"));
+const derivedStateGovernance = JSON.parse(read(".github/derived-state-governance.json"));
 
 function evidenceInput() {
   return {
@@ -254,6 +256,15 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.doesNotMatch(rehearsal, /git push|gh pr create|gh workflow run/u);
   assert.match(rehearsalScript, /production_history_not_contained_by_main/u);
   assert.match(rehearsalScript, /stale_authorization_reusable: false/u);
+  const semanticClass = constitution.semantic_executable_classes.find((entry) => entry.id === "production_promotion_governance");
+  assert.ok(semanticClass?.patterns.includes(".github/scripts/production-promotion-*.mjs"));
+  for (const controlPath of [
+    ".github/scripts/production-promotion-rehearsal.mjs",
+    ".github/workflows/production-promotion-rehearsal.yml",
+  ]) {
+    assert.ok(constitution.control_plane_paths.includes(controlPath));
+    assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(controlPath));
+  }
   for (const workflow of [derivedClosure, stagingEligibility, stagingCertification]) {
     assert.match(workflow, /environment-impact-closure\.mjs/u, "environment impact closure must be wired into every staging/promotion readiness surface");
     assert.match(workflow, /migration compatibility closure/u, "migration compatibility must be explicit in the readiness step");
