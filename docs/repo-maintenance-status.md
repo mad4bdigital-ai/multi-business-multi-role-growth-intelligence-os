@@ -206,6 +206,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`
 - `.github/workflows/staging-admin-schema-contract.yml`
+- `.github/workflows/staging-live-certification.yml`
 - `.github/workflows/staging-main-deploy-eligibility.yml`
 - `.github/workflows/staging-openapi-governance.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
