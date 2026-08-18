@@ -83,7 +83,7 @@ function Write-ServiceFailureDiagnostics([string]$Service, [string]$ContainerId)
         Write-Host "SERVICE_HEALTH_DIAGNOSTICS: service=$Service container=$ContainerId" -ForegroundColor Red
         if (-not [string]::IsNullOrWhiteSpace($logs)) { Write-Host $logs -ForegroundColor DarkRed }
     } catch {
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "health:$Service" -Message "service diagnostics collection failed" -Data @{ service = $Service; error = $_.Exception.Message }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "health:$Service" -Message "service diagnostics collection failed" -Data @{ service = $Service; error = $_.Exception.Message }
     }
 }
 function Wait-ServiceHealthy([string[]]$ComposeArgs, [string]$Service) {
@@ -157,7 +157,7 @@ function Quarantine-KnownBackupFiles([string]$RepoPath) {
         New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
         $destination = Join-Path $backupRoot ("{0}-{1}{2}" -f $file.BaseName, (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss"), $file.Extension)
         Move-Item -LiteralPath $file.FullName -Destination $destination -Force
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "working-tree" -Message "quarantined known AutoPilot backup outside repository" -Data @{ source = $file.Name; destination = $destination }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "working-tree" -Message "quarantined known AutoPilot backup outside repository" -Data @{ source = $file.Name; destination = $destination }
     }
 }
 

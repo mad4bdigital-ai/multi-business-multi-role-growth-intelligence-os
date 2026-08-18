@@ -49,7 +49,7 @@ function Acquire-AutoPilotRunLock {
         if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Auto Pilot instance is already running; refusing overlapping execution" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Auto Pilot run lock acquired"
     } catch [System.Threading.AbandonedMutexException] {
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Auto Pilot run lock"
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Auto Pilot run lock"
     } catch {
         Fail "Unable to acquire Auto Pilot run lock: $($_.Exception.Message)"
     }

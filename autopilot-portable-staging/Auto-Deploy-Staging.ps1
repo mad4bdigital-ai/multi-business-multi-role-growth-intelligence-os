@@ -23,7 +23,7 @@ function Acquire-AutoPilotRunLock {
         if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Staging operation is already running; refusing overlapping Auto Deploy" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Staging operation lock acquired"
     } catch [System.Threading.AbandonedMutexException] {
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Staging operation lock"
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Staging operation lock"
     } catch {
         Fail "Unable to acquire Staging operation lock: $($_.Exception.Message)"
     }

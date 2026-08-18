@@ -18,7 +18,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "cb08c7765664ae661dc1e71460cc719d72ec0fb05d6e72326fd6b4c0c36c2641"
+      "sha256": "57e86077312f8b6802a11b84455e84c915e508e4bd68b6300c6f2cd889ade316"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,7 +30,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "d84bc32fe18f7da9afca17ebf6d0cca271c7a2e4adf4467d7aee9fd1e3751290"
+      "sha256": "cd7e3c3431fce99f4356510feff9bb3df1de3f3de4292f98f42a22fdfb2d576d"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "aae90bdad3b67c080c844634a2c8a8cd8fb9d22cdeec98153dcff6a4296727d4"
+      "sha256": "ca6ab932ac851418b161c8e8fbcfba66686558ed12cf17dcf8f7f91451b7e196"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
