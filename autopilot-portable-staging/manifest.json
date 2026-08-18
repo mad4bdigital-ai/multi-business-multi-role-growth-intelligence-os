@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "8b812cd704eedc495407d5f26757969fb409f1b4fb485d7dba7960d5fc2283f0"
+      "sha256": "41f4e692a0c73d2615279c3e641acd3dfad4b3ba59ce2dc4d8661eac870f271b"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "c3d158cce32a9f622c668d92c98350bb3942d4adc6df63007ff21f32e17cf5ef"
+      "sha256": "3380656a0ab0fec8b3d986cc3b0f70d3377c09379128386c32eb7124774616ee"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "81cb5c8c949037b3eaecf47b0cddbea6f5fed34d9e05b7ac19303ec69a3a28d7"
+      "sha256": "6212ed42430390d21d40d610bd1d89bde390435adf5b9298a27e0c515e882a66"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",

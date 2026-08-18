@@ -71,15 +71,39 @@ export function generateDeploymentManifest({
   ];
   const [commitSource, commitSha] = commitCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
 
+  const isStaging = [env.NODE_ENV, env.APP_ENV].some((value) => String(value || "").trim().toLowerCase() === "staging");
+  const stagingTree = String(env.STAGING_BUILD_TREE || "").trim().toLowerCase();
+  const stagingContextFileSet = String(env.STAGING_BUILD_CONTEXT_FILE_SET_SHA256 || "").trim().toLowerCase();
+  const stagingImageDigest = String(env.STAGING_APP_IMAGE_ID || "").trim().toLowerCase();
+  if (isStaging) {
+    if (!/^[0-9a-f]{40}$/.test(stagingTree)) {
+      throw new Error("Staging deployment manifest requires STAGING_BUILD_TREE exact provenance");
+    }
+    if (!/^[0-9a-f]{64}$/.test(stagingContextFileSet)) {
+      throw new Error("Staging deployment manifest requires STAGING_BUILD_CONTEXT_FILE_SET_SHA256 exact provenance");
+    }
+    if (!/^sha256:[0-9a-f]{64}$/.test(stagingImageDigest)) {
+      throw new Error("Staging deployment manifest requires STAGING_APP_IMAGE_ID content-addressed provenance");
+    }
+  }
+
   const manifest = {
     repository,
     branch,
     branch_source: branchSource,
     commit_sha: commitSha,
     commit_source: commitSource,
+    ...(isStaging ? {
+      tree_sha: stagingTree,
+      tree_source: "git_archive_exact_commit",
+      context_file_set_sha256: stagingContextFileSet,
+      context_source: "git_archive_exact_commit",
+      image_digest: stagingImageDigest,
+    } : {}),
     deployed_at: deployedAt,
     service_version: packageJson.version,
-    build_source: "git",
+    build_source: isStaging ? "portable_staging_docker_build" : "git",
+    secrets_included: false,
   };
 
   mkdirSync(dirname(outputPath), { recursive: true });
