@@ -52,7 +52,7 @@ export function generateDeploymentManifest({
   const branchCandidates = isStaging
     ? [
         ["arg:--branch", argValue(argv, "--branch")],
-        ["env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}", env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
+        [`env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}`, env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
         ["env:DEPLOY_BRANCH", env.DEPLOY_BRANCH],
         ["env:DEPLOYMENT_BRANCH", env.DEPLOYMENT_BRANCH],
         ["env:BRANCH_NAME", env.BRANCH_NAME],
@@ -62,7 +62,7 @@ export function generateDeploymentManifest({
       ]
     : [
         ["arg:--branch", argValue(argv, "--branch")],
-        ["env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}", env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
+        [`env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}`, env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
         ["env:DEPLOYMENT_BRANCH", env.DEPLOYMENT_BRANCH],
         ["env:DEPLOY_BRANCH", env.DEPLOY_BRANCH],
         ["env:BRANCH_NAME", env.BRANCH_NAME],
