@@ -27,9 +27,11 @@ assert.equal(constitution.authority.semantic_surface_registry, paths.semantic);
 assert.equal(constitution.authority.verifier_registry, paths.verifiers);
 assert.equal(constitution.authority.evidence_identity, "source_base_merge_candidate_executed_sha");
 assert.equal(constitution.authority.server_enforcement_attestation, "trusted_github_app_exact_candidate_required_before_activation");
+assert.equal(constitution.authority.attestation_source_provenance, "github_actions_run_artifact_digest_server_verified");
 assert.deepEqual(constitution.branches.main.required_checks, ["Derived State Closure"]);
 assert.deepEqual(constitution.branches.Production.required_checks, ["Governed Production Promotion"]);
 assert.equal(constitution.branches.Production.generic_pull_request_merge_forbidden, true);
+assert.ok(constitution.semantic_executable_classes.some((entry) => entry.id === "production_promotion_governance"));
 assert.equal(derived.repository_governance.semantic_surface_registry, constitution.authority.semantic_surface_registry);
 assert.equal(derived.repository_governance.verifier_registry, constitution.authority.verifier_registry);
 assert.equal(derived.repository_governance.evidence_producer_registry, constitution.authority.evidence_producer_registry);
@@ -55,6 +57,19 @@ for (const controlPath of constitution.control_plane_paths) {
   assert.equal(evaluation.report.change_class, "governance_only", `E2E misclassification: ${controlPath}`);
 }
 for (const file of ["scripts/repository-governance-closure.mjs", "scripts/repository-governance-objection-gate.mjs", "scripts/repository-governance-evidence-finalizer.mjs"]) assert.equal(fs.existsSync(path.join(root, file)), true);
+
+const route = fs.readFileSync(path.join(root, "http-generic-api/routes/repositoryAutomationRoutes.js"), "utf8");
+assert.match(route, /repository_policy_canonical_controller_required/u);
+assert.match(route, /\/admin\/repository-automation\/policy-controller/u);
+
+const selfTest = spawnSync(process.execPath, ["scripts/repository-governance-closure.mjs", "--self-test"], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(selfTest.status, 0, `${selfTest.stdout}\n${selfTest.stderr}`);
+const selfReport = JSON.parse(selfTest.stdout.trim());
+assert.equal(selfReport.nul_safe_git_fields, true);
+assert.equal(selfReport.repository_relative_dependencies, true);
+assert.equal(selfReport.prototype_safe_policy_paths, true);
+assert.equal(selfReport.glob_compiler, true);
+
 const sha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim();
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "repository-governance-closure-test-")), reportFile = path.join(dir, "report.json");
 const check = spawnSync(process.execPath, ["scripts/repository-governance-closure.mjs", "--expected-sha", sha, "--base-sha", sha, "--candidate-kind", "self_test", "--report-file", reportFile], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
@@ -66,4 +81,4 @@ assert.equal(report.flags.workflow_surface_ratchet_enforced, true);
 assert.deepEqual(report.semantic_graph.dangling_references, []);
 assert.equal(report.server_enforcement.live_readback_performed_by_this_verifier, false);
 fs.rmSync(dir, { recursive: true, force: true });
-console.log(JSON.stringify({ ok: true, contract: constitution.contract, semantic_graph: true, inverse_deletion_closure: true, dynamic_policy_resolver: true, workflow_surface_ratchet: true, trusted_evidence_registry: true }));
+console.log(JSON.stringify({ ok: true, contract: constitution.contract, semantic_graph: true, inverse_deletion_closure: true, dynamic_policy_resolver: true, workflow_surface_ratchet: true, trusted_evidence_registry: true, traversal_hardening: true, canonical_route_authority: true }));
