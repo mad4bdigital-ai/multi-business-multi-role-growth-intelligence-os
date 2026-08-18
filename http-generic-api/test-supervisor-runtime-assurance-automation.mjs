@@ -51,6 +51,9 @@ for (const marker of [
   "Pin exact main source and safe target branch",
   "EXPECTED_HEAD_SHA",
   "TARGET_BRANCH=\"docs-agent/${EXPECTED_HEAD_SHA}\"",
+  "stale_dispatch=true",
+  "stale=true",
+  "A newer main push owns follow-up generation.",
   "peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6",
   "docs/auto-docs-agent/**",
   "Review is required",
@@ -61,6 +64,9 @@ for (const marker of [
 assert.match(docsAgentMainFollowup, /permissions:\s+[\s\S]*contents: write/);
 assert.match(docsAgentMainFollowup, /test "\$\(git rev-parse HEAD\)" = "\$\{EXPECTED_HEAD_SHA\}"/);
 assert.match(docsAgentMainFollowup, /test "\$\{current_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/);
+assert.match(docsAgentMainFollowup, /stale_dispatch=true/);
+assert.match(docsAgentMainFollowup, /stale=true/);
+assert.match(docsAgentMainFollowup, /steps\.target\.outputs\.stale != 'true'/);
 assert.match(docsAgentMainFollowup, /main\|Production\)/);
 assert.doesNotMatch(docsAgentMainFollowup, /docs\/work-maps/);
 assert.doesNotMatch(docsAgentMainFollowup, /gh pr merge/);
