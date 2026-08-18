@@ -10,19 +10,19 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Decision | **warn** |
 | Blocking gaps | 0 |
 | Warning or informational gaps | 2 |
-| Input fingerprint | `f2ee374a8fc27fc6d1297722736063976977a8e8bfafc5e64796371d1cde9ee2` |
+| Input fingerprint | `7c1298e609228bcdc4fd217aa16273cd4b2988864617504eb8e8784a3b50fbba` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
-| Inventory files | 7,190 |
-| Inventory bytes | 70,117,455 |
+| Inventory files | 7,193 |
+| Inventory bytes | 70,142,976 |
 | Workflows | 170 |
 | Workflows without explicit permissions | 0 |
 | Broad write permission matches | 0 |
 | Unpinned action references | 0 |
-| Automation overlap check | passed |
+| Automation overlap check | not-run |
 | Workflow budget | 160 |
 | Workflow budget warning | 155 |
 | Workflow budget status | exceeded |
@@ -36,11 +36,11 @@ This report is generated from the dynamic Repository Inventory and deterministic
 
 | Check | Status | Exit code |
 |---|---|---:|
-| `inventory-check` | passed | 0 |
-| `inventory-selftest` | passed | 0 |
-| `typecheck` | passed | 0 |
-| `root-tests` | passed | 0 |
-| `automation-overlap` | passed | 0 |
+| `inventory-check` | not-run | — |
+| `inventory-selftest` | not-run | — |
+| `typecheck` | not-run | — |
+| `root-tests` | not-run | — |
+| `automation-overlap` | not-run | — |
 
 ## Gaps
 

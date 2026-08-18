@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "f2ee374a8fc27fc6d1297722736063976977a8e8bfafc5e64796371d1cde9ee2",
+  "inputFingerprint": "7c1298e609228bcdc4fd217aa16273cd4b2988864617504eb8e8784a3b50fbba",
   "inventory": {
-    "files": 7190,
-    "bytes": 70117455,
+    "files": 7193,
+    "bytes": 70142976,
     "directories": 266,
     "categories": 13
   },
@@ -24,7 +24,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7153,
+      "trackedTextFilesScanned": 7156,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -120,8 +120,8 @@
         "run",
         "inventory:check"
       ],
-      "status": "passed",
-      "exitCode": 0
+      "status": "not-run",
+      "exitCode": null
     },
     {
       "id": "inventory-selftest",
@@ -130,8 +130,8 @@
         "run",
         "inventory:test"
       ],
-      "status": "passed",
-      "exitCode": 0
+      "status": "not-run",
+      "exitCode": null
     },
     {
       "id": "typecheck",
@@ -140,8 +140,8 @@
         "run",
         "typecheck"
       ],
-      "status": "passed",
-      "exitCode": 0
+      "status": "not-run",
+      "exitCode": null
     },
     {
       "id": "root-tests",
@@ -151,8 +151,8 @@
         "--",
         "--runInBand"
       ],
-      "status": "passed",
-      "exitCode": 0
+      "status": "not-run",
+      "exitCode": null
     },
     {
       "id": "automation-overlap",
@@ -161,8 +161,8 @@
         "http-generic-api/scripts/automation-overlap-analyzer.mjs",
         "--check"
       ],
-      "status": "passed",
-      "exitCode": 0
+      "status": "not-run",
+      "exitCode": null
     }
   ],
   "gaps": [
@@ -175,7 +175,7 @@
       "evidence": {
         "workflowCount": 170,
         "maxWorkflowCount": 160,
-        "overlapCheck": "passed"
+        "overlapCheck": "not-run"
       },
       "impact": "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
       "recommendation": "Keep the workflow count within the declared budget and maintain a passing automation overlap check.",
