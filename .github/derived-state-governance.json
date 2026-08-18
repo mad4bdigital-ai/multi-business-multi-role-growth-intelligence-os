@@ -127,6 +127,8 @@
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
       ".specify/e2e-phase-governance.json",
+      ".specify/schemas/e2e-phases.schema.json",
+      ".specify/spec-kit-work-map-integration-policy.json",
       "scripts/derived-state-closure.mjs",
       "scripts/repository-governance-closure.mjs",
       "scripts/repository-governance-objection-gate.mjs",
