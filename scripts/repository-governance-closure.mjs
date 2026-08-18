@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const CONTRACT = "mad4b.repository-governance-closure.v2";
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const SUPPORTED_ASSERTIONS = new Set(["metric_zero", "flag_true", "value_equals", "collection_empty", "number_compare", "forall"]);
+const FORBIDDEN_PATH_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const constitutionPath = path.join(root, "http-generic-api/config/repository-governance-constitution.json");
 const policyRegistryPath = path.join(root, ".github/governance/policy-registry.json");
@@ -21,12 +22,20 @@ function arg(name, fallback = null) {
   if (!value || value.startsWith("--")) throw new Error(`--${name} requires a value`);
   return value;
 }
-function git(args, { allowFailure = false } = {}) {
-  const result = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  if (result.status !== 0 && !allowFailure) throw new Error(`git ${args.join(" ")} failed: ${result.stderr || result.error?.message || "unknown"}`);
-  return { ok: result.status === 0, stdout: String(result.stdout || ""), stderr: String(result.stderr || "") };
+function git(args, { allowFailure = false, binary = false } = {}) {
+  const result = spawnSync("git", args, { cwd: root, encoding: binary ? null : "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const stderr = Buffer.isBuffer(result.stderr) ? result.stderr.toString("utf8") : String(result.stderr || "");
+  if (result.status !== 0 && !allowFailure) throw new Error(`git ${args.join(" ")} failed: ${stderr || result.error?.message || "unknown"}`);
+  const stdout = binary ? Buffer.from(result.stdout || []) : String(result.stdout || "");
+  return { ok: result.status === 0, stdout, stderr };
 }
 function gitText(args) { return git(args).stdout; }
+function gitBuffer(args) { return git(args, { binary: true }).stdout; }
+function nulFields(value) {
+  const fields = (Buffer.isBuffer(value) ? value.toString("utf8") : String(value || "")).split("\0");
+  if (fields.at(-1) === "") fields.pop();
+  return fields;
+}
 function stableUnique(values = []) { return [...new Set(values)].sort((a, b) => a.localeCompare(b)); }
 function sameSet(a = [], b = []) {
   const x = stableUnique(a), y = stableUnique(b);
@@ -51,9 +60,9 @@ function compilePathClasses(entries = []) {
 }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
 function trackedFilesAt(sha, prefix = "") {
-  const args = ["ls-tree", "-r", "--name-only", sha];
+  const args = ["ls-tree", "-r", "-z", "--name-only", sha];
   if (prefix) args.push("--", prefix);
-  return gitText(args).split("\n").filter(Boolean);
+  return nulFields(gitBuffer(args));
 }
 function readCandidateFile(file, maxBytes = 2 * 1024 * 1024) {
   const full = path.join(root, file);
@@ -83,22 +92,30 @@ function semanticFacetsFor(file, content, compiled) {
   return stableUnique(facets);
 }
 function parseChanges(baseSha, candidateSha, constitution, semanticRegistry) {
-  const output = gitText(["diff", "--name-status", "--find-renames=50%", "--find-copies=50%", baseSha, candidateSha]);
+  const fields = nulFields(gitBuffer(["diff", "--name-status", "-z", "--find-renames=50%", "--find-copies=50%", baseSha, candidateSha]));
   const supported = new Set(constitution.change_model?.supported_git_statuses || []);
   const surfaceClasses = compilePathClasses(constitution.surface_classes || []);
   const semanticClasses = compilePathClasses(constitution.semantic_executable_classes || []);
   const semanticFacets = compilePathClasses(semanticRegistry.facets || []);
   const executableExtensions = new Set(constitution.executable_extensions || []);
   const changes = [], unsupported = [], unknown = [], unknownExecutables = [], unknownSemanticExecutables = [], historical = [];
-  for (const line of output.split("\n").filter(Boolean)) {
-    const parts = line.split("\t");
-    const raw = parts[0] || "";
+  for (let i = 0; i < fields.length;) {
+    const raw = fields[i++] || "";
     const status = raw.charAt(0);
     if (!supported.has(status)) unsupported.push(raw || "missing");
     let oldPath = null, newPath = null;
-    if (status === "R" || status === "C") { oldPath = parts[1] || null; newPath = parts[2] || null; }
-    else if (status === "D") oldPath = parts[1] || null;
-    else newPath = parts[1] || null;
+    if (status === "R" || status === "C") {
+      oldPath = fields[i++] ?? null;
+      newPath = fields[i++] ?? null;
+    } else {
+      const file = fields[i++] ?? null;
+      if (status === "D") oldPath = file;
+      else newPath = file;
+    }
+    if ((status === "R" || status === "C") ? (!oldPath || !newPath) : (!oldPath && !newPath)) {
+      unsupported.push(`malformed:${raw || "missing"}`);
+      continue;
+    }
     const entries = [];
     for (const file of stableUnique([oldPath, newPath].filter(Boolean))) {
       const isHistorical = file === oldPath && ["D", "R", "C"].includes(status);
@@ -124,16 +141,22 @@ function parseChanges(baseSha, candidateSha, constitution, semanticRegistry) {
     unclassified_historical_paths: stableUnique(historical),
   };
 }
+function isRepositoryRelativePath(value) {
+  if (typeof value !== "string" || !value || value.includes("\0") || path.posix.isAbsolute(value)) return false;
+  const normalized = path.posix.normalize(value);
+  return normalized !== ".." && !normalized.startsWith("../");
+}
 function resolveRelativeImport(fromFile, specifier, tracked) {
   if (!specifier.startsWith(".")) return null;
   const base = path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier));
+  if (!isRepositoryRelativePath(base)) return { resolved: base, escaped: true };
   const candidates = [base, `${base}.js`, `${base}.mjs`, `${base}.cjs`, `${base}.ts`, `${base}.tsx`, `${base}.json`, path.posix.join(base, "index.js"), path.posix.join(base, "index.mjs"), path.posix.join(base, "index.ts")];
-  return candidates.find((candidate) => tracked.has(candidate)) || candidates[0];
+  return { resolved: candidates.find((candidate) => tracked.has(candidate)) || candidates[0], escaped: false };
 }
 function buildSemanticGraph(inventory, baseSha, semanticRegistry) {
   const maxBytes = Number(semanticRegistry.dependency_extraction?.max_file_bytes || 2 * 1024 * 1024);
   const extensionAllow = new Set(semanticRegistry.dependency_extraction?.extensions || []);
-  const tracked = new Set(gitText(["ls-files"]).split("\n").filter(Boolean));
+  const tracked = new Set(nulFields(gitBuffer(["ls-files", "-z"])));
   const deletedOrRenamed = new Set(inventory.changes.flatMap((entry) => ["D", "R"].includes(entry.status) && entry.old_path ? [entry.old_path] : []));
   const changedCurrent = new Set(inventory.changes.flatMap((entry) => entry.new_path ? [entry.new_path] : []));
   const edges = [], unresolved = [], dangling = [];
@@ -146,10 +169,12 @@ function buildSemanticGraph(inventory, baseSha, semanticRegistry) {
     while ((match = importRe.exec(content))) {
       const specifier = match[1];
       if (!specifier.startsWith(".")) continue;
-      const resolved = resolveRelativeImport(file, specifier, tracked);
-      const edge = { from: file, specifier, to: resolved, kind: "relative_module" };
-      if (tracked.has(resolved)) edges.push(edge);
-      else if (deletedOrRenamed.has(resolved)) dangling.push({ ...edge, reason: "deleted_or_renamed_target" });
+      const resolution = resolveRelativeImport(file, specifier, tracked);
+      if (!resolution) continue;
+      const edge = { from: file, specifier, to: resolution.resolved, kind: "relative_module" };
+      if (resolution.escaped) unresolved.push({ ...edge, reason: "relative_target_escapes_repository" });
+      else if (tracked.has(resolution.resolved)) edges.push(edge);
+      else if (deletedOrRenamed.has(resolution.resolved)) dangling.push({ ...edge, reason: "deleted_or_renamed_target" });
       else if (changedCurrent.has(file)) unresolved.push({ ...edge, reason: "unresolved_relative_target" });
     }
     for (const historicalPath of deletedOrRenamed) {
@@ -205,6 +230,14 @@ function validateSemanticRegistry(registry) {
   }
   return stableUnique(errors);
 }
+function dottedPathError(value) {
+  if (typeof value !== "string" || !value) return "missing";
+  if (value.includes("\0")) return "nul";
+  const segments = value.split(".");
+  if (segments.some((segment) => !segment)) return "empty_segment";
+  if (segments.some((segment) => FORBIDDEN_PATH_SEGMENTS.has(segment))) return "prototype_segment";
+  return null;
+}
 function validateRegistry(registry) {
   const errors = [];
   if (registry?.contract !== "mad4b.repository-governance-policy-registry.v1") errors.push("policy_registry_contract_mismatch");
@@ -219,6 +252,17 @@ function validateRegistry(registry) {
     for (const assertion of policy.assertions || []) {
       if (!SUPPORTED_ASSERTIONS.has(assertion?.type)) errors.push(`unsupported_assertion_type:${policy.id}:${assertion?.type || "missing"}`);
       if (!declared.has(assertion?.type)) errors.push(`undeclared_assertion_type:${policy.id}:${assertion?.type || "missing"}`);
+      if (["value_equals", "collection_empty", "number_compare", "forall"].includes(assertion?.type)) {
+        const issue = dottedPathError(assertion.path);
+        if (issue) errors.push(`assertion_path_invalid:${policy.id}:${issue}`);
+      }
+      if (assertion?.type === "forall") {
+        const issue = dottedPathError(assertion.predicate?.field);
+        if (issue) errors.push(`predicate_field_invalid:${policy.id}:${issue}`);
+        if (assertion.predicate?.operator === "matches") {
+          try { new RegExp(assertion.predicate?.pattern, "u"); } catch { errors.push(`predicate_pattern_invalid:${policy.id}`); }
+        }
+      }
     }
   }
   return stableUnique(errors);
@@ -243,7 +287,15 @@ function authorityConflicts(constitution, derived) {
   return stableUnique(conflicts);
 }
 function getPath(value, dotted) {
-  return String(dotted || "").split(".").filter(Boolean).reduce((current, key) => current?.[key], value);
+  const raw = String(dotted || "");
+  if (dottedPathError(raw)) return undefined;
+  let current = value;
+  for (const key of raw.split(".")) {
+    if (current === null || current === undefined || (typeof current !== "object" && typeof current !== "function")) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(current, key)) return undefined;
+    current = current[key];
+  }
+  return current;
 }
 function predicatePass(item, predicate = {}) {
   const value = getPath(item, predicate.field || "");
@@ -279,6 +331,34 @@ function evaluatePolicies(registry, context) {
 }
 function workflowCountAt(sha) {
   return trackedFilesAt(sha, ".github/workflows").filter((file) => /\.ya?ml$/u.test(file)).length;
+}
+function selfTest() {
+  const check = (condition, message) => { if (!condition) throw new Error(`self-test failed: ${message}`); };
+  const recursive = globRegex("a/**/*.js");
+  check(recursive.test("a/x.js"), "**/ must match zero directories");
+  check(recursive.test("a/b/c.js"), "**/ must match nested directories");
+  check(!recursive.test("a/b/c.ts"), "glob extension must remain bounded");
+  const weird = nulFields(Buffer.from("a\nb\0x\ty\0", "utf8"));
+  check(weird.length === 2 && weird[0] === "a\nb" && weird[1] === "x\ty", "NUL parser must preserve newline/tab filenames");
+  const value = { safe: { value: 7 } };
+  check(getPath(value, "safe.value") === 7, "own dotted path must resolve");
+  check(getPath(value, "__proto__.polluted") === undefined, "__proto__ traversal must be rejected");
+  check(getPath(value, "constructor.prototype") === undefined, "constructor/prototype traversal must be rejected");
+  const escaped = resolveRelativeImport("a/b.js", "../../../outside.js", new Set());
+  check(escaped?.escaped === true, "relative dependency escape must fail closed");
+  const invalid = validateRegistry({
+    contract: "mad4b.repository-governance-policy-registry.v1",
+    execution_model: "declarative_registered_assertions",
+    allowed_assertion_types: ["value_equals"],
+    policies: [{ id: "prototype-probe", assertions: [{ type: "value_equals", path: "__proto__.polluted", value: true }] }],
+  });
+  check(invalid.some((entry) => entry.startsWith("assertion_path_invalid:prototype-probe:")), "registry must reject prototype paths");
+  console.log(JSON.stringify({ ok: true, contract: CONTRACT, nul_safe_git_fields: true, repository_relative_dependencies: true, prototype_safe_policy_paths: true, glob_compiler: true }));
+}
+
+if (process.argv.includes("--self-test")) {
+  selfTest();
+  process.exit(0);
 }
 
 const constitution = readJson(constitutionPath);
@@ -345,7 +425,8 @@ const report = {
   policy_registry_contract: policyRegistry.contract,
   semantic_registry_contract: semanticRegistry.contract,
   final_gate_context: constitution.authority?.final_gate_context || null,
-  metrics, flags,
+  metrics,
+  flags,
   converged: blocking.length === 0,
   blocking_failure_policy_ids: blocking.map((entry) => entry.id),
   authority_conflicts: conflicts,
