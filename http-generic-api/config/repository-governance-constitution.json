@@ -61,6 +61,7 @@
   },
   "control_plane_paths": [
     ".changes/e2e/derived-state-closure-governance-20260815.json",
+    ".changes/e2e/spec018-runtime-readiness-evidence-closeout.json",
     ".changes/e2e/e2e-contract-reference-integrity.json",
     ".changes/e2e/repository-inventory-governed-regeneration.json",
     "http-generic-api/config/repository-governance-constitution.json",
@@ -101,7 +102,8 @@
     "scripts/repository-inventory-verification-gate.mjs",
     "scripts/remote-mcp-write-scope-inventory.mjs",
     "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
-    "scripts/test-remote-mcp-write-scope-inventory.mjs"
+    "scripts/test-remote-mcp-write-scope-inventory.mjs",
+    "docs/governance/spec018-runtime-readiness-evidence-closeout.md"
   ],
   "derived_state": {"registry":".github/derived-state-governance.json","artifact_dependency_type":"artifact","missing_dependency_mode":"block","cycle_mode":"block"}
 }

@@ -31,6 +31,7 @@
   "spec_patterns": ["specs/**"],
   "docs_only_patterns": ["docs/**"],
   "governance_only_patterns": [
+    "docs/governance/**",
     ".github/**",
     ".specify/**",
     ".changes/e2e/**",

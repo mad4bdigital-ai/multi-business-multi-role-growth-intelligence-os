@@ -1,0 +1,70 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec018-runtime-readiness-evidence-closeout",
+  "title": "Spec018 runtime readiness and evidence closeout",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec018-runtime-readiness-evidence-closeout.json",
+      "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
+      "http-generic-api/runtimeReadinessEvidenceCloseout.mjs",
+      "specs/018-environment-promotion-runtime-integrity/contracts/runtime-readiness-evidence-closeout.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
+      "specs/018-environment-promotion-runtime-integrity/completion.json",
+      "specs/018-environment-promotion-runtime-integrity/e2e-phases.json",
+      "specs/018-environment-promotion-runtime-integrity/tasks.md"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Produce a deterministic, credential-free, read-only evidence report that binds the source SHA to three database-role readbacks and staging readiness without applying migrations, mutating databases, promoting Production, or activating runtime transitions.",
+      "e2e_journeys": [
+        {
+          "id": "spec018-runtime-readiness-evidence-closeout",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec018 release governance reviewer",
+          "entrypoint": "Runtime readiness evidence closeout contract",
+          "terminal_outcome": "The closeout report is ready for review only when exact-head, role identity, schema/privilege readback, staging readback, CI, and rollback-readiness evidence converge; Production remains separately blocked.",
+          "steps": [
+            "Build an empty report and verify missing or mismatched evidence fails closed.",
+            "Build a synthetic all-green staging report with three distinct database roles and exact source SHA binding.",
+            "Reject incomplete privilege, schema, staging, CI, rollback, and SHA evidence.",
+            "Reject credential-bearing keys and any report that claims migration apply, database mutation, provider calls, or Production promotion.",
+            "Validate the report through the standard HTTP API test manifest."
+          ],
+          "assertions": [
+            "The report binds expected_sha and observed_sha before readiness can be reviewable.",
+            "Runtime, Governance, and Runtime Persistence identities are all required and cannot fall back to one another.",
+            "Staging evidence may become ready_for_review, while Production remains blocked and separately authorized.",
+            "Migration apply, database mutation, provider calls, deployment, promotion, runtime transition activation, and secrets remain false.",
+            "The closeout is a contract/evidence producer and never performs a database or provider operation."
+          ],
+          "tests": [
+            {
+              "id": "spec018-runtime-readiness-evidence-closeout-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-readiness-evidence-closeout.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/runtimeReadinessEvidenceCloseout.mjs",
+            "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
+            "specs/018-environment-promotion-runtime-integrity/contracts/runtime-readiness-evidence-closeout.json",
+            "specs/018-environment-promotion-runtime-integrity/completion.json",
+            "specs/018-environment-promotion-runtime-integrity/tasks.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
