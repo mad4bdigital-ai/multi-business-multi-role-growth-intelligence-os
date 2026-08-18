@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  buildHardActivationDatabaseBlockedResponse,
   buildHardActivationEvidenceMatrix,
   canReportSessionContextLoaded,
   classifyHardActivationEvidence,
@@ -177,6 +178,12 @@ assert.equal(blockedDatabase.activation_complete, false);
 assert.equal(blockedDatabase.reason_code, 'governance_db_privilege_readiness_blocked');
 assert.equal(blockedDatabase.evidence_matrix.database_readiness.ok, false);
 assert.equal(blockedDatabase.degraded_surfaces.some((surface) => surface.surface === 'database_readiness'), true);
+
+const blockedDatabaseResponse = buildHardActivationDatabaseBlockedResponse(blockedDatabaseReadiness);
+assert.equal(blockedDatabaseResponse.activation_complete, false);
+assert.equal(blockedDatabaseResponse.hard_activation_blocked_until_ready, true);
+assert.equal(blockedDatabaseResponse.database_readiness.hard_activation_blocked_until_ready, true);
+assert.equal(blockedDatabaseResponse.secrets_included, false);
 
 const missingProvider = classifyHardActivationEvidence({
   session_context: complete.evidence_matrix.session_context,
