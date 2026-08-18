@@ -10,11 +10,16 @@ const constitution = JSON.parse(fs.readFileSync(path.join(root, "http-generic-ap
 const evidence = JSON.parse(fs.readFileSync(path.join(root, ".github/governance/evidence-producers.json"), "utf8"));
 const waivers = JSON.parse(fs.readFileSync(path.join(root, ".github/governance/waiver-ledger.json"), "utf8"));
 assert.equal(constitution.authority.objection_execution_mode, "typed_policy_objections");
-assert.equal(constitution.authority.server_enforcement_attestation, "required_before_single_gate_activation");
+assert.equal(constitution.authority.server_enforcement_attestation, "trusted_github_app_exact_candidate_required_before_activation");
+assert.equal(constitution.authority.final_gate_mode, "trusted_app_exact_candidate_attestation");
 assert.equal(constitution.objection_control_plane.critical_surface_requires_manual_merge, true);
 assert.equal(constitution.objection_control_plane.new_executable_requires_semantic_registration, true);
 assert.equal(evidence.contract, "mad4b.repository-governance-evidence-producers.v1");
-assert.ok(evidence.producers.some((entry) => entry.workflow === "CI" && entry.required === true));
+const requiredProducers = evidence.producers.filter((entry) => entry.required === true);
+assert.deepEqual(requiredProducers.map((entry) => entry.id), ["policy-objection-ci"]);
+assert.equal(requiredProducers[0].workflow, "Policy Objection CI");
+assert.equal(requiredProducers[0].workflow_file, ".github/workflows/policy-objection-ci.yml");
+assert.ok(evidence.producers.some((entry) => entry.workflow === "CI" && entry.required === false && entry.role === "supplemental_diagnostics"));
 assert.equal(waivers.contract, "mad4b.repository-governance-waiver-ledger.v1");
 assert.ok(Array.isArray(waivers.waivers));
 
@@ -44,4 +49,4 @@ assert.equal(report.blocking_count, 0);
 assert.equal(report.merge_allowed_by_source_policy, true);
 assert.equal(report.safety.repository_mutation_performed, false);
 fs.rmSync(dir, { recursive: true, force: true });
-console.log(JSON.stringify({ ok: true, contract: report.contract, dynamic_policy_objections: true }));
+console.log(JSON.stringify({ ok: true, contract: report.contract, dynamic_policy_objections: true, canonical_required_producer: requiredProducers[0].id }));
