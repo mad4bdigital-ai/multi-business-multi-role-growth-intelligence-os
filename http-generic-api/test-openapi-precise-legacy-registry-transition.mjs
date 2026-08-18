@@ -105,6 +105,7 @@ try {
   assert.deepEqual(summary.applied_registered_path_replacements, [{
     path: ROUTE_PATH,
     path_item_ref: PATH_REF,
+    composition_mode: "ref",
     signatures: [SIGNATURE],
   }]);
   const written = YAML.parse(await readFile(path.join(validRoot, "openapi.yaml"), "utf8"));
