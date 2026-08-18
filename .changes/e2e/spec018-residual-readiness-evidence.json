@@ -1,0 +1,62 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec018-residual-readiness-evidence",
+  "title": "Spec018 residual readiness evidence for F09 H06 H10 H11",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec018-residual-readiness-evidence.json",
+      "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+      "http-generic-api/test-spec018-residual-readiness-evidence.mjs",
+      "specs/018-environment-promotion-runtime-integrity/e2e-phases.json"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify F09 attestation parity, H06 security review, H10 staging verification, and H11 release readiness independently without migration execution, grants, provider calls, runtime transitions, or Production promotion.",
+      "e2e_journeys": [
+        {
+          "id": "spec018-residual-readiness-evidence-review-only",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec018 release-readiness reviewer",
+          "entrypoint": "Residual readiness evidence builder",
+          "terminal_outcome": "A complete synthetic report is ready for review but remains explicitly unauthorized for Production promotion or runtime transition activation.",
+          "steps": [
+            "Build the report from exact-SHA, attestation, registry, security-control, staging, and rollback inputs.",
+            "Classify absent or incomplete evidence as blocked for the specific requirement.",
+            "Verify the security matrix covers authentication, authorization, object scope, replay, injection, path traversal, and secret exposure.",
+            "Verify F09 remains shadow-only and H10/H11 preserve no-mutation and no-promotion boundaries."
+          ],
+          "assertions": [
+            "F09 enforcement_promotion_allowed is false.",
+            "H06 requires explicit evidence references and zero unresolved findings for every control.",
+            "H10 requires exact main SHA, CI, staging reachability, clean readback, and runtime-integrity evidence.",
+            "H11 requires release-readiness, rollback, and staging evidence while Production promotion remains false.",
+            "The report contains no secrets and performs no migrations, grants, database mutations, provider calls, or runtime transitions."
+          ],
+          "tests": [
+            {
+              "id": "spec018-residual-readiness-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec018-residual-readiness-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+            "http-generic-api/test-spec018-residual-readiness-evidence.mjs",
+            "specs/018-environment-promotion-runtime-integrity/e2e-phases.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

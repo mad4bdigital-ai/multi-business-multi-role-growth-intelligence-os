@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-readback-dependency-isolation",
+  "title": "GitHub repository policy readback dependency isolation",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",
+      ".github/workflows/github-repository-policy-readback.yml",
+      "http-generic-api/activationBootstrapConfig.js",
+      "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+      "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/test-github-repository-policy-readback-import-isolation.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+      "http-generic-api/test-spec018-residual-readiness-evidence.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep GitHub repository policy readback and its no-secret evidence workflow loadable when optional database dependencies are absent, while retaining lazy database and Governance writer resolution for apply and lifecycle mutation paths.",
+      "e2e_journeys": [
+        {
+          "id": "policy-readback-import-isolation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance maintainer",
+          "entrypoint": "Policy readback controller module",
+          "terminal_outcome": "The controller and readback exports load without mysql2, policy readback remains read-only, and database-backed apply/lifecycle paths remain lazy and explicitly bounded.",
+          "steps": [
+            "Load the policy controller with the mysql2 package temporarily unavailable.",
+            "Verify readback and apply exports remain available without import-time database resolution.",
+            "Run the controller fail-closed regression suite with injected read-only dependencies.",
+            "Verify the workflow installs its locked dependencies before executing readback and runs the isolation contract."
+          ],
+          "assertions": [
+            "Readback and plan imports do not eagerly load db.js, governanceDb.js, or capability-resolution-dry-run.mjs.",
+            "Apply and lifecycle mutation paths retain lazy database/Governance writer resolution.",
+            "The workflow keeps contents: read and does not perform database, provider, repository-content, or Production mutations.",
+            "Secrets remain excluded from the contract and evidence."
+          ],
+          "tests": [
+            {
+              "id": "policy-readback-import-isolation-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-github-repository-policy-readback-import-isolation.mjs",
+              "args": []
+            },
+            {
+              "id": "github-repository-policy-controller-fail-closed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-controller.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/github-repository-policy-readback.yml",
+            "http-generic-api/activationBootstrapConfig.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
+            "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/test-github-repository-policy-readback-import-isolation.mjs",
+            "http-generic-api/test-github-repository-policy-controller.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+            "http-generic-api/test-spec018-residual-readiness-evidence.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

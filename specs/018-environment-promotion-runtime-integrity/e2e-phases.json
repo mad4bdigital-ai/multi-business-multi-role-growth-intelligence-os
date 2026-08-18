@@ -24,8 +24,10 @@
       "http-generic-api/runtimeBreakGlassScopeBinding.js",
       "http-generic-api/runtimeBreakGlassVerificationReadbackService.js",
       "http-generic-api/runtimeReadinessEvidenceCloseout.mjs",
+      "http-generic-api/spec018ResidualReadinessEvidence.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
+      "http-generic-api/test-spec018-residual-readiness-evidence.mjs",
       "specs/018-environment-promotion-runtime-integrity/contracts/runtime-readiness-evidence-closeout.json",
       "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
       "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -256,7 +258,46 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Complete break-glass D07-D13, canonical-resource resolution, and generated attestation through bounded follow-up pull requests after D01-D06 is merged."
+      "objective": "Complete break-glass D07-D13, canonical-resource resolution, generated attestation, and bounded residual readiness evidence for F09/H06/H10/H11 through follow-up pull requests; live staging/Production evidence and H12 remain separately authorized and pending.",
+      "e2e_journeys": [
+        {
+          "id": "spec-018-residual-readiness-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec018 release-readiness reviewer",
+          "entrypoint": "Residual readiness evidence contract",
+          "terminal_outcome": "F09 attestation parity, H06 security review, H10 staging verification, and H11 release readiness are classified independently; a complete synthetic report remains review-only and cannot authorize Production promotion or runtime transitions.",
+          "steps": [
+            "Build a no-secret residual evidence report from exact-SHA, security-control, staging-readback, and release-readiness inputs.",
+            "Require F09 to remain shadow-only until parity evidence is complete.",
+            "Require all H06 security controls to have explicit review references and zero unresolved findings.",
+            "Require H10 exact main SHA, CI, staging reachability, clean readback, and runtime-integrity evidence without performing deployment or database mutation.",
+            "Require H11 release-readiness and rollback evidence while keeping Production promotion unauthorized and H12 separate."
+          ],
+          "assertions": [
+            "Missing live evidence remains blocked rather than being marked complete.",
+            "F09 enforcement promotion is always false in this contract.",
+            "H06 controls cover authentication, authorization, object scope, replay, injection, path traversal, and secret exposure.",
+            "H10 and H11 preserve no-mutation and no-production-promotion boundaries.",
+            "Secrets, migrations, grants, provider calls, and runtime transitions remain outside the evidence contract."
+          ],
+          "tests": [
+            {
+              "id": "spec-018-residual-readiness-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec018-residual-readiness-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+            "http-generic-api/test-spec018-residual-readiness-evidence.mjs",
+            "specs/018-environment-promotion-runtime-integrity/tasks.md",
+            "specs/018-environment-promotion-runtime-integrity/completion.json"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",

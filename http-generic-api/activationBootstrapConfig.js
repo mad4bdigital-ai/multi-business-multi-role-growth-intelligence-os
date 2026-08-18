@@ -1,4 +1,3 @@
-import { getPool } from "./db.js";
 import {
   ACTIVATION_GITHUB_BRANCH,
   ACTIVATION_GITHUB_ENDPOINT_KEY,
@@ -67,7 +66,7 @@ export function validateActivationBootstrapConfig(config = {}, source = "unknown
 
 export async function readActivationBootstrapFromDb(queryFn = null) {
   try {
-    const execute = queryFn || ((sql, params) => getPool().query(sql, params));
+    const execute = queryFn || (async (sql, params) => (await import("./db.js")).getPool().query(sql, params));
     const [rows] = await execute(
       `
       SELECT config_json

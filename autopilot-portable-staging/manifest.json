@@ -142,11 +142,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "db77f68352be6b6794becc9f9cdb3652828be504b63a53740a8e9e6a7529dd98"
+      "sha256": "bd6e6e48b58faadfb1e06fd1b8c2b8ad0b5cb18ea7665eb2b51caf1729004efa"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "e2c3fa91a78c5def020fd06777767f61567ce4c21c6d020dd859180bff62875d"
+      "sha256": "6769a97f2340ede2af49d43166862b4c6193740ee0b18385bdc28c50d1d0fea2"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -166,7 +166,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "ef2aa6908a457e3bb6cc35f36cc8a95f76fbd553e1bbbec9febf03ff9e7ed8b3"
+      "sha256": "9aa6f94b56e7f8da56c876d16077ba540b5294469d9fbe72b9281e788aa48282"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
