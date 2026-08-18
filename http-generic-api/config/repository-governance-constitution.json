@@ -218,7 +218,8 @@
         ".node-version",
         ".editorconfig",
         ".gitignore",
-        ".gitattributes"
+        ".gitattributes",
+        ".dockerignore"
       ]
     }
   ],
