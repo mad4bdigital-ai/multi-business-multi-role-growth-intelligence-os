@@ -131,7 +131,7 @@ function applySinglePrMaintenanceException(evaluation, options) {
   const root = options.root || REPO_ROOT;
   const baseRef = options.baseRef || process.env.GITHUB_BASE_REF || "";
   const stale = report.findings.filter((finding) => finding.code === "e2e_phase_contract_not_changed_with_feature");
-  if (baseRef !== "main" || !report.runtime_files.length || !stale.length) return evaluation;
+  if (baseRef !== "main" || !report.runtime_files.length) return evaluation;
 
   const resolution = maintenanceCandidate({
     root,
@@ -143,7 +143,11 @@ function applySinglePrMaintenanceException(evaluation, options) {
   const candidate = resolution.candidate;
 
   const stalePaths = [...new Set(stale.map((finding) => finding.contract_path).filter(Boolean))].sort();
-  if (!stalePaths.length || !stalePaths.every((contractPath) => integratedParallelContract(root, contractPath))) return evaluation;
+  const affectedParallelPaths = [...new Set([
+    ...stalePaths,
+    ...report.impacted_contracts.filter((contractPath) => integratedParallelContract(root, contractPath))
+  ])].sort();
+  if (!affectedParallelPaths.length || !affectedParallelPaths.every((contractPath) => integratedParallelContract(root, contractPath))) return evaluation;
 
   const staleSet = new Set(stalePaths);
   report.findings = report.findings.filter((finding) =>
@@ -154,7 +158,7 @@ function applySinglePrMaintenanceException(evaluation, options) {
     feature_key: candidate.contract.feature_key || null,
     contract_path: candidate.contractPath,
     runtime_files: report.runtime_files,
-    affected_parallel_contract_paths: stalePaths
+    affected_parallel_contract_paths: affectedParallelPaths
   };
   return evaluation;
 }
