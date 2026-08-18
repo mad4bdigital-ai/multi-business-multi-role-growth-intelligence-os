@@ -14,14 +14,11 @@
       ".github/workflows/derived-state-repair-dispatch.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
       ".github/workflows/derived-state-main-convergence-publisher.yml",
-      ".github/workflows/pr-generated-artifact-refresh.yml",
-      ".github/workflows/staging-main-deploy-eligibility.yml",
+      ".github/workflows/repository-inventory.yml",
+      ".github/workflows/repository-evaluation.yml",
       "scripts/derived-state-closure.mjs",
       "scripts/repository-inventory-verification-gate.mjs",
       "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
-      "http-generic-api/test-test-manifest-runner.mjs",
-      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
-      "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
       "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
@@ -29,14 +26,12 @@
       ".changes/e2e/derived-state-closure-governance-20260815.json"
     ]
   },
-  "merge_contract": {
-    "minimum_phase": "mvp"
-  },
+  "merge_contract": { "minimum_phase": "mvp" },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make dependency scope explicit and require one read-only exact-merge-candidate closure check across every registered derived-state family before main eligibility, then automatically converge stale repairable state through separate trusted writers and register exact-head auto-merge only after a new candidate proves zero stale state.",
+      "objective": "Require one read-only exact-merge-candidate closure across every registered derived-state family, block only stale semantic artifacts or safety failures, and defer non-blocking observability publication to post-merge governed convergence.",
       "e2e_journeys": [
         {
           "id": "exact-merge-candidate-derived-state-closure",
@@ -44,53 +39,33 @@
           "level": "synthetic_runtime",
           "actor": "repository reviewer and release governance",
           "entrypoint": "Any pull request targeting main",
-          "terminal_outcome": "Derived State Closure reports zero stale registered artifacts for the current GitHub merge candidate; when stale state is repairable the trusted workflow_run orchestrator dispatches exactly one registered writer per pass, the updated head is reverified automatically, and guarded auto-merge is registered only after current-base convergence evidence exists.",
+          "terminal_outcome": "The exact merge candidate has zero blocking derived-state objections; semantic stale state is repaired through registered trusted authorities, while Repository Inventory and Evaluation may remain advisory observability until post-merge publication.",
           "steps": [
-            "Checkout github.sha for the pull-request merge candidate with persist-credentials disabled.",
-            "Use the already-trusted PR Generated Artifact Refresh workflow as the bootstrap carrier so the closure policy is exercised before the new standalone workflow reaches main.",
-            "Validate the machine-readable derived-state registry and unique artifact identities.",
-            "Run the closure evaluator as a code-owned read-only CI verifier under scripts/, separate from the governed mutating maintenance-tool authority surface.",
-            "Run every registered verifier from a hardcoded verifier allowlist rather than executable commands supplied by configuration.",
-            "After each verifier, prove the worktree remains clean; any verifier write is a blocking safety failure.",
-            "Collect all reached stale or failed artifact families and their governed repair identities.",
-            "Publish canonical JSON evidence bound to the exact candidate SHA.",
-            "On a failed pull-request closure run, bind the workflow_run to exactly one same-repository PR, require behind_by=0, reject self-modification of the trusted automation control surface, and select only the first registered repair authority for that pass.",
-            "Enforce max_convergence_passes=3 using bot-authored repair receipts bound to the same exact main base SHA; reruns of the same source closure run are idempotently ignored.",
-            "Dispatch generated-artifact recipes only through Governed Generated Artifact Refresh using the exact current PR head SHA.",
-            "For stale Work Maps, create the existing one-time authorization marker only after trusted closure evidence is proven, dispatch the existing Recovery workflow, wait for Recovery success, and require that Recovery consumes the marker before the repair dispatcher succeeds.",
-            "After the sole writer succeeds and its resulting head is read back exactly, dispatch Derived State Closure from trusted main with the PR number and resulting head so it resolves and verifies the fresh GitHub merge candidate even when GITHUB_TOKEN recursion suppression prevents pull_request workflows from firing.",
-            "On a successful closure run, require a bot-authored repair receipt whose result_head_sha equals the current PR head, or a main-convergence receipt whose head_sha equals the current PR head, reject opt-out labels and automation-control changes, then register GitHub auto-merge with --match-head-commit rather than directly merging or bypassing branch protection.",
-            "For post-merge Repository Inventory recovery, consume the existing governed writer artifact only when create_from_main=true, validate its registered output-only write set, publish or reuse a bounded convergence PR, and let the same closure plus auto-merge path finish it.",
-            "Treat stale-but-repairable Repository Inventory as a failing detector signal while preserving structured bootstrap evidence so the existing trusted workflow_run dispatcher can invoke its bounded writer.",
-            "Treat governed generated outputs changed by reconciliation as explicit E2E scope rather than exempting runtime-adjacent generated state from coverage.",
-            "Perform no direct push to main or Production, provider mutation, database mutation, Production mutation, force update, or --admin merge from Derived State convergence automation.",
-            "Require Staging Main Deploy Eligibility to rerun the same closure on the exact main SHA before it may emit eligible evidence."
+            "Checkout the exact GitHub merge candidate with persisted credentials disabled and read-only repository permission.",
+            "Validate the governance registry, dependency DAG, verifier allowlist, and registered repair authorities before running derived-state checks.",
+            "Run each verifier read-only in dependency order and fail closed if any verifier mutates the worktree.",
+            "Classify every result by artifact_class and explicit merge_blocking rather than treating every stale artifact identically.",
+            "Record stale Repository Inventory and Repository Evaluation as advisory observability when merge_blocking=false; do not dispatch a pre-merge writer for them.",
+            "Treat stale semantic artifacts such as Work Maps as blocking and expose only their registered repair authority.",
+            "For a blocking repair, bind the trusted workflow_run to one same-repository PR, exact current head, current main base, and one authority per convergence pass.",
+            "Require manual merge for changes to the automation control surface so the control plane cannot silently approve its own amendment.",
+            "After a trusted writer changes the PR head, request a fresh exact-merge-candidate closure and reject stale receipts.",
+            "After source merge, publish observability artifacts only through the registered post-merge convergence recipe on a non-protected branch.",
+            "Never directly push to main or Production, force-push, use --admin merge, mutate databases/providers, or expose credentials."
           ],
           "assertions": [
-            "The closure workflow has no path filter, so repository-wide dependencies such as git_index_shape cannot escape detection.",
-            "The existing PR Generated Artifact Refresh workflow has no path filter and no branch-prefix dependency routing.",
-            "Branch prefixes are not used as a dependency signal.",
-            "The closure workflow permission is contents:read and checkout credentials are not persisted.",
-            "The closure evaluator is a read-only CI verifier under scripts/ and does not gain repository mutation authority from the maintenance-tool registry.",
-            "The Remote MCP registry explicitly declares git_index_shape while the current generator materializes tracked file_count.",
-            "Each derived-state family maps to one existing governed repair identity.",
-            "Configuration cannot inject arbitrary verifier commands; verifier IDs resolve through code-owned allowlists.",
-            "Any verifier-created worktree change fails closed.",
-            "Repository Inventory bootstrap_pending emits current=false and a non-zero process result so the trusted dispatcher can repair stale state instead of treating it as success.",
-            "Repository Inventory trusted generator and mutation-authority files remain byte-identical to trusted main before automated repair eligibility is granted.",
-            "A failed candidate can dispatch only one registered repair authority per convergence pass and no more than three passes for the same main base.",
-            "Automation-control paths cannot repair or auto-merge themselves; those PRs require manual review.",
-            "Generated-artifact repair is exact-head and branch-scoped and continues to use the registered sole writer.",
-            "Work Map automatic repair does not bypass the existing Recovery-issued one-time writer delegation; the trusted dispatcher only supplies a bounded marker after exact closure evidence and verifies that Recovery consumes it.",
-            "Auto-merge is not general PR auto-merge: it requires a trusted receipt bound to the current PR head and current main base, a converged exact merge candidate, behind_by=0, no opt-out label, and --match-head-commit.",
-            "Auto-merge never uses --admin and does not bypass required checks, reviews, or branch protection.",
-            "Post-merge Repository Inventory convergence publishes a PR only from a successful create_from_main governed writer run whose changed files are a subset of the registered recipe outputs.",
-            "Every automated repair receipt records the exact writer result_head_sha and the repair dispatcher requests a fresh exact-merge-candidate closure run for that same head.",
-            "A stale repair receipt cannot authorize a later human or unrelated bot push because auto-merge requires receipt head identity to equal the current PR head.",
-            "Governed Remote MCP generated output remains covered by the E2E contract when reconciliation changes it; the classifier is not weakened to hide generated runtime-adjacent files.",
-            "Protected branches and force push remain forbidden mutation targets.",
-            "Production requires same-SHA closure in addition to Staging eligibility, source pin, and explicit authorization.",
-            "Staging eligibility cannot report eligible unless exact-main Derived State Closure has passed in the same job."
+            "Derived State Closure evaluates the exact merge candidate and has no path filter that can hide repository-wide dependencies.",
+            "Verifier commands are code-owned and cannot be injected from the registry.",
+            "Verifier-created worktree changes are blocking safety failures.",
+            "Repository Inventory is observability with merge_blocking=false and stale pre-merge state is advisory.",
+            "Repository Evaluation is observability with merge_blocking=false and stale pre-merge state is advisory.",
+            "Observability artifacts are published post-merge only and never mutate the feature branch to converge a merge candidate.",
+            "Semantic artifacts remain merge blocking; stale Work Maps resolve to spec_kit_work_map_autofix and cannot be downgraded by observability policy.",
+            "A failed exact candidate can dispatch only one registered blocking repair authority per convergence pass and no more than the configured maximum.",
+            "Automation-control changes require manual merge and cannot auto-repair or auto-merge themselves.",
+            "Auto-merge, where permitted for non-control-plane changes, requires a current receipt bound to the current PR head and current main base and never uses --admin.",
+            "Post-merge Repository State convergence uses repository_inventory_refresh on a non-protected branch and preserves exact-head verification.",
+            "Protected-branch mutation, force push, Production mutation, database mutation, provider mutation, and secret publication remain forbidden."
           ],
           "tests": [
             {
@@ -101,31 +76,40 @@
               "args": []
             },
             {
-              "id": "repository-inventory-bootstrap-fail-closed",
+              "id": "repository-inventory-observability-v2",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-repository-inventory-self-hosting-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-state-generated-artifact-convergence-v2",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-state-generated-artifact-convergence.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".github/derived-state-governance.json",
-            "scripts/derived-state-closure.mjs",
-            "scripts/repository-inventory-verification-gate.mjs",
-            "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
-            "autopilot-portable-staging/manifest.json",
-            "docs/remote-mcp-write-scope-inventory.md",
-            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             ".github/tests/derived-state-closure.test.mjs",
-            ".github/workflows/pr-generated-artifact-refresh.yml",
             ".github/workflows/derived-state-closure.yml",
             ".github/workflows/derived-state-repair-dispatch.yml",
             ".github/workflows/derived-state-converged-automerge.yml",
             ".github/workflows/derived-state-main-convergence-publisher.yml",
-            ".github/workflows/staging-main-deploy-eligibility.yml"
+            ".github/workflows/repository-inventory.yml",
+            ".github/workflows/repository-evaluation.yml",
+            "scripts/derived-state-closure.mjs",
+            "scripts/repository-inventory-verification-gate.mjs",
+            "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
+            "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs"
           ]
         }
       ]
-    }
+    },
+    { "id": "operational", "status": "planned", "objective": "Observe bounded blocking repair and post-merge observability publication under the v2 closure policy." },
+    { "id": "resilient", "status": "planned", "objective": "Exercise stale receipts, main drift, verifier mutation, unknown authority, nondeterminism, and post-push readback mismatch paths." },
+    { "id": "canary", "status": "planned", "objective": "Use a governed non-protected convergence branch as the canary for post-merge observability publication." },
+    { "id": "production", "status": "planned", "objective": "Require same-SHA closure, staging eligibility, source pin, and explicit authorization before Production promotion." }
   ]
 }
