@@ -1,6 +1,11 @@
 {
   "contract": "mad4b.repository-governance-constitution.v1",
   "schema_version": 2,
+  "repository": {
+    "owner": "mad4bdigital-ai",
+    "name": "multi-business-multi-role-growth-intelligence-os",
+    "full_name": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+  },
   "authority": {
     "source_of_truth": "http-generic-api/config/repository-governance-constitution.json",
     "final_gate_context": "Derived State Closure",
@@ -24,6 +29,7 @@
     "objection_execution_mode": "typed_policy_objections",
     "control_plane_change_mode": "manual_merge_required",
     "server_enforcement_attestation": "trusted_github_app_exact_candidate_required_before_activation",
+    "attestation_source_provenance": "github_actions_run_artifact_digest_server_verified",
     "final_attestor": "http-generic-api/githubRepositoryGovernanceAttestation.js",
     "final_attestor_surface": "/admin/repository-automation/policy-controller",
     "workflow_surface_policy": "docs/repository-ci-surface-policy.json",
@@ -43,7 +49,10 @@
       "required_checks": ["Derived State Closure"],
       "required_check_producer": "trusted_github_app_attestor",
       "required_check_evidence": "exact_current_merge_candidate",
-      "required_check_activation": "only_after_trusted_evidence_finalizer_and_server_attestation"
+      "required_check_activation": "only_after_trusted_evidence_finalizer_and_server_attestation",
+      "attestation_source_workflow": ".github/workflows/derived-state-closure.yml",
+      "attestation_source_events": ["pull_request", "workflow_dispatch"],
+      "attestation_artifact_prefix": "derived-state-closure-"
     },
     "Production": {
       "role": "governed_release",
@@ -58,7 +67,10 @@
       "required_checks": ["Governed Production Promotion"],
       "required_check_producer": "trusted_github_app_attestor",
       "required_check_evidence": "exact_current_merge_candidate",
-      "required_check_activation": "promotion_authority_controls_release"
+      "required_check_activation": "promotion_authority_controls_release",
+      "attestation_source_workflow": ".github/workflows/governed-production-promotion-request-launcher.yml",
+      "attestation_source_events": ["workflow_dispatch"],
+      "attestation_artifact_prefix": "governed-production-promotion-convergence-"
     }
   },
   "change_model": {
