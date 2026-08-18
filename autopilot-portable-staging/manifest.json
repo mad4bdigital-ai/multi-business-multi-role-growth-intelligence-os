@@ -9,8 +9,12 @@
       "sha256": "ad2ebc820c5e245bfaf2ae028f3626740a421d57024a1575102d0e2b7cd203b5"
     },
     {
+      "path": ".dockerignore",
+      "sha256": "dd1d9d460d74973e6993dceffec2bdc968d3f610da2d3d6a76b7579ba8b661b1"
+    },
+    {
       "path": ".gitignore",
-      "sha256": "2d9ced5ef0c35f272984b057fd68853d689a284b3b2eb43c7c1e512e8fc83523"
+      "sha256": "1b150b0aecf2bf882cd06ecc6dac6aac3457641b7ce8c8ab29da1992c1960fe0"
     },
     {
       "path": "STAGING-WINDOWS.md",
@@ -58,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "02c0996fd5d3bdfa13de950756a189f002e194abb6bcd593930968c85f900b8b"
+      "sha256": "e8e9ed85c691ba0505b20159b0340195119eae2a97f7a11dc6a8445642815b10"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -102,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "ecdc16561f5b971a3b0b694dedf3828cbc9013d4a58444998cde3e628580acbf"
+      "sha256": "b0dc0e8328d6f8b70f80e9ebecd15cc0e5e3cf1a06fdfe9cdc6a65a75c2440f0"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -134,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "1b2785c3cc3229eb8ae9b25d747f5463b669ebbc539c670223beaa1aa8645c02"
+      "sha256": "9b0c135777a1341dcacaa0e20e091cc48e13d6e37ea99a8a2d7c277d8b9097e5"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -213,6 +217,10 @@
       "sha256": "3e0a6f339eb3c53d32c1cf29e3193475e6c686dee99e4433349d69bab8058021"
     },
     {
+      "path": "http-generic-api/scripts/prepare-staging-build-context.mjs",
+      "sha256": "047a62f1d2128b97fd98e07be7e132fb929f92a9d654879822c1ab95ec6987fe"
+    },
+    {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
       "sha256": "785ec3aed0451b228784cbebb8eedea56f0682e0bbbd16f86a218521657587c5"
     },
@@ -235,6 +243,10 @@
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
       "sha256": "f1a2ff671cddcf9fa98e5cc36b88893ff0f34635b295b53394a3d81d7b85ac94"
+    },
+    {
+      "path": "http-generic-api/test-staging-build-context-provenance.mjs",
+      "sha256": "c12a693ebf18c4d5524b28e78b82b6b08988876779a1b2cfb707a39aadba6dee"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",

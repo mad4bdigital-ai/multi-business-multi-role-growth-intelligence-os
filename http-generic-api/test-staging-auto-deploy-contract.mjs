@@ -15,6 +15,7 @@ const certificationHelper = read("autopilot-portable-staging/Invoke-StagingCerti
 const oneClickScript = read("autopilot-portable-staging/One-Click-Staging.ps1");
 const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
 const dockerfile = read("http-generic-api/Dockerfile.staging");
+const buildContextScript = read("http-generic-api/scripts/prepare-staging-build-context.mjs");
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
 const gitignore = read(".gitignore");
 const dockerignore = read(".dockerignore");
@@ -55,12 +56,23 @@ assert.doesNotMatch(workflow, /CLOUDFLARE_TUNNEL_TOKEN|BACKEND_API_KEY|JWT_SECRE
 
 assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
 assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
+assert.match(dockerfile, /ARG STAGING_BUILD_TREE/);
+assert.match(dockerfile, /ARG STAGING_BUILD_CONTEXT_FILE_SET_SHA256/);
+assert.match(dockerfile, /\.staging-build-context\.json/);
+assert.match(dockerfile, /context_file_set_sha256/);
+assert.match(dockerfile, /secrets_included:false/);
 assert.match(dockerfile, /deployment-manifest\.json/);
 assert.match(dockerfile, /staging-route-policy\.json/);
 assert.doesNotMatch(dockerfile, /new Date\(\)\.toISOString\(\)/);
-assert.equal(compose.services.app.build.context, "..");
+assert.match(String(compose.services.app.build.context), /STAGING_BUILD_CONTEXT/);
 assert.match(String(compose.services.app.build.args.STAGING_BUILD_COMMIT), /DEPLOY_COMMIT/);
 assert.match(String(compose.services.app.build.args.STAGING_BUILD_BRANCH), /DEPLOY_BRANCH/);
+assert.match(String(compose.services.app.build.args.STAGING_BUILD_TREE), /STAGING_BUILD_TREE/);
+assert.match(String(compose.services.app.build.args.STAGING_BUILD_CONTEXT_FILE_SET_SHA256), /STAGING_BUILD_CONTEXT_FILE_SET_SHA256/);
+assert.match(buildContextScript, /git.*archive/);
+assert.match(buildContextScript, /git_archive_exact_commit/);
+assert.match(buildContextScript, /local_ignored_files_included: false/);
+assert.match(buildContextScript, /secrets_included: false/);
 
 // The repository-root Docker build context must be deny-by-default so ignored
 // local state (especially .env.staging) can never become part of image bytes.
@@ -68,6 +80,7 @@ assert.match(dockerignore, /^\*\*/m);
 assert.match(dockerignore, /^!http-generic-api\/\*\*$/m);
 assert.match(dockerignore, /^!edge\/activation-gateway\/generated\/route-policy\.staging\.json$/m);
 assert.match(dockerignore, /^!canonical-manifest\.mjs$/m);
+assert.match(dockerignore, /^!\.staging-build-context\.json$/m);
 assert.match(dockerignore, /^http-generic-api\/\.env\.\*$/m);
 assert.match(dockerignore, /^http-generic-api\/\.staging-data\/$/m);
 assert.match(dockerignore, /^http-generic-api\/node_modules\/$/m);
@@ -90,6 +103,9 @@ assert.match(deployScript, /migration_applied = \$false/);
 assert.match(deployScript, /PollSeconds -lt \[int\]\$Policy\.minimum_poll_seconds/);
 assert.doesNotMatch(deployScript, /auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com/);
 assert.match(pilotScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
+assert.match(pilotScript, /prepare-staging-build-context\.mjs/);
+assert.match(pilotScript, /STAGING_BUILD_CONTEXT_FILE_SET_SHA256/);
+assert.match(pilotScript, /git_archive_exact_commit/);
 assert.match(pilotScript, /Invoke-StagingCertification\.ps1/);
 assert.match(pilotScript, /certification_status = "pending"/);
 assert.match(pilotScript, /Staging is running but not release-ready/);

@@ -174,6 +174,8 @@ $EnvFile = Join-Path $ApiPath ".env.staging"
 $Manifest = Join-Path $scriptRoot "manifest.json"
 $StateFile = Join-Path $scriptRoot "autopilot-state.json"
 $CertificationScript = Join-Path $scriptRoot "Invoke-StagingCertification.ps1"
+$BuildContextScript = Join-Path $ApiPath "scripts/prepare-staging-build-context.mjs"
+$BuildContextPath = Join-Path $RepositoryPath ".staging-build-context"
 
 Require-Command "git"
 Require-Command "docker"
@@ -223,6 +225,14 @@ try {
         $actual = (Get-FileHash -Algorithm SHA256 $full).Hash.ToLowerInvariant()
         if ($actual -ne $entry.sha256.ToLowerInvariant()) { Fail "Manifest hash mismatch: $($entry.path)" }
     }
+    if (-not (Test-Path $BuildContextScript)) { Fail "Exact Git build context generator is missing: $BuildContextScript" }
+    $buildTree = Get-NativeText "git" @("rev-parse", "$ExpectedCommit^{tree}")
+    if ($buildTree -notmatch '^[0-9a-fA-F]{40}$') { Fail "Pinned commit tree readback is not an exact SHA" }
+    Invoke-Native "node" @($BuildContextScript, "--repository-path", $RepositoryPath, "--commit", $ExpectedCommit.ToLowerInvariant(), "--output-dir", $BuildContextPath)
+    $buildContextMetadataPath = Join-Path $BuildContextPath ".staging-build-context.json"
+    if (-not (Test-Path $buildContextMetadataPath)) { Fail "Exact Git build context provenance metadata is missing" }
+    try { $buildContextMetadata = Get-Content -Raw -LiteralPath $buildContextMetadataPath | ConvertFrom-Json } catch { Fail "Exact Git build context provenance metadata is invalid" }
+    if ([string]$buildContextMetadata.commit_sha -ne $ExpectedCommit.ToLowerInvariant() -or [string]$buildContextMetadata.tree_sha -ne $buildTree.ToLowerInvariant() -or [string]$buildContextMetadata.source -ne "git_archive_exact_commit" -or $buildContextMetadata.local_ignored_files_included -ne $false -or $buildContextMetadata.secrets_included -ne $false) { Fail "Exact Git build context provenance did not converge" }
 
     if (-not (Test-Path $EnvFile)) {
         Copy-Item $EnvExample $EnvFile
@@ -274,6 +284,9 @@ try {
     Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_BRANCH" $Ref
+    Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT" (([IO.Path]::GetFullPath($BuildContextPath)) -replace '\\','/')
+    Set-EnvValue $EnvFile "STAGING_BUILD_TREE" $buildTree.ToLowerInvariant()
+    Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $StartTunnel) { Fail "StartTunnel requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
@@ -319,6 +332,9 @@ try {
         commit = $ExpectedCommit
         ref = $Ref
         docker_context = $context
+        build_context_source = "git_archive_exact_commit"
+        build_tree_sha = $buildTree.ToLowerInvariant()
+        build_context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256
         tunnel_started = [bool]$StartTunnel
         certification_status = "pending"
         certification_ready = $false
@@ -352,4 +368,5 @@ try {
     Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
 } finally {
     Pop-Location
+    if (Test-Path -LiteralPath $BuildContextPath) { Remove-Item -LiteralPath $BuildContextPath -Recurse -Force -ErrorAction SilentlyContinue }
 }

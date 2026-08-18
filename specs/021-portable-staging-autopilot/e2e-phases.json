@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       "autopilot-portable-staging/**",
+      ".dockerignore",
+      ".gitignore",
       ".github/contracts/production-promotion-supporting-gates.v1.json",
       ".github/workflows/staging-main-deploy-eligibility.yml",
       ".github/workflows/staging-live-certification.yml",
@@ -22,8 +24,10 @@
       "http-generic-api/tenantGptOAuth*.js",
       "http-generic-api/openapi/openapi.*activation*.staging.yaml",
       "http-generic-api/scripts/staging-environment-authority-closure.mjs",
+      "http-generic-api/scripts/prepare-staging-build-context.mjs",
       "http-generic-api/scripts/staging-live-certification.mjs",
       "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "http-generic-api/test-staging-build-context-provenance.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
@@ -74,6 +78,7 @@
             "Concurrent Auto Pilot runs are rejected by the valid Windows Global Mutex contract and no second Compose operation is started.",
             "Line-ending repair cannot hide non-line-ending content changes and manifest hashes remain deterministic.",
             "The Staging image contains deterministic immutable source provenance and the generated Staging Gateway policy used for live comparison.",
+            "The Docker build context is produced from the exact Git tree, excludes ignored `.env.staging` and local secret fixtures, and carries a secret-free tree/file-set provenance record into the image.",
             "A runtime branch, commit, or provenance mismatch is blocked even when containers are healthy.",
             "runtime_app/DB authority failure, missing MCP catalog schema readiness, or stale/mismatched Gateway policy cannot produce certification_status=ready.",
             "A degraded local Staging environment remains available for diagnosis while one-shot Auto Deploy cannot report it as certified and watcher mode re-certifies without blind redeploy.",
@@ -107,6 +112,13 @@
               "args": []
             },
             {
+              "id": "validate-staging-build-context-provenance",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-build-context-provenance.mjs",
+              "args": []
+            },
+            {
               "id": "validate-staging-auto-deploy-certification",
               "runner": "node",
               "working_directory": ".",
@@ -133,6 +145,8 @@
             "autopilot-portable-staging/Start-AutoPilot.ps1",
             "autopilot-portable-staging/Invoke-StagingCertification.ps1",
             "autopilot-portable-staging/manifest.json",
+            ".dockerignore",
+            ".gitignore",
             ".github/contracts/production-promotion-supporting-gates.v1.json",
             ".github/workflows/staging-main-deploy-eligibility.yml",
             ".github/workflows/staging-live-certification.yml",
@@ -140,8 +154,10 @@
             "http-generic-api/docker-compose.staging.yml",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/scripts/staging-environment-authority-closure.mjs",
+            "http-generic-api/scripts/prepare-staging-build-context.mjs",
             "http-generic-api/scripts/staging-live-certification.mjs",
             "http-generic-api/test-staging-environment-certification-contract.mjs",
+            "http-generic-api/test-staging-build-context-provenance.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
             "http-generic-api/routes/deploymentInfoRoutes.js",
             "http-generic-api/routes/activationHostGatewayRoutes.js",

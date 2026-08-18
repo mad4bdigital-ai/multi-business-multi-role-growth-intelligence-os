@@ -8,6 +8,7 @@
 !edge/activation-gateway/generated/
 !edge/activation-gateway/generated/route-policy.staging.json
 !canonical-manifest.mjs
+!.staging-build-context.json
 
 # Local/runtime material remains outside the image even when it lives below an
 # allowed source tree. Keep these rules after the allow-list entries above.
