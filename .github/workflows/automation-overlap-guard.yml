@@ -28,10 +28,12 @@ jobs:
   analyze:
     name: Analyze automation ownership and overlap
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -41,7 +43,7 @@ jobs:
 
       - name: Install runtime dependencies
         working-directory: http-generic-api
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Run governed overlap analysis
         working-directory: http-generic-api
