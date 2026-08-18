@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7153,
-    "bytes": 69823930,
+    "bytes": 69823935,
     "lines": 1640429,
     "directories": 265,
     "categories": 13
@@ -12513,9 +12513,9 @@
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "category": "root-and-other",
       "extension": ".ps1",
-      "bytes": 9658,
+      "bytes": 9661,
       "lines": 173,
-      "sha256": "cb08c7765664ae661dc1e71460cc719d72ec0fb05d6e72326fd6b4c0c36c2641",
+      "sha256": "57e86077312f8b6802a11b84455e84c915e508e4bd68b6300c6f2cd889ade316",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12546,9 +12546,9 @@
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
       "category": "root-and-other",
       "extension": ".ps1",
-      "bytes": 23830,
+      "bytes": 23833,
       "lines": 427,
-      "sha256": "d84bc32fe18f7da9afca17ebf6d0cca271c7a2e4adf4467d7aee9fd1e3751290",
+      "sha256": "cd7e3c3431fce99f4356510feff9bb3df1de3f3de4292f98f42a22fdfb2d576d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12634,9 +12634,9 @@
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
       "category": "root-and-other",
       "extension": ".ps1",
-      "bytes": 21449,
+      "bytes": 21455,
       "lines": 320,
-      "sha256": "aae90bdad3b67c080c844634a2c8a8cd8fb9d22cdeec98153dcff6a4296727d4",
+      "sha256": "ca6ab932ac851418b161c8e8fbcfba66686558ed12cf17dcf8f7f91451b7e196",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12691,7 +12691,7 @@
       "extension": ".json",
       "bytes": 10929,
       "lines": 277,
-      "sha256": "a33c8728bca55bc5df0373d4c3a6db70827a6236435d81dfe6b14c646c6bf7ab",
+      "sha256": "36ab90760dac11cfe6e3981a5bbf9cde0ccb7f499fd23c4f593b52c3961130d0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31807,9 +31807,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 20859,
+      "bytes": 20852,
       "lines": 348,
-      "sha256": "59f55faf2205092d94b86fcc510034f5fa298ae76dbddd6d1f04c9e3b50f098f",
+      "sha256": "a355d5d31ac67a6223e54ba2beb130be7faeb836fd67fd8ece7711924a98b7d7",
       "mode": "644",
       "executable": false,
       "generated": false
