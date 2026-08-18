@@ -31,7 +31,16 @@
       "http-generic-api/test-github-repository-policy-controller.mjs",
       "scripts/derived-state-closure.mjs",
       "scripts/repository-governance-closure.mjs",
-      "scripts/repository-governance-evidence-finalizer.mjs"
+      "scripts/repository-governance-evidence-finalizer.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+      ".specify/spec-kit-work-map-integration-policy.json",
+      "docs/governance/configuration-drift-policy.json",
+      "specs/**/work-map-integration.json",
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },

@@ -33,10 +33,41 @@
         "T028",
         "T041"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "spec.md",
         "operation-paths.md#op-010--revoke-or-disable-the-integration"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 30,
+        "matched_terms": [
+          "access",
+          "activation",
+          "active",
+          "admin",
+          "assets",
+          "authorization",
+          "authorized",
+          "blocks",
+          "code",
+          "context",
+          "count",
+          "documentation",
+          "dynamic",
+          "envelope",
+          "filter",
+          "hash",
+          "http-generic-api",
+          "json",
+          "markdown",
+          "plus"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "activation-onboarding-map": {
       "decision": "integrate",
@@ -59,10 +90,41 @@
         "T038",
         "T041"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "quickstart.md",
         "operation-paths.md#op-003--link-a-platform-account-through-oauth"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 44,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "authority",
+          "authorization",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "discovered",
+          "discovery",
+          "documentation",
+          "domain",
+          "end",
+          "envelope",
+          "evidence",
+          "existing",
+          "flow",
+          "governed",
+          "guidance",
+          "hash"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "agent-skill-plugin-map": {
       "decision": "extend",
@@ -86,10 +148,41 @@
         "T039",
         "T040"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "research.md",
         "contracts/plugin-package.schema.json"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 56,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "binding",
+          "brand",
+          "business",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "engine",
+          "evidence",
+          "execution",
+          "existing",
+          "flow",
+          "governed"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "asset-package-map": {
       "decision": "integrate",
@@ -110,10 +203,41 @@
         "T039",
         "T040"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "data-model.md#7-plugin-package-version",
         "contracts/plugin-package.schema.json"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 43,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "discovered",
+          "distribution",
+          "documentation",
+          "domain",
+          "end",
+          "existing",
+          "flow",
+          "governed",
+          "hash",
+          "http-generic-api",
+          "inventory",
+          "link",
+          "markdown",
+          "matching"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "commercial-usage-map": {
       "decision": "integrate",
@@ -135,10 +259,41 @@
         "T029",
         "T042"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "concerns.md#c-013--oversized-or-unbounded-responses",
         "testing-strategy.md#boundedness-and-performance"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 43,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "decision",
+          "discovered",
+          "documentation",
+          "domain",
+          "eligibility",
+          "end",
+          "evidence",
+          "execution",
+          "existing",
+          "flow",
+          "governed",
+          "hash",
+          "http-generic-api",
+          "inventory"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "connector-provider-map": {
       "decision": "integrate",
@@ -160,10 +315,41 @@
         "T027",
         "T032"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "concerns.md#c-020--governance-bypass-through-adapter-code",
         "data-model.md"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 63,
+        "matched_terms": [
+          "activation",
+          "app",
+          "assets",
+          "binding",
+          "brands",
+          "classification",
+          "connected",
+          "connector",
+          "connectors",
+          "count",
+          "coverage",
+          "credential",
+          "database",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "evidence"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "data-model-domain-map": {
       "decision": "integrate",
@@ -185,10 +371,41 @@
         "T009",
         "T013"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "data-model.md",
         ".specify/work-map-schema-classification-registry.json"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 66,
+        "matched_terms": [
+          "actions",
+          "activation",
+          "api",
+          "assets",
+          "authority",
+          "brand",
+          "brands",
+          "business",
+          "classification",
+          "connectors",
+          "count",
+          "data",
+          "database",
+          "delivery",
+          "developer",
+          "development",
+          "documentation",
+          "domain",
+          "endpoints",
+          "existing"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "delivery-support-map": {
       "decision": "integrate",
@@ -210,10 +427,41 @@
         "T018",
         "T038"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "operation-paths.md",
         "checklists/release-readiness.md"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 50,
+        "matched_terms": [
+          "allowlist",
+          "artifact",
+          "assets",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "event",
+          "existing",
+          "flow",
+          "governed",
+          "graph",
+          "hash",
+          "http-generic-api"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "execution-log-evidence-map": {
       "decision": "integrate",
@@ -235,10 +483,41 @@
         "T024",
         "T032"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "data-model.md#5-mcp-invocation-evidence",
         "testing-strategy.md#evidence-format"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 51,
+        "matched_terms": [
+          "app",
+          "assets",
+          "audit",
+          "authority",
+          "authorization",
+          "blocks",
+          "brand",
+          "business",
+          "code",
+          "connection",
+          "context",
+          "count",
+          "coverage",
+          "delivery",
+          "discovered",
+          "documentation",
+          "envelope",
+          "envelopes",
+          "environment",
+          "evidence"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "migration-lifecycle-map": {
       "decision": "integrate",
@@ -259,10 +538,41 @@
         "T008",
         "T013"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "plan.md#migration-posture",
         "data-model.md#migration-decision-gate"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 43,
+        "matched_terms": [
+          "apply",
+          "assets",
+          "authorization",
+          "candidate",
+          "classification",
+          "count",
+          "coverage",
+          "data",
+          "database",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "existing",
+          "flow",
+          "governed",
+          "hash",
+          "http-generic-api",
+          "inventory",
+          "lifecycle"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "observability-release-map": {
       "decision": "integrate",
@@ -287,10 +597,41 @@
         "T041",
         "T042"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "testing-strategy.md",
         "checklists/release-readiness.md"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 68,
+        "matched_terms": [
+          "activation",
+          "assets",
+          "audit",
+          "authority",
+          "brand",
+          "brands",
+          "business",
+          "classification",
+          "connectors",
+          "count",
+          "coverage",
+          "database",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "event",
+          "evidence"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "platform-resource-graph-map": {
       "decision": "integrate",
@@ -313,10 +654,41 @@
         "T027",
         "T031"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "data-model.md#ownership-hierarchy",
         "operation-paths.md#op-004--read-accessible-workspace-and-brand-context"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 58,
+        "matched_terms": [
+          "adapter",
+          "assets",
+          "authority",
+          "capability",
+          "classification",
+          "connectors",
+          "contract",
+          "count",
+          "coverage",
+          "database",
+          "decision",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "evidence",
+          "existing",
+          "flow"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "platform-runtime-map": {
       "decision": "reuse",
@@ -339,10 +711,41 @@
         "T020",
         "T027"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "plan.md#architecture-summary",
         "concerns.md#c-020--governance-bypass-through-adapter-code"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 65,
+        "matched_terms": [
+          "assets",
+          "authority",
+          "authorization",
+          "before",
+          "bindings",
+          "blocks",
+          "brand",
+          "business",
+          "calls",
+          "code",
+          "compatibility",
+          "connector",
+          "context",
+          "core",
+          "count",
+          "credential",
+          "dependency",
+          "documentation",
+          "engine",
+          "evidence"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "policy-authority-map": {
       "decision": "integrate",
@@ -367,10 +770,41 @@
         "T027",
         "T028"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "spec.md#actors-and-authority",
         "checklists/security.md"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 66,
+        "matched_terms": [
+          "activation",
+          "actor",
+          "assets",
+          "authority",
+          "block",
+          "brands",
+          "classification",
+          "connectors",
+          "context",
+          "count",
+          "coverage",
+          "database",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "evidence",
+          "existing"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "repository-automation-map": {
       "decision": "integrate",
@@ -394,10 +828,41 @@
         "T030",
         "T039"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "testing-strategy.md#static-contract-validation",
         "traceability.md"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 179,
+        "matched_terms": [
+          "activation",
+          "admin",
+          "alert",
+          "api",
+          "apply",
+          "artifact",
+          "assets",
+          "authority",
+          "authorization",
+          "authorize",
+          "authorized",
+          "automation",
+          "backfill",
+          "baseline",
+          "blocks",
+          "branch",
+          "brand",
+          "build",
+          "canary",
+          "candidate"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "repository-development-map": {
       "decision": "integrate",
@@ -419,10 +884,41 @@
         "T019",
         "T020"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "plan.md#delivery-strategy",
         "tasks.md"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 49,
+        "matched_terms": [
+          "assets",
+          "branch",
+          "candidate",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "deployment",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "existing",
+          "flow",
+          "gate",
+          "governed",
+          "hash",
+          "http-generic-api",
+          "install"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "session-memory-map": {
       "decision": "integrate",
@@ -444,10 +940,41 @@
         "T029",
         "T032"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "research.md#security-and-privacy-findings",
         "concerns.md#c-007--overcollection-of-conversation-context"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 61,
+        "matched_terms": [
+          "assets",
+          "authority",
+          "brand",
+          "business",
+          "candidates",
+          "canonical",
+          "classification",
+          "connectors",
+          "context",
+          "conversation",
+          "count",
+          "database",
+          "defs",
+          "documentation",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "governance",
+          "graph"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "work-map-coverage-matrix": {
       "decision": "integrate",
@@ -465,10 +992,41 @@
         "T003",
         "T005"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "docs/work-maps/work-map-coverage-matrix.md",
         "data-model.md#migration-decision-gate"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 51,
+        "matched_terms": [
+          "activation",
+          "api",
+          "assets",
+          "authority",
+          "brand",
+          "business",
+          "connectors",
+          "count",
+          "coverage",
+          "database",
+          "delivery",
+          "developer",
+          "development",
+          "documentation",
+          "domain",
+          "governance",
+          "graph",
+          "hash",
+          "http-generic-api",
+          "identity"
+        ],
+        "candidate": "likely_relevant"
+      }
     },
     "workflow-task-orchestration-map": {
       "decision": "integrate",
@@ -490,89 +1048,464 @@
         "T009",
         "T027"
       ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
       "evidence_refs": [
         "operation-paths.md#op-006--request-a-governed-write-operation",
         "testing-strategy.md#write-tool-tests-for-future-phase"
-      ]
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 64,
+        "matched_terms": [
+          "actions",
+          "activation",
+          "approval",
+          "assets",
+          "authority",
+          "binding",
+          "classification",
+          "count",
+          "coverage",
+          "database",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "event",
+          "execution",
+          "existing",
+          "flow"
+        ],
+        "candidate": "likely_relevant"
+      }
     }
   },
-  "schema_domain_decisions": {
-    "Activation & onboarding": {
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
       "decision": "integrate",
-      "rationale": "Account linking, consent, rollout, and connection readiness use existing activation and onboarding schema authority."
+      "rationale": "Account linking, consent, rollout, and connection readiness use existing activation and onboarding schema authority.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Activation & onboarding authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Agents & intelligence": {
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
       "decision": "integrate",
-      "rationale": "Tool selection metadata and optional skills integrate with existing agent, skill, and plugin governance."
+      "rationale": "Tool selection metadata and optional skills integrate with existing agent, skill, and plugin governance.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Agents & intelligence authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Assets & packages": {
+    "assets-and-packages": {
+      "label": "Assets & packages",
       "decision": "integrate",
-      "rationale": "Plugin packages and presentation assets use existing versioned asset and package lifecycle concepts."
+      "rationale": "Plugin packages and presentation assets use existing versioned asset and package lifecycle concepts.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Assets & packages authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Brand & business": {
+    "brand-and-business": {
+      "label": "Brand & business",
       "decision": "integrate",
-      "rationale": "Brand operating context is exposed only through authorized existing Brand and business projections."
+      "rationale": "Brand operating context is exposed only through authorized existing Brand and business projections.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Brand & business authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Commercial & usage": {
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
       "decision": "integrate",
-      "rationale": "Rate limits, quotas, costs, and distribution policy reuse existing commercial and usage governance."
+      "rationale": "Rate limits, quotas, costs, and distribution policy reuse existing commercial and usage governance.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Commercial & usage authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Connectors & providers": {
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
       "decision": "integrate",
-      "rationale": "External provider actions remain behind existing connection ownership, dispatch, and credential boundaries."
+      "rationale": "External provider actions remain behind existing connection ownership, dispatch, and credential boundaries.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Connectors & providers authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Delivery & support": {
+    "delivery-and-support": {
+      "label": "Delivery & support",
       "decision": "integrate",
-      "rationale": "Relinking, unknown outcomes, review remediation, and support handoff reuse existing support lifecycles."
+      "rationale": "Relinking, unknown outcomes, review remediation, and support handoff reuse existing support lifecycles.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Delivery & support authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Developer & API": {
+    "developer-and-api": {
+      "label": "Developer & API",
       "decision": "extend",
-      "rationale": "A standards-compliant MCP transport and OAuth discovery surface extend the current developer and API domain."
+      "rationale": "A standards-compliant MCP transport and OAuth discovery surface extend the current developer and API domain.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Developer & API authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Governance & authority": {
+    "governance-and-authority": {
+      "label": "Governance & authority",
       "decision": "integrate",
-      "rationale": "Client, scope, tool, confirmation, resource, and rollout decisions remain governed authority records."
+      "rationale": "Client, scope, tool, confirmation, resource, and rollout decisions remain governed authority records.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Governance & authority authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Migration & lifecycle": {
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
       "decision": "integrate",
-      "rationale": "New persistence is conditional and must follow additive migration, rollback, and closeout authority."
+      "rationale": "New persistence is conditional and must follow additive migration, rollback, and closeout authority.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Migration & lifecycle authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Observability & release": {
+    "observability-and-release": {
+      "label": "Observability & release",
       "decision": "integrate",
-      "rationale": "Metadata parity, endpoint health, invocation evidence, review, publication, and rollback require release evidence."
+      "rationale": "Metadata parity, endpoint health, invocation evidence, review, publication, and rollback require release evidence.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Observability & release authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Platform resources & graph": {
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
       "decision": "integrate",
-      "rationale": "Clients, users, tenants, workspaces, Brands, tools, operations, packages, and reviews require typed relationships."
+      "rationale": "Clients, users, tenants, workspaces, Brands, tools, operations, packages, and reviews require typed relationships.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Platform resources & graph authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Repository & development": {
+    "repository-and-development": {
+      "label": "Repository & development",
       "decision": "integrate",
-      "rationale": "SDK adoption, contracts, CI, exact-head evidence, and multi-PR delivery use repository governance."
+      "rationale": "SDK adoption, contracts, CI, exact-head evidence, and multi-PR delivery use repository governance.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Repository & development authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Sessions & memory": {
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
       "decision": "integrate",
-      "rationale": "Stable follow-up identifiers are supported while broad conversation collection remains prohibited by design."
+      "rationale": "Stable follow-up identifiers are supported while broad conversation collection remains prohibited by design.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Sessions & memory authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Tenancy & identity": {
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
       "decision": "extend",
-      "rationale": "OAuth resource-server and client contracts extend identity while retaining tenant and membership authority."
+      "rationale": "OAuth resource-server and client contracts extend identity while retaining tenant and membership authority.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Tenancy & identity authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     },
-    "Workflow & tasks": {
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
       "decision": "integrate",
-      "rationale": "Governed mutations, status, retry, reconciliation, compensation, and support remain workflow responsibilities."
+      "rationale": "Governed mutations, status, retry, reconciliation, compensation, and support remain workflow responsibilities.",
+      "owner": "unassigned",
+      "integration_points": [
+        "Existing Workflow & tasks authority"
+      ],
+      "requirement_refs": [
+        "spec.md#functional-requirements"
+      ],
+      "task_refs": [
+        "tasks.md#dependency-rules"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "traceability.md#repository-authority-mapping"
+      ],
+      "depends_on": []
     }
   },
-  "taxonomy_gaps": [],
+  "cross_map_dependencies": [],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "Spec016 reuses existing platform Work Maps and schema domains; the canonical registry currently reports no taxonomy-gap clusters. Acceptance and unresolved specification work remain tracked in the feature traceability and checklist artifacts."
+  },
   "implementation_readiness": {
     "status": "blocked",
-    "blocking_reasons": [
-      "canonical_scaffold_not_run_for_spec_016",
-      "oauth_identity_conformance_not_verified",
-      "legacy_mcp_consumer_inventory_missing",
-      "phase_1_tool_catalog_not_approved",
-      "field_level_schema_reuse_matrix_missing"
+    "blocking_dimensions": [
+      "activation-access-map",
+      "activation-onboarding-map",
+      "agent-skill-plugin-map",
+      "asset-package-map",
+      "commercial-usage-map",
+      "connector-provider-map",
+      "data-model-domain-map",
+      "delivery-support-map",
+      "execution-log-evidence-map",
+      "migration-lifecycle-map",
+      "observability-release-map",
+      "platform-resource-graph-map",
+      "platform-runtime-map",
+      "policy-authority-map",
+      "repository-automation-map",
+      "repository-development-map",
+      "session-memory-map",
+      "work-map-coverage-matrix",
+      "workflow-task-orchestration-map",
+      "activation-and-onboarding",
+      "agents-and-intelligence",
+      "assets-and-packages",
+      "brand-and-business",
+      "commercial-and-usage",
+      "connectors-and-providers",
+      "delivery-and-support",
+      "developer-and-api",
+      "governance-and-authority",
+      "migration-and-lifecycle",
+      "observability-and-release",
+      "platform-resources-and-graph",
+      "repository-and-development",
+      "sessions-and-memory",
+      "tenancy-and-identity",
+      "workflow-and-tasks"
     ],
-    "next_action": "Run the canonical Work Map scaffold and complete specification review before any implementation change."
+    "reviewed_by": "platform-team",
+    "evidence_refs": [
+      "traceability.md#blocking-traceability-gaps",
+      "checklists/requirements.md#specification-completeness"
+    ]
   },
   "secrets_included": false
 }
