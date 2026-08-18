@@ -50,7 +50,7 @@ assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classe
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
-assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["staging_only", "repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
 
 const sharedChange = classifyChange({ status: "M", path: "http-generic-api/routes/tenantTools.js", previous_path: null }, classes);
