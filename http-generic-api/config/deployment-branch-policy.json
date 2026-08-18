@@ -50,6 +50,83 @@
       "version_readback"
     ]
   },
+  "environment_impact": {
+    "schema_version": "mad4b.environment-impact-policy.v1",
+    "source_of_truth_paths": [
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/domain-family-policy.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+      "edge/activation-gateway/generated/route-policy.staging.json"
+    ],
+    "path_classes": [
+      {
+        "id": "staging_only",
+        "patterns": [
+          "autopilot-portable-staging/**",
+          "http-generic-api/docker-compose.staging.yml",
+          "http-generic-api/Dockerfile.staging",
+          "http-generic-api/scripts/staging-*.mjs",
+          "http-generic-api/test-staging-*.mjs",
+          "STAGING-*.md"
+        ],
+        "environments": ["staging"],
+        "requires_live_certification": true
+      },
+      {
+        "id": "production_only",
+        "patterns": [
+          "autopilot-portable-production/**",
+          "http-generic-api/config/production-*.json",
+          "http-generic-api/scripts/production-*.mjs"
+        ],
+        "environments": ["production"],
+        "requires_live_certification": true
+      },
+      {
+        "id": "shared_runtime",
+        "patterns": [
+          "http-generic-api/routes/**",
+          "http-generic-api/src/**",
+          "http-generic-api/public/**",
+          "http-generic-api/*.js",
+          "http-generic-api/*.mjs",
+          "edge/**",
+          "canonicals/openapi/**",
+          "specs/020-platform-resource-identity-brand-governance/**"
+        ],
+        "environments": ["staging", "production"],
+        "requires_live_certification": true
+      },
+      {
+        "id": "repository_governance",
+        "patterns": [
+          ".github/**",
+          ".changes/e2e/**",
+          "docs/governance/**",
+          "scripts/**",
+          "http-generic-api/config/**",
+          "http-generic-api/scripts/environment-impact-closure.mjs",
+          "http-generic-api/test-environment-impact-closure.mjs"
+        ],
+        "environments": ["repository"],
+        "requires_live_certification": false
+      }
+    ],
+    "collision_rules": [
+      {
+        "id": "staging-production-path-overlap",
+        "effect": "block",
+        "when": "staging_only_and_production_only_are_changed_without_explicit_cross_environment_review"
+      },
+      {
+        "id": "shared-runtime-requires-staging-certification",
+        "effect": "require",
+        "when": "shared_runtime_or_staging_only_changes_are_present"
+      }
+    ]
+  },
   "connector_recovery": {
     "hostname": "connector.mad4b.com",
     "excluded_from_hostname_families": true,

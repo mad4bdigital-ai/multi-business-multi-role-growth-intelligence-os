@@ -66,6 +66,15 @@ jobs:
           --expected-sha "$EXPECTED_HEAD_SHA"
           --report-file "$STAGING_AUTHORITY_REPORT_FILE"
 
+      - name: Verify environment impact and migration compatibility closure
+        env:
+          EXPECTED_HEAD_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+          ENVIRONMENT_IMPACT_REPORT_FILE: ${{ runner.temp }}/staging-environment-impact-closure/report.json
+        run: >-
+          node http-generic-api/scripts/environment-impact-closure.mjs
+          --head-sha "$EXPECTED_HEAD_SHA"
+          --report-file "$ENVIRONMENT_IMPACT_REPORT_FILE"
+
       - name: Certify live Staging against exact main release cut
         env:
           STAGING_CERT_EXPECTED_COMMIT: ${{ steps.identity.outputs.release_cut_sha }}
@@ -101,12 +110,14 @@ jobs:
             --arg candidate "$EXPECTED_CANDIDATE_SHA" \
             --arg cut "$RELEASE_CUT_SHA" \
             --slurpfile authority "$STAGING_AUTHORITY_REPORT_FILE" \
+            --slurpfile impact "$RUNNER_TEMP/staging-environment-impact-closure/report.json" \
             --slurpfile live "$STAGING_CERT_REPORT_FILE" \
             '{
               contract:"mad4b.staging-live-certification-evidence.v1",
               candidate_sha:$candidate,
               main_release_cut_sha:$cut,
               authority_closure:$authority[0],
+              environment_impact_closure:$impact[0],
               live_certification:$live[0],
               production_merge:false,
               deployment:false,

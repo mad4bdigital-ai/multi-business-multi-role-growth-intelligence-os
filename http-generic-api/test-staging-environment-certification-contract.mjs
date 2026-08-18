@@ -9,10 +9,12 @@ import { fileURLToPath } from "node:url";
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
 const authorityScript = path.join(apiRoot, "scripts/staging-environment-authority-closure.mjs");
+const impactScript = path.join(apiRoot, "scripts/environment-impact-closure.mjs");
 const liveScript = path.join(apiRoot, "scripts/staging-live-certification.mjs");
 const expectedCommit = "1".repeat(40);
 
 const staticReport = path.join(os.tmpdir(), `staging-authority-${process.pid}.json`);
+const impactReport = path.join(os.tmpdir(), `staging-impact-${process.pid}.json`);
 const staticRun = spawnSync(process.execPath, [
   authorityScript,
   "--expected-sha", expectedCommit,
@@ -33,6 +35,27 @@ assert.equal(authority.environment_contract.same_cycle_readback_required, true);
 assert.equal(authority.safety.read_only, true);
 assert.equal(authority.safety.database_mutation, false);
 assert.equal(authority.safety.production_deploy, false);
+
+const impactRun = spawnSync(process.execPath, [
+  impactScript,
+  "--head-sha", expectedCommit,
+  "--report-file", impactReport,
+], { cwd: root, encoding: "utf8" });
+assert.equal(impactRun.status, 0, impactRun.stderr || impactRun.stdout);
+const impact = JSON.parse(fs.readFileSync(impactReport, "utf8"));
+assert.equal(impact.contract, "mad4b.environment-impact-closure.v1");
+assert.equal(impact.converged, true);
+assert.equal(impact.issue_count, 0);
+assert.equal(impact.schema_compatibility.required_field, "mcp_catalog_level");
+assert.equal(impact.schema_compatibility.matching_migration_count, 1);
+assert.equal(impact.db_authority.generic_runtime_principal_fallback, false);
+assert.equal(impact.gateway.stale_mutation_policy, "deny");
+assert.equal(impact.safety.read_only, true);
+assert.equal(impact.safety.database_mutation, false);
+assert.equal(impact.safety.migration_apply, false);
+assert.equal(impact.safety.provider_mutation, false);
+assert.equal(impact.safety.production_deploy, false);
+assert.equal(impact.safety.secrets_included, false);
 
 function listen(handler) {
   return new Promise((resolve, reject) => {
@@ -203,6 +226,7 @@ try {
   await new Promise((resolve) => gateway.server.close(resolve));
   fs.rmSync(tempDir, { recursive: true, force: true });
   fs.rmSync(staticReport, { force: true });
+  fs.rmSync(impactReport, { force: true });
 }
 
 console.log("Staging environment authority and live certification contract tests passed");

@@ -93,3 +93,22 @@ If the OAuth compatibility lane causes an unexpected client behavior, set `TENAN
 | Missing `mcp_catalog_level` | Catalog readiness false with `mcp_catalog_schema_migration_required`; no silent `core` fallback |
 | Staging Admin schema import | Exactly one `backendApiKeyAuth` scheme, one `dev.mad4b.com` server, GET-only operations |
 | Generated staging-admin artifact drift | CI fails before promotion; no manual generated-file edits are accepted |
+
+## Environment impact and migration compatibility closure
+
+The repository now derives environment impact from `http-generic-api/config/deployment-branch-policy.json` and reconciles it with `http-generic-api/config/domain-family-policy.json`, the Spec020 runtime-environment invariant, the Spec020 database-authority profiles, the Spec020 database-readiness contract, and the generated Staging gateway policy. The read-only compiler is `http-generic-api/scripts/environment-impact-closure.mjs`; it emits `mad4b.environment-impact-closure.v1` evidence and never applies migrations, grants, provider changes, DNS changes, deployments, or rulesets.
+
+The compiler classifies changed paths as `staging_only`, `production_only`, `shared_runtime`, or `repository_governance`. A Staging-only or shared-runtime change requires the declared Staging target and live certification for the exact source SHA. A simultaneous Staging-only and Production-only change is blocked unless the existing E2E contract explicitly declares cross-environment review and both targets. This is a collision guard, not a second promotion authority.
+
+Schema compatibility is derived from the runtime-readiness contract. The compiler locates the unique migration that defines the required `mcp_catalog_level` field, records its SHA-256, and blocks readiness when the migration source is missing, ambiguous, or inconsistent. Repository presence is not live schema evidence: the live certification still requires `/deployment-info` readback, `information_schema`/catalog readiness, gateway policy freshness and hash parity, and exact branch/commit identity.
+
+The resulting promotion rule is conjunctive:
+
+```text
+repository governance closure
+AND environment impact closure
+AND exact-SHA Staging live certification
+AND supporting-gate evidence
+```
+
+A green repository check cannot substitute for a stale Gateway policy, a rejected Staging DB identity, or a missing catalog migration. Until the independent runtime authority is repaired and read back, the candidate remains degraded or blocked; this PR does not perform the repair or authorize Production.

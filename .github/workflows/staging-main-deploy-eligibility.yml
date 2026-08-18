@@ -57,6 +57,14 @@ jobs:
           --expected-sha "$EXPECTED_HEAD_SHA"
           --report-file "$STAGING_AUTHORITY_REPORT_FILE"
 
+      - name: Verify environment impact and migration compatibility closure
+        env:
+          ENVIRONMENT_IMPACT_REPORT_FILE: ${{ runner.temp }}/environment-impact-closure/report.json
+        run: >-
+          node http-generic-api/scripts/environment-impact-closure.mjs
+          --head-sha "$EXPECTED_HEAD_SHA"
+          --report-file "$ENVIRONMENT_IMPACT_REPORT_FILE"
+
       - name: Verify repository derived-state closure
         env:
           DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/staging-derived-state-closure/report.json

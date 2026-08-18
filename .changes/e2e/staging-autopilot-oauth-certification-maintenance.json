@@ -16,6 +16,13 @@
   "merge_contract": {
     "minimum_phase": "mvp"
   },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "phases": [
     {
       "id": "mvp",
@@ -43,6 +50,7 @@
             "GPT Actions no-PKCE compatibility is restricted to the canonical client in each environment and explicit false remains a strict-PKCE rollback switch.",
             "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
             "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
+            "Environment impact is derived from the canonical deployment/domain policies and requires live Staging certification for shared runtime changes.",
             "secrets_included is false."
           ],
           "tests": [
@@ -66,6 +74,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-autopilot-closure.mjs",
               "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -73,7 +88,11 @@
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-auth-oauth-routes.mjs",
             "http-generic-api/test-staging-environment-certification-contract.mjs",
-            "http-generic-api/test-staging-autopilot-closure.mjs"
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "docs/governance/production-readiness-consolidated-fix.md"
           ]
         }
       ]
