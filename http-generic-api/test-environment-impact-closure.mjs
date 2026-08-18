@@ -3,11 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildReport, classifyPath } from "./scripts/environment-impact-closure.mjs";
+import { buildReport, classifyChange, classifyPath } from "./scripts/environment-impact-closure.mjs";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
 const deployment = JSON.parse(fs.readFileSync(path.join(apiRoot, "config/deployment-branch-policy.json"), "utf8"));
+const policy = deployment.environment_impact;
 const report = buildReport();
 
 assert.equal(report.contract, "mad4b.environment-impact-closure.v1");
@@ -32,14 +33,49 @@ assert.equal(report.safety.migration_apply, false);
 assert.equal(report.safety.provider_mutation, false);
 assert.equal(report.safety.secrets_included, false);
 
-const classes = deployment.environment_impact.path_classes;
+assert.equal(policy.authorities.deployment_branch_policy, "http-generic-api/config/deployment-branch-policy.json");
+assert.equal(policy.fail_closed.unclassified_paths, true);
+assert.equal(policy.fail_closed.rename_previous_path, true);
+assert.equal(policy.fail_closed.copy_previous_path, true);
+assert.ok(policy.impact_declarations.patterns.includes(".changes/e2e/*.json"));
+assert.deepEqual(
+  [...policy.source_of_truth_paths].sort(),
+  Object.values(policy.authorities).sort(),
+);
+
+const classes = policy.path_classes;
 assert.deepEqual(classifyPath("autopilot-portable-staging/Start-AutoPilot.ps1", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/routes/tenantTools.js", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
+
+const sharedChange = classifyChange({ status: "M", path: "http-generic-api/routes/tenantTools.js", previous_path: null }, classes);
+assert.deepEqual(sharedChange.classes, ["shared_runtime"]);
+assert.deepEqual(sharedChange.environments, ["production", "staging"]);
+assert.equal(sharedChange.requires_live_certification, true);
+
+const renamedAcrossEnvironments = classifyChange({
+  status: "R100",
+  path: "autopilot-portable-staging/New.ps1",
+  previous_path: "autopilot-portable-production/Old.ps1",
+}, classes);
+assert.deepEqual(renamedAcrossEnvironments.path_classes, ["staging_only"]);
+assert.deepEqual(renamedAcrossEnvironments.previous_path_classes, ["production_only"]);
+assert.deepEqual(renamedAcrossEnvironments.classes, ["production_only", "staging_only"]);
+assert.deepEqual(renamedAcrossEnvironments.environments, ["production", "staging"]);
+assert.equal(renamedAcrossEnvironments.requires_live_certification, true);
+
+const unknownRenameSource = classifyChange({
+  status: "R100",
+  path: "autopilot-portable-staging/New.ps1",
+  previous_path: "unknown-surface/Old.ps1",
+}, classes);
+assert.deepEqual(unknownRenameSource.path_classes, ["staging_only"]);
+assert.deepEqual(unknownRenameSource.previous_path_classes, []);
 
 const reportFile = path.join(os.tmpdir(), `environment-impact-${process.pid}.json`);
 fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);

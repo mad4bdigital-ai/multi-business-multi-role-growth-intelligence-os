@@ -31,6 +31,13 @@ assert.equal(safeReady.ok, true);
 assert.equal(safeReady.identity.ok, true);
 assert.equal(safeReady.database_role, MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_role);
 assert.equal(safeReady.migration_checksum_sha256, MCP_CATALOG_LEVEL_MIGRATION_SHA256);
+assert.equal(safeReady.read_only_probe, true);
+assert.equal(safeReady.database_connection_performed, true);
+assert.equal(safeReady.sql_readback_performed, true);
+assert.equal(safeReady.sql_mutation_performed, false);
+assert.equal(safeReady.migration_apply_performed, false);
+assert.equal(safeReady.provider_mutation_performed, false);
+assert.equal(safeReady.deployment_performed, false);
 assert.equal((await assertMcpCatalogLevelColumn({ pool: presentPool, table: "admin_platform_endpoint_tools" })).available, true);
 
 const missingPool = {
@@ -59,6 +66,16 @@ const degraded = await readMcpCatalogSchemaReadiness({ pool: errorPool });
 assert.equal(degraded.ok, false);
 assert.equal(degraded.migration_apply_required, true);
 assert.equal(degraded.tables.every((item) => item.secrets_included === false), true);
+const safeDegraded = await readMcpCatalogSchemaReadinessSafe({
+  pool: errorPool,
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+});
+assert.equal(safeDegraded.ok, false);
+assert.equal(safeDegraded.read_only_probe, true);
+assert.equal(safeDegraded.sql_mutation_performed, false);
+assert.equal(safeDegraded.migration_apply_performed, false);
+assert.equal(safeDegraded.provider_mutation_performed, false);
+assert.equal(safeDegraded.deployment_performed, false);
 
 await assert.rejects(
   () => readMcpCatalogLevelSchemaStatus({ pool: presentPool, table: "users" }),

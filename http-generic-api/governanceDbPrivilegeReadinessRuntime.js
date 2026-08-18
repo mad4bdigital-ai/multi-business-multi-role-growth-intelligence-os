@@ -26,6 +26,7 @@ export function projectGovernanceDbPrivilegeReadiness(result = {}) {
     privilege_matrix_exact: ready,
     database_connection_performed: result.database_connection_performed === true,
     sql_readback_performed: result.sql_readback_performed === true,
+    read_only_probe: true,
     sql_mutation_performed: false,
     migration_apply_performed: false,
     provider_mutation_performed: false,

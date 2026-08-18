@@ -52,6 +52,14 @@
   },
   "environment_impact": {
     "schema_version": "mad4b.environment-impact-policy.v1",
+    "authorities": {
+      "deployment_branch_policy": "http-generic-api/config/deployment-branch-policy.json",
+      "domain_family_policy": "http-generic-api/config/domain-family-policy.json",
+      "runtime_environment_invariant": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+      "runtime_db_write_authority": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+      "runtime_database_readiness": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+      "activation_gateway_staging_policy": "edge/activation-gateway/generated/route-policy.staging.json"
+    },
     "source_of_truth_paths": [
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",
@@ -60,6 +68,16 @@
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "edge/activation-gateway/generated/route-policy.staging.json"
     ],
+    "impact_declarations": {
+      "patterns": [".changes/e2e/*.json"],
+      "source_of_truth_field": "environment_impact.source_of_truth",
+      "required_for_environment_changes": true
+    },
+    "fail_closed": {
+      "unclassified_paths": true,
+      "rename_previous_path": true,
+      "copy_previous_path": true
+    },
     "path_classes": [
       {
         "id": "staging_only",
@@ -109,6 +127,7 @@
         "patterns": [
           ".github/**",
           ".changes/e2e/**",
+          ".dockerignore",
           "docs/governance/**",
           "scripts/**",
           "http-generic-api/config/**",

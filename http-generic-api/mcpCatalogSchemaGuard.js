@@ -44,6 +44,18 @@ function cacheFor(pool) {
   return cache;
 }
 
+function readOnlyEvidence({ databaseConnectionPerformed = false, sqlReadbackPerformed = false } = {}) {
+  return {
+    read_only_probe: true,
+    database_connection_performed: databaseConnectionPerformed === true,
+    sql_readback_performed: sqlReadbackPerformed === true,
+    sql_mutation_performed: false,
+    migration_apply_performed: false,
+    provider_mutation_performed: false,
+    deployment_performed: false,
+  };
+}
+
 export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } = {}) {
   if (!pool || typeof pool.query !== "function") {
     return {
@@ -217,7 +229,6 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
   };
 }
 
-
 const mcpCatalogSchemaStartupPreflightState = {
   contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
   status: "not_run",
@@ -269,8 +280,7 @@ function unavailableSchemaReadiness(error) {
       secrets_included: false,
     })),
     migration_apply_required: true,
-    database_connection_performed: false,
-    sql_readback_performed: false,
+    ...readOnlyEvidence(),
     secrets_included: false,
   };
 }
@@ -285,8 +295,7 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
       ok: readiness.ok === true && identity.ok === true,
       identity,
-      database_connection_performed: true,
-      sql_readback_performed: true,
+      ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
       secrets_included: false,
     };
   } catch (error) {

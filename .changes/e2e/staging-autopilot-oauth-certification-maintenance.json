@@ -18,8 +18,8 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
-    "cross_environment_reviewed": false,
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
   },
@@ -27,7 +27,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep Staging Auto Pilot lifecycle, environment authority, GPT Actions OAuth compatibility, and exact certification evidence within one reviewed maintenance PR without Production mutation.",
+      "objective": "Keep Staging Auto Pilot lifecycle, shared OAuth behavior, environment authority, and exact certification evidence within one reviewed cross-environment maintenance PR without Production mutation.",
       "e2e_journeys": [
         {
           "id": "staging-autopilot-oauth-certification",
@@ -47,10 +47,10 @@
           "assertions": [
             "The invalid warn log level cannot crash Auto Pilot after service health.",
             "Staging and Production OAuth hosts, client identities, resource values, and scope authorities remain environment-separated.",
-            "GPT Actions no-PKCE compatibility is restricted to the canonical client in each environment and explicit false remains a strict-PKCE rollback switch.",
+            "GPT Actions no-PKCE compatibility is disabled by default and may only be enabled explicitly for the canonical client in the selected environment.",
             "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
             "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
-            "Environment impact is derived from the canonical deployment/domain policies and requires live Staging certification for shared runtime changes.",
+            "Environment impact is derived from the canonical deployment/domain policies, shared runtime changes declare both affected environments, and Staging certification remains mandatory.",
             "secrets_included is false."
           ],
           "tests": [

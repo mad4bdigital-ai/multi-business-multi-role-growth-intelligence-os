@@ -8,16 +8,15 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const CONTRACT = "mad4b.environment-impact-closure.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
-
-const sourcePaths = Object.freeze({
-  deployment_branch_policy: "http-generic-api/config/deployment-branch-policy.json",
-  domain_family_policy: "http-generic-api/config/domain-family-policy.json",
-  runtime_environment_invariant: "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
-  runtime_db_write_authority: "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
-  runtime_database_readiness: "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
-  activation_gateway_staging_policy: "edge/activation-gateway/generated/route-policy.staging.json",
-  e2e_contract: ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
-});
+const DEPLOYMENT_POLICY_PATH = "http-generic-api/config/deployment-branch-policy.json";
+const REQUIRED_AUTHORITY_KEYS = Object.freeze([
+  "deployment_branch_policy",
+  "domain_family_policy",
+  "runtime_environment_invariant",
+  "runtime_db_write_authority",
+  "runtime_database_readiness",
+  "activation_gateway_staging_policy",
+]);
 
 function arg(name, fallback = null) {
   const index = process.argv.indexOf(`--${name}`);
@@ -80,8 +79,23 @@ function classifyPath(filePath, pathClasses = []) {
   return matches;
 }
 
+function classifyChange(change, pathClasses = []) {
+  const current = classifyPath(change?.path, pathClasses);
+  const previous = change?.previous_path ? classifyPath(change.previous_path, pathClasses) : [];
+  const byId = new Map([...current, ...previous].map((entry) => [entry.id, entry]));
+  const classes = [...byId.values()];
+  return {
+    ...change,
+    classes: stable(classes.map((entry) => entry.id)),
+    path_classes: stable(current.map((entry) => entry.id)),
+    previous_path_classes: stable(previous.map((entry) => entry.id)),
+    environments: stable(classes.flatMap((entry) => entry.environments || [])),
+    requires_live_certification: classes.some((entry) => entry.requires_live_certification === true),
+  };
+}
+
 function changedPaths(baseSha, headSha) {
-  if (!SHA_RE.test(baseSha) || !SHA_RE.test(headSha) || baseSha === headSha) return [];
+  if (!SHA_RE.test(baseSha || "") || !SHA_RE.test(headSha || "") || baseSha === headSha) return [];
   const output = requireGitNameStatus(baseSha, headSha);
   return output
     .split(/\r?\n/u)
@@ -124,20 +138,67 @@ function migrationEvidence(readinessContract) {
   };
 }
 
-function buildReport({ baseSha = null, headSha = null } = {}) {
-  const deployment = readJson(sourcePaths.deployment_branch_policy);
-  const domain = readJson(sourcePaths.domain_family_policy);
-  const environment = readJson(sourcePaths.runtime_environment_invariant);
-  const dbAuthority = readJson(sourcePaths.runtime_db_write_authority);
-  const readiness = readJson(sourcePaths.runtime_database_readiness);
-  const gateway = readJson(sourcePaths.activation_gateway_staging_policy);
-  const e2e = readJson(sourcePaths.e2e_contract);
+function resolveSourcePaths(deployment) {
+  const policy = deployment?.environment_impact || {};
+  return Object.freeze({ ...(policy.authorities || {}) });
+}
+
+function findImpactDeclarationPaths(policy, pathChanges, explicitPath = null) {
+  const patterns = policy?.impact_declarations?.patterns || [];
+  const candidates = [];
+  if (explicitPath) candidates.push(explicitPath);
+  for (const change of pathChanges) {
+    if (patterns.some((pattern) => globToRegExp(pattern).test(change.path))) candidates.push(change.path);
+  }
+  return stable(candidates);
+}
+
+function readImpactDeclarations(paths = []) {
+  return paths.map((relativePath) => {
+    try {
+      const document = readJson(relativePath);
+      return { path: relativePath, readable: true, document, environment_impact: document.environment_impact || {} };
+    } catch (error) {
+      return {
+        path: relativePath,
+        readable: false,
+        document: null,
+        environment_impact: {},
+        error_code: String(error?.code || error?.name || "impact_declaration_unreadable").slice(0, 128),
+      };
+    }
+  });
+}
+
+function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = null } = {}) {
+  const deployment = readJson(DEPLOYMENT_POLICY_PATH);
   const policy = deployment.environment_impact || {};
+  const sourcePaths = resolveSourcePaths(deployment);
   const issues = [];
   const addIssue = (code, detail = null) => issues.push({ code, detail });
   const expect = (condition, code, detail = null) => { if (!condition) addIssue(code, detail); };
 
   expect(policy.schema_version === "mad4b.environment-impact-policy.v1", "environment_impact_policy_contract_mismatch");
+  expect(sourcePaths.deployment_branch_policy === DEPLOYMENT_POLICY_PATH, "deployment_policy_authority_mismatch", sourcePaths.deployment_branch_policy || null);
+  for (const key of REQUIRED_AUTHORITY_KEYS) {
+    expect(Boolean(sourcePaths[key]), `environment_authority_missing:${key}`);
+  }
+  expect(
+    JSON.stringify(stable(policy.source_of_truth_paths || [])) === JSON.stringify(stable(Object.values(sourcePaths))),
+    "environment_authority_registry_drift",
+    { declared_paths: stable(policy.source_of_truth_paths || []), authorities: stable(Object.values(sourcePaths)) },
+  );
+  expect(policy.fail_closed?.unclassified_paths === true, "environment_impact_unclassified_fail_closed_missing");
+  expect(policy.fail_closed?.rename_previous_path === true, "environment_impact_rename_fail_closed_missing");
+  expect(policy.fail_closed?.copy_previous_path === true, "environment_impact_copy_fail_closed_missing");
+  expect((policy.impact_declarations?.patterns || []).length > 0, "environment_impact_declaration_patterns_missing");
+
+  const domain = readJson(sourcePaths.domain_family_policy);
+  const environment = readJson(sourcePaths.runtime_environment_invariant);
+  const dbAuthority = readJson(sourcePaths.runtime_db_write_authority);
+  const readiness = readJson(sourcePaths.runtime_database_readiness);
+  const gateway = readJson(sourcePaths.activation_gateway_staging_policy);
+
   expect(deployment.source_of_change?.branch === deployment.staging?.source_branch, "staging_source_branch_mismatch");
   expect(deployment.promotion?.target_branch === deployment.production?.source_branch, "production_target_branch_mismatch");
   expect(deployment.staging?.production_traffic_allowed === false, "staging_production_traffic_not_false");
@@ -219,40 +280,79 @@ function buildReport({ baseSha = null, headSha = null } = {}) {
   expect(Number(gateway.read_stale_grace_seconds) === 0, "gateway_read_stale_grace_not_zero");
   expect(gateway.deployment_signature_required === true, "gateway_deployment_signature_not_required");
 
-  const declaredImpact = e2e.environment_impact || {};
-  const declaredTargets = stable(declaredImpact.declared_targets || []);
   const pathChanges = changedPaths(baseSha, headSha);
   const pathClasses = policy.path_classes || [];
-  const classifiedChanges = pathChanges.map((change) => ({
-    ...change,
-    classes: classifyPath(change.path, pathClasses).map((item) => item.id),
-  }));
+  const classifiedChanges = pathChanges.map((change) => classifyChange(change, pathClasses));
+  const currentUnclassified = classifiedChanges.filter((change) => change.path_classes.length === 0);
+  const renamePreviousUnclassified = classifiedChanges.filter((change) => change.status.startsWith("R") && change.previous_path_classes.length === 0);
+  const copyPreviousUnclassified = classifiedChanges.filter((change) => change.status.startsWith("C") && change.previous_path_classes.length === 0);
+  if (policy.fail_closed?.unclassified_paths === true) {
+    expect(currentUnclassified.length === 0, "environment_impact_unclassified_paths", currentUnclassified.map((change) => change.path));
+  }
+  if (policy.fail_closed?.rename_previous_path === true) {
+    expect(renamePreviousUnclassified.length === 0, "environment_impact_rename_previous_path_unclassified", renamePreviousUnclassified.map((change) => change.previous_path));
+  }
+  if (policy.fail_closed?.copy_previous_path === true) {
+    expect(copyPreviousUnclassified.length === 0, "environment_impact_copy_previous_path_unclassified", copyPreviousUnclassified.map((change) => change.previous_path));
+  }
+
   const stagingOnly = classifiedChanges.filter((change) => change.classes.includes("staging_only"));
   const productionOnly = classifiedChanges.filter((change) => change.classes.includes("production_only"));
   const shared = classifiedChanges.filter((change) => change.classes.includes("shared_runtime"));
+  const environmentChanges = classifiedChanges.filter((change) => change.environments.some((environmentKey) => ["staging", "production"].includes(environmentKey)));
+  const requiredTargets = stable(environmentChanges.flatMap((change) => change.environments).filter((environmentKey) => ["staging", "production"].includes(environmentKey)));
+  const liveStagingRequired = environmentChanges.some((change) => change.requires_live_certification && change.environments.includes("staging"));
+
+  const declarationPaths = findImpactDeclarationPaths(policy, pathChanges, impactDeclarationPath);
+  const declarations = readImpactDeclarations(declarationPaths);
+  const readableDeclarations = declarations.filter((entry) => entry.readable);
+  const declarationImpacts = readableDeclarations.map((entry) => entry.environment_impact || {});
+  for (const declaration of declarations) {
+    expect(declaration.readable, "environment_impact_declaration_unreadable", { path: declaration.path, error_code: declaration.error_code || null });
+  }
+  for (const declaration of readableDeclarations) {
+    expect(declaration.environment_impact?.source_of_truth === DEPLOYMENT_POLICY_PATH, "environment_impact_declaration_authority_mismatch", {
+      path: declaration.path,
+      observed: declaration.environment_impact?.source_of_truth || null,
+      expected: DEPLOYMENT_POLICY_PATH,
+    });
+  }
+
+  const declaredTargets = stable(declarationImpacts.flatMap((impact) => impact.declared_targets || []));
+  const crossEnvironmentReviewed = declarationImpacts.length > 0 && declarationImpacts.every((impact) => impact.cross_environment_reviewed === true);
+  const liveStagingCertificationRequired = declarationImpacts.some((impact) => impact.live_staging_certification_required === true);
+  const productionMutationAllowed = declarationImpacts.some((impact) => impact.production_mutation_allowed === true);
+
+  if (policy.impact_declarations?.required_for_environment_changes === true && environmentChanges.length > 0) {
+    expect(readableDeclarations.length > 0, "environment_impact_declaration_missing", { required_targets: requiredTargets });
+  }
+  for (const requiredTarget of requiredTargets) {
+    expect(declaredTargets.includes(requiredTarget), `environment_impact_target_missing:${requiredTarget}`, { declared_targets: declaredTargets, required_targets: requiredTargets });
+  }
+  if (requiredTargets.length > 1) {
+    expect(crossEnvironmentReviewed, "cross_environment_change_not_explicitly_reviewed", { declared_targets: declaredTargets, required_targets: requiredTargets });
+  }
+  if (liveStagingRequired) {
+    expect(liveStagingCertificationRequired, "live_staging_certification_not_declared");
+  }
+
   expect(policy.collision_rules?.some((rule) => rule.id === "staging-production-path-overlap" && rule.effect === "block"), "staging_production_collision_rule_missing");
   expect(policy.collision_rules?.some((rule) => rule.id === "shared-runtime-requires-staging-certification" && rule.effect === "require"), "shared_runtime_certification_rule_missing");
-  if (stagingOnly.length && productionOnly.length) {
-    expect(declaredImpact.cross_environment_reviewed === true, "cross_environment_change_not_explicitly_reviewed", { staging_only: stagingOnly, production_only: productionOnly });
-    expect(declaredTargets.includes("staging") && declaredTargets.includes("production"), "cross_environment_targets_incomplete", declaredTargets);
-  }
-  if ((stagingOnly.length || shared.length) && declaredTargets.length > 0) {
-    expect(declaredTargets.includes("staging"), "staging_impact_missing_from_e2e_contract");
-  }
-  if (productionOnly.length) {
-    expect(declaredTargets.includes("production"), "production_impact_missing_from_e2e_contract");
-  }
 
   const sourceFingerprints = Object.fromEntries(Object.entries(sourcePaths).map(([key, relativePath]) => [key, {
     path: relativePath,
     sha256: sha256(readText(relativePath)),
   }]));
+  const declarationFingerprints = Object.fromEntries(readableDeclarations.map((entry) => [entry.path, sha256(readText(entry.path))]));
+
   return {
     contract: CONTRACT,
     generated_at: new Date().toISOString(),
     expected_head_sha: SHA_RE.test(headSha || "") ? headSha : null,
     base_sha: SHA_RE.test(baseSha || "") ? baseSha : null,
     source_of_truth: sourcePaths,
+    source_fingerprints: sourceFingerprints,
+    impact_declaration_fingerprints: declarationFingerprints,
     environment_authority: {
       staging: { branch: deployment.staging?.source_branch || null, hosts: stagingHosts, credential_namespace: stagingDomain.credential_namespace || null },
       production: { branch: deployment.production?.source_branch || null, hosts: productionHosts, credential_namespace: productionDomain.credential_namespace || null },
@@ -276,13 +376,18 @@ function buildReport({ baseSha = null, headSha = null } = {}) {
       staging_only: stagingOnly.map((change) => change.path),
       production_only: productionOnly.map((change) => change.path),
       shared_runtime: shared.map((change) => change.path),
-      unclassified: classifiedChanges.filter((change) => change.classes.length === 0).map((change) => change.path),
+      unclassified: currentUnclassified.map((change) => change.path),
+      rename_previous_unclassified: renamePreviousUnclassified.map((change) => change.previous_path),
+      copy_previous_unclassified: copyPreviousUnclassified.map((change) => change.previous_path),
+      required_targets: requiredTargets,
     },
     declared_environment_impact: {
+      declaration_paths: declarationPaths,
       targets: declaredTargets,
-      cross_environment_reviewed: declaredImpact.cross_environment_reviewed === true,
-      live_staging_certification_required: declaredImpact.live_staging_certification_required === true,
-      production_mutation_allowed: declaredImpact.production_mutation_allowed === true,
+      required_targets: requiredTargets,
+      cross_environment_reviewed: crossEnvironmentReviewed,
+      live_staging_certification_required: liveStagingCertificationRequired,
+      production_mutation_allowed: productionMutationAllowed,
     },
     issue_count: issues.length,
     issues,
@@ -300,13 +405,14 @@ function buildReport({ baseSha = null, headSha = null } = {}) {
   };
 }
 
-export { buildReport, classifyPath, globToRegExp };
+export { buildReport, classifyChange, classifyPath, globToRegExp };
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("environment-impact-closure.mjs")) {
   const baseSha = String(arg("base-sha", process.env.BASE_SHA || "")).trim().toLowerCase() || null;
   const headSha = String(arg("head-sha", process.env.HEAD_SHA || process.env.EXPECTED_HEAD_SHA || "")).trim().toLowerCase() || null;
+  const impactDeclarationPath = String(arg("impact-declaration", process.env.ENVIRONMENT_IMPACT_DECLARATION || "")).trim() || null;
   const reportFile = path.resolve(arg("report-file", path.join(root, ".artifacts/environment-impact-closure/report.json")));
-  const report = buildReport({ baseSha, headSha });
+  const report = buildReport({ baseSha, headSha, impactDeclarationPath });
   fs.mkdirSync(path.dirname(reportFile), { recursive: true });
   fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify({ contract: CONTRACT, converged: report.converged, issue_count: report.issue_count, changed_path_count: report.changed_paths.length, report_file: reportFile }));
