@@ -2,6 +2,7 @@
 param(
     [string]$RepositoryPath = "",
     [string]$RepositoryUrl = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os.git",
+    [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [string]$Ref = "main",
     [string]$ExpectedCommit = "",
     [switch]$StartTunnel,
@@ -17,8 +18,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
 $WindowsPreflightPath = Join-Path $PSScriptRoot "Staging-Windows-Preflight.ps1"
+$GitSafetyPath = Join-Path $PSScriptRoot "Staging-GitSafety.ps1"
 if (-not (Test-Path -LiteralPath $WindowsPreflightPath)) { throw "Missing shared Windows preflight helper: $WindowsPreflightPath" }
+if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git safety helper: $GitSafetyPath" }
 . $WindowsPreflightPath
+. $GitSafetyPath
 $LogComponent = "app-operations"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel }
 trap {
@@ -138,7 +142,7 @@ function Ensure-EnvDefault([string]$Path, [string]$Name, [string]$Value) {
     } elseif ([string]::IsNullOrWhiteSpace(($matches[0].Value -replace "^[^=]+=", ""))) {
         $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
     }
-    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+    Write-StagingUtf8NoBom $Path $text
 }
 function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     if ($Value -match '[\r\n]') { Fail "Invalid newline in environment value: $Name" }
@@ -151,13 +155,15 @@ function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     } else {
         $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
     }
-    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+    Write-StagingUtf8NoBom $Path $text
 }
 function Invoke-SelfUpdate {
     if ($SkipSelfUpdate) { return }
     $targetCommit = $ExpectedCommit.ToLowerInvariant()
     Push-Location $RepositoryPath
     try {
+        Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
+        Quarantine-KnownBackupFiles $RepositoryPath
         Repair-ManifestLineEndings $RepositoryPath
         $dirty = @(git status --porcelain --untracked-files=all)
         if ($dirty.Count -gt 0) { Fail "Working tree is not clean; refusing bootstrap checkout before Auto Pilot self-update" }
@@ -185,7 +191,7 @@ function Invoke-SelfUpdate {
     $childBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
     $childArgs = @(
         "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $reloadedScript,
-        "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-Ref", $Ref,
+        "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref,
         "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
     )
     if ($StartTunnel) { $childArgs += "-StartTunnel" }
@@ -271,6 +277,7 @@ if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (T
 }
 
 if (-not (Test-Path (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
+Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
 if (-not (Test-Path -LiteralPath $CertificationScript)) { Fail "Staging certification helper is missing: $CertificationScript" }
 Assert-Sha $ExpectedCommit
 Invoke-SelfUpdate
@@ -334,7 +341,7 @@ try {
         }
         $envText = Get-Content -Raw $EnvFile
         foreach ($key in $localSecrets.Keys) { $envText = [regex]::Replace($envText, "(?m)^$key=.*$", "$key=$($localSecrets[$key])") }
-        Set-Content -Encoding utf8 $EnvFile $envText
+        Write-StagingUtf8NoBom $EnvFile $envText
     }
 
     $generatedLocalSecrets = @{
@@ -359,7 +366,7 @@ try {
             $envText = [regex]::Replace($envText, "(?im)^$([regex]::Escape($key))=.*$", "$key=$($generatedLocalSecrets[$key])")
         }
     }
-    Set-Content -Encoding utf8 $EnvFile $envText
+    Write-StagingUtf8NoBom $EnvFile $envText
     Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
     Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"

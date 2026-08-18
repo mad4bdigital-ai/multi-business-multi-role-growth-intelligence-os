@@ -14,7 +14,8 @@ param(
     [switch]$ApplySchemaBundle,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$InheritedRunLock
 )
 
 Set-StrictMode -Version Latest
@@ -24,6 +25,9 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bootstrapLogRoot = Join-Path $scriptRoot "logs"
 $bootstrapFallbackLog = Join-Path $bootstrapLogRoot "bootstrap-console.log"
 $oneClickScript = Join-Path $scriptRoot "One-Click-Staging.ps1"
+$gitSafetyPath = Join-Path $scriptRoot "Staging-GitSafety.ps1"
+if (-not (Test-Path -LiteralPath $gitSafetyPath)) { Fail "Staging-GitSafety.ps1 is missing: $gitSafetyPath" }
+. $gitSafetyPath
 
 function Fail([string]$Message) {
     try {
@@ -32,6 +36,29 @@ function Fail([string]$Message) {
         Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap fail-closed: " + $safe)
     } catch { }
     throw "AUTO_PILOT_BOOTSTRAP_FAIL_CLOSED: $Message"
+}
+
+$script:AutoPilotRunMutex = $null
+function Acquire-AutoPilotRunLock {
+    if ($InheritedRunLock) {
+        Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap inherited global Auto Pilot run lock")
+        return
+    }
+    try {
+        $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\Mad4bPortableStagingAutoPilot")
+        if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Staging operation is already running; refusing overlapping bootstrap" }
+    } catch [System.Threading.AbandonedMutexException] {
+        Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap recovered abandoned global Auto Pilot run lock")
+    } catch {
+        Fail "Unable to acquire global Auto Pilot run lock: $($_.Exception.Message)"
+    }
+}
+function Release-AutoPilotRunLock {
+    if ($null -ne $script:AutoPilotRunMutex) {
+        try { $script:AutoPilotRunMutex.ReleaseMutex() } catch { }
+        try { $script:AutoPilotRunMutex.Dispose() } catch { }
+        $script:AutoPilotRunMutex = $null
+    }
 }
 
 function Invoke-Git([string[]]$Arguments) {
@@ -45,12 +72,28 @@ function Get-GitText([string[]]$Arguments) {
     return $value
 }
 
+trap {
+    Release-AutoPilotRunLock
+    throw
+}
+
 function Normalize-TextFileToLf([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path)
     $text = $text -replace "`r`n", "`n"
     $text = $text -replace "`r", "`n"
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $text, $utf8NoBom)
+}
+
+function Quarantine-KnownBackupFiles([string]$RepoPath) {
+    $backupRoot = Join-Path $env:USERPROFILE "MAD4B-Staging-Backups"
+    $backupFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepoPath "autopilot-portable-staging") -Filter "*.backup" -File -ErrorAction SilentlyContinue)
+    foreach ($file in $backupFiles) {
+        New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+        $destination = Join-Path $backupRoot ("{0}-{1}{2}" -f $file.BaseName, (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmssfff"), $file.Extension)
+        Move-Item -LiteralPath $file.FullName -Destination $destination -Force
+        Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap quarantined known backup file: " + $file.Name)
+    }
 }
 
 function Repair-ManifestLineEndings([string]$RepoPath) {
@@ -74,9 +117,13 @@ $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
 if (-not (Test-Path -LiteralPath $oneClickScript)) { Fail "One-Click-Staging.ps1 is missing: $oneClickScript" }
 if ($SkipBuild -and $BuildMode -ne "Smart") { Fail "-SkipBuild cannot be combined with an explicit BuildMode" }
+Acquire-AutoPilotRunLock
 
 Push-Location $RepositoryPath
 try {
+    try { Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository }
+    catch { Fail $_.Exception.Message }
+    Quarantine-KnownBackupFiles $RepositoryPath
     Repair-ManifestLineEndings $RepositoryPath
     $dirty = @(git status --porcelain --untracked-files=all)
     if ($dirty.Count -gt 0) {
@@ -106,7 +153,7 @@ $childArgs = @(
     "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-Ref", $Ref,
     "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds",
     "-EligibilityWaitSeconds", "$EligibilityWaitSeconds", "-EligibilityNoRunGraceSeconds", "$EligibilityNoRunGraceSeconds",
-    "-BuildMode", $BuildMode, "-SkipBootstrap"
+    "-BuildMode", $BuildMode, "-SkipBootstrap", "-InheritedRunLock"
 )
 if ($NoTunnel) { $childArgs += "-NoTunnel" }
 if ($EnableActivationGateway) { $childArgs += "-EnableActivationGateway" }
@@ -118,4 +165,5 @@ if ($SkipBuild) { $childArgs += "-SkipBuild" }
 & powershell.exe @childArgs
 $exitCode = $LASTEXITCODE
 if ($exitCode -ne 0) { Fail "One-Click-Staging.ps1 exited with code $exitCode" }
+Release-AutoPilotRunLock
 exit 0

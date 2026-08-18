@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "c30d4f23ebbf4d1e25d4c1833f23a7e7f470f0133cbafe869d295715a33fd5a7"
+      "sha256": "036fa144bcf8965426adc29800d9c63ef00cb0997c768a8699323a640d107962"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "1be3f2617aae91e65149b29bb9450e6d0ae88aadc98ddc67b55950b1a88068f3"
+      "sha256": "74d8966c1a5f233f408fb9a88557a668f00a2b65b6a3f3b603034f83a5989bfe"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "40f5d10e56f98939a2df3632ce3152b4ce8dedeeef2d2440c786312e178bf3d5"
+      "sha256": "8b812cd704eedc495407d5f26757969fb409f1b4fb485d7dba7960d5fc2283f0"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "b866fa71c4f8b99939034569643dc45fc0250f0fc3f40219334a5b8b7e1cc3e2"
+      "sha256": "ab9b3ecd3c450541ade9aec15d856c9e1b34ae07bfe47ef05bdd7aa998bd9178"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -302,7 +302,11 @@
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
-      "sha256": "c650ce79589ad5367d3a43f28836b862aabfacebcf6c69c57cb3e68a51e61031"
+      "sha256": "27abe5d5920a9f6988e824ca8ea717d3be0d9f3e8cc9030ad8fb979ba6bc106e"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-GitSafety.ps1",
+      "sha256": "77f735cb82811fbbe0a193eda9b63b617494279c240e69e700dc44c6e3ad5882"
     }
   ],
   "safety": {

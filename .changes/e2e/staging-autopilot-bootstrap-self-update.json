@@ -48,8 +48,11 @@
           "assertions": [
             "The CMD launcher bootstraps through the tracked self-update shim rather than loading a stale local One-Click script directly.",
             "The Auto Pilot entrypoint self-updates and reloads the exact commit before local Docker or WSL checks and before Compose validation.",
-            "A dirty working tree fails closed without checkout or overwrite.",
+            "The outermost One-Click/Bootstrap process owns the named mutex and explicitly propagates inherited-lock state to child processes, preventing overlapping checkout/build runs.",
+            "Every entrypoint verifies the canonical GitHub origin identity before fetch, checkout, eligibility, or environment initialization.",
+            "A dirty working tree fails closed without checkout or overwrite, after only the narrowly scoped quarantine of known Auto Pilot backup files.",
             "Missing provenance markers fail closed before Compose execution.",
+            "Environment writes use UTF-8 without a BOM so Windows PowerShell 5.1 cannot corrupt Docker Compose dotenv parsing.",
             "Existing .env.staging values are not rotated or emitted as evidence.",
             "The resulting build context remains exact Git archive content with secrets_included=false.",
             "No Production mutation, migration, grant, provider mutation, or force push is introduced.",
@@ -74,6 +77,9 @@
           "evidence_paths": [
             ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
             "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Staging-GitSafety.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
             "autopilot-portable-staging/manifest.json",
