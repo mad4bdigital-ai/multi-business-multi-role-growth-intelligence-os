@@ -70,98 +70,26 @@
   },
   "executable_extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".sh", ".ps1", ".sql"],
   "semantic_executable_classes": [
-    {
-      "id": "github_workflow",
-      "patterns": [".github/workflows/*.yml", ".github/workflows/*.yaml"]
-    },
-    {
-      "id": "github_governance_test",
-      "patterns": [".github/tests/**/*.mjs", ".github/tests/**/*.js"]
-    },
-    {
-      "id": "github_governance_operation",
-      "patterns": [".github/ops/**/*.mjs", ".github/ops/**/*.js", ".github/scripts/**/*.mjs", ".github/scripts/**/*.js"]
-    },
-    {
-      "id": "repository_governance",
-      "patterns": ["scripts/repository-governance-*.mjs", "scripts/derived-state-closure.mjs", "scripts/remote-mcp-write-scope-semantic-currentness.mjs"]
-    },
-    {
-      "id": "repository_automation",
-      "patterns": ["scripts/*.mjs", "tools/**/*.mjs", "tools/**/*.js"]
-    },
-    {
-      "id": "api_route",
-      "patterns": ["http-generic-api/routes/**/*.js"]
-    },
-    {
-      "id": "database_migration",
-      "patterns": ["http-generic-api/migrations/**/*.sql", "migrations/**/*.sql"]
-    },
-    {
-      "id": "api_runtime",
-      "patterns": ["http-generic-api/*.js", "http-generic-api/*.mjs", "http-generic-api/scripts/**/*.mjs", "http-generic-api/wordpress/**/*.js"]
-    },
-    {
-      "id": "typescript_runtime",
-      "patterns": ["src/**/*.ts", "src/**/*.tsx", "edge/**/*.ts", "edge/**/*.tsx"]
-    },
-    {
-      "id": "portable_staging_runtime",
-      "patterns": ["autopilot-portable-staging/**/*.js", "autopilot-portable-staging/**/*.mjs", "autopilot-portable-staging/**/*.sh", "autopilot-portable-staging/**/*.ps1"]
-    }
+    {"id":"github_workflow","patterns":[".github/workflows/*.yml",".github/workflows/*.yaml"]},
+    {"id":"github_governance_test","patterns":[".github/tests/**/*.mjs",".github/tests/**/*.js"]},
+    {"id":"github_governance_operation","patterns":[".github/ops/**/*.mjs",".github/ops/**/*.js",".github/scripts/**/*.mjs",".github/scripts/**/*.js"]},
+    {"id":"repository_governance","patterns":["scripts/repository-governance-*.mjs","scripts/derived-state-closure.mjs","scripts/remote-mcp-write-scope-semantic-currentness.mjs"]},
+    {"id":"repository_automation","patterns":["scripts/*.mjs","tools/**/*.mjs","tools/**/*.js"]},
+    {"id":"api_route","patterns":["http-generic-api/routes/**/*.js"]},
+    {"id":"database_migration","patterns":["http-generic-api/migrations/**/*.sql","migrations/**/*.sql"]},
+    {"id":"api_runtime","patterns":["http-generic-api/*.js","http-generic-api/*.mjs","http-generic-api/scripts/**/*.mjs","http-generic-api/wordpress/**/*.js"]},
+    {"id":"typescript_runtime","patterns":["src/**/*.ts","src/**/*.tsx","edge/**/*.ts","edge/**/*.tsx"]},
+    {"id":"portable_staging_runtime","patterns":["autopilot-portable-staging/**/*.js","autopilot-portable-staging/**/*.mjs","autopilot-portable-staging/**/*.sh","autopilot-portable-staging/**/*.ps1"]}
   ],
   "surface_classes": [
-    {
-      "id": "governance_control_plane",
-      "risk": "critical",
-      "patterns": [".github/**", ".specify/**", "docs/governance/**", ".changes/e2e/**"]
-    },
-    {
-      "id": "repository_governance_runtime",
-      "risk": "critical",
-      "patterns": [
-        "scripts/repository-governance-*.mjs",
-        "scripts/derived-state-closure.mjs",
-        "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
-        "http-generic-api/config/repository-governance-*.json",
-        "http-generic-api/githubRepositoryPolicyController.js",
-        "http-generic-api/githubRepositoryGovernanceAttestation.js",
-        "http-generic-api/test-github-repository-policy-controller.mjs",
-        "http-generic-api/test-github-repository-governance-attestation.mjs",
-        "http-generic-api/scripts/e2e-phase-governance-*.mjs"
-      ]
-    },
-    {
-      "id": "application_runtime",
-      "risk": "high",
-      "patterns": ["http-generic-api/**", "src/**", "edge/**", "wordpress/**"]
-    },
-    {
-      "id": "repository_automation",
-      "risk": "high",
-      "patterns": ["scripts/**", "tools/**"]
-    },
-    {
-      "id": "portable_staging",
-      "risk": "high",
-      "patterns": ["autopilot-portable-staging/**"]
-    },
-    {
-      "id": "specification_contract",
-      "risk": "medium",
-      "patterns": ["specs/**"]
-    },
-    {
-      "id": "documentation_evidence",
-      "risk": "low",
-      "patterns": ["docs/**", "README.md", "SECURITY.md", "CONTRIBUTING.md"]
-    },
-    {
-      "id": "repository_toolchain",
-      "risk": "high",
-      "patterns": ["package.json", "package-lock.json", "npm-shrinkwrap.json", "tsconfig.json", "tsconfig.*.json", ".nvmrc", ".node-version", ".editorconfig", ".gitignore", ".gitattributes", ".dockerignore"]
-    }
+    {"id":"governance_control_plane","risk":"critical","patterns":[".github/**",".specify/**","docs/governance/**",".changes/e2e/**"]},
+    {"id":"repository_governance_runtime","risk":"critical","patterns":["scripts/repository-governance-*.mjs","scripts/derived-state-closure.mjs","scripts/remote-mcp-write-scope-semantic-currentness.mjs","http-generic-api/config/repository-governance-*.json","http-generic-api/githubRepositoryPolicyController.js","http-generic-api/githubRepositoryGovernanceAttestation.js","http-generic-api/test-github-repository-policy-controller.mjs","http-generic-api/test-github-repository-governance-attestation.mjs","http-generic-api/scripts/e2e-phase-governance-*.mjs"]},
+    {"id":"application_runtime","risk":"high","patterns":["http-generic-api/**","src/**","edge/**","wordpress/**"]},
+    {"id":"repository_automation","risk":"high","patterns":["scripts/**","tools/**"]},
+    {"id":"portable_staging","risk":"high","patterns":["autopilot-portable-staging/**"]},
+    {"id":"specification_contract","risk":"medium","patterns":["specs/**"]},
+    {"id":"documentation_evidence","risk":"low","patterns":["docs/**","README.md","SECURITY.md","CONTRIBUTING.md"]},
+    {"id":"repository_toolchain","risk":"high","patterns":["package.json","package-lock.json","npm-shrinkwrap.json","tsconfig.json","tsconfig.*.json",".nvmrc",".node-version",".editorconfig",".gitignore",".gitattributes",".dockerignore"]}
   ],
   "objection_control_plane": {
     "contract": "mad4b.repository-policy-objections.v1",
@@ -223,6 +151,7 @@
     ".github/workflows/governed-generated-artifact-refresh.yml",
     ".github/workflows/staging-live-certification.yml",
     ".github/workflows/staging-main-deploy-eligibility.yml",
+    ".github/workflows/docs-agent-main-followup.yml",
     ".github/workflows/repository-inventory-autofix-dispatch.yml",
     ".github/workflows/repository-inventory.yml",
     ".github/workflows/repository-evaluation.yml",
