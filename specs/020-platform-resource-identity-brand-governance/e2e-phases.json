@@ -72,6 +72,8 @@
       "http-generic-api/test-production-activation-readiness.mjs",
       "http-generic-api/test-activation-hard-evidence.mjs",
       "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+      ".github/scripts/production-promotion-rehearsal.mjs",
+      ".github/workflows/production-promotion-rehearsal.yml",
       "http-generic-api/runtimeIntegrity.js",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
@@ -138,7 +140,8 @@
             "Canonical refresh keeps Frontend operation/surface governance, Remote MCP write-scope inventory, and portable staging manifest artifacts digest-current without granting runtime authority or enabling provider or Production mutation.",
             "MCP catalog schema startup preflight is read-only, non-blocking, secret-free, and reports schema_contract_not_ready with migration_apply_performed=false when mcp_catalog_level is unavailable.",
             "GET /gpt/tools and POST /gpt/tools/call map MCP catalog schema drift to bounded HTTP 503 structured errors without exposing raw SQL messages on modern and legacy route builders.",
-            "Production R7 classification strings are asserted from the authoritative decision module and its runtime readback remains public GET-only."
+            "Production R7 classification strings are asserted from the authoritative decision module and its runtime readback remains public GET-only.",
+            "Production Promotion Rehearsal classifies ancestry/CAS blockers fail-closed without relaxing mutation policy, and emits a bounded read-only dry-run report with stale_authorization_reusable=false and all mutation flags false."
           ],
           "tests": [
             {
@@ -280,6 +283,13 @@
               "working_directory": "http-generic-api",
               "path": "test-hostinger-production-runtime-readback-r7.mjs",
               "args": []
+            },
+            {
+              "id": "spec020-production-promotion-rehearsal",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/production-promotion-runtime.test.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -359,6 +369,8 @@
             "http-generic-api/test-mcp-catalog-schema-guard.mjs",
             "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
             "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+            ".github/scripts/production-promotion-rehearsal.mjs",
+            ".github/workflows/production-promotion-rehearsal.yml",
             "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
             "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
             "specs/020-platform-resource-identity-brand-governance/contracts/control-plane-persistence-resilience-contract.json",

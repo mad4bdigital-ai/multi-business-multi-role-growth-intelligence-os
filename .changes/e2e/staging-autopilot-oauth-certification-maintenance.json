@@ -57,6 +57,7 @@
             "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
             "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
             "Environment impact is derived from the canonical deployment/domain policies, shared runtime changes declare both affected environments, and Staging certification remains mandatory.",
+            "The maintenance PR remains mergeable with the current main ref after governed reconciliation, and no force-push or protected-branch mutation is used.",
             "secrets_included is false."
           ],
           "tests": [

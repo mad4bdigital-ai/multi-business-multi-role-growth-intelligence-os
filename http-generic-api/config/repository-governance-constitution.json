@@ -91,6 +91,13 @@
       ]
     },
     {
+      "id": "production_promotion_governance",
+      "patterns": [
+        ".github/scripts/production-promotion-*.mjs",
+        ".github/tests/production-promotion-*.mjs"
+      ]
+    },
+    {
       "id": "repository_automation",
       "patterns": [
         "scripts/*.mjs",
@@ -249,6 +256,7 @@
     ".changes/e2e/e2e-contract-reference-integrity.json",
     ".changes/e2e/repository-inventory-governed-regeneration.json",
     ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
+    ".changes/e2e/production-promotion-release-cut-controller.json",
     "http-generic-api/config/repository-governance-constitution.json",
     "http-generic-api/config/deployment-branch-policy.json",
     "http-generic-api/config/domain-family-policy.json",
@@ -273,6 +281,8 @@
     ".github/tests/repository-governance-objection-gate.test.mjs",
     ".github/tests/production-promotion-review-mode.test.mjs",
     ".github/tests/production-promotion-runtime.test.mjs",
+    ".github/scripts/production-promotion-rehearsal.mjs",
+    ".github/workflows/production-promotion-rehearsal.yml",
     ".github/workflows/derived-state-closure.yml",
     ".github/workflows/automation-overlap-guard.yml",
     ".github/workflows/policy-objection-ci.yml",

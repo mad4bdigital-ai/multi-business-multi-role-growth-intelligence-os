@@ -5,6 +5,13 @@
   "title": "Production promotion immutable release-cut controller",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["production", "staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "scope": {
     "include": [
       ".changes/e2e/production-promotion-release-cut-controller.json",
@@ -12,6 +19,7 @@
       ".github/repository-maintenance-tool-governance.json",
       ".github/scripts/production-promotion-release-cut-evidence.mjs",
       ".github/scripts/production-promotion-supporting-gates.mjs",
+      ".github/scripts/production-promotion-rehearsal.mjs",
       ".github/tests/production-promotion-review-mode.test.mjs",
       ".github/tests/production-promotion-runtime.test.mjs",
       ".github/workflows/governed-production-main-source-pin-guard.yml",
@@ -20,6 +28,7 @@
       ".github/workflows/governed-production-release-source-pin-gate.yml",
       ".github/workflows/production-promotion-candidate-contract.yml",
       ".github/workflows/production-promotion-candidate.yml",
+      ".github/workflows/production-promotion-rehearsal.yml",
       ".github/workflows/repository-tool-lifecycle-governance.yml",
       "docs/ai-policy-review-mode.md",
       "docs/production-promotion-candidate-automation.md",
@@ -28,7 +37,9 @@
       "http-generic-api/scripts/test-repository-tool-discovery.mjs",
       "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-candidate-workflow.mjs",
-      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "merge_contract": {
@@ -69,6 +80,7 @@
             "Read-only helpers may be auto-catalogued but new or changed mutating helpers outside the governed tool root fail closed.",
             "Canonical artifacts remain authoritative when PR comment transport is unavailable.",
             "No Production merge, deployment, migration apply, grant apply, provider mutation, credential payload read, protected-ref direct write, or force push is authorized by this controller.",
+            "Production Promotion Rehearsal performs exact-SHA/CAS readback only, classifies ancestry and protected-ref blockers fail-closed, never reuses stale authorization, and emits no mutation flags.",
             "secrets_included is false."
           ],
           "tests": [
@@ -120,14 +132,18 @@
             ".github/repository-maintenance-tool-governance.json",
             ".github/scripts/production-promotion-release-cut-evidence.mjs",
             ".github/scripts/production-promotion-supporting-gates.mjs",
+            ".github/scripts/production-promotion-rehearsal.mjs",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
             ".github/workflows/production-promotion-candidate-contract.yml",
             ".github/workflows/production-promotion-candidate.yml",
+            ".github/workflows/production-promotion-rehearsal.yml",
             ".github/workflows/governed-production-main-source-pin-guard.yml",
             ".github/workflows/governed-production-release-source-pin-gate.yml",
             ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
             ".github/workflows/repository-tool-lifecycle-governance.yml",
-            "http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs"
+            "http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
