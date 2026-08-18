@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7187,
-    "bytes": 70085984,
-    "lines": 1645472,
+    "bytes": 70086166,
+    "lines": 1645478,
     "directories": 266,
     "categories": 13
   },
@@ -8502,9 +8502,9 @@
       "path": ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5403,
-      "lines": 105,
-      "sha256": "24f8a1b90e6362a2bbb9da34ed73021b73aadccfe5894a05402eb4369dd144cd",
+      "bytes": 5555,
+      "lines": 110,
+      "sha256": "6460aba9cac57b47444a4f1eb30fe8069741bfcb434d0ebd87d3e0fb2398a11b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37157,9 +37157,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 6525,
-      "lines": 169,
-      "sha256": "39998da7ad4162028fb889e6e89bc8647fcc6776c55141ba73a3a7f938942b01",
+      "bytes": 6555,
+      "lines": 170,
+      "sha256": "d48a5b2468abbd326675601084654e4853874b9cae8656d7f081570e2474c578",
       "mode": "644",
       "executable": false,
       "generated": false
