@@ -55,6 +55,7 @@
             "Environment writes use UTF-8 without a BOM so Windows PowerShell 5.1 cannot corrupt Docker Compose dotenv parsing.",
             "Existing .env.staging values are not rotated or emitted as evidence.",
             "The resulting build context remains exact Git archive content with secrets_included=false.",
+            "Certification obtains the full content-addressed app image ID from the running app container rather than relying on a potentially truncated Compose image listing.",
             "No Production mutation, migration, grant, provider mutation, or force push is introduced.",
             "secrets_included is false."
           ],
@@ -82,6 +83,7 @@
             "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/Invoke-StagingCertification.ps1",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             "http-generic-api/test-staging-build-context-provenance.mjs",
