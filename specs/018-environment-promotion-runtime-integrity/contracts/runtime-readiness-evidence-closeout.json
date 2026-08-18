@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mad4b.spec018-runtime-readiness-evidence-closeout.v1",
+  "title": "Spec018 Runtime Readiness Evidence Closeout",
+  "type": "object",
+  "required": [
+    "contract",
+    "schema_version",
+    "source_identity",
+    "database_roles",
+    "environments",
+    "checks",
+    "status",
+    "production_promotion_authorized",
+    "migration_apply_performed",
+    "database_mutated",
+    "provider_called",
+    "secrets_included"
+  ],
+  "properties": {
+    "contract": { "const": "mad4b.spec018-runtime-readiness-evidence-closeout.v1" },
+    "schema_version": { "const": 1 },
+    "source_identity": {
+      "type": "object",
+      "required": ["source_branch", "expected_sha", "observed_sha", "exact_head_bound"],
+      "properties": {
+        "source_branch": { "type": ["string", "null"] },
+        "expected_sha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "observed_sha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "exact_head_bound": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "database_roles": {
+      "type": "object",
+      "required": ["runtime", "governance", "runtime_persistence"],
+      "additionalProperties": false
+    },
+    "environments": {
+      "type": "object",
+      "required": ["staging", "production"],
+      "additionalProperties": false
+    },
+    "checks": { "type": "object", "additionalProperties": { "type": "boolean" } },
+    "status": { "enum": ["ready_for_review", "blocked_pending_evidence"] },
+    "production_promotion_authorized": { "const": false },
+    "migration_apply_performed": { "const": false },
+    "database_mutated": { "const": false },
+    "provider_called": { "const": false },
+    "secrets_included": { "const": false }
+  },
+  "additionalProperties": true
+}
