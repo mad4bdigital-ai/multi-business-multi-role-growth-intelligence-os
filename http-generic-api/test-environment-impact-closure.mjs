@@ -50,6 +50,9 @@ assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classe
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-phase-governance-core.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-parallel-work-governance.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["staging_only", "repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
 
@@ -57,6 +60,15 @@ const sharedChange = classifyChange({ status: "M", path: "http-generic-api/route
 assert.deepEqual(sharedChange.classes, ["shared_runtime"]);
 assert.deepEqual(sharedChange.environments, ["production", "staging"]);
 assert.equal(sharedChange.requires_live_certification, true);
+
+const e2eGovernanceChange = classifyChange({
+  status: "M",
+  path: "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+  previous_path: null,
+}, classes);
+assert.deepEqual(e2eGovernanceChange.classes, ["repository_governance"]);
+assert.deepEqual(e2eGovernanceChange.environments, ["repository"]);
+assert.equal(e2eGovernanceChange.requires_live_certification, false);
 
 const renamedAcrossEnvironments = classifyChange({
   status: "R100",
