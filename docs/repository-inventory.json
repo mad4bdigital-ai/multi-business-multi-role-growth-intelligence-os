@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7166,
-    "bytes": 69852600,
-    "lines": 1640930,
+    "bytes": 69853183,
+    "lines": 1640943,
     "directories": 266,
     "categories": 13
   },
@@ -74902,9 +74902,9 @@
       "path": "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
       "category": "root-and-other",
       "extension": ".mjs",
-      "bytes": 3915,
-      "lines": 86,
-      "sha256": "fd0e519eb7c3007e16eb83bec1de72dceb304154f9f8bca6f3f9d7a54b646a8d",
+      "bytes": 4498,
+      "lines": 99,
+      "sha256": "9caae2bd2ed2d824833b0a2ca2e46e57a2e759b11ab2bf737c6077b9947f2e74",
       "mode": "644",
       "executable": false,
       "generated": false
