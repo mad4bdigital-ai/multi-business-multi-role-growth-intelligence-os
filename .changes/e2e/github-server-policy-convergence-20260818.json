@@ -1,0 +1,66 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-server-policy-convergence-20260818",
+  "title": "GitHub server policy convergence on repository governance Constitution",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-server-policy-convergence-20260818.json",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/config/repository-governance-constitution.json"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove the legacy seven-check server-policy authority, compile branch enforcement from the canonical repository governance Constitution, bind the main final required check to its trusted GitHub App producer, and fail closed where the Production release contract cannot yet be represented without weakening it.",
+      "e2e_journeys": [
+        {
+          "id": "constitution-derived-server-policy-plan-and-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance maintainer",
+          "entrypoint": "GitHub repository policy controller",
+          "terminal_outcome": "Main is planned from the Constitution with only Derived State Closure bound to the trusted producer; same-cycle readback proves an exact simulated apply; Production is recognized but blocked from unsafe activation until its generic-PR prohibition has an enforceable server-side representation.",
+          "steps": [
+            "Load the canonical repository governance Constitution from the repository source tree.",
+            "Resolve the requested branch only from the Constitution branch registry.",
+            "Compile the exact target-branch Ruleset and producer-bound required checks.",
+            "Reject required-check overrides that diverge from the Constitution.",
+            "Require exact branch SHA, policy fingerprint, capability envelope, and typed confirmation before mutation.",
+            "Perform same-cycle readback and rollback if the Ruleset fingerprint, producer binding, bypass posture, or final server gate proof does not match.",
+            "Keep Production activation blocked while generic_pull_request_merge_forbidden cannot be proven by the current Ruleset contract."
+          ],
+          "assertions": [
+            "The Constitution is the runtime source of truth for branch policy and required checks.",
+            "The legacy seven required checks are not accepted as canonical main policy.",
+            "main requires only Derived State Closure and binds it to the resolved GitHub App integration_id.",
+            "Arbitrary or unregistered branches fail before any GitHub network mutation.",
+            "Production is registered for readback and planning but cannot silently degrade generic_pull_request_merge_forbidden.",
+            "No direct repository-content write, force push, Production mutation, database mutation, or provider mutation is performed by this change."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-controller-constitution-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-controller.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/test-github-repository-policy-controller.mjs",
+            "http-generic-api/config/repository-governance-constitution.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
