@@ -11,10 +11,10 @@ COPY http-generic-api/ ./
 COPY edge/activation-gateway/generated/route-policy.staging.json ./staging-route-policy.json
 COPY canonical-manifest.mjs /canonical-manifest.mjs
 
-# Generate immutable, secret-free provenance inside the image from the exact
-# commit selected by the governed Staging launcher. Runtime environment values
-# may request/read back the same SHA, but cannot replace this build evidence.
-RUN STAGING_BUILD_COMMIT="$STAGING_BUILD_COMMIT" STAGING_BUILD_BRANCH="$STAGING_BUILD_BRANCH" node --input-type=module -e "import fs from 'node:fs'; const commit=String(process.env.STAGING_BUILD_COMMIT||'').trim().toLowerCase(); const branch=String(process.env.STAGING_BUILD_BRANCH||'').trim(); if(!/^[0-9a-f]{40}$/.test(commit)) throw new Error('STAGING_BUILD_COMMIT must be an exact SHA'); if(!branch) throw new Error('STAGING_BUILD_BRANCH is required'); const manifest={repository:'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os',branch,branch_source:'docker_build_arg',commit_sha:commit,commit_source:'docker_build_arg',deployed_at:new Date().toISOString(),build_source:'portable_staging_docker_build'}; fs.writeFileSync('/app/deployment-manifest.json', JSON.stringify(manifest,null,2)+'\n');"
+# Generate deterministic, secret-free provenance inside the image from the exact
+# commit selected by the governed Staging launcher. Deployment time is runtime
+# evidence and must not be invented by the immutable build manifest.
+RUN STAGING_BUILD_COMMIT="$STAGING_BUILD_COMMIT" STAGING_BUILD_BRANCH="$STAGING_BUILD_BRANCH" node --input-type=module -e "import fs from 'node:fs'; const commit=String(process.env.STAGING_BUILD_COMMIT||'').trim().toLowerCase(); const branch=String(process.env.STAGING_BUILD_BRANCH||'').trim(); if(!/^[0-9a-f]{40}$/.test(commit)) throw new Error('STAGING_BUILD_COMMIT must be an exact SHA'); if(!branch) throw new Error('STAGING_BUILD_BRANCH is required'); const manifest={repository:'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os',branch,branch_source:'docker_build_arg',commit_sha:commit,commit_source:'docker_build_arg',build_source:'portable_staging_docker_build'}; fs.writeFileSync('/app/deployment-manifest.json', JSON.stringify(manifest,null,2)+'\n');"
 
 ENV NODE_ENV=staging
 ENV PORT=8080
