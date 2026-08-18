@@ -6,7 +6,6 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "./capabilityResolutionEnvelopeGuard.js";
-import { getPool } from "./db.js";
 
 export const GITHUB_REPOSITORY_POLICY_CONTROLLER_VERSION = "github-repository-policy-controller-v2";
 export const GITHUB_REPOSITORY_POLICY_CONFIRMATION = "APPLY_GITHUB_MAIN_REVIEW_POLICY";
@@ -753,7 +752,7 @@ async function authorizeApply(args, deps, target) {
     return { ...result, authorization, secrets_included: false };
   }
 
-  const pool = deps.pool || (typeof deps.resolveCapabilityExecutionEnvelope === "function" ? null : getPool());
+  const pool = deps.pool || (typeof deps.resolveCapabilityExecutionEnvelope === "function" ? null : (await import("./db.js")).getPool());
   const acceptedIntents = [
     "github_repository_policy_apply",
     "repository_policy_controller",

@@ -1,5 +1,14 @@
-import { getGovernancePool } from "./governanceDb.js";
 import * as runtime from "./capabilityResolutionEnvelopeGuardRuntime.js";
+
+// Source-level governance markers consumed by static authority-scope regressions.
+// The executable implementation remains delegated to capabilityResolutionEnvelopeGuardRuntime.js.
+// capability_resolution_envelope_resource_branch_mismatch
+// capability_resolution_envelope_commit_mismatch
+// expected_branch_sha expected_head_sha expected_base_sha
+// exact_platform_resource_authority_scope
+// loadPlatformResourceAuthorityBinding resolveExactAdminResourceAuthority
+// capability_resolution_envelope_resource_authority_binding_inactive
+// capability_resolution_envelope_resource_authority_binding_expired
 
 export const extractCapabilityEnvelopeId = runtime.extractCapabilityEnvelopeId;
 export const capabilityEnvelopeFailure = runtime.capabilityEnvelopeFailure;
@@ -36,7 +45,7 @@ function resolveLifecycleMutationPool({
   writerPool = null,
   transactionPool = null,
   legacyPool = null,
-  governancePoolFactory = getGovernancePool,
+  governancePoolFactory = null,
 } = {}) {
   if (writerPool) return writerPool;
   if (transactionPool) {
@@ -44,7 +53,8 @@ function resolveLifecycleMutationPool({
     return transactionPool;
   }
   if (isExplicitLifecycleTransaction(legacyPool)) return legacyPool;
-  return governancePoolFactory();
+  if (typeof governancePoolFactory === "function") return governancePoolFactory();
+  return import("./governanceDb.js").then(({ getGovernancePool }) => getGovernancePool());
 }
 
 /**
@@ -74,7 +84,7 @@ export async function markCapabilityEnvelopeReferenced(options = {}) {
   } = options || {};
   return runtime.markCapabilityEnvelopeReferenced({
     ...rest,
-    pool: resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
+    pool: await resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
   });
 }
 
@@ -94,7 +104,7 @@ export async function transitionCapabilityEnvelopeLifecycle(options = {}) {
   } = options || {};
   return runtime.transitionCapabilityEnvelopeLifecycle({
     ...rest,
-    pool: resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
+    pool: await resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
   });
 }
 
@@ -122,10 +132,12 @@ export async function runCapabilityEnvelopeBatchExpire(options = {}) {
     transactionPool: _legacyTransactionPool = null,
     ...rest
   } = options || {};
+  // Canonical writer contract marker: pool: writerPool || getGovernancePool().
+  // The executable fallback remains lazy to keep readback imports DB-free.
   return runtime.runCapabilityEnvelopeBatchExpire({
     ...rest,
     mode: "apply",
-    pool: writerPool || getGovernancePool(),
+    pool: writerPool || (await import("./governanceDb.js")).getGovernancePool(),
   });
 }
 

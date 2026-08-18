@@ -34,6 +34,10 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+      - name: Install readback dependencies
+        run: npm ci --ignore-scripts --prefix http-generic-api
+      - name: Verify readback dependency boundary
+        run: node http-generic-api/test-github-repository-policy-readback-import-isolation.mjs
       - name: Execute readback-only policy controller
         run: node .github/ops/github-repository-policy-readback.mjs
       - name: Upload no-secret readback evidence
