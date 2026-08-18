@@ -5,6 +5,7 @@ import path from "node:path";
 const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const packageRoot = path.join(root, "autopilot-portable-staging");
 const launcher = fs.readFileSync(path.join(packageRoot, "One-Click-Staging.ps1"), "utf8");
+const bootstrap = fs.readFileSync(path.join(packageRoot, "Bootstrap-Staging-One-Click.ps1"), "utf8");
 const startAutoPilot = fs.readFileSync(path.join(packageRoot, "Start-AutoPilot.ps1"), "utf8");
 const certification = fs.readFileSync(path.join(packageRoot, "Invoke-StagingCertification.ps1"), "utf8");
 const installAutoDeploy = fs.readFileSync(path.join(packageRoot, "Install-AutoDeployTask.ps1"), "utf8");
@@ -51,8 +52,19 @@ assert.match(launcher, /auth", "login/);
 assert.match(launcher, /Get-MainSha/);
 assert.match(launcher, /Wait-Eligibility/);
 assert.match(launcher, /Staging Main Deploy Eligibility/);
+assert.match(launcher, /function Invoke-BootstrapSync/);
+assert.match(launcher, /-SkipBootstrap/);
+assert.match(launcher, /if \(-not \$SkipBootstrap\) \{ Invoke-BootstrapSync \$repo \}/);
 assert.match(launcher, /Start-AutoPilot\.ps1/);
 assert.match(launcher, /Install-AutoDeployTask\.ps1/);
+assert.match(bootstrap, /git.*fetch.*origin/s);
+assert.match(bootstrap, /git.*checkout.*--detach/s);
+assert.match(bootstrap, /Working tree is not clean/);
+assert.match(bootstrap, /prepare-staging-build-context\.mjs/);
+assert.match(bootstrap, /STAGING_BUILD_TREE/);
+assert.match(bootstrap, /STAGING_BUILD_CONTEXT_FILE_SET_SHA256/);
+assert.match(bootstrap, /-SkipBuild/);
+assert.match(bootstrap, /-SkipBootstrap/);
 assert.match(launcher, /Clone-StagingDatabases\.ps1/);
 assert.match(launcher, /Invoke-StagingCertification\.ps1/);
 assert.match(launcher, /MIGRATION_APPLIED.*false/);
@@ -94,12 +106,17 @@ assert.match(startAutoPilot, /TENANT_GPT_STAGING_OAUTH_CLIENT_ID/);
 assert.match(startAutoPilot, /TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED/);
 assert.match(startAutoPilot, /Ensure-EnvDefault/);
 assert.match(startAutoPilot, /Quarantine-KnownBackupFiles/);
+assert.match(startAutoPilot, /function Invoke-SelfUpdate/);
+assert.match(startAutoPilot, /-SkipSelfUpdate/);
+assert.match(startAutoPilot, /reloaded exact-commit Auto Pilot before local execution/);
+assert.match(startAutoPilot, /prepare-staging-build-context\.mjs/);
 assert.match(startAutoPilot, /Invoke-StagingCertification\.ps1/);
 assert.match(certification, /STAGING_CERT_REQUIRE_READY=false/);
 assert.match(certification, /certification_degraded_reasons/);
 assert.match(installAutoDeploy, /-LogonType Interactive(\s|`|$)/);
 assert.doesNotMatch(installAutoDeploy, /InteractiveToken/);
 
+assert.match(cmd, /Bootstrap-Staging-One-Click\.ps1/);
 assert.match(cmd, /Start-Process powershell\.exe -Verb RunAs/);
 assert.match(cmd, /ExecutionPolicy/);
 assert.match(cmd, /bootstrap-console\.log/);
@@ -111,6 +128,7 @@ console.log(JSON.stringify({
   contract: policy.contract,
   one_click: true,
   bootstrap: true,
+  bootstrap_self_update: true,
   ci_eligibility: true,
   auto_deploy: true,
   certification: "ready_or_degraded_with_blocked_fail_closed",

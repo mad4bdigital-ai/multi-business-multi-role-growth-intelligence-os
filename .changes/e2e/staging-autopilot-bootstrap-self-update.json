@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-autopilot-bootstrap-self-update",
+  "title": "Staging Auto Pilot bootstrap self-update and provenance guard",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
+      "autopilot-portable-staging/**",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "specs/021-portable-staging-autopilot/**",
+      "docs/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure every local Staging Auto Pilot entrypoint synchronizes and reloads the exact eligible main commit before execution, while preserving ignored local secrets and fail-closing on dirty or incomplete provenance state.",
+      "e2e_journeys": [
+        {
+          "id": "staging-autopilot-bootstrap-provenance",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Staging operator and governed CI",
+          "entrypoint": "The portable Staging CMD launcher or Auto Pilot entrypoint starts from an existing local checkout.",
+          "terminal_outcome": "The exact eligible main commit is checked out before the loaded deployment script runs; provenance generation and Compose validation are reached only with the current contract-aware scripts.",
+          "steps": [
+            "Reject a dirty working tree before bootstrap checkout so local work is never overwritten.",
+            "Fetch origin/main and checkout the exact eligible commit in detached mode.",
+            "Verify the reloaded launcher and Auto Pilot contain the provenance contract markers.",
+            "Preserve the ignored .env.staging file and existing non-empty secrets.",
+            "Run eligibility, exact Git context generation, Compose validation, build/reuse, certification, and readback.",
+            "Keep Production deployment, Hostinger mutation, Cloudflare DNS mutation, database migration, and provider mutation disabled."
+          ],
+          "assertions": [
+            "The CMD launcher bootstraps through the tracked self-update shim rather than loading a stale local One-Click script directly.",
+            "The Auto Pilot entrypoint self-updates and reloads the exact commit before local Docker or WSL checks and before Compose validation.",
+            "A dirty working tree fails closed without checkout or overwrite.",
+            "Missing provenance markers fail closed before Compose execution.",
+            "Existing .env.staging values are not rotated or emitted as evidence.",
+            "The resulting build context remains exact Git archive content with secrets_included=false.",
+            "No Production mutation, migration, grant, provider mutation, or force push is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-bootstrap-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-build-context-provenance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-build-context-provenance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
+            "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-build-context-provenance.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

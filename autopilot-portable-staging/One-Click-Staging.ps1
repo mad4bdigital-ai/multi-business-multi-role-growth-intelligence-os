@@ -16,7 +16,8 @@ param(
     [switch]$ApplySchemaBundle,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$SkipBootstrap
 )
 
 Set-StrictMode -Version Latest
@@ -124,7 +125,9 @@ function Reinvoke-Elevated {
     if ($NoAutoDeploy) { $argList += "-NoAutoDeploy" }
     if ($RequireSchemaBundle) { $argList += "-RequireSchemaBundle" }
     if ($ApplySchemaBundle) { $argList += "-ApplySchemaBundle" }
-    $argList += @("-BuildMode", $BuildMode)
+    if ($SkipBootstrap) { $argList += "-SkipBootstrap" }
+    if ($SkipBuild) { $argList += "-SkipBuild" }
+    $argList += @("-BuildMode", $(if ($SkipBuild) { "Smart" } else { $BuildMode }))
     $process = Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList ($argList -join " ") -Wait -PassThru
     exit $process.ExitCode
 }
@@ -217,6 +220,30 @@ function Ensure-Repository([string]$RepoPath) {
 
 function New-Secret {
     return ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+}
+
+function Invoke-BootstrapSync([string]$RepoPath) {
+    if ($SkipBootstrap) { return }
+    $bootstrap = Join-Path $scriptRoot "Bootstrap-Staging-One-Click.ps1"
+    if (-not (Test-Path -LiteralPath $bootstrap)) { Fail "Bootstrap-Staging-One-Click.ps1 is missing: $bootstrap" }
+    $bootstrapBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
+    $bootstrapArgs = @(
+        "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $bootstrap,
+        "-RepositoryPath", $RepoPath, "-RepositoryUrl", $RepositoryUrl, "-Ref", $Ref,
+        "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds",
+        "-EligibilityWaitSeconds", "$EligibilityWaitSeconds", "-EligibilityNoRunGraceSeconds", "$EligibilityNoRunGraceSeconds",
+        "-BuildMode", $bootstrapBuildMode
+    )
+    if ($NoTunnel) { $bootstrapArgs += "-NoTunnel" }
+    if ($EnableActivationGateway) { $bootstrapArgs += "-EnableActivationGateway" }
+    if ($NoAutoDeploy) { $bootstrapArgs += "-NoAutoDeploy" }
+    if ($RequireSchemaBundle) { $bootstrapArgs += "-RequireSchemaBundle" }
+    if ($ApplySchemaBundle) { $bootstrapArgs += "-ApplySchemaBundle" }
+    if ($SkipBuild) { $bootstrapArgs += "-SkipBuild" }
+    & powershell.exe @bootstrapArgs
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) { Fail "Bootstrap-Staging-One-Click.ps1 exited with code $exitCode" }
+    exit 0
 }
 
 function Convert-SecureStringToPlain([Security.SecureString]$Value) {
@@ -421,6 +448,7 @@ if (Test-Path (Join-Path $repo ".git")) {
 }
 Ensure-Prerequisites
 Ensure-Repository $repo
+if (-not $SkipBootstrap) { Invoke-BootstrapSync $repo }
 if ([string]::IsNullOrWhiteSpace([string]$envFile)) { $envFile = Initialize-Environment $repo $scriptRoot }
 
 if ($Mode -eq "Stop") {
