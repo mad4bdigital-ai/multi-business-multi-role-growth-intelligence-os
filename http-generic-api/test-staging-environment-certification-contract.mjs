@@ -3,7 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -136,27 +136,42 @@ const gateway = await listen((req, res) => {
 });
 
 function runLive(extraEnv = {}) {
-  const run = spawnSync(process.execPath, [liveScript], {
-    cwd: root,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      STAGING_CERT_EXPECTED_COMMIT: expectedCommit,
-      STAGING_CERT_EXPECTED_BRANCH: "main",
-      STAGING_CERT_APP_BASE_URL: app.baseUrl,
-      STAGING_CERT_REQUIRE_GATEWAY: "true",
-      STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
-      STAGING_CERT_GATEWAY_POLICY_PATH: gatewayPolicyPath,
-      ...extraEnv,
-    },
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [liveScript], {
+      cwd: root,
+      env: {
+        ...process.env,
+        STAGING_CERT_EXPECTED_COMMIT: expectedCommit,
+        STAGING_CERT_EXPECTED_BRANCH: "main",
+        STAGING_CERT_APP_BASE_URL: app.baseUrl,
+        STAGING_CERT_REQUIRE_GATEWAY: "true",
+        STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
+        STAGING_CERT_GATEWAY_POLICY_PATH: gatewayPolicyPath,
+        ...extraEnv,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.once("error", reject);
+    child.once("close", (code) => {
+      try {
+        const lines = stdout.trim().split(/\r?\n/u).filter(Boolean);
+        const report = JSON.parse(lines.at(-1));
+        resolve({ run: { status: code, stdout, stderr }, report });
+      } catch (error) {
+        reject(new Error(`live certification child did not return canonical JSON: ${error.message}\nstdout=${stdout}\nstderr=${stderr}`));
+      }
+    });
   });
-  const lines = String(run.stdout || "").trim().split(/\r?\n/u).filter(Boolean);
-  const report = JSON.parse(lines.at(-1));
-  return { run, report };
 }
 
 try {
-  const ready = runLive({ STAGING_CERT_REQUIRE_READY: "true", STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true" });
+  const ready = await runLive({ STAGING_CERT_REQUIRE_READY: "true", STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true" });
   assert.equal(ready.run.status, 0, ready.run.stderr || ready.run.stdout);
   assert.equal(ready.report.outcome, "ready");
   assert.equal(ready.report.ready, true);
@@ -167,19 +182,19 @@ try {
   assert.equal(ready.report.safety.production_deploy, false);
 
   currentDeployment = deploymentBody({ databaseReady: false });
-  const degraded = runLive({ STAGING_CERT_REQUIRE_READY: "false" });
+  const degraded = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
   assert.equal(degraded.run.status, 0, degraded.run.stderr || degraded.run.stdout);
   assert.equal(degraded.report.outcome, "degraded");
   assert.equal(degraded.report.ready, false);
   assert.ok(degraded.report.degraded_reasons.includes("combined_database_readiness"));
   assert.ok(degraded.report.degraded_reasons.includes("mcp_catalog_schema_ready"));
 
-  const degradedRequired = runLive({ STAGING_CERT_REQUIRE_READY: "true" });
+  const degradedRequired = await runLive({ STAGING_CERT_REQUIRE_READY: "true" });
   assert.equal(degradedRequired.run.status, 1);
   assert.equal(degradedRequired.report.outcome, "degraded");
 
   currentDeployment = deploymentBody({ commit: "2".repeat(40), databaseReady: true });
-  const blocked = runLive({ STAGING_CERT_REQUIRE_READY: "false" });
+  const blocked = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
   assert.equal(blocked.run.status, 1);
   assert.equal(blocked.report.outcome, "blocked");
   assert.ok(blocked.report.blocking_failures.includes("exact_commit"));
