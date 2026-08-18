@@ -1,15 +1,22 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { parse } from "yaml";
 
 const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
-const policy = JSON.parse(fs.readFileSync(path.join(root, "autopilot-portable-staging", "auto-deploy-policy.json"), "utf8"));
-const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "staging-main-deploy-eligibility.yml"), "utf8");
-const deployScript = fs.readFileSync(path.join(root, "autopilot-portable-staging", "Auto-Deploy-Staging.ps1"), "utf8");
-const pilotScript = fs.readFileSync(path.join(root, "autopilot-portable-staging", "Start-AutoPilot.ps1"), "utf8");
-const oneClickScript = fs.readFileSync(path.join(root, "autopilot-portable-staging", "One-Click-Staging.ps1"), "utf8");
-const installer = fs.readFileSync(path.join(root, "autopilot-portable-staging", "Install-AutoDeployTask.ps1"), "utf8");
-const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
+const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const policy = JSON.parse(read("autopilot-portable-staging/auto-deploy-policy.json"));
+const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
+const liveWorkflow = read(".github/workflows/staging-live-certification.yml");
+const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
+const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
+const pilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const certificationHelper = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
+const oneClickScript = read("autopilot-portable-staging/One-Click-Staging.ps1");
+const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
+const dockerfile = read("http-generic-api/Dockerfile.staging");
+const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
+const gitignore = read(".gitignore");
 
 assert.equal(policy.contract, "mad4b.staging-auto-deploy.v1");
 assert.equal(policy.ref, "main");
@@ -32,16 +39,36 @@ assert.deepEqual(policy.safety, {
 assert.match(workflow, /on:\n  push:\n    branches: \[main\]/);
 assert.match(workflow, /name: Staging Main Deploy Eligibility/);
 assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
-assert.match(workflow, /test \"\$\(git rev-parse HEAD\)\" = \"\$EXPECTED_HEAD_SHA\"/);
+assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD_SHA"/);
+assert.match(workflow, /staging-environment-authority-closure\.mjs/);
+assert.match(workflow, /test-staging-environment-certification-contract\.mjs/);
+assert.match(workflow, /environment_authority_closure/);
 assert.match(workflow, /staging_deploy_only: true/);
 assert.match(workflow, /production_deploy: false/);
+assert.match(workflow, /database_mutation: false/);
+assert.match(workflow, /migration_apply: false/);
+assert.match(workflow, /provider_mutation: false/);
+assert.match(workflow, /ruleset_mutation: false/);
 assert.match(workflow, /secrets_included: false/);
-assert.doesNotMatch(workflow, /auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com/);
 assert.doesNotMatch(workflow, /CLOUDFLARE_TUNNEL_TOKEN|BACKEND_API_KEY|JWT_SECRET/);
+
+assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
+assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
+assert.match(dockerfile, /deployment-manifest\.json/);
+assert.match(dockerfile, /staging-route-policy\.json/);
+assert.doesNotMatch(dockerfile, /new Date\(\)\.toISOString\(\)/);
+assert.match(String(compose.services.app.build.args.STAGING_BUILD_COMMIT), /DEPLOY_COMMIT/);
+assert.match(String(compose.services.app.build.args.STAGING_BUILD_BRANCH), /DEPLOY_BRANCH/);
 
 assert.match(deployScript, /Get-LatestEligibility/);
 assert.match(deployScript, /eligibility_check_name/);
 assert.match(deployScript, /Start-AutoPilot\.ps1/);
+assert.match(deployScript, /Invoke-StagingCertification\.ps1/);
+assert.match(deployScript, /alreadyCertified/);
+assert.match(deployScript, /watcher will re-certify without redeploy/);
+assert.match(deployScript, /validated_commit = \$Sha/);
+assert.match(deployScript, /deployment state was not advanced/);
+assert.match(deployScript, /certification_status/);
 assert.match(deployScript, /AUTO_DEPLOY_FAIL_CLOSED/);
 assert.match(deployScript, /production_deploy = \$false/);
 assert.match(deployScript, /database_mutated = \$false/);
@@ -49,9 +76,37 @@ assert.match(deployScript, /migration_applied = \$false/);
 assert.match(deployScript, /PollSeconds -lt \[int\]\$Policy\.minimum_poll_seconds/);
 assert.doesNotMatch(deployScript, /auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com/);
 assert.match(pilotScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
+assert.match(pilotScript, /Invoke-StagingCertification\.ps1/);
+assert.match(pilotScript, /certification_status = "pending"/);
+assert.match(pilotScript, /Staging is running but not release-ready/);
+assert.match(certificationHelper, /staging-live-certification\.mjs/);
+assert.match(certificationHelper, /STAGING_CERT_REQUIRE_READY=false/);
+assert.match(certificationHelper, /STAGING_CERTIFICATION_DEGRADED/);
+assert.match(certificationHelper, /STAGING_CERTIFICATION_BLOCKED/);
+assert.match(certificationHelper, /database_readiness/);
 assert.match(oneClickScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
 assert.match(deployScript, /Global\\Mad4bPortableStagingAutoPilot/);
 assert.doesNotMatch(deployScript, /CLOUDFLARE_TUNNEL_TOKEN\s*=/i);
+
+const liveGate = promotionGates.gates.find((gate) => gate.id === "staging_live_certification");
+assert.ok(liveGate, "Production promotion must register Staging live certification");
+assert.equal(liveGate.workflow, "staging-live-certification.yml");
+assert.equal(liveGate.required, true);
+assert.equal(liveGate.effect, "read_only");
+assert.deepEqual(liveGate.modes, ["human", "ai_policy"]);
+assert.equal(liveGate.inputs.expected_candidate_sha, "{{candidate_sha}}");
+assert.match(liveWorkflow, /expected_candidate_sha/);
+assert.match(liveWorkflow, /git rev-parse HEAD\^1/);
+assert.match(liveWorkflow, /git diff --quiet "\$release_cut_sha" HEAD/);
+assert.match(liveWorkflow, /STAGING_CERT_REQUIRE_READY: "true"/);
+assert.match(liveWorkflow, /https:\/\/dev\.mad4b\.com/);
+assert.match(liveWorkflow, /staging-environment-authority-closure\.mjs/);
+assert.match(liveWorkflow, /staging-live-certification\.mjs/);
+assert.match(liveWorkflow, /migration_apply:false/);
+assert.match(liveWorkflow, /provider_mutation:false/);
+assert.match(liveWorkflow, /secrets_included:false/);
+assert.doesNotMatch(liveWorkflow, /BACKEND_API_KEY|JWT_SECRET|CLOUDFLARE_TUNNEL_TOKEN/);
+
 assert.match(installer, /Register-ScheduledTask/);
 assert.match(installer, /LogonType Interactive/);
 assert.match(installer, /New-ScheduledTaskTrigger -AtLogOn/);
@@ -63,6 +118,10 @@ console.log(JSON.stringify({
   contract: policy.contract,
   trigger: "push:main",
   deploy_target: "local_staging_only",
+  exact_image_provenance: true,
+  environment_authority_closure: true,
+  live_certification: true,
+  production_promotion_gate: true,
   production_deploy: false,
   secrets_included: false,
 }));
