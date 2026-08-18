@@ -1,12 +1,12 @@
 @echo off
 setlocal
-set "SCRIPT=%~dp0One-Click-Staging.ps1"
-if not exist "%SCRIPT%" (
-  echo AUTO_PILOT_ONE_CLICK_FAIL_CLOSED: missing One-Click-Staging.ps1
+set "BOOTSTRAP=%~dp0Bootstrap-Staging-One-Click.ps1"
+if not exist "%BOOTSTRAP%" (
+  echo AUTO_PILOT_ONE_CLICK_FAIL_CLOSED: missing Bootstrap-Staging-One-Click.ps1
   pause
   exit /b 1
 )
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%SCRIPT%'; exit $p.ExitCode"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%BOOTSTRAP%'; exit $p.ExitCode"
 set "CODE=%ERRORLEVEL%"
 echo.
 echo Auto Pilot log directory: "%~dp0logs"

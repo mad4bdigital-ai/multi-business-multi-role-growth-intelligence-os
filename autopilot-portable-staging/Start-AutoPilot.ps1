@@ -2,6 +2,7 @@
 param(
     [string]$RepositoryPath = "",
     [string]$RepositoryUrl = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os.git",
+    [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [string]$Ref = "main",
     [string]$ExpectedCommit = "",
     [switch]$StartTunnel,
@@ -9,15 +10,19 @@ param(
     [switch]$Stop,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$SkipSelfUpdate
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
 $WindowsPreflightPath = Join-Path $PSScriptRoot "Staging-Windows-Preflight.ps1"
+$GitSafetyPath = Join-Path $PSScriptRoot "Staging-GitSafety.ps1"
 if (-not (Test-Path -LiteralPath $WindowsPreflightPath)) { throw "Missing shared Windows preflight helper: $WindowsPreflightPath" }
+if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git safety helper: $GitSafetyPath" }
 . $WindowsPreflightPath
+. $GitSafetyPath
 $LogComponent = "app-operations"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel }
 trap {
@@ -137,7 +142,7 @@ function Ensure-EnvDefault([string]$Path, [string]$Name, [string]$Value) {
     } elseif ([string]::IsNullOrWhiteSpace(($matches[0].Value -replace "^[^=]+=", ""))) {
         $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
     }
-    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+    Write-StagingUtf8NoBom $Path $text
 }
 function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     if ($Value -match '[\r\n]') { Fail "Invalid newline in environment value: $Name" }
@@ -150,8 +155,55 @@ function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     } else {
         $text = [regex]::Replace($text, $pattern, "$Name=$Value", 1)
     }
-    Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
+    Write-StagingUtf8NoBom $Path $text
 }
+function Invoke-SelfUpdate {
+    if ($SkipSelfUpdate) { return }
+    $targetCommit = $ExpectedCommit.ToLowerInvariant()
+    Push-Location $RepositoryPath
+    try {
+        Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
+        Quarantine-KnownBackupFiles $RepositoryPath
+        Repair-ManifestLineEndings $RepositoryPath
+        $dirty = @(git status --porcelain --untracked-files=all)
+        if ($dirty.Count -gt 0) { Fail "Working tree is not clean; refusing bootstrap checkout before Auto Pilot self-update" }
+        Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=1")
+        $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
+        if ($remoteCommit.ToLowerInvariant() -ne $targetCommit) { Fail "Self-update pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit" }
+        $currentCommit = Get-NativeText "git" @("rev-parse", "HEAD")
+        if ($currentCommit.ToLowerInvariant() -ne $targetCommit) {
+            Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
+        }
+        $checkedOut = Get-NativeText "git" @("rev-parse", "HEAD")
+        if ($checkedOut.ToLowerInvariant() -ne $targetCommit) { Fail "Self-update checkout readback mismatch" }
+    } finally {
+        Pop-Location
+    }
+
+    $reloadedScript = Join-Path $RepositoryPath "autopilot-portable-staging\Start-AutoPilot.ps1"
+    if (-not (Test-Path -LiteralPath $reloadedScript)) { Fail "Self-update target script is missing: $reloadedScript" }
+    $reloadedText = Get-Content -Raw -LiteralPath $reloadedScript
+    foreach ($marker in @("prepare-staging-build-context.mjs", "STAGING_BUILD_TREE", "STAGING_BUILD_CONTEXT_FILE_SET_SHA256")) {
+        if (-not $reloadedText.Contains($marker)) { Fail "Self-update target script is missing required provenance marker: $marker" }
+    }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "bootstrap-sync" -Outcome "success" -Message "reloaded exact-commit Auto Pilot before local execution" -Data @{ sha = $targetCommit; secrets_included = $false }
+
+    $childBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
+    $childArgs = @(
+        "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $reloadedScript,
+        "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref,
+        "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
+    )
+    if ($StartTunnel) { $childArgs += "-StartTunnel" }
+    if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
+    if ($Stop) { $childArgs += "-Stop" }
+    if ($SkipBuild) { $childArgs += "-SkipBuild" }
+    & powershell.exe @childArgs
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) { Fail "Reloaded Start-AutoPilot.ps1 exited with code $exitCode" }
+    exit 0
+}
+
 function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet) {
     if ($ImageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
     if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedTree -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedContextFileSet -notmatch '^[0-9a-fA-F]{64}$') { return $false }
@@ -216,8 +268,6 @@ $BuildContextScript = Join-Path $ApiPath "scripts/prepare-staging-build-context.
 $BuildContextPath = Join-Path $RepositoryPath ".staging-build-context"
 
 Require-Command "git"
-Require-Command "docker"
-Require-Command "wsl"
 if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (Test-Path $EnvExample)) {
     if ([string]::IsNullOrWhiteSpace($RepositoryUrl)) { Fail "Repository files are missing and RepositoryUrl is empty" }
     New-Item -ItemType Directory -Force -Path $RepositoryPath | Out-Null
@@ -227,8 +277,12 @@ if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (T
 }
 
 if (-not (Test-Path (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
+Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
 if (-not (Test-Path -LiteralPath $CertificationScript)) { Fail "Staging certification helper is missing: $CertificationScript" }
 Assert-Sha $ExpectedCommit
+Invoke-SelfUpdate
+Require-Command "docker"
+Require-Command "wsl"
 
 if ($env:DOCKER_HOST) { Fail "DOCKER_HOST is set; refusing a remote Docker daemon" }
 if ($env:DOCKER_CONTEXT) { Fail "DOCKER_CONTEXT is set; unset it and select a local Docker Desktop context explicitly" }
@@ -287,7 +341,7 @@ try {
         }
         $envText = Get-Content -Raw $EnvFile
         foreach ($key in $localSecrets.Keys) { $envText = [regex]::Replace($envText, "(?m)^$key=.*$", "$key=$($localSecrets[$key])") }
-        Set-Content -Encoding utf8 $EnvFile $envText
+        Write-StagingUtf8NoBom $EnvFile $envText
     }
 
     $generatedLocalSecrets = @{
@@ -312,7 +366,7 @@ try {
             $envText = [regex]::Replace($envText, "(?im)^$([regex]::Escape($key))=.*$", "$key=$($generatedLocalSecrets[$key])")
         }
     }
-    Set-Content -Encoding utf8 $EnvFile $envText
+    Write-StagingUtf8NoBom $EnvFile $envText
     Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
     Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
