@@ -52,6 +52,23 @@
             "production_mutation_allowed is false.",
             "No migrations, grants, database mutations, provider mutations, credential payload reads, or production activation are introduced.",
             "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr7434-environment-impact-closure-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr7434-environment-impact-closure.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "edge/activation-gateway/generated/route-policy.staging.json"
           ]
         }
       ],
