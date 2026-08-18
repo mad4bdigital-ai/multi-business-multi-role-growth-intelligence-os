@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { evaluateRepository, matchesPattern } from "../../http-generic-api/scripts/e2e-phase-governance.mjs";
+import { evaluateRepository } from "../../http-generic-api/scripts/e2e-phase-governance.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const constitutionPath = "http-generic-api/config/repository-governance-constitution.json";
@@ -51,25 +51,19 @@ for (const policy of policies.policies) {
   for (const assertion of policy.assertions || []) assert.equal(allowed.has(assertion.type), true);
 }
 
-const staticGovernancePatterns = e2e.governance_only_patterns || [];
-const dynamicallyOwnedControlPaths = constitution.control_plane_paths.filter(
-  (controlPath) => !staticGovernancePatterns.some((pattern) => matchesPattern(controlPath, pattern))
-);
-assert.ok(
-  dynamicallyOwnedControlPaths.length > 0,
-  "Regression fixture must contain at least one control-plane path whose E2E governance classification comes only from the Constitution."
-);
+const constitutionOnlyPolicy = { ...e2e, governance_only_patterns: [] };
 for (const controlPath of constitution.control_plane_paths) {
   assert.equal(derived.convergence.automation_control_paths.includes(controlPath), true, `unprotected control path: ${controlPath}`);
-  const evaluation = evaluateRepository({ root, policy: e2e, changedFiles: [controlPath] });
+  const evaluation = evaluateRepository({ root, policy: constitutionOnlyPolicy, changedFiles: [controlPath] });
   assert.equal(evaluation.report.ok, true, `E2E governance rejected canonical control path ${controlPath}: ${JSON.stringify(evaluation.report.findings)}`);
-  assert.equal(evaluation.report.change_class, "governance_only", `E2E misclassification for control path: ${controlPath}`);
+  assert.equal(evaluation.report.change_class, "governance_only", `E2E misclassification for Constitution control path: ${controlPath}`);
   assert.deepEqual(evaluation.report.runtime_files, [], `Control-plane path leaked into E2E runtime ownership: ${controlPath}`);
 }
-for (const controlPath of dynamicallyOwnedControlPaths) {
-  const evaluation = evaluateRepository({ root, policy: e2e, changedFiles: [controlPath] });
-  assert.equal(evaluation.report.change_class, "governance_only", `Constitution-only governance path is not dynamically consumed: ${controlPath}`);
-}
+assert.equal(
+  evaluateRepository({ root, policy: constitutionOnlyPolicy, changedFiles: [constitution.control_plane_paths[0]] }).report.change_class,
+  "governance_only",
+  "E2E classifier must consume Constitution control paths without requiring duplicated static governance patterns."
+);
 for (const requiredPath of [scriptPath, objectionPath, finalizerPath]) assert.equal(fs.existsSync(path.join(root, requiredPath)), true, `missing ${requiredPath}`);
 
 const sha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim();
