@@ -138,7 +138,7 @@ jobs:
             --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --base-sha "$BASE_SHA" \
             --report-file "$OUT/repository-governance.json"
 
-      - name: Verify environment and registered derived state
+      - name: Verify environment impact and migration compatibility closure
         env:
           OUT: ${{ runner.temp }}/derived-state-closure
           CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
