@@ -59,6 +59,8 @@ jobs:
             --report-file "$OUT/policy-objections.json"
           node .github/tests/repository-governance-closure.test.mjs
           node .github/tests/repository-governance-objection-gate.test.mjs
+          node http-generic-api/test-github-repository-policy-controller.mjs
+          node http-generic-api/test-github-repository-governance-attestation.mjs
           EXECUTED_SHA="$(git rev-parse HEAD)"
           test "$EXECUTED_SHA" = "$MERGE_CANDIDATE_SHA"
           node - <<'NODE'
