@@ -31,6 +31,7 @@ const contractNames = [
   "syntax-spec014-final-work-map-binding",
   "spec014-final-work-map-binding-regression",
   "work-map-autofix-spec014-binding-convergence-regression",
+  "work-map-autofix-registry-refresh-scope-regression",
   "syntax-pipeline-connectivity-check",
   "pipeline-connectivity-check",
   "pipeline-connectivity-regression",
