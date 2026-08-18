@@ -274,6 +274,7 @@
     ".github/tests/production-promotion-review-mode.test.mjs",
     ".github/tests/production-promotion-runtime.test.mjs",
     ".github/workflows/derived-state-closure.yml",
+    ".github/workflows/automation-overlap-guard.yml",
     ".github/workflows/policy-objection-ci.yml",
     ".github/workflows/derived-state-repair-dispatch.yml",
     ".github/workflows/derived-state-converged-automerge.yml",
@@ -305,7 +306,8 @@
     "docs/governance/production-readiness-consolidated-fix.md",
     "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
     ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",
-    ".changes/e2e/spec018-residual-readiness-evidence.json"
+    ".changes/e2e/spec018-residual-readiness-evidence.json",
+    ".changes/e2e/pr7434-environment-impact-closure.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
