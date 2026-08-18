@@ -60,8 +60,10 @@ writeJson(path.join(root, "http-generic-api", "config", "repository-governance-c
   control_plane_paths: [],
 });
 fs.mkdirSync(path.join(root, "http-generic-api", "example"), { recursive: true });
+fs.mkdirSync(path.join(root, "http-generic-api", "unrelated"), { recursive: true });
 fs.writeFileSync(path.join(root, "pass.mjs"), "process.exit(0);\n");
 fs.writeFileSync(path.join(root, "http-generic-api", "example", "service.mjs"), "export const version = 1;\n");
+fs.writeFileSync(path.join(root, "http-generic-api", "unrelated", "service.mjs"), "export const version = 1;\n");
 run(["init"], root);
 run(["config", "user.email", "ci@example.invalid"], root);
 run(["config", "user.name", "CI"], root);
@@ -125,6 +127,25 @@ assert.equal(
   false
 );
 
+const ownershipNeutralBindingAlongsideUnrelatedRuntime = evaluateRepository({
+  root,
+  policy,
+  changedFiles: [
+    "specs/001-example/work-map-integration.json",
+    "http-generic-api/unrelated/service.mjs"
+  ]
+}).report;
+assert.equal(
+  ownershipNeutralBindingAlongsideUnrelatedRuntime.findings.some((finding) => finding.code === "e2e_phase_contract_not_changed_with_feature"),
+  false,
+  JSON.stringify(ownershipNeutralBindingAlongsideUnrelatedRuntime.findings)
+);
+assert.equal(
+  ownershipNeutralBindingAlongsideUnrelatedRuntime.findings.some((finding) => finding.code === "runtime_change_not_covered_by_e2e_contract"),
+  true,
+  "Unrelated uncovered runtime must still fail closed."
+);
+
 const covered = evaluate(root, baseSha, coveredSha);
 assert.equal(covered.ok, true, JSON.stringify(covered.findings));
 assert.equal(covered.single_pr_maintenance_contract?.contract_path, ".changes/e2e/001-example-maintenance.json");
@@ -171,9 +192,10 @@ assert(reopened.findings.some((finding) => finding.code === "e2e_phase_contract_
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 11,
+  tests: 12,
   contract: "single_pr_maintenance_evaluator_exception",
   ownership_neutral_work_map_binding_refresh: true,
+  ownership_neutral_spec_change_isolated_from_unrelated_runtime: true,
   independently_revalidated: true,
   fail_closed_for_non_main_under_scope_ambiguity_and_reopened_parallel_delivery: true,
   secrets_included: false
