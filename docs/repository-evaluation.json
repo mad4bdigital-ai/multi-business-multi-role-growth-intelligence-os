@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "875258df0fb2046ad5d31988ad0dd24463ee14034ef840514b3317b17c514a28",
+  "inputFingerprint": "51de875d9a45e1c9d95afa1daeb9104e26881e28b81ed6340a8a41a580e5cb44",
   "inventory": {
     "files": 7153,
     "bytes": 69823935,
@@ -120,8 +120,8 @@
         "run",
         "inventory:check"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "inventory-selftest",
@@ -130,8 +130,8 @@
         "run",
         "inventory:test"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "typecheck",
@@ -140,8 +140,8 @@
         "run",
         "typecheck"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "root-tests",
@@ -151,8 +151,8 @@
         "--",
         "--runInBand"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "automation-overlap",
@@ -161,8 +161,8 @@
         "http-generic-api/scripts/automation-overlap-analyzer.mjs",
         "--check"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     }
   ],
   "gaps": [
@@ -175,7 +175,7 @@
       "evidence": {
         "workflowCount": 167,
         "maxWorkflowCount": 160,
-        "overlapCheck": "not-run"
+        "overlapCheck": "passed"
       },
       "impact": "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
       "recommendation": "Keep the workflow count within the declared budget and maintain a passing automation overlap check.",
