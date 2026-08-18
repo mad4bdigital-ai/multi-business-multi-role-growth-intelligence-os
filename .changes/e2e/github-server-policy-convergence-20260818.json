@@ -29,6 +29,8 @@
       "http-generic-api/routes/repositoryAutomationRoutes.js",
       "http-generic-api/test-github-repository-governance-attestation.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+      "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
       "scripts/derived-state-closure.mjs",
       "scripts/repository-governance-closure.mjs",
       "scripts/repository-governance-objection-gate.mjs",
@@ -56,7 +58,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, CI workflow no-growth ratchet, trusted GitHub App final attestation, and enforceable main/Production server-policy plans without creating a parallel authority.",
+      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, and enforceable main/Production server-policy plans without creating a parallel authority.",
       "e2e_journeys": [
         {
           "id": "semantic-exact-candidate-to-trusted-server-attestation",
@@ -64,7 +66,7 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance maintainer",
           "entrypoint": "Pull request to main and governed Production promotion",
-          "terminal_outcome": "A pull request is classified semantically, evaluated on GitHub's exact merge candidate, resolved through registered policy and verifier authorities, finalized by a trusted default-branch workflow, and only then may the GitHub App publish the required status on the exact candidate; critical governance/control-plane changes still require an independent manual merge decision, and Production uses the same App gate only after proving the current merge-candidate tree equals the certified release-candidate tree.",
+          "terminal_outcome": "A pull request is classified semantically, evaluated on GitHub's exact merge candidate, resolved through registered policy and verifier authorities, finalized by a trusted default-branch workflow, and only then may the GitHub App publish the required status on the exact candidate; critical governance/control-plane changes still require an independent manual merge decision, ownership-neutral generated Spec evidence does not inherit unrelated feature-change obligations, and Production uses the same App gate only after proving the current merge-candidate tree equals the certified release-candidate tree.",
           "steps": [
             "Load the canonical Constitution, policy registry, semantic surface registry, verifier registry, evidence producer registry, waiver ledger, E2E schema, and deployment environment authority.",
             "Classify changed paths, executable classes, semantic facets, and Git-native add/delete/rename/copy identity.",
@@ -72,8 +74,10 @@
             "Evaluate generic declarative policy assertions over the semantic graph and governance report.",
             "Resolve derived-state verifiers only through the safe verifier registry and discover Work Map integrations dynamically.",
             "Run the canonical producer on the exact GitHub merge candidate and record source head, base, merge candidate, executed SHA, PR number, workflow and run identity.",
+            "Finalize canonical producer evidence using producer_id as the canonical evidence identity while rejecting conflicting or duplicate producer identities.",
             "Check every tracked JavaScript module recursively instead of a shallow filename glob.",
             "Resolve critical surface risk from the canonical surface_classes field, fail closed on malformed governance report shape, and emit a manual objection that disables auto-merge for control-plane self-amendment.",
+            "Apply E2E contract-change requirements to non-governance changes owned by each Spec instead of inheriting the global PR feature class from unrelated runtime changes.",
             "Block workflow-surface growth above the base/target ratchet while retaining a target of 160 workflows.",
             "Validate the shared-runtime environment impact against the canonical deployment authority, requiring cross-environment review and live Staging certification while keeping Production mutation forbidden.",
             "Have the Derived State Closure detector consume the exact-candidate producer evidence and emit read-only detector evidence.",
@@ -88,8 +92,10 @@
             "New policy rules may use registered generic assertion primitives without editing the policy engine for every new metric.",
             "New derived artifacts may bind a registered safe verifier without editing derived-state-closure.mjs.",
             "The canonical evidence identity contains source_head_sha, base_sha, merge_candidate_sha, executed_sha, and pr_number, and executed_sha equals merge_candidate_sha for main.",
+            "Canonical producer evidence is keyed by producer_id; legacy id remains compatibility-only, conflicting identities fail closed, and duplicate producer evidence is rejected.",
             "The canonical required producer is Policy Objection CI; legacy CI remains supplemental diagnostics only.",
             "Critical governance/control-plane paths are resolved from canonical surface_classes and always produce a non-waiverable manual merge objection; missing surface_classes fails closed instead of silently allowing auto-merge.",
+            "A governance-only Spec binding or generated evidence refresh does not require its feature contract to change merely because unrelated runtime changes make the overall PR feature-class; non-governance changes owned by that Spec still require the contract and uncovered runtime still fails closed.",
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
             "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
@@ -113,6 +119,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": ".github/tests/repository-governance-objection-gate.test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-ownership-scoped-maintenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
               "args": []
             },
             {
@@ -148,10 +161,13 @@
             ".github/workflows/policy-objection-ci.yml",
             ".github/workflows/derived-state-closure.yml",
             ".github/workflows/derived-state-converged-automerge.yml",
+            ".github/tests/repository-governance-closure.test.mjs",
             "scripts/repository-governance-closure.mjs",
             "scripts/repository-governance-objection-gate.mjs",
             "scripts/repository-governance-evidence-finalizer.mjs",
             "scripts/derived-state-closure.mjs",
+            "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+            "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/githubRepositoryPolicyController.js",
