@@ -57,6 +57,9 @@ services:
     build:
       context: ..
       dockerfile: http-generic-api/Dockerfile.staging
+      args:
+        STAGING_BUILD_COMMIT: ${DEPLOY_COMMIT:?set DEPLOY_COMMIT in .env.staging}
+        STAGING_BUILD_BRANCH: ${DEPLOY_BRANCH:-main}
     # Staging ingress is internal-only; cloudflared reaches http://app:8080.
     # An optional operator override may publish a localhost port when needed.
     ports: []
