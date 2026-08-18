@@ -20,6 +20,9 @@ if ($SkipBuild) {
     $BuildMode = "SkipBuild"
 }
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+$GitSafetyPath = Join-Path $PSScriptRoot "Staging-GitSafety.ps1"
+if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git safety helper: $GitSafetyPath" }
+. $GitSafetyPath
 $LogComponent = "auto-deploy"
 $script:AutoPilotRunMutex = $null
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds }
@@ -176,10 +179,12 @@ Assert-Policy $Policy $Ref $ExpectedRepository
 Require-Command "git"
 Require-Command "gh"
 Require-Command "powershell"
-if (-not (Test-Path -LiteralPath $startScript)) { Fail "Start-AutoPilot.ps1 is missing" }
-if (-not (Test-Path -LiteralPath $certificationScript)) { Fail "Invoke-StagingCertification.ps1 is missing" }
-Acquire-AutoPilotRunLock
+if (-not (Test-Path -LiteralPath $startScript)) { Fail "Start-AutoPilot.ps1 is missing: $startScript" }
+if (-not (Test-Path -LiteralPath $certificationScript)) { Fail "Invoke-StagingCertification.ps1 is missing: $certificationScript" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
+try { Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository }
+catch { Fail $_.Exception.Message }
+Acquire-AutoPilotRunLock
 
 $previous = Read-State $statePath
 $iteration = 0
@@ -211,7 +216,7 @@ while ($true) {
             if (-not $Watch) { Fail "Staging commit $sha is deployed but not certified ready" }
         }
     } elseif ($eligibility.state -eq "eligible") {
-        $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode)
+        $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode)
         if ($StartTunnel) { $pilotArgs += "-StartTunnel" }
         if ($ValidateOnly) { $pilotArgs += "-ValidateOnly" }
         Write-Host ("> powershell.exe -File Start-AutoPilot.ps1 {0}" -f ($pilotArgs -join " "))

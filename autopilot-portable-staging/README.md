@@ -8,6 +8,8 @@ For the normal operator workflow, double-click `Start-Staging-One-Click.cmd`. It
 
 The first run may ask for two unavoidable credentials: GitHub CLI device/browser authentication and the dedicated Staging Cloudflare Tunnel token. These are entered inside the launcher; no separate Terminal command is required. They are not committed to GitHub. Subsequent runs reuse the ignored local `.env.staging` and normally require no additional input.
 
+Before loading the deployment workflow, the CMD entry point runs `Bootstrap-Staging-One-Click.ps1`. The bootstrap rejects a dirty working tree, fetches `origin/main`, checks out the exact eligible commit in detached mode, verifies that the checked-out scripts contain the provenance contract, and only then launches `One-Click-Staging.ps1`. Direct `Start-AutoPilot.ps1` and Auto Deploy invocations apply the same self-update and reload guard. This prevents a stale local script from reaching Docker Compose without `STAGING_BUILD_TREE` and related provenance fields. Existing ignored `.env.staging` values are not printed, rotated, or deleted.
+
 The launcher is intentionally safe when a schema bundle is absent. It starts fresh local databases and does not apply migrations or copy data. To seed schemas automatically, place the approved local files `runtime.schema.sql.gz`, `governance.schema.sql.gz`, and `persistence.schema.sql.gz` in `autopilot-portable-staging\staging-db-dumps\`; the one-click runner consumes them only as `schema_only`. Production dumps and sanitized data are never accepted by this path.
 
 Use `-RequireSchemaBundle` only when the local schema bundle is already present and the run must fail closed if it is missing.

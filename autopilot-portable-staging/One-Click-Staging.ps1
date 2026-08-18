@@ -16,7 +16,9 @@ param(
     [switch]$ApplySchemaBundle,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$SkipBootstrap,
+    [switch]$InheritedRunLock
 )
 
 Set-StrictMode -Version Latest
@@ -29,6 +31,9 @@ $OneClickScriptPath = $PSCommandPath
 $BootstrapScriptRoot = Split-Path -Parent $OneClickScriptPath
 $BootstrapLogRoot = Join-Path $BootstrapScriptRoot "logs"
 $BootstrapFallbackLog = Join-Path $BootstrapLogRoot "bootstrap-console.log"
+$GitSafetyPath = Join-Path $BootstrapScriptRoot "Staging-GitSafety.ps1"
+if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git safety helper: $GitSafetyPath" }
+. $GitSafetyPath
 $WindowsPreflightPath = Join-Path $BootstrapScriptRoot "Staging-Windows-Preflight.ps1"
 try { . $WindowsPreflightPath } catch {
     Write-Host "STAGING_WINDOWS_PREFLIGHT_IMPORT_FAILED: $($_.Exception.Message)" -ForegroundColor Red
@@ -52,6 +57,10 @@ try { . $loggerPath } catch {
 $LogComponent = "auto-pilot"
 $script:AutoPilotRunMutex = $null
 function Acquire-AutoPilotRunLock {
+    if ($InheritedRunLock) {
+        Write-EarlyBootstrapLog "inherited global Auto Pilot run lock"
+        return
+    }
     try {
         $script:AutoPilotRunMutex = New-Object System.Threading.Mutex($false, "Global\Mad4bPortableStagingAutoPilot")
         if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Auto Pilot instance is already running; refusing overlapping execution" }
@@ -117,14 +126,17 @@ function Is-Administrator {
 function Reinvoke-Elevated {
     if (Is-Administrator) { return $false }
     $scriptPath = $OneClickScriptPath
-    $argList = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$scriptPath`"", "-Mode", $Mode, "-RepositoryUrl", "`"$RepositoryUrl`"", "-Ref", $Ref, "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds", "-EligibilityWaitSeconds", "$EligibilityWaitSeconds")
+    $argList = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$scriptPath`"", "-Mode", $Mode, "-RepositoryUrl", "`"$RepositoryUrl`"", "-Ref", $Ref, "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds", "-EligibilityWaitSeconds", "$EligibilityWaitSeconds", "-EligibilityNoRunGraceSeconds", "$EligibilityNoRunGraceSeconds")
     if (-not [string]::IsNullOrWhiteSpace($RepositoryPath)) { $argList += @("-RepositoryPath", "`"$RepositoryPath`"") }
     if ($NoTunnel) { $argList += "-NoTunnel" }
     if ($EnableActivationGateway) { $argList += "-EnableActivationGateway" }
     if ($NoAutoDeploy) { $argList += "-NoAutoDeploy" }
     if ($RequireSchemaBundle) { $argList += "-RequireSchemaBundle" }
     if ($ApplySchemaBundle) { $argList += "-ApplySchemaBundle" }
-    $argList += @("-BuildMode", $BuildMode)
+    if ($SkipBootstrap) { $argList += "-SkipBootstrap" }
+    if ($InheritedRunLock) { $argList += "-InheritedRunLock" }
+    if ($SkipBuild) { $argList += "-SkipBuild" }
+    $argList += @("-BuildMode", $(if ($SkipBuild) { "Smart" } else { $BuildMode }))
     $process = Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList ($argList -join " ") -Wait -PassThru
     exit $process.ExitCode
 }
@@ -219,6 +231,30 @@ function New-Secret {
     return ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
 }
 
+function Invoke-BootstrapSync([string]$RepoPath) {
+    if ($SkipBootstrap) { return }
+    $bootstrap = Join-Path $scriptRoot "Bootstrap-Staging-One-Click.ps1"
+    if (-not (Test-Path -LiteralPath $bootstrap)) { Fail "Bootstrap-Staging-One-Click.ps1 is missing: $bootstrap" }
+    $bootstrapBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
+    $bootstrapArgs = @(
+        "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $bootstrap,
+        "-RepositoryPath", $RepoPath, "-RepositoryUrl", $RepositoryUrl, "-Ref", $Ref,
+        "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds",
+        "-EligibilityWaitSeconds", "$EligibilityWaitSeconds", "-EligibilityNoRunGraceSeconds", "$EligibilityNoRunGraceSeconds",
+        "-BuildMode", $bootstrapBuildMode, "-InheritedRunLock"
+    )
+    if ($NoTunnel) { $bootstrapArgs += "-NoTunnel" }
+    if ($EnableActivationGateway) { $bootstrapArgs += "-EnableActivationGateway" }
+    if ($NoAutoDeploy) { $bootstrapArgs += "-NoAutoDeploy" }
+    if ($RequireSchemaBundle) { $bootstrapArgs += "-RequireSchemaBundle" }
+    if ($ApplySchemaBundle) { $bootstrapArgs += "-ApplySchemaBundle" }
+    if ($SkipBuild) { $bootstrapArgs += "-SkipBuild" }
+    & powershell.exe @bootstrapArgs
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) { Fail "Bootstrap-Staging-One-Click.ps1 exited with code $exitCode" }
+    exit 0
+}
+
 function Convert-SecureStringToPlain([Security.SecureString]$Value) {
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
     try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
@@ -240,7 +276,7 @@ function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
         } else { $result += $line }
     }
     if (-not $found) { $result += "$Name=$Value" }
-    Set-Content -LiteralPath $Path -Encoding utf8 -Value ($result -join "`r`n")
+    Write-StagingUtf8NoBom $Path ($result -join "`r`n")
 }
 
 function Get-EnvValue([string]$Path, [string]$Name) {
@@ -352,7 +388,7 @@ function Wait-Eligibility([string]$Sha) {
 function Start-LocalStaging([string]$RepoPath, [string]$Sha, [string]$EnvFile) {
     $start = Join-Path $RepoPath "autopilot-portable-staging\Start-AutoPilot.ps1"
     if (-not (Test-Path $start)) { Fail "Start-AutoPilot.ps1 is missing" }
-    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $RepoPath, "-Ref", $Ref, "-ExpectedCommit", $Sha, "-BuildMode", $BuildMode)
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $RepoPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $Sha, "-BuildMode", $BuildMode)
     if (-not $NoTunnel) { $args += "-StartTunnel" }
     Invoke-Native "powershell.exe" $args
 }
@@ -416,16 +452,21 @@ $repo = Resolve-Repository $scriptRoot
 $envFile = $null
 # On an existing checkout, create the ignored Staging env before prerequisite checks so a missing gh/docker/WSL dependency never hides the env boundary.
 if (Test-Path (Join-Path $repo ".git")) {
+    try { Assert-StagingOriginIdentity $repo $ExpectedRepository }
+    catch { Fail $_.Exception.Message }
     $envFile = Initialize-Environment $repo $scriptRoot
     Write-EarlyBootstrapLog "staging environment initialized before prerequisite checks"
 }
 Ensure-Prerequisites
 Ensure-Repository $repo
+try { Assert-StagingOriginIdentity $repo $ExpectedRepository }
+catch { Fail $_.Exception.Message }
+if (-not $SkipBootstrap) { Invoke-BootstrapSync $repo }
 if ([string]::IsNullOrWhiteSpace([string]$envFile)) { $envFile = Initialize-Environment $repo $scriptRoot }
 
 if ($Mode -eq "Stop") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
-    Invoke-Native "powershell.exe" @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-Ref", $Ref, "-ExpectedCommit", (Get-MainSha $repo), "-Stop")
+    Invoke-Native "powershell.exe" @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", (Get-MainSha $repo), "-Stop")
     Write-Host "AUTO_PILOT_STOPPED: local Staging stopped; no Production or provider mutation performed."
     return
 }
@@ -436,7 +477,7 @@ Wait-Eligibility $sha
 Write-StagingOperationBoundary -Component $LogComponent -Stage "eligibility" -Outcome "success" -Message "Staging Main Deploy Eligibility passed" -Data @{ sha = $sha }
 if ($Mode -eq "Validate") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
-    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode, "-ValidateOnly")
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode, "-ValidateOnly")
     if (-not $NoTunnel) { $args += "-StartTunnel" }
     Invoke-Native "powershell.exe" $args
     Write-Host "AUTO_PILOT_VALIDATED: commit=$sha tunnel=$(-not $NoTunnel)"
