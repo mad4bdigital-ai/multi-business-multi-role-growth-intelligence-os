@@ -10,6 +10,10 @@
       ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
       "autopilot-portable-staging/**",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/test-deployment-manifest-generator.mjs",
+      "http-generic-api/scripts/generate-deployment-manifest.mjs",
+      "http-generic-api/docker-compose.staging.yml",
       "specs/021-portable-staging-autopilot/**",
       "docs/**"
     ]
@@ -56,6 +60,8 @@
             "Existing .env.staging values are not rotated or emitted as evidence.",
             "The resulting build context remains exact Git archive content with secrets_included=false.",
             "Certification obtains the full content-addressed app image ID from the running app container rather than relying on a potentially truncated Compose image listing.",
+            "Staging startup preserves the Docker-generated exact tree, context file-set, image digest, build source, and explicit secrets_included=false fields instead of overwriting them with the generic Production manifest shape.",
+            "A blocked certification records its blocking_failures and degraded_reasons in the persistent operations log rather than exposing only a generic powershell.exe exit code.",
             "No Production mutation, migration, grant, provider mutation, or force push is introduced.",
             "secrets_included is false."
           ],
@@ -73,6 +79,20 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-build-context-provenance.mjs",
               "args": []
+            },
+            {
+              "id": "staging-deployment-manifest-provenance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-deployment-manifest-generator.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-runtime-provenance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -87,6 +107,10 @@
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             "http-generic-api/test-staging-build-context-provenance.mjs",
+            "http-generic-api/scripts/generate-deployment-manifest.mjs",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/test-deployment-manifest-generator.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
           ]
         }

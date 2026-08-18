@@ -467,7 +467,19 @@ try {
     if ($StartTunnel) { $certArgs += "-StartTunnel" }
     Write-StagingLog -Level info -Component $LogComponent -Stage "certification" -Message "same-cycle Staging certification started" -Data @{ commit = $ExpectedCommit; gateway_enabled = [bool]$activationGatewayEnabled }
     & powershell.exe @certArgs
-    if ($LASTEXITCODE -ne 0) { Fail "Staging certification blocked exact commit $ExpectedCommit" }
+    if ($LASTEXITCODE -ne 0) {
+        $certificationBlockingFailures = @()
+        $certificationDegradedReasons = @()
+        try {
+            $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
+            $certificationBlockingFailures = @($failedCertificationState.certification_blocking_failures | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            $certificationDegradedReasons = @($failedCertificationState.certification_degraded_reasons | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        } catch { }
+        $reasonSuffix = if ($certificationBlockingFailures.Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
+        $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
+        Fail $failureMessage
+    }
     try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
     catch { Fail "Staging certification state could not be read" }
     if ($certState.certification_status -eq "degraded") {

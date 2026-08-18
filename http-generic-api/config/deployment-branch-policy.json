@@ -115,6 +115,7 @@
           "http-generic-api/*.js",
           "http-generic-api/*.mjs",
           "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
+          "http-generic-api/scripts/generate-deployment-manifest.mjs",
           "edge/**",
           "canonicals/openapi/**",
           "http-generic-api/frontend-operation-governance.generated.json",
