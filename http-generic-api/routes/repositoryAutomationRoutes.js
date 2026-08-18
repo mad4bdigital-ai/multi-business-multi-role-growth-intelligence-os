@@ -98,10 +98,9 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
   router.post("/admin/repository-automation/policy-controller", ...requireAdmin, async (req, res) => {
     try {
       const input = bodyOf(req);
-      const deps = automationDeps(req);
       const result = String(input.mode || "").trim().toLowerCase() === "attest"
-        ? await runGithubRepositoryGovernanceAttestation(input, deps)
-        : await runGithubRepositoryPolicyController(input, deps);
+        ? await runGithubRepositoryGovernanceAttestation(input, automationDeps(req))
+        : await runGithubRepositoryPolicyController(bodyOf(req), automationDeps(req));
       return res.status(200).json(result);
     } catch (error) {
       return errorResponse(res, error, "github_repository_policy_controller_failed");
