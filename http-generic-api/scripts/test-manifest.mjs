@@ -20,6 +20,7 @@ const upstreamCommands = [
   "node test-control-plane-write-authority.mjs",
   "node test-mcp-catalog-schema-guard.mjs",
   "node test-mcp-catalog-schema-preflight.mjs",
+  "node test-production-activation-readiness.mjs",
   "node test-staging-independent-schema-contract.mjs",
 ];
 
@@ -89,6 +90,7 @@ const staticDiscoveryCommands = [
   "node test-governance-db-writer-authority.mjs",
   "node test-runtime-persistence-operational-readiness.mjs",
   "node test-runtime-persistence-wiring.mjs",
+  "node test-runtime-readiness-evidence-closeout.mjs",
   "node test-virtual-tool-endpoint-scoped-capability-identity.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
   "node test-tenant-platform-plugin-1052-governed-readiness.mjs",

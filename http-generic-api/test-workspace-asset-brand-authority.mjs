@@ -35,6 +35,13 @@ function buildExecutor({
     inserted,
     async query(sql, params = []) {
       calls.push({ sql, params });
+      if (sql.includes("FROM brands b")) {
+        const canonical = canonicalRows[0];
+        return [canonical ? [{
+          target_key: canonical.brand_target_key,
+          brand_status: canonical.brand_status,
+        }] : []];
+      }
       if (sql.includes("FROM tenant_brand_links tbl")) return [canonicalRows];
       if (sql.includes("FROM memberships m") && sql.includes("FOR UPDATE")) return [membershipRows];
       if (sql.includes("FROM v_workspace_resource_grant_effective")) return [grantRows];

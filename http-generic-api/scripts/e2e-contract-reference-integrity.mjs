@@ -30,11 +30,7 @@ function inspectFile(located) {
   if (!located) return { exists: false, regular_file: false, symbolic_link: false };
   try {
     const stats = fs.lstatSync(located.resolved);
-    return {
-      exists: true,
-      regular_file: stats.isFile(),
-      symbolic_link: stats.isSymbolicLink(),
-    };
+    return { exists: true, regular_file: stats.isFile(), symbolic_link: stats.isSymbolicLink() };
   } catch (error) {
     if (error?.code === "ENOENT") return { exists: false, regular_file: false, symbolic_link: false };
     throw error;
@@ -75,9 +71,7 @@ export function discoverContractPaths(root = REPO_ROOT) {
 function parseChangedLine(line) {
   const fields = line.split("\t");
   const status = fields[0] || "";
-  if (/^[RC]\d+$/u.test(status)) {
-    return { status: status[0], old_path: normalize(fields[1]), path: normalize(fields[2]) };
-  }
+  if (/^[RC]\d+$/u.test(status)) return { status: status[0], old_path: normalize(fields[1]), path: normalize(fields[2]) };
   return { status: status[0] || status, path: normalize(fields[1]), old_path: null };
 }
 
@@ -86,7 +80,7 @@ export function changedEntriesFromGit({ root = REPO_ROOT, base, head = "HEAD" } 
   const output = execFileSync("git", ["diff", "--name-status", "--find-renames", `${base}...${head}`], {
     cwd: root,
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe"]
   });
   return output.split(/\r?\n/u).filter(Boolean).map(parseChangedLine);
 }
@@ -94,41 +88,20 @@ export function changedEntriesFromGit({ root = REPO_ROOT, base, head = "HEAD" } 
 function implementedEvidence(contract, contractPath, findings) {
   const evidence = [];
   if (contract?.schema_version !== 1) findings.push({ code: "invalid_contract_schema_version", contract_path: contractPath });
-  if (typeof contract?.feature_key !== "string" || contract.feature_key.trim().length < 3) {
-    findings.push({ code: "missing_feature_key", contract_path: contractPath });
-  }
+  if (typeof contract?.feature_key !== "string" || contract.feature_key.trim().length < 3) findings.push({ code: "missing_feature_key", contract_path: contractPath });
   const phases = Array.isArray(contract?.phases) ? contract.phases : [];
   for (const phase of phases) {
     if (phase?.status !== "implemented") continue;
     const journeys = Array.isArray(phase.e2e_journeys) ? phase.e2e_journeys : [];
     if (!journeys.length) {
-      findings.push({
-        code: "implemented_phase_has_no_e2e_journey",
-        contract_path: contractPath,
-        feature_key: contract?.feature_key || null,
-        phase: phase?.id || null,
-      });
+      findings.push({ code: "implemented_phase_has_no_e2e_journey", contract_path: contractPath, feature_key: contract?.feature_key || null, phase: phase?.id || null });
       continue;
     }
     for (const journey of journeys) {
       const paths = Array.isArray(journey?.evidence_paths) ? journey.evidence_paths : [];
-      if (!paths.length) {
-        findings.push({
-          code: "implemented_journey_has_no_evidence_paths",
-          contract_path: contractPath,
-          feature_key: contract?.feature_key || null,
-          phase: phase?.id || null,
-          journey_id: journey?.id || null,
-        });
-      }
+      if (!paths.length) findings.push({ code: "implemented_journey_has_no_evidence_paths", contract_path: contractPath, feature_key: contract?.feature_key || null, phase: phase?.id || null, journey_id: journey?.id || null });
       for (const evidencePath of paths) {
-        evidence.push({
-          contract_path: contractPath,
-          feature_key: contract?.feature_key || null,
-          phase: phase?.id || null,
-          journey_id: journey?.id || null,
-          path: normalize(evidencePath),
-        });
+        evidence.push({ contract_path: contractPath, feature_key: contract?.feature_key || null, phase: phase?.id || null, journey_id: journey?.id || null, path: normalize(evidencePath) });
       }
     }
   }
@@ -158,11 +131,7 @@ function readContract(root, contractPath, findings) {
   }
 }
 
-export function evaluateEvidenceIntegrity({
-  root = REPO_ROOT,
-  changedEntries = [],
-  all = false,
-} = {}) {
+export function evaluateEvidenceIntegrity({ root = REPO_ROOT, changedEntries = [], all = false } = {}) {
   const findings = [];
   const allContracts = discoverContractPaths(root);
   const parsed = new Map();
@@ -179,45 +148,49 @@ export function evaluateEvidenceIntegrity({
   const changedContracts = new Set();
   const deletedPaths = new Set();
   const deletedContracts = new Set();
+  const modifiedPaths = new Set();
+
   for (const entry of changedEntries) {
+    const currentPath = normalize(entry.path);
     if (entry.status === "D") {
-      const deletedPath = normalize(entry.path);
-      deletedPaths.add(deletedPath);
-      if (isContractPath(deletedPath)) deletedContracts.add(deletedPath);
+      deletedPaths.add(currentPath);
+      if (isContractPath(currentPath)) deletedContracts.add(currentPath);
+      continue;
     }
     if (entry.status === "R" && entry.old_path) {
       const oldPath = normalize(entry.old_path);
       deletedPaths.add(oldPath);
+      modifiedPaths.add(currentPath);
       if (isContractPath(oldPath)) deletedContracts.add(oldPath);
+    } else if (currentPath) {
+      modifiedPaths.add(currentPath);
     }
-    if (entry.path && entry.status !== "D" && isContractPath(entry.path)) changedContracts.add(normalize(entry.path));
+    if (currentPath && isContractPath(currentPath)) changedContracts.add(currentPath);
   }
 
   for (const contractPath of deletedContracts) {
-    findings.push({
-      code: "deleted_or_renamed_e2e_contract_requires_explicit_retirement",
-      contract_path: contractPath,
-    });
+    findings.push({ code: "deleted_or_renamed_e2e_contract_requires_explicit_retirement", contract_path: contractPath });
   }
 
   const affectedByDeletion = new Set();
+  const affectedByModification = new Set();
   for (const [contractPath, evidence] of evidenceByContract) {
     if (evidence.some((item) => deletedPaths.has(item.path))) affectedByDeletion.add(contractPath);
+    if (evidence.some((item) => modifiedPaths.has(item.path))) affectedByModification.add(contractPath);
   }
 
   const targets = all
     ? new Set(allContracts)
-    : new Set([...changedContracts, ...affectedByDeletion]);
+    : new Set([...changedContracts, ...affectedByDeletion, ...affectedByModification]);
 
   if (!all) {
     for (const contractPath of targets) {
       const localFindings = [];
-      const contract = parsed.has(contractPath)
-        ? parsed.get(contractPath)
-        : readContract(root, contractPath, localFindings);
+      const contract = parsed.has(contractPath) ? parsed.get(contractPath) : readContract(root, contractPath, localFindings);
       const evidence = contract ? implementedEvidence(contract, contractPath, localFindings) : [];
       findings.push(...localFindings);
       evidenceByContract.set(contractPath, evidence);
+      if (contract && evidence.length === 0) findings.push({ code: "impacted_contract_has_no_implemented_evidence", contract_path: contractPath });
     }
   }
 
@@ -226,43 +199,40 @@ export function evaluateEvidenceIntegrity({
     for (const item of evidenceByContract.get(contractPath) || []) {
       const located = ensureInside(root, item.path);
       const deleted = deletedPaths.has(item.path);
+      const modified = modifiedPaths.has(item.path);
       const state = inspectFile(located);
-      checkedEvidence.push({
-        ...item,
-        exists: state.exists,
-        regular_file: state.regular_file,
-        symbolic_link: state.symbolic_link,
-        deleted_in_change: deleted,
-      });
-      if (!located) {
-        findings.push({ code: "invalid_evidence_path", ...item });
-      } else if (deleted) {
-        findings.push({ code: "deleted_evidence_still_referenced", ...item });
-      } else if (!state.exists) {
-        findings.push({ code: "missing_implemented_journey_evidence", ...item });
-      } else if (state.symbolic_link) {
-        findings.push({ code: "symbolic_link_evidence_not_allowed", ...item });
-      } else if (!state.regular_file) {
-        findings.push({ code: "evidence_not_regular_file", ...item });
-      }
+      checkedEvidence.push({ ...item, exists: state.exists, regular_file: state.regular_file, symbolic_link: state.symbolic_link, deleted_in_change: deleted, modified_in_change: modified });
+      if (!located) findings.push({ code: "invalid_evidence_path", ...item });
+      else if (deleted) findings.push({ code: "deleted_evidence_still_referenced", ...item });
+      else if (!state.exists) findings.push({ code: "missing_implemented_journey_evidence", ...item });
+      else if (state.symbolic_link) findings.push({ code: "symbolic_link_evidence_not_allowed", ...item });
+      else if (!state.regular_file) findings.push({ code: "evidence_not_regular_file", ...item });
     }
   }
 
+  const checkedContracts = new Set(checkedEvidence.map((item) => item.contract_path));
+  const unverifiedImpactedContracts = [...targets].filter((contractPath) => !checkedContracts.has(contractPath)).sort();
+
   return {
-    schema_version: 1,
-    contract: "mad4b.e2e-contract-reference-integrity.v1",
+    schema_version: 2,
+    contract: "mad4b.e2e-contract-reference-integrity.v2",
     enforcement_mode: "fail_closed",
-    evaluation_mode: all ? "all_contracts" : "changed_contracts_and_deleted_evidence",
+    evaluation_mode: all ? "all_contracts" : "changed_contracts_and_changed_references",
     ok: findings.length === 0,
     changed_entries: changedEntries,
     changed_contracts: [...changedContracts].sort(),
+    changed_reference_paths: [...modifiedPaths].sort(),
     deleted_paths: [...deletedPaths].sort(),
     deleted_contracts: [...deletedContracts].sort(),
     deletion_affected_contracts: [...affectedByDeletion].sort(),
+    modified_reference_affected_contracts: [...affectedByModification].sort(),
+    impacted_contracts: [...targets].sort(),
+    unverified_impacted_contracts: unverifiedImpactedContracts,
+    unverified_impacted_contract_count: unverifiedImpactedContracts.length,
     targeted_contracts: [...targets].sort(),
     checked_evidence: checkedEvidence,
     findings,
-    secrets_included: false,
+    secrets_included: false
   };
 }
 

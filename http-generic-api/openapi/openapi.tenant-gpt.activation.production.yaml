@@ -3271,7 +3271,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 1226ab6d48d1a88035d68ac3c49fad638e6c314c23aa532a65fc541291ad9ae2
+  source_openapi_sha256: 0fac28da0cc3175f0a0bba996fc2d7450bd408d43e4fd279d66c07f1cd154648
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json

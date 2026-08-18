@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f0cd0121d964c780f05f6aabc4fc6eee162da4d037ebba0fda5ff2c4447f294f",
+    "source_digest": "9e57fbf21185e81bf284f0f4f5fe8beeaac22a23222c00e0306fd3b1689c897b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "df6bff3019ee95dfa4810bd62248c4d646a5a726203ecbf65ebf206da6163dd8",
+        "sha256": "db77f68352be6b6794becc9f9cdb3652828be504b63a53740a8e9e6a7529dd98",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "1226ab6d48d1a88035d68ac3c49fad638e6c314c23aa532a65fc541291ad9ae2",
+        "sha256": "0fac28da0cc3175f0a0bba996fc2d7450bd408d43e4fd279d66c07f1cd154648",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "b3e9c8038e5f43988bb1c53f526d5d3b0fbbee375c3c43f4bd36055af2fc8112",
+        "sha256": "c2124ec685836e359a73b99f8311e0a88a172d830fc2148c8399b796a6f8b597",
         "present": true
       },
       {
@@ -141,7 +141,7 @@
       },
       {
         "file": "openapi/openapi.gpt-action.dev-dispatcher.yaml",
-        "sha256": "bcca55f45e3b81372c1b68f50db8722e3cd48d8affd5b388e8bf811d2dae6297",
+        "sha256": "09e122211f4be46568226ebc2c4e43f9c47a06d9b1452581f9dba3be6e32850e",
         "present": true
       },
       {
@@ -371,7 +371,7 @@
       },
       {
         "file": "routes/activationHardRunRoutes.js",
-        "sha256": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
+        "sha256": "a40aae513d06925643bfa1d605e68edc121e8674cc5aa91b2a3dd1193603da4d",
         "present": true
       },
       {
@@ -381,7 +381,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "c9aae1af01d1813d136117291897b458efbf2bcb318afdd3d4230b836055d095",
+        "sha256": "28f22d1b931e8ece41b80bc2d3ff303af3c0965514e6f6d3a92964f48dd77b6c",
         "present": true
       },
       {
@@ -541,7 +541,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "558ef43f185bcb2959a5a4dce00f3456b9d69e07ff932ce5a9bc3da8c0ce9a16",
+        "sha256": "0e9ea378add60d398a04b83c277e8f59ceb647e921917710dd245c350a984f08",
         "present": true
       },
       {
@@ -1061,7 +1061,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "25293f68d65345b2cfe31a56366909ccb0abbd0e71c51f6b0297f67fff334ca9",
+        "sha256": "1e116fffcc83453c355d91f1f0298d8844f59a3c41b098b991b781889220b356",
         "present": true
       },
       {
@@ -1812,7 +1812,7 @@
       "family_key": "deployment-info",
       "label": "deployment info",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "558ef43f185bcb2959a5a4dce00f3456b9d69e07ff932ce5a9bc3da8c0ce9a16",
+      "source_digest": "0e9ea378add60d398a04b83c277e8f59ceb647e921917710dd245c350a984f08",
       "mount_prefix": "/",
       "mount_order": 12450,
       "split_from_mixed_scope_file": false,
@@ -12307,7 +12307,7 @@
       "family_key": "activation-hard-run",
       "label": "activation hard run",
       "source_file": "routes/activationHardRunRoutes.js",
-      "source_digest": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
+      "source_digest": "a40aae513d06925643bfa1d605e68edc121e8674cc5aa91b2a3dd1193603da4d",
       "mount_prefix": "/",
       "mount_order": 14120,
       "split_from_mixed_scope_file": false,
@@ -15433,7 +15433,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "c9aae1af01d1813d136117291897b458efbf2bcb318afdd3d4230b836055d095",
+      "source_digest": "28f22d1b931e8ece41b80bc2d3ff303af3c0965514e6f6d3a92964f48dd77b6c",
       "mount_prefix": "/",
       "mount_order": 14544,
       "split_from_mixed_scope_file": false,

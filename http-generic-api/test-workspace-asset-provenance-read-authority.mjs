@@ -19,6 +19,9 @@ function buildMutationExecutor() {
     inserted,
     async query(sql, params = []) {
       calls.push({ sql, params });
+      if (sql.includes("FROM brands b")) {
+        return [[{ target_key: "brand-key", brand_status: "active" }]];
+      }
       if (sql.includes("FROM tenant_brand_links tbl")) {
         return [[{
           tenant_id: "tenant-a",

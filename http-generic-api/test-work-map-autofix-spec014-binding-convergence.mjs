@@ -305,7 +305,13 @@ assert.match(producer, /const DEFAULT_FEATURE_KEY = "014-governed-hostinger-stor
 assert.match(producer, /--feature-key/u);
 assert.match(producer, /--check/u);
 assert.match(producer, /\^\[a-z0-9\]\[a-z0-9-\]\*\$/u);
-assert.match(producer, /manifest\.feature_key !== featureKey \|\| manifest\.review_state !== "ready_for_implementation"/u);
+assert.match(
+  producer,
+  /manifest\.feature_key !== featureKey \|\| \(manifest\.review_state !== "ready_for_implementation" && !preparedOnlyBindingRefresh\)/u,
+);
+assert.match(producer, /const preparedOnlyBindingRefresh = manifest\.review_state === "draft"/u);
+assert.match(producer, /manifest\.implementation_readiness\?\.status === "blocked"/u);
+assert.match(producer, /manifest\.secrets_included === false/u);
 assert.match(producer, /classification_coverage_percent !== 100/u);
 assert.match(producer, /effectiveRegistry\.maps\.length !== 19/u);
 assert.match(producer, /effectiveRegistry\.domains\.length !== 16/u);

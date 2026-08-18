@@ -69,6 +69,15 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-single-pr-maintenance-")
 fs.mkdirSync(path.join(root, ".specify", "schemas"), { recursive: true });
 fs.copyFileSync(POLICY, path.join(root, ".specify", "e2e-phase-governance.json"));
 fs.copyFileSync(SCHEMA, path.join(root, ".specify", "schemas", "e2e-phases.schema.json"));
+writeJson(path.join(root, ".github", "derived-state-governance.json"), {
+  repository_governance: {
+    constitution: "http-generic-api/config/repository-governance-constitution.json",
+  },
+});
+writeJson(path.join(root, "http-generic-api", "config", "repository-governance-constitution.json"), {
+  contract: "mad4b.repository-governance-constitution.v1",
+  control_plane_paths: [],
+});
 run("git", ["init"], root);
 run("git", ["config", "user.email", "ci@example.invalid"], root);
 run("git", ["config", "user.name", "CI"], root);

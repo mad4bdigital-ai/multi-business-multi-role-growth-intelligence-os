@@ -29,6 +29,30 @@ function currentPhase(contract) {
   return (contract.phases || []).find((phase) => phase.id === contract.current_phase) || null;
 }
 
+function governanceAwarePolicy(options = {}) {
+  const root = options.root || REPO_ROOT;
+  const policy = options.policy || readJson(options.policyPath || path.join(root, ".specify", "e2e-phase-governance.json"));
+  const registryPath = path.join(root, ".github", "derived-state-governance.json");
+  if (!fs.existsSync(registryPath)) throw new Error("E2E governance requires the canonical derived-state registry.");
+  const registry = readJson(registryPath);
+  const constitutionRelative = normalize(registry.repository_governance?.constitution || "");
+  if (!constitutionRelative) throw new Error("Derived-state registry does not declare repository_governance.constitution.");
+  const constitutionPath = path.join(root, constitutionRelative);
+  if (!fs.existsSync(constitutionPath)) throw new Error(`Repository governance Constitution is missing: ${constitutionRelative}`);
+  const constitution = readJson(constitutionPath);
+  if (constitution.contract !== "mad4b.repository-governance-constitution.v1") throw new Error("Repository governance Constitution contract mismatch.");
+  if (!Array.isArray(constitution.control_plane_paths) || constitution.control_plane_paths.some((entry) => typeof entry !== "string" || !entry.trim())) {
+    throw new Error("Repository governance Constitution control_plane_paths is invalid.");
+  }
+  return {
+    ...policy,
+    governance_only_patterns: [...new Set([
+      ...(policy.governance_only_patterns || []).map(normalize),
+      ...constitution.control_plane_paths.map(normalize)
+    ])].sort()
+  };
+}
+
 function ownershipNeutralSpecContractPaths(changedFiles, policy) {
   const specRoot = normalize(policy.spec_root).replace(/\/+$/, "");
   const prefix = `${specRoot}/`;
@@ -136,7 +160,10 @@ function applySinglePrMaintenanceException(evaluation, options) {
 }
 
 export function evaluateRepository(options = {}) {
-  const maintenanceAware = applySinglePrMaintenanceException(evaluateCoreRepository(options), options);
+  const root = options.root || REPO_ROOT;
+  const policy = governanceAwarePolicy({ ...options, root });
+  const coreOptions = { ...options, root, policy };
+  const maintenanceAware = applySinglePrMaintenanceException(evaluateCoreRepository(coreOptions), coreOptions);
   return applyOwnershipNeutralSpecArtifactException(maintenanceAware);
 }
 

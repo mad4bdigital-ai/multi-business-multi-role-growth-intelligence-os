@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "51de875d9a45e1c9d95afa1daeb9104e26881e28b81ed6340a8a41a580e5cb44",
+  "inputFingerprint": "de751d5cfc5dcb207e1cd05435480720916d7235284eb9723c4f7d40751b6e7e",
   "inventory": {
-    "files": 7153,
-    "bytes": 69823935,
-    "directories": 265,
+    "files": 7166,
+    "bytes": 69853183,
+    "directories": 266,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 167,
-      "explicitPermissions": 167,
+      "workflowCount": 168,
+      "explicitPermissions": 168,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -24,7 +24,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7117,
+      "trackedTextFilesScanned": 7130,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -173,7 +173,7 @@
       "status": "open",
       "blocking": false,
       "evidence": {
-        "workflowCount": 167,
+        "workflowCount": 168,
         "maxWorkflowCount": 160,
         "overlapCheck": "passed"
       },
@@ -202,7 +202,7 @@
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1936093
+            "bytes": 1936117
           },
           {
             "path": "docs/staging-write-route-partition-2026-08-14.json",

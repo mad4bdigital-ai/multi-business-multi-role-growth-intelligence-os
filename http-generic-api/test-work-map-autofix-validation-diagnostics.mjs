@@ -31,6 +31,7 @@ const contractNames = [
   "syntax-spec014-final-work-map-binding",
   "spec014-final-work-map-binding-regression",
   "work-map-autofix-spec014-binding-convergence-regression",
+  "work-map-autofix-registry-refresh-scope-regression",
   "syntax-pipeline-connectivity-check",
   "pipeline-connectivity-check",
   "pipeline-connectivity-regression",
@@ -94,8 +95,13 @@ for (const contractName of contractNames) {
   );
 }
 
-const invocations = validationBlock.match(/^\s*run_contract "/gm) ?? [];
-assert.equal(invocations.length, contractNames.length, "unexpected number of named validation contracts");
+const invocationNames = [...validationBlock.matchAll(/^\s*run_contract "([^"]+)"/gm)].map((match) => match[1]);
+assert.ok(invocationNames.length >= contractNames.length, "named validation contract baseline must not shrink");
+assert.equal(new Set(invocationNames).size, invocationNames.length, "named validation contracts must be unique");
+assert.ok(
+  invocationNames.every((name) => /^[a-z0-9][a-z0-9-]*$/.test(name)),
+  "named validation contracts must use stable machine-safe identifiers",
+);
 
 assert.match(workflow, /\| Failed validation contract \| \\`\$\{failed_validation_contract\}\\` \|/);
 assert.match(workflow, /\| Failed validation exit code \| \\`\$\{failed_validation_exit_code\}\\` \|/);

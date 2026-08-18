@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const CONTRACT = "mad4b.repository-state-generated-artifact-convergence-test.v1";
+const CONTRACT = "mad4b.repository-state-generated-artifact-convergence-test.v2";
 const writerPath = "scripts/maintenance-tools/generated-artifact-refresh.mjs";
 const writer = fs.readFileSync(writerPath, "utf8");
 const governance = JSON.parse(fs.readFileSync("../.github/repository-maintenance-tool-governance.json", "utf8"));
+const derivedState = JSON.parse(fs.readFileSync("../.github/derived-state-governance.json", "utf8"));
 const governedWorkflow = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
+const inventoryWorkflow = fs.readFileSync("../.github/workflows/repository-inventory.yml", "utf8");
 const evaluationWorkflow = fs.readFileSync("../.github/workflows/repository-evaluation.yml", "utf8");
 
 const checks = [];
@@ -20,9 +22,7 @@ check("repository-evaluation-output-set", () => {
     "docs/repository-evaluation.json",
     "docs/repository-evaluation-summary.json",
     "docs/repository-evaluation.md",
-  ]) {
-    assert.ok(writer.includes(`"${output}"`), `missing bounded Evaluation output: ${output}`);
-  }
+  ]) assert.ok(writer.includes(`"${output}"`), `missing bounded Evaluation output: ${output}`);
 });
 
 check("inventory-before-evaluation-order", () => {
@@ -61,9 +61,7 @@ check("governance-allows-both-artifact-families", () => {
     "^docs/repository-evaluation\\.json$",
     "^docs/repository-evaluation-summary\\.json$",
     "^docs/repository-evaluation\\.md$",
-  ]) {
-    assert.ok(registration.allowed_changed_path_patterns.includes(pattern), `missing governance pattern: ${pattern}`);
-  }
+  ]) assert.ok(registration.allowed_changed_path_patterns.includes(pattern), `missing governance pattern: ${pattern}`);
   const repositoryStateOutputs = [
     "docs/repository-inventory.json",
     "docs/repository-inventory-summary.json",
@@ -77,17 +75,9 @@ check("governance-allows-both-artifact-families", () => {
       name !== "generated-artifact-refresh"
       && registrationValue.mode === "mutating"
       && repositoryStateOutputs.some((output) =>
-        (registrationValue.allowed_changed_path_patterns || []).some((pattern) =>
-          new RegExp(pattern, "u").test(output),
-        ),
-      ),
-    )
+        (registrationValue.allowed_changed_path_patterns || []).some((pattern) => new RegExp(pattern, "u").test(output))))
     .map(([name]) => name);
-  assert.deepEqual(
-    competingMutatingTools,
-    [],
-    "the generated-artifact writer must remain the sole mutating authority for Repository Inventory and Evaluation outputs",
-  );
+  assert.deepEqual(competingMutatingTools, [], "the generated-artifact writer must remain the sole mutating authority for Repository Inventory and Evaluation outputs");
 });
 
 check("writer-dispatches-dual-exact-head-verification", () => {
@@ -114,36 +104,38 @@ check("evaluation-verifier-is-exact-head-read-only", () => {
   assert.doesNotMatch(evaluationWorkflow, /git\s+push/u);
 });
 
-check("evaluation-bootstrap-reuses-trusted-inventory-gate", () => {
-  assert.match(evaluationWorkflow, /Classify read-only repository-state bootstrap/u);
-  assert.match(evaluationWorkflow, /scripts\/repository-inventory-verification-gate\.mjs/u);
-  assert.match(evaluationWorkflow, /trusted_main_sha="\$\(git rev-parse origin\/main\)"/u);
-  assert.match(
-    evaluationWorkflow,
-    /git show "\$\{trusted_main_sha\}:scripts\/repository-inventory-verification-gate\.mjs" > "\$trusted_gate"/u,
-  );
-  assert.match(evaluationWorkflow, /node "\$trusted_gate"/u);
-  assert.doesNotMatch(
-    evaluationWorkflow,
-    /git diff --quiet origin\/main\.\.\.HEAD -- scripts\/repository-inventory-verification-gate\.mjs/u,
-  );
-  assert.match(evaluationWorkflow, /bootstrap_pending=true/u);
-  assert.match(evaluationWorkflow, /deterministic_generation_verified/u);
+check("observability-artifacts-are-advisory-premerge", () => {
+  const inventory = derivedState.artifacts.find((entry) => entry.artifact_id === "repository_inventory");
+  const evaluation = derivedState.artifacts.find((entry) => entry.artifact_id === "repository_evaluation");
+  assert.equal(derivedState.policy?.observability_artifacts_publish_post_merge_only, true);
+  assert.equal(derivedState.policy?.observability_premerge_mutation_forbidden, true);
+  assert.equal(inventory?.artifact_class, "observability");
+  assert.equal(inventory?.merge_blocking, false);
+  assert.equal(evaluation?.artifact_class, "observability");
+  assert.equal(evaluation?.merge_blocking, false);
+  assert.equal(inventory?.recipe, "repository_inventory_refresh");
+  assert.equal(evaluation?.recipe, "repository_inventory_refresh");
 });
 
-check("evaluation-bootstrap-proves-convergence-without-write-authority", () => {
-  assert.match(evaluationWorkflow, /Prove read-only Repository State bootstrap convergence/u);
-  assert.match(evaluationWorkflow, /scripts\/repository-evaluation\.mjs/u);
-  assert.match(evaluationWorkflow, /scripts\/test-repository-evaluation\.mjs/u);
-  assert.match(evaluationWorkflow, /npm run evaluation:write -- --enforce/u);
-  assert.match(evaluationWorkflow, /evaluation-first\.sha256/u);
-  assert.match(evaluationWorkflow, /evaluation-second\.sha256/u);
-  assert.match(evaluationWorkflow, /cmp "\$RUNNER_TEMP\/evaluation-first\.sha256" "\$RUNNER_TEMP\/evaluation-second\.sha256"/u);
-  assert.match(evaluationWorkflow, /repository-state-bootstrap-proof\.v1/u);
-  assert.match(evaluationWorkflow, /dirty_set_exact_six_outputs:true/u);
-  assert.match(evaluationWorkflow, /repository_mutation:false/u);
-  assert.match(evaluationWorkflow, /protected_branch_mutation:false/u);
-  assert.match(evaluationWorkflow, /force_push:false/u);
+check("evaluation-v2-removes-feature-branch-bootstrap", () => {
+  assert.match(evaluationWorkflow, /Verify Evaluation currentness or classify observability drift/u);
+  assert.match(evaluationWorkflow, /stale_observability/u);
+  assert.match(evaluationWorkflow, /feature-PR mutation intentionally suppressed/u);
+  assert.match(evaluationWorkflow, /post_merge_observability_publish/u);
+  assert.match(evaluationWorkflow, /node scripts\/repository-evaluation\.mjs --check --enforce/u);
+  assert.doesNotMatch(evaluationWorkflow, /bootstrap_pending/u);
+  assert.doesNotMatch(evaluationWorkflow, /repository-state-bootstrap-proof/u);
+  assert.doesNotMatch(evaluationWorkflow, /git show .*repository-inventory-verification-gate/u);
+});
+
+check("exact-main-signal-covers-shared-recipe", () => {
+  assert.match(inventoryWorkflow, /Signal post-merge Repository State convergence/u);
+  assert.match(inventoryWorkflow, /repository_evaluation/u);
+  assert.match(inventoryWorkflow, /repository_inventory_refresh/u);
+  assert.match(inventoryWorkflow, /node scripts\/repository-evaluation\.mjs --check --enforce/u);
+  assert.match(inventoryWorkflow, /Repository Evaluation is stale on exact main/u);
+  assert.doesNotMatch(inventoryWorkflow, /contents:\s*write/u);
+  assert.doesNotMatch(inventoryWorkflow, /git\s+push/u);
 });
 
 console.log(JSON.stringify({
@@ -152,7 +144,9 @@ console.log(JSON.stringify({
   checks,
   inventory_then_evaluation: true,
   exact_head_dual_verification: true,
-  read_only_bootstrap_convergence_proof: true,
+  premerge_observability_is_advisory: true,
+  post_merge_shared_recipe_signal: true,
+  feature_branch_bootstrap_removed: true,
   verification_dispatch_v1_compatible: true,
   sole_repository_state_writer_preserved: true,
   protected_branch_mutation: false,

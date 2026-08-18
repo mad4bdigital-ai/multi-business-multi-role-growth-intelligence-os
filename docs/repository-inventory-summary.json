@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7153,
-    "bytes": 69823935,
-    "lines": 1640429,
-    "directories": 265,
+    "files": 7166,
+    "bytes": 69853183,
+    "lines": 1640943,
+    "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2149,
+      "tests-and-specs": 2150,
       "documentation": 1907,
-      "api-runtime": 1435,
+      "api-runtime": 1437,
       "database-migrations": 783,
-      "root-and-other": 282,
+      "root-and-other": 286,
       "api-contracts": 191,
-      "ci-workflows": 167,
-      "ci-config": 107,
+      "ci-workflows": 168,
+      "ci-config": 112,
       "schemas-and-data": 70,
       "connectors-and-edge": 29,
       "applications": 19,
@@ -27,11 +27,11 @@
     },
     "byExtension": {
       ".md": 2508,
-      ".mjs": 1684,
-      ".js": 991,
+      ".mjs": 1691,
+      ".js": 992,
       ".sql": 798,
-      ".json": 789,
-      ".yml": 170,
+      ".json": 793,
+      ".yml": 171,
       ".yaml": 119,
       ".ps1": 16,
       ".ts": 16,
@@ -61,19 +61,19 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3686,
+      "http-generic-api": 3689,
       "docs": 1811,
       "specs": 879,
-      ".github": 274,
+      ".github": 280,
       ".changes": 258,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
       "autopilot-portable-staging": 18,
+      "scripts": 18,
       "schemas": 17,
       "edge": 16,
       ".specify": 15,
-      "scripts": 14,
       "src": 12,
       "tests": 3,
       ".gitattributes": 1,
@@ -243,10 +243,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 167,
+    "workflows": 168,
     "migrations": 783,
     "apiContracts": 191,
-    "testSpecFiles": 2233
+    "testSpecFiles": 2236
   },
   "largestFiles": [
     {
@@ -264,8 +264,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936093,
-      "lines": 58550
+      "bytes": 1936117,
+      "lines": 58551
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -276,8 +276,8 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 991444,
-      "lines": 23015
+      "bytes": 991977,
+      "lines": 23027
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",

@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
+import {
+  buildHardActivationDatabaseBlockedResponse,
+  buildHardActivationEvidenceMatrix,
+} from "../activationHardEvidence.js";
 import {
   buildDynamicToolCatalogEvidence,
   buildRepoCanonicalRuntimeEvidence,
@@ -13,6 +16,7 @@ import {
 import { markActivationRunDelivered } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 import { buildActivationSessionContext } from "./activationRoutes.js";
+import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 
 function compactError(err, fallback) {
   return { code: err?.code || fallback, message: err?.message || String(err || fallback) };
@@ -72,6 +76,11 @@ export function buildActivationHardRunRoutes({ requireBackendApiKey } = {}) {
   const guards = [requireBackendApiKey].filter(Boolean);
 
   router.post("/activation/hard-run", ...guards, async (req, res) => {
+    const databaseReadiness = await runProductionActivationReadiness();
+    if (!databaseReadiness.ok) {
+      return res.status(424).json(buildHardActivationDatabaseBlockedResponse(databaseReadiness));
+    }
+
     let sessionContext = null;
     let providerBootstrap = null;
     try {
@@ -103,6 +112,7 @@ export function buildActivationHardRunRoutes({ requireBackendApiKey } = {}) {
         sessionContext,
         providerBootstrap,
         repoCanonicals,
+        databaseReadiness,
         toolCatalog: buildDynamicToolCatalogEvidence({
           platformAccess: sessionContext?.platform_access || null,
           authorizedAccess: sessionContext?.authorized_access || null,

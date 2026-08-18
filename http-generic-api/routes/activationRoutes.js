@@ -4,7 +4,10 @@ import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
-import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
+import {
+  buildHardActivationDatabaseBlockedResponse,
+  buildHardActivationEvidenceMatrix,
+} from "../activationHardEvidence.js";
 import {
   buildActivationOperationalDashboardEvidence,
   buildDynamicToolCatalogEvidence,
@@ -25,6 +28,7 @@ import {
 import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 import { MCP_CATALOG_LEVEL_MIGRATION } from "../mcpCatalogSchemaGuard.js";
+import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 import { loadTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import {
   REGISTRY_SPREADSHEET_ID,
@@ -1890,6 +1894,11 @@ export function buildActivationRoutes(deps) {
   });
 
   router.post("/activation/hard-run/legacy-full", requireBackendApiKey, async (req, res) => {
+    const databaseReadiness = await runProductionActivationReadiness();
+    if (!databaseReadiness.ok) {
+      return res.status(424).json(buildHardActivationDatabaseBlockedResponse(databaseReadiness));
+    }
+
     let sessionContext = null;
     let providerBootstrap = null;
     try {
@@ -1934,7 +1943,11 @@ export function buildActivationRoutes(deps) {
       sessionContext,
       providerBootstrap,
       repoCanonicals: await buildRepoCanonicalRuntimeEvidence(),
-      toolCatalog: buildDynamicToolCatalogEvidence({ platformAccess: sessionContext?.platform_access || null, authorizedAccess: sessionContext?.authorized_access || null }),
+      databaseReadiness,
+      toolCatalog: buildDynamicToolCatalogEvidence({
+        platformAccess: sessionContext?.platform_access || null,
+        authorizedAccess: sessionContext?.authorized_access || null,
+      }),
     });
 
     return res.status(hard.activation_complete ? 200 : 424).json({
