@@ -28,8 +28,9 @@ jobs:
       STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true"
       STAGING_CERT_REQUIRE_READY: "true"
       STAGING_CERT_GATEWAY_POLICY_PATH: edge/activation-gateway/generated/route-policy.staging.json
-      STAGING_CERT_REPORT_FILE: ${{ runner.temp }}/staging-live-certification/report.json
-      STAGING_AUTHORITY_REPORT_FILE: ${{ runner.temp }}/staging-environment-authority-closure/report.json
+      STAGING_CERT_REPORT_FILE: .artifacts/staging-live-certification/report.json
+      STAGING_AUTHORITY_REPORT_FILE: .artifacts/staging-environment-authority-closure/report.json
+      ENVIRONMENT_IMPACT_REPORT_FILE: .artifacts/staging-environment-impact-closure/report.json
     steps:
       - name: Checkout exact immutable candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -69,7 +70,6 @@ jobs:
       - name: Verify environment impact and migration compatibility closure
         env:
           EXPECTED_HEAD_SHA: ${{ steps.identity.outputs.release_cut_sha }}
-          ENVIRONMENT_IMPACT_REPORT_FILE: ${{ runner.temp }}/staging-environment-impact-closure/report.json
         run: >-
           node http-generic-api/scripts/environment-impact-closure.mjs
           --head-sha "$EXPECTED_HEAD_SHA"
@@ -110,7 +110,7 @@ jobs:
             --arg candidate "$EXPECTED_CANDIDATE_SHA" \
             --arg cut "$RELEASE_CUT_SHA" \
             --slurpfile authority "$STAGING_AUTHORITY_REPORT_FILE" \
-            --slurpfile impact "$RUNNER_TEMP/staging-environment-impact-closure/report.json" \
+            --slurpfile impact "$ENVIRONMENT_IMPACT_REPORT_FILE" \
             --slurpfile live "$STAGING_CERT_REPORT_FILE" \
             '{
               contract:"mad4b.staging-live-certification-evidence.v1",

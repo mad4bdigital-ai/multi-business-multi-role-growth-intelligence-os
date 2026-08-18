@@ -22,7 +22,7 @@ jobs:
       EXPECTED_REF: ${{ github.ref_name }}
       EXPECTED_REPOSITORY: ${{ github.repository }}
       STAGING_DEPLOY_ONLY: "true"
-      STAGING_AUTHORITY_REPORT_FILE: ${{ runner.temp }}/staging-environment-authority-closure/report.json
+      STAGING_AUTHORITY_REPORT_FILE: .artifacts/staging-environment-authority-closure/report.json
     steps:
       - name: Checkout exact main event commit
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
