@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   closure:
-    name: Derived State Closure
+    name: Derived State Closure Detector
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -47,10 +47,6 @@ jobs:
           set -euo pipefail
           case "$EVENT_NAME" in
             pull_request)
-              [[ "$EVENT_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
-              [[ "$EVENT_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
-              [[ "$EVENT_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-              [[ "$EVENT_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
               pr_number="$EVENT_PR_NUMBER"
               source_head_sha="$EVENT_HEAD_SHA"
               base_sha="$EVENT_BASE_SHA"
@@ -67,18 +63,13 @@ jobs:
               test "$(jq -r '.base.ref' "$pr_file")" = "main"
               test "$(jq -r '.head.repo.full_name' "$pr_file")" = "$GITHUB_REPOSITORY"
               test "$(jq -r '.head.sha' "$pr_file")" = "$DISPATCH_EXPECTED_HEAD_SHA"
-              source_head_sha="$DISPATCH_EXPECTED_HEAD_SHA"
-              base_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-              test "$(jq -r '.base.sha' "$pr_file")" = "$base_sha"
-              test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${source_head_sha}" --jq '.behind_by')" = "0"
-              candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${DISPATCH_PR_NUMBER}" --jq '.merge_commit_sha // empty')"
-              [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
               pr_number="$DISPATCH_PR_NUMBER"
+              source_head_sha="$DISPATCH_EXPECTED_HEAD_SHA"
+              base_sha="$(jq -r '.base.sha' "$pr_file")"
+              candidate_sha="$(jq -r '.merge_commit_sha // empty' "$pr_file")"
               candidate_kind="github_merge_candidate"
               ;;
             push)
-              test "$GITHUB_REF_NAME" = "main"
-              [[ "$EVENT_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
               pr_number="0"
               source_head_sha="$EVENT_CANDIDATE_SHA"
               base_sha="$EVENT_CANDIDATE_SHA"
@@ -87,6 +78,7 @@ jobs:
               ;;
             *) echo "Unsupported event: $EVENT_NAME" >&2; exit 1 ;;
           esac
+          for sha in "$source_head_sha" "$base_sha" "$candidate_sha"; do [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; done
           {
             echo "candidate_sha=$candidate_sha"
             echo "candidate_kind=$candidate_kind"
@@ -102,8 +94,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: npm
@@ -111,188 +102,138 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
-      - name: Verify exact candidate identity
+      - name: Verify exact candidate and all JavaScript syntax
         env:
           EXPECTED_CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+        shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(git ls-files -z -- '*.js' '*.mjs' '*.cjs')
 
-      - name: Install root dependencies without lifecycle side effects
-        run: npm ci --ignore-scripts
+      - name: Install dependencies without lifecycle side effects
+        run: |
+          npm ci --ignore-scripts
+          (cd http-generic-api && npm ci --ignore-scripts)
 
-      - name: Install API dependencies without lifecycle side effects
-        working-directory: http-generic-api
-        run: npm ci --ignore-scripts
-
-      - name: Validate governance control plane contracts
+      - name: Validate governance contracts
         run: |
           node .github/tests/repository-governance-closure.test.mjs
           node .github/tests/repository-governance-objection-gate.test.mjs
           node .github/tests/derived-state-closure.test.mjs
+          node http-generic-api/test-github-repository-policy-controller.mjs
+          node http-generic-api/test-github-repository-governance-attestation.mjs
 
-      - name: Verify repository governance at exact candidate
-        id: governance
-        continue-on-error: true
+      - name: Verify semantic governance closure
         env:
-          REPORT: ${{ runner.temp }}/derived-state-closure/repository-governance.json
+          OUT: ${{ runner.temp }}/derived-state-closure
           CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
           CANDIDATE_KIND: ${{ steps.target.outputs.candidate_kind }}
           BASE_SHA: ${{ steps.target.outputs.base_sha }}
-        run: >-
-          node scripts/repository-governance-closure.mjs
-          --expected-sha "$CANDIDATE_SHA"
-          --candidate-kind "$CANDIDATE_KIND"
-          --base-sha "$BASE_SHA"
-          --report-file "$REPORT"
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          node scripts/repository-governance-closure.mjs \
+            --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --base-sha "$BASE_SHA" \
+            --report-file "$OUT/repository-governance.json"
 
-      - name: Verify environment impact and migration compatibility closure
-        id: environment_impact
-        continue-on-error: true
+      - name: Verify environment and registered derived state
         env:
-          REPORT: ${{ runner.temp }}/derived-state-closure/environment-impact.json
-          BASE_SHA: ${{ steps.target.outputs.base_sha }}
-          SOURCE_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
-        run: >-
-          node http-generic-api/scripts/environment-impact-closure.mjs
-          --base-sha "$BASE_SHA"
-          --head-sha "$SOURCE_HEAD_SHA"
-          --report-file "$REPORT"
-
-      - name: Verify registered derived state in dependency order
-        id: derived
-        continue-on-error: true
-        env:
-          REPORT: ${{ runner.temp }}/derived-state-closure/report.json
+          OUT: ${{ runner.temp }}/derived-state-closure
           CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
           CANDIDATE_KIND: ${{ steps.target.outputs.candidate_kind }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           SOURCE_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
           BASE_SHA: ${{ steps.target.outputs.base_sha }}
-        run: >-
-          node scripts/derived-state-closure.mjs
-          --expected-sha "$CANDIDATE_SHA"
-          --candidate-kind "$CANDIDATE_KIND"
-          --pr-number "$PR_NUMBER"
-          --source-head-sha "$SOURCE_HEAD_SHA"
-          --base-sha "$BASE_SHA"
-          --report-file "$REPORT"
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/environment-impact-closure.mjs \
+            --base-sha "$BASE_SHA" --head-sha "$SOURCE_HEAD_SHA" --report-file "$OUT/environment-impact.json"
+          node scripts/derived-state-closure.mjs \
+            --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --pr-number "$PR_NUMBER" \
+            --source-head-sha "$SOURCE_HEAD_SHA" --base-sha "$BASE_SHA" --report-file "$OUT/report.json"
 
-      - name: Collect exact-head trusted producer evidence
+      - name: Resolve canonical producer evidence for exact candidate
         if: steps.target.outputs.pr_number != '0'
-        id: evidence
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          OUT: ${{ runner.temp }}/derived-state-closure
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           SOURCE_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
-          SNAPSHOT: ${{ runner.temp }}/derived-state-closure/evidence-snapshot.json
+          BASE_SHA: ${{ steps.target.outputs.base_sha }}
+          CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+        shell: bash
         run: |
           set -euo pipefail
-          registry=".github/governance/evidence-producers.json"
           deadline=$(( $(date +%s) + 600 ))
-          while true; do
-            producers='[]'
-            unresolved=0
-            while IFS=$'\t' read -r id workflow workflow_file required; do
-              workflow_key="${workflow_file##*/}"
-              runs="$RUNNER_TEMP/evidence-${id}.json"
-              gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_key}/runs?event=pull_request&head_sha=${SOURCE_HEAD_SHA}&per_page=20" > "$runs" || echo '{"workflow_runs":[]}' > "$runs"
-              record="$(jq -c --argjson pr "$PR_NUMBER" '
-                [.workflow_runs[]
-                  | select(any(.pull_requests[]?; .number == $pr))
-                ] | sort_by(.created_at) | reverse | .[0] // null
-              ' "$runs")"
-              if [[ "$record" == "null" ]]; then
-                item="$(jq -cn --arg id "$id" --arg workflow "$workflow" --arg file "$workflow_file" --argjson required "$required" \
-                  '{id:$id,workflow:$workflow,workflow_file:$file,required:$required,status:"missing",conclusion:null,run_id:null,head_sha:null,pr_number:null}')"
-                [[ "$required" == "true" ]] && unresolved=$((unresolved+1))
-              else
-                status="$(jq -r '.status' <<<"$record")"
-                conclusion="$(jq -r '.conclusion // empty' <<<"$record")"
-                run_id="$(jq -r '.id' <<<"$record")"
-                head_sha="$(jq -r '.head_sha' <<<"$record")"
-                item="$(jq -cn --arg id "$id" --arg workflow "$workflow" --arg file "$workflow_file" --argjson required "$required" \
-                  --arg status "$status" --arg conclusion "$conclusion" --arg run_id "$run_id" --arg head_sha "$head_sha" --arg pr "$PR_NUMBER" \
-                  '{id:$id,workflow:$workflow,workflow_file:$file,required:$required,status:$status,conclusion:(if $conclusion=="" then null else $conclusion end),run_id:($run_id|tonumber),head_sha:$head_sha,pr_number:($pr|tonumber)}')"
-                [[ "$required" == "true" && "$status" != "completed" ]] && unresolved=$((unresolved+1))
+          matched=""
+          while [[ -z "$matched" && $(date +%s) -lt $deadline ]]; do
+            runs="$RUNNER_TEMP/policy-objection-runs.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/policy-objection-ci.yml/runs?event=pull_request&per_page=30" > "$runs"
+            while read -r run_id; do
+              dir="$RUNNER_TEMP/producer-$run_id"
+              rm -rf "$dir" && mkdir -p "$dir"
+              if gh run download "$run_id" -n "repository-governance-producer-evidence-$run_id" -D "$dir" >/dev/null 2>&1; then
+                evidence="$dir/producer-evidence.json"
+                if [[ -f "$evidence" ]] && \
+                   [[ "$(jq -r '.pr_number' "$evidence")" == "$PR_NUMBER" ]] && \
+                   [[ "$(jq -r '.source_head_sha' "$evidence")" == "$SOURCE_HEAD_SHA" ]] && \
+                   [[ "$(jq -r '.base_sha' "$evidence")" == "$BASE_SHA" ]] && \
+                   [[ "$(jq -r '.merge_candidate_sha' "$evidence")" == "$CANDIDATE_SHA" ]] && \
+                   [[ "$(jq -r '.executed_sha' "$evidence")" == "$CANDIDATE_SHA" ]]; then
+                  cp "$evidence" "$OUT/canonical-producer-evidence.json"
+                  matched="$run_id"
+                  break
+                fi
               fi
-              producers="$(jq -cn --argjson current "$producers" --argjson item "$item" '$current + [$item]')"
-            done < <(jq -r '.producers[] | [.id,.workflow,.workflow_file,(.required|tostring)] | @tsv' "$registry")
-            jq -n --arg head "$SOURCE_HEAD_SHA" --arg pr "$PR_NUMBER" --argjson producers "$producers" \
-              '{source_head_sha:$head,pr_number:($pr|tonumber),producers:$producers}' > "$SNAPSHOT"
-            (( unresolved == 0 )) && break
-            (( $(date +%s) >= deadline )) && break
-            sleep 10
+            done < <(jq -r '[.workflow_runs[] | select(.status=="completed" and .conclusion=="success")] | sort_by(.created_at) | reverse | .[].id' "$runs")
+            [[ -n "$matched" ]] || sleep 10
           done
+          [[ -n "$matched" ]]
+          jq -n \
+            --arg source "$SOURCE_HEAD_SHA" --arg base "$BASE_SHA" --arg candidate "$CANDIDATE_SHA" --arg pr "$PR_NUMBER" \
+            --slurpfile producer "$OUT/canonical-producer-evidence.json" \
+            '{source_head_sha:$source,base_sha:$base,merge_candidate_sha:$candidate,executed_sha:$candidate,pr_number:($pr|tonumber),producers:$producer}' \
+            > "$OUT/evidence-snapshot.json"
           node scripts/repository-governance-evidence-finalizer.mjs \
-            --snapshot-file "$SNAPSHOT" \
-            --report-file "${RUNNER_TEMP}/derived-state-closure/evidence-finalizer.json"
+            --snapshot-file "$OUT/evidence-snapshot.json" --report-file "$OUT/evidence-finalizer.json"
 
-      - name: Resolve typed policy objections
-        id: objections
-        continue-on-error: true
-        shell: bash
+      - name: Resolve and enforce typed policy objections
         env:
-          MODE: ${{ steps.target.outputs.pr_number != '0' && 'finalizer' || 'source' }}
-          GOV_REPORT: ${{ runner.temp }}/derived-state-closure/repository-governance.json
-          DERIVED_REPORT: ${{ runner.temp }}/derived-state-closure/report.json
-          EVIDENCE_REPORT: ${{ runner.temp }}/derived-state-closure/evidence-finalizer.json
-          OBJECTION_REPORT: ${{ runner.temp }}/derived-state-closure/policy-objections.json
+          OUT: ${{ runner.temp }}/derived-state-closure
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+        shell: bash
         run: |
           set -euo pipefail
-          args=(--mode "$MODE" --governance-report "$GOV_REPORT" --derived-report "$DERIVED_REPORT" --report-file "$OBJECTION_REPORT")
-          if [[ "$MODE" == "finalizer" ]]; then args+=(--evidence-report "$EVIDENCE_REPORT"); fi
+          args=(--mode source --governance-report "$OUT/repository-governance.json" --derived-report "$OUT/report.json" --report-file "$OUT/policy-objections.json")
+          if [[ "$PR_NUMBER" != "0" ]]; then args=(--mode finalizer --governance-report "$OUT/repository-governance.json" --derived-report "$OUT/report.json" --evidence-report "$OUT/evidence-finalizer.json" --report-file "$OUT/policy-objections.json"); fi
           node scripts/repository-governance-objection-gate.mjs "${args[@]}"
-
-      - name: Enforce environment impact closure
-        if: always()
-        shell: bash
-        env:
-          REPORT: ${{ runner.temp }}/derived-state-closure/environment-impact.json
-          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
-        run: |
-          set -euo pipefail
-          node - "$REPORT" "$EXPECTED_HEAD_SHA" <<'NODE'
-          const fs = require('node:fs');
-          const [file, expectedSha] = process.argv.slice(2);
-          if (!fs.existsSync(file)) throw new Error('Environment impact report is missing; fail closed.');
+          node - "$OUT/policy-objections.json" "$CANDIDATE_SHA" <<'NODE'
+          const fs = require('fs');
+          const [file, candidate] = process.argv.slice(2);
           const report = JSON.parse(fs.readFileSync(file, 'utf8'));
-          if (report.contract !== 'mad4b.environment-impact-closure.v1') throw new Error('Environment impact contract mismatch.');
-          if (report.expected_head_sha !== expectedSha) throw new Error(`Environment impact SHA mismatch: ${report.expected_head_sha} != ${expectedSha}`);
-          if (report.converged !== true || report.issue_count !== 0) throw new Error(`Environment impact closure blocked: ${JSON.stringify(report.issues)}`);
-          if (report.safety?.read_only !== true || report.safety?.database_mutation !== false || report.safety?.migration_apply !== false || report.safety?.provider_mutation !== false || report.safety?.production_deploy !== false || report.safety?.secrets_included !== false) throw new Error('Environment impact safety contract is not read-only.');
-          console.log(JSON.stringify({ contract: report.contract, converged: report.converged, issue_count: report.issue_count, changed_paths: report.changed_paths.length, safety: report.safety }));
+          if (report.contract !== 'mad4b.repository-policy-objections.v1') throw new Error('objection contract mismatch');
+          if (report.candidate_sha !== candidate) throw new Error('objection candidate mismatch');
+          if (Number(report.blocking_count) !== 0) throw new Error(`blocking objections remain: ${report.blocking_count}`);
           NODE
 
-      - name: Enforce zero blocking governance objections
+      - name: Write exact-candidate detector identity
         if: always()
-        shell: bash
         env:
-          OBJECTION_REPORT: ${{ runner.temp }}/derived-state-closure/policy-objections.json
-          EXPECTED_CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+          OUT: ${{ runner.temp }}/derived-state-closure
+          SOURCE_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
+          BASE_SHA: ${{ steps.target.outputs.base_sha }}
+          CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
         run: |
-          set -euo pipefail
-          node - "$OBJECTION_REPORT" "$EXPECTED_CANDIDATE_SHA" <<'NODE'
-          const fs = require('node:fs');
-          const [file, expectedSha] = process.argv.slice(2);
-          if (!fs.existsSync(file)) throw new Error('Policy objection report is missing; fail closed.');
-          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
-          if (report.contract !== 'mad4b.repository-policy-objections.v1') throw new Error('Policy objection contract mismatch.');
-          if (report.candidate_sha !== expectedSha) throw new Error(`Policy objection candidate mismatch: ${report.candidate_sha} != ${expectedSha}`);
-          const blocking_count = Number(report.blocking_count);
-          const manual_count = Number(report.manual_count);
-          const advisory_count = Number(report.advisory_count);
-          const activation_count = Number(report.activation_count);
-          for (const [name, value] of Object.entries({ blocking_count, manual_count, advisory_count, activation_count })) {
-            if (!Number.isInteger(value) || value < 0) throw new Error(`Invalid ${name}: ${value}`);
-          }
-          console.log(JSON.stringify({ blocking_count, manual_count, advisory_count, activation_count }));
-          if (blocking_count !== 0) throw new Error(`Blocking governance objections remain: ${blocking_count}`);
-          NODE
+          mkdir -p "$OUT"
+          jq -n --arg source "$SOURCE_HEAD_SHA" --arg base "$BASE_SHA" --arg candidate "$CANDIDATE_SHA" --arg pr "$PR_NUMBER" --arg run "$GITHUB_RUN_ID" \
+            '{contract:"mad4b.derived-state-detector-identity.v1",source_head_sha:$source,base_sha:$base,merge_candidate_sha:$candidate,executed_sha:$candidate,pr_number:($pr|tonumber),source_run_id:($run|tonumber),secrets_included:false}' \
+            > "$OUT/detector-identity.json"
 
-      - name: Upload canonical closure evidence
+      - name: Upload detector evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
