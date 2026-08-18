@@ -15,7 +15,20 @@ const jsonOutput = artifact.outputs?.find((entry) => entry.endsWith(".json"));
 const markdownOutput = artifact.outputs?.find((entry) => entry.endsWith(".md"));
 if (!jsonOutput || !markdownOutput) throw new Error("Remote MCP semantic projection requires JSON and Markdown outputs");
 
-const scratchRoot = path.join(repoRoot, ".git", "remote-mcp-semantic-currentness");
+const gitMetadataPath = path.join(repoRoot, ".git");
+let gitDir = gitMetadataPath;
+try {
+  const metadata = fs.statSync(gitMetadataPath);
+  if (!metadata.isDirectory()) {
+    const gitFile = fs.readFileSync(gitMetadataPath, "utf8").trim();
+    const match = /^gitdir:\s*(.+)$/imu.exec(gitFile);
+    if (!match) throw new Error("git worktree metadata does not declare a gitdir");
+    gitDir = path.resolve(path.dirname(gitMetadataPath), match[1]);
+  }
+} catch (error) {
+  throw new Error(`Unable to resolve git metadata directory: ${error instanceof Error ? error.message : String(error)}`);
+}
+const scratchRoot = path.join(gitDir, "remote-mcp-semantic-currentness");
 const scratchJson = path.relative(repoRoot, path.join(scratchRoot, "inventory.json")).replaceAll("\\", "/");
 const scratchMarkdown = path.relative(repoRoot, path.join(scratchRoot, "inventory.md")).replaceAll("\\", "/");
 fs.rmSync(scratchRoot, { recursive: true, force: true });
