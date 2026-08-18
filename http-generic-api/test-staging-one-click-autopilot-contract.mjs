@@ -71,6 +71,8 @@ assert.match(launcher, /production_deploy = \$false/);
 assert.match(launcher, /cloudflare_dns_mutation = \$false/);
 assert.match(launcher, /hostinger_mutation = \$false/);
 assert.match(startAutoPilot, /TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET/);
+assert.match(startAutoPilot, /TENANT_GPT_STAGING_OAUTH_CLIENT_ID/);
+assert.match(startAutoPilot, /TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED/);
 assert.match(startAutoPilot, /Ensure-EnvDefault/);
 assert.match(startAutoPilot, /Quarantine-KnownBackupFiles/);
 assert.match(installAutoDeploy, /-LogonType Interactive(\s|`|$)/);

@@ -26,6 +26,11 @@ assert.equal(ready.status, "ready");
 assert.equal(ready.secrets.every((item) => item.secrets_included === false), true);
 assert.equal(ready.queue.status, "ready");
 assert.equal(ready.control_plane_write.status, "configured");
+assert.equal(ready.oauth_client.confidential_compat_enabled, true);
+assert.equal(ready.oauth_client.confidential_compat_source, "canonical_client_default");
+const strictOauthRollback = evaluateProductionConfig({ ...base, TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "false" });
+assert.equal(strictOauthRollback.oauth_client.confidential_compat_enabled, false);
+assert.equal(strictOauthRollback.oauth_client.confidential_compat_source, "environment");
 
 const missingSso = evaluateProductionConfig({ ...base, TENANT_GPT_SSO_SIGNING_SECRET: "" });
 assert.equal(missingSso.ok, false);

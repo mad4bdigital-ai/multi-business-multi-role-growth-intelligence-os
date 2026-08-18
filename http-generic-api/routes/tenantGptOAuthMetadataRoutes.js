@@ -1,10 +1,15 @@
 import { Router } from "express";
 import {
+  TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER,
   TENANT_GPT_ACTIVATION_RESOURCE,
   TENANT_GPT_AUTHORIZATION_SERVER,
   TENANT_GPT_CORE_RESOURCE,
 } from "../tenantGptOAuthResourceProfile.js";
-import { TENANT_GPT_SCOPE_LINKS } from "../tenantGptOAuthPreset.js";
+import {
+  TENANT_GPT_IS_STAGING_RUNTIME,
+  TENANT_GPT_OAUTH_CLIENT_ID,
+  TENANT_GPT_SCOPE_LINKS,
+} from "../tenantGptOAuthPreset.js";
 import {
   buildRemoteMcpProtectedResourceMetadata,
   remoteMcpEnabled,
@@ -37,13 +42,16 @@ function resourceHost(resource) {
 }
 
 function tenantProtectedResourceMetadata(resource) {
+  const authorizationServer = resource === TENANT_GPT_ACTIVATION_RESOURCE
+    ? TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER
+    : TENANT_GPT_AUTHORIZATION_SERVER;
   return {
     resource,
-    authorization_servers: [TENANT_GPT_AUTHORIZATION_SERVER],
+    authorization_servers: authorizationServer ? [authorizationServer] : [],
     scopes_supported: TENANT_GPT_SCOPE_LINKS,
     bearer_methods_supported: ["header"],
     ...(resource === TENANT_GPT_ACTIVATION_RESOURCE
-      ? { resource_documentation: "https://activation.mad4b.com/tenant-gpt/activation-openapi" }
+      ? { resource_documentation: `${TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER}/tenant-gpt/activation-openapi` }
       : {}),
   };
 }
@@ -137,8 +145,8 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
     const operationalReadiness = await buildTenantGptOperationalReadiness({ env, pool });
     return res.status(200).json({
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
-      authorization_endpoint: "https://auth.mad4b.com/auth/oauth/authorize",
-      token_endpoint: "https://auth.mad4b.com/auth/oauth/token",
+      authorization_endpoint: `${TENANT_GPT_AUTHORIZATION_SERVER}/auth/oauth/authorize`,
+      token_endpoint: `${TENANT_GPT_AUTHORIZATION_SERVER}/auth/oauth/token`,
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code", ...(refreshReady.ready ? ["refresh_token"] : [])],
       token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
@@ -146,7 +154,8 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
       code_challenge_methods_supported: ["S256"],
       resource_parameter_supported: true,
       "x-mad4b-oauth-compatibility": {
-        confidential_client_id: "mad4b-tenant-gpt",
+        environment: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production",
+        confidential_client_id: TENANT_GPT_OAUTH_CLIENT_ID,
         pkce_optional_only_for_confidential_client: true,
         client_secret_required_without_pkce: true,
         state_required: true,

@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "ca6ab932ac851418b161c8e8fbcfba66686558ed12cf17dcf8f7f91451b7e196"
+      "sha256": "7fe3b56d4d45202c92a6c1b3f75ab8342d19cc9d52bd4f039a3bb63d69100da1"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -94,7 +94,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "8d6e3eb3e5275e73bf6b80753c20d76e552d131fee56b75cf8c5e2feb7872f65"
+      "sha256": "57926b3d19dbbbc525231db97186fe3985e5a4ec0818ef259bcb02a27edabbf2"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "bc57729f3dcdaaf29a76cf82b91d18771b492a2849d59936c8eecff17d116912"
+      "sha256": "8f4fb87a6a51f8dea36aad34c38eabd41aa654f05d3f4c9cceb7ac1d027046bb"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
-      "sha256": "879f3d7b09e7d4aa149bcce3a401ac57b0b81ca786d8da3fb2cb48717e9550f3"
+      "sha256": "304ad87818255f95301e66d7a21361cfddb37aa9f83a6bce412dd1408e3b15e6"
     },
     {
       "path": "http-generic-api/test-workspace-brand-create.mjs",

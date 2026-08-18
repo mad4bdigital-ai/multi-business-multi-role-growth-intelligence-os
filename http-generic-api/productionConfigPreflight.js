@@ -92,9 +92,11 @@ export function evaluateProductionConfig(env = process.env) {
   };
 
   const oauthClientSecret = secretEvidence("TENANT_GPT_OAUTH_CLIENT_SECRET", env.TENANT_GPT_OAUTH_CLIENT_SECRET);
+  const oauthClientCompatConfigured = text(env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED);
   const oauthClient = {
     client_id: text(env.TENANT_GPT_OAUTH_CLIENT_ID || "mad4b-tenant-gpt"),
-    confidential_compat_enabled: enabled(env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED),
+    confidential_compat_enabled: oauthClientCompatConfigured ? enabled(oauthClientCompatConfigured) : true,
+    confidential_compat_source: oauthClientCompatConfigured ? "environment" : "canonical_client_default",
     env_secret: oauthClientSecret,
     secret_source: oauthClientSecret.present ? "server_env" : "platform_runtime_config_or_env",
     secrets_included: false,

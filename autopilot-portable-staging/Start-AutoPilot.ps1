@@ -263,6 +263,8 @@ try {
         }
     }
     Set-Content -Encoding utf8 $EnvFile $envText
+    Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
+    Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
     Ensure-EnvDefault $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"

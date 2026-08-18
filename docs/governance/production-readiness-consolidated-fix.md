@@ -78,7 +78,10 @@ If the OAuth compatibility lane causes an unexpected client behavior, set `TENAN
 | Test | Expected result |
 |---|---|
 | Missing or short `TENANT_GPT_SSO_SIGNING_SECRET` | Startup remains fail-closed |
-| GPT Action authorize without PKCE, exact client ID, valid state | Authorization UI may proceed; token exchange requires client secret |
+| GPT Action authorize without PKCE, canonical environment client ID, valid state | Authorization UI may proceed; token exchange requires client secret |
+| Production `mad4b-tenant-gpt` on `auth.mad4b.com` without PKCE | Allowed only when the Production compatibility lane is not explicitly disabled |
+| Staging `mad4b-tenant-gpt-staging` on `dev.mad4b.com` without PKCE | Allowed only when the Staging compatibility lane is not explicitly disabled |
+| Production client presented to Staging, or Staging client presented to Production | Rejected; no cross-environment confidential-client compatibility |
 | Arbitrary client authorize without PKCE | `oauth_pkce_required` |
 | MCP authorize without PKCE | `oauth_pkce_required` |
 | Wrong client secret | `invalid_client` |
