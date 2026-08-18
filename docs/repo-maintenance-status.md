@@ -161,6 +161,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
+- `.github/workflows/policy-objection-ci.yml`
 - `.github/workflows/pr-generated-artifact-refresh.yml`
 - `.github/workflows/pr-risk-labeler.yml`
 - `.github/workflows/production-certified-release-cut-validation.yml`
