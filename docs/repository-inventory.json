@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7187,
-    "bytes": 70075010,
+    "bytes": 70075026,
     "lines": 1645316,
     "directories": 266,
     "categories": 13
@@ -12860,7 +12860,7 @@
       "extension": ".json",
       "bytes": 12395,
       "lines": 313,
-      "sha256": "552c1d00258eee614ac8be4aaf71289a05652b94a2b38c8792b693d23f1d0f32",
+      "sha256": "e2fe94f3504d7e7913e8e3d214f768a87fed1990be991bc530e3c19c1111cf99",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -63953,9 +63953,9 @@
       "path": "http-generic-api/test-environment-impact-closure.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 5035,
+      "bytes": 5051,
       "lines": 86,
-      "sha256": "e4085637d9694003312916bee745e1f563b256e6ba336c4c64edeeead0a30f0e",
+      "sha256": "f1c1f2a2cc9e2a625cac34f96728d181da487ff04f828bd11f770e0bb52343c3",
       "mode": "644",
       "executable": false,
       "generated": false
