@@ -108,6 +108,7 @@
       "scripts/remote-mcp-write-scope-inventory.mjs",
       "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
       "scripts/test-remote-mcp-write-scope-inventory.mjs",
+      "docs/governance/configuration-drift-policy.json",
       "docs/governance/production-readiness-consolidated-fix.md",
       "docs/governance/spec018-runtime-readiness-evidence-closeout.md"
     ],
