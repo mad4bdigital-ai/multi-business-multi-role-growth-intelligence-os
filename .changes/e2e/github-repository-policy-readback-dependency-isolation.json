@@ -14,7 +14,15 @@
       "http-generic-api/capabilityResolutionEnvelopeGuard.js",
       "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
       "http-generic-api/githubRepositoryPolicyController.js",
-      "http-generic-api/test-github-repository-policy-readback-import-isolation.mjs"
+      "http-generic-api/test-github-repository-policy-readback-import-isolation.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+      "http-generic-api/test-spec018-residual-readiness-evidence.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
@@ -66,7 +74,15 @@
             "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
             "http-generic-api/githubRepositoryPolicyController.js",
             "http-generic-api/test-github-repository-policy-readback-import-isolation.mjs",
-            "http-generic-api/test-github-repository-policy-controller.mjs"
+            "http-generic-api/test-github-repository-policy-controller.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/spec018ResidualReadinessEvidence.mjs",
+            "http-generic-api/test-spec018-residual-readiness-evidence.mjs"
           ]
         }
       ]
