@@ -16,6 +16,7 @@
       ".github/governance/verifier-registry.json",
       ".github/tests/derived-state-closure.test.mjs",
       ".github/tests/repository-governance-closure.test.mjs",
+      ".github/tests/repository-governance-objection-gate.test.mjs",
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
       ".github/workflows/policy-objection-ci.yml",
@@ -66,6 +67,7 @@
             "New policy rules may use registered generic assertion primitives without editing the policy engine for every new metric.",
             "New derived artifacts may bind a registered safe verifier without editing derived-state-closure.mjs.",
             "The canonical evidence identity contains source_head_sha, base_sha, merge_candidate_sha, executed_sha, and pr_number, and executed_sha equals merge_candidate_sha for main.",
+            "The canonical required producer is Policy Objection CI; legacy CI remains supplemental diagnostics only.",
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
             "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
@@ -77,6 +79,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": ".github/tests/repository-governance-closure.test.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-governance-objection-authority",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-objection-gate.test.mjs",
               "args": []
             },
             {
