@@ -87,10 +87,10 @@ function classifyChanges(changedFiles, policy) {
   if (!considered.length) return { changeClass: "empty", considered, runtimeFiles: [], specFiles: [] };
   const runtimeFiles = considered.filter((file) => matchesAny(file, policy.runtime_patterns));
   const specFiles = considered.filter((file) => matchesAny(file, policy.spec_patterns));
-  const docsOnly = considered.every((file) => matchesAny(file, policy.docs_only_patterns));
-  const governanceOnly = considered.every((file) => matchesAny(file, policy.governance_only_patterns) || matchesAny(file, policy.docs_only_patterns));
-  if (docsOnly) return { changeClass: "docs_only", considered, runtimeFiles, specFiles };
+  const governanceOnly = considered.every((file) => matchesAny(file, policy.governance_only_patterns));
+  const docsOnly = considered.every((file) => matchesAny(file, policy.docs_only_patterns) && !matchesAny(file, policy.governance_only_patterns));
   if (governanceOnly) return { changeClass: "governance_only", considered, runtimeFiles: [], specFiles };
+  if (docsOnly) return { changeClass: "docs_only", considered, runtimeFiles, specFiles };
   if (runtimeFiles.length || specFiles.length) return { changeClass: "feature", considered, runtimeFiles, specFiles };
   return { changeClass: "repository", considered, runtimeFiles, specFiles };
 }
