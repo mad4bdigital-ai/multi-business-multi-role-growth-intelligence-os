@@ -83,9 +83,13 @@
     "http-generic-api/githubRepositoryPolicyController.js",
     "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
     "http-generic-api/routes/repositoryAutomationRoutes.js",
+    "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+    "http-generic-api/scripts/e2e-phase-governance.mjs",
+    "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
     "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
     "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
     "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+    "http-generic-api/test-environment-impact-closure.mjs",
     "http-generic-api/test-github-repository-governance-attestation.mjs",
     "http-generic-api/test-github-repository-policy-controller.mjs",
     "scripts/derived-state-closure.mjs",
@@ -94,7 +98,7 @@
     "scripts/repository-governance-evidence-finalizer.mjs"
   ],
   "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from all repository Work Maps and the effective generated schema coverage.",
-  "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, taxonomy-gap, and discovered-dimension decisions must be resolved and implementation_readiness.status must be ready.",
+  "implementation_contract": "When a PR changes implementation or non-exempt repository-governance surfaces, all targeted Work Map, schema-domain, taxonomy-gap, and discovered-dimension decisions must be resolved and implementation_readiness.status must be ready. Registered self-governance maintenance surfaces may update governance contracts and generated bindings without falsely implying that a draft feature has begun implementation.",
   "classification_contract": "No schema object may remain unclassified by accident. The generator and classification registry must classify every object into an existing domain and map, or the exact object must be recorded as an intentional, approved, owned, expiring exception in the same registry.",
   "legacy_behavior": "Existing Spec Kits without a work-map-integration.json remain grandfathered until they opt in. New Spec Kits are never grandfathered.",
   "secrets_included": false
