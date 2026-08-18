@@ -3,10 +3,11 @@ import { getPool } from "../db.js";
 import {
   buildRepositoryAutomationPlan,
   readRepositoryAutomationRun,
-  runGithubRepositoryPolicyController,
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationPolicyFacade.js";
+import { runGithubRepositoryPolicyController } from "../githubRepositoryPolicyController.js";
+import { runGithubRepositoryGovernanceAttestation } from "../githubRepositoryGovernanceAttestation.js";
 import { runRepositoryReconciliationLeaseControl } from "../repositoryReconciliationLeaseControl.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 import { buildOperationObservabilityRoutes } from "./operationObservabilityRoutes.js";
@@ -50,10 +51,7 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
   const router = Router();
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
 
-  router.use(buildOperationObservabilityRoutes({
-    requireBackendApiKey,
-    requireAdminPrincipal,
-  }));
+  router.use(buildOperationObservabilityRoutes({ requireBackendApiKey, requireAdminPrincipal }));
 
   router.post("/admin/repository-automation/plan", ...requireAdmin, async (req, res) => {
     try {
@@ -76,7 +74,11 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
 
   router.post("/admin/repository-automation/policy-controller", ...requireAdmin, async (req, res) => {
     try {
-      const result = await runGithubRepositoryPolicyController(bodyOf(req), automationDeps(req));
+      const input = bodyOf(req);
+      const deps = automationDeps(req);
+      const result = String(input.mode || "").trim().toLowerCase() === "attest"
+        ? await runGithubRepositoryGovernanceAttestation(input, deps)
+        : await runGithubRepositoryPolicyController(input, deps);
       return res.status(200).json(result);
     } catch (error) {
       return errorResponse(res, error, "github_repository_policy_controller_failed");
