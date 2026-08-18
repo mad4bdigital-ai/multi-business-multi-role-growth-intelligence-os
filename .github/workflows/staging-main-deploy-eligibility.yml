@@ -22,9 +22,6 @@ jobs:
       EXPECTED_REF: ${{ github.ref_name }}
       EXPECTED_REPOSITORY: ${{ github.repository }}
       STAGING_DEPLOY_ONLY: "true"
-      # All reports are runner-local evidence. Keeping them outside the checkout is
-      # mandatory because derived-state-closure starts from a clean working tree.
-      STAGING_AUTHORITY_REPORT_FILE: ${{ runner.temp }}/staging-environment-authority-closure/report.json
     steps:
       - name: Checkout exact main event commit
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -54,6 +51,9 @@ jobs:
           test "$STAGING_DEPLOY_ONLY" = "true"
 
       - name: Verify Staging environment authority closure
+        env:
+          # Keep the generated report outside the checkout before derived-state closure.
+          STAGING_AUTHORITY_REPORT_FILE: ${{ runner.temp }}/staging-environment-authority-closure/report.json
         run: >-
           node http-generic-api/scripts/staging-environment-authority-closure.mjs
           --expected-sha "$EXPECTED_HEAD_SHA"
@@ -105,6 +105,8 @@ jobs:
           npm run write-scopes:inventory:test
 
       - name: Publish fail-closed eligibility evidence
+        env:
+          STAGING_AUTHORITY_REPORT_FILE: ${{ runner.temp }}/staging-environment-authority-closure/report.json
         run: |
           node --input-type=module - "$EXPECTED_REPOSITORY" "$EXPECTED_REF" "$EXPECTED_HEAD_SHA" "$STAGING_AUTHORITY_REPORT_FILE" <<'NODE'
           import fs from "node:fs";
