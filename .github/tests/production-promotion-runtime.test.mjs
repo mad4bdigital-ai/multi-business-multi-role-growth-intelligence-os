@@ -250,6 +250,8 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(rehearsal, /REHEARSE_GOVERNED_PRODUCTION_PROMOTION/u);
   assert.match(rehearsal, /production-promotion-rehearsal\.mjs/u);
   assert.match(rehearsal, /mutation_summary\.production_merge == false/u);
+  assert.match(rehearsal, /\.ok == true/u);
+  assert.doesNotMatch(rehearsal, /if: github\.event_name/u);
   assert.match(rehearsal, /persist-credentials: false/u);
   assert.match(rehearsal, /MAIN_CAS_READBACK/u);
   assert.match(rehearsal, /PRODUCTION_CAS_READBACK/u);

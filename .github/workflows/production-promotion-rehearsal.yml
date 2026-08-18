@@ -26,7 +26,6 @@ concurrency:
 jobs:
   rehearsal:
     name: Read-only Production promotion rehearsal
-    if: github.event_name == 'workflow_dispatch' && inputs.confirmation == 'REHEARSE_GOVERNED_PRODUCTION_PROMOTION'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -97,6 +96,7 @@ jobs:
           jq -e '
             .schema_version == "mad4b.production-promotion-rehearsal.v2" and
             .mode == "read_only_dry_run" and
+            .ok == true and
             .operation.retry_is_idempotent == true and
             .operation.cas_recheck_required_before_mutation == true and
             .mutation_summary.production_merge == false and
