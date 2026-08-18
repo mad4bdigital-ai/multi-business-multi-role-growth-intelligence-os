@@ -59,8 +59,11 @@ for (const controlPath of constitution.control_plane_paths) {
 for (const file of ["scripts/repository-governance-closure.mjs", "scripts/repository-governance-objection-gate.mjs", "scripts/repository-governance-evidence-finalizer.mjs"]) assert.equal(fs.existsSync(path.join(root, file)), true);
 
 const route = fs.readFileSync(path.join(root, "http-generic-api/routes/repositoryAutomationRoutes.js"), "utf8");
-assert.match(route, /repository_policy_canonical_controller_required/u);
-assert.match(route, /\/admin\/repository-automation\/policy-controller/u);
+const legacyGuardCalls = route.match(/assertLegacySurfaceDoesNotOwnRepositoryPolicy\(input\)/gu) || [];
+assert.equal(legacyGuardCalls.length, 2, "Both legacy /plan and /run surfaces must reject repository_policy authority.");
+assert.match(route, /repository_policy_legacy_surface_retired/u, "Legacy policy authority rejection must expose a stable machine-readable code.");
+assert.match(route, /canonical_surface:\s*["']\/admin\/repository-automation\/policy-controller["']/u, "Legacy rejection must point callers at the canonical policy-controller surface.");
+assert.match(route, /router\.post\(["']\/admin\/repository-automation\/policy-controller["']/u, "Canonical repository policy-controller route must remain registered.");
 
 const selfTest = spawnSync(process.execPath, ["scripts/repository-governance-closure.mjs", "--self-test"], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
 assert.equal(selfTest.status, 0, `${selfTest.stdout}\n${selfTest.stderr}`);
