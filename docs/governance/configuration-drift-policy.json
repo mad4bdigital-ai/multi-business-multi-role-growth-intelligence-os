@@ -2182,6 +2182,42 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7430: headSha is a read-only exact-diff input for environment impact evidence; it is not a runtime setting, secret, or Production mutation authority. The candidate remains governed by exact-SHA closure and live Staging certification.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/environment-impact-closure.mjs|DEPLOYMENT_POLICY_PATH|literal_declaration|deployment.policy.path",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: the explicit deployment policy path is a code-owned authority locator for the fail-closed environment-impact interpreter; it contains no secret and does not authorize runtime or Production mutation. Revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/environment-impact-closure.mjs|crossEnvironmentReviewed|literal_declaration|crossenvironmentreviewed",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: crossEnvironmentReviewed is a fail-closed evidence flag requiring explicit cross-environment policy review; it is not an operational setting or secret. Revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/environment-impact-closure.mjs|impactDeclarationPath|environment_reference|environment.impact.declaration",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: impactDeclarationPath selects the declarative environment-impact evidence input and is guarded by exact SHA, authority, collision, and fail-closed checks; it contains no secret or mutation authority. Revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|expectedContextFileSet|environment_reference|staging.cert.expected.context.file.set.sha256",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: expectedContextFileSet is a read-only Staging certification input binding the exact Git archive file set; it is not a runtime setting, secret, or Production mutation authority. Revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|expectedImageDigest|environment_reference|staging.cert.app.image.id",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: expectedImageDigest is a read-only Staging certification input binding the exact image digest to the certified Git tree and context; it is not a runtime setting, secret, or Production mutation authority. Revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|expectedTree|environment_reference|staging.cert.expected.tree",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: expectedTree is a read-only Staging certification input binding the exact application Git tree; it is not a runtime setting, secret, or Production mutation authority. Revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {
