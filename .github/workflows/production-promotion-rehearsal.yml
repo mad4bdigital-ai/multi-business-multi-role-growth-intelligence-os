@@ -1,0 +1,140 @@
+name: Governed Production Promotion Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: Exact main SHA to rehearse; must equal the current main ref
+        required: true
+        type: string
+      expected_production_sha:
+        description: Exact Production SHA to pin for the read-only rehearsal
+        required: true
+        type: string
+      confirmation:
+        description: Type REHEARSE_GOVERNED_PRODUCTION_PROMOTION
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governed-production-promotion-rehearsal-${{ inputs.expected_main_sha }}-${{ inputs.expected_production_sha }}
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    name: Read-only Production promotion rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+      EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate exact read-only rehearsal inputs
+        id: validate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          reject() { echo "::error::$1"; exit 1; }
+          [[ "$CONFIRMATION" == "REHEARSE_GOVERNED_PRODUCTION_PROMOTION" ]] || reject "confirmation mismatch"
+          [[ "$EXPECTED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_main_sha must be an exact lowercase SHA"
+          [[ "$EXPECTED_PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_production_sha must be an exact lowercase SHA"
+          [[ "$GITHUB_REF" == refs/heads/main ]] || reject "rehearsal must run from main"
+          MAIN_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          PRODUCTION_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "$MAIN_READBACK" == "$EXPECTED_MAIN_SHA" ]] || reject "main moved before rehearsal"
+          [[ "$PRODUCTION_READBACK" == "$EXPECTED_PRODUCTION_SHA" ]] || reject "Production moved before rehearsal"
+          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
+          git fetch --no-tags origin "$EXPECTED_PRODUCTION_SHA"
+          MAIN_CAS_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          PRODUCTION_CAS_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "$MAIN_CAS_READBACK" == "$MAIN_READBACK" ]] || reject "main moved during rehearsal input validation"
+          [[ "$PRODUCTION_CAS_READBACK" == "$PRODUCTION_READBACK" ]] || reject "Production moved during rehearsal input validation"
+          {
+            echo "main_sha=$MAIN_READBACK"
+            echo "production_sha=$PRODUCTION_READBACK"
+            echo "protected_refs_stable=true"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build bounded rehearsal decision
+        id: report
+        shell: bash
+        env:
+          MAIN_SHA: ${{ inputs.expected_main_sha }}
+          PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+          PROTECTED_REFS_STABLE: ${{ steps.validate.outputs.protected_refs_stable }}
+        run: |
+          set -Eeuo pipefail
+          production_is_ancestor=false
+          if git merge-base --is-ancestor "$PRODUCTION_SHA" "$MAIN_SHA"; then
+            production_is_ancestor=true
+          fi
+          cat > "$RUNNER_TEMP/production-promotion-rehearsal-input.json" <<JSON
+          {
+            "mainSha": "$MAIN_SHA",
+            "productionSha": "$PRODUCTION_SHA",
+            "productionIsAncestorOfMain": $production_is_ancestor,
+            "protectedRefsStable": "${PROTECTED_REFS_STABLE:-false}",
+            "supportingGatesReadOnly": true
+          }
+          JSON
+          node .github/scripts/production-promotion-rehearsal.mjs \
+            --input "$RUNNER_TEMP/production-promotion-rehearsal-input.json" \
+            --output "$RUNNER_TEMP/production-promotion-rehearsal.json"
+          jq -e '
+            .schema_version == "mad4b.production-promotion-rehearsal.v2" and
+            .mode == "read_only_dry_run" and
+            .ok == true and
+            .operation.retry_is_idempotent == true and
+            .operation.cas_recheck_required_before_mutation == true and
+            .mutation_summary.production_merge == false and
+            .mutation_summary.deployment == false and
+            .mutation_summary.migration_apply == false and
+            .mutation_summary.database_mutation == false and
+            .mutation_summary.provider_mutation == false and
+            .mutation_summary.external_write == false and
+            .mutation_summary.secrets_included == false
+          ' "$RUNNER_TEMP/production-promotion-rehearsal.json" >/dev/null
+          jq -r '"REHEARSAL_CLASSIFICATION=" + .classification, "REHEARSAL_STAGE=" + .stage, "REHEARSAL_OK=" + (.ok|tostring)' "$RUNNER_TEMP/production-promotion-rehearsal.json" >> "$GITHUB_OUTPUT"
+          if [[ "$production_is_ancestor" != true ]]; then
+            echo "::error::Production history is not contained by main; refusing candidate rehearsal continuation"
+            exit 1
+          fi
+
+      - name: Run promotion runtime regression suite
+        if: always()
+        shell: bash
+        run: node --test .github/tests/production-promotion-runtime.test.mjs
+
+      - name: Upload read-only rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-promotion-rehearsal-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/production-promotion-rehearsal.json
+            ${{ runner.temp }}/production-promotion-rehearsal-input.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish bounded rehearsal summary
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report="${RUNNER_TEMP}/production-promotion-rehearsal.json"
+          if [[ -s "$report" ]]; then
+            jq -r '"## Governed Production Promotion Rehearsal\n\n- classification: `" + .classification + "`\n- stage: `" + .stage + "`\n- main: `" + .baseline.main_sha + "`\n- Production: `" + .baseline.production_sha + "`\n- retry idempotent: `" + (.operation.retry_is_idempotent|tostring) + "`\n- CAS recheck required: `" + (.operation.cas_recheck_required_before_mutation|tostring) + "`\n- merge/deployment/migration/database/provider mutation: `false/false/false/false/false`\n- secrets included: `false`"' "$report" >> "$GITHUB_STEP_SUMMARY"
+          fi
