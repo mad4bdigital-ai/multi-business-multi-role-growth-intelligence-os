@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "0a0c5252d7563e78bd69c966d5d282a976ef6dc6118fe71dbfd19069d834dfb0"
+      "sha256": "b74ee8d7587f5c62e4362c5c67179e65eeae9eabbf2fb7755c3addfdd9c33ac7"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "e8e9ed85c691ba0505b20159b0340195119eae2a97f7a11dc6a8445642815b10"
+      "sha256": "5110eb308bb505042b755ac4506671a2341d26e892e0a5b4910960248940620e"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "8f0473fbe1177eae39be4209d676884e1c0eadee5fa61ca21446f14b3b18f45d"
+      "sha256": "fef469e5eef334a7137c6b29f79dc67e4803646c8e0b95ccede4a682e8a0a3a7"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "9b0c135777a1341dcacaa0e20e091cc48e13d6e37ea99a8a2d7c277d8b9097e5"
+      "sha256": "c3d158cce32a9f622c668d92c98350bb3942d4adc6df63007ff21f32e17cf5ef"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "9aa6f94b56e7f8da56c876d16077ba540b5294469d9fbe72b9281e788aa48282"
+      "sha256": "d8dd292476d175cf96b58747268ac030b6abb34e1e3d0e0bb0714c96cdb88120"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -246,7 +246,7 @@
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
-      "sha256": "c12a693ebf18c4d5524b28e78b82b6b08988876779a1b2cfb707a39aadba6dee"
+      "sha256": "f300e87e1910f2275ee0314b18b5f8ee24c5572056aa07807dcd31a17dae7422"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
@@ -275,6 +275,30 @@
     {
       "path": "http-generic-api/workspaceBrandLifecycle.js",
       "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337"
+    },
+    {
+      "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+      "sha256": "6bbe01e5a9bcfce608839077b94b516bf235b68f1ef44e2340061136144fcdca"
+    },
+    {
+      "path": "http-generic-api/deploymentManifest.js",
+      "sha256": "fe6fd465a5f7a5457dd079edbf601a972bee78ede878fd146a9cee148344c2e9"
+    },
+    {
+      "path": "http-generic-api/scripts/staging-live-certification.mjs",
+      "sha256": "335043b93fc83157c16c2fcb4ac8aebd566ddce5f5bf82348ec1ca9bbe31bb17"
+    },
+    {
+      "path": "http-generic-api/tenantGptOAuthPkce.js",
+      "sha256": "c53d05d9ed23ed4f5fe68d9d27331c1887a9e8a8de44a0ac7678ecb47dde6fa3"
+    },
+    {
+      "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "sha256": "27c30b8e71d1c9d1141ab5ae41ba3c2c4ab8ecaea76b0f102cc259d3509572af"
+    },
+    {
+      "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "sha256": "4a216afc3869be17514ea77e9818b89bac83847813f586db2562052426a714e5"
     }
   ],
   "safety": {

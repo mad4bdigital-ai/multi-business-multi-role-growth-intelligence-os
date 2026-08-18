@@ -68,6 +68,9 @@ const expectedCommit = String(
   ""
 ).trim().toLowerCase();
 const expectedBranch = String(process.env.STAGING_CERT_EXPECTED_BRANCH || process.env.DEPLOY_BRANCH || "main").trim();
+const expectedTree = String(process.env.STAGING_CERT_EXPECTED_TREE || "").trim().toLowerCase();
+const expectedContextFileSet = String(process.env.STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256 || "").trim().toLowerCase();
+const expectedImageDigest = String(process.env.STAGING_CERT_APP_IMAGE_ID || "").trim().toLowerCase();
 const appBase = normalizeUrl(process.env.STAGING_CERT_APP_BASE_URL, "http://127.0.0.1:8080");
 const requireReady = bool(process.env.STAGING_CERT_REQUIRE_READY, false);
 const requireGateway = bool(
@@ -85,6 +88,18 @@ if (!expectedBranch) {
   console.error("STAGING_CERT_EXPECTED_BRANCH is required");
   process.exit(1);
 }
+if (!/^[0-9a-f]{40}$/u.test(expectedTree)) {
+  console.error("STAGING_CERT_EXPECTED_TREE must be an exact lowercase 40-character tree SHA");
+  process.exit(1);
+}
+if (!/^[0-9a-f]{64}$/u.test(expectedContextFileSet)) {
+  console.error("STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256 must be an exact lowercase 64-character digest");
+  process.exit(1);
+}
+if (expectedImageDigest && !/^sha256:[0-9a-f]{64}$/u.test(expectedImageDigest)) {
+  console.error("STAGING_CERT_APP_IMAGE_ID must be a sha256 content digest when supplied");
+  process.exit(1);
+}
 
 const deploymentUrl = new URL("/deployment-info", appBase);
 deploymentUrl.searchParams.set("include_governance_db_readiness", "1");
@@ -97,6 +112,15 @@ const combined = body.production_activation_readiness || null;
 const runtimeIntegrity = body.runtime_integrity || null;
 const mcpReadiness = body.mcp_catalog_schema_readiness || null;
 const governanceReadiness = body.governance_db_privilege_readiness || null;
+const appManifest = body.deployment || {};
+const observedImageDigest = String(appManifest.image_digest || "").trim().toLowerCase();
+const artifactSetChecks = [
+  check("app_tree_exact", appManifest.tree_sha === expectedTree, { expected: expectedTree, observed: appManifest.tree_sha || null }),
+  check("app_context_file_set_exact", appManifest.context_file_set_sha256 === expectedContextFileSet, { expected: expectedContextFileSet, observed: appManifest.context_file_set_sha256 || null }),
+  check("app_image_digest_present", /^sha256:[0-9a-f]{64}$/u.test(observedImageDigest), { observed: observedImageDigest || null }),
+  ...(expectedImageDigest ? [check("app_image_digest_exact", observedImageDigest === expectedImageDigest, { expected: expectedImageDigest, observed: observedImageDigest || null })] : []),
+  check("app_manifest_secret_free", appManifest.secrets_included === false, { observed: appManifest.secrets_included ?? null }),
+];
 
 const integrityChecks = [
   check("deployment_info_reachable", deployment.ok, { status: deployment.status, error: deployment.error || null }),
@@ -113,6 +137,7 @@ const integrityChecks = [
   }),
   check("runtime_integrity_read_only", runtimeIntegrity?.read_only_check === true, runtimeIntegrity?.read_only_check ?? null),
   check("deployment_evidence_secret_free", body.evidence?.secrets_included === false, body.evidence?.secrets_included ?? null),
+  ...artifactSetChecks,
 ];
 
 const readinessChecks = [
@@ -208,6 +233,25 @@ const report = {
     app_env: body.app_env || null,
     runtime_integrity_state: runtimeIntegrity?.state || null,
     combined_database_status: combined?.status || null,
+    app_tree_sha: appManifest.tree_sha || null,
+    app_context_file_set_sha256: appManifest.context_file_set_sha256 || null,
+    app_image_digest: observedImageDigest || null,
+  },
+  artifact_set: {
+    complete: artifactSetChecks.every((entry) => entry.ok) && (!requireGateway || integrityChecks.some((entry) => entry.key === "gateway_exact_commit" && entry.ok)),
+    app: {
+      source_commit: body.commit_sha || body.commit || null,
+      tree_sha: appManifest.tree_sha || null,
+      context_file_set_sha256: appManifest.context_file_set_sha256 || null,
+      image_digest: observedImageDigest || null,
+      secrets_included: appManifest.secrets_included ?? null,
+    },
+    gateway: {
+      source_commit: gatewayEvidence.health?.sourceCommit || null,
+      policy_hash: gatewayEvidence.health?.policyHash || null,
+      expected_policy_hash: gatewayEvidence.expected_policy_hash,
+      signed_attestation_required: requireGateway,
+    },
   },
   integrity_checks: integrityChecks,
   readiness_checks: readinessChecks,

@@ -60,11 +60,18 @@ foreach ($required in @($composeBase, $composeStage, $envFile)) {
 }
 
 $gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
+$expectedTree = Read-EnvValue $envFile "STAGING_BUILD_TREE"
+$expectedContextFileSet = Read-EnvValue $envFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256"
 $composeArgs = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
+$imageId = ((& docker @composeArgs images -q app 2>$null | Out-String).Trim()).ToLowerInvariant()
+if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest" }
 $certArgs = $composeArgs + @(
     "exec", "-T",
     "-e", "STAGING_CERT_EXPECTED_COMMIT=$($ExpectedCommit.ToLowerInvariant())",
     "-e", "STAGING_CERT_EXPECTED_BRANCH=$Ref",
+    "-e", "STAGING_CERT_EXPECTED_TREE=$expectedTree",
+    "-e", "STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256=$expectedContextFileSet",
+    "-e", "STAGING_CERT_APP_IMAGE_ID=$imageId",
     "-e", "STAGING_CERT_APP_BASE_URL=http://127.0.0.1:8080",
     "-e", "STAGING_CERT_REQUIRE_GATEWAY=$($gatewayEnabled.ToString().ToLowerInvariant())",
     "-e", "STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM=$(($gatewayEnabled -and [bool]$StartTunnel).ToString().ToLowerInvariant())",
@@ -90,6 +97,10 @@ $state["certified_branch"] = [string]$certification.observed.branch
 $state["certification_blocking_failures"] = @($certification.blocking_failures)
 $state["certification_degraded_reasons"] = @($certification.degraded_reasons)
 $state["gateway_required"] = [bool]$gatewayEnabled
+$state["artifact_set_complete"] = ($certification.artifact_set.complete -eq $true)
+$state["app_image_digest"] = [string]$certification.artifact_set.app.image_digest
+$state["app_tree_sha"] = [string]$certification.artifact_set.app.tree_sha
+$state["app_context_file_set_sha256"] = [string]$certification.artifact_set.app.context_file_set_sha256
 $state["database_readiness"] = [string]$certification.observed.combined_database_status
 $state["certification_checked_at"] = [string]$certification.generated_at
 $state["secrets_included"] = $false

@@ -75,6 +75,25 @@ jobs:
           --head-sha "$EXPECTED_HEAD_SHA"
           --report-file "$ENVIRONMENT_IMPACT_REPORT_FILE"
 
+      - name: Prepare exact Staging build-context provenance
+        env:
+          EXPECTED_HEAD_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/prepare-staging-build-context.mjs \
+            --repository-path . \
+            --commit "$EXPECTED_HEAD_SHA" \
+            --output-dir .staging-build-context
+          expected_tree="$(git rev-parse "${EXPECTED_HEAD_SHA}^{tree}")"
+          context_file_set="$(jq -er '.context_file_set_sha256' .staging-build-context/.staging-build-context.json)"
+          [[ "$expected_tree" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::exact tree SHA missing"; exit 1; }
+          [[ "$context_file_set" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::exact context file-set digest missing"; exit 1; }
+          {
+            echo "STAGING_CERT_EXPECTED_TREE=$expected_tree"
+            echo "STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256=$context_file_set"
+          } >> "$GITHUB_ENV"
+
       - name: Certify live Staging against exact main release cut
         env:
           STAGING_CERT_EXPECTED_COMMIT: ${{ steps.identity.outputs.release_cut_sha }}
@@ -88,6 +107,9 @@ jobs:
             .outcome == "ready" and .ready == true and
             .expected.branch == "main" and .expected.commit_sha == $cut and
             .observed.branch == "main" and .observed.commit_sha == $cut and
+            .artifact_set.complete == true and
+            (.artifact_set.app.source_commit == $cut) and
+            (.artifact_set.gateway.source_commit == $cut) and
             .blocking_failures == [] and .degraded_reasons == [] and
             .safety.read_only_probe == true and
             .safety.database_mutation == false and

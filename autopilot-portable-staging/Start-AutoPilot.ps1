@@ -316,8 +316,16 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services stopped"
         return
     }
+    if (-not $SkipBuild) {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context"
+        Invoke-Native "docker" ($composeArgs + @("build", "app"))
+    }
+    $imageId = Get-NativeText "docker" ($composeArgs + @("images", "-q", "app"))
+    if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest" }
+    Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
+    Assert-UniqueEnvKeys $EnvFile
+    Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
     $upArgs = $composeArgs + @("up", "-d")
-    if (-not $SkipBuild) { $upArgs += "--build" }
     Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
     Invoke-Native "docker" $upArgs
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
@@ -335,6 +343,7 @@ try {
         build_context_source = "git_archive_exact_commit"
         build_tree_sha = $buildTree.ToLowerInvariant()
         build_context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256
+        app_image_digest = $imageId.ToLowerInvariant()
         tunnel_started = [bool]$StartTunnel
         certification_status = "pending"
         certification_ready = $false

@@ -95,15 +95,15 @@ export function isTenantGptConfidentialActionClient({ clientId, env = process.en
   const normalizedClientId = String(clientId || "").trim();
   const expectedClientId = resolveExpectedTenantGptClientId(env);
   const configuredClientId = resolveConfiguredTenantGptClientId(env);
-  const compatibilityEnabled = flagEnabled(
-    env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED,
-    false,
-  );
+  const compatibilityFlag = env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED;
+  const compatibilityEnabled = compatibilityFlag === undefined || String(compatibilityFlag).trim() === ""
+    ? true
+    : flagEnabled(compatibilityFlag, false);
 
   // GPT Actions may use a confidential-client authorization-code request without
-  // PKCE. Keep this compatibility path explicit and narrow: operators must opt in
-  // for the current environment, and the configured client ID must be the
-  // canonical ID for that environment. Absence of the flag is strict PKCE.
+  // PKCE. Keep this compatibility path narrow: the default applies only to the
+  // canonical client ID in the current environment, while explicit false is a
+  // strict-PKCE kill switch.
   return compatibilityEnabled
     && configuredClientId === expectedClientId
     && normalizedClientId === expectedClientId;

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { readDeploymentManifest } from "./deploymentManifest.js";
 
 const repositoryRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const apiRoot = path.join(repositoryRoot, "http-generic-api");
@@ -17,6 +18,7 @@ const contextPath = path.join(repositoryRoot, ".staging-build-context");
 const expectedFileSet = crypto.createHash("sha256").update(
   execFileSync("git", ["-C", repositoryRoot, "ls-tree", "-r", "--name-only", commit], { encoding: "utf8" }),
 ).digest("hex");
+const expectedImageDigest = `sha256:${"f".repeat(64)}`;
 
 fs.writeFileSync(fixturePath, "IGNORED_BUILD_CONTEXT_SECRET=fixture-secret-that-must-never-enter-image\n", "utf8");
 try {
@@ -30,6 +32,15 @@ try {
   assert.equal(metadata.source, "git_archive_exact_commit");
   assert.equal(metadata.local_ignored_files_included, false);
   assert.equal(metadata.secrets_included, false);
+  const normalizedManifest = readDeploymentManifest({
+    DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ commit_sha: commit, tree_sha: tree, context_file_set_sha256: metadata.context_file_set_sha256, secrets_included: false }),
+    STAGING_APP_IMAGE_ID: expectedImageDigest,
+  });
+  assert.equal(normalizedManifest.ok, true);
+  assert.equal(normalizedManifest.manifest.tree_sha, tree);
+  assert.equal(normalizedManifest.manifest.context_file_set_sha256, metadata.context_file_set_sha256);
+  assert.equal(normalizedManifest.manifest.image_digest, expectedImageDigest);
+  assert.equal(normalizedManifest.manifest.secrets_included, false);
   assert.equal(fs.existsSync(path.join(contextPath, fixtureRelative)), false, "ignored secret fixture must not enter exact Git context");
   for (const required of [
     ".dockerignore",

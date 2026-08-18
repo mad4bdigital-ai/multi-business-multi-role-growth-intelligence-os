@@ -47,7 +47,8 @@
           "assertions": [
             "The invalid warn log level cannot crash Auto Pilot after service health.",
             "Staging and Production OAuth hosts, client identities, resource values, and scope authorities remain environment-separated.",
-            "GPT Actions no-PKCE compatibility is disabled by default and may only be enabled explicitly for the canonical client in the selected environment.",
+            "GPT Actions no-PKCE compatibility defaults to confidential-client mode only for the canonical client in the selected environment; explicit false is a strict-PKCE kill switch.",
+            "Authorization codes remain bound to client ID, canonical redirect URI, resource, and the selected PKCE/confidential-client mode; wrong secret, redirect, resource, replay, and mode downgrade attempts are rejected.",
             "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
             "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
             "Environment impact is derived from the canonical deployment/domain policies, shared runtime changes declare both affected environments, and Staging certification remains mandatory.",
@@ -87,6 +88,7 @@
             ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-auth-oauth-routes.mjs",
+            "http-generic-api/tenantGptOAuthPkce.js",
             "http-generic-api/test-staging-environment-certification-contract.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-environment-impact-closure.mjs",

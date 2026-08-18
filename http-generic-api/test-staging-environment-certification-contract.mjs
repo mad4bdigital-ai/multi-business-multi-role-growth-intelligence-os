@@ -12,6 +12,13 @@ const authorityScript = path.join(apiRoot, "scripts/staging-environment-authorit
 const impactScript = path.join(apiRoot, "scripts/environment-impact-closure.mjs");
 const liveScript = path.join(apiRoot, "scripts/staging-live-certification.mjs");
 const expectedCommit = "1".repeat(40);
+const expectedTree = "2".repeat(40);
+const expectedContextFileSet = "3".repeat(64);
+const expectedImageDigest = `sha256:${"4".repeat(64)}`;
+assert.match(fs.readFileSync(liveScript, "utf8"), /STAGING_CERT_EXPECTED_TREE/);
+assert.match(fs.readFileSync(liveScript, "utf8"), /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
+assert.match(fs.readFileSync(liveScript, "utf8"), /app_image_digest_exact/);
+assert.match(fs.readFileSync(liveScript, "utf8"), /artifact_set/);
 
 const staticReport = path.join(os.tmpdir(), `staging-authority-${process.pid}.json`);
 const impactReport = path.join(os.tmpdir(), `staging-impact-${process.pid}.json`);
@@ -76,6 +83,14 @@ function deploymentBody({ commit = expectedCommit, databaseReady = true } = {}) 
     commit,
     commit_sha: commit,
     app_env: "staging",
+    deployment: {
+      present: true,
+      commit_sha: commit,
+      tree_sha: expectedTree,
+      context_file_set_sha256: expectedContextFileSet,
+      image_digest: expectedImageDigest,
+      secrets_included: false,
+    },
     runtime_integrity: {
       contract: "mad4b.runtime-integrity.v1",
       state: "verified",
@@ -167,6 +182,9 @@ function runLive(extraEnv = {}) {
         ...process.env,
         STAGING_CERT_EXPECTED_COMMIT: expectedCommit,
         STAGING_CERT_EXPECTED_BRANCH: "main",
+        STAGING_CERT_EXPECTED_TREE: expectedTree,
+        STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256: expectedContextFileSet,
+        STAGING_CERT_APP_IMAGE_ID: expectedImageDigest,
         STAGING_CERT_APP_BASE_URL: app.baseUrl,
         STAGING_CERT_REQUIRE_GATEWAY: "true",
         STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
@@ -202,6 +220,10 @@ try {
   assert.deepEqual(ready.report.blocking_failures, []);
   assert.deepEqual(ready.report.degraded_reasons, []);
   assert.equal(ready.report.gateway.expected_source_commit, expectedCommit);
+  assert.equal(ready.report.artifact_set.complete, true);
+  assert.equal(ready.report.artifact_set.app.tree_sha, expectedTree);
+  assert.equal(ready.report.artifact_set.app.context_file_set_sha256, expectedContextFileSet);
+  assert.equal(ready.report.artifact_set.app.image_digest, expectedImageDigest);
   assert.equal(ready.report.safety.database_mutation, false);
   assert.equal(ready.report.safety.migration_apply, false);
   assert.equal(ready.report.safety.production_deploy, false);
