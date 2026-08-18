@@ -259,6 +259,7 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   const semanticClass = constitution.semantic_executable_classes.find((entry) => entry.id === "production_promotion_governance");
   assert.ok(semanticClass?.patterns.includes(".github/scripts/production-promotion-*.mjs"));
   for (const controlPath of [
+    ".changes/e2e/production-promotion-release-cut-controller.json",
     ".github/scripts/production-promotion-rehearsal.mjs",
     ".github/workflows/production-promotion-rehearsal.yml",
   ]) {
