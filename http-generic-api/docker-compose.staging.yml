@@ -55,8 +55,13 @@ services:
 
   app:
     build:
-      context: ..
+      context: ${STAGING_BUILD_CONTEXT:?set STAGING_BUILD_CONTEXT by Start-AutoPilot}
       dockerfile: http-generic-api/Dockerfile.staging
+      args:
+        STAGING_BUILD_COMMIT: ${DEPLOY_COMMIT:?set DEPLOY_COMMIT in .env.staging}
+        STAGING_BUILD_BRANCH: ${DEPLOY_BRANCH:-main}
+        STAGING_BUILD_TREE: ${STAGING_BUILD_TREE:?set STAGING_BUILD_TREE by Start-AutoPilot}
+        STAGING_BUILD_CONTEXT_FILE_SET_SHA256: ${STAGING_BUILD_CONTEXT_FILE_SET_SHA256:?set STAGING_BUILD_CONTEXT_FILE_SET_SHA256 by Start-AutoPilot}
     # Staging ingress is internal-only; cloudflared reaches http://app:8080.
     # An optional operator override may publish a localhost port when needed.
     ports: []
@@ -69,6 +74,7 @@ services:
       DEPLOYMENT_EXPECTED_COMMIT_SHA: ${DEPLOYMENT_EXPECTED_COMMIT_SHA:?set DEPLOYMENT_EXPECTED_COMMIT_SHA in .env.staging}
       DEPLOY_COMMIT: ${DEPLOY_COMMIT:?set DEPLOY_COMMIT in .env.staging}
       DEPLOY_BRANCH: ${DEPLOY_BRANCH:-main}
+      STAGING_APP_IMAGE_ID: ${STAGING_APP_IMAGE_ID:-}
       DB_HOST: runtime-db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:?set DB_NAME in .env.staging}

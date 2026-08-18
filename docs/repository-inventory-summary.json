@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7166,
-    "bytes": 69853183,
-    "lines": 1640943,
+    "files": 7187,
+    "bytes": 70075026,
+    "lines": 1645316,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2150,
-      "documentation": 1907,
-      "api-runtime": 1437,
+      "tests-and-specs": 2158,
+      "documentation": 1908,
+      "api-runtime": 1442,
       "database-migrations": 783,
-      "root-and-other": 286,
+      "root-and-other": 292,
       "api-contracts": 191,
-      "ci-workflows": 168,
+      "ci-workflows": 169,
       "ci-config": 112,
       "schemas-and-data": 70,
       "connectors-and-edge": 29,
@@ -26,14 +26,14 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2508,
-      ".mjs": 1691,
+      ".md": 2509,
+      ".mjs": 1703,
       ".js": 992,
+      ".json": 798,
       ".sql": 798,
-      ".json": 793,
-      ".yml": 171,
+      ".yml": 172,
       ".yaml": 119,
-      ".ps1": 16,
+      ".ps1": 17,
       ".ts": 16,
       ".cs": 14,
       ".jsx": 9,
@@ -41,6 +41,7 @@
       ".py": 5,
       ".example": 3,
       ".css": 3,
+      ".dockerignore": 2,
       ".csproj": 2,
       ".cmd": 2,
       ".toml": 2,
@@ -51,7 +52,6 @@
       ".jsonl": 1,
       ".jsonc": 1,
       ".htaccess": 1,
-      ".dockerignore": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
       ".staging": 1,
@@ -61,21 +61,22 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3689,
-      "docs": 1811,
-      "specs": 879,
-      ".github": 280,
-      ".changes": 258,
+      "http-generic-api": 3701,
+      "docs": 1812,
+      "specs": 880,
+      ".github": 281,
+      ".changes": 262,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
-      "autopilot-portable-staging": 18,
+      "autopilot-portable-staging": 19,
       "scripts": 18,
       "schemas": 17,
       "edge": 16,
       ".specify": 15,
       "src": 12,
       "tests": 3,
+      ".dockerignore": 1,
       ".gitattributes": 1,
       ".gitignore": 1,
       ".nvmrc": 1,
@@ -243,10 +244,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 168,
+    "workflows": 169,
     "migrations": 783,
     "apiContracts": 191,
-    "testSpecFiles": 2236
+    "testSpecFiles": 2244
   },
   "largestFiles": [
     {
@@ -330,8 +331,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 245456,
-      "lines": 2099
+      "bytes": 256365,
+      "lines": 2232
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",

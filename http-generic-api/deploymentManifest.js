@@ -19,7 +19,7 @@ function normalizeDeploymentBranch(value) {
   return branch.toLowerCase() === "main" ? "main" : branch;
 }
 
-function normalizeManifest(raw = {}, source = "unknown") {
+function normalizeManifest(raw = {}, source = "unknown", env = process.env) {
   return {
     source,
     repository: String(raw.repository || "").trim(),
@@ -27,6 +27,12 @@ function normalizeManifest(raw = {}, source = "unknown") {
     branch_source: String(raw.branch_source || "").trim(),
     commit_sha: String(raw.commit_sha || raw.commit || raw.sha || "").trim(),
     commit_source: String(raw.commit_source || "").trim(),
+    tree_sha: String(raw.tree_sha || "").trim().toLowerCase(),
+    tree_source: String(raw.tree_source || "").trim(),
+    context_file_set_sha256: String(raw.context_file_set_sha256 || "").trim().toLowerCase(),
+    context_source: String(raw.context_source || "").trim(),
+    image_digest: String(raw.image_digest || raw.image_id || env.STAGING_APP_IMAGE_ID || "").trim(),
+    secrets_included: raw.secrets_included === false ? false : null,
     deployed_at: String(raw.deployed_at || "").trim(),
     service_version: String(raw.service_version || raw.version || "").trim(),
     build_source: String(raw.build_source || "").trim(),
@@ -38,7 +44,7 @@ export function readDeploymentManifest(env = process.env) {
   if (inlineManifest) {
     return {
       ok: true,
-      manifest: normalizeManifest(inlineManifest, "env:DEPLOYMENT_MANIFEST_JSON"),
+      manifest: normalizeManifest(inlineManifest, "env:DEPLOYMENT_MANIFEST_JSON", env),
     };
   }
 
@@ -65,7 +71,7 @@ export function readDeploymentManifest(env = process.env) {
     }
     return {
       ok: true,
-      manifest: normalizeManifest(parsed, path),
+      manifest: normalizeManifest(parsed, path, env),
     };
   }
 

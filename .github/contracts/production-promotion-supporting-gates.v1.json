@@ -3,6 +3,17 @@
   "version": 1,
   "gates": [
     {
+      "id": "staging_live_certification",
+      "label": "Staging Live Certification",
+      "workflow": "staging-live-certification.yml",
+      "required": true,
+      "effect": "read_only",
+      "modes": ["human", "ai_policy"],
+      "inputs": {
+        "expected_candidate_sha": "{{candidate_sha}}"
+      }
+    },
+    {
       "id": "frontend_surface_dispatch",
       "label": "Frontend surface dispatch",
       "workflow": "frontend-surface-dispatch.yml",

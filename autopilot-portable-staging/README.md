@@ -97,3 +97,9 @@ Stop the local services without deleting SSD data:
 Do not use `docker compose down -v` unless you intentionally want to delete the bind-mounted Redis, app, Runtime DB, Governance DB, and Persistence DB data. If the SSD is moved to another Windows machine, run `-ValidateOnly` first; the launcher will stop on Docker/WSL2/context/commit/manifest mismatch instead of modifying the environment.
 
 Production remains on Hostinger Cloud and never uses the local `.env.staging`, local bind mounts, Staging tunnel token, or Staging Tunnel identity. `mcp.mad4b.com`, `activation.mad4b.com`, and `auth.mad4b.com` are not valid local targets. `activation-dev.mad4b.com` is valid only through the independent Staging Activation Gateway Worker, not through the local Tunnel.
+
+## Exact Git build context and artifact provenance
+
+Every non-`ValidateOnly` Staging run prepares `.staging-build-context/` from the exact pinned `main` commit using `http-generic-api/scripts/prepare-staging-build-context.mjs`. The context is generated from `git archive`, carries only the tracked tree plus secret-free provenance metadata, and is removed by Auto Pilot when the process exits. The root `.dockerignore` remains deny-by-default, while the ignored local `http-generic-api/.env.staging` is never copied into the image.
+
+Auto Pilot builds the `app` image from this context, reads the content-addressed `sha256:` image ID, stores it as the local-only `STAGING_APP_IMAGE_ID`, and passes the exact tree/file-set values to live certification. Certification will not report `ready` unless the app commit/tree/context/image identity and the optional Staging Gateway source commit/policy digest agree. These values are non-secret provenance evidence; `.env.staging`, tunnel tokens, OAuth secrets, and database passwords remain local-only and are never written to the manifest or evidence.

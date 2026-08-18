@@ -35,6 +35,7 @@ const TENANT_SCOPE_LINKS = [
 const TENANT_SCOPE = TENANT_SCOPE_LINKS.join(" ");
 const AUTH_RESOURCE = "https://auth.mad4b.com";
 const ACTIVATION_RESOURCE = "https://activation.mad4b.com";
+const ACTIVATION_AUTHORIZATION_SERVER = "https://activation.mad4b.com";
 const PKCE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 const PKCE_CHALLENGE = deriveTenantGptPkceChallenge(PKCE_VERIFIER);
 
@@ -73,6 +74,57 @@ const confidentialMode = resolveTenantGptPkceMode({
   env: { TENANT_GPT_OAUTH_CLIENT_ID: "mad4b-tenant-gpt", TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true" },
 });
 assert("confidential compatibility requires client secret", confidentialMode.pkce_mode === "confidential_client" && confidentialMode.client_secret_required === true);
+const productionDefaultConfidentialMode = resolveTenantGptPkceMode({ clientId: "mad4b-tenant-gpt", env: { TENANT_GPT_OAUTH_CLIENT_ID: "mad4b-tenant-gpt" } });
+assert("Production canonical client defaults to GPT Actions compatibility", productionDefaultConfidentialMode.pkce_mode === "confidential_client");
+const stagingConfidentialMode = resolveTenantGptPkceMode({
+  clientId: "mad4b-tenant-gpt-staging",
+  env: {
+    NODE_ENV: "staging",
+    REMOTE_MCP_ENVIRONMENT: "staging",
+    TENANT_GPT_STAGING_OAUTH_CLIENT_ID: "mad4b-tenant-gpt-staging",
+    TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true",
+  },
+});
+assert("Staging GPT Actions confidential compatibility requires client secret", stagingConfidentialMode.pkce_mode === "confidential_client" && stagingConfidentialMode.client_secret_required === true);
+const stagingDefaultConfidentialMode = resolveTenantGptPkceMode({
+  clientId: "mad4b-tenant-gpt-staging",
+  env: {
+    NODE_ENV: "staging",
+    REMOTE_MCP_ENVIRONMENT: "staging",
+    TENANT_GPT_STAGING_OAUTH_CLIENT_ID: "mad4b-tenant-gpt-staging",
+  },
+});
+assert("Staging canonical client defaults to GPT Actions compatibility", stagingDefaultConfidentialMode.pkce_mode === "confidential_client");
+let strictStagingRollback = false;
+try {
+  resolveTenantGptPkceMode({
+    clientId: "mad4b-tenant-gpt-staging",
+    env: {
+      NODE_ENV: "staging",
+      REMOTE_MCP_ENVIRONMENT: "staging",
+      TENANT_GPT_STAGING_OAUTH_CLIENT_ID: "mad4b-tenant-gpt-staging",
+      TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "false",
+    },
+  });
+} catch (error) {
+  strictStagingRollback = error.code === "oauth_pkce_required";
+}
+assert("Staging explicit false restores strict PKCE", strictStagingRollback);
+let rejectedProductionClientInStaging = false;
+try {
+  resolveTenantGptPkceMode({
+    clientId: "mad4b-tenant-gpt",
+    env: {
+      NODE_ENV: "staging",
+      REMOTE_MCP_ENVIRONMENT: "staging",
+      TENANT_GPT_STAGING_OAUTH_CLIENT_ID: "mad4b-tenant-gpt-staging",
+      TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true",
+    },
+  });
+} catch (error) {
+  rejectedProductionClientInStaging = error.code === "oauth_pkce_required";
+}
+assert("Staging rejects the Production GPT client", rejectedProductionClientInStaging);
 let rejectedPublicClient = false;
 try {
   resolveTenantGptPkceMode({ clientId: "other-client", env: { TENANT_GPT_OAUTH_CLIENT_ID: "mad4b-tenant-gpt", TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true" } });
@@ -312,6 +364,15 @@ try {
   }
 
   {
+    const noPkceResult = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}`,
+    );
+    assert("GPT Actions authorize without PKCE reaches the Production UI", noPkceResult.status === 200, `${noPkceResult.status}`);
+    assert("no-PKCE Production UI records confidential-client mode", noPkceResult.text.includes('const PKCE_MODE = "confidential_client"'), noPkceResult.text.slice(0, 240));
+  }
+
+  {
     const result = await getText(
       baseUrl,
       `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&language=ar-EG&code_challenge=${encodeURIComponent(PKCE_CHALLENGE)}&code_challenge_method=S256`,
@@ -331,6 +392,8 @@ try {
     assert("authorization metadata publishes the platform issuer", authorizationMetadata.issuer === AUTH_RESOURCE, JSON.stringify(authorizationMetadata));
     assert("authorization metadata publishes the authorization endpoint", authorizationMetadata.authorization_endpoint === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(authorizationMetadata));
     assert("authorization metadata publishes the token endpoint", authorizationMetadata.token_endpoint === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata declares Production environment", authorizationMetadata["x-mad4b-oauth-compatibility"]?.environment === "production", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata declares the Production confidential client", authorizationMetadata["x-mad4b-oauth-compatibility"]?.confidential_client_id === "mad4b-tenant-gpt", JSON.stringify(authorizationMetadata));
     assert("authorization metadata declares resource support", authorizationMetadata.resource_parameter_supported === true, JSON.stringify(authorizationMetadata));
 
     const protectedResourceResult = await getText(baseUrl, "/.well-known/oauth-protected-resource", {
@@ -339,7 +402,7 @@ try {
     const protectedResource = JSON.parse(protectedResourceResult.text);
     assert("protected resource metadata is public", protectedResourceResult.status === 200, `${protectedResourceResult.status}`);
     assert("protected resource metadata identifies Activation", protectedResource.resource === ACTIVATION_RESOURCE, JSON.stringify(protectedResource));
-    assert("protected resource metadata links the authorization server", protectedResource.authorization_servers?.includes(AUTH_RESOURCE), JSON.stringify(protectedResource));
+    assert("protected resource metadata links the Activation authorization server", protectedResource.authorization_servers?.includes(ACTIVATION_AUTHORIZATION_SERVER), JSON.stringify(protectedResource));
     assert("protected resource metadata requires bearer header usage", protectedResource.bearer_methods_supported?.includes("header"), JSON.stringify(protectedResource));
   }
 

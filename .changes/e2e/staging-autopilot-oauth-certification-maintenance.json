@@ -1,0 +1,104 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-autopilot-oauth-certification-maintenance",
+  "title": "Staging Auto Pilot and environment-aware OAuth certification maintenance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
+      "autopilot-portable-staging/**",
+      "http-generic-api/**",
+      "specs/021-portable-staging-autopilot/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep Staging Auto Pilot lifecycle, shared OAuth behavior, environment authority, and exact certification evidence within one reviewed cross-environment maintenance PR without Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-autopilot-oauth-certification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator and governed CI",
+          "entrypoint": "The local Staging One-Click Auto Pilot evaluates an exact main candidate and the Tenant GPT OAuth contract.",
+          "terminal_outcome": "The lifecycle passes logging, eligibility, service readiness, environment authority, OAuth metadata/PKCE compatibility, certification, and fail-closed Production boundaries.",
+          "steps": [
+            "Validate the exact candidate and the local-only Staging deployment boundary.",
+            "Preserve existing local secrets while filling only missing non-secret compatibility defaults.",
+            "Validate GPT Actions-compatible OAuth authorization and token contracts independently for Staging and Production identities.",
+            "Run service health, certification, provenance, readback, and redacted evidence checks.",
+            "Reject migrations, grants, provider mutations, Production deployment, and credential payload exposure.",
+            "Confirm the resulting evidence is bound to the exact candidate SHA."
+          ],
+          "assertions": [
+            "The invalid warn log level cannot crash Auto Pilot after service health.",
+            "Staging and Production OAuth hosts, client identities, resource values, and scope authorities remain environment-separated.",
+            "GPT Actions no-PKCE compatibility defaults to confidential-client mode only for the canonical client in the selected environment; explicit false is a strict-PKCE kill switch.",
+            "Authorization codes remain bound to client ID, canonical redirect URI, resource, and the selected PKCE/confidential-client mode; wrong secret, redirect, resource, replay, and mode downgrade attempts are rejected.",
+            "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
+            "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
+            "Environment impact is derived from the canonical deployment/domain policies, shared runtime changes declare both affected environments, and Staging certification remains mandatory.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-autopilot-oauth-contract-suite",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-environment-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-certification-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-auth-oauth-routes.mjs",
+            "http-generic-api/tenantGptOAuthPkce.js",
+            "http-generic-api/test-staging-environment-certification-contract.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "docs/governance/production-readiness-consolidated-fix.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -83,7 +83,7 @@ function Write-ServiceFailureDiagnostics([string]$Service, [string]$ContainerId)
         Write-Host "SERVICE_HEALTH_DIAGNOSTICS: service=$Service container=$ContainerId" -ForegroundColor Red
         if (-not [string]::IsNullOrWhiteSpace($logs)) { Write-Host $logs -ForegroundColor DarkRed }
     } catch {
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "health:$Service" -Message "service diagnostics collection failed" -Data @{ service = $Service; error = $_.Exception.Message }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "health:$Service" -Message "service diagnostics collection failed" -Data @{ service = $Service; error = $_.Exception.Message }
     }
 }
 function Wait-ServiceHealthy([string[]]$ComposeArgs, [string]$Service) {
@@ -157,7 +157,7 @@ function Quarantine-KnownBackupFiles([string]$RepoPath) {
         New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
         $destination = Join-Path $backupRoot ("{0}-{1}{2}" -f $file.BaseName, (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss"), $file.Extension)
         Move-Item -LiteralPath $file.FullName -Destination $destination -Force
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "working-tree" -Message "quarantined known AutoPilot backup outside repository" -Data @{ source = $file.Name; destination = $destination }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "working-tree" -Message "quarantined known AutoPilot backup outside repository" -Data @{ source = $file.Name; destination = $destination }
     }
 }
 
@@ -173,6 +173,9 @@ $EnvExample = Join-Path $ApiPath ".env.staging.example"
 $EnvFile = Join-Path $ApiPath ".env.staging"
 $Manifest = Join-Path $scriptRoot "manifest.json"
 $StateFile = Join-Path $scriptRoot "autopilot-state.json"
+$CertificationScript = Join-Path $scriptRoot "Invoke-StagingCertification.ps1"
+$BuildContextScript = Join-Path $ApiPath "scripts/prepare-staging-build-context.mjs"
+$BuildContextPath = Join-Path $RepositoryPath ".staging-build-context"
 
 Require-Command "git"
 Require-Command "docker"
@@ -186,6 +189,7 @@ if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (T
 }
 
 if (-not (Test-Path (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
+if (-not (Test-Path -LiteralPath $CertificationScript)) { Fail "Staging certification helper is missing: $CertificationScript" }
 Assert-Sha $ExpectedCommit
 
 if ($env:DOCKER_HOST) { Fail "DOCKER_HOST is set; refusing a remote Docker daemon" }
@@ -221,6 +225,14 @@ try {
         $actual = (Get-FileHash -Algorithm SHA256 $full).Hash.ToLowerInvariant()
         if ($actual -ne $entry.sha256.ToLowerInvariant()) { Fail "Manifest hash mismatch: $($entry.path)" }
     }
+    if (-not (Test-Path $BuildContextScript)) { Fail "Exact Git build context generator is missing: $BuildContextScript" }
+    $buildTree = Get-NativeText "git" @("rev-parse", "$ExpectedCommit^{tree}")
+    if ($buildTree -notmatch '^[0-9a-fA-F]{40}$') { Fail "Pinned commit tree readback is not an exact SHA" }
+    Invoke-Native "node" @($BuildContextScript, "--repository-path", $RepositoryPath, "--commit", $ExpectedCommit.ToLowerInvariant(), "--output-dir", $BuildContextPath)
+    $buildContextMetadataPath = Join-Path $BuildContextPath ".staging-build-context.json"
+    if (-not (Test-Path $buildContextMetadataPath)) { Fail "Exact Git build context provenance metadata is missing" }
+    try { $buildContextMetadata = Get-Content -Raw -LiteralPath $buildContextMetadataPath | ConvertFrom-Json } catch { Fail "Exact Git build context provenance metadata is invalid" }
+    if ([string]$buildContextMetadata.commit_sha -ne $ExpectedCommit.ToLowerInvariant() -or [string]$buildContextMetadata.tree_sha -ne $buildTree.ToLowerInvariant() -or [string]$buildContextMetadata.source -ne "git_archive_exact_commit" -or $buildContextMetadata.local_ignored_files_included -ne $false -or $buildContextMetadata.secrets_included -ne $false) { Fail "Exact Git build context provenance did not converge" }
 
     if (-not (Test-Path $EnvFile)) {
         Copy-Item $EnvExample $EnvFile
@@ -263,6 +275,8 @@ try {
         }
     }
     Set-Content -Encoding utf8 $EnvFile $envText
+    Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
+    Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
     Ensure-EnvDefault $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
     Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
@@ -270,6 +284,9 @@ try {
     Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_BRANCH" $Ref
+    Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT" (([IO.Path]::GetFullPath($BuildContextPath)) -replace '\\','/')
+    Set-EnvValue $EnvFile "STAGING_BUILD_TREE" $buildTree.ToLowerInvariant()
+    Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $StartTunnel) { Fail "StartTunnel requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
@@ -299,8 +316,16 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services stopped"
         return
     }
+    if (-not $SkipBuild) {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context"
+        Invoke-Native "docker" ($composeArgs + @("build", "app"))
+    }
+    $imageId = Get-NativeText "docker" ($composeArgs + @("images", "-q", "app"))
+    if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest" }
+    Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
+    Assert-UniqueEnvKeys $EnvFile
+    Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
     $upArgs = $composeArgs + @("up", "-d")
-    if (-not $SkipBuild) { $upArgs += "--build" }
     Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
     Invoke-Native "docker" $upArgs
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
@@ -310,10 +335,47 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel started" -Data @{ hostnames = "dev.mad4b.com,mcp_dev.mad4b.com" }
     }
     Invoke-Native "docker" ($composeArgs + @("ps"))
-    Set-Content -Encoding utf8 $StateFile (@{ commit=$ExpectedCommit; ref=$Ref; docker_context=$context; tunnel_started=[bool]$StartTunnel; migration_applied=$false; database_mutated=$false; generated_at=(Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json)
-    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel=$StartTunnel; commit=$ExpectedCommit"
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$StartTunnel; services = "redis,runtime-db,governance-db,persistence-db,app" }
+
+    $baseState = @{
+        commit = $ExpectedCommit
+        ref = $Ref
+        docker_context = $context
+        build_context_source = "git_archive_exact_commit"
+        build_tree_sha = $buildTree.ToLowerInvariant()
+        build_context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256
+        app_image_digest = $imageId.ToLowerInvariant()
+        tunnel_started = [bool]$StartTunnel
+        certification_status = "pending"
+        certification_ready = $false
+        migration_applied = $false
+        database_mutated = $false
+        production_deploy = $false
+        provider_mutation = $false
+        ruleset_mutation = $false
+        secrets_included = $false
+        generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    Set-Content -Encoding utf8 $StateFile ($baseState | ConvertTo-Json -Depth 8)
+
+    $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $CertificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $ExpectedCommit, "-Ref", $Ref, "-StatePath", $StateFile)
+    if ($StartTunnel) { $certArgs += "-StartTunnel" }
+    Write-StagingLog -Level info -Component $LogComponent -Stage "certification" -Message "same-cycle Staging certification started" -Data @{ commit = $ExpectedCommit; gateway_enabled = [bool]$activationGatewayEnabled }
+    & powershell.exe @certArgs
+    if ($LASTEXITCODE -ne 0) { Fail "Staging certification blocked exact commit $ExpectedCommit" }
+    try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
+    catch { Fail "Staging certification state could not be read" }
+    if ($certState.certification_status -eq "degraded") {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "Staging is running but not release-ready" -Data @{ commit = $ExpectedCommit; degraded_reasons = @($certState.certification_degraded_reasons); database_readiness = $certState.database_readiness }
+    } elseif ($certState.certification_status -eq "ready") {
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "success" -Message "Staging exact commit certified ready" -Data @{ commit = $ExpectedCommit; database_readiness = $certState.database_readiness }
+    } else {
+        Fail "Unsupported Staging certification state: $($certState.certification_status)"
+    }
+
+    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel=$StartTunnel; commit=$ExpectedCommit certification=$($certState.certification_status)"
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$StartTunnel; services = "redis,runtime-db,governance-db,persistence-db,app"; certification_status = $certState.certification_status }
     Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
 } finally {
     Pop-Location
+    if (Test-Path -LiteralPath $BuildContextPath) { Remove-Item -LiteralPath $BuildContextPath -Recurse -Force -ErrorAction SilentlyContinue }
 }

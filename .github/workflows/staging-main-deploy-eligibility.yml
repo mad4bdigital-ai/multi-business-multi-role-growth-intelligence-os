@@ -22,6 +22,7 @@ jobs:
       EXPECTED_REF: ${{ github.ref_name }}
       EXPECTED_REPOSITORY: ${{ github.repository }}
       STAGING_DEPLOY_ONLY: "true"
+      STAGING_AUTHORITY_REPORT_FILE: .artifacts/staging-environment-authority-closure/report.json
     steps:
       - name: Checkout exact main event commit
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -50,6 +51,20 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
           test "$STAGING_DEPLOY_ONLY" = "true"
 
+      - name: Verify Staging environment authority closure
+        run: >-
+          node http-generic-api/scripts/staging-environment-authority-closure.mjs
+          --expected-sha "$EXPECTED_HEAD_SHA"
+          --report-file "$STAGING_AUTHORITY_REPORT_FILE"
+
+      - name: Verify environment impact and migration compatibility closure
+        env:
+          ENVIRONMENT_IMPACT_REPORT_FILE: ${{ runner.temp }}/environment-impact-closure/report.json
+        run: >-
+          node http-generic-api/scripts/environment-impact-closure.mjs
+          --head-sha "$EXPECTED_HEAD_SHA"
+          --report-file "$ENVIRONMENT_IMPACT_REPORT_FILE"
+
       - name: Verify repository derived-state closure
         env:
           DERIVED_STATE_REPORT_FILE: ${{ runner.temp }}/staging-derived-state-closure/report.json
@@ -68,6 +83,7 @@ jobs:
       - name: Verify Staging topology and environment isolation
         run: |
           node http-generic-api/test-staging-autopilot-closure.mjs
+          node http-generic-api/test-staging-environment-certification-contract.mjs
           node http-generic-api/test-staging-openapi-mcp-db-boundary.mjs
           node http-generic-api/test-staging-runtime-oauth-profile.mjs
           node http-generic-api/test-staging-three-db-topology.mjs
@@ -88,25 +104,37 @@ jobs:
 
       - name: Publish fail-closed eligibility evidence
         run: |
-          node --input-type=module - "$EXPECTED_REPOSITORY" "$EXPECTED_REF" "$EXPECTED_HEAD_SHA" <<'NODE'
+          node --input-type=module - "$EXPECTED_REPOSITORY" "$EXPECTED_REF" "$EXPECTED_HEAD_SHA" "$STAGING_AUTHORITY_REPORT_FILE" <<'NODE'
           import fs from "node:fs";
-          const [, , expectedRepository, expectedRef, expectedHeadSha] = process.argv;
+          const [, , expectedRepository, expectedRef, expectedHeadSha, authorityReportFile] = process.argv;
           if (!expectedRepository || !expectedRef || !/^[0-9a-f]{40}$/u.test(expectedHeadSha || "")) {
             throw new Error("Exact staging evidence identity arguments are required");
           }
           const registry = JSON.parse(fs.readFileSync("http-generic-api/canonical-business-operation-registry.json", "utf8"));
           const parity = JSON.parse(fs.readFileSync("http-generic-api/canonical-business-operation-parity.generated.json", "utf8"));
+          const authority = JSON.parse(fs.readFileSync(authorityReportFile, "utf8"));
           if (parity.safety?.production_mutation_allowed !== false) throw new Error("Production mutation safety gate is not false");
+          if (authority.converged !== true || authority.safety?.read_only !== true) throw new Error("Staging environment authority closure did not converge read-only");
           const evidence = {
-            contract: "mad4b.staging-main-deploy-eligibility.v1",
+            contract: "mad4b.staging-main-deploy-eligibility.v2",
             repository: expectedRepository,
             ref: expectedRef,
             exact_head_sha: expectedHeadSha,
             derived_state_closure: true,
+            environment_authority_closure: {
+              contract: authority.contract,
+              converged: authority.converged,
+              source_fingerprints: authority.source_fingerprints,
+              gateway_policy_hash: authority.gateway?.policy_hash || null,
+              db_authority_contract_status: authority.db_authority?.contract_status || null,
+              environment_contract_status: authority.environment_contract?.status || null
+            },
             staging_deploy_only: true,
             production_deploy: false,
             database_mutation: false,
+            migration_apply: false,
             provider_mutation: false,
+            ruleset_mutation: false,
             secrets_included: false,
             canonical_operation_count: registry.operations.length,
             parity_performance_gates: parity.performance_gates,

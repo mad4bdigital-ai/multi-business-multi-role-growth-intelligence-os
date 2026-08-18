@@ -9,8 +9,12 @@
       "sha256": "ad2ebc820c5e245bfaf2ae028f3626740a421d57024a1575102d0e2b7cd203b5"
     },
     {
+      "path": ".dockerignore",
+      "sha256": "dd1d9d460d74973e6993dceffec2bdc968d3f610da2d3d6a76b7579ba8b661b1"
+    },
+    {
       "path": ".gitignore",
-      "sha256": "2d9ced5ef0c35f272984b057fd68853d689a284b3b2eb43c7c1e512e8fc83523"
+      "sha256": "1b150b0aecf2bf882cd06ecc6dac6aac3457641b7ce8c8ab29da1992c1960fe0"
     },
     {
       "path": "STAGING-WINDOWS.md",
@@ -18,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "cb08c7765664ae661dc1e71460cc719d72ec0fb05d6e72326fd6b4c0c36c2641"
+      "sha256": "1f30dd6c6ed2da64787761ccfd0a8d3e494cd8aadb147125a4db33134113f7e8"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,11 +34,11 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "d84bc32fe18f7da9afca17ebf6d0cca271c7a2e4adf4467d7aee9fd1e3751290"
+      "sha256": "d7fd28b30b9aaa7b9c3c22d735f9a9df0fb8871e9ea4c155ac1ffbaf513ac443"
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "0a0c5252d7563e78bd69c966d5d282a976ef6dc6118fe71dbfd19069d834dfb0"
+      "sha256": "b74ee8d7587f5c62e4362c5c67179e65eeae9eabbf2fb7755c3addfdd9c33ac7"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -58,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "aae90bdad3b67c080c844634a2c8a8cd8fb9d22cdeec98153dcff6a4296727d4"
+      "sha256": "5110eb308bb505042b755ac4506671a2341d26e892e0a5b4910960248940620e"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -74,7 +78,7 @@
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "7ed053d43c0d8dacf3c6d179af3ddccb7afe42a7346211925dab406c2543644f"
+      "sha256": "c584768eea4969e170de8b81fec0e956d1770f7dd32db203f46ac5b6254700fa"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -94,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "8d6e3eb3e5275e73bf6b80753c20d76e552d131fee56b75cf8c5e2feb7872f65"
+      "sha256": "57926b3d19dbbbc525231db97186fe3985e5a4ec0818ef259bcb02a27edabbf2"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -102,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "58f6b5a63838603bc0ec52f5df5c892a6da761d738faeb00cc757a4646c19091"
+      "sha256": "b0dc0e8328d6f8b70f80e9ebecd15cc0e5e3cf1a06fdfe9cdc6a65a75c2440f0"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -118,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "560b9df366e4339da6a9878e7f129c22d28c83ff5c274d4c9e92f43fe201a469"
+      "sha256": "39998da7ad4162028fb889e6e89bc8647fcc6776c55141ba73a3a7f938942b01"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -134,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "6a8adbd0e09e8d5fa32923cdbf6365a58e9f7b5ca6f8f5038167aeb5a52f7a1e"
+      "sha256": "c3d158cce32a9f622c668d92c98350bb3942d4adc6df63007ff21f32e17cf5ef"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -146,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "eeb9c1c42e7e068017f8e5c1e2f9c93284f66d73ce8ed1fcde4dab529c5a3abc"
+      "sha256": "6769a97f2340ede2af49d43166862b4c6193740ee0b18385bdc28c50d1d0fea2"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -166,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "cbdd63370ef7210e51824a65d0b9b9ab8566b9f9ab6cd9a9926e5e2e14d01f29"
+      "sha256": "d8dd292476d175cf96b58747268ac030b6abb34e1e3d0e0bb0714c96cdb88120"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -213,6 +217,10 @@
       "sha256": "3e0a6f339eb3c53d32c1cf29e3193475e6c686dee99e4433349d69bab8058021"
     },
     {
+      "path": "http-generic-api/scripts/prepare-staging-build-context.mjs",
+      "sha256": "047a62f1d2128b97fd98e07be7e132fb929f92a9d654879822c1ab95ec6987fe"
+    },
+    {
       "path": "http-generic-api/tenantGptOAuthClientConfig.js",
       "sha256": "785ec3aed0451b228784cbebb8eedea56f0682e0bbbd16f86a218521657587c5"
     },
@@ -234,7 +242,11 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "9bac02d3a23e4e0524afb748f88b8033d52ad2c2c966d6cd9db34c69744a7372"
+      "sha256": "f1a2ff671cddcf9fa98e5cc36b88893ff0f34635b295b53394a3d81d7b85ac94"
+    },
+    {
+      "path": "http-generic-api/test-staging-build-context-provenance.mjs",
+      "sha256": "f300e87e1910f2275ee0314b18b5f8ee24c5572056aa07807dcd31a17dae7422"
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
@@ -242,11 +254,11 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "bc57729f3dcdaaf29a76cf82b91d18771b492a2849d59936c8eecff17d116912"
+      "sha256": "2958f9defc7361865b25e1c0719af2660bbe39a348fd8630614fa6359cf80ec2"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "a3d2efd3f6f37d72f8ae622a0e61a49a8b0b47a0ca2efaea84c180c653ccaa72"
+      "sha256": "c0995936210a3599c160f9f40271aa2c23ca7f927bdd521b67d43666272b69db"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
@@ -254,7 +266,7 @@
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
-      "sha256": "879f3d7b09e7d4aa149bcce3a401ac57b0b81ca786d8da3fb2cb48717e9550f3"
+      "sha256": "304ad87818255f95301e66d7a21361cfddb37aa9f83a6bce412dd1408e3b15e6"
     },
     {
       "path": "http-generic-api/test-workspace-brand-create.mjs",
@@ -263,6 +275,30 @@
     {
       "path": "http-generic-api/workspaceBrandLifecycle.js",
       "sha256": "0ec71d94057d66f563c746e275c0153350663caf22e34ba3a55fab95d31a8337"
+    },
+    {
+      "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+      "sha256": "6bbe01e5a9bcfce608839077b94b516bf235b68f1ef44e2340061136144fcdca"
+    },
+    {
+      "path": "http-generic-api/deploymentManifest.js",
+      "sha256": "fe6fd465a5f7a5457dd079edbf601a972bee78ede878fd146a9cee148344c2e9"
+    },
+    {
+      "path": "http-generic-api/scripts/staging-live-certification.mjs",
+      "sha256": "335043b93fc83157c16c2fcb4ac8aebd566ddce5f5bf82348ec1ca9bbe31bb17"
+    },
+    {
+      "path": "http-generic-api/tenantGptOAuthPkce.js",
+      "sha256": "c53d05d9ed23ed4f5fe68d9d27331c1887a9e8a8de44a0ac7678ecb47dde6fa3"
+    },
+    {
+      "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "sha256": "27c30b8e71d1c9d1141ab5ae41ba3c2c4ab8ecaea76b0f102cc259d3509572af"
+    },
+    {
+      "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "sha256": "4a216afc3869be17514ea77e9818b89bac83847813f586db2562052426a714e5"
     }
   ],
   "safety": {

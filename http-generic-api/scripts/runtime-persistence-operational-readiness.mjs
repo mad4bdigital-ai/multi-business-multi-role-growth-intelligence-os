@@ -135,6 +135,18 @@ function normalizeError(error) {
   };
 }
 
+function readOnlyEvidence({ databaseConnectionPerformed = false, sqlReadbackPerformed = false } = {}) {
+  return {
+    read_only_probe: true,
+    database_connection_performed: databaseConnectionPerformed === true,
+    sql_readback_performed: sqlReadbackPerformed === true,
+    sql_mutation_performed: false,
+    migration_apply_performed: false,
+    provider_mutation_performed: false,
+    deployment_performed: false,
+  };
+}
+
 export async function runRuntimePersistenceOperationalReadiness({
   env = process.env,
   runtimePersistencePoolFactory = getRuntimePersistencePool,
@@ -153,6 +165,7 @@ export async function runRuntimePersistenceOperationalReadiness({
       provider_calls: 0,
       credential_payload_reads: 0,
       external_writes: 0,
+      ...readOnlyEvidence(),
       secrets_included: false,
     };
   }
@@ -179,6 +192,7 @@ export async function runRuntimePersistenceOperationalReadiness({
       provider_calls: 0,
       credential_payload_reads: 0,
       external_writes: 0,
+      ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
       secrets_included: false,
     };
   } catch (error) {
@@ -192,6 +206,10 @@ export async function runRuntimePersistenceOperationalReadiness({
       provider_calls: 0,
       credential_payload_reads: 0,
       external_writes: 0,
+      ...readOnlyEvidence({
+        databaseConnectionPerformed: Boolean(pool),
+        sqlReadbackPerformed: Boolean(pool),
+      }),
       secrets_included: false,
     };
   }
@@ -209,6 +227,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         status: "blocked",
         reason: "runtime_persistence_readiness_probe_failed",
         error: normalizeError(error),
+        read_only_probe: false,
+        sql_mutation_performed: null,
+        migration_apply_performed: null,
+        provider_mutation_performed: null,
+        deployment_performed: null,
         secrets_included: false,
       })}\n`);
       process.exitCode = 1;

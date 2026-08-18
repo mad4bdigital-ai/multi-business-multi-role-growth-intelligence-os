@@ -23,7 +23,7 @@ function Acquire-AutoPilotRunLock {
         if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Staging operation is already running; refusing overlapping Auto Deploy" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Staging operation lock acquired"
     } catch [System.Threading.AbandonedMutexException] {
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Staging operation lock"
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Staging operation lock"
     } catch {
         Fail "Unable to acquire Staging operation lock: $($_.Exception.Message)"
     }
@@ -104,7 +104,56 @@ function Read-State([string]$Path) {
 }
 
 function Write-State([string]$Path, [hashtable]$Value) {
-    Set-Content -Encoding utf8 -LiteralPath $Path -Value ($Value | ConvertTo-Json -Depth 6)
+    Set-Content -Encoding utf8 -LiteralPath $Path -Value ($Value | ConvertTo-Json -Depth 8)
+}
+
+function Get-CertificationState([string]$RuntimeStatePath, [string]$Sha) {
+    $runtime = Read-State $RuntimeStatePath
+    if (-not $runtime) { Fail "Staging runtime state is missing after deployment/certification" }
+    if ([string]$runtime.commit -ne $Sha) { Fail "Staging runtime state commit mismatch after deployment/certification" }
+    if ([string]$runtime.certified_commit -and ([string]$runtime.certified_commit).ToLowerInvariant() -ne $Sha) { Fail "Staging certified commit mismatch" }
+    if ([string]$runtime.certified_branch -and [string]$runtime.certified_branch -ne $Ref) { Fail "Staging certified branch mismatch" }
+    if ([string]$runtime.certification_status -notin @("ready", "degraded")) { Fail "Staging runtime state has unsupported certification status" }
+    return $runtime
+}
+
+function Write-AutoDeployState([string]$Sha, $Eligibility, $Runtime, [bool]$ValidatedOnly) {
+    if ($ValidatedOnly) {
+        Write-State $statePath @{
+            validated_commit = $Sha
+            ref = $Ref
+            eligibility_check = $Policy.eligibility_check_name
+            eligibility_completed_at = $Eligibility.completed_at
+            validate_only = $true
+            production_deploy = $false
+            database_mutated = $false
+            migration_applied = $false
+            generated_at = (Get-Date).ToUniversalTime().ToString("o")
+        }
+        return
+    }
+    Write-State $statePath @{
+        deployed_commit = $Sha
+        ref = $Ref
+        eligibility_check = $Policy.eligibility_check_name
+        eligibility_completed_at = $Eligibility.completed_at
+        tunnel_started = [bool]$StartTunnel
+        validate_only = $false
+        certification_contract = [string]$Runtime.certification_contract
+        certification_status = [string]$Runtime.certification_status
+        certification_ready = ($Runtime.certification_ready -eq $true)
+        certified_commit = [string]$Runtime.certified_commit
+        certified_branch = [string]$Runtime.certified_branch
+        certification_degraded_reasons = @($Runtime.certification_degraded_reasons)
+        database_readiness = [string]$Runtime.database_readiness
+        production_deploy = $false
+        database_mutated = $false
+        migration_applied = $false
+        provider_mutation = $false
+        ruleset_mutation = $false
+        secrets_included = $false
+        generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -112,7 +161,9 @@ if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = (Resolve-
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 $policyPath = Join-Path $scriptRoot "auto-deploy-policy.json"
 $statePath = Join-Path $scriptRoot "auto-deploy-state.json"
+$runtimeStatePath = Join-Path $scriptRoot "autopilot-state.json"
 $startScript = Join-Path $scriptRoot "Start-AutoPilot.ps1"
+$certificationScript = Join-Path $scriptRoot "Invoke-StagingCertification.ps1"
 $Policy = Get-Policy $policyPath
 Assert-Policy $Policy $Ref $ExpectedRepository
 
@@ -120,6 +171,7 @@ Require-Command "git"
 Require-Command "gh"
 Require-Command "powershell"
 if (-not (Test-Path -LiteralPath $startScript)) { Fail "Start-AutoPilot.ps1 is missing" }
+if (-not (Test-Path -LiteralPath $certificationScript)) { Fail "Invoke-StagingCertification.ps1 is missing" }
 Acquire-AutoPilotRunLock
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
 
@@ -129,13 +181,29 @@ while ($true) {
     $iteration++
     $sha = Get-RemoteMainSha $RepositoryPath $Ref
     $eligibility = Get-LatestEligibility $Policy $ExpectedRepository $sha
-    $alreadyDeployed = $previous -and ([string]$previous.deployed_commit).ToLowerInvariant() -eq $sha
-    $observation = ("AUTO_DEPLOY_OBSERVATION: ref={0} sha={1} eligibility={2} reason={3} already_deployed={4}" -f $Ref, $sha, $eligibility.state, $eligibility.reason, $alreadyDeployed)
+    $sameDeployedCommit = $previous -and ([string]$previous.deployed_commit).ToLowerInvariant() -eq $sha
+    $alreadyCertified = $sameDeployedCommit -and [string]$previous.certification_status -eq "ready" -and ([string]$previous.certified_commit).ToLowerInvariant() -eq $sha
+    $observation = ("AUTO_DEPLOY_OBSERVATION: ref={0} sha={1} eligibility={2} reason={3} deployed={4} certified={5}" -f $Ref, $sha, $eligibility.state, $eligibility.reason, $sameDeployedCommit, $alreadyCertified)
     Write-Host $observation
-    Write-StagingLog -Level info -Component $LogComponent -Stage "poll" -Message "auto-deploy observation" -Data @{ ref = $Ref; sha = $sha; eligibility = $eligibility.state; reason = $eligibility.reason; already_deployed = $alreadyDeployed }
+    Write-StagingLog -Level info -Component $LogComponent -Stage "poll" -Message "auto-deploy observation" -Data @{ ref = $Ref; sha = $sha; eligibility = $eligibility.state; reason = $eligibility.reason; deployed = $sameDeployedCommit; certified = $alreadyCertified }
 
-    if ($alreadyDeployed) {
+    if ($alreadyCertified) {
         if (-not $Watch) { Release-AutoPilotRunLock; return }
+    } elseif ($sameDeployedCommit -and -not $ValidateOnly -and $eligibility.state -eq "eligible") {
+        $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $certificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $sha, "-Ref", $Ref, "-StatePath", $runtimeStatePath)
+        if ($StartTunnel) { $certArgs += "-StartTunnel" }
+        Write-Host "> powershell.exe -File Invoke-StagingCertification.ps1 (re-certify exact deployed commit)"
+        & powershell.exe @certArgs
+        if ($LASTEXITCODE -ne 0) { Fail "Re-certification blocked deployed commit $sha; refusing blind redeploy" }
+        $runtimeState = Get-CertificationState $runtimeStatePath $sha
+        Write-AutoDeployState $sha $eligibility $runtimeState $false
+        $previous = Read-State $statePath
+        if ([string]$runtimeState.certification_status -eq "ready") {
+            Write-Host "AUTO_DEPLOY_CERTIFIED: staging commit=$sha"
+        } else {
+            Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "deployed commit remains degraded; watcher will re-certify without redeploy" -Data @{ sha = $sha; reasons = @($runtimeState.certification_degraded_reasons) }
+            if (-not $Watch) { Fail "Staging commit $sha is deployed but not certified ready" }
+        }
     } elseif ($eligibility.state -eq "eligible") {
         $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-Ref", $Ref, "-ExpectedCommit", $sha)
         if ($StartTunnel) { $pilotArgs += "-StartTunnel" }
@@ -144,22 +212,20 @@ while ($true) {
         Write-Host ("> powershell.exe -File Start-AutoPilot.ps1 {0}" -f ($pilotArgs -join " "))
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $startScript @pilotArgs
         if ($LASTEXITCODE -ne 0) { Fail "Start-AutoPilot.ps1 failed for eligible commit $sha" }
-        Write-State $statePath @{
-            deployed_commit = $sha
-            ref = $Ref
-            eligibility_check = $Policy.eligibility_check_name
-            eligibility_completed_at = $eligibility.completed_at
-            tunnel_started = [bool]$StartTunnel
-            validate_only = [bool]$ValidateOnly
-            production_deploy = $false
-            database_mutated = $false
-            migration_applied = $false
-            generated_at = (Get-Date).ToUniversalTime().ToString("o")
+        if ($ValidateOnly) {
+            Write-AutoDeployState $sha $eligibility $null $true
+            Write-Host "AUTO_DEPLOY_VALIDATED: staging commit=$sha; deployment state was not advanced"
+            if (-not $Watch) { Release-AutoPilotRunLock; return }
+            $previous = Read-State $statePath
+        } else {
+            $runtimeState = Get-CertificationState $runtimeStatePath $sha
+            Write-AutoDeployState $sha $eligibility $runtimeState $false
+            Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel=$StartTunnel certification=$($runtimeState.certification_status)"
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$StartTunnel; certification_status = $runtimeState.certification_status }
+            if ([string]$runtimeState.certification_status -eq "degraded" -and -not $Watch) { Fail "Staging commit $sha is running but not certified ready" }
+            if (-not $Watch) { Release-AutoPilotRunLock; return }
+            $previous = Read-State $statePath
         }
-        Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel=$StartTunnel"
-        Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$StartTunnel; validate_only = [bool]$ValidateOnly }
-        if (-not $Watch) { Release-AutoPilotRunLock; return }
-        $previous = Read-State $statePath
     } elseif ($eligibility.state -eq "blocked") {
         Fail "main commit $sha is blocked by CI eligibility: $($eligibility.reason)"
     } elseif (-not $Watch) {

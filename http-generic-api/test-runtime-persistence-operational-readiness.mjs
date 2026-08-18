@@ -29,6 +29,13 @@ assert.equal(missingResult.status, "blocked");
 assert.equal(missingResult.reason, "runtime_persistence_configuration_missing");
 assert.equal(missingResult.credential_payload_reads, 0);
 assert.equal(missingResult.external_writes, 0);
+assert.equal(missingResult.read_only_probe, true);
+assert.equal(missingResult.database_connection_performed, false);
+assert.equal(missingResult.sql_readback_performed, false);
+assert.equal(missingResult.sql_mutation_performed, false);
+assert.equal(missingResult.migration_apply_performed, false);
+assert.equal(missingResult.provider_mutation_performed, false);
+assert.equal(missingResult.deployment_performed, false);
 assert.equal(missingResult.secrets_included, false);
 assert.equal(JSON.stringify(missingResult).includes("test-only-secret"), false);
 
@@ -79,6 +86,13 @@ assert.equal(collationDeps.runtimePersistencePool, sentinelPool);
 assert.equal(readyResult.activation_contract.migration_file, "1048_transport_response_chunk_schema_recovery.sql");
 assert.equal(readyResult.activation_contract.collation_policy.table_collation, "utf8mb4_unicode_ci");
 assert.deepEqual(readyResult.activation_contract.required_operations, ["SELECT", "INSERT", "UPDATE", "DELETE"]);
+assert.equal(readyResult.read_only_probe, true);
+assert.equal(readyResult.database_connection_performed, true);
+assert.equal(readyResult.sql_readback_performed, true);
+assert.equal(readyResult.sql_mutation_performed, false);
+assert.equal(readyResult.migration_apply_performed, false);
+assert.equal(readyResult.provider_mutation_performed, false);
+assert.equal(readyResult.deployment_performed, false);
 assert.equal(readyResult.secrets_included, false);
 
 const blockedResult = await runRuntimePersistenceOperationalReadiness({
@@ -92,6 +106,8 @@ assert.equal(blockedResult.ok, false);
 assert.equal(blockedResult.status, "blocked");
 assert.equal(blockedResult.reason, "runtime_persistence_authority_schema_or_collation_not_ready");
 assert.equal(blockedResult.authority.missing_required[0], "INSERT");
+assert.equal(blockedResult.read_only_probe, true);
+assert.equal(blockedResult.sql_mutation_performed, false);
 assert.equal(blockedResult.secrets_included, false);
 
 const errorResult = await runRuntimePersistenceOperationalReadiness({
@@ -107,6 +123,10 @@ assert.equal(errorResult.status, "blocked");
 assert.equal(errorResult.reason, "runtime_persistence_readiness_probe_failed");
 assert.equal(errorResult.error.code, "ECONNREFUSED");
 assert.deepEqual(errorResult.activation_contract, RUNTIME_PERSISTENCE_ACTIVATION_CONTRACT);
+assert.equal(errorResult.read_only_probe, true);
+assert.equal(errorResult.database_connection_performed, false);
+assert.equal(errorResult.sql_readback_performed, false);
+assert.equal(errorResult.sql_mutation_performed, false);
 assert.equal(errorResult.secrets_included, false);
 
 console.log("runtime persistence operational readiness contract tests passed");

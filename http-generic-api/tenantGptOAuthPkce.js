@@ -9,6 +9,9 @@ export const TENANT_GPT_PKCE_MODE = Object.freeze({
   CONFIDENTIAL_CLIENT: "confidential_client",
 });
 
+export const TENANT_GPT_PRODUCTION_CLIENT_ID = "mad4b-tenant-gpt";
+export const TENANT_GPT_STAGING_CLIENT_ID = "mad4b-tenant-gpt-staging";
+
 function pkceError(code, message) {
   const error = new Error(message);
   error.code = code;
@@ -70,14 +73,40 @@ export function verifyTenantGptPkce({ codeChallenge, codeChallengeMethod, codeVe
   return true;
 }
 
+function isStagingRuntime(env = process.env) {
+  return String(env.NODE_ENV || "").trim().toLowerCase() === "staging"
+    || String(env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase() === "staging";
+}
+
+function resolveExpectedTenantGptClientId(env = process.env) {
+  return isStagingRuntime(env)
+    ? TENANT_GPT_STAGING_CLIENT_ID
+    : TENANT_GPT_PRODUCTION_CLIENT_ID;
+}
+
+function resolveConfiguredTenantGptClientId(env = process.env) {
+  const configured = isStagingRuntime(env)
+    ? env.TENANT_GPT_STAGING_OAUTH_CLIENT_ID
+    : env.TENANT_GPT_OAUTH_CLIENT_ID;
+  return String(configured || resolveExpectedTenantGptClientId(env)).trim();
+}
+
 export function isTenantGptConfidentialActionClient({ clientId, env = process.env } = {}) {
   const normalizedClientId = String(clientId || "").trim();
-  const productionClientId = String(env.TENANT_GPT_OAUTH_CLIENT_ID || "mad4b-tenant-gpt").trim();
-  const compatibilityEnabled = flagEnabled(
-    env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED,
-    false,
-  );
-  return compatibilityEnabled && normalizedClientId === productionClientId && normalizedClientId === "mad4b-tenant-gpt";
+  const expectedClientId = resolveExpectedTenantGptClientId(env);
+  const configuredClientId = resolveConfiguredTenantGptClientId(env);
+  const compatibilityFlag = env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED;
+  const compatibilityEnabled = compatibilityFlag === undefined || String(compatibilityFlag).trim() === ""
+    ? true
+    : flagEnabled(compatibilityFlag, false);
+
+  // GPT Actions may use a confidential-client authorization-code request without
+  // PKCE. Keep this compatibility path narrow: the default applies only to the
+  // canonical client ID in the current environment, while explicit false is a
+  // strict-PKCE kill switch.
+  return compatibilityEnabled
+    && configuredClientId === expectedClientId
+    && normalizedClientId === expectedClientId;
 }
 
 export function resolveTenantGptPkceMode({

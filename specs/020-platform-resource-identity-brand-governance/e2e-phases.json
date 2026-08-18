@@ -52,6 +52,8 @@
       "docs/governance/platform-configuration-entry-registry.json",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+      "http-generic-api/scripts/environment-impact-closure.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
       ".changes/e2e/platform-resource-identity-brand-governance-20260815.json",
       "http-generic-api/frontend-surface-policy.json",
       "http-generic-api/scripts/frontend-surface-dispatch.mjs",
@@ -131,6 +133,7 @@
             "No DB connection, migration, credential read, provider call, external send, or Production mutation occurs.",
             "The persisted OpenAPI detail-gap classification is regenerated deterministically from the current dispatch artifact, including the unified tenant userBearerAuth parity contract, and remains classification-only with zero blocking contract gaps.",
             "The persisted OpenAPI detail-gap classification and gap-closure plan source digests match the current Frontend surface-dispatch artifact at the exact evaluated HEAD.",
+            "Environment impact closure derives exact-SHA Staging/Production separation, schema and database compatibility, gateway ownership, and collision evidence read-only from registered sources of truth without applying migrations or mutating Production.",
             "Canonical refresh keeps Frontend operation/surface governance, Remote MCP write-scope inventory, and portable staging manifest artifacts digest-current without granting runtime authority or enabling provider or Production mutation.",
             "MCP catalog schema startup preflight is read-only, non-blocking, secret-free, and reports schema_contract_not_ready with migration_apply_performed=false when mcp_catalog_level is unavailable.",
             "GET /gpt/tools and POST /gpt/tools/call map MCP catalog schema drift to bounded HTTP 503 structured errors without exposing raw SQL messages on modern and legacy route builders.",
@@ -191,6 +194,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-openapi-all-remaining-preflight-batch.mjs",
+              "args": []
+            },
+            {
+              "id": "spec020-environment-impact-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
               "args": []
             },
             {
@@ -317,6 +327,8 @@
             "specs/020-platform-resource-identity-brand-governance/contracts/openapi-projection-readiness.schema.json",
             "docs/governance/configuration-drift-policy.json",
             "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/scripts/environment-impact-closure.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
             "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
             "http-generic-api/frontend-surface-policy.json",

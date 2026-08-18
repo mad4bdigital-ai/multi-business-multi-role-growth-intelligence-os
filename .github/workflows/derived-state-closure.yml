@@ -147,6 +147,19 @@ jobs:
           --base-sha "$BASE_SHA"
           --report-file "$REPORT"
 
+      - name: Verify environment impact and migration compatibility closure
+        id: environment_impact
+        continue-on-error: true
+        env:
+          REPORT: ${{ runner.temp }}/derived-state-closure/environment-impact.json
+          BASE_SHA: ${{ steps.target.outputs.base_sha }}
+          SOURCE_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
+        run: >-
+          node http-generic-api/scripts/environment-impact-closure.mjs
+          --base-sha "$BASE_SHA"
+          --head-sha "$SOURCE_HEAD_SHA"
+          --report-file "$REPORT"
+
       - name: Verify registered derived state in dependency order
         id: derived
         continue-on-error: true
@@ -232,6 +245,26 @@ jobs:
           args=(--mode "$MODE" --governance-report "$GOV_REPORT" --derived-report "$DERIVED_REPORT" --report-file "$OBJECTION_REPORT")
           if [[ "$MODE" == "finalizer" ]]; then args+=(--evidence-report "$EVIDENCE_REPORT"); fi
           node scripts/repository-governance-objection-gate.mjs "${args[@]}"
+
+      - name: Enforce environment impact closure
+        if: always()
+        shell: bash
+        env:
+          REPORT: ${{ runner.temp }}/derived-state-closure/environment-impact.json
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
+        run: |
+          set -euo pipefail
+          node - "$REPORT" "$EXPECTED_HEAD_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const [file, expectedSha] = process.argv.slice(2);
+          if (!fs.existsSync(file)) throw new Error('Environment impact report is missing; fail closed.');
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (report.contract !== 'mad4b.environment-impact-closure.v1') throw new Error('Environment impact contract mismatch.');
+          if (report.expected_head_sha !== expectedSha) throw new Error(`Environment impact SHA mismatch: ${report.expected_head_sha} != ${expectedSha}`);
+          if (report.converged !== true || report.issue_count !== 0) throw new Error(`Environment impact closure blocked: ${JSON.stringify(report.issues)}`);
+          if (report.safety?.read_only !== true || report.safety?.database_mutation !== false || report.safety?.migration_apply !== false || report.safety?.provider_mutation !== false || report.safety?.production_deploy !== false || report.safety?.secrets_included !== false) throw new Error('Environment impact safety contract is not read-only.');
+          console.log(JSON.stringify({ contract: report.contract, converged: report.converged, issue_count: report.issue_count, changed_paths: report.changed_paths.length, safety: report.safety }));
+          NODE
 
       - name: Enforce zero blocking governance objections
         if: always()

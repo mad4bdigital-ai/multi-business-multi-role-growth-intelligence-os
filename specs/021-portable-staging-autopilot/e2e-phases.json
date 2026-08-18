@@ -8,25 +8,42 @@
   "scope": {
     "include": [
       "autopilot-portable-staging/**",
+      ".dockerignore",
+      ".gitignore",
+      ".github/contracts/production-promotion-supporting-gates.v1.json",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      ".github/workflows/staging-live-certification.yml",
+      "edge/activation-gateway/generated/route-policy.staging.json",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/deploymentManifest.js",
       "http-generic-api/routes/rootDiscoveryRoutes.js",
       "http-generic-api/routes/tenantGptOAuth*.js",
       "http-generic-api/tenantGptOAuth*.js",
       "http-generic-api/openapi/openapi.*activation*.staging.yaml",
+      "http-generic-api/scripts/staging-environment-authority-closure.mjs",
+      "http-generic-api/scripts/prepare-staging-build-context.mjs",
+      "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "http-generic-api/test-staging-build-context-provenance.mjs",
       "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/.env.staging.example",
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/config/staging-openapi-mcp-policy.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json"
     ]
   },
   "merge_contract": {
@@ -36,7 +53,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove the portable Windows Staging launcher is deterministic, fail-closed, isolated from Production, and able to build the application image with its canonical runtime manifest.",
+      "objective": "Prove the portable Windows Staging launcher is deterministic, fail-closed on environment identity, isolated from Production, and able to distinguish healthy services from an exact-SHA Staging environment that is release-ready.",
       "e2e_journeys": [
         {
           "id": "portable-staging-autopilot-bootstrap-to-safe-runtime",
@@ -44,22 +61,35 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "Start-Staging-One-Click.cmd on the exact eligible main commit",
-          "terminal_outcome": "The launcher accepts only the exact eligible SHA, prevents overlapping runs with a valid Windows Global Mutex name, repairs protected line-ending drift, builds the Staging image with canonical-manifest.mjs, starts internal-only services, records actionable health diagnostics, and never mutates Production or provider DNS.",
+          "terminal_outcome": "The launcher accepts only the exact eligible SHA, prevents overlapping runs, builds immutable image provenance from that SHA, starts internal-only services, evaluates canonical environment/DB/Gateway authorities, records ready/degraded/blocked certification without hiding repairable Staging degradation, and requires an independent exact live Staging certification before governed Production promotion.",
           "steps": [
             "Resolve the exact main SHA and read the Staging eligibility Workflow Run for that same SHA.",
+            "Converge deployment branch, environment routing, DB write-authority, Gateway policy, Compose, and image-provenance contracts from their existing sources of truth.",
             "Acquire the single-run lock and fail closed if another launcher is active.",
             "Normalize only manifest-protected line endings, reject real working-tree content changes, and verify raw SHA-256 bytes.",
-            "Validate the root-context Staging Docker build, including canonical-manifest.mjs at /canonical-manifest.mjs.",
-            "Start the internal Docker topology, wait for health, capture service logs on failure, and expose only the explicitly allowed Cloudflare Tunnel origins."
+            "Build the Staging image with deterministic branch/commit provenance and the current generated Staging Gateway policy.",
+            "Start the internal Docker topology, wait for service health, then read deployment-info, runtime integrity, combined DB readiness, schema readiness, Governance DB readiness, and Gateway health in the same cycle.",
+            "Classify exact identity/provenance mismatch as blocked, DB/schema/Gateway readiness gaps as degraded, and only zero-gap evidence as ready.",
+            "Keep a discovered local schema bundle dry-run by default; require explicit ApplySchemaBundle before any local Staging schema seed and re-certify after that explicit mutation.",
+            "At Production promotion time, certify dev.mad4b.com and activation-dev.mad4b.com against the exact main release-cut SHA through the existing supporting-gate registry."
           ],
           "assertions": [
             "A missing, running, failed, or mismatched eligibility Workflow Run never deploys the SHA.",
+            "Repository environment authority sources cannot disagree about Staging/Production hosts, branches, DB fallback rules, or Gateway stale-mutation policy.",
             "Concurrent Auto Pilot runs are rejected by the valid Windows Global Mutex contract and no second Compose operation is started.",
             "Line-ending repair cannot hide non-line-ending content changes and manifest hashes remain deterministic.",
-            "The Staging image contains the canonical manifest required by activationDynamicEvidenceLegacy.js.",
+            "The Staging image contains deterministic immutable source provenance and the generated Staging Gateway policy used for live comparison.",
+            "The Docker build context is produced from the exact Git tree, excludes ignored `.env.staging` and local secret fixtures, and carries a secret-free tree/file-set provenance record into the image.",
+            "Staging certification accepts one artifact set only when app source/tree/context/image identity and Gateway source/policy identity are exact and mutually consistent.",
+            "A runtime branch, commit, or provenance mismatch is blocked even when containers are healthy.",
+            "runtime_app/DB authority failure, missing MCP catalog schema readiness, or stale/mismatched Gateway policy cannot produce certification_status=ready.",
+            "A degraded local Staging environment remains available for diagnosis while one-shot Auto Deploy cannot report it as certified and watcher mode re-certifies without blind redeploy.",
+            "ValidateOnly cannot write deployed_commit state.",
+            "A local schema bundle never mutates Staging merely because it exists; explicit ApplySchemaBundle is required and triggers same-cycle re-certification.",
+            "Production promotion dispatches the registered read-only Staging Live Certification gate for the immutable candidate and proves its tree-identical first parent release cut is live-ready.",
             "activation-dev.mad4b.com is fail-closed unless ACTIVATION_STAGING_GATEWAY_ENABLED=true and uses dedicated Staging OpenAPI/OAuth contracts.",
             "Tenant Activation and Admin Activation use separate Staging schema files with one server URI each.",
-            "No Production hostname, Hostinger mutation, Cloudflare DNS mutation, migration apply, or database mutation is authorized by this journey."
+            "No Production hostname, Hostinger mutation, Cloudflare DNS mutation, migration apply, provider mutation, or Ruleset mutation is authorized by this journey."
           ],
           "tests": [
             {
@@ -77,6 +107,34 @@
               "args": []
             },
             {
+              "id": "validate-staging-environment-certification",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "validate-staging-build-context-provenance",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-build-context-provenance.mjs",
+              "args": []
+            },
+            {
+              "id": "validate-staging-auto-deploy-certification",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "validate-staging-one-click-certification",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
               "id": "validate-staging-activation-gateway",
               "runner": "node",
               "working_directory": ".",
@@ -87,10 +145,24 @@
           "evidence_paths": [
             "autopilot-portable-staging/One-Click-Staging.ps1",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/Invoke-StagingCertification.ps1",
             "autopilot-portable-staging/manifest.json",
+            ".dockerignore",
+            ".gitignore",
+            ".github/contracts/production-promotion-supporting-gates.v1.json",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            ".github/workflows/staging-live-certification.yml",
             "http-generic-api/Dockerfile.staging",
             "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/deploymentManifest.js",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/scripts/staging-environment-authority-closure.mjs",
+            "http-generic-api/scripts/prepare-staging-build-context.mjs",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "http-generic-api/test-staging-environment-certification-contract.mjs",
+            "http-generic-api/test-staging-build-context-provenance.mjs",
             "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
             "http-generic-api/routes/activationHostGatewayRoutes.js",
             "http-generic-api/routes/rootDiscoveryRoutes.js",
             "http-generic-api/tenantGptOAuthResourceProfile.js",
@@ -101,7 +173,9 @@
             "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
             "http-generic-api/scripts/generate-activation-staging-policy.mjs",
             "edge/activation-gateway/src/worker-staging.mjs",
-            "edge/activation-gateway/generated/route-policy.staging.json"
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json"
           ]
         }
       ]
@@ -109,30 +183,31 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Prove live non-production Windows deployment and Cloudflare Tunnel reachability after the local Docker image and credentials are available.",
+      "objective": "Prove live non-production Windows deployment, exact-SHA Staging certification, and Cloudflare Tunnel reachability after the local Docker image and credentials are available.",
       "blockers": [
-        "Live Windows Docker Desktop and dedicated Staging Tunnel credentials are external to repository CI."
+        "Live Windows Docker Desktop and dedicated Staging Tunnel credentials are external to repository CI.",
+        "The live certification gate intentionally remains red/degraded until the Staging DB identities, required schema state, and Gateway attestation are repaired for the exact main SHA."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove recovery from Docker Desktop restart, port-proxy failure, interrupted Compose startup, and repeated Auto Pilot invocation without database loss."
+      "objective": "Prove recovery from Docker Desktop restart, port-proxy failure, interrupted Compose startup, repeated Auto Pilot invocation, and degraded-to-ready re-certification without blind redeploy or database loss."
     },
     {
       "id": "canary",
       "status": "blocked",
-      "objective": "Validate the exact dev.mad4b.com and mcp_dev.mad4b.com non-production canary after a live tunnel run.",
+      "objective": "Validate the exact dev.mad4b.com, mcp_dev.mad4b.com, and activation-dev.mad4b.com non-production canary against one exact main SHA.",
       "blockers": [
-        "A live dedicated Cloudflare Tunnel token and operator approval are required."
+        "A live dedicated Cloudflare Tunnel token and operator-approved Staging runtime are required."
       ]
     },
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Keep Production outside the Portable Staging deployment contract.",
+      "objective": "Keep Production outside the Portable Staging deployment contract while requiring live Staging certification as a read-only prerequisite for the separate governed Production promotion path.",
       "blockers": [
-        "This feature explicitly forbids Production deployment and Hostinger mutation."
+        "This feature explicitly forbids Production deployment and Hostinger mutation; Production remains a separate governed promotion authority."
       ]
     }
   ],

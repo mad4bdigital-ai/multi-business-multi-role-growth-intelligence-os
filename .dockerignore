@@ -1,0 +1,25 @@
+# Staging Docker builds use the repository root as their context, but the image
+# must be a deterministic function of reviewed repository sources only.
+**
+!http-generic-api/
+!http-generic-api/**
+!edge/
+!edge/activation-gateway/
+!edge/activation-gateway/generated/
+!edge/activation-gateway/generated/route-policy.staging.json
+!canonical-manifest.mjs
+!.staging-build-context.json
+
+# Local/runtime material remains outside the image even when it lives below an
+# allowed source tree. Keep these rules after the allow-list entries above.
+http-generic-api/.env
+http-generic-api/.env.*
+!http-generic-api/.env.example
+!http-generic-api/.env.staging.example
+http-generic-api/.staging-data/
+http-generic-api/node_modules/
+http-generic-api/google-oauth-token.json
+http-generic-api/deployment-manifest.json
+http-generic-api/*.log
+**/.git/
+**/.DS_Store

@@ -120,7 +120,7 @@ test("supporting gate registry is bounded, read-only, and resolves release-branc
     releaseBranch: "release/production-cut-probe",
     candidateSha: sha(4),
   });
-  assert.equal(plan.gates.length, 6);
+  assert.equal(plan.gates.length, 7);
   assert.ok(plan.gates.every((gate) => gate.required === true && gate.effect === "read_only"));
   assert.equal(plan.gates.find((gate) => gate.id === "http_generic_api_fanout_relocation").inputs.target_branch, "release/production-cut-probe");
   assert.equal(plan.safety.production_merge, false);
@@ -174,6 +174,9 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   const mainGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
   const releaseGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
   const postGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
+  const derivedClosure = read(".github/workflows/derived-state-closure.yml");
+  const stagingEligibility = read(".github/workflows/staging-main-deploy-eligibility.yml");
+  const stagingCertification = read(".github/workflows/staging-live-certification.yml");
 
   assert.match(launcher, /production-promotion-supporting-gates\.mjs/u);
   assert.match(launcher, /production-certified-release-cut-validation\.yml/u);
@@ -200,6 +203,10 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(releaseGate, /release_cut_is_ancestor_of_current_main:true/u);
   assert.match(postGuard, /release_cut_not_in_current_main/u);
   assert.doesNotMatch(postGuard, /REASON=main_moved_after_finalization/u);
+  for (const workflow of [derivedClosure, stagingEligibility, stagingCertification]) {
+    assert.match(workflow, /environment-impact-closure\.mjs/u, "environment impact closure must be wired into every staging/promotion readiness surface");
+    assert.match(workflow, /migration compatibility closure/u, "migration compatibility must be explicit in the readiness step");
+  }
 });
 
 console.log(JSON.stringify({

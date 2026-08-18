@@ -12,6 +12,7 @@ param(
     [switch]$EnableActivationGateway,
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
+    [switch]$ApplySchemaBundle,
     [switch]$SkipBuild
 )
 
@@ -49,7 +50,7 @@ function Acquire-AutoPilotRunLock {
         if (-not $script:AutoPilotRunMutex.WaitOne(0)) { Fail "Another Auto Pilot instance is already running; refusing overlapping execution" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "run-lock" -Message "exclusive Auto Pilot run lock acquired"
     } catch [System.Threading.AbandonedMutexException] {
-        Write-StagingLog -Level warn -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Auto Pilot run lock"
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "run-lock" -Message "recovered abandoned Auto Pilot run lock"
     } catch {
         Fail "Unable to acquire Auto Pilot run lock: $($_.Exception.Message)"
     }
@@ -102,7 +103,7 @@ function Require-Command([string]$Name) {
 
 function Is-Administrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
@@ -112,8 +113,10 @@ function Reinvoke-Elevated {
     $argList = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$scriptPath`"", "-Mode", $Mode, "-RepositoryUrl", "`"$RepositoryUrl`"", "-Ref", $Ref, "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds", "-EligibilityWaitSeconds", "$EligibilityWaitSeconds")
     if (-not [string]::IsNullOrWhiteSpace($RepositoryPath)) { $argList += @("-RepositoryPath", "`"$RepositoryPath`"") }
     if ($NoTunnel) { $argList += "-NoTunnel" }
+    if ($EnableActivationGateway) { $argList += "-EnableActivationGateway" }
     if ($NoAutoDeploy) { $argList += "-NoAutoDeploy" }
     if ($RequireSchemaBundle) { $argList += "-RequireSchemaBundle" }
+    if ($ApplySchemaBundle) { $argList += "-ApplySchemaBundle" }
     if ($SkipBuild) { $argList += "-SkipBuild" }
     $process = Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList ($argList -join " ") -Wait -PassThru
     exit $process.ExitCode
@@ -349,13 +352,40 @@ function Seed-SchemaIfAvailable([string]$RepoPath, [string]$ScriptRoot) {
     $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
     $available = (Test-Path $dumpDir) -and (($required | Where-Object { -not (Test-Path (Join-Path $dumpDir $_)) }).Count -eq 0)
     if (-not $available) {
-        if ($RequireSchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
         Write-Host "No local schema-only bundle found; databases remain fresh and no migration or database mutation is performed."
         return "skipped_no_schema_bundle"
     }
     $clone = Join-Path $ScriptRoot "Clone-StagingDatabases.ps1"
-    Invoke-Native "powershell.exe" @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-Mode", "schema_only", "-Apply")
-    return "schema_only_applied"
+    $cloneArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-Mode", "schema_only")
+    if ($ApplySchemaBundle) {
+        $cloneArgs += "-Apply"
+        Invoke-Native "powershell.exe" $cloneArgs
+        return "schema_only_applied"
+    }
+    Invoke-Native "powershell.exe" $cloneArgs
+    Write-Host "Schema bundle found and validated in dry-run mode. Use -ApplySchemaBundle for explicit local Staging database mutation."
+    return "schema_only_dry_run"
+}
+
+function Invoke-StagingRecertification([string]$RepoPath, [string]$Sha) {
+    $certification = Join-Path $RepoPath "autopilot-portable-staging\Invoke-StagingCertification.ps1"
+    $runtimeState = Join-Path $RepoPath "autopilot-portable-staging\autopilot-state.json"
+    if (-not (Test-Path -LiteralPath $certification)) { Fail "Invoke-StagingCertification.ps1 is missing" }
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $certification, "-RepositoryPath", $RepoPath, "-ExpectedCommit", $Sha, "-Ref", $Ref, "-StatePath", $runtimeState)
+    if (-not $NoTunnel) { $args += "-StartTunnel" }
+    Invoke-Native "powershell.exe" $args
+}
+
+function Read-RuntimeCertificationState([string]$RepoPath, [string]$Sha) {
+    $statePath = Join-Path $RepoPath "autopilot-portable-staging\autopilot-state.json"
+    if (-not (Test-Path -LiteralPath $statePath)) { Fail "Auto Pilot runtime state is missing: $statePath" }
+    try { $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json }
+    catch { Fail "Auto Pilot runtime state is invalid" }
+    if ([string]$state.commit -ne $Sha) { Fail "Auto Pilot runtime state commit mismatch" }
+    if ([string]$state.certified_commit -and ([string]$state.certified_commit).ToLowerInvariant() -ne $Sha) { Fail "Auto Pilot certified commit mismatch" }
+    if ([string]$state.certification_status -notin @("ready", "degraded")) { Fail "Auto Pilot runtime certification status is invalid" }
+    return $state
 }
 
 function Install-AutoDeploy([string]$RepoPath) {
@@ -388,7 +418,7 @@ if ($Mode -eq "Stop") {
     return
 }
 
-    $sha = Get-MainSha $repo
+$sha = Get-MainSha $repo
 Write-StagingLog -Level info -Component $LogComponent -Stage "eligibility" -Message "resolved main commit; waiting for eligibility" -Data @{ sha = $sha }
 Wait-Eligibility $sha
 Write-StagingOperationBoundary -Component $LogComponent -Stage "eligibility" -Outcome "success" -Message "Staging Main Deploy Eligibility passed" -Data @{ sha = $sha }
@@ -403,8 +433,14 @@ if ($Mode -eq "Validate") {
 
 Start-LocalStaging $repo $sha $envFile
 $databaseState = Seed-SchemaIfAvailable $repo $scriptRoot
+if ($databaseState -eq "schema_only_applied") {
+    Write-StagingLog -Level info -Component $LogComponent -Stage "database-seed" -Message "explicit Staging schema seed completed; re-certifying same exact commit" -Data @{ sha = $sha }
+    Invoke-StagingRecertification $repo $sha
+}
+$runtimeState = Read-RuntimeCertificationState $repo $sha
 if (-not $NoAutoDeploy) { Install-AutoDeploy $repo }
 $statePath = Join-Path $scriptRoot "one-click-state.json"
+$schemaSeedApplied = $databaseState -eq "schema_only_applied"
 @{
     commit = $sha
     repository = $ExpectedRepository
@@ -412,15 +448,31 @@ $statePath = Join-Path $scriptRoot "one-click-state.json"
     tunnel_started = (-not $NoTunnel)
     auto_deploy_installed = (-not $NoAutoDeploy)
     database_seed = $databaseState
+    staging_schema_seed_applied = $schemaSeedApplied
+    certification_contract = [string]$runtimeState.certification_contract
+    certification_status = [string]$runtimeState.certification_status
+    certification_ready = ($runtimeState.certification_ready -eq $true)
+    certified_commit = [string]$runtimeState.certified_commit
+    certified_branch = [string]$runtimeState.certified_branch
+    certification_degraded_reasons = @($runtimeState.certification_degraded_reasons)
+    database_readiness = [string]$runtimeState.database_readiness
     migration_applied = $false
-    database_mutated = $false
+    database_mutated = $schemaSeedApplied
     production_deploy = $false
     cloudflare_dns_mutation = $false
     hostinger_mutation = $false
+    provider_mutation = $false
+    ruleset_mutation = $false
+    secrets_included = $false
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
 } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 -LiteralPath $statePath
-Write-Host "AUTO_PILOT_ONE_CLICK_COMPLETE: staging=$repo commit=$sha tunnel=$(-not $NoTunnel) activation_gateway=$EnableActivationGateway auto_deploy=$(-not $NoAutoDeploy) database_seed=$databaseState"
+if ($runtimeState.certification_status -eq "degraded") {
+    Write-StagingLog -Level warning -Component $LogComponent -Stage "complete" -Message "one-click Staging is running but not release-ready" -Data @{ sha = $sha; degraded_reasons = @($runtimeState.certification_degraded_reasons); database_seed = $databaseState }
+    Write-Host "AUTO_PILOT_ONE_CLICK_DEGRADED: staging=$repo commit=$sha reasons=$(@($runtimeState.certification_degraded_reasons) -join ',')" -ForegroundColor Yellow
+} else {
+    Write-Host "AUTO_PILOT_ONE_CLICK_READY: staging=$repo commit=$sha tunnel=$(-not $NoTunnel) activation_gateway=$EnableActivationGateway auto_deploy=$(-not $NoAutoDeploy) database_seed=$databaseState" -ForegroundColor Green
+}
 Write-Host "URLs: https://dev.mad4b.com | https://mcp_dev.mad4b.com"
 Write-Host "OpenAPI: Tenant/Admin on dev.mad4b.com; Remote MCP on mcp_dev.mad4b.com"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "one-click staging completed" -Data @{ sha = $sha; repository_path = $repo; database_seed = $databaseState; activation_gateway = [bool]$EnableActivationGateway }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "one-click staging completed" -Data @{ sha = $sha; repository_path = $repo; database_seed = $databaseState; activation_gateway = [bool]$EnableActivationGateway; certification_status = $runtimeState.certification_status }
 Write-Host "AUTO_PILOT_LOG: $(Get-StagingLogRoot)"
