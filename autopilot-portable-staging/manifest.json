@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "1f30dd6c6ed2da64787761ccfd0a8d3e494cd8aadb147125a4db33134113f7e8"
+      "sha256": "c30d4f23ebbf4d1e25d4c1833f23a7e7f470f0133cbafe869d295715a33fd5a7"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,11 +30,11 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "0bc1774ee5711e4b4b1a23e3d72b4cf9af634c122ff678e21a1caf9ba2d733eb"
+      "sha256": "e444384ee0ba144697b1eb792087a84c93e3f044fd5fcc358afa77f13dd16151"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "d7fd28b30b9aaa7b9c3c22d735f9a9df0fb8871e9ea4c155ac1ffbaf513ac443"
+      "sha256": "9dfdef287890137e00f9c8224bc42966e4e2b67b14c6e65df3320a1fb568797d"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "5110eb308bb505042b755ac4506671a2341d26e892e0a5b4910960248940620e"
+      "sha256": "77058c7d343a0f801c4e97145236eefea5f3fe2c07b67b964013aedb6c3e5b9c"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -106,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "b0dc0e8328d6f8b70f80e9ebecd15cc0e5e3cf1a06fdfe9cdc6a65a75c2440f0"
+      "sha256": "ceec5eb63667d0f862c73090ead2b9b6dd491e6be82d9cabe33388b65d854106"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "39998da7ad4162028fb889e6e89bc8647fcc6776c55141ba73a3a7f938942b01"
+      "sha256": "d48a5b2468abbd326675601084654e4853874b9cae8656d7f081570e2474c578"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "27c30b8e71d1c9d1141ab5ae41ba3c2c4ab8ecaea76b0f102cc259d3509572af"
+      "sha256": "81cb5c8c949037b3eaecf47b0cddbea6f5fed34d9e05b7ac19303ec69a3a28d7"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",

@@ -8,8 +8,13 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
+      ".github/**",
       "autopilot-portable-staging/**",
+      "docs/repository-*.json",
+      "docs/repository-*.md",
+      "docs/work-maps/**",
       "http-generic-api/**",
+      "specs/*/work-map-integration.json",
       "specs/021-portable-staging-autopilot/**"
     ]
   },
