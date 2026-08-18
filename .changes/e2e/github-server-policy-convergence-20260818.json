@@ -2,16 +2,33 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "github-server-policy-convergence-20260818",
-  "title": "GitHub server policy convergence on repository governance Constitution",
+  "title": "Repository semantic, evidence, and GitHub server-policy governance closure",
   "delivery_mode": "single_pr",
   "secrets_included": false,
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/github-server-policy-convergence-20260818.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/evidence-producers.json",
+      ".github/governance/policy-registry.json",
+      ".github/governance/semantic-surface-registry.json",
+      ".github/governance/verifier-registry.json",
+      ".github/tests/derived-state-closure.test.mjs",
+      ".github/tests/repository-governance-closure.test.mjs",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/derived-state-converged-automerge.yml",
+      ".github/workflows/policy-objection-ci.yml",
+      "docs/repository-ci-surface-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/githubRepositoryGovernanceAttestation.js",
       "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "http-generic-api/test-github-repository-governance-attestation.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
-      "http-generic-api/config/repository-governance-constitution.json"
+      "scripts/derived-state-closure.mjs",
+      "scripts/repository-governance-closure.mjs",
+      "scripts/repository-governance-evidence-finalizer.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
@@ -19,45 +36,87 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove the legacy seven-check server-policy authority, compile branch enforcement from the canonical repository governance Constitution, bind the main final required check to its trusted GitHub App producer, and fail closed where the Production release contract cannot yet be represented without weakening it.",
+      "objective": "Close the remaining governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, CI workflow no-growth ratchet, trusted GitHub App final attestation, and enforceable main/Production server-policy plans without creating a parallel authority.",
       "e2e_journeys": [
         {
-          "id": "constitution-derived-server-policy-plan-and-apply",
+          "id": "semantic-exact-candidate-to-trusted-server-attestation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository governance maintainer",
-          "entrypoint": "GitHub repository policy controller",
-          "terminal_outcome": "Main is planned from the Constitution with only Derived State Closure bound to the trusted producer; same-cycle readback proves an exact simulated apply; Production is recognized but blocked from unsafe activation until its generic-PR prohibition has an enforceable server-side representation.",
+          "entrypoint": "Pull request to main and governed Production promotion",
+          "terminal_outcome": "A pull request is classified semantically, evaluated on GitHub's exact merge candidate, resolved through registered policy and verifier authorities, finalized by a trusted default-branch workflow, and only then may the GitHub App publish the required status on the exact candidate; Production uses the same App gate only after proving the current merge-candidate tree equals the certified release-candidate tree.",
           "steps": [
-            "Load the canonical repository governance Constitution from the repository source tree.",
-            "Resolve the requested branch only from the Constitution branch registry.",
-            "Compile the exact target-branch Ruleset and producer-bound required checks.",
-            "Reject required-check overrides that diverge from the Constitution.",
-            "Require exact branch SHA, policy fingerprint, capability envelope, and typed confirmation before mutation.",
-            "Perform same-cycle readback and rollback if the Ruleset fingerprint, producer binding, bypass posture, or final server gate proof does not match.",
-            "Keep Production activation blocked while generic_pull_request_merge_forbidden cannot be proven by the current Ruleset contract."
+            "Load the canonical Constitution, policy registry, semantic surface registry, verifier registry, evidence producer registry, and waiver ledger.",
+            "Classify changed paths, executable classes, semantic facets, and Git-native add/delete/rename/copy identity.",
+            "Build reverse dependency edges and reject dangling references to deleted or renamed nodes.",
+            "Evaluate generic declarative policy assertions over the semantic graph and governance report.",
+            "Resolve derived-state verifiers only through the safe verifier registry and discover Work Map integrations dynamically.",
+            "Run the canonical producer on the exact GitHub merge candidate and record source head, base, merge candidate, executed SHA, PR number, workflow and run identity.",
+            "Check every tracked JavaScript module recursively instead of a shallow filename glob.",
+            "Block workflow-surface growth above the base/target ratchet while retaining a target of 160 workflows.",
+            "Have the Derived State Closure detector consume the exact-candidate producer evidence and emit read-only detector evidence.",
+            "Have the trusted default-branch workflow_run finalizer re-read the live PR identity and call the governed backend attestor.",
+            "Have the GitHub App publish Derived State Closure for main or Governed Production Promotion for Production, with same-cycle status readback.",
+            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation."
           ],
           "assertions": [
-            "The Constitution is the runtime source of truth for branch policy and required checks.",
-            "The legacy seven required checks are not accepted as canonical main policy.",
-            "main requires only Derived State Closure and binds it to the resolved GitHub App integration_id.",
-            "Arbitrary or unregistered branches fail before any GitHub network mutation.",
-            "Production is registered for readback and planning but cannot silently degrade generic_pull_request_merge_forbidden.",
-            "No direct repository-content write, force push, Production mutation, database mutation, or provider mutation is performed by this change."
+            "The Constitution is the runtime source of truth for both main and Production branch policy.",
+            "No legacy seven-check server-policy authority remains canonical.",
+            "Unknown semantic executables, unclassified historical paths, unresolved dependencies, and dangling deletion references fail closed.",
+            "New policy rules may use registered generic assertion primitives without editing the policy engine for every new metric.",
+            "New derived artifacts may bind a registered safe verifier without editing derived-state-closure.mjs.",
+            "The canonical evidence identity contains source_head_sha, base_sha, merge_candidate_sha, executed_sha, and pr_number, and executed_sha equals merge_candidate_sha for main.",
+            "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
+            "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof.",
+            "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
+            "No live Ruleset Apply, protected-ref mutation, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR."
           ],
           "tests": [
             {
-              "id": "github-repository-policy-controller-constitution-convergence",
+              "id": "repository-governance-semantic-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-closure.test.mjs",
+              "args": []
+            },
+            {
+              "id": "derived-state-dynamic-verifier-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/derived-state-closure.test.mjs",
+              "args": []
+            },
+            {
+              "id": "github-repository-policy-controller-constitution-native",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-github-repository-policy-controller.mjs",
               "args": []
+            },
+            {
+              "id": "github-repository-exact-candidate-attestation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-governance-attestation.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
+            ".github/governance/policy-registry.json",
+            ".github/governance/semantic-surface-registry.json",
+            ".github/governance/verifier-registry.json",
+            ".github/governance/evidence-producers.json",
+            ".github/derived-state-governance.json",
+            ".github/workflows/policy-objection-ci.yml",
+            ".github/workflows/derived-state-closure.yml",
+            ".github/workflows/derived-state-converged-automerge.yml",
+            "scripts/repository-governance-closure.mjs",
+            "scripts/repository-governance-evidence-finalizer.mjs",
+            "scripts/derived-state-closure.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/githubRepositoryPolicyController.js",
-            "http-generic-api/test-github-repository-policy-controller.mjs",
-            "http-generic-api/config/repository-governance-constitution.json"
+            "http-generic-api/githubRepositoryGovernanceAttestation.js",
+            "docs/repository-ci-surface-policy.json"
           ]
         }
       ]
