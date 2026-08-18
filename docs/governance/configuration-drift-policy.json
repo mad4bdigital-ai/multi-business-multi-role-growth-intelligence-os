@@ -2086,7 +2086,92 @@
     "http-generic-api/test-platform-configuration-registry-adapter.mjs",
     "http-generic-api/test-platform-legacy-configuration-adapter.mjs"
   ],
-  "suppressions": [],
+  "suppressions": [
+    {
+      "fingerprint": "http-generic-api/scripts/staging-environment-authority-closure.mjs|expectedSha|environment_reference|expected.head.sha",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|ACTIVATION_STAGING_GATEWAY_ENABLED|environment_reference|activation.staging.gateway.enabled",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|DEPLOYMENT_EXPECTED_COMMIT_SHA|environment_reference|deployment.expected.commit.sha",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|DEPLOY_COMMIT|environment_reference|deploy.commit",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|STAGING_CERT_EXPECTED_COMMIT|environment_reference|staging.cert.expected.commit",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|STAGING_CERT_GATEWAY_BASE_URL|environment_reference|staging.cert.gateway.base.url",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|STAGING_CERT_REQUIRE_GATEWAY|environment_reference|staging.cert.require.gateway",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|appBase|environment_reference|staging.cert.app.base.url",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|configured|environment_reference|staging.cert.gateway.policy.path",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|expectedBranch|environment_reference|staging.cert.expected.branch",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|requireGatewayUpstream|environment_reference|staging.cert.require.gateway.upstream",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-live-certification.mjs|requireReady|environment_reference|staging.cert.require.ready",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/test-auth-oauth-routes.mjs|PKCE_MODE|literal_declaration|pkce.mode",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/test-auth-oauth-routes.mjs|productionDefaultConfidentialMode|literal_declaration|productiondefaultconfidentialmode",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7430: environment-bound Staging certification and GPT Actions OAuth contract candidates are intentionally code-owned pending the governed Config Catalog binding; no secrets or Production mutation are permitted.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    }
+  ],
   "safety": {
     "report_only": true,
     "migration_generation_allowed": false,

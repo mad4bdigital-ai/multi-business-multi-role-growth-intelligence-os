@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,177 |
-| Total bytes | 69,957,979 |
-| Counted text lines | 1,642,956 |
+| Total bytes | 69,964,801 |
+| Counted text lines | 1,643,041 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -104,7 +104,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 269,236 | 6392 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 245,456 | 2099 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 252,278 | 2184 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 221,663 | 4707 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |

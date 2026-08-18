@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7177,
-    "bytes": 69957979,
-    "lines": 1642956,
+    "bytes": 69964801,
+    "lines": 1643041,
     "directories": 266,
     "categories": 13
   },
@@ -330,8 +330,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 245456,
-      "lines": 2099
+      "bytes": 252278,
+      "lines": 2184
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
