@@ -135,6 +135,8 @@
           "docs/governance/**",
           "scripts/**",
           "http-generic-api/config/**",
+          "http-generic-api/scripts/e2e-*.mjs",
+          "http-generic-api/scripts/test-e2e-*.mjs",
           "http-generic-api/scripts/environment-impact-closure.mjs",
           "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
           "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
