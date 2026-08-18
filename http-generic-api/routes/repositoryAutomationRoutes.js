@@ -47,6 +47,25 @@ function automationDeps(req) {
   };
 }
 
+function isRepositoryPolicyRequest(input = {}) {
+  const key = String(input?.automation_key || input?.workflow || "").trim().toLowerCase();
+  return key === "repository_policy" || key === "repository_policy_controller";
+}
+
+function assertLegacySurfaceDoesNotOwnRepositoryPolicy(input = {}) {
+  if (!isRepositoryPolicyRequest(input)) return;
+  const error = new Error("repository_policy is Constitution-owned and must use /admin/repository-automation/policy-controller.");
+  error.status = 409;
+  error.code = "repository_policy_legacy_surface_retired";
+  error.details = {
+    canonical_surface: "/admin/repository-automation/policy-controller",
+    constitution: "http-generic-api/config/repository-governance-constitution.json",
+    legacy_plan_run_mutation_authority: false,
+    secrets_included: false,
+  };
+  throw error;
+}
+
 export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
   const router = Router();
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
@@ -55,7 +74,9 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
 
   router.post("/admin/repository-automation/plan", ...requireAdmin, async (req, res) => {
     try {
-      const result = buildRepositoryAutomationPlan(bodyOf(req));
+      const input = bodyOf(req);
+      assertLegacySurfaceDoesNotOwnRepositoryPolicy(input);
+      const result = buildRepositoryAutomationPlan(input);
       return res.status(200).json(result);
     } catch (error) {
       return errorResponse(res, error, "repository_automation_plan_failed");
@@ -64,7 +85,9 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
 
   router.post("/admin/repository-automation/run", ...requireAdmin, async (req, res) => {
     try {
-      const result = await runRepositoryAutomation(bodyOf(req), automationDeps(req));
+      const input = bodyOf(req);
+      assertLegacySurfaceDoesNotOwnRepositoryPolicy(input);
+      const result = await runRepositoryAutomation(input, automationDeps(req));
       const status = result.ok ? 200 : result.status === "awaiting_input" ? 202 : 409;
       return res.status(status).json(result);
     } catch (error) {
