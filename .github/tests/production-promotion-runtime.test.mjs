@@ -28,6 +28,7 @@ const read = (path) => fs.readFileSync(new URL(path, root), "utf8");
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const constitution = JSON.parse(read("http-generic-api/config/repository-governance-constitution.json"));
 const derivedStateGovernance = JSON.parse(read(".github/derived-state-governance.json"));
+const productionPromotionContract = JSON.parse(read(".changes/e2e/production-promotion-release-cut-controller.json"));
 
 function evidenceInput() {
   return {
@@ -258,6 +259,12 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.doesNotMatch(rehearsal, /git push|gh pr create|gh workflow run/u);
   assert.match(rehearsalScript, /production_history_not_contained_by_main/u);
   assert.match(rehearsalScript, /stale_authorization_reusable: false/u);
+  const impact = productionPromotionContract.environment_impact;
+  assert.equal(impact.source_of_truth, "http-generic-api/config/deployment-branch-policy.json");
+  assert.deepEqual(new Set(impact.declared_targets), new Set(["staging", "production"]));
+  assert.equal(impact.cross_environment_reviewed, true);
+  assert.equal(impact.live_staging_certification_required, true);
+  assert.equal(impact.production_mutation_allowed, false);
   const semanticClass = constitution.semantic_executable_classes.find((entry) => entry.id === "production_promotion_governance");
   assert.ok(semanticClass?.patterns.includes(".github/scripts/production-promotion-*.mjs"));
   for (const controlPath of [

@@ -5,6 +5,13 @@
   "title": "Production promotion immutable release-cut controller",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["production", "staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "scope": {
     "include": [
       ".changes/e2e/production-promotion-release-cut-controller.json",
