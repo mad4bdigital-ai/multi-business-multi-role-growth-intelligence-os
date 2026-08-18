@@ -106,6 +106,23 @@ try {
       provenance_source: null,
     });
     },
+    productionActivationReadinessReader: async () => ({
+      contract: "mad4b.production-activation-readiness.v1",
+      status: "blocked",
+      ok: false,
+      ready: false,
+      checks: {
+        mcp_catalog_schema_ready: false,
+        governance_db_privilege_ready: false,
+        runtime_persistence_ready: false,
+      },
+      hard_activation_blocked_until_ready: true,
+      read_only_probe: true,
+      sql_mutation_performed: false,
+      migration_apply_performed: false,
+      deployment_performed: false,
+      secrets_included: false,
+    }),
   }));
   server = await new Promise((resolve) => {
     const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
@@ -143,6 +160,17 @@ try {
     version.deployment.deployed_commit_sha,
     "/deployment-info and /version must report the same deployed commit"
   );
+  assert.equal(Object.hasOwn(deploymentInfo, "production_activation_readiness"), false, "combined readiness must remain opt-in");
+
+  const readinessResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info?include_production_activation_readiness=1`);
+  assert.equal(readinessResponse.status, 200);
+  const readinessInfo = await readinessResponse.json();
+  assert.equal(readinessInfo.production_activation_readiness.ok, false);
+  assert.equal(readinessInfo.production_activation_readiness.hard_activation_blocked_until_ready, true);
+  assert.equal(readinessInfo.production_activation_readiness.read_only_probe, true);
+  assert.equal(readinessInfo.production_activation_readiness.sql_mutation_performed, false);
+  assert.equal(readinessInfo.production_activation_readiness.migration_apply_performed, false);
+  assert.equal(readinessInfo.production_activation_readiness.secrets_included, false);
 } finally {
   if (server) await new Promise((resolve) => server.close(resolve));
   if (previousManifestPath === undefined) delete process.env.DEPLOYMENT_MANIFEST_PATH;

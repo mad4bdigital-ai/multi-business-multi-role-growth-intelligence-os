@@ -114,6 +114,7 @@
         "session-context preflight passed",
         "tool catalog schema preflight passed",
         "response chunk persistence preflight passed",
+        "combined Production activation readiness probe passed",
         "runtime, governance, and runtime persistence identities are distinct"
       ],
       "degraded_if_any_required_evidence_missing": true,
@@ -124,6 +125,7 @@
     "produce a least-privilege GRANT plan for explicit table targets in each database role",
     "identify and checksum the migration that introduces mcp_catalog_level in the runtime role",
     "run read-only INFORMATION_SCHEMA and SHOW GRANTS preflight checks for each role",
+    "run the combined Production activation readiness probe before Hard Activation",
     "re-run session-context, repo_inspect, listAdminTools, and response-chunk probes after an operator-approved change"
   ],
   "operator_approval_required": true,

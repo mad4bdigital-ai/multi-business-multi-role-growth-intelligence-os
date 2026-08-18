@@ -8,6 +8,7 @@ import {
   readMcpCatalogSchemaReadinessSafe,
 } from "../mcpCatalogSchemaGuard.js";
 import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
+import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -178,7 +179,12 @@ function runtimeIntegrityFailure(reason = "runtime_integrity_readback_failed") {
   };
 }
 
-export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRuntimeIntegrity } = {}) {
+export function buildDeploymentInfoRoutes({
+  runtimeIntegrityReader = inspectRuntimeIntegrity,
+  governanceDbReadinessReader = getGovernanceDbPrivilegeReadinessSnapshot,
+  mcpCatalogSchemaReadinessReader = readMcpCatalogSchemaReadinessSafe,
+  productionActivationReadinessReader = runProductionActivationReadiness,
+} = {}) {
   const router = Router();
 
   router.get("/deployment-info", async (req, res) => {
@@ -236,11 +242,15 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
     }
     const includeGovernanceDbReadiness = String(req.query?.include_governance_db_readiness || "").trim() === "1";
     const governanceDbPrivilegeReadiness = includeGovernanceDbReadiness
-      ? await getGovernanceDbPrivilegeReadinessSnapshot()
+      ? await governanceDbReadinessReader()
       : undefined;
     const includeMcpCatalogSchemaReadiness = String(req.query?.include_mcp_catalog_schema_readiness || "").trim() === "1";
     const mcpCatalogSchemaReadiness = includeMcpCatalogSchemaReadiness
-      ? await readMcpCatalogSchemaReadinessSafe()
+      ? await mcpCatalogSchemaReadinessReader()
+      : undefined;
+    const includeProductionActivationReadiness = String(req.query?.include_production_activation_readiness || "").trim() === "1";
+    const productionActivationReadiness = includeProductionActivationReadiness
+      ? await productionActivationReadinessReader()
       : undefined;
     const mcpCatalogSchemaStartupPreflight = getMcpCatalogSchemaStartupPreflight();
 
@@ -294,6 +304,9 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
       ...(includeMcpCatalogSchemaReadiness ? {
         mcp_catalog_schema_readiness: mcpCatalogSchemaReadiness,
         mcp_catalog_schema_startup_preflight: mcpCatalogSchemaStartupPreflight,
+      } : {}),
+      ...(includeProductionActivationReadiness ? {
+        production_activation_readiness: productionActivationReadiness,
       } : {}),
       evidence: {
         commit_sha_available: Boolean(commitSha),

@@ -54,6 +54,7 @@ assert.ok(gate.required.includes("runtime, governance, and runtime persistence i
 assert.ok(gate.required.includes("session-context preflight passed"));
 assert.ok(gate.required.includes("tool catalog schema preflight passed"));
 assert.ok(gate.required.includes("response chunk persistence preflight passed"));
+assert.ok(gate.required.includes("combined Production activation readiness probe passed"));
 
 const serialized = fs.readFileSync(contractPath, "utf8");
 for (const mutation of ["GRANT ", "REVOKE ", "ALTER TABLE", "CREATE TABLE", "DROP TABLE"]) {

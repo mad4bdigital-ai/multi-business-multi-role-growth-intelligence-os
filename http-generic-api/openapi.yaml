@@ -6136,6 +6136,14 @@ paths:
       operationId: getDeploymentInfo
       summary: Read deployment branch and commit metadata
       description: Passive deployment evidence for dev/prod branch validation. Does not expose secrets.
+      parameters:
+        - name: include_production_activation_readiness
+          in: query
+          required: false
+          description: Return the read-only combined Production activation readiness projection.
+          schema:
+            type: string
+            enum: ["1"]
       responses:
         "200":
           description: Deployment metadata
@@ -6151,6 +6159,10 @@ paths:
                   commit_sha: { type: string, nullable: true }
                   deployed_at: { type: string, nullable: true }
                   expected_dev_branch: { type: string, nullable: true }
+                  production_activation_readiness:
+                    type: object
+                    additionalProperties: true
+                    description: Optional read-only MCP, Governance DB, and Runtime Persistence readiness projection.
                   evidence:
                     type: object
                     additionalProperties: true

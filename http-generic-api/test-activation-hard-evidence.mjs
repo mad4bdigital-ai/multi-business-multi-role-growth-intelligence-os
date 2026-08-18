@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  buildHardActivationDatabaseBlockedResponse,
   buildHardActivationEvidenceMatrix,
   canReportSessionContextLoaded,
   classifyHardActivationEvidence,
@@ -47,6 +48,32 @@ const activeRepoCanonicals = {
   source_file_count: 54,
   stale_or_missing_count: 0,
   secrets_included: false,
+};
+
+const activeDatabaseReadiness = {
+  attempted: true,
+  ok: true,
+  status: "ready",
+  contract: "mad4b.production-activation-readiness.v1",
+  read_only_probe: true,
+  checks: {
+    mcp_catalog_schema_ready: true,
+    governance_db_privilege_ready: true,
+    runtime_persistence_ready: true,
+  },
+};
+
+const blockedDatabaseReadiness = {
+  attempted: true,
+  ok: false,
+  status: "blocked",
+  reason: "governance_db_privilege_readiness_blocked",
+  read_only_probe: true,
+  checks: {
+    mcp_catalog_schema_ready: true,
+    governance_db_privilege_ready: false,
+    runtime_persistence_ready: true,
+  },
 };
 
 const activeToolCatalog = {
@@ -117,6 +144,7 @@ const failedToolCatalog = buildHardActivationEvidenceMatrix({
   providerBootstrap: activeProviderBootstrap,
   repoCanonicals: activeRepoCanonicals,
   toolCatalog: { attempted: true, ok: false, reason_code: 'dynamic_catalog_degraded_surfaces' },
+  databaseReadiness: activeDatabaseReadiness,
 });
 assert.equal(failedToolCatalog.activation_complete, false);
 assert.equal(failedToolCatalog.reason_code, 'dynamic_catalog_degraded_surfaces');
@@ -126,6 +154,7 @@ const complete = buildHardActivationEvidenceMatrix({
   providerBootstrap: activeProviderBootstrap,
   repoCanonicals: activeRepoCanonicals,
   toolCatalog: activeToolCatalog,
+  databaseReadiness: activeDatabaseReadiness,
 });
 assert.equal(complete.activation_complete, true);
 assert.equal(complete.activation_status, 'active');
@@ -134,7 +163,27 @@ assert.equal(complete.evidence_matrix.session_context.evidence_source, 'getActiv
 assert.equal(complete.evidence_matrix.provider_bootstrap.evidence_source, 'activation_provider_bootstrap_validate');
 assert.equal(complete.evidence_matrix.repo_canonicals.evidence_source, 'repo_filesystem_canonical_manifest_readback');
 assert.equal(complete.evidence_matrix.tool_catalog.evidence_source, 'activation_platform_access_and_dynamic_authorization_envelope');
+assert.equal(complete.evidence_matrix.database_readiness.ok, true);
+assert.equal(complete.evidence_matrix.database_readiness.read_only_probe, true);
 assert.equal(canReportSessionContextLoaded(validSessionContext), true);
+
+const blockedDatabase = buildHardActivationEvidenceMatrix({
+  sessionContext: validSessionContext,
+  providerBootstrap: activeProviderBootstrap,
+  repoCanonicals: activeRepoCanonicals,
+  toolCatalog: activeToolCatalog,
+  databaseReadiness: blockedDatabaseReadiness,
+});
+assert.equal(blockedDatabase.activation_complete, false);
+assert.equal(blockedDatabase.reason_code, 'governance_db_privilege_readiness_blocked');
+assert.equal(blockedDatabase.evidence_matrix.database_readiness.ok, false);
+assert.equal(blockedDatabase.degraded_surfaces.some((surface) => surface.surface === 'database_readiness'), true);
+
+const blockedDatabaseResponse = buildHardActivationDatabaseBlockedResponse(blockedDatabaseReadiness);
+assert.equal(blockedDatabaseResponse.activation_complete, false);
+assert.equal(blockedDatabaseResponse.hard_activation_blocked_until_ready, true);
+assert.equal(blockedDatabaseResponse.database_readiness.hard_activation_blocked_until_ready, true);
+assert.equal(blockedDatabaseResponse.secrets_included, false);
 
 const missingProvider = classifyHardActivationEvidence({
   session_context: complete.evidence_matrix.session_context,
@@ -147,6 +196,7 @@ assert.equal(missingProvider.reason_code, 'degraded_missing_provider_bootstrap_e
 
 const activationRoutes = readFileSync('routes/activationRoutes.js', 'utf8');
 const activationHardRunRoutes = readFileSync('routes/activationHardRunRoutes.js', 'utf8');
+const deploymentInfoRoutes = readFileSync('routes/deploymentInfoRoutes.js', 'utf8');
 const migration = readFileSync('migrations/165_sprint65_hard_activation_and_tenant_surface.sql', 'utf8');
 const openapi = readFileSync('openapi.yaml', 'utf8');
 assert(activationRoutes.includes('/activation/hard-run'), 'hard activation route must exist');
@@ -154,6 +204,8 @@ assert(activationRoutes.includes('buildActivationSessionContext'), 'hard activat
 assert(activationRoutes.includes('activation_provider_bootstrap_validate'), 'hard activation route must collect provider bootstrap evidence');
 assert(activationRoutes.includes('buildRepoCanonicalRuntimeEvidence'), 'hard activation route must collect repo canonical evidence');
 assert(activationRoutes.includes('buildDynamicToolCatalogEvidence'), 'hard activation route must collect dynamic tool catalog evidence');
+assert(activationRoutes.includes('runProductionActivationReadiness'), 'legacy hard activation must preflight database readiness');
+assert(activationRoutes.includes('buildHardActivationDatabaseBlockedResponse'), 'legacy hard activation must fail closed with bounded database evidence');
 assert(activationRoutes.includes('buildActivationDynamicTabsEvidence'), 'hard activation route must expose dynamic tabs evidence');
 assert(activationRoutes.includes('buildActivationOperationalIntelligenceEvidence'), 'hard activation route must expose operational intelligence evidence');
 assert(activationRoutes.includes('buildActivationOperationalDashboardEvidence'), 'hard activation route must expose operational dashboard evidence');
@@ -162,6 +214,9 @@ assert(migration.includes('activation_hard_run'), 'admin tool must be registered
 assert(migration.includes('/activation/hard-run'), 'hard activation tool path must be registered');
 assert(openapi.includes('/activation/hard-run:'), 'hard activation path must be documented');
 assert(openapi.includes('HardActivationRunResponse'), 'hard activation response schema must be documented');
+assert(activationHardRunRoutes.includes('runProductionActivationReadiness'), 'hard activation must preflight database readiness before side effects');
+assert(activationHardRunRoutes.includes('buildHardActivationDatabaseBlockedResponse'), 'hard activation must fail closed with bounded database evidence');
+assert(deploymentInfoRoutes.includes('include_production_activation_readiness'), 'deployment-info must expose combined readiness behind an opt-in flag');
 assert(activationHardRunRoutes.includes('maybeChunkToolResponseBody(responseBody'), 'hard activation responses must always pass through durable chunk transport');
 assert(activationHardRunRoutes.includes('chunk_ttl_minutes: Number(req.body?.chunk_ttl_minutes || 20)'), 'hard activation route must apply the requested chunk TTL');
 assert(!activationHardRunRoutes.includes('const shouldChunk = responseBody.response_projection?.semantic_chunk_fallback_required'), 'hard activation chunking must not depend only on the internal semantic hard budget');
