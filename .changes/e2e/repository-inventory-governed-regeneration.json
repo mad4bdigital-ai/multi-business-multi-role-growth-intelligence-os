@@ -2,109 +2,75 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "repository-inventory-governed-regeneration",
-  "title": "Governed Repository Inventory and Evaluation convergence",
+  "title": "Repository State observability verification and post-merge convergence",
   "delivery_mode": "single_pr",
+  "secrets_included": false,
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/repository-inventory-governed-regeneration.json",
+      ".github/derived-state-governance.json",
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/ci.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/repository-evaluation.yml",
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
       ".github/workflows/repository-inventory.yml",
-      ".github/workflows/spec-kit-work-map-integration.yml",
       "docs/repository-inventory-guide.md",
-      "docs/repository-inventory-summary.json",
-      "docs/repository-inventory.json",
-      "docs/repository-inventory.md",
       "scripts/repository-inventory-verification-gate.mjs",
+      "scripts/repository-evaluation.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
-      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "docs/remote-mcp-write-scope-inventory.md",
-      "docs/repository-evaluation-summary.json",
+      "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-inventory.md",
       "docs/repository-evaluation.json",
-      "docs/repository-evaluation.md",
-      "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs"
+      "docs/repository-evaluation-summary.json",
+      "docs/repository-evaluation.md"
     ]
   },
-  "merge_contract": {
-    "minimum_phase": "mvp"
-  },
+  "merge_contract": { "minimum_phase": "mvp" },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make Repository Inventory regeneration a bounded transaction of the existing governed generated-artifact writer that converges dependent Repository Evaluation outputs only after Inventory is deterministic and current, while keeping ordinary verification and self-hosting bootstrap proof read-only until writer authority is trusted on main; keep Remote MCP write-scope recovery separately bounded to its two canonical outputs.",
+      "objective": "Verify Repository Inventory and Repository Evaluation read-only on the exact candidate, treat their pre-merge drift as non-blocking observability, and publish deterministic repository-state outputs only after merge through the registered bounded writer.",
       "e2e_journeys": [
         {
-          "id": "regenerate-stale-repository-state-through-governed-writer",
+          "id": "verify-observability-then-publish-post-merge",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository inventory verification gate, repository evaluation verifier, CI, trusted dispatcher, and governed generated-artifact writer",
-          "entrypoint": "A same-repository governed work branch has stale Repository Inventory or dependent Repository Evaluation outputs, or a separately classified Remote MCP write-scope generated-state drift, under already-trusted authority or while installing or changing that authority.",
-          "terminal_outcome": "Before mutation authority is trusted, Inventory and Evaluation prove deterministic six-output convergence read-only without committing or pushing generated files. After authority is trusted, repository_inventory_refresh deterministically converges Inventory first and Evaluation second, commits only the six registered repository-state outputs, reads back the exact result SHA, and dispatches read-only exact-head verification for both families. Remote MCP write-scope recovery remains a separate two-output bounded regeneration and is never silently absorbed into the six-output writer.",
+          "actor": "repository governance verifier and governed generated-artifact writer",
+          "entrypoint": "An exact pull-request candidate, exact main SHA, or governed post-merge convergence branch",
+          "terminal_outcome": "Pull-request drift remains advisory and never mutates the feature branch; stale exact-main observability emits one bounded convergence signal; the trusted writer regenerates Inventory then Evaluation on a non-protected branch and exact-head read-only verification proves the result.",
           "steps": [
-            "Checkout the exact candidate head with read-only repository permission.",
-            "Run the shared Repository Inventory verification gate from Repository Inventory and CI.",
-            "Generate the three Inventory outputs twice and require identical SHA-256 identities across both passes.",
-            "Run the canonical Inventory currentness check and self-test after generation.",
-            "If committed Inventory is current, report current and continue normally.",
-            "For stale Inventory, keep the read-only classifier bounded to the three Inventory outputs and require same-repository governed branch identity, main-base freshness, trusted generator/package bytes, deterministic generation, and no extra dirty paths.",
-            "Publish bootstrap_pending only as read-only evidence; do not commit, push, dispatch candidate write code, mutate a protected branch, or force-push.",
-            "When Repository Evaluation handles a pull request bootstrap, materialize scripts/repository-inventory-verification-gate.mjs from the exact trusted main SHA into runner-temporary storage and execute that trusted copy; never execute candidate-modified gate bytes.",
-            "If the shared gate returns bootstrap_pending, reuse the generated Inventory worktree only inside the read-only Evaluation job and require scripts/repository-evaluation.mjs and scripts/test-repository-evaluation.mjs to be byte-unchanged from trusted main.",
-            "Generate the three Evaluation outputs twice with enforcement, compare SHA-256 identities, run evaluation:test and enforced currentness, and require the complete local dirty set to equal exactly the three Inventory plus three Evaluation outputs.",
-            "Publish mad4b.repository-state-bootstrap-proof.v1 with repository_mutation=false, protected_branch_mutation=false, force_push=false, and no secrets; skip the normal committed-currentness loop only for this proven bootstrap_pending path.",
-            "When tracked-file churn makes Remote MCP write-scope inventory stale, classify it as a separate bounded generated-artifact recovery: regenerate and deterministic-check only http-generic-api/remote-mcp-write-scope-inventory.generated.json and docs/remote-mcp-write-scope-inventory.md before claiming full readiness.",
-            "A coupled recovery PR may carry the two Remote MCP write-scope outputs, regenerated Inventory and Evaluation outputs, and this E2E contract when those generated families are all stale together; runtime source, dependencies, migrations, grants, provider calls, credentials, and protected refs remain outside that recovery.",
-            "Do not expand repository_inventory_refresh's mutation write-set because of a Remote MCP recovery; its repository-state transaction remains exactly six Inventory plus Evaluation outputs.",
-            "After source authority merges to main, create or validate a non-protected generated-output work branch from exact trusted main and invoke repository_inventory_refresh through the sole trusted writer.",
-            "Inside the trusted mutation transaction, converge Inventory first: two generation passes, SHA-256 equality, inventory:check, and inventory:test.",
-            "Only after Inventory is deterministic and current, converge Evaluation second: two enforced generation passes, SHA-256 equality, evaluation:test, and enforced evaluation currentness.",
-            "Bound the trusted mutation write-set to docs/repository-inventory.json, docs/repository-inventory-summary.json, docs/repository-inventory.md, docs/repository-evaluation.json, docs/repository-evaluation-summary.json, and docs/repository-evaluation.md.",
-            "Re-read the remote target immediately before push, push without force, and require post-push remote readback to equal the generated commit SHA.",
-            "After writer readback, dispatch Repository Inventory and Repository Evaluation as read-only verifiers pinned to the same result SHA.",
-            "Preserve verification-dispatch evidence contract v1 and legacy primary workflow/workflow_file fields while adding the verifiers array for dual verification.",
-            "For a failed push-triggered Inventory run on exact main, classify only the live main SHA, reject stale event heads, and route recovery into chore/repository-inventory-main-sync-<sha12> rather than mutating main.",
-            "For a workflow_dispatch convergence request, require create_from_main=true, source_main_sha equal to expected_head_sha, the governed branch namespace, and live main equality before creating the branch.",
-            "If the convergence branch already exists, require its remote head to equal the exact source main SHA; refuse branch reuse with a different head."
+            "Checkout the exact candidate or governed branch SHA with persisted credentials disabled.",
+            "Run the v2 Repository Inventory gate and require exact-head identity plus deterministic double generation before reporting state.",
+            "Treat stale Repository Inventory as stale_observability with blocking=false and merge_blocking=false on pull requests.",
+            "Run Repository Evaluation currentness read-only and treat pull-request drift as the same non-blocking observability class.",
+            "Perform no pre-merge feature-branch mutation for either observability artifact.",
+            "After source merge, use the Repository Inventory main workflow as the shared signal for Inventory or dependent Evaluation drift because both map to repository_inventory_refresh.",
+            "Dispatch repository_inventory_refresh only from exact live main into a non-protected chore/repository-inventory-main-sync-<sha12> branch.",
+            "Inside the sole registered writer, regenerate Inventory first and Evaluation second, verify deterministic double passes and contract checks, and bound the write set to the six registered outputs.",
+            "Re-read the remote target before push, push without force, require remote result SHA readback, then dispatch exact-head read-only Inventory and Evaluation verification.",
+            "Publish the generated-output branch through the governed post-merge convergence PR path; never push generated observability files directly to main or Production."
           ],
           "assertions": [
-            "Repository Inventory and CI use one shared read-only verification gate for currentness and bootstrap decisions.",
-            "The shared Inventory gate performs two generation passes and compares SHA-256 identities before claiming deterministic_generation_verified.",
-            "Repository Inventory pull-request verification has contents read only and performs no git push.",
-            "The stale Inventory classifier remains bounded to exactly the three Repository Inventory outputs before delegation or bootstrap proof.",
-            "Repository Evaluation bootstrap refuses to use a candidate-modified Inventory verification gate.",
-            "Repository Evaluation bootstrap reuses the shared Inventory gate and proceeds only when its canonical outcome is bootstrap_pending with deterministic generation and no repository mutation.",
-            "Repository Evaluation bootstrap requires its Evaluation generator and Evaluation self-test bytes to be unchanged from trusted main.",
-            "Repository Evaluation bootstrap generates Evaluation twice, hash-compares both passes, runs evaluation:test and enforced currentness, and requires exactly six generated repository-state dirty files.",
-            "Repository Evaluation bootstrap publishes canonical read-only proof and grants no contents write permission, commit, push, protected-ref mutation, or force push.",
-            "A coupled Remote MCP write-scope refresh writes only http-generic-api/remote-mcp-write-scope-inventory.generated.json and docs/remote-mcp-write-scope-inventory.md.",
-            "Repository Evaluation outputs are regenerated from the current Inventory fingerprint and evaluation:check passes with no blocking gaps.",
-            "The trusted repository_inventory_refresh mutation transaction may write exactly the three Repository Inventory outputs plus the three Repository Evaluation outputs and no other path.",
-            "Trusted writer Evaluation generation starts only after Inventory currentness and contract verification succeed.",
-            "Trusted writer Evaluation is generated twice, hash-compared for determinism, self-tested, and checked with enforcement before commit.",
-            "Remote MCP write-scope recovery does not enlarge the repository_inventory_refresh six-output mutation allowlist.",
-            "Candidate-modified generated-artifact mutation authority is never executed before it is trusted on main.",
-            "The ordinary automatic dispatcher still refuses unsafe candidate-modified mutation authority and retains exact-head and protected-target fail-closed boundaries.",
-            "The dispatcher has actions write only where needed for trusted delegation and does not become a repository content writer.",
-            "The governed writer requires an exact expected_head_sha and typed confirmation, rejects main and Production mutation targets, and never force-pushes.",
-            "The post-merge convergence uses a non-protected work branch; main and Production remain outside direct generated-artifact mutation targets.",
-            "Generated-artifact verification routes repository_inventory_refresh to both Repository Inventory and Repository Evaluation on the same resulting exact head.",
-            "Repository Evaluation workflow_dispatch supports optional exact target_ref and expected_head_sha pinning, validates remote identity, checks out that SHA without persisted credentials, and revalidates local and remote identity before evaluation.",
-            "Repository Evaluation remains read-only and never receives contents write permission or performs git push.",
-            "Verification dispatch evidence remains mad4b.generated-artifact-refresh-verification-dispatch.v1 with backward-compatible workflow and workflow_file fields plus the verifiers extension.",
-            "Push-triggered and workflow_dispatch-triggered Inventory recovery preserve exact-head and fail-closed source identity contracts.",
-            "A governed work-branch push may publish bootstrap evidence only within the Inventory gate's same-repository, main-base, non-protected branch contract; protected-ref pushes remain blocked.",
-            "Work Map Integration runs currentness verification for every main-bound pull request without effective path narrowing; stale maps fail closed into the governed repair path, and ordinary validation performs no remote write.",
-            "Main convergence creates only a non-protected branch and never turns the dispatcher into a direct protected-ref writer.",
-            "The generated-artifact-refresh maintenance tool remains the sole registered mutating authority whose allowed changed-path patterns match Repository Inventory or Repository Evaluation outputs.",
-            "A recovery PR that changes registered Repository Inventory, Repository Evaluation, or Remote MCP write-scope outputs carries this contract in its changed paths so E2E governance classifies it as repository-state recovery.",
-            "Production deployment, database mutation, direct protected-ref mutation, provider calls, credential payload reads, and secret publication are outside this feature."
+            "Repository Inventory is registered as artifact_class=observability with merge_blocking=false.",
+            "Repository Evaluation is registered as artifact_class=observability with merge_blocking=false.",
+            "Pre-merge stale observability is advisory and cannot trigger feature-branch mutation.",
+            "Repository Inventory verification is exact-head, read-only, deterministic, and reports post_merge_observability_publish when follow-up is required.",
+            "Repository Evaluation verification is exact-head and read-only; bootstrap_pending and candidate-side bootstrap mutation semantics are absent.",
+            "The exact-main Repository Inventory workflow detects stale Inventory or stale dependent Evaluation and emits the shared post-merge convergence signal.",
+            "The dispatcher suppresses pull-request mutation and permits only exact-main post-merge repository_inventory_refresh delegation.",
+            "The governed writer remains the sole mutating authority for the six Repository State outputs.",
+            "Inventory generation and verification complete before Evaluation generation begins.",
+            "The writer requires exact SHA identity, rejects main and Production as mutation targets, performs no force push, and verifies the remote result SHA.",
+            "Post-merge publication occurs through a bounded non-protected convergence branch and governed pull request.",
+            "The Repository Inventory guide documents the same v2 advisory-premerge and post-merge publication lifecycle.",
+            "No database, provider, Production, credential, direct protected-ref, or force-push authority is granted."
           ],
           "tests": [
             {
@@ -115,14 +81,14 @@
               "args": []
             },
             {
-              "id": "repository-state-generated-artifact-convergence",
+              "id": "repository-state-generated-artifact-convergence-v2",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/test-repository-state-generated-artifact-convergence.mjs",
               "args": []
             },
             {
-              "id": "repository-inventory-self-hosting-bootstrap",
+              "id": "repository-inventory-observability-v2",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-repository-inventory-self-hosting-bootstrap.mjs",
@@ -130,6 +96,7 @@
             }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
             ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/ci.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml",
@@ -141,8 +108,6 @@
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "http-generic-api/scripts/test-repository-state-generated-artifact-convergence.mjs",
-            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "docs/remote-mcp-write-scope-inventory.md",
             "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs"
           ]
         }
@@ -151,25 +116,23 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Observe the first trusted post-merge Repository State generated-output follow-up on a non-protected work branch, including Inventory plus Evaluation convergence, dual exact-head verification, push-run recovery, branch collision refusal, and canonical evidence.",
-      "blockers": [
-        "The six-output Repository State writer introduced by this source change is not yet trusted on main; operational remains blocked until its first post-merge non-protected canary completes with dual exact-head verification."
-      ]
+      "objective": "Observe the first post-merge Repository State convergence branch and dual exact-head verification under v2 observability semantics.",
+      "blockers": ["The v2 source authority must first be trusted on main and exercise one bounded post-merge convergence cycle."]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale SHA, main drift, changed Inventory generator/package contract, changed Evaluation generator/test contract, changed authority surface, candidate-modified bootstrap gate, nondeterministic Inventory, nondeterministic Evaluation, Remote MCP write-scope drift, dirty-set escape, no-op, verifier dispatch failure, and post-push readback mismatch paths."
+      "objective": "Exercise stale main identity, nondeterministic generation, dirty-set escape, branch collision, remote CAS mismatch, and verifier-dispatch failure paths."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Use the first post-merge generated-output work branch as the bounded canary for repository_inventory_refresh and dual Repository State verification; keep any Remote MCP write-scope recovery separately bounded to its two outputs."
+      "objective": "Use the first post-merge generated-output branch as the bounded canary for repository_inventory_refresh."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Keep main and Production outside direct generated-artifact mutation targets while allowing trusted merged authority to govern ordinary work branches."
+      "objective": "Keep main and Production outside direct generated-artifact mutation targets while merged authority governs ordinary convergence branches."
     }
   ]
 }

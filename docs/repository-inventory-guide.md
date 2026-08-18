@@ -2,29 +2,39 @@
 
 ## Purpose
 
-Repository Inventory is the generated census of every Git-tracked project file. It grows from the Git index instead of a manually maintained directory list.
+Repository Inventory is the deterministic generated census of Git-tracked project files. Repository Evaluation is a dependent generated state whose fingerprint depends on Inventory.
 
-The canonical Inventory outputs are:
+Canonical outputs:
 
 ```text
 docs/repository-inventory.json
 docs/repository-inventory-summary.json
 docs/repository-inventory.md
-```
-
-`repository-inventory.json` is the complete machine-readable inventory. The summary JSON is optimized for low-noise review and dashboards. The Markdown file is the concise human report generated from the same deterministic snapshot.
-
-Each inventoried file records its repository-relative path, category, extension, byte size, text-line count, SHA-256 fingerprint, normalized mode, executable marker, and generated-artifact marker. Generated Inventory and Repository Evaluation outputs are excluded from Inventory inputs to prevent self-reference.
-
-Repository Evaluation is a dependent generated state. Its canonical outputs are:
-
-```text
 docs/repository-evaluation.json
 docs/repository-evaluation-summary.json
 docs/repository-evaluation.md
 ```
 
-Evaluation fingerprints Inventory state, so a valid Inventory refresh can make a previously committed Evaluation stale even when no Evaluation source file changed. The governed lifecycle therefore treats `Inventory -> Evaluation` as one ordered repository-state convergence transaction whenever the trusted Inventory writer performs mutation.
+The lifecycle is governed by `.github/derived-state-governance.json`. Inventory and Evaluation are registered as `artifact_class=observability`, `merge_blocking=false`, and share the `repository_inventory_refresh` recipe.
+
+## v2 policy
+
+Repository State has two deliberately separate phases:
+
+```text
+pull request / exact candidate
+  -> read-only verification
+  -> stale observability is advisory
+  -> no feature-branch mutation
+
+post merge / exact main
+  -> detect stale Inventory or Evaluation
+  -> dispatch the trusted bounded writer
+  -> publish through a non-protected convergence branch
+  -> exact-head read-only verification
+```
+
+The old `bootstrap_pending` feature-branch lifecycle is retired. Candidate-modified writer authority is not executed to converge a pull request, and stale Repository State is not made merge-blocking merely to force generated observability files into the feature branch.
 
 ## Local lifecycle
 
@@ -37,66 +47,97 @@ npm run evaluation:test
 npm run evaluation:check -- --enforce
 ```
 
-`inventory:write` regenerates the Inventory outputs. `inventory:check` fails when committed Inventory differs from deterministic regeneration. `inventory:test` validates schema, deterministic sorting, file count, byte totals, fingerprints, self-exclusion, and classification fixtures.
+Inventory generation discovers tracked files through `git ls-files`. Generated Inventory and Evaluation outputs are excluded from Inventory inputs to prevent self-reference.
 
-The generator discovers tracked files through `git ls-files`. New directories, workflows, migrations, contracts, languages, and documentation families therefore enter the Inventory automatically.
+Evaluation is generated only after Inventory is deterministic and current. The governed writer performs two Inventory generation passes, validates Inventory, then performs two enforced Evaluation generation passes and validates Evaluation.
 
-Evaluation must be generated only after Inventory is deterministic and current. The trusted writer runs two Inventory generation passes and verifies them before it starts two enforced Evaluation generation passes.
+## Exact-candidate read-only verification
 
-## Read-only verifiers
-
-The `Repository Inventory` and `Repository Evaluation` workflows remain verifiers, not writers:
+`Repository Inventory` and `Repository Evaluation` are verifiers, not writers:
 
 ```text
 permissions:
   contents: read
 ```
 
-They never commit, push, or persist write credentials.
+Checkout uses `persist-credentials: false`. Verification never commits or pushes generated state.
 
-A manual or trusted exact-head verification can bind the verification to:
+The Inventory v2 gate requires the checked-out `HEAD` to equal the exact expected SHA. It regenerates Inventory twice, verifies deterministic hashes, runs Inventory checks, restores generated outputs, and reports one of these semantic states:
 
 ```text
-target_ref=<governed work branch>
+current
+  outcome=passed
+  current=true
+  blocking=false
+
+stale observability
+  outcome=advisory
+  inventory_state=stale_observability
+  current=false
+  blocking=false
+  artifact_class=observability
+  merge_blocking=false
+  followup_required=true
+  followup_mode=post_merge_observability_publish
+```
+
+Repository Evaluation follows the same policy class: exact-head, read-only, advisory on pull-request drift, and no feature-branch convergence write.
+
+A manual exact-head verification may bind to:
+
+```text
+target_ref=<governed non-protected work branch>
 expected_head_sha=<exact 40-character SHA>
 ```
 
-Repository Evaluation validates that the target is a governed non-protected branch, reads the remote branch SHA, checks out the exact expected SHA with credentials disabled, then verifies both local and remote identity again before evaluation.
+Exact-head verification on a governed post-merge output branch fails if the committed generated state is not current; this is verification of the writer result, not permission to repair it in place.
 
-Inventory-only and Evaluation-only generated commits are excluded where appropriate from normal trigger paths to prevent loops. The governed writer explicitly dispatches read-only exact-head verification after a repository-state repair.
+## Post-merge convergence signal
+
+Both observability artifacts share one writer recipe. The `Repository Inventory` workflow therefore acts as the bounded exact-main convergence signal:
+
+1. verify Inventory on the exact `main` SHA;
+2. if Inventory is stale, emit a failed post-merge convergence signal;
+3. if Inventory is current, check dependent Repository Evaluation currentness;
+4. if Evaluation is stale, emit the same shared-recipe signal;
+5. perform no repository mutation in the verifier.
+
+This avoids using unrelated Repository Evaluation setup or network-audit failures as writer triggers.
+
+`Repository Inventory Autofix Dispatch` listens to failed `Repository Inventory` runs. For pull-request-originated runs it suppresses mutation. For a failed exact-main push run it verifies the live main SHA and delegates `repository_inventory_refresh` to the existing governed writer.
 
 ## Governed regeneration authority
 
-Repository state has no second writer. `repository_inventory_refresh` remains a registered recipe of the sole `Governed Generated Artifact Refresh` mutation authority.
+Repository State has one mutating authority: `Governed Generated Artifact Refresh` using the registered `repository_inventory_refresh` recipe.
 
-Registered recipes include:
+The dispatcher has no `contents: write` permission. It uses `actions: write` only to invoke the trusted writer.
+
+The writer operates on a non-protected branch named from the exact source main SHA:
 
 ```text
-auto
-frontend_openapi_refresh
-work_map_self_hosting_bootstrap
-repository_inventory_refresh
+chore/repository-inventory-main-sync-<sha12>
 ```
 
-For `repository_inventory_refresh`, the trusted writer performs one ordered transaction:
+It rejects `main` and `Production` as mutation targets.
 
-1. pin the exact non-protected target branch head;
-2. reject `main` and `Production` as mutation targets;
-3. install root dependencies with `npm ci --ignore-scripts`;
-4. generate the three Inventory outputs twice;
-5. compare Inventory SHA-256 identities between both passes;
-6. run `inventory:check` and `inventory:test`;
-7. only after Inventory succeeds, generate the three Evaluation outputs twice with enforcement;
-8. compare Evaluation SHA-256 identities between both passes;
-9. run `evaluation:test` and enforced Evaluation currentness;
-10. require the dirty set to remain inside the six registered repository-state outputs;
-11. re-read the remote branch immediately before mutation;
-12. create one generated-state commit only when needed;
-13. push without force;
-14. require post-push remote readback to equal the generated commit SHA;
-15. dispatch `Repository Inventory` and `Repository Evaluation` as read-only verifiers on the same resulting exact SHA.
+For `repository_inventory_refresh`, the trusted writer performs this ordered transaction:
 
-The six mutation outputs are bounded to:
+1. pin exact source main and target identities;
+2. reject protected mutation targets;
+3. install required dependencies;
+4. generate Inventory twice and compare SHA-256 identities;
+5. run `inventory:check` and `inventory:test`;
+6. generate Evaluation twice with enforcement;
+7. compare Evaluation SHA-256 identities;
+8. run `evaluation:test` and enforced Evaluation currentness;
+9. require the dirty set to remain within the six registered outputs;
+10. re-read the remote target immediately before mutation;
+11. create at most one generated-state commit;
+12. push without force;
+13. require post-push remote readback to equal the generated commit SHA;
+14. dispatch Repository Inventory and Repository Evaluation exact-head read-only verifiers on that result SHA.
+
+The maximum mutation write set is exactly:
 
 ```text
 docs/repository-inventory.json
@@ -109,161 +150,33 @@ docs/repository-evaluation.md
 
 A clean replay is a no-op: no commit, no push, and no ref movement.
 
-## Stale classification remains Inventory-bounded
+## Publication
 
-The read-only stale classifier remains intentionally narrower than the trusted mutation transaction.
+After writer readback, the governed main-convergence publisher validates that the changed paths are a subset of the outputs registered for the recipe and creates or reuses a pull request from the non-protected convergence branch to `main`.
 
-Before delegation, ordinary Inventory drift classification regenerates and inspects only the three Inventory outputs. This keeps the authority decision based on the canonical Inventory symptom and prevents the classifier from becoming another Evaluation writer.
+Generated observability outputs are therefore published through normal governed review/closure rather than by direct mutation of `main`.
 
-After trusted delegation, `repository_inventory_refresh` owns the dependent convergence and may update both Inventory and Evaluation within the six-file allowlist.
+## Race and trust boundaries
 
-This distinction is deliberate:
+Exact SHA identity is checked before verification and before mutation. The writer re-reads the remote branch immediately before push and verifies the resulting remote SHA after push. It never force-pushes.
 
-```text
-read-only classification
-  -> prove exact three-file Inventory drift
-  -> no repository mutation
-
-trusted repository-state mutation
-  -> converge Inventory first
-  -> converge dependent Evaluation second
-  -> exact six-file maximum write-set
-  -> dual exact-head read-only verification
-```
-
-## Ordinary stale-only recovery
-
-`Repository Inventory Autofix Dispatch` observes failed `Repository Inventory` runs. It is a dispatcher, not a repository writer.
-
-Its classification phase is read-only. Its final delegation phase gets `actions: write` only to dispatch the already-trusted writer; it still has no `contents: write` permission and never pushes repository content itself.
-
-Ordinary automatic repair requires all of the following:
-
-- the source run is an eligible failed run under the governed recovery contract;
-- exactly one same-repository target branch is identified where required;
-- the target is a governed non-protected work branch;
-- source-run SHA still equals the current exact target head;
-- the candidate is not behind current `main` where the PR path requires zero-behind freshness;
-- Inventory generator/package contract is unchanged from trusted `main`;
-- writer, verifier, dispatcher, and maintenance-governance authority surfaces satisfy the trusted-authority contract;
-- read-only Inventory regeneration is deterministic;
-- Inventory checks pass after regeneration;
-- only the three Inventory outputs are dirty during stale classification.
-
-Forks, stale heads, additional dirty files, runner/setup failures, generator failures, changed mutation authority, or protected targets fail closed without writer dispatch.
-
-## Self-hosting installation boundary
-
-A first installation or change of `repository_inventory_refresh` is different from an ordinary stale-only repair. The PR changes mutation authority that is not yet trusted on `main`. Running that candidate mutation authority before merge would defeat the trust boundary.
-
-The verifier therefore supports a narrow read-only `bootstrap_pending` state instead of a pre-merge write.
-
-`bootstrap_pending` requires the governed repository identity and exact-head conditions defined by the Inventory verification gate, including a non-protected governed target, trusted Inventory generator/package bytes, zero-behind freshness where required, deterministic generation, and an Inventory-only three-output dirty classification.
-
-When those conditions hold, the verifier may publish structured evidence such as:
-
-```text
-outcome=bootstrap_pending
-inventory_state=self_hosting_bootstrap_pending
-current=false
-trusted_generator_unchanged=true
-behind_by_zero=true
-repository_mutation=false
-protected_branch_mutation=false
-force_push=false
-followup_mode=trusted_post_merge_work_branch
-```
-
-This is evidence, not mutation. Candidate-modified generated-artifact authority remains non-executable until that authority is trusted on `main`.
-
-The self-hosting rule is intentionally asymmetric:
-
-```text
-before source authority is trusted on main
-  -> generate + test + prove exact Inventory drift
-  -> publish bootstrap_pending
-  -> no candidate write authority
-
-after source authority is trusted on main
-  -> create a non-protected generated-output work branch from trusted main
-  -> invoke repository_inventory_refresh through the trusted writer
-  -> converge Inventory then Evaluation
-  -> verify both families on the exact resulting head
-  -> merge the generated-output PR through normal branch protection
-```
-
-This avoids unsafe candidate writes and direct mutation of `main`.
-
-## Post-merge convergence procedure
-
-After the source/control PR containing the repository-state recipe has merged to `main`:
-
-1. read and pin the new `main` SHA;
-2. create or validate a governed non-protected convergence branch from that exact SHA;
-3. keep the branch authority surface byte-identical to trusted `main`;
-4. invoke `repository_inventory_refresh` through the trusted generated-artifact lifecycle;
-5. require deterministic Inventory generation and Inventory currentness first;
-6. require deterministic Evaluation generation and enforced Evaluation currentness second;
-7. require the final write set to stay within the six repository-state outputs;
-8. require exact-head CAS, non-force push, and post-push readback;
-9. dispatch both Repository Inventory and Repository Evaluation against the same resulting exact SHA;
-10. merge only after the generated-output PR is current and required checks are green.
-
-No generated output should be edited by hand to bypass this lifecycle.
-
-## Loop and race prevention
-
-Normal steady-state flow:
-
-```text
-source change
-  -> Repository Inventory detects stale state
-  -> Autofix dispatcher proves bounded drift + trusted authority
-  -> governed writer receives exact SHA
-  -> writer converges Inventory
-  -> writer converges dependent Evaluation
-  -> writer creates at most one bounded repository-state commit
-  -> writer reads back exact remote head
-  -> writer dispatches exact-head Inventory verifier
-  -> writer dispatches exact-head Evaluation verifier
-  -> both verifiers remain read-only
-```
-
-Concurrency is grouped by target branch and exact-head CAS remains the final race guard. If a branch moves during generation, the writer blocks rather than rebasing blindly, replaying mutation, force-pushing, or touching a newer head.
-
-## Verification evidence compatibility
-
-The canonical verification-dispatch evidence keeps the existing contract:
-
-```text
-mad4b.generated-artifact-refresh-verification-dispatch.v1
-```
-
-Legacy top-level `workflow` and `workflow_file` fields remain present and identify the primary verifier. Repository-state convergence adds a `verifiers` array so Inventory and Evaluation verification requests can be represented together without breaking existing v1 consumers.
-
-Job logs remain diagnostic. Canonical reports and exact-head workflow results are the decision evidence.
+The source/control PR may change the writer or governance that controls this lifecycle, but those candidate bytes are not used as a pre-merge Repository State mutation authority. Once merged, the trusted main copy may create the bounded post-merge convergence branch.
 
 ## Governance boundaries
 
-The `generated-artifact-refresh` registration in `.github/repository-maintenance-tool-governance.json` remains the sole registered mutating repository maintenance tool. For the repository-state recipe, its bounded output authority covers the three Inventory plus three Evaluation files only.
+Forbidden behaviors include:
 
-Forbidden behaviors remain:
-
-- direct mutation of `main`;
-- mutation of `Production` through this lifecycle;
+- direct generated-artifact mutation of `main`;
+- mutation of `Production` through Repository State convergence;
 - force push;
 - arbitrary output paths;
-- pull-request workflow write authority;
-- execution of candidate-modified generated-artifact mutation authority before it is trusted on `main`;
-- bypass of Inventory determinism/currentness/tests;
-- generating Evaluation before Inventory is proven current;
-- bypass of Evaluation determinism/currentness/tests;
-- automatic repair against a stale target head;
-- treating setup, dependency, test, or generator failures as ordinary generated-state drift;
-- publishing secrets in evidence.
+- pre-merge feature-branch mutation to satisfy observability currentness;
+- treating Repository Inventory or Evaluation drift as merge-blocking semantic state;
+- executing arbitrary commands from policy data;
+- bypassing Inventory or Evaluation determinism/currentness tests;
+- generating Evaluation before Inventory is verified;
+- using a stale target head;
+- interpreting unrelated setup, dependency, network, or test failures as ordinary generated-state drift;
+- publishing credentials or secrets in evidence.
 
-## Extension policy
-
-Categories are reporting heuristics, not inclusion gates. If a new project surface deserves a dedicated summary section, extend `scripts/repository-inventory.mjs` while preserving deterministic complete coverage.
-
-Changes to the canonical Inventory generator or its root package contract are not eligible for a self-hosting exception that would execute candidate mutation authority. Those changes require a separately governed migration of generator trust because the bytes used to prove candidate Inventory would no longer come from trusted `main`.
+Semantic derived-state artifacts remain separate. For example, Work Maps are registered as semantic and merge-blocking; their stale state cannot be downgraded by the Repository State observability policy.
