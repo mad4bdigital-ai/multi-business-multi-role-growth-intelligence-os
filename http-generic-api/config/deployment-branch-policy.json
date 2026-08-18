@@ -67,6 +67,7 @@
           "autopilot-portable-staging/**",
           "http-generic-api/docker-compose.staging.yml",
           "http-generic-api/Dockerfile.staging",
+          "http-generic-api/.env.staging.example",
           "http-generic-api/scripts/staging-*.mjs",
           "http-generic-api/test-staging-*.mjs",
           "STAGING-*.md"
@@ -94,6 +95,7 @@
           "http-generic-api/*.mjs",
           "edge/**",
           "canonicals/openapi/**",
+          "http-generic-api/frontend-surface-dispatch.generated.json",
           "specs/020-platform-resource-identity-brand-governance/**"
         ],
         "environments": ["staging", "production"],
@@ -108,7 +110,14 @@
           "scripts/**",
           "http-generic-api/config/**",
           "http-generic-api/scripts/environment-impact-closure.mjs",
-          "http-generic-api/test-environment-impact-closure.mjs"
+          "http-generic-api/test-environment-impact-closure.mjs",
+          "docs/repository-*.json",
+          "docs/repository-*.md",
+          "docs/work-maps/**",
+          "docs/remote-mcp-write-scope-inventory.md",
+          "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+          "specs/*/work-map-integration.json",
+          "specs/021-portable-staging-autopilot/e2e-phases.json"
         ],
         "environments": ["repository"],
         "requires_live_certification": false

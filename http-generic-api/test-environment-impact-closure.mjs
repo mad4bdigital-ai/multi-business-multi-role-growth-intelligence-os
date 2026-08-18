@@ -36,6 +36,9 @@ const classes = deployment.environment_impact.path_classes;
 assert.deepEqual(classifyPath("autopilot-portable-staging/Start-AutoPilot.ps1", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/routes/tenantTools.js", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
+assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
 
 const reportFile = path.join(os.tmpdir(), `environment-impact-${process.pid}.json`);
