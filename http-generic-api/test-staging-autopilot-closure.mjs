@@ -15,9 +15,14 @@ for (const entry of manifest.files) {
 }
 
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
+const dockerfile = read("http-generic-api/Dockerfile.staging");
 const env = read("http-generic-api/.env.staging.example");
 const policy = JSON.parse(read("http-generic-api/config/domain-family-policy.json"));
+const deploymentPolicy = JSON.parse(read("http-generic-api/config/deployment-branch-policy.json"));
 const autopilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const certification = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
+const authorityClosure = read("http-generic-api/scripts/staging-environment-authority-closure.mjs");
+const liveCertification = read("http-generic-api/scripts/staging-live-certification.mjs");
 const windowsPreflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1");
 const tunnel = compose.services.cloudflared;
 
@@ -38,6 +43,11 @@ assert.match(env, /^DATABASE_MUTATED=false\s*$/m);
 assert.deepEqual(policy.environments.staging.active_tunnel_hostnames, ["dev.mad4b.com", "mcp_dev.mad4b.com"]);
 assert.deepEqual(policy.environments.staging.active_worker_custom_domains, ["activation-dev.mad4b.com"]);
 assert.deepEqual(policy.environments.staging.reserved_disabled_hostnames, []);
+assert.equal(deploymentPolicy.staging.source_branch, "main");
+assert.equal(deploymentPolicy.staging.production_traffic_allowed, false);
+assert.equal(deploymentPolicy.production.source_branch, "Production");
+assert.equal(deploymentPolicy.promotion.force_push_allowed, false);
+
 assert.match(windowsPreflight, /function Test-StagingWsl2DistributionReady/);
 assert.match(windowsPreflight, /-replace "\\x00", ""/);
 assert.match(windowsPreflight, /function Wait-StagingWsl2Distribution/);
@@ -50,11 +60,37 @@ assert.match(autopilot, /Set-EnvValue \$EnvFile "DEPLOY_BRANCH" \$Ref/);
 assert.match(compose.services.app.environment.DEPLOYMENT_EXPECTED_COMMIT_SHA, /DEPLOYMENT_EXPECTED_COMMIT_SHA/);
 assert.match(compose.services.app.environment.DEPLOY_COMMIT, /DEPLOY_COMMIT/);
 assert.match(compose.services.app.environment.DEPLOY_BRANCH, /DEPLOY_BRANCH/);
+assert.match(String(compose.services.app.build.args.STAGING_BUILD_COMMIT), /DEPLOY_COMMIT/);
+assert.match(String(compose.services.app.build.args.STAGING_BUILD_BRANCH), /DEPLOY_BRANCH/);
+assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
+assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
+assert.match(dockerfile, /deployment-manifest\.json/);
+assert.match(dockerfile, /staging-route-policy\.json/);
+assert.doesNotMatch(dockerfile, /new Date\(\)\.toISOString\(\)/);
 assert.match(autopilot, /Working tree is not clean/);
 assert.match(autopilot, /DOCKER_HOST/);
 assert.match(autopilot, /DOCKER_CONTEXT/);
 assert.match(autopilot, /MIGRATION_APPLIED=false/);
 assert.match(autopilot, /DATABASE_MUTATED=false/);
+assert.match(autopilot, /Invoke-StagingCertification\.ps1/);
+assert.match(autopilot, /certification_status = "pending"/);
+assert.match(autopilot, /Staging is running but not release-ready/);
+assert.match(certification, /staging-live-certification\.mjs/);
+assert.match(certification, /STAGING_CERT_EXPECTED_COMMIT/);
+assert.match(certification, /STAGING_CERT_REQUIRE_READY=false/);
+assert.match(certification, /STAGING_CERTIFICATION_BLOCKED/);
+assert.match(certification, /STAGING_CERTIFICATION_DEGRADED/);
+assert.match(authorityClosure, /deployment-branch-policy\.json/);
+assert.match(authorityClosure, /runtime-environment-invariant-contract\.json/);
+assert.match(authorityClosure, /runtime-db-write-authority-profiles\.json/);
+assert.match(authorityClosure, /route-policy\.staging\.json/);
+assert.match(authorityClosure, /generic_runtime_principal_fallback/);
+assert.match(authorityClosure, /staging_gateway_stale_mutation_policy_not_deny/);
+assert.match(liveCertification, /include_production_activation_readiness/);
+assert.match(liveCertification, /runtime_integrity_verified/);
+assert.match(liveCertification, /combined_database_readiness/);
+assert.match(liveCertification, /gateway_policy_hash_current/);
+assert.match(liveCertification, /outcome = integrityFailed\.length > 0 \? "blocked" : readinessFailed\.length > 0 \? "degraded" : "ready"/);
 assert.doesNotMatch(autopilot, /Invoke-WebRequest|curl|cloudflare.*api|hostinger.*api/i);
 
 console.log("staging_autopilot_closure=PASS");
