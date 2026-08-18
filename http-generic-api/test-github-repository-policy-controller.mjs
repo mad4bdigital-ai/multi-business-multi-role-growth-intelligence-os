@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   GITHUB_REPOSITORY_POLICY_CONFIRMATION,
   GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS,
+  branchPatternMatches,
   buildGithubRepositoryPolicyPlan,
   buildGithubRepositoryPolicyCapabilityBinding,
   githubRepositoryPolicyConfirmationForBranch,
@@ -39,6 +40,11 @@ async function expectCode(promise, code) { await assert.rejects(promise, (error)
 const prevApp = process.env.GITHUB_APP_ID, prevInstall = process.env.GITHUB_APP_INSTALLATION_ID; process.env.GITHUB_APP_ID = String(APP_ID); process.env.GITHUB_APP_INSTALLATION_ID = "888";
 try {
   assert.deepEqual([...GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS], ["Derived State Closure"]);
+  assert.equal(branchPatternMatches("refs/heads/**", "main"), true);
+  assert.equal(branchPatternMatches("refs/heads/**", "Production"), true);
+  assert.equal(branchPatternMatches("refs/heads/Prod?ction", "Production"), true);
+  assert.equal(branchPatternMatches("refs/heads/release/**", "main"), false);
+  assert.equal(branchPatternMatches("refs/heads/release/**", "release/candidate"), true);
   for (const [branch, sha, requiredCheck] of [["main", MAIN_SHA, "Derived State Closure"], ["Production", PROD_SHA, "Governed Production Promotion"]]) {
     const mock = mockGitHub(branch, sha);
     const plan = await runGithubRepositoryPolicyController({ mode: "plan", owner: OWNER, repo: REPO, default_branch: branch }, deps(mock.fetchImpl));
@@ -76,5 +82,5 @@ try {
     await expectCode(runGithubRepositoryPolicyController({ mode: "apply", owner: OWNER, repo: REPO, expected_commit_sha: PROD_SHA, expected_policy_fingerprint: plan.policy_fingerprint, confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION, capability_envelope_id: "env-1" }, deps(mock.fetchImpl)), "github_repository_policy_main_sha_drift");
     assert.equal(mock.state.mutations.length, 0);
   }
-  console.log(JSON.stringify({ ok: true, test: "github_repository_policy_controller_constitution_native", main_final_gate: "Derived State Closure", production_final_gate: "Governed Production Promotion", app_bound_required_checks: true, production_promotion_only: true, secrets_included: false }));
+  console.log(JSON.stringify({ ok: true, test: "github_repository_policy_controller_constitution_native", main_final_gate: "Derived State Closure", production_final_gate: "Governed Production Promotion", app_bound_required_checks: true, production_promotion_only: true, branch_pattern_compiler: true, secrets_included: false }));
 } finally { if (prevApp === undefined) delete process.env.GITHUB_APP_ID; else process.env.GITHUB_APP_ID = prevApp; if (prevInstall === undefined) delete process.env.GITHUB_APP_INSTALLATION_ID; else process.env.GITHUB_APP_INSTALLATION_ID = prevInstall; }
