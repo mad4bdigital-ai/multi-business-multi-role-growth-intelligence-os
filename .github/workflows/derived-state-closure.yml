@@ -110,7 +110,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
-          while IFS= read -r -d '' file; do node --check "$file"; done < <(git ls-files -z -- '*.js' '*.mjs' '*.cjs')
+          git ls-files -z -- '*.js' '*.mjs' '*.cjs' | xargs -0 -r -n 1 -P 4 node --check
 
       - name: Install dependencies without lifecycle side effects
         run: |
