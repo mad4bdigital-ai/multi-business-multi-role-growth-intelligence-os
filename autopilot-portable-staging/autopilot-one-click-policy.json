@@ -13,8 +13,8 @@
     "prompt_only_for_missing_credentials": true,
     "never_store_secrets_in_repository": true
   },
-  "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
-  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"],
+  "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
+  "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
   "database_seed": {
     "default_mode": "schema_only_dry_run_if_local_bundle_exists",
     "apply_requires_explicit_switch": true,
