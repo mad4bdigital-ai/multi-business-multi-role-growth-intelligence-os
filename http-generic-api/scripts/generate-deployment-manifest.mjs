@@ -48,19 +48,30 @@ export function generateDeploymentManifest({
     env.ACTIVATION_GITHUB_REPOSITORY || "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
   );
   const gitBranch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
-  const branchCandidates = [
-    ["arg:--branch", argValue(argv, "--branch")],
-    [`env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}`, env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
-    ["env:DEPLOYMENT_BRANCH", env.DEPLOYMENT_BRANCH],
-    ["env:DEPLOY_BRANCH", env.DEPLOY_BRANCH],
-    ["env:BRANCH_NAME", env.BRANCH_NAME],
-    ["env:GITHUB_REF_NAME", env.GITHUB_REF_NAME],
-    ["env:ACTIVATION_GITHUB_BRANCH", env.ACTIVATION_GITHUB_BRANCH],
-    ["git", gitBranch === "HEAD" ? "" : gitBranch],
-  ];
+  const isStaging = [env.NODE_ENV, env.APP_ENV].some((value) => String(value || "").trim().toLowerCase() === "staging");
+  const branchCandidates = isStaging
+    ? [
+        ["arg:--branch", argValue(argv, "--branch")],
+        ["env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}", env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
+        ["env:DEPLOY_BRANCH", env.DEPLOY_BRANCH],
+        ["env:DEPLOYMENT_BRANCH", env.DEPLOYMENT_BRANCH],
+        ["env:BRANCH_NAME", env.BRANCH_NAME],
+        ["env:GITHUB_REF_NAME", env.GITHUB_REF_NAME],
+        ["env:ACTIVATION_GITHUB_BRANCH", env.ACTIVATION_GITHUB_BRANCH],
+        ["git", gitBranch === "HEAD" ? "" : gitBranch],
+      ]
+    : [
+        ["arg:--branch", argValue(argv, "--branch")],
+        ["env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}", env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
+        ["env:DEPLOYMENT_BRANCH", env.DEPLOYMENT_BRANCH],
+        ["env:DEPLOY_BRANCH", env.DEPLOY_BRANCH],
+        ["env:BRANCH_NAME", env.BRANCH_NAME],
+        ["env:GITHUB_REF_NAME", env.GITHUB_REF_NAME],
+        ["env:ACTIVATION_GITHUB_BRANCH", env.ACTIVATION_GITHUB_BRANCH],
+        ["git", gitBranch === "HEAD" ? "" : gitBranch],
+      ];
   const [branchSource, rawBranch] = branchCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
   const branch = normalizeDeploymentBranch(rawBranch);
-  const isStaging = [env.NODE_ENV, env.APP_ENV].some((value) => String(value || "").trim().toLowerCase() === "staging");
   const commitCandidates = isStaging
     ? [
         ["arg:--commit", argValue(argv, "--commit")],
