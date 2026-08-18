@@ -1,10 +1,14 @@
 {
   "contract": "mad4b.repository-governance-policy-registry.v1",
-  "schema_version": 1,
+  "schema_version": 2,
   "execution_model": "declarative_registered_assertions",
   "allowed_assertion_types": [
     "metric_zero",
-    "flag_true"
+    "flag_true",
+    "value_equals",
+    "collection_empty",
+    "number_compare",
+    "forall"
   ],
   "objection_defaults": {
     "severity": "blocking",
@@ -13,17 +17,12 @@
   "policies": [
     {
       "id": "governance-authority-consistency",
-      "version": 1,
+      "version": 2,
       "severity": "blocking",
       "waiverable": false,
-      "description": "Repository governance authorities must agree with the canonical constitution.",
+      "description": "Repository governance authorities must agree with the canonical Constitution and registered semantic/verifier authorities.",
       "remediation": "Align every repository governance authority with the Constitution before merge.",
-      "assertions": [
-        {
-          "type": "metric_zero",
-          "metric": "constitution_conflict_count"
-        }
-      ]
+      "assertions": [{ "type": "metric_zero", "metric": "constitution_conflict_count" }]
     },
     {
       "id": "unknown-surface-gate",
@@ -32,25 +31,18 @@
       "waiverable": false,
       "description": "Every changed path, including removed and renamed paths, must be classified.",
       "remediation": "Register or classify the changed repository surface.",
-      "assertions": [
-        {
-          "type": "metric_zero",
-          "metric": "unknown_surface_count"
-        }
-      ]
+      "assertions": [{ "type": "metric_zero", "metric": "unknown_surface_count" }]
     },
     {
-      "id": "unknown-executable-gate",
+      "id": "semantic-executable-closure",
       "version": 1,
       "severity": "blocking",
       "waiverable": false,
-      "description": "Every changed executable surface must belong to a known repository surface class.",
-      "remediation": "Register the executable surface and its semantic class.",
+      "description": "Every changed executable must have a registered semantic executable class, not merely a path-level surface class.",
+      "remediation": "Register the executable class in the Constitution semantic executable registry.",
       "assertions": [
-        {
-          "type": "metric_zero",
-          "metric": "unknown_executable_count"
-        }
+        { "type": "metric_zero", "metric": "unknown_executable_count" },
+        { "type": "metric_zero", "metric": "unknown_semantic_executable_count" }
       ]
     },
     {
@@ -61,27 +53,37 @@
       "description": "Add/delete/rename/copy classification must come from Git base/candidate trees.",
       "remediation": "Use Git-native candidate identity and supported statuses.",
       "assertions": [
-        {
-          "type": "flag_true",
-          "flag": "git_native_newness"
-        },
-        {
-          "type": "metric_zero",
-          "metric": "unsupported_git_status_count"
-        }
+        { "type": "flag_true", "flag": "git_native_newness" },
+        { "type": "metric_zero", "metric": "unsupported_git_status_count" }
       ]
     },
     {
       "id": "deletion-rename-impact-closure",
+      "version": 2,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Deleted/renamed nodes must be classified and have zero unresolved reverse dependencies in the candidate tree.",
+      "remediation": "Update dependents to the replacement path or remove the reference, and preserve replacement evidence for renames/copies.",
+      "assertions": [
+        { "type": "metric_zero", "metric": "unclassified_historical_path_count" },
+        { "type": "metric_zero", "metric": "deletion_dangling_reference_count" },
+        { "type": "collection_empty", "path": "semantic_graph.dangling_references" }
+      ]
+    },
+    {
+      "id": "semantic-graph-integrity",
       "version": 1,
       "severity": "blocking",
       "waiverable": false,
-      "description": "Both sides of rename/copy changes and deleted historical paths must be classified.",
-      "remediation": "Register historical and target surfaces for deletes/renames/copies.",
+      "description": "Semantic graph nodes and dependency edges must be deterministically classified with no unresolved edge targets.",
+      "remediation": "Repair semantic registry classification or dependency references.",
       "assertions": [
+        { "type": "metric_zero", "metric": "semantic_registry_error_count" },
+        { "type": "metric_zero", "metric": "semantic_unresolved_dependency_count" },
         {
-          "type": "metric_zero",
-          "metric": "unclassified_historical_path_count"
+          "type": "forall",
+          "path": "semantic_graph.changed_nodes",
+          "predicate": { "operator": "nonempty", "field": "surface_classes" }
         }
       ]
     },
@@ -93,43 +95,39 @@
       "description": "Registered derived-state artifact dependencies must resolve and remain acyclic.",
       "remediation": "Repair missing dependency references or dependency cycles.",
       "assertions": [
-        {
-          "type": "metric_zero",
-          "metric": "missing_derived_dependency_count"
-        },
-        {
-          "type": "metric_zero",
-          "metric": "derived_cycle_count"
-        }
+        { "type": "metric_zero", "metric": "missing_derived_dependency_count" },
+        { "type": "metric_zero", "metric": "derived_cycle_count" }
+      ]
+    },
+    {
+      "id": "ci-workflow-surface-ratchet",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Workflow count may decrease toward the target but may never grow above the larger of the base count and target ceiling.",
+      "remediation": "Consolidate workflows; do not add another workflow authority.",
+      "assertions": [
+        { "type": "metric_zero", "metric": "workflow_surface_growth_count" },
+        { "type": "flag_true", "flag": "workflow_surface_ratchet_enforced" }
       ]
     },
     {
       "id": "control-plane-self-registration",
-      "version": 1,
+      "version": 2,
       "severity": "blocking",
       "waiverable": false,
       "description": "Every canonical governance control-plane file must be protected by the manual-review control surface.",
       "remediation": "Register canonical control-plane paths in the convergence authority.",
-      "assertions": [
-        {
-          "type": "metric_zero",
-          "metric": "unregistered_control_plane_path_count"
-        }
-      ]
+      "assertions": [{ "type": "metric_zero", "metric": "unregistered_control_plane_path_count" }]
     },
     {
       "id": "policy-registry-integrity",
-      "version": 1,
+      "version": 2,
       "severity": "blocking",
       "waiverable": false,
       "description": "Policy registry must be uniquely keyed and use safe declarative assertion primitives.",
       "remediation": "Repair the policy registry contract and assertion declarations.",
-      "assertions": [
-        {
-          "type": "metric_zero",
-          "metric": "policy_registry_error_count"
-        }
-      ]
+      "assertions": [{ "type": "metric_zero", "metric": "policy_registry_error_count" }]
     }
   ]
 }

@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7199,
+  "file_count": 7204,
   "route_count": 1076,
   "write_route_count": 654,
   "classified_write_surface_count": 38,
@@ -6637,8 +6637,8 @@
     },
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/plan:0",
-      "source_line": 58,
-      "source_offset": 2132,
+      "source_line": 75,
+      "source_offset": 3110,
       "method": "POST",
       "path": "/admin/repository-automation/plan",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -6646,8 +6646,8 @@
     },
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/run:1",
-      "source_line": 67,
-      "source_offset": 2452,
+      "source_line": 86,
+      "source_offset": 3517,
       "method": "POST",
       "path": "/admin/repository-automation/run",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -6655,8 +6655,8 @@
     },
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/policy-controller:2",
-      "source_line": 77,
-      "source_offset": 2881,
+      "source_line": 98,
+      "source_offset": 4033,
       "method": "POST",
       "path": "/admin/repository-automation/policy-controller",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -6664,8 +6664,8 @@
     },
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/status:3",
-      "source_line": 86,
-      "source_offset": 3256,
+      "source_line": 110,
+      "source_offset": 4595,
       "method": "POST",
       "path": "/admin/repository-automation/status",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -6673,8 +6673,8 @@
     },
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/hygiene-scan:4",
-      "source_line": 95,
-      "source_offset": 3605,
+      "source_line": 119,
+      "source_offset": 4944,
       "method": "POST",
       "path": "/admin/repository-automation/hygiene-scan",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -6682,8 +6682,8 @@
     },
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/reconciliation-lease:5",
-      "source_line": 104,
-      "source_offset": 3970,
+      "source_line": 128,
+      "source_offset": 5309,
       "method": "POST",
       "path": "/admin/repository-automation/reconciliation-lease",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -38908,10 +38908,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 58,
+        "source_line": 75,
         "handler_window_lines": [
-          58,
-          65
+          75,
+          84
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38974,10 +38974,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 67,
+        "source_line": 86,
         "handler_window_lines": [
-          67,
-          75
+          86,
+          96
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -39040,10 +39040,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 77,
+        "source_line": 98,
         "handler_window_lines": [
-          77,
-          84
+          98,
+          108
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -39109,10 +39109,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 86,
+        "source_line": 110,
         "handler_window_lines": [
-          86,
-          93
+          110,
+          117
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -39175,10 +39175,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 95,
+        "source_line": 119,
         "handler_window_lines": [
-          95,
-          102
+          119,
+          126
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -39241,10 +39241,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 104,
+        "source_line": 128,
         "handler_window_lines": [
-          104,
-          115
+          128,
+          139
         ],
         "evidence_flags": {
           "handler_window_present": true,

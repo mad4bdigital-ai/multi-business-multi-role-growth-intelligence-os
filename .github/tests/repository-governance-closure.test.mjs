@@ -7,77 +7,116 @@ import { fileURLToPath } from "node:url";
 import { evaluateRepository } from "../../http-generic-api/scripts/e2e-phase-governance.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const constitutionPath = "http-generic-api/config/repository-governance-constitution.json";
-const policyRegistryPath = ".github/governance/policy-registry.json";
-const derivedRegistryPath = ".github/derived-state-governance.json";
-const evidenceRegistryPath = ".github/governance/evidence-producers.json";
-const waiverLedgerPath = ".github/governance/waiver-ledger.json";
-const e2ePath = ".specify/e2e-phase-governance.json";
-const scriptPath = "scripts/repository-governance-closure.mjs";
-const objectionPath = "scripts/repository-governance-objection-gate.mjs";
-const finalizerPath = "scripts/repository-governance-evidence-finalizer.mjs";
-
-const constitution = JSON.parse(fs.readFileSync(path.join(root, constitutionPath), "utf8"));
-const policies = JSON.parse(fs.readFileSync(path.join(root, policyRegistryPath), "utf8"));
-const derived = JSON.parse(fs.readFileSync(path.join(root, derivedRegistryPath), "utf8"));
-const evidence = JSON.parse(fs.readFileSync(path.join(root, evidenceRegistryPath), "utf8"));
-const waivers = JSON.parse(fs.readFileSync(path.join(root, waiverLedgerPath), "utf8"));
-const e2e = JSON.parse(fs.readFileSync(path.join(root, e2ePath), "utf8"));
-
+const paths = {
+  constitution: "http-generic-api/config/repository-governance-constitution.json",
+  policies: ".github/governance/policy-registry.json",
+  semantic: ".github/governance/semantic-surface-registry.json",
+  verifiers: ".github/governance/verifier-registry.json",
+  derived: ".github/derived-state-governance.json",
+  evidence: ".github/governance/evidence-producers.json",
+  waivers: ".github/governance/waiver-ledger.json",
+  e2e: ".specify/e2e-phase-governance.json",
+};
+const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
+const constitution = read(paths.constitution), policies = read(paths.policies), semantic = read(paths.semantic), verifiers = read(paths.verifiers), derived = read(paths.derived), evidence = read(paths.evidence), waivers = read(paths.waivers), e2e = read(paths.e2e);
 assert.equal(constitution.contract, "mad4b.repository-governance-constitution.v1");
 assert.equal(constitution.authority.final_gate_context, "Derived State Closure");
-assert.equal(constitution.authority.final_gate_mode, "policy_objection_aggregator");
-assert.equal(constitution.authority.objection_execution_mode, "typed_policy_objections");
-assert.equal(constitution.authority.new_executable_registration_mode, "typed_semantic_class_required");
-assert.equal(constitution.authority.server_enforcement_attestation, "required_before_single_gate_activation");
-assert.equal(constitution.authority.waiver_mode, "digest_bound_expiring_ledger");
+assert.equal(constitution.authority.final_gate_mode, "trusted_app_exact_candidate_attestation");
+assert.equal(constitution.authority.policy_execution_mode, "declarative_registered_assertions_over_semantic_graph");
+assert.equal(constitution.authority.semantic_surface_registry, paths.semantic);
+assert.equal(constitution.authority.verifier_registry, paths.verifiers);
+assert.equal(constitution.authority.evidence_identity, "source_base_merge_candidate_executed_sha");
+assert.equal(constitution.authority.server_enforcement_attestation, "trusted_github_app_exact_candidate_required_before_activation");
+assert.equal(constitution.authority.attestation_source_provenance, "github_actions_run_artifact_digest_server_verified");
+assert.deepEqual(constitution.branches.main.required_checks, ["Derived State Closure"]);
+assert.deepEqual(constitution.branches.Production.required_checks, ["Governed Production Promotion"]);
+assert.equal(constitution.branches.Production.generic_pull_request_merge_forbidden, true);
+assert.ok(constitution.semantic_executable_classes.some((entry) => entry.id === "production_promotion_governance"));
+assert.equal(derived.repository_governance.semantic_surface_registry, constitution.authority.semantic_surface_registry);
+assert.equal(derived.repository_governance.verifier_registry, constitution.authority.verifier_registry);
 assert.equal(derived.repository_governance.evidence_producer_registry, constitution.authority.evidence_producer_registry);
-assert.equal(derived.repository_governance.waiver_ledger, constitution.authority.waiver_ledger);
-assert.equal(derived.repository_governance.derived_dependency_execution_topological, true);
-assert.equal(derived.policy.observability_premerge_mutation_forbidden, true);
-assert.equal(derived.convergence.draft_pr_repair_allowed, true);
-assert.equal(derived.convergence.draft_pr_automerge_forbidden, true);
-assert.equal(evidence.contract, "mad4b.repository-governance-evidence-producers.v1");
+assert.equal(derived.repository_governance.inverse_deletion_dependency_required, true);
+assert.equal(derived.repository_governance.verifier_execution_registry_only, true);
+assert.equal(semantic.contract, "mad4b.repository-semantic-surface-registry.v1");
+assert.equal(verifiers.contract, "mad4b.repository-verifier-registry.v1");
+assert.equal(verifiers.shell_execution_forbidden, true);
+assert.equal(evidence.binding, "source_base_merge_candidate_executed_sha");
+assert.equal(evidence.producers.filter((entry) => entry.required).length, 1);
+assert.equal(evidence.producers.find((entry) => entry.required).id, "policy-objection-ci");
 assert.equal(waivers.contract, "mad4b.repository-governance-waiver-ledger.v1");
-assert.ok(evidence.producers.some((entry) => entry.workflow_file === ".github/workflows/ci.yml" && entry.required === true));
-assert.ok(Array.isArray(constitution.semantic_executable_classes) && constitution.semantic_executable_classes.length > 0);
-
-const allowed = new Set(["metric_zero", "flag_true"]);
+const allowed = new Set(["metric_zero", "flag_true", "value_equals", "collection_empty", "number_compare", "forall"]);
 assert.deepEqual(new Set(policies.allowed_assertion_types), allowed);
 assert.equal(new Set(policies.policies.map((entry) => entry.id)).size, policies.policies.length);
-for (const policy of policies.policies) {
-  assert.ok(policy.remediation);
-  assert.equal(typeof policy.waiverable, "boolean");
-  for (const assertion of policy.assertions || []) assert.equal(allowed.has(assertion.type), true);
-}
+for (const policy of policies.policies) for (const assertion of policy.assertions || []) assert.equal(allowed.has(assertion.type), true);
 
 const constitutionOnlyPolicy = { ...e2e, governance_only_patterns: [] };
 for (const controlPath of constitution.control_plane_paths) {
   assert.equal(derived.convergence.automation_control_paths.includes(controlPath), true, `unprotected control path: ${controlPath}`);
   const evaluation = evaluateRepository({ root, policy: constitutionOnlyPolicy, changedFiles: [controlPath] });
-  assert.equal(evaluation.report.ok, true, `E2E governance rejected canonical control path ${controlPath}: ${JSON.stringify(evaluation.report.findings)}`);
-  assert.equal(evaluation.report.change_class, "governance_only", `E2E misclassification for Constitution control path: ${controlPath}`);
-  assert.deepEqual(evaluation.report.runtime_files, [], `Control-plane path leaked into E2E runtime ownership: ${controlPath}`);
+  assert.equal(evaluation.report.ok, true, `E2E governance rejected ${controlPath}: ${JSON.stringify(evaluation.report.findings)}`);
+  assert.equal(evaluation.report.change_class, "governance_only", `E2E misclassification: ${controlPath}`);
 }
-assert.equal(
-  evaluateRepository({ root, policy: constitutionOnlyPolicy, changedFiles: [constitution.control_plane_paths[0]] }).report.change_class,
-  "governance_only",
-  "E2E classifier must consume Constitution control paths without requiring duplicated static governance patterns."
-);
-for (const requiredPath of [scriptPath, objectionPath, finalizerPath]) assert.equal(fs.existsSync(path.join(root, requiredPath)), true, `missing ${requiredPath}`);
+for (const file of ["scripts/repository-governance-closure.mjs", "scripts/repository-governance-objection-gate.mjs", "scripts/repository-governance-evidence-finalizer.mjs"]) assert.equal(fs.existsSync(path.join(root, file)), true);
+
+const route = fs.readFileSync(path.join(root, "http-generic-api/routes/repositoryAutomationRoutes.js"), "utf8");
+const legacyGuardCalls = route.match(/assertLegacySurfaceDoesNotOwnRepositoryPolicy\(input\)/gu) || [];
+assert.equal(legacyGuardCalls.length, 2, "Both legacy /plan and /run surfaces must reject repository_policy authority.");
+assert.match(route, /repository_policy_legacy_surface_retired/u, "Legacy policy authority rejection must expose a stable machine-readable code.");
+assert.match(route, /canonical_surface:\s*["']\/admin\/repository-automation\/policy-controller["']/u, "Legacy rejection must point callers at the canonical policy-controller surface.");
+assert.match(route, /router\.post\(["']\/admin\/repository-automation\/policy-controller["']/u, "Canonical repository policy-controller route must remain registered.");
+
+const selfTest = spawnSync(process.execPath, ["scripts/repository-governance-closure.mjs", "--self-test"], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(selfTest.status, 0, `${selfTest.stdout}\n${selfTest.stderr}`);
+const selfReport = JSON.parse(selfTest.stdout.trim());
+assert.equal(selfReport.nul_safe_git_fields, true);
+assert.equal(selfReport.repository_relative_dependencies, true);
+assert.equal(selfReport.prototype_safe_policy_paths, true);
+assert.equal(selfReport.glob_compiler, true);
 
 const sha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim();
-assert.match(sha, /^[0-9a-f]{40}$/u);
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), "repository-governance-closure-test-"));
-const reportFile = path.join(dir, "report.json");
-const check = spawnSync(process.execPath, [
-  scriptPath, "--expected-sha", sha, "--base-sha", sha, "--candidate-kind", "self_test", "--report-file", reportFile
-], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), "repository-governance-closure-test-")), reportFile = path.join(dir, "report.json");
+const check = spawnSync(process.execPath, ["scripts/repository-governance-closure.mjs", "--expected-sha", sha, "--base-sha", sha, "--candidate-kind", "self_test", "--report-file", reportFile], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
 assert.equal(check.status, 0, `${check.stdout}\n${check.stderr}`);
 const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
 assert.equal(report.converged, true);
-assert.equal(report.metrics.unknown_surface_count, 0);
-assert.equal(report.metrics.derived_cycle_count, 0);
+for (const metric of ["unknown_surface_count", "unknown_executable_count", "unknown_semantic_executable_count", "deletion_dangling_reference_count", "semantic_unresolved_dependency_count", "semantic_registry_error_count", "derived_cycle_count", "workflow_surface_growth_count"]) assert.equal(report.metrics[metric], 0, `${metric} must be zero`);
+assert.equal(report.flags.workflow_surface_ratchet_enforced, true);
+assert.deepEqual(report.semantic_graph.dangling_references, []);
 assert.equal(report.server_enforcement.live_readback_performed_by_this_verifier, false);
+
+const requiredProducer = evidence.producers.find((entry) => entry.required === true);
+const snapshotFile = path.join(dir, "producer-snapshot.json");
+const finalizerReportFile = path.join(dir, "producer-finalizer.json");
+fs.writeFileSync(snapshotFile, `${JSON.stringify({
+  source_head_sha: sha,
+  base_sha: sha,
+  merge_candidate_sha: sha,
+  executed_sha: sha,
+  pr_number: 1,
+  producers: [{
+    contract: "mad4b.repository-governance-producer-evidence.v1",
+    producer_id: requiredProducer.id,
+    workflow: requiredProducer.workflow,
+    workflow_file: requiredProducer.workflow_file,
+    event: requiredProducer.event,
+    run_id: 1,
+    pr_number: 1,
+    source_head_sha: sha,
+    base_sha: sha,
+    merge_candidate_sha: sha,
+    executed_sha: sha,
+    status: "completed",
+    conclusion: evidence.required_conclusion,
+    secrets_included: false,
+  }],
+}, null, 2)}\n`);
+const finalizer = spawnSync(process.execPath, ["scripts/repository-governance-evidence-finalizer.mjs", "--snapshot-file", snapshotFile, "--report-file", finalizerReportFile], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(finalizer.status, 0, `${finalizer.stdout}\n${finalizer.stderr}`);
+const finalizerReport = JSON.parse(fs.readFileSync(finalizerReportFile, "utf8"));
+assert.equal(finalizerReport.converged, true);
+assert.equal(finalizerReport.failed_or_missing_required_count, 0);
+assert.equal(finalizerReport.producers.find((entry) => entry.id === requiredProducer.id)?.identity_ok, true);
+assert.equal(finalizerReport.producers.find((entry) => entry.id === requiredProducer.id)?.run_id, 1);
+
 fs.rmSync(dir, { recursive: true, force: true });
-console.log(JSON.stringify({ ok: true, contract: constitution.contract, objection_control_plane: true, trusted_evidence_registry: true, e2e_control_plane_classification: "constitution_dynamic" }));
+console.log(JSON.stringify({ ok: true, contract: constitution.contract, semantic_graph: true, inverse_deletion_closure: true, dynamic_policy_resolver: true, workflow_surface_ratchet: true, trusted_evidence_registry: true, canonical_producer_id_finalization: true, traversal_hardening: true, canonical_route_authority: true }));

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "0b2a58cf7353f84d38a249c7e1995b9516af1d5d3f4a2aaef389f0df8d7fe040",
+    "source_digest": "e4041daee9591340016b0cfdfa1ca9b0b43432c1cc7c9551cb635aa320713971",
     "fail_closed": true
   },
   "source_authority": [
@@ -48,7 +48,7 @@
     },
     {
       "file": "routes/repositoryAutomationRoutes.js",
-      "sha256": "91ca91020f92abefd5a6a97223d489e6d73f2983c4fab1e128e03628c442d7cb",
+      "sha256": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
       "present": true
     },
     {
@@ -409,7 +409,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "repository-reconciliation-lease-control-v1",
-        "source_digest": "1a930d0471d12ecd2a6a468e0d84377a7aa6212361a0ddad63f03620629a88cf",
+        "source_digest": "0186af24afc16c9c7ed88a2b185bb836def644cafd84bbda2bfb8a6d0b91cfa1",
         "fail_closed": true
       }
     },

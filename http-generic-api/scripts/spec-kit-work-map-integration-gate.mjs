@@ -70,6 +70,14 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
+  }
+  return value;
+}
+
 export function parseWorkMapRegistry({ root = REPO_ROOT, policy } = {}) {
   const resolvedPolicy = policy || readJson(path.join(root, DEFAULT_POLICY_PATH));
   const mapRoot = path.join(root, resolvedPolicy.work_map_root);
@@ -535,8 +543,8 @@ function preparedOnlyBindingRefresh(feature, changedFiles, root, policy) {
       delete clone.registry;
       return clone;
     };
-    return JSON.stringify(withoutRegistry(base)) === JSON.stringify(withoutRegistry(current))
-      && JSON.stringify(base.registry || {}) !== JSON.stringify(current.registry || {});
+    return JSON.stringify(canonicalize(withoutRegistry(base))) === JSON.stringify(canonicalize(withoutRegistry(current)))
+      && JSON.stringify(canonicalize(base.registry || {})) !== JSON.stringify(canonicalize(current.registry || {}));
   } catch {
     return false;
   }
