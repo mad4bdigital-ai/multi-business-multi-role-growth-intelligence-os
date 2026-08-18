@@ -173,6 +173,7 @@ $EnvExample = Join-Path $ApiPath ".env.staging.example"
 $EnvFile = Join-Path $ApiPath ".env.staging"
 $Manifest = Join-Path $scriptRoot "manifest.json"
 $StateFile = Join-Path $scriptRoot "autopilot-state.json"
+$CertificationScript = Join-Path $scriptRoot "Invoke-StagingCertification.ps1"
 
 Require-Command "git"
 Require-Command "docker"
@@ -186,6 +187,7 @@ if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (T
 }
 
 if (-not (Test-Path (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
+if (-not (Test-Path -LiteralPath $CertificationScript)) { Fail "Staging certification helper is missing: $CertificationScript" }
 Assert-Sha $ExpectedCommit
 
 if ($env:DOCKER_HOST) { Fail "DOCKER_HOST is set; refusing a remote Docker daemon" }
@@ -312,9 +314,41 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel started" -Data @{ hostnames = "dev.mad4b.com,mcp_dev.mad4b.com" }
     }
     Invoke-Native "docker" ($composeArgs + @("ps"))
-    Set-Content -Encoding utf8 $StateFile (@{ commit=$ExpectedCommit; ref=$Ref; docker_context=$context; tunnel_started=[bool]$StartTunnel; migration_applied=$false; database_mutated=$false; generated_at=(Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json)
-    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel=$StartTunnel; commit=$ExpectedCommit"
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$StartTunnel; services = "redis,runtime-db,governance-db,persistence-db,app" }
+
+    $baseState = @{
+        commit = $ExpectedCommit
+        ref = $Ref
+        docker_context = $context
+        tunnel_started = [bool]$StartTunnel
+        certification_status = "pending"
+        certification_ready = $false
+        migration_applied = $false
+        database_mutated = $false
+        production_deploy = $false
+        provider_mutation = $false
+        ruleset_mutation = $false
+        secrets_included = $false
+        generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    Set-Content -Encoding utf8 $StateFile ($baseState | ConvertTo-Json -Depth 8)
+
+    $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $CertificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $ExpectedCommit, "-Ref", $Ref, "-StatePath", $StateFile)
+    if ($StartTunnel) { $certArgs += "-StartTunnel" }
+    Write-StagingLog -Level info -Component $LogComponent -Stage "certification" -Message "same-cycle Staging certification started" -Data @{ commit = $ExpectedCommit; gateway_enabled = [bool]$activationGatewayEnabled }
+    & powershell.exe @certArgs
+    if ($LASTEXITCODE -ne 0) { Fail "Staging certification blocked exact commit $ExpectedCommit" }
+    try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
+    catch { Fail "Staging certification state could not be read" }
+    if ($certState.certification_status -eq "degraded") {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "Staging is running but not release-ready" -Data @{ commit = $ExpectedCommit; degraded_reasons = @($certState.certification_degraded_reasons); database_readiness = $certState.database_readiness }
+    } elseif ($certState.certification_status -eq "ready") {
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "success" -Message "Staging exact commit certified ready" -Data @{ commit = $ExpectedCommit; database_readiness = $certState.database_readiness }
+    } else {
+        Fail "Unsupported Staging certification state: $($certState.certification_status)"
+    }
+
+    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel=$StartTunnel; commit=$ExpectedCommit certification=$($certState.certification_status)"
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$StartTunnel; services = "redis,runtime-db,governance-db,persistence-db,app"; certification_status = $certState.certification_status }
     Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
 } finally {
     Pop-Location
