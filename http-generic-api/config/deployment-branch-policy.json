@@ -117,6 +117,7 @@
           "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
           "edge/**",
           "canonicals/openapi/**",
+          "http-generic-api/frontend-operation-governance.generated.json",
           "http-generic-api/frontend-surface-dispatch.generated.json",
           "specs/020-platform-resource-identity-brand-governance/**"
         ],
