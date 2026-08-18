@@ -221,7 +221,7 @@ const schemaPool = fakePool([{
     .filter((column) => column !== "owner_workspace_id")
     .map((column_name) => ({ column_name })),
 }]);
-const schema = await inspectGovernedResponseChunkSchema({ pool: schemaPool, operation: "test_schema" });
+const schema = await inspectGovernedResponseChunkSchema({ runtimePersistencePool: schemaPool, operation: "test_schema" });
 assert.equal(schema.ready, false);
 assert.equal(schema.present_column_count, GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length - 1, "schema diagnostics must count required columns only");
 assert.deepEqual(schema.missing_columns, ["owner_workspace_id"]);
