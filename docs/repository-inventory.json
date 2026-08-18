@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7176,
-    "bytes": 69965234,
-    "lines": 1644470,
+    "bytes": 69962515,
+    "lines": 1644111,
     "directories": 266,
     "categories": 13
   },
@@ -83522,9 +83522,9 @@
       "path": "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 17807,
-      "lines": 579,
-      "sha256": "de0fd47d348283d63a615536ca1f3479e9e29e4902e4dfcf2e671b37b727ead7",
+      "bytes": 15088,
+      "lines": 220,
+      "sha256": "7113936fbbcbecca57a85954271304aaa9961ec6436d0403e12beb76fb8001b2",
       "mode": "644",
       "executable": false,
       "generated": false
