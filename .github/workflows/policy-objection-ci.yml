@@ -48,6 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
+          node scripts/repository-governance-closure.mjs --self-test
           node scripts/repository-governance-closure.mjs \
             --expected-sha "$MERGE_CANDIDATE_SHA" \
             --base-sha "$BASE_SHA" \
