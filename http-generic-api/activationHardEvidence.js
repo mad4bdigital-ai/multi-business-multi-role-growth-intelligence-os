@@ -212,6 +212,7 @@ export function buildHardActivationDatabaseBlockedResponse(databaseReadiness = n
     ok: false,
     activation_layer: "hard_activation_orchestrator",
     activation_complete: false,
+    hard_activation_blocked_until_ready: true,
     runtime_classification: {
       activation_status: "degraded",
       status_authority: "runtime_canonical",
