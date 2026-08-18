@@ -17,6 +17,7 @@ const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
 const dockerfile = read("http-generic-api/Dockerfile.staging");
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
 const gitignore = read(".gitignore");
+const dockerignore = read(".dockerignore");
 
 assert.equal(policy.contract, "mad4b.staging-auto-deploy.v1");
 assert.equal(policy.ref, "main");
@@ -57,8 +58,21 @@ assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
 assert.match(dockerfile, /deployment-manifest\.json/);
 assert.match(dockerfile, /staging-route-policy\.json/);
 assert.doesNotMatch(dockerfile, /new Date\(\)\.toISOString\(\)/);
+assert.equal(compose.services.app.build.context, "..");
 assert.match(String(compose.services.app.build.args.STAGING_BUILD_COMMIT), /DEPLOY_COMMIT/);
 assert.match(String(compose.services.app.build.args.STAGING_BUILD_BRANCH), /DEPLOY_BRANCH/);
+
+// The repository-root Docker build context must be deny-by-default so ignored
+// local state (especially .env.staging) can never become part of image bytes.
+assert.match(dockerignore, /^\*\*/m);
+assert.match(dockerignore, /^!http-generic-api\/\*\*$/m);
+assert.match(dockerignore, /^!edge\/activation-gateway\/generated\/route-policy\.staging\.json$/m);
+assert.match(dockerignore, /^!canonical-manifest\.mjs$/m);
+assert.match(dockerignore, /^http-generic-api\/\.env\.\*$/m);
+assert.match(dockerignore, /^http-generic-api\/\.staging-data\/$/m);
+assert.match(dockerignore, /^http-generic-api\/node_modules\/$/m);
+assert.match(dockerignore, /^http-generic-api\/google-oauth-token\.json$/m);
+assert.match(dockerignore, /^http-generic-api\/deployment-manifest\.json$/m);
 
 assert.match(deployScript, /Get-LatestEligibility/);
 assert.match(deployScript, /eligibility_check_name/);
@@ -119,6 +133,7 @@ console.log(JSON.stringify({
   trigger: "push:main",
   deploy_target: "local_staging_only",
   exact_image_provenance: true,
+  docker_build_context_fail_closed: true,
   environment_authority_closure: true,
   live_certification: true,
   production_promotion_gate: true,

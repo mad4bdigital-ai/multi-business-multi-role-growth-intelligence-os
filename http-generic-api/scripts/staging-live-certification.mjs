@@ -142,6 +142,7 @@ let gatewayEvidence = {
   required: requireGateway,
   policy_path: gatewayPolicyPath,
   expected_policy_hash: gatewayPolicy?.content_hash_sha256 || null,
+  expected_source_commit: expectedCommit,
   public_host: gatewayPolicy?.public_host || null,
   health: null,
   ready: null,
@@ -162,6 +163,10 @@ if (requireGateway) {
       stale: health.body?.stale ?? null,
       source_commit: health.body?.sourceCommit || null,
     }, "readiness"));
+    integrityChecks.push(check("gateway_exact_commit", String(health.body?.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
+      expected: expectedCommit,
+      observed: health.body?.sourceCommit || null,
+    }));
     readinessChecks.push(check("gateway_policy_hash_current", health.body?.policyHash === gatewayPolicy.content_hash_sha256, {
       expected: gatewayPolicy.content_hash_sha256,
       observed: health.body?.policyHash || null,

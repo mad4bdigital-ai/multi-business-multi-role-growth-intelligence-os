@@ -97,15 +97,13 @@ export function isTenantGptConfidentialActionClient({ clientId, env = process.en
   const configuredClientId = resolveConfiguredTenantGptClientId(env);
   const compatibilityEnabled = flagEnabled(
     env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED,
-    true,
+    false,
   );
 
-  // GPT Actions currently sends a confidential-client authorization-code request
-  // without PKCE. Keep this compatibility path narrow: the configured client ID
-  // must be the canonical ID for the current environment. An explicit false
-  // flag remains a kill switch for a governed rollback. This prevents a Staging
-  // request from using the Production client (or vice versa) while preserving
-  // PKCE for every other client.
+  // GPT Actions may use a confidential-client authorization-code request without
+  // PKCE. Keep this compatibility path explicit and narrow: operators must opt in
+  // for the current environment, and the configured client ID must be the
+  // canonical ID for that environment. Absence of the flag is strict PKCE.
   return compatibilityEnabled
     && configuredClientId === expectedClientId
     && normalizedClientId === expectedClientId;

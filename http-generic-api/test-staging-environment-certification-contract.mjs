@@ -128,6 +128,7 @@ const gatewayPolicyPath = path.join(tempDir, "route-policy.staging.json");
 fs.writeFileSync(gatewayPolicyPath, `${JSON.stringify(gatewayPolicy, null, 2)}\n`);
 
 let currentDeployment = deploymentBody();
+let gatewaySourceCommit = expectedCommit;
 const app = await listen((req, res) => {
   if (req.url?.startsWith("/deployment-info")) {
     res.writeHead(200, { "content-type": "application/json" });
@@ -144,7 +145,7 @@ const gateway = await listen((req, res) => {
       service: "activation-gateway",
       policyKey: gatewayPolicy.policy_key,
       policyHash: gatewayPolicy.content_hash_sha256,
-      sourceCommit: "0".repeat(40),
+      sourceCommit: gatewaySourceCommit,
       stale: false,
       secretsIncluded: false,
     }));
@@ -200,9 +201,17 @@ try {
   assert.equal(ready.report.ready, true);
   assert.deepEqual(ready.report.blocking_failures, []);
   assert.deepEqual(ready.report.degraded_reasons, []);
+  assert.equal(ready.report.gateway.expected_source_commit, expectedCommit);
   assert.equal(ready.report.safety.database_mutation, false);
   assert.equal(ready.report.safety.migration_apply, false);
   assert.equal(ready.report.safety.production_deploy, false);
+
+  gatewaySourceCommit = "0".repeat(40);
+  const gatewayMismatch = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
+  assert.equal(gatewayMismatch.run.status, 1);
+  assert.equal(gatewayMismatch.report.outcome, "blocked");
+  assert.ok(gatewayMismatch.report.blocking_failures.includes("gateway_exact_commit"));
+  gatewaySourceCommit = expectedCommit;
 
   currentDeployment = deploymentBody({ databaseReady: false });
   const degraded = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
