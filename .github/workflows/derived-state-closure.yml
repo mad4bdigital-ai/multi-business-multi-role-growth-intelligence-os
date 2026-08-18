@@ -176,7 +176,7 @@ jobs:
               rm -rf "$dir" && mkdir -p "$dir"
               if gh run download "$run_id" -n "repository-governance-producer-evidence-$run_id" -D "$dir" >/dev/null 2>&1; then
                 evidence="$dir/producer-evidence.json"
-                if [[ -f "$evidence" ]] && \
+                if test -e "$evidence" && \
                    [[ "$(jq -r '.pr_number' "$evidence")" == "$PR_NUMBER" ]] && \
                    [[ "$(jq -r '.source_head_sha' "$evidence")" == "$SOURCE_HEAD_SHA" ]] && \
                    [[ "$(jq -r '.base_sha' "$evidence")" == "$BASE_SHA" ]] && \
