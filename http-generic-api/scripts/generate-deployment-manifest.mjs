@@ -60,18 +60,28 @@ export function generateDeploymentManifest({
   ];
   const [branchSource, rawBranch] = branchCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
   const branch = normalizeDeploymentBranch(rawBranch);
-  const commitCandidates = [
-    ["arg:--commit", argValue(argv, "--commit")],
-    ["env:DEPLOYMENT_COMMIT_SHA", env.DEPLOYMENT_COMMIT_SHA],
-    ["env:GITHUB_SHA", env.GITHUB_SHA],
-    ["env:DEPLOY_COMMIT", env.DEPLOY_COMMIT],
-    ["env:COMMIT_SHA", env.COMMIT_SHA],
-    ["env:REVISION_SHA", env.REVISION_SHA],
-    ["git", git(["rev-parse", "HEAD"])],
-  ];
-  const [commitSource, commitSha] = commitCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
-
   const isStaging = [env.NODE_ENV, env.APP_ENV].some((value) => String(value || "").trim().toLowerCase() === "staging");
+  const commitCandidates = isStaging
+    ? [
+        ["arg:--commit", argValue(argv, "--commit")],
+        ["env:DEPLOY_COMMIT", env.DEPLOY_COMMIT],
+        ["env:DEPLOYMENT_EXPECTED_COMMIT_SHA", env.DEPLOYMENT_EXPECTED_COMMIT_SHA],
+        ["env:DEPLOYMENT_COMMIT_SHA", env.DEPLOYMENT_COMMIT_SHA],
+        ["env:GITHUB_SHA", env.GITHUB_SHA],
+        ["env:COMMIT_SHA", env.COMMIT_SHA],
+        ["env:REVISION_SHA", env.REVISION_SHA],
+        ["git", git(["rev-parse", "HEAD"])],
+      ]
+    : [
+        ["arg:--commit", argValue(argv, "--commit")],
+        ["env:DEPLOYMENT_COMMIT_SHA", env.DEPLOYMENT_COMMIT_SHA],
+        ["env:GITHUB_SHA", env.GITHUB_SHA],
+        ["env:DEPLOY_COMMIT", env.DEPLOY_COMMIT],
+        ["env:COMMIT_SHA", env.COMMIT_SHA],
+        ["env:REVISION_SHA", env.REVISION_SHA],
+        ["git", git(["rev-parse", "HEAD"])],
+      ];
+  const [commitSource, commitSha] = commitCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
   const stagingTree = String(env.STAGING_BUILD_TREE || "").trim().toLowerCase();
   const stagingContextFileSet = String(env.STAGING_BUILD_CONTEXT_FILE_SET_SHA256 || "").trim().toLowerCase();
   const stagingImageDigest = String(env.STAGING_APP_IMAGE_ID || "").trim().toLowerCase();
