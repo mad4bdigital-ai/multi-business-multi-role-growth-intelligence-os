@@ -80,7 +80,11 @@
       "http-generic-api/scripts/environment-impact-closure.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/githubRepositoryGovernanceAttestation.js",
+      "http-generic-api/repositoryAutomationPolicyFacade.js",
+      "http-generic-api/routes/repositoryAutomationRoutes.js",
       "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/test-github-repository-governance-attestation.mjs",
       "http-generic-api/scripts/e2e-phase-governance.mjs",
       "http-generic-api/scripts/e2e-phase-governance-core.mjs",
       "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
@@ -163,12 +167,7 @@
       "recipe": "remote_mcp_write_scope_refresh",
       "verifier_id": "remote_mcp_write_scope_currentness",
       "currentness_projection": {"mode":"semantic_projection","ignored_json_fields":["file_count"],"ignored_markdown_line_patterns":["^\\| Tracked files scanned \\|"]},
-      "dependency_scope": [
-        {"type":"path_glob","pattern":"http-generic-api/routes/**/*.js"},
-        {"type":"path_glob","pattern":"http-generic-api/migrations/**/*.sql"},
-        {"type":"file","path":"http-generic-api/remote-mcp-scope-catalog.generated.json"},
-        {"type":"tracked_registry_evidence_scan","extensions":[".js",".mjs",".sql"]}
-      ],
+      "dependency_scope": [{"type":"path_glob","pattern":"http-generic-api/routes/**/*.js"},{"type":"path_glob","pattern":"http-generic-api/migrations/**/*.sql"},{"type":"file","path":"http-generic-api/remote-mcp-scope-catalog.generated.json"},{"type":"tracked_registry_evidence_scan","extensions":[".js",".mjs",".sql"]}],
       "outputs": ["http-generic-api/remote-mcp-write-scope-inventory.generated.json","docs/remote-mcp-write-scope-inventory.md"]
     },
     {
@@ -177,12 +176,7 @@
       "merge_blocking": true,
       "recipe": "frontend_openapi_refresh",
       "verifier_id": "frontend_openapi_currentness",
-      "dependency_scope": [
-        {"type":"path_glob","pattern":"http-generic-api/routes/**"},
-        {"type":"path_glob","pattern":"http-generic-api/openapi/**"},
-        {"type":"path_glob","pattern":"canonicals/openapi/**"},
-        {"type":"registered_generator_contract"}
-      ],
+      "dependency_scope": [{"type":"path_glob","pattern":"http-generic-api/routes/**"},{"type":"path_glob","pattern":"http-generic-api/openapi/**"},{"type":"path_glob","pattern":"canonicals/openapi/**"},{"type":"registered_generator_contract"}],
       "outputs": ["http-generic-api/frontend-operation-governance.generated.json","http-generic-api/frontend-surface-dispatch.generated.json","http-generic-api/openapi/frontend-runtime-routes.generated.yaml"]
     },
     {
@@ -207,22 +201,7 @@
   "server_enforcement": {
     "required_ruleset_state": "active",
     "activation_guard": "trusted_evidence_finalizer_and_live_readback",
-    "main": {
-      "require_pull_request": true,
-      "block_direct_push": true,
-      "block_force_push": true,
-      "dismiss_stale_approvals": true,
-      "require_conversation_resolution": true,
-      "required_checks": ["Derived State Closure"]
-    },
-    "Production": {
-      "require_pull_request": true,
-      "block_direct_push": true,
-      "block_force_push": true,
-      "generic_pull_request_merge_forbidden": true,
-      "promotion_path": "Governed Production Promotion",
-      "same_sha_closure_required": true,
-      "required_checks": ["Governed Production Promotion"]
-    }
+    "main": {"require_pull_request":true,"block_direct_push":true,"block_force_push":true,"dismiss_stale_approvals":true,"require_conversation_resolution":true,"required_checks":["Derived State Closure"]},
+    "Production": {"require_pull_request":true,"block_direct_push":true,"block_force_push":true,"generic_pull_request_merge_forbidden":true,"promotion_path":"Governed Production Promotion","same_sha_closure_required":true,"required_checks":["Governed Production Promotion"]}
   }
 }
