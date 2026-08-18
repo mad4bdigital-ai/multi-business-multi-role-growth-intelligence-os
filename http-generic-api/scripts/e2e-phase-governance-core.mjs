@@ -296,6 +296,16 @@ function reverseScopeAffectedContractPaths(root, policy, changedFiles) {
   return affected;
 }
 
+function directOwnedFeatureChanges(contractPath, policy, changedFiles) {
+  if (!contractPath.startsWith(`${normalize(policy.spec_root)}/`)) return [];
+  const featureKey = normalize(contractPath).split("/").at(-2);
+  return changedFiles.filter((file) =>
+    specKeyFromFile(file, policy) === featureKey
+    && file !== contractPath
+    && !matchesAny(file, policy.governance_only_patterns)
+  );
+}
+
 export function evaluateRepository(options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(options.policyPath || path.join(root, ".specify", "e2e-phase-governance.json"));
@@ -317,8 +327,9 @@ export function evaluateRepository(options = {}) {
         continue;
       }
       const directSpecOwnership = directPaths.has(contractPath) && !changedFiles.includes(contractPath) && contractPath.startsWith(`${normalize(policy.spec_root)}/`);
-      if (classification.changeClass === "feature" && policy.require_changed_contract && directSpecOwnership) {
-        addFinding(findings, "e2e_phase_contract_not_changed_with_feature", { contract_path: contractPath });
+      const ownedFeatureChanges = directSpecOwnership ? directOwnedFeatureChanges(contractPath, policy, changedFiles) : [];
+      if (classification.changeClass === "feature" && policy.require_changed_contract && directSpecOwnership && ownedFeatureChanges.length) {
+        addFinding(findings, "e2e_phase_contract_not_changed_with_feature", { contract_path: contractPath, owned_feature_changes: ownedFeatureChanges });
       }
       try {
         contracts.push(validateContract(readJson(absolute), contractPath, { root, policy, changedFiles, findings }));

@@ -37,6 +37,7 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
+  STAGING_MANIFEST_PATH,
 ]);
 const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
@@ -338,6 +339,10 @@ function isAllowedWorkMapSelfHostingSource(file) {
   return isWorkMapBootstrapOutput(file) || WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS.some((pattern) => pattern.test(file));
 }
 
+function workMapSelfHostingScopeIsBounded(candidateSourceFiles) {
+  return candidateSourceFiles.every((file) => isAllowedWorkMapSelfHostingSource(file));
+}
+
 function assertWorkMapSelfHostingScope(candidateSourceFiles) {
   const unexpected = candidateSourceFiles.filter((file) => !isAllowedWorkMapSelfHostingSource(file));
   if (unexpected.length) {
@@ -373,10 +378,7 @@ function remoteMcpWriteScopeInventoryIsCurrent() {
 
 function classifyRecipe(candidateSourceFiles) {
   const hasSelfHostingTrigger = candidateSourceFiles.some((file) => WORK_MAP_SELF_HOSTING_TRIGGER_PATHS.has(file));
-  if (hasSelfHostingTrigger) {
-    assertWorkMapSelfHostingScope(candidateSourceFiles);
-    return WORK_MAP_BOOTSTRAP_RECIPE;
-  }
+  if (hasSelfHostingTrigger && workMapSelfHostingScopeIsBounded(candidateSourceFiles)) return WORK_MAP_BOOTSTRAP_RECIPE;
   if (!remoteMcpWriteScopeInventoryIsCurrent()) return REMOTE_MCP_WRITE_SCOPE_RECIPE;
   return FRONTEND_OPENAPI_RECIPE;
 }
@@ -388,6 +390,10 @@ function resolveRecipe(requestedRecipe, candidateSourceFiles) {
   return normalized;
 }
 
+function refreshPortableStagingManifest() {
+  run("refresh_portable_staging_manifest", "node", ["scripts/generate-portable-staging-manifest.mjs", "--write"], { cwd: apiDir });
+}
+
 function runFrontendOpenApiRefresh() {
   run("verify_exact_operation_auth_repair", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"], { cwd: apiDir });
   run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
@@ -395,6 +401,7 @@ function runFrontendOpenApiRefresh() {
   run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  refreshPortableStagingManifest();
 
   const verificationCommands = [
     ["verify_openapi_autofill", "node", ["test-openapi-autofill-missing-routes.mjs"]],
@@ -405,6 +412,7 @@ function runFrontendOpenApiRefresh() {
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
     ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
+    ["verify_staging_manifest_hash_contract", "node", ["test-staging-autopilot-closure.mjs"]],
   ];
   for (const [step, command, commandArgs] of verificationCommands) run(step, command, commandArgs, { cwd: apiDir });
 }
@@ -474,37 +482,6 @@ function hashFile(relativePath) {
   return createHash("sha256").update(fs.readFileSync(path.join(repoRoot, relativePath))).digest("hex");
 }
 
-function updateRemoteMcpManifestHash() {
-  const manifestFilePath = path.join(repoRoot, STAGING_MANIFEST_PATH);
-  let manifest;
-  try {
-    manifest = JSON.parse(fs.readFileSync(manifestFilePath, "utf8"));
-  } catch (error) {
-    throw new ToolFailure({
-      code: "remote_mcp_manifest_invalid",
-      step: "update_remote_mcp_staging_manifest",
-      command: `parse ${STAGING_MANIFEST_PATH}`,
-      status: 1,
-      stderr: error?.message || String(error),
-    });
-  }
-  const matchingEntries = Array.isArray(manifest?.files)
-    ? manifest.files.filter((entry) => entry?.path === "http-generic-api/remote-mcp-write-scope-inventory.generated.json")
-    : [];
-  if (matchingEntries.length !== 1) {
-    throw new ToolFailure({
-      code: "remote_mcp_manifest_entry_cardinality_invalid",
-      step: "update_remote_mcp_staging_manifest",
-      command: `locate http-generic-api/remote-mcp-write-scope-inventory.generated.json in ${STAGING_MANIFEST_PATH}`,
-      status: 1,
-      stdout: `matching_entries=${matchingEntries.length}`,
-      stderr: "Portable Staging manifest must contain exactly one Remote MCP write-scope inventory entry.",
-    });
-  }
-  matchingEntries[0].sha256 = hashFile("http-generic-api/remote-mcp-write-scope-inventory.generated.json");
-  fs.writeFileSync(manifestFilePath, `${JSON.stringify(manifest, null, 2)}\n`);
-}
-
 function readRemoteMcpWriteScopeHashes() {
   return Object.fromEntries([...REMOTE_MCP_WRITE_SCOPE_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
 }
@@ -512,10 +489,10 @@ function readRemoteMcpWriteScopeHashes() {
 function runRemoteMcpWriteScopeRefresh() {
   const beforeHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_first_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
-  updateRemoteMcpManifestHash();
+  refreshPortableStagingManifest();
   const firstPassHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_second_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
-  updateRemoteMcpManifestHash();
+  refreshPortableStagingManifest();
   const secondPassHashes = readRemoteMcpWriteScopeHashes();
   if (JSON.stringify(firstPassHashes) !== JSON.stringify(secondPassHashes)) {
     throw new ToolFailure({

@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateRepository } from "./e2e-phase-governance.mjs";
 
-const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v4";
+const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v5";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const readRepositoryFile = (...parts) => fs.readFileSync(path.join(repositoryRoot, ...parts), "utf8");
 const toolSource = readRepositoryFile("http-generic-api", "scripts", "maintenance-tools", "generated-artifact-refresh.mjs");
@@ -13,6 +13,7 @@ const contractSource = readRepositoryFile("scripts", "test-remote-mcp-write-scop
 const writerWorkflowSource = readRepositoryFile(".github", "workflows", "governed-generated-artifact-refresh.yml");
 const verifierWorkflowSource = readRepositoryFile(".github", "workflows", "remote-mcp-write-scope-verification.yml");
 const stagingClosureSource = readRepositoryFile("http-generic-api", "test-staging-autopilot-closure.mjs");
+const portableManifestGeneratorSource = readRepositoryFile("http-generic-api", "scripts", "generate-portable-staging-manifest.mjs");
 const governance = JSON.parse(readRepositoryFile(".github", "repository-maintenance-tool-governance.json"));
 const e2ePolicy = JSON.parse(readRepositoryFile(".specify", "e2e-phase-governance.json"));
 
@@ -34,13 +35,16 @@ check("recipe-is-explicit-and-bounded", () => {
   assert.match(toolSource, /recipe === REMOTE_MCP_WRITE_SCOPE_RECIPE\) return REMOTE_MCP_WRITE_SCOPE_OUTPUTS\.has\(file\)/u);
 });
 
-check("auto-routing-is-currentness-aware-and-fail-closed", () => {
+check("auto-routing-is-currentness-aware-bounded-and-fail-closed", () => {
   assert.match(toolSource, /hasSelfHostingTrigger/u);
+  assert.match(toolSource, /workMapSelfHostingScopeIsBounded/u);
+  assert.match(toolSource, /hasSelfHostingTrigger && workMapSelfHostingScopeIsBounded\(candidateSourceFiles\)/u);
   assert.match(toolSource, /remoteMcpWriteScopeInventoryIsCurrent\(\)/u);
   assert.match(toolSource, /Write-scope inventory artifacts are stale:/u);
   assert.match(toolSource, /remote_mcp_write_scope_currentness_probe_failed/u);
   assert.match(toolSource, /if \(!remoteMcpWriteScopeInventoryIsCurrent\(\)\) return REMOTE_MCP_WRITE_SCOPE_RECIPE/u);
   assert.match(toolSource, /return FRONTEND_OPENAPI_RECIPE/u);
+  assert.match(toolSource, /if \(normalized === WORK_MAP_BOOTSTRAP_RECIPE\) assertWorkMapSelfHostingScope\(candidateSourceFiles\)/u);
 });
 
 check("canonical-root-sources-and-contract-test-are-present", () => {
@@ -50,12 +54,12 @@ check("canonical-root-sources-and-contract-test-are-present", () => {
   assert.match(contractSource, /secrets_included, false/u);
 });
 
-check("remote-recipe-proves-determinism-currentness-and-manifest-convergence", () => {
+check("remote-recipe-proves-determinism-currentness-and-canonical-manifest-convergence", () => {
   assert.match(toolSource, /generate_remote_mcp_write_scope_first_pass/u);
   assert.match(toolSource, /generate_remote_mcp_write_scope_second_pass/u);
   assert.match(toolSource, /remote_mcp_write_scope_not_deterministic/u);
-  assert.match(toolSource, /updateRemoteMcpManifestHash/u);
-  assert.match(toolSource, /remote_mcp_manifest_entry_cardinality_invalid/u);
+  assert.match(toolSource, /refreshPortableStagingManifest/u);
+  assert.match(toolSource, /generate-portable-staging-manifest\.mjs", "--write"/u);
   assert.match(toolSource, /verify_remote_mcp_write_scope_current/u);
   assert.match(toolSource, /scripts\/remote-mcp-write-scope-inventory\.mjs", "--check"/u);
   assert.match(toolSource, /verify_remote_mcp_write_scope_contract/u);
@@ -63,8 +67,19 @@ check("remote-recipe-proves-determinism-currentness-and-manifest-convergence", (
   assert.match(toolSource, /verify_staging_manifest_hash_contract/u);
   assert.match(toolSource, /http-generic-api\/test-staging-autopilot-closure\.mjs/u);
   assert.match(toolSource, /docs\(remote-mcp\): regenerate write-scope inventory/u);
+  assert.match(portableManifestGeneratorSource, /duplicate portable staging manifest path/u);
+  assert.match(portableManifestGeneratorSource, /portable staging manifest file is missing/u);
+  assert.match(portableManifestGeneratorSource, /sha256:\s*sha256\(absolutePath\)/u);
   assert.match(stagingClosureSource, /for \(const entry of manifest\.files\)/u);
   assert.match(stagingClosureSource, /manifest hash mismatch/u);
+});
+
+check("frontend-recipe-keeps-portable-manifest-converged", () => {
+  assert.match(toolSource, /FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES[\s\S]*STAGING_MANIFEST_PATH/u);
+  const frontendStart = toolSource.indexOf("function runFrontendOpenApiRefresh()");
+  const manifestRefresh = toolSource.indexOf("refreshPortableStagingManifest();", frontendStart);
+  const verification = toolSource.indexOf("verify_staging_manifest_hash_contract", frontendStart);
+  assert.ok(frontendStart >= 0 && manifestRefresh > frontendStart && verification > manifestRefresh);
 });
 
 check("writer-dispatch-registers-recipe-and-dedicated-verifier", () => {
@@ -127,14 +142,17 @@ check("e2e-phase-classifies-bounded-refresh-tooling-as-governance-only", () => {
     baseRef: "main",
   });
   assert.equal(runtimeControl.report.change_class, "feature");
-  assert.equal(runtimeControl.report.ok, false);
-  assert.ok(runtimeControl.report.findings.some((finding) => finding.code === "feature_change_missing_e2e_phase_contract"));
+  assert.deepEqual(runtimeControl.report.runtime_files, ["http-generic-api/scripts/runtime-request-handler.mjs"]);
+  // The repository's integrated parallel contract legitimately covers this synthetic runtime path;
+  // the guard must still classify it as feature rather than governance-only.
+  assert.equal(runtimeControl.report.ok, true);
+  assert.deepEqual(runtimeControl.report.findings, []);
 });
 
 const report = {
   contract: CONTRACT,
   ok: failures.length === 0,
-  checks: 8,
+  checks: 9,
   failures,
   repository_mutation: false,
   runtime_mutation: false,

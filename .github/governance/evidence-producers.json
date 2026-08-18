@@ -1,41 +1,55 @@
 {
   "contract": "mad4b.repository-governance-evidence-producers.v1",
-  "schema_version": 1,
-  "binding": "source_head_sha",
-  "selection": "latest_completed_run_bound_to_same_pr_and_head",
+  "schema_version": 2,
+  "binding": "source_base_merge_candidate_executed_sha",
+  "selection": "trusted_canonical_producer_bound_to_same_pr_and_exact_merge_candidate",
   "required_conclusion": "success",
   "missing_mode": "block",
   "stale_mode": "block",
+  "identity_fields": ["source_head_sha", "base_sha", "merge_candidate_sha", "executed_sha", "pr_number"],
   "producers": [
+    {
+      "id": "policy-objection-ci",
+      "workflow": "Policy Objection CI",
+      "workflow_file": ".github/workflows/policy-objection-ci.yml",
+      "artifact_prefix": "repository-governance-producer-evidence-",
+      "event": "pull_request",
+      "required": true
+    },
     {
       "id": "ci",
       "workflow": "CI",
       "workflow_file": ".github/workflows/ci.yml",
-      "required": true
+      "required": false,
+      "role": "supplemental_diagnostics"
     },
     {
       "id": "e2e-phase-governance",
       "workflow": "E2E Phase Governance",
       "workflow_file": ".github/workflows/e2e-phase-governance.yml",
-      "required": true
+      "required": false,
+      "role": "supplemental_diagnostics"
     },
     {
       "id": "automation-overlap-guard",
       "workflow": "Automation Overlap Guard",
       "workflow_file": ".github/workflows/automation-overlap-guard.yml",
-      "required": true
+      "required": false,
+      "role": "supplemental_diagnostics"
     },
     {
       "id": "repository-tool-lifecycle",
       "workflow": "Repository Tool Lifecycle Governance",
       "workflow_file": ".github/workflows/repository-tool-lifecycle-governance.yml",
-      "required": true
+      "required": false,
+      "role": "supplemental_diagnostics"
     },
     {
       "id": "e2e-contract-reference-integrity",
       "workflow": "E2E Contract Reference Integrity",
       "workflow_file": ".github/workflows/e2e-contract-reference-integrity.yml",
-      "required": true
+      "required": false,
+      "role": "supplemental_diagnostics"
     }
   ]
 }

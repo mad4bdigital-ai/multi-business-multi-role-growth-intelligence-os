@@ -1,0 +1,57 @@
+{
+  "contract": "mad4b.repository-semantic-surface-registry.v1",
+  "schema_version": 1,
+  "mode": "declarative_semantic_graph",
+  "unknown_semantic_executable_mode": "block",
+  "deletion_reference_mode": "block",
+  "facets": [
+    {
+      "id": "route",
+      "path_patterns": ["http-generic-api/routes/**/*.js", "edge/**/*.ts", "edge/**/*.tsx"],
+      "content_patterns": ["\\b(?:router|app)\\.(?:get|post|put|patch|delete|use)\\s*\\("]
+    },
+    {
+      "id": "auth_profile",
+      "content_patterns": ["\\b(?:authenticate|authorization|authorize|requireAuth|requireAdmin|requireTenant|requireUser|verifyJwt|jwtVerify|caller_type|is_admin)\\b"]
+    },
+    {
+      "id": "scope",
+      "content_patterns": ["\\b(?:scope|scopes|capability|permission|tenant_id|tenantId|resource_uri|authority_context)\\b"]
+    },
+    {
+      "id": "db_effect",
+      "path_patterns": ["http-generic-api/migrations/**/*.sql", "migrations/**/*.sql"],
+      "content_patterns": ["\\b(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|REPLACE|TRUNCATE)\\b", "\\.(?:query|execute)\\s*\\(", "\\bgetPool\\s*\\("]
+    },
+    {
+      "id": "provider_effect",
+      "content_patterns": ["\\b(?:fetch|axios|githubRequest|cloudflare|hostinger|provider_call|external_write)\\b"]
+    },
+    {
+      "id": "config",
+      "path_patterns": ["**/config/**", ".github/**/*.json", "docs/governance/**/*.json"],
+      "content_patterns": ["process\\.env\\.", "process\\.env\\["]
+    },
+    {
+      "id": "generated_contract",
+      "path_patterns": ["**/*.generated.json", "**/*.generated.yaml", "**/*.generated.yml", "**/openapi/**", "**/schemas/**"]
+    },
+    {
+      "id": "test_invariant",
+      "path_patterns": [".github/tests/**", "**/test-*.mjs", "**/test-*.js", "**/*.test.mjs", "**/*.test.js", "tests/**"]
+    }
+  ],
+  "dependency_extraction": {
+    "relative_module_imports": true,
+    "literal_repository_paths": true,
+    "extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx", ".json", ".yaml", ".yml", ".sql", ".md"],
+    "max_file_bytes": 2097152
+  },
+  "required_semantic_class_for_executables": true,
+  "safety": {
+    "read_only": true,
+    "shell_execution": false,
+    "dynamic_code_evaluation": false,
+    "secrets_included": false
+  }
+}

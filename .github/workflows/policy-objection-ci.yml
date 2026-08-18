@@ -15,42 +15,90 @@ jobs:
   objections:
     name: Policy Objection Gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
-      - name: Checkout exact source head
+      - name: Checkout exact GitHub merge candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
-      - name: Evaluate dynamic repository policies
+      - name: Prove exact candidate identity
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MERGE_CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$MERGE_CANDIDATE_SHA"
+      - name: Check every tracked JavaScript module recursively
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files -z -- '*.js' '*.mjs' '*.cjs' | xargs -0 -r -n 1 -P 4 node --check
+      - name: Evaluate dynamic semantic repository policies
+        env:
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          OUT: ${{ runner.temp }}/policy-objections
+          MERGE_CANDIDATE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OUT: ${{ runner.temp }}/repository-governance-producer
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
-          set +e
+          node scripts/repository-governance-closure.mjs --self-test
           node scripts/repository-governance-closure.mjs \
-            --expected-sha "$HEAD_SHA" \
+            --expected-sha "$MERGE_CANDIDATE_SHA" \
             --base-sha "$BASE_SHA" \
-            --candidate-kind source_head \
+            --candidate-kind github_merge_candidate \
             --report-file "$OUT/repository-governance.json"
-          set -e
           node scripts/repository-governance-objection-gate.mjs \
             --mode source \
             --governance-report "$OUT/repository-governance.json" \
             --report-file "$OUT/policy-objections.json"
-      - name: Upload objection evidence
-        if: always()
+          node .github/tests/repository-governance-closure.test.mjs
+          node .github/tests/repository-governance-objection-gate.test.mjs
+          node http-generic-api/test-github-repository-policy-controller.mjs
+          node http-generic-api/test-github-repository-governance-attestation.mjs
+          EXECUTED_SHA="$(git rev-parse HEAD)"
+          test "$EXECUTED_SHA" = "$MERGE_CANDIDATE_SHA"
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const out = process.env.OUT;
+          const evidence = {
+            contract: 'mad4b.repository-governance-producer-evidence.v1',
+            producer_id: 'policy-objection-ci',
+            workflow: 'Policy Objection CI',
+            workflow_file: '.github/workflows/policy-objection-ci.yml',
+            event: 'pull_request',
+            run_id: Number(process.env.GITHUB_RUN_ID),
+            pr_number: Number(process.env.PR_NUMBER),
+            source_head_sha: process.env.SOURCE_HEAD_SHA,
+            base_sha: process.env.BASE_SHA,
+            merge_candidate_sha: process.env.MERGE_CANDIDATE_SHA,
+            executed_sha: process.env.MERGE_CANDIDATE_SHA,
+            status: 'completed',
+            conclusion: 'success',
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(out, 'producer-evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
+          NODE
+      - name: Upload canonical exact-candidate evidence
+        if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: policy-objections-${{ github.run_id }}
-          path: ${{ runner.temp }}/policy-objections/
+          name: repository-governance-producer-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/repository-governance-producer/
           if-no-files-found: error
           retention-days: 30
+      - name: Upload objection diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: policy-objections-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/repository-governance-producer/
+          if-no-files-found: warn
+          retention-days: 14

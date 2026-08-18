@@ -1,0 +1,54 @@
+{
+  "contract": "mad4b.repository-verifier-registry.v1",
+  "schema_version": 1,
+  "execution_model": "safe_registered_processes",
+  "allowed_step_types": ["node", "npm", "work_map_dynamic"],
+  "shell_execution_forbidden": true,
+  "verifiers": [
+    {
+      "id": "repository_inventory_currentness",
+      "steps": [{ "type": "node", "cwd": ".", "path": "scripts/repository-inventory.mjs", "args": ["--check"] }]
+    },
+    {
+      "id": "repository_evaluation_currentness",
+      "steps": [{ "type": "node", "cwd": ".", "path": "scripts/repository-evaluation.mjs", "args": ["--check", "--enforce"] }]
+    },
+    {
+      "id": "remote_mcp_write_scope_currentness",
+      "steps": [
+        { "type": "node", "cwd": ".", "path": "scripts/remote-mcp-write-scope-semantic-currentness.mjs", "args": [] },
+        { "type": "node", "cwd": ".", "path": "scripts/test-remote-mcp-write-scope-inventory.mjs", "args": [] }
+      ]
+    },
+    {
+      "id": "frontend_openapi_currentness",
+      "steps": [
+        { "type": "npm", "cwd": "http-generic-api", "script": "frontend:dispatch:check" },
+        { "type": "npm", "cwd": "http-generic-api", "script": "openapi:auth:check" },
+        { "type": "npm", "cwd": "http-generic-api", "script": "schemas:check" }
+      ]
+    },
+    {
+      "id": "work_map_currentness",
+      "steps": [
+        {
+          "type": "work_map_dynamic",
+          "cwd": "http-generic-api",
+          "generator": "scripts/platform-work-map-generator.mjs",
+          "binding_verifier": "scripts/spec014-refresh-final-work-map-binding.mjs",
+          "integration_glob": "specs/*/work-map-integration.json"
+        }
+      ]
+    },
+    {
+      "id": "portable_staging_manifest_currentness",
+      "steps": [{ "type": "node", "cwd": ".", "path": "http-generic-api/test-staging-autopilot-closure.mjs", "args": [] }]
+    }
+  ],
+  "safety": {
+    "read_only_expected": true,
+    "arbitrary_command_forbidden": true,
+    "arbitrary_arguments_from_pull_request_forbidden": true,
+    "secrets_included": false
+  }
+}

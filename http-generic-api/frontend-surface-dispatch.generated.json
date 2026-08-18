@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "555f3312ec8bb7a4c3185d5dda5fa893b03064f8cf63edb5548d114066a0d5b5",
+    "source_digest": "42ee88c498c81f70cf11bb76ce79d90a72a1c1f25ca299201af697d01b2f9d08",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "bd6e6e48b58faadfb1e06fd1b8c2b8ad0b5cb18ea7665eb2b51caf1729004efa",
+        "sha256": "72a753dcc18ee8a0b07d351913cc08d29cb3863326885d4f75a978c186bbbf5b",
         "present": true
       },
       {
@@ -796,7 +796,7 @@
       },
       {
         "file": "routes/repositoryAutomationRoutes.js",
-        "sha256": "91ca91020f92abefd5a6a97223d489e6d73f2983c4fab1e128e03628c442d7cb",
+        "sha256": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
         "present": true
       },
       {
@@ -28642,7 +28642,7 @@
       "family_key": "repository-automation",
       "label": "repository automation",
       "source_file": "routes/repositoryAutomationRoutes.js",
-      "source_digest": "91ca91020f92abefd5a6a97223d489e6d73f2983c4fab1e128e03628c442d7cb",
+      "source_digest": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
       "mount_prefix": "/",
       "mount_order": 16695,
       "split_from_mixed_scope_file": false,
