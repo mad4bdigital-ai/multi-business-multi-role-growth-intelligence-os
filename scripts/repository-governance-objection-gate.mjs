@@ -98,17 +98,34 @@ for (const result of governance.policies || []) {
 
 const riskByClass = new Map((constitution.surface_classes || []).map((entry) => [entry.id, entry.risk || "low"]));
 const criticalPaths = new Set();
+const malformedSurfaceClassPaths = new Set();
 const semanticClasses = constitution.semantic_executable_classes || [];
 const unregisteredExecutables = new Set();
 for (const change of governance.change_inventory?.changes || []) {
   for (const observed of change.paths || []) {
-    if ((observed.classes || []).some((classId) => riskByClass.get(classId) === "critical")) criticalPaths.add(observed.path);
+    if (!Array.isArray(observed.surface_classes)) {
+      malformedSurfaceClassPaths.add(observed.path || "unknown");
+      continue;
+    }
+    if (observed.surface_classes.some((classId) => riskByClass.get(classId) === "critical")) criticalPaths.add(observed.path);
   }
   if (!["A", "R", "C"].includes(change.status) || !change.new_path) continue;
   const target = (change.paths || []).find((entry) => entry.path === change.new_path);
   if (!target?.executable) continue;
   const semantic = semanticClasses.filter((entry) => matches(change.new_path, entry.patterns || [])).map((entry) => entry.id);
   if (semantic.length === 0) unregisteredExecutables.add(change.new_path);
+}
+if (malformedSurfaceClassPaths.size) {
+  objections.push(objection({
+    policy_id: "governance-report-shape",
+    objection_id: "governance-report-shape:surface-classes-missing",
+    severity: "blocking",
+    candidate_sha: candidateSha,
+    evidence: { paths: [...malformedSurfaceClassPaths].sort() },
+    remediation: "Regenerate the canonical governance report with surface_classes on every changed path before evaluating objections.",
+    waiverable: false,
+    stage: "source",
+  }));
 }
 if (unregisteredExecutables.size) {
   objections.push(objection({
