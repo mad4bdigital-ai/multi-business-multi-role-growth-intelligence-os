@@ -7,10 +7,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,155 |
-| Total bytes | 69,841,024 |
-| Counted text lines | 1,640,808 |
-| Directories | 265 |
+| Tracked files | 7,166 |
+| Total bytes | 69,852,600 |
+| Counted text lines | 1,640,930 |
+| Directories | 266 |
 | Categories | 13 |
 
 ## Files by category
@@ -19,12 +19,12 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | `tests-and-specs` | 2,150 |
 | `documentation` | 1,907 |
-| `api-runtime` | 1,436 |
+| `api-runtime` | 1,437 |
 | `database-migrations` | 783 |
-| `root-and-other` | 282 |
+| `root-and-other` | 286 |
 | `api-contracts` | 191 |
-| `ci-workflows` | 167 |
-| `ci-config` | 107 |
+| `ci-workflows` | 168 |
+| `ci-config` | 112 |
 | `schemas-and-data` | 70 |
 | `connectors-and-edge` | 29 |
 | `applications` | 19 |
@@ -36,11 +36,11 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,508 |
-| `.mjs` | 1,685 |
+| `.mjs` | 1,691 |
 | `.js` | 992 |
 | `.sql` | 798 |
-| `.json` | 789 |
-| `.yml` | 170 |
+| `.json` | 793 |
+| `.yml` | 171 |
 | `.yaml` | 119 |
 | `.ps1` | 16 |
 | `.ts` | 16 |
@@ -73,10 +73,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 167 |
+| GitHub Actions workflows | 168 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,234 |
+| Test/spec files (paths) | 2,236 |
 | package.json manifests | 3 |
 
 ## Package manifests
