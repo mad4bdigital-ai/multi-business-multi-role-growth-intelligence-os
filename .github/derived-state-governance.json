@@ -59,6 +59,9 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".changes/e2e/derived-state-closure-governance-20260815.json",
+      ".changes/e2e/e2e-contract-reference-integrity.json",
+      ".changes/e2e/repository-inventory-governed-regeneration.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/githubRepositoryPolicyController.js",
       "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -83,6 +86,7 @@
       ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
+      ".github/workflows/repository-inventory.yml",
       ".github/workflows/repository-evaluation.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
