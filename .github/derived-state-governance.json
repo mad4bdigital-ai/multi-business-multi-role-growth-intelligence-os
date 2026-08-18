@@ -92,6 +92,7 @@
       ".github/tests/production-promotion-review-mode.test.mjs",
       ".github/tests/production-promotion-runtime.test.mjs",
       ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/automation-overlap-guard.yml",
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-repair-dispatch.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
