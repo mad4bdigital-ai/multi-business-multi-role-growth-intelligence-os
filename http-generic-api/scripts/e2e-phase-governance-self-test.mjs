@@ -212,4 +212,53 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
   assert(result.report.findings.some((row) => row.code === "e2e_phase_contract_not_changed_with_feature"));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 10, gate: "e2e_phase_governance", repository_governance_classification: "constitution_control_plane_paths", secrets_included: false }));
+{
+  const root = tempRepo();
+  write(root, "scripts/repository-inventory-verification-gate.mjs", "export default 'v2';\n");
+  write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+  const reverse = contract({
+    feature_key: "repository-inventory-reverse-impact",
+    title: "Repository Inventory reverse dependency regression",
+    delivery_mode: "single_pr",
+    scope: { include: ["scripts/repository-inventory-verification-gate.mjs"] }
+  });
+  write(root, ".changes/e2e/repository-inventory-reverse-impact.json", `${JSON.stringify(reverse, null, 2)}\n`);
+  const result = evaluateRepository({ root, policy, changedFiles: ["scripts/repository-inventory-verification-gate.mjs"] });
+  assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+  assert.equal(result.report.change_class, "governance_only");
+  assert.deepEqual(result.report.reverse_scope_affected_contracts, [".changes/e2e/repository-inventory-reverse-impact.json"]);
+  assert.deepEqual(result.report.contracts.map((row) => row.contract_path), [".changes/e2e/repository-inventory-reverse-impact.json"]);
+  const execution = executePhaseTests(result, { root });
+  assert.equal(execution.ok, true);
+  assert.equal(execution.test_count, 1);
+}
+
+{
+  const root = tempRepo();
+  write(root, "scripts/repository-inventory-verification-gate.mjs", "export default 'v2';\n");
+  write(root, "scripts/schema-docs-change-guard.mjs", "export default true;\n");
+  write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+  const reverse = contract({
+    feature_key: "repository-inventory-reverse-impact",
+    title: "Repository Inventory reverse dependency regression",
+    delivery_mode: "single_pr",
+    scope: { include: ["scripts/repository-inventory-verification-gate.mjs"] }
+  });
+  write(root, ".changes/e2e/repository-inventory-reverse-impact.json", `${JSON.stringify(reverse, null, 2)}\n`);
+  const result = evaluateRepository({ root, policy, changedFiles: ["scripts/schema-docs-change-guard.mjs"] });
+  assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+  assert.equal(result.report.change_class, "governance_only");
+  assert.deepEqual(result.report.reverse_scope_affected_contracts, []);
+  assert.equal(executePhaseTests(result, { root }).test_count, 0);
+}
+
+console.log(JSON.stringify({
+  ok: true,
+  tests: 12,
+  gate: "e2e_phase_governance",
+  reverse_scope_dependency_closure: true,
+  governance_only_reverse_execution: true,
+  unrelated_governance_e2e_storm: false,
+  repository_governance_classification: "constitution_control_plane_paths",
+  secrets_included: false
+}));
