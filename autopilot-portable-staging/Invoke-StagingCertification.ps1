@@ -63,7 +63,9 @@ $gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").
 $expectedTree = Read-EnvValue $envFile "STAGING_BUILD_TREE"
 $expectedContextFileSet = Read-EnvValue $envFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256"
 $composeArgs = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
-$imageId = ((& docker @composeArgs images -q app 2>$null | Out-String).Trim()).ToLowerInvariant()
+$appContainerId = ((& docker @composeArgs ps -q app 2>$null | Out-String).Trim()).ToLowerInvariant()
+if ($appContainerId -notmatch '^[0-9a-fA-F]{64}$') { Fail "Staging app container is not running with a full container ID" }
+$imageId = ((& docker inspect --format '{{.Image}}' $appContainerId 2>$null | Out-String).Trim()).ToLowerInvariant()
 if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest" }
 $certArgs = $composeArgs + @(
     "exec", "-T",

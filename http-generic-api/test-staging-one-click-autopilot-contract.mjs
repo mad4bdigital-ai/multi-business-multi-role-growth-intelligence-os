@@ -129,6 +129,10 @@ assert.match(startAutoPilot, /reloaded exact-commit Auto Pilot before local exec
 assert.match(startAutoPilot, /prepare-staging-build-context\.mjs/);
 assert.match(startAutoPilot, /Invoke-StagingCertification\.ps1/);
 assert.match(certification, /STAGING_CERT_REQUIRE_READY=false/);
+assert.match(certification, /ps -q app/);
+assert.match(certification, /docker inspect --format '\{\{\.Image\}\}'/);
+assert.match(certification, /full container ID/);
+assert.match(certification, /content-addressed sha256 digest/);
 assert.match(certification, /certification_degraded_reasons/);
 assert.match(autoDeploy, /Assert-StagingOriginIdentity/);
 assert.match(autoDeploy, /ExpectedRepository.*ExpectedCommit/);
