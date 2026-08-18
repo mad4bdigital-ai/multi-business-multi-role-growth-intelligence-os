@@ -120,7 +120,7 @@ test("supporting gate registry is bounded, read-only, and resolves release-branc
     releaseBranch: "release/production-cut-probe",
     candidateSha: sha(4),
   });
-  assert.equal(plan.gates.length, 6);
+  assert.equal(plan.gates.length, 7);
   assert.ok(plan.gates.every((gate) => gate.required === true && gate.effect === "read_only"));
   assert.equal(plan.gates.find((gate) => gate.id === "http_generic_api_fanout_relocation").inputs.target_branch, "release/production-cut-probe");
   assert.equal(plan.safety.production_merge, false);
