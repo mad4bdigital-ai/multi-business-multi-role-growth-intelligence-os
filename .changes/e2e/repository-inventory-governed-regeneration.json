@@ -16,6 +16,7 @@
       ".github/workflows/repository-evaluation.yml",
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
       ".github/workflows/repository-inventory.yml",
+      "docs/repository-inventory-guide.md",
       "scripts/repository-inventory-verification-gate.mjs",
       "scripts/repository-evaluation.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
@@ -68,6 +69,7 @@
             "Inventory generation and verification complete before Evaluation generation begins.",
             "The writer requires exact SHA identity, rejects main and Production as mutation targets, performs no force push, and verifies the remote result SHA.",
             "Post-merge publication occurs through a bounded non-protected convergence branch and governed pull request.",
+            "The Repository Inventory guide documents the same v2 advisory-premerge and post-merge publication lifecycle.",
             "No database, provider, Production, credential, direct protected-ref, or force-push authority is granted."
           ],
           "tests": [
@@ -101,6 +103,7 @@
             ".github/workflows/repository-evaluation.yml",
             ".github/workflows/repository-inventory-autofix-dispatch.yml",
             ".github/workflows/repository-inventory.yml",
+            "docs/repository-inventory-guide.md",
             "scripts/repository-inventory-verification-gate.mjs",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
