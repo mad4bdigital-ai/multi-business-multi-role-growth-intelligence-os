@@ -285,6 +285,7 @@
     ".github/workflows/governed-generated-artifact-refresh.yml",
     ".github/workflows/staging-live-certification.yml",
     ".github/workflows/staging-main-deploy-eligibility.yml",
+    ".github/workflows/docs-agent-main-followup.yml",
     ".github/workflows/repository-inventory-autofix-dispatch.yml",
     ".github/workflows/repository-inventory.yml",
     ".github/workflows/repository-evaluation.yml",

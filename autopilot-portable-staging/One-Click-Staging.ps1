@@ -8,16 +8,23 @@ param(
     [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [int]$PollSeconds = 300,
     [int]$EligibilityWaitSeconds = 1800,
+    [int]$EligibilityNoRunGraceSeconds = 600,
     [switch]$NoTunnel,
     [switch]$EnableActivationGateway,
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
     [switch]$ApplySchemaBundle,
+    [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
+    [string]$BuildMode = "Smart",
     [switch]$SkipBuild
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($SkipBuild) {
+    if ($BuildMode -ne "Smart") { throw "-SkipBuild cannot be combined with an explicit BuildMode" }
+    $BuildMode = "SkipBuild"
+}
 $OneClickScriptPath = $PSCommandPath
 $BootstrapScriptRoot = Split-Path -Parent $OneClickScriptPath
 $BootstrapLogRoot = Join-Path $BootstrapScriptRoot "logs"
@@ -117,7 +124,7 @@ function Reinvoke-Elevated {
     if ($NoAutoDeploy) { $argList += "-NoAutoDeploy" }
     if ($RequireSchemaBundle) { $argList += "-RequireSchemaBundle" }
     if ($ApplySchemaBundle) { $argList += "-ApplySchemaBundle" }
-    if ($SkipBuild) { $argList += "-SkipBuild" }
+    $argList += @("-BuildMode", $BuildMode)
     $process = Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList ($argList -join " ") -Wait -PassThru
     exit $process.ExitCode
 }
@@ -323,7 +330,9 @@ function Get-EligibilityWorkflowRuns([string]$Sha) {
     } catch { return @() }
 }
 function Wait-Eligibility([string]$Sha) {
-    $deadline = (Get-Date).ToUniversalTime().AddSeconds($EligibilityWaitSeconds)
+    $now = (Get-Date).ToUniversalTime()
+    $deadline = $now.AddSeconds($EligibilityWaitSeconds)
+    $noRunDeadline = $now.AddSeconds($EligibilityNoRunGraceSeconds)
     while ($true) {
         $runs = @(Get-EligibilityWorkflowRuns $Sha)
         if ($runs.Count -gt 0) {
@@ -331,6 +340,8 @@ function Wait-Eligibility([string]$Sha) {
             Write-StagingLog -Level info -Component $LogComponent -Stage "eligibility-poll" -Message "workflow eligibility observed" -Data @{ sha = $Sha; status = $run.status; conclusion = $run.conclusion; run_id = $run.databaseId }
             if ($run.status -eq "completed" -and $run.conclusion -eq "success") { return }
             if ($run.status -eq "completed" -and $run.conclusion -notin @("success", "neutral")) { Fail "main commit $Sha is blocked by CI eligibility: $($run.conclusion)" }
+        } elseif ((Get-Date).ToUniversalTime() -gt $noRunDeadline) {
+            Fail "No Staging Main Deploy Eligibility workflow run was found for exact SHA $Sha after $EligibilityNoRunGraceSeconds seconds; refusing silent polling. Dispatch staging-main-deploy-eligibility.yml for this SHA and retry."
         }
         if ((Get-Date).ToUniversalTime() -gt $deadline) { Fail "Timed out waiting for Staging Main Deploy Eligibility workflow for exact SHA $Sha" }
         Write-Host "Waiting for Staging Main Deploy Eligibility workflow: sha=$Sha"
@@ -341,9 +352,8 @@ function Wait-Eligibility([string]$Sha) {
 function Start-LocalStaging([string]$RepoPath, [string]$Sha, [string]$EnvFile) {
     $start = Join-Path $RepoPath "autopilot-portable-staging\Start-AutoPilot.ps1"
     if (-not (Test-Path $start)) { Fail "Start-AutoPilot.ps1 is missing" }
-    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $RepoPath, "-Ref", $Ref, "-ExpectedCommit", $Sha)
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $RepoPath, "-Ref", $Ref, "-ExpectedCommit", $Sha, "-BuildMode", $BuildMode)
     if (-not $NoTunnel) { $args += "-StartTunnel" }
-    if ($SkipBuild) { $args += "-SkipBuild" }
     Invoke-Native "powershell.exe" $args
 }
 
@@ -391,15 +401,17 @@ function Read-RuntimeCertificationState([string]$RepoPath, [string]$Sha) {
 function Install-AutoDeploy([string]$RepoPath) {
     $installer = Join-Path $RepoPath "autopilot-portable-staging\Install-AutoDeployTask.ps1"
     if (-not (Test-Path $installer)) { Fail "Install-AutoDeployTask.ps1 is missing" }
-    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $installer, "-RepositoryPath", $RepoPath, "-PollSeconds", "$PollSeconds")
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $installer, "-RepositoryPath", $RepoPath, "-PollSeconds", "$PollSeconds", "-BuildMode", $BuildMode)
     if (-not $NoTunnel) { $args += "-StartTunnel" }
-    if ($SkipBuild) { $args += "-SkipBuild" }
     Invoke-Native "powershell.exe" $args
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($Ref -ne "main") { Fail "One-click Auto Pilot is main-only" }
 if ($PollSeconds -lt 60) { Fail "PollSeconds must be at least 60" }
+if ($EligibilityWaitSeconds -lt 60) { Fail "EligibilityWaitSeconds must be at least 60" }
+if ($EligibilityNoRunGraceSeconds -lt 60) { Fail "EligibilityNoRunGraceSeconds must be at least 60" }
+if ($EligibilityNoRunGraceSeconds -gt $EligibilityWaitSeconds) { Fail "EligibilityNoRunGraceSeconds cannot exceed EligibilityWaitSeconds" }
 $repo = Resolve-Repository $scriptRoot
 $envFile = $null
 # On an existing checkout, create the ignored Staging env before prerequisite checks so a missing gh/docker/WSL dependency never hides the env boundary.
@@ -424,7 +436,7 @@ Wait-Eligibility $sha
 Write-StagingOperationBoundary -Component $LogComponent -Stage "eligibility" -Outcome "success" -Message "Staging Main Deploy Eligibility passed" -Data @{ sha = $sha }
 if ($Mode -eq "Validate") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
-    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-Ref", $Ref, "-ExpectedCommit", $sha, "-ValidateOnly")
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode, "-ValidateOnly")
     if (-not $NoTunnel) { $args += "-StartTunnel" }
     Invoke-Native "powershell.exe" $args
     Write-Host "AUTO_PILOT_VALIDATED: commit=$sha tunnel=$(-not $NoTunnel)"

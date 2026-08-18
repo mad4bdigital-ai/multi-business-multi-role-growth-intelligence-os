@@ -6,11 +6,17 @@ param(
     [int]$PollSeconds = 300,
     [int]$HealthIntervalSeconds = 60,
     [switch]$StartTunnel,
+    [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
+    [string]$BuildMode = "Smart",
     [switch]$SkipBuild
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($SkipBuild) {
+    if ($BuildMode -ne "Smart") { Fail "-SkipBuild cannot be combined with an explicit BuildMode" }
+    $BuildMode = "SkipBuild"
+}
 
 function Fail([string]$Message) { throw "AUTO_DEPLOY_INSTALL_FAIL_CLOSED: $Message" }
 if ($PollSeconds -lt 60) { Fail "PollSeconds must be at least 60" }
@@ -29,9 +35,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "Re
 
 $escapedScript = $autoDeployScript.Replace('"', '\"')
 $escapedRepo = $RepositoryPath.Replace('"', '\"')
-$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds"
+$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode"
 if ($StartTunnel) { $arguments += " -StartTunnel" }
-if ($SkipBuild) { $arguments += " -SkipBuild" }
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
 $action = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $arguments -WorkingDirectory $scriptRoot

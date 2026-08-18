@@ -140,6 +140,7 @@
           "docs/remote-mcp-write-scope-inventory.md",
           "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
           "specs/*/work-map-integration.json",
+          "specs/*/tasks.md",
           "specs/021-portable-staging-autopilot/e2e-phases.json"
         ],
         "environments": ["repository"],

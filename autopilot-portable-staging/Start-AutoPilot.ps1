@@ -7,6 +7,8 @@ param(
     [switch]$StartTunnel,
     [switch]$ValidateOnly,
     [switch]$Stop,
+    [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
+    [string]$BuildMode = "Smart",
     [switch]$SkipBuild
 )
 
@@ -150,6 +152,38 @@ function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     }
     Set-Content -Encoding utf8 -LiteralPath $Path -Value $text
 }
+function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet) {
+    if ($ImageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
+    if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedTree -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedContextFileSet -notmatch '^[0-9a-fA-F]{64}$') { return $false }
+    try {
+        $labelsJson = (& docker image inspect --format '{{json .Config.Labels}}' $ImageId 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($labelsJson) -or $labelsJson -eq "null") { return $false }
+        $labels = $labelsJson | ConvertFrom-Json
+        $inspectedId = (& docker image inspect --format '{{.Id}}' $ImageId 2>$null | Out-String).Trim().ToLowerInvariant()
+        if ($LASTEXITCODE -ne 0 -or $inspectedId -ne $ImageId.ToLowerInvariant()) { return $false }
+        return ([string]$labels.'org.mad4b.staging.provenance.contract' -eq "mad4b.staging-build-provenance.v1" -and
+            [string]$labels.'org.mad4b.staging.build.commit' -eq $ExpectedCommit.ToLowerInvariant() -and
+            [string]$labels.'org.mad4b.staging.build.tree' -eq $ExpectedTree.ToLowerInvariant() -and
+            [string]$labels.'org.mad4b.staging.build.context_file_set_sha256' -eq $ExpectedContextFileSet.ToLowerInvariant() -and
+            [string]$labels.'org.mad4b.staging.build.secrets_included' -eq "false")
+    } catch {
+        return $false
+    }
+}
+function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath) {
+    $candidateIds = @()
+    $fromEnvLine = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -match '^STAGING_APP_IMAGE_ID=(.*)$' } | Select-Object -First 1
+    if ($fromEnvLine) {
+        $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
+        if ($fromEnv -match '^sha256:[0-9a-f]{64}$') { $candidateIds += $fromEnv }
+    }
+    $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
+    $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
+    foreach ($candidate in @($candidateIds | Select-Object -Unique)) {
+        if (Test-ExactStagingImage ([string]$candidate) $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) { return ([string]$candidate).ToLowerInvariant() }
+    }
+    return ""
+}
 function Quarantine-KnownBackupFiles([string]$RepoPath) {
     $backupRoot = Join-Path $env:USERPROFILE "MAD4B-Staging-Backups"
     $backupFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepoPath "autopilot-portable-staging") -Filter "*.backup" -File -ErrorAction SilentlyContinue)
@@ -162,6 +196,10 @@ function Quarantine-KnownBackupFiles([string]$RepoPath) {
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($SkipBuild) {
+    if ($BuildMode -ne "Smart") { Fail "-SkipBuild cannot be combined with an explicit BuildMode" }
+    $BuildMode = "SkipBuild"
+}
 if ([string]::IsNullOrWhiteSpace($RepositoryPath)) {
     $RepositoryPath = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 }
@@ -316,12 +354,23 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services stopped"
         return
     }
-    if (-not $SkipBuild) {
-        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context"
+    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
+    $imageReused = $false
+    $buildAction = "built"
+    $imageMatchesExactProvenance = $existingImageId -match '^sha256:[0-9a-f]{64}$'
+    if ($BuildMode -eq "Smart" -and $imageMatchesExactProvenance) {
+        $imageReused = $true
+        $buildAction = "reused_exact_provenance"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-build" -Outcome "success" -Message "reused exact Staging image; build skipped" -Data @{ mode = $BuildMode; image_id = $existingImageId; commit = $ExpectedCommit; tree = $buildTree; context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256; secrets_included = $false }
+    } elseif ($BuildMode -eq "SkipBuild") {
+        Fail "SkipBuild requested but no local app image matches exact commit/tree/context provenance"
+    } else {
+        if ($BuildMode -eq "ForceBuild") { $buildAction = "forced_build" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context" -Data @{ mode = $BuildMode; previous_image_id = $existingImageId; previous_image_exact = [bool]$imageMatchesExactProvenance }
         Invoke-Native "docker" ($composeArgs + @("build", "app"))
     }
-    $imageId = Get-NativeText "docker" ($composeArgs + @("images", "-q", "app"))
-    if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest" }
+    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
+    if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance" }
     Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
     Assert-UniqueEnvKeys $EnvFile
     Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
@@ -344,6 +393,9 @@ try {
         build_tree_sha = $buildTree.ToLowerInvariant()
         build_context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256
         app_image_digest = $imageId.ToLowerInvariant()
+        build_mode = $BuildMode
+        build_action = $buildAction
+        image_reused = [bool]$imageReused
         tunnel_started = [bool]$StartTunnel
         certification_status = "pending"
         certification_ready = $false

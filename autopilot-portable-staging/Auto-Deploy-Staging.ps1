@@ -8,11 +8,17 @@ param(
     [switch]$Watch,
     [switch]$StartTunnel,
     [switch]$ValidateOnly,
+    [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
+    [string]$BuildMode = "Smart",
     [switch]$SkipBuild
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($SkipBuild) {
+    if ($BuildMode -ne "Smart") { throw "-SkipBuild cannot be combined with an explicit BuildMode" }
+    $BuildMode = "SkipBuild"
+}
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
 $LogComponent = "auto-deploy"
 $script:AutoPilotRunMutex = $null
@@ -205,10 +211,9 @@ while ($true) {
             if (-not $Watch) { Fail "Staging commit $sha is deployed but not certified ready" }
         }
     } elseif ($eligibility.state -eq "eligible") {
-        $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-Ref", $Ref, "-ExpectedCommit", $sha)
+        $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode)
         if ($StartTunnel) { $pilotArgs += "-StartTunnel" }
         if ($ValidateOnly) { $pilotArgs += "-ValidateOnly" }
-        if ($SkipBuild) { $pilotArgs += "-SkipBuild" }
         Write-Host ("> powershell.exe -File Start-AutoPilot.ps1 {0}" -f ($pilotArgs -join " "))
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $startScript @pilotArgs
         if ($LASTEXITCODE -ne 0) { Fail "Start-AutoPilot.ps1 failed for eligible commit $sha" }
