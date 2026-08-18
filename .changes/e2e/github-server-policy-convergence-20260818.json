@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/github-server-policy-convergence-20260818.json",
+      ".specify/schemas/e2e-phases.schema.json",
       ".github/derived-state-governance.json",
       ".github/governance/evidence-producers.json",
       ".github/governance/policy-registry.json",
@@ -33,6 +34,13 @@
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "phases": [
     {
       "id": "mvp",
@@ -47,7 +55,7 @@
           "entrypoint": "Pull request to main and governed Production promotion",
           "terminal_outcome": "A pull request is classified semantically, evaluated on GitHub's exact merge candidate, resolved through registered policy and verifier authorities, finalized by a trusted default-branch workflow, and only then may the GitHub App publish the required status on the exact candidate; Production uses the same App gate only after proving the current merge-candidate tree equals the certified release-candidate tree.",
           "steps": [
-            "Load the canonical Constitution, policy registry, semantic surface registry, verifier registry, evidence producer registry, and waiver ledger.",
+            "Load the canonical Constitution, policy registry, semantic surface registry, verifier registry, evidence producer registry, waiver ledger, E2E schema, and deployment environment authority.",
             "Classify changed paths, executable classes, semantic facets, and Git-native add/delete/rename/copy identity.",
             "Build reverse dependency edges and reject dangling references to deleted or renamed nodes.",
             "Evaluate generic declarative policy assertions over the semantic graph and governance report.",
@@ -55,6 +63,7 @@
             "Run the canonical producer on the exact GitHub merge candidate and record source head, base, merge candidate, executed SHA, PR number, workflow and run identity.",
             "Check every tracked JavaScript module recursively instead of a shallow filename glob.",
             "Block workflow-surface growth above the base/target ratchet while retaining a target of 160 workflows.",
+            "Validate the shared-runtime environment impact against the canonical deployment authority, requiring cross-environment review and live Staging certification while keeping Production mutation forbidden.",
             "Have the Derived State Closure detector consume the exact-candidate producer evidence and emit read-only detector evidence.",
             "Have the trusted default-branch workflow_run finalizer re-read the live PR identity and call the governed backend attestor.",
             "Have the GitHub App publish Derived State Closure for main or Governed Production Promotion for Production, with same-cycle status readback.",
@@ -71,6 +80,8 @@
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
             "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
+            "The E2E schema formally recognizes environment_impact while the environment closure retains contextual fail-closed policy enforcement.",
+            "Shared-runtime impact declares staging and production, records cross-environment review, requires live Staging certification, and keeps production_mutation_allowed false.",
             "No live Ruleset Apply, protected-ref mutation, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR."
           ],
           "tests": [
@@ -111,6 +122,8 @@
             }
           ],
           "evidence_paths": [
+            ".changes/e2e/github-server-policy-convergence-20260818.json",
+            ".specify/schemas/e2e-phases.schema.json",
             ".github/governance/policy-registry.json",
             ".github/governance/semantic-surface-registry.json",
             ".github/governance/verifier-registry.json",
@@ -122,6 +135,7 @@
             "scripts/repository-governance-closure.mjs",
             "scripts/repository-governance-evidence-finalizer.mjs",
             "scripts/derived-state-closure.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/githubRepositoryPolicyController.js",
             "http-generic-api/githubRepositoryGovernanceAttestation.js",
