@@ -17,6 +17,13 @@ function exactSha(value, name) {
   if (!SHA_RE.test(value || "")) throw new Error(`snapshot ${name} invalid`);
   return value;
 }
+function producerIdentity(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const canonical = typeof entry.producer_id === "string" ? entry.producer_id : null;
+  const legacy = typeof entry.id === "string" ? entry.id : null;
+  if (canonical && legacy && canonical !== legacy) throw new Error(`producer evidence identity conflict: producer_id=${canonical} id=${legacy}`);
+  return canonical || legacy;
+}
 const snapshotFile = path.resolve(arg("snapshot-file"));
 const reportFile = path.resolve(arg("report-file", path.join(root, ".artifacts/repository-evidence-finalizer/report.json")));
 const registry = JSON.parse(fs.readFileSync(path.join(root, ".github/governance/evidence-producers.json"), "utf8"));
@@ -28,7 +35,13 @@ const mergeCandidateSha = exactSha(snapshot.merge_candidate_sha, "merge_candidat
 const executedSha = exactSha(snapshot.executed_sha, "executed_sha");
 if (executedSha !== mergeCandidateSha) throw new Error("snapshot executed_sha must equal merge_candidate_sha");
 if (!/^[1-9][0-9]*$/u.test(String(snapshot.pr_number || ""))) throw new Error("snapshot pr_number invalid");
-const observed = new Map((snapshot.producers || []).map((entry) => [entry.id, entry]));
+const observed = new Map();
+for (const entry of snapshot.producers || []) {
+  const id = producerIdentity(entry);
+  if (!id) throw new Error("producer evidence identity missing");
+  if (observed.has(id)) throw new Error(`duplicate producer evidence identity: ${id}`);
+  observed.set(id, entry);
+}
 const producers = [];
 for (const expected of registry.producers || []) {
   const found = observed.get(expected.id);
