@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7187,
-    "bytes": 70085986,
+    "bytes": 70085984,
     "lines": 1645472,
     "directories": 266,
     "categories": 13
@@ -84699,9 +84699,9 @@
       "path": "specs/021-portable-staging-autopilot/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 15100,
+      "bytes": 15098,
       "lines": 232,
-      "sha256": "405153bd3e7b1c731d61866645032e983b655f8bd27c181cb269e56b2398e330",
+      "sha256": "8f539563e8423dc29996dced1db893020de724055e4a94e2ef3a639a12fc0a75",
       "mode": "644",
       "executable": false,
       "generated": false

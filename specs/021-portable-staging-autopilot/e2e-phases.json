@@ -135,8 +135,8 @@
             {
               "id": "validate-staging-supervisor-and-ci-race-contracts",
               "runner": "node",
-              "working_directory": ".",
-              "path": "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
               "args": []
             },
             {
