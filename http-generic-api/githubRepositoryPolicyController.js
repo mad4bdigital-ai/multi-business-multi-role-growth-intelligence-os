@@ -255,14 +255,24 @@ function pullRequestEvidence(rules) {
     require_last_push_approval: bool(p.require_last_push_approval),
   };
 }
-function branchPatternMatches(pattern, branch) {
+export function branchPatternMatches(pattern, branch) {
   const value = compact(pattern, 255);
   const ref = `refs/heads/${branch}`;
   if (["~ALL", branch, ref].includes(value)) return true;
   if (value === "~DEFAULT_BRANCH") return branch === "main";
   if (!value.includes("*") && !value.includes("?")) return false;
-  const escaped = value.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]");
-  try { return new RegExp(`^${escaped}$`).test(ref); } catch { return false; }
+  let source = "";
+  for (let i = 0; i < value.length; i += 1) {
+    const ch = value[i];
+    if (ch === "*") {
+      if (value[i + 1] === "*") {
+        if (value[i + 2] === "/") { source += "(?:.*/)?"; i += 2; }
+        else { source += ".*"; i += 1; }
+      } else source += "[^/]*";
+    } else if (ch === "?") source += "[^/]";
+    else source += ch.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+  }
+  try { return new RegExp(`^${source}$`, "u").test(ref); } catch { return false; }
 }
 function appliesToBranch(detail, branch) {
   const include = uniqueStrings(detail.conditions?.ref_name?.include || []);
