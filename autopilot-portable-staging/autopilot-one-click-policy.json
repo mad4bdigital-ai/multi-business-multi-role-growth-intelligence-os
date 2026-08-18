@@ -16,10 +16,13 @@
   "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
   "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"],
   "database_seed": {
-    "default_mode": "schema_only_if_local_bundle_exists",
+    "default_mode": "schema_only_dry_run_if_local_bundle_exists",
+    "apply_requires_explicit_switch": true,
+    "apply_switch": "ApplySchemaBundle",
     "required_files": ["runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz"],
     "sanitized_data_default": false,
-    "migration_apply": false
+    "migration_apply": false,
+    "production_database_access": false
   },
   "safety": {
     "production_deploy": false,
