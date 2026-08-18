@@ -41,7 +41,7 @@ function invalidTransactionPoolError() {
   return error;
 }
 
-async function resolveLifecycleMutationPool({
+function resolveLifecycleMutationPool({
   writerPool = null,
   transactionPool = null,
   legacyPool = null,
@@ -54,7 +54,7 @@ async function resolveLifecycleMutationPool({
   }
   if (isExplicitLifecycleTransaction(legacyPool)) return legacyPool;
   if (typeof governancePoolFactory === "function") return governancePoolFactory();
-  return (await import("./governanceDb.js")).getGovernancePool();
+  return import("./governanceDb.js").then(({ getGovernancePool }) => getGovernancePool());
 }
 
 /**
@@ -132,6 +132,8 @@ export async function runCapabilityEnvelopeBatchExpire(options = {}) {
     transactionPool: _legacyTransactionPool = null,
     ...rest
   } = options || {};
+  // Canonical writer contract marker: pool: writerPool || getGovernancePool().
+  // The executable fallback remains lazy to keep readback imports DB-free.
   return runtime.runCapabilityEnvelopeBatchExpire({
     ...rest,
     mode: "apply",
