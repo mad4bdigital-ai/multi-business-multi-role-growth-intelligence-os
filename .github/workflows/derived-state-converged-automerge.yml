@@ -63,15 +63,20 @@ jobs:
             .github/workflows/governed-production-promotion-request-launcher.yml) branch="Production"; prefix="governed-production-promotion-convergence-" ;;
             *) echo "Untrusted finalizer source path: $source_path" >&2; exit 1 ;;
           esac
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
-          artifact_id="$(jq -r --arg prefix "$prefix" '[.artifacts[] | select((.name|startswith($prefix)) and (.expired==false))][0].id // empty' "$RUNNER_TEMP/artifacts.json")"
+          artifacts="$RUNNER_TEMP/artifacts.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$artifacts"
+          expected_artifact="${prefix}${SOURCE_RUN_ID}"
+          test "$(jq -r --arg name "$expected_artifact" '[.artifacts[] | select(.name==$name and .expired==false)] | length' "$artifacts")" = "1"
+          artifact_record="$(jq -c --arg name "$expected_artifact" '[.artifacts[] | select(.name==$name and .expired==false)][0]' "$artifacts")"
+          artifact_id="$(jq -r '.id // empty' <<<"$artifact_record")"
+          evidence_digest="$(jq -r '.digest // empty' <<<"$artifact_record")"
+          evidence_digest="${evidence_digest#sha256:}"
           [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          [[ "$evidence_digest" =~ ^[0-9a-f]{64}$ ]]
           evidence_dir="$RUNNER_TEMP/finalizer-evidence"
           mkdir -p "$evidence_dir"
           gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$RUNNER_TEMP/evidence.zip"
           unzip -q "$RUNNER_TEMP/evidence.zip" -d "$evidence_dir"
-          evidence_digest="$(find "$evidence_dir" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-          [[ "$evidence_digest" =~ ^[0-9a-f]{64}$ ]]
 
           if [[ "$branch" == main ]]; then
             identity="$(find "$evidence_dir" -type f -name detector-identity.json -print -quit)"
@@ -131,6 +136,7 @@ jobs:
           test "$(jq -r '.mode' "$response")" = "attest"
           test "$(jq -r '.branch' "$response")" = "$branch"
           test "$(jq -r '.candidate_sha' "$response")" = "$candidate_sha"
+          test "$(jq -r '.source_provenance.artifact_digest_sha256' "$response")" = "$evidence_digest"
           test "$(jq -r '.same_cycle_readback_proven' "$response")" = "true"
           {
             echo "branch=$branch"
