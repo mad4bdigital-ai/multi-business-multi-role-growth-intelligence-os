@@ -1,23 +1,32 @@
 {
   "contract": "mad4b.repository-governance-constitution.v1",
-  "schema_version": 1,
+  "schema_version": 2,
   "authority": {
     "source_of_truth": "http-generic-api/config/repository-governance-constitution.json",
     "final_gate_context": "Derived State Closure",
-    "final_gate_mode": "policy_objection_aggregator",
+    "final_gate_mode": "trusted_app_exact_candidate_attestation",
     "policy_registry": ".github/governance/policy-registry.json",
+    "semantic_surface_registry": ".github/governance/semantic-surface-registry.json",
+    "verifier_registry": ".github/governance/verifier-registry.json",
     "evidence_producer_registry": ".github/governance/evidence-producers.json",
     "waiver_ledger": ".github/governance/waiver-ledger.json",
     "change_identity": "git_base_candidate_tree",
+    "evidence_identity": "source_base_merge_candidate_executed_sha",
     "unknown_surface_mode": "block",
     "unknown_executable_mode": "block",
+    "unknown_semantic_executable_mode": "block",
     "new_executable_registration_mode": "typed_semantic_class_required",
     "deletion_and_rename_impact_required": true,
+    "inverse_dependency_closure_required": true,
     "derived_state_graph_mode": "executable_dag",
-    "policy_execution_mode": "declarative_registered_assertions",
+    "derived_verifier_mode": "safe_registered_processes",
+    "policy_execution_mode": "declarative_registered_assertions_over_semantic_graph",
     "objection_execution_mode": "typed_policy_objections",
     "control_plane_change_mode": "manual_merge_required",
-    "server_enforcement_attestation": "required_before_single_gate_activation",
+    "server_enforcement_attestation": "trusted_github_app_exact_candidate_required_before_activation",
+    "final_attestor": "http-generic-api/githubRepositoryGovernanceAttestation.js",
+    "final_attestor_surface": "/admin/repository-automation/policy-controller",
+    "workflow_surface_policy": "docs/repository-ci-surface-policy.json",
     "waiver_mode": "digest_bound_expiring_ledger",
     "legacy_runtime_policy_controller": "compatibility_executor_not_source_of_truth"
   },
@@ -31,9 +40,9 @@
       "dismiss_stale_approvals": true,
       "require_conversation_resolution": true,
       "strict_required_status_checks": true,
-      "required_checks": [
-        "Derived State Closure"
-      ],
+      "required_checks": ["Derived State Closure"],
+      "required_check_producer": "trusted_github_app_attestor",
+      "required_check_evidence": "exact_current_merge_candidate",
       "required_check_activation": "only_after_trusted_evidence_finalizer_and_server_attestation"
     },
     "Production": {
@@ -46,109 +55,67 @@
       "promotion_path": "Governed Production Promotion",
       "same_sha_closure_required": true,
       "strict_required_status_checks": true,
-      "required_checks": [],
+      "required_checks": ["Governed Production Promotion"],
+      "required_check_producer": "trusted_github_app_attestor",
+      "required_check_evidence": "exact_current_merge_candidate",
       "required_check_activation": "promotion_authority_controls_release"
     }
   },
   "change_model": {
-    "supported_git_statuses": [
-      "A",
-      "M",
-      "D",
-      "R",
-      "C",
-      "T"
-    ],
+    "supported_git_statuses": ["A", "M", "D", "R", "C", "T"],
     "rename_and_copy_source_must_be_classified": true,
     "rename_and_copy_target_must_be_classified": true,
     "added_path_newness_must_come_from_git": true,
     "filename_age_heuristics_forbidden": true
   },
-  "executable_extensions": [
-    ".js",
-    ".mjs",
-    ".cjs",
-    ".ts",
-    ".tsx",
-    ".py",
-    ".sh",
-    ".ps1",
-    ".sql"
-  ],
+  "executable_extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".sh", ".ps1", ".sql"],
   "semantic_executable_classes": [
     {
       "id": "github_workflow",
-      "patterns": [
-        ".github/workflows/*.yml",
-        ".github/workflows/*.yaml"
-      ]
+      "patterns": [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+    },
+    {
+      "id": "github_governance_test",
+      "patterns": [".github/tests/**/*.mjs", ".github/tests/**/*.js"]
+    },
+    {
+      "id": "github_governance_operation",
+      "patterns": [".github/ops/**/*.mjs", ".github/ops/**/*.js", ".github/scripts/**/*.mjs", ".github/scripts/**/*.js"]
     },
     {
       "id": "repository_governance",
-      "patterns": [
-        "scripts/repository-governance-*.mjs",
-        ".github/tests/repository-governance-*.mjs"
-      ]
+      "patterns": ["scripts/repository-governance-*.mjs", "scripts/derived-state-closure.mjs", "scripts/remote-mcp-write-scope-semantic-currentness.mjs"]
     },
     {
       "id": "repository_automation",
-      "patterns": [
-        "scripts/*.mjs",
-        "tools/**/*.mjs",
-        "tools/**/*.js"
-      ]
+      "patterns": ["scripts/*.mjs", "tools/**/*.mjs", "tools/**/*.js"]
     },
     {
       "id": "api_route",
-      "patterns": [
-        "http-generic-api/routes/**/*.js"
-      ]
+      "patterns": ["http-generic-api/routes/**/*.js"]
     },
     {
       "id": "database_migration",
-      "patterns": [
-        "http-generic-api/migrations/**/*.sql",
-        "migrations/**/*.sql"
-      ]
+      "patterns": ["http-generic-api/migrations/**/*.sql", "migrations/**/*.sql"]
     },
     {
       "id": "api_runtime",
-      "patterns": [
-        "http-generic-api/*.js",
-        "http-generic-api/*.mjs",
-        "http-generic-api/scripts/**/*.mjs",
-        "http-generic-api/wordpress/**/*.js"
-      ]
+      "patterns": ["http-generic-api/*.js", "http-generic-api/*.mjs", "http-generic-api/scripts/**/*.mjs", "http-generic-api/wordpress/**/*.js"]
     },
     {
       "id": "typescript_runtime",
-      "patterns": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "edge/**/*.ts",
-        "edge/**/*.tsx"
-      ]
+      "patterns": ["src/**/*.ts", "src/**/*.tsx", "edge/**/*.ts", "edge/**/*.tsx"]
     },
     {
       "id": "portable_staging_runtime",
-      "patterns": [
-        "autopilot-portable-staging/**/*.js",
-        "autopilot-portable-staging/**/*.mjs",
-        "autopilot-portable-staging/**/*.sh",
-        "autopilot-portable-staging/**/*.ps1"
-      ]
+      "patterns": ["autopilot-portable-staging/**/*.js", "autopilot-portable-staging/**/*.mjs", "autopilot-portable-staging/**/*.sh", "autopilot-portable-staging/**/*.ps1"]
     }
   ],
   "surface_classes": [
     {
       "id": "governance_control_plane",
       "risk": "critical",
-      "patterns": [
-        ".github/**",
-        ".specify/**",
-        "docs/governance/**",
-        ".changes/e2e/**"
-      ]
+      "patterns": [".github/**", ".specify/**", "docs/governance/**", ".changes/e2e/**"]
     },
     {
       "id": "repository_governance_runtime",
@@ -159,84 +126,49 @@
         "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
         "http-generic-api/config/repository-governance-*.json",
         "http-generic-api/githubRepositoryPolicyController.js",
+        "http-generic-api/githubRepositoryGovernanceAttestation.js",
         "http-generic-api/test-github-repository-policy-controller.mjs",
+        "http-generic-api/test-github-repository-governance-attestation.mjs",
         "http-generic-api/scripts/e2e-phase-governance-*.mjs"
       ]
     },
     {
       "id": "application_runtime",
       "risk": "high",
-      "patterns": [
-        "http-generic-api/**",
-        "src/**",
-        "edge/**",
-        "wordpress/**"
-      ]
+      "patterns": ["http-generic-api/**", "src/**", "edge/**", "wordpress/**"]
     },
     {
       "id": "repository_automation",
       "risk": "high",
-      "patterns": [
-        "scripts/**",
-        "tools/**"
-      ]
+      "patterns": ["scripts/**", "tools/**"]
     },
     {
       "id": "portable_staging",
       "risk": "high",
-      "patterns": [
-        "autopilot-portable-staging/**"
-      ]
+      "patterns": ["autopilot-portable-staging/**"]
     },
     {
       "id": "specification_contract",
       "risk": "medium",
-      "patterns": [
-        "specs/**"
-      ]
+      "patterns": ["specs/**"]
     },
     {
       "id": "documentation_evidence",
       "risk": "low",
-      "patterns": [
-        "docs/**",
-        "README.md",
-        "SECURITY.md",
-        "CONTRIBUTING.md"
-      ]
+      "patterns": ["docs/**", "README.md", "SECURITY.md", "CONTRIBUTING.md"]
     },
     {
       "id": "repository_toolchain",
       "risk": "high",
-      "patterns": [
-        "package.json",
-        "package-lock.json",
-        "npm-shrinkwrap.json",
-        "tsconfig.json",
-        "tsconfig.*.json",
-        ".nvmrc",
-        ".node-version",
-        ".editorconfig",
-        ".gitignore",
-        ".gitattributes",
-        ".dockerignore"
-      ]
+      "patterns": ["package.json", "package-lock.json", "npm-shrinkwrap.json", "tsconfig.json", "tsconfig.*.json", ".nvmrc", ".node-version", ".editorconfig", ".gitignore", ".gitattributes", ".dockerignore"]
     }
   ],
   "objection_control_plane": {
     "contract": "mad4b.repository-policy-objections.v1",
-    "blocking_severities": [
-      "blocking"
-    ],
-    "manual_merge_severities": [
-      "manual"
-    ],
-    "advisory_severities": [
-      "advisory"
-    ],
-    "activation_severities": [
-      "activation"
-    ],
+    "blocking_severities": ["blocking"],
+    "manual_merge_severities": ["manual"],
+    "advisory_severities": ["advisory"],
+    "activation_severities": ["activation"],
     "critical_surface_requires_manual_merge": true,
     "new_executable_requires_semantic_registration": true,
     "missing_trusted_evidence_is_blocking": true,
@@ -245,6 +177,7 @@
   },
   "control_plane_paths": [
     ".changes/e2e/derived-state-closure-governance-20260815.json",
+    ".changes/e2e/github-server-policy-convergence-20260818.json",
     ".changes/e2e/spec018-runtime-readiness-evidence-closeout.json",
     ".changes/e2e/e2e-contract-reference-integrity.json",
     ".changes/e2e/repository-inventory-governed-regeneration.json",
@@ -258,11 +191,17 @@
     "http-generic-api/scripts/environment-impact-closure.mjs",
     "http-generic-api/test-environment-impact-closure.mjs",
     "http-generic-api/githubRepositoryPolicyController.js",
+    "http-generic-api/githubRepositoryGovernanceAttestation.js",
+    "http-generic-api/repositoryAutomationPolicyFacade.js",
+    "http-generic-api/routes/repositoryAutomationRoutes.js",
     "http-generic-api/test-github-repository-policy-controller.mjs",
+    "http-generic-api/test-github-repository-governance-attestation.mjs",
     "http-generic-api/scripts/e2e-phase-governance.mjs",
     "http-generic-api/scripts/e2e-phase-governance-core.mjs",
     "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
     ".github/governance/policy-registry.json",
+    ".github/governance/semantic-surface-registry.json",
+    ".github/governance/verifier-registry.json",
     ".github/governance/evidence-producers.json",
     ".github/governance/waiver-ledger.json",
     ".github/contracts/production-promotion-supporting-gates.v1.json",
@@ -300,6 +239,7 @@
     "scripts/remote-mcp-write-scope-inventory.mjs",
     "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
     "scripts/test-remote-mcp-write-scope-inventory.mjs",
+    "docs/repository-ci-surface-policy.json",
     "docs/governance/configuration-drift-policy.json",
     "docs/governance/production-readiness-consolidated-fix.md",
     "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
