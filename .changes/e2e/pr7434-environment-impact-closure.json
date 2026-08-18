@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7434-environment-impact-closure",
+  "title": "PR7434 generated governance and evidence refresh environment impact closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7434-environment-impact-closure.json",
+      ".github/**",
+      "docs/work-maps/**",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "specs/*/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind generated governance evidence and control-plane registration changes to the canonical environment-impact policy without deploying, activating, mutating providers, or changing database authority.",
+      "e2e_journeys": [
+        {
+          "id": "pr7434-environment-impact-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head against the canonical deployment and environment authority policies.",
+          "terminal_outcome": "Environment impact is declared for staging and production, cross-environment review is explicit, staging certification remains required, and all mutation/activation boundaries remain denied.",
+          "steps": [
+            "Classify exact base-to-head changes against the canonical environment path classes.",
+            "Read back deployment, domain, runtime invariant, database authority, readiness, and staging gateway policies.",
+            "Verify the declaration binds both affected environments and requires live staging certification.",
+            "Verify production mutation, database mutation, provider mutation, credential payload reads, and production activation remain forbidden.",
+            "Bind the result to the exact evaluated HEAD SHA."
+          ],
+          "assertions": [
+            "The environment impact declaration source of truth is the canonical deployment branch policy.",
+            "Both staging and production are explicitly declared and cross-environment review is true.",
+            "Live staging certification remains required and is not silently waived.",
+            "production_mutation_allowed is false.",
+            "No migrations, grants, database mutations, provider mutations, credential payload reads, or production activation are introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr7434-environment-impact-closure-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr7434-environment-impact-closure.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "edge/activation-gateway/generated/route-policy.staging.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
