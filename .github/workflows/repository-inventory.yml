@@ -25,8 +25,8 @@ on:
       - '!docs/repository-inventory-summary.json'
       - '!docs/repository-inventory.md'
 
-# This verifier is read-only; generated-artifact writes remain delegated to the trusted writer workflow.
-# Contract: mad4b.repository-inventory-self-hosting.v2; stale main remains failing until a governed sync PR converges the generated outputs.
+# Read-only exact-head verifier. Pre-merge observability drift is advisory; a stale main run
+# deliberately emits a failed workflow signal so the separate governed post-merge writer can converge it.
 env:
   INVENTORY_AUTHORITY_MODE: read_only_verifier
 
@@ -71,7 +71,7 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Verify Inventory currentness or bounded self-hosting bootstrap
+      - name: Verify Inventory currentness or advisory drift
         id: inventory
         shell: bash
         env:
@@ -92,6 +92,20 @@ jobs:
             --base-ref "$BASE_REF" \
             --repository "$REPOSITORY" \
             --output repository-inventory-verification.json
+
+      - name: Signal post-merge observability convergence
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          outcome="$(jq -er '.outcome' repository-inventory-verification.json)"
+          if [[ "$outcome" == "advisory" ]]; then
+            test "$(jq -r '.followup_required' repository-inventory-verification.json)" = "true"
+            test "$(jq -r '.followup_mode' repository-inventory-verification.json)" = "post_merge_observability_publish"
+            echo "Repository Inventory is stale on exact main; emitting post-merge convergence signal." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          test "$outcome" = "passed"
 
       - name: Publish bounded Inventory state
         if: always()
