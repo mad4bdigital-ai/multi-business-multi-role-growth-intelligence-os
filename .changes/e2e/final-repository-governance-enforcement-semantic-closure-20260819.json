@@ -1,0 +1,129 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "final-repository-governance-enforcement-semantic-closure-20260819",
+  "title": "Repository governance fixed point and branch-generic server enforcement",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
+      ".github/governance/semantic-verifier-bindings.json",
+      ".github/governance/executable-validator-registry.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/governance/verifier-registry.json",
+      ".github/tests/repository-governance-fixed-point.test.mjs",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      ".github/ops/github-repository-policy-readback.mjs",
+      ".github/workflows/policy-objection-ci.yml",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/github-main-review-policy-live-activation.yml",
+      ".github/workflows/github-main-review-policy-readiness-publisher.yml",
+      ".github/workflows/github-repository-policy-readback.yml",
+      "scripts/repository-governance-fixed-point.mjs",
+      "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Complete the repository-governance fixed point without adding another workflow authority: parameterize the existing server-policy lifecycle for main and Production, detect continuous two-branch policy drift, convert semantic facets into mandatory verifier requirements, validate the tracked executable universe through hardcoded safe validators, and make test/invariant authority fail closed on missing coverage.",
+      "e2e_journeys": [
+        {
+          "id": "repository-governance-fixed-point",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance maintainer",
+          "entrypoint": "Pull request to main followed by separately typed server-policy activation commands after merge",
+          "terminal_outcome": "The exact merge candidate cannot satisfy the canonical governance producer or Derived State Closure unless semantic impacts have registered verifiers, tracked executables pass registered hardcoded validators, test authority remains registered, and no new workflow authority is introduced; after merge the same governed lifecycle can independently activate and verify main and Production and scheduled readback fails on drift in either branch.",
+          "steps": [
+            "Load the canonical semantic surface registry, verifier registry, semantic-verifier bindings, executable validator registry, and test authority registry.",
+            "Build the canonical repository semantic report on the exact GitHub merge candidate.",
+            "Resolve every changed semantic facet to one or more registered mandatory verifiers and fail closed on an uncovered facet or unknown verifier.",
+            "Discover the tracked executable universe from Git and validate JavaScript, TypeScript, Python, Bash, PowerShell, and SQL through fixed hardcoded validator implementations without executing commands from repository registry data.",
+            "Discover tracked tests, reject unregistered tests, and require each registered invariant to retain at least one tracked protecting test plus registered verifier authority.",
+            "Attach fixed-point metrics and evidence to the same canonical repository-governance report consumed by Policy Objection CI and Derived State Closure.",
+            "Reuse the existing GitHub live-activation workflow as one branch-parameterized lifecycle accepting only typed main or Production readiness/apply/verify commands.",
+            "Pin the target branch SHA and Constitution-derived policy fingerprint, create and apply-authorize one repository capability envelope, execute the controller Apply transport at most once, and reconcile ambiguous transport through readback without retry.",
+            "Publish readiness markers only from the trusted workflow_run publisher and bind each marker to target branch, exact target SHA, policy fingerprint, and binding SHA-256.",
+            "Read main and Production in one scheduled readback and fail with GOVERNANCE_SERVER_POLICY_DRIFT whenever either server policy gate is incomplete."
+          ],
+          "assertions": [
+            "No Workflow file is added; the existing activation, publisher, readback, Policy Objection CI, and Derived State Closure workflows remain the only authorities modified by this increment.",
+            "Registry data cannot provide an arbitrary executable command, shell string, or repository-controlled command-line arguments.",
+            "Every changed semantic facet has a registered verifier requirement and every required verifier resolves to a known verifier authority.",
+            "The tracked executable universe minus successfully validated executables minus governed exclusions is empty.",
+            "Discovered tests minus registered tests minus governed exclusions is empty.",
+            "Removing the last tracked test protecting a registered invariant fails closed as test coverage authority removal.",
+            "Main retains its existing typed activation command compatibility while Production receives distinct typed readiness/apply/verify commands.",
+            "Main requires Derived State Closure and Production requires Governed Production Promotion through the existing Constitution-native controller; this increment does not introduce a second controller.",
+            "Ruleset Apply remains a separately typed post-merge operation and is never executed by pull-request validation.",
+            "Readiness creates no external GitHub write and trusted publication requires a successful no-write readiness artifact.",
+            "Apply is bound to exact target branch SHA and policy fingerprint, executes at most once, has no force push or repository content mutation authority, and requires same-cycle live readback.",
+            "Scheduled readback reports both branches and server_policy_drift_count must equal zero for governance_fixed_point=true.",
+            "Production mutation, deployment, database migration Apply, provider Apply, Ruleset Apply, credential payload access, force push, and protected-ref content mutation are not performed by this PR."
+          ],
+          "tests": [
+            {
+              "id": "repository-governance-fixed-point-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-fixed-point.test.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-policy-branch-generic-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "derived-state-fixed-point-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/derived-state-closure.test.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-governance-base-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-closure.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
+            ".github/governance/semantic-verifier-bindings.json",
+            ".github/governance/executable-validator-registry.json",
+            ".github/governance/test-authority-registry.json",
+            ".github/governance/verifier-registry.json",
+            ".github/tests/repository-governance-fixed-point.test.mjs",
+            "scripts/repository-governance-fixed-point.mjs",
+            ".github/workflows/policy-objection-ci.yml",
+            ".github/workflows/derived-state-closure.yml",
+            ".github/ops/github-main-review-policy-live-activation.mjs",
+            ".github/workflows/github-main-review-policy-live-activation.yml",
+            ".github/workflows/github-main-review-policy-readiness-publisher.yml",
+            "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
+            ".github/ops/github-repository-policy-readback.mjs",
+            ".github/workflows/github-repository-policy-readback.yml",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
