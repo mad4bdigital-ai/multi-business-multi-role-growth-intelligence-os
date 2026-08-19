@@ -45,7 +45,7 @@
             "Load the canonical semantic verifier requirements from main and the fixed-point compatibility projection.",
             "Build the repository semantic report on the exact GitHub merge candidate.",
             "Validate JavaScript, TypeScript, Python, Bash, PowerShell and SQL through hardcoded validators without executing repository-supplied commands.",
-            "Delete the superseded zero-byte root SQL artifact after proving the canonical platform_runtime_config migration remains present.",
+            "Preserve the zero-byte root SQL inventory placeholder while proving the canonical platform_runtime_config migration remains present.",
             "Discover tracked tests and require registered invariants to retain protecting tests and verifier authorities.",
             "Attach fixed-point convergence to canonical Policy Objection producer evidence and require that evidence in Derived State Closure."
           ],
@@ -55,7 +55,7 @@
             "Tracked executables minus validated executables minus governed exclusions is empty.",
             "Discovered tests minus registered tests minus governed exclusions is empty.",
             "Removing the last test protecting a registered invariant fails closed.",
-            "The root 20260508_add_platform_runtime_config.sql zero-byte artifact is removed while http-generic-api/migrations/038_sprint42_platform_runtime_config.sql remains canonical.",
+            "The root 20260508_add_platform_runtime_config.sql zero-byte inventory placeholder is preserved while http-generic-api/migrations/038_sprint42_platform_runtime_config.sql remains canonical.",
             "Policy Objection CI and Derived State Closure consume the same exact-candidate fixed-point contract.",
             "No live Ruleset Apply, Production deployment, database/provider mutation, credential payload access, force push, or protected-ref mutation is performed by this PR."
           ],

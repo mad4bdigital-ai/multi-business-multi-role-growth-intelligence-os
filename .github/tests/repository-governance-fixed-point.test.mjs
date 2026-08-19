@@ -4,6 +4,7 @@ import {
   globRegex,
   evaluateSemanticCoverage,
   evaluateTestAuthority,
+  powershellParserInvocation,
   validateRegistryContracts,
 } from "../../scripts/repository-governance-fixed-point.mjs";
 
@@ -41,6 +42,15 @@ test("test authority detects unknown tests and removed last invariant test", () 
   assert.deepEqual(result.unregistered, ["other/example.test.mjs"]);
   assert.equal(result.missing_invariant_tests.length, 1);
   assert.equal(result.missing_invariant_verifiers.length, 0);
+});
+
+test("PowerShell parser transports the target path through a bounded environment variable", () => {
+  const target = "/workspace/repository/autopilot-portable-staging/Start-AutoPilot.ps1";
+  const invocation = powershellParserInvocation(target);
+  assert.equal(invocation.command, "pwsh");
+  assert.equal(invocation.args.at(-1).startsWith("$p=$env:REPOSITORY_GOVERNANCE_POWERSHELL_PATH;"), true);
+  assert.equal(invocation.args.includes(target), false);
+  assert.equal(invocation.options.env.REPOSITORY_GOVERNANCE_POWERSHELL_PATH, target);
 });
 
 test("registry contracts reject malformed authorities", () => {

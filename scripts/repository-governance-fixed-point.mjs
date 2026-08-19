@@ -130,6 +130,15 @@ export function evaluateTestAuthority(files, registry, verifierRegistry) {
   }
   return { discovered, unregistered, missing_invariant_tests: missingInvariantTests, missing_invariant_verifiers: missingInvariantVerifiers };
 }
+export function powershellParserInvocation(absolutePath) {
+  const code = "$p=$env:REPOSITORY_GOVERNANCE_POWERSHELL_PATH;$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
+  return {
+    command: "pwsh",
+    args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code],
+    options: { cwd: root, env: { REPOSITORY_GOVERNANCE_POWERSHELL_PATH: absolutePath } },
+  };
+}
+
 function validateExecutableUniverse(files, registry) {
   const extensionValidators = validatorMap(registry);
   const exclusions = registry.governed_exclusions || [];
@@ -161,10 +170,10 @@ function validateExecutableUniverse(files, registry) {
     } else if (validator === "bash_parse") {
       for (const file of validatorFiles) record(validator, [file], run("bash", ["-n", file], { cwd: root }));
     } else if (validator === "powershell_parser") {
-      const code = "$p=$args[0];$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
       for (const file of validatorFiles) {
         const absolute = path.resolve(root, file);
-        record(validator, [file], run("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code, absolute], { cwd: root }));
+        const invocation = powershellParserInvocation(absolute);
+        record(validator, [file], run(invocation.command, invocation.args, invocation.options));
       }
     } else if (validator === "registered_sql_policy") {
       for (const file of validatorFiles) {
