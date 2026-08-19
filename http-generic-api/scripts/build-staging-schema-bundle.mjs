@@ -104,7 +104,10 @@ function migrationPlan(files) {
   });
 }
 
-function dockerExec(args, options = {}) { return run("docker", ["exec", ...args], options); }
+function dockerExec(args, options = {}) {
+  const stdinFlag = options.input === undefined ? [] : ["-i"];
+  return run("docker", ["exec", ...stdinFlag, ...args], options);
+}
 function dbArgs(extra = []) { return ["--protocol=socket", "-uroot", `-p${rootPassword}`, "--database", buildDatabase, ...extra]; }
 
 function startDatabase() {

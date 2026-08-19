@@ -45,6 +45,7 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /production_accessed: false/);
   assert.match(generator, /provider_accessed: false/);
   assert.match(generator, /data_exported: false/);
+  assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
   assert.doesNotMatch(generator, /migrate-platform-tables\.mjs/);
 });
 
