@@ -20,6 +20,7 @@
       ".github/scripts/production-promotion-release-cut-evidence.mjs",
       ".github/scripts/production-promotion-supporting-gates.mjs",
       ".github/scripts/production-promotion-rehearsal.mjs",
+      ".github/scripts/production-release-cut-reconciliation.mjs",
       ".github/tests/production-promotion-review-mode.test.mjs",
       ".github/tests/production-promotion-runtime.test.mjs",
       ".github/workflows/governed-production-main-source-pin-guard.yml",
@@ -29,6 +30,7 @@
       ".github/workflows/production-promotion-candidate-contract.yml",
       ".github/workflows/production-promotion-candidate.yml",
       ".github/workflows/production-promotion-rehearsal.yml",
+      ".github/workflows/governed-production-release-cut-reconciliation.yml",
       ".github/workflows/repository-tool-lifecycle-governance.yml",
       "docs/ai-policy-review-mode.md",
       "docs/production-promotion-candidate-automation.md",
@@ -81,11 +83,19 @@
             "Canonical artifacts remain authoritative when PR comment transport is unavailable.",
             "No Production merge, deployment, migration apply, grant apply, provider mutation, credential payload read, protected-ref direct write, or force push is authorized by this controller.",
             "Production Promotion Rehearsal performs exact-SHA/CAS readback only, classifies ancestry and protected-ref blockers fail-closed, never reuses stale authorization, and emits no mutation flags.",
+            "Release-cut reconciliation accepts only an exact two-parent commit with current main as first parent, pinned Production as second parent, and a tree byte-identical to main; it requires merge-commit-only integration and emits no Production mutation flags.",
             "secrets_included is false."
           ],
           "tests": [
             {
               "id": "production-promotion-runtime-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/production-promotion-runtime.test.mjs",
+              "args": []
+            },
+            {
+              "id": "production-release-cut-reconciliation-contract",
               "runner": "node",
               "working_directory": ".",
               "path": ".github/tests/production-promotion-runtime.test.mjs",
@@ -133,10 +143,12 @@
             ".github/scripts/production-promotion-release-cut-evidence.mjs",
             ".github/scripts/production-promotion-supporting-gates.mjs",
             ".github/scripts/production-promotion-rehearsal.mjs",
+            ".github/scripts/production-release-cut-reconciliation.mjs",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
             ".github/workflows/production-promotion-candidate-contract.yml",
             ".github/workflows/production-promotion-candidate.yml",
             ".github/workflows/production-promotion-rehearsal.yml",
+            ".github/workflows/governed-production-release-cut-reconciliation.yml",
             ".github/workflows/governed-production-main-source-pin-guard.yml",
             ".github/workflows/governed-production-release-source-pin-gate.yml",
             ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
