@@ -135,6 +135,28 @@ for (const origin of [
 }
 
 {
+  const authRequired = await handleRemoteMcpConnectorRequest({
+    body: {
+      jsonrpc: "2.0",
+      id: "auth-required",
+      method: "tools/call",
+      params: { name: "list_accessible_workspaces", arguments: {} },
+    },
+    headers: {
+      ...baseHeaders,
+      origin: "https://client.example.test",
+      "mcp-protocol-version": REMOTE_MCP_PROTOCOL_VERSION,
+    },
+    env: { ...remoteEnv, REMOTE_MCP_OAUTH_ENABLED: "true" },
+    pool: createPool(),
+  });
+  assert.equal(authRequired.status, 401);
+  assert.equal(authRequired.headers["www-authenticate"]?.startsWith("Bearer resource_metadata="), true);
+  assert.equal(authRequired.headers["x-mad4b-mcp-client-profile"], "generic_remote_mcp_client");
+  assert.equal(authRequired.body.result.structuredContent.error.code, "MCP_AUTH_REQUIRED");
+}
+
+{
   const denied = await handleRemoteMcpConnectorRequest({
     body: { jsonrpc: "2.0", id: 4, method: "initialize", params: {} },
     headers: { ...baseHeaders, origin: "https://unapproved.example.test" },

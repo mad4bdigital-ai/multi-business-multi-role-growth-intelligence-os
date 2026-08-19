@@ -17,6 +17,8 @@ import {
   classifyRemoteMcpClientProfile,
   createOpaqueToken,
   fixedTimeSecretEqual,
+  generateRemoteMcpClientId,
+  isRemoteMcpClientIdForEnvironment,
   normalizeRemoteMcpRedirectUri,
   normalizeRemoteMcpScopes,
   normalizeTokenEndpointAuthMethod,
@@ -97,9 +99,9 @@ function requestCredentials(req) {
   };
 }
 
-async function authenticateClient(req, pool) {
+async function authenticateClient(req, pool, env) {
   const credentials = requestCredentials(req);
-  if (!credentials.client_id) return null;
+  if (!credentials.client_id || !isRemoteMcpClientIdForEnvironment(credentials.client_id, env)) return null;
   const client = await readRemoteMcpOAuthClient(credentials.client_id, { pool });
   if (!client) return null;
   if (client.token_endpoint_auth_method === "none") {
@@ -198,6 +200,8 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       const clientSecret = authMethod === "none" ? "" : createOpaqueToken(32);
       const registered = await registerRemoteMcpOAuthClient({
         pool,
+        clientId: generateRemoteMcpClientId(env),
+        env,
         clientName,
         clientProfileKey: classifyRemoteMcpClientProfile({ clientName, redirectUris }),
         tokenEndpointAuthMethod: authMethod,
@@ -226,7 +230,9 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
   router.get("/auth/mcp/oauth/authorize", async (req, res) => {
     if (!remoteMcpOAuthEnabled(env)) return res.status(404).type("text/plain").send("Not found.");
     try {
-      const client = await readRemoteMcpOAuthClient(text(req.query?.client_id, 128), { pool });
+      const requestedClientId = text(req.query?.client_id, 128);
+      if (!isRemoteMcpClientIdForEnvironment(requestedClientId, env)) return res.status(400).type("text/plain").send("OAuth client is not registered for this environment.");
+      const client = await readRemoteMcpOAuthClient(requestedClientId, { pool });
       if (!client) return res.status(400).type("text/plain").send("OAuth client is not registered or active.");
       if (String(req.query?.response_type || "") !== "code") return res.status(400).type("text/plain").send("response_type must be code.");
       const state = text(req.query?.state, 512);
@@ -266,7 +272,9 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
     if (req.body?.consent !== true) return oauthError(res, 400, "consent_required", "Explicit user consent is required.");
     try {
       const request = verifyRemoteMcpAuthorizationRequest(text(req.body?.authorization_request, 8192), { env });
-      const client = await readRemoteMcpOAuthClient(text(request?.client_id, 128), { pool });
+      const requestedClientId = text(request?.client_id, 128);
+      if (!isRemoteMcpClientIdForEnvironment(requestedClientId, env)) return oauthError(res, 400, "invalid_client", "OAuth client is not registered for this environment.");
+      const client = await readRemoteMcpOAuthClient(requestedClientId, { pool });
       if (!client) return oauthError(res, 400, "invalid_client", "OAuth client is not active.");
       const redirectUri = normalizeRemoteMcpRedirectUri(request?.redirect_uri, env);
       if (!redirectUri || !client.redirect_uris.includes(redirectUri)) return oauthError(res, 400, "invalid_redirect_uri", "redirect_uri is not registered.");
@@ -316,7 +324,7 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
   router.post("/auth/mcp/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     if (!remoteMcpOAuthEnabled(env)) return oauthError(res, 404, "invalid_request", "Not found.");
     try {
-      const client = await authenticateClient(req, pool);
+      const client = await authenticateClient(req, pool, env);
       if (!client) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
       const resource = resolveRemoteMcpOAuthResource(env);
       const requestedResource = String(req.body?.resource || resource).replace(/\/+$/u, "");
@@ -366,7 +374,7 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
   router.post("/auth/mcp/oauth/revoke", express.urlencoded({ extended: false }), async (req, res) => {
     if (!remoteMcpOAuthEnabled(env)) return res.status(404).end();
     try {
-      const client = await authenticateClient(req, pool);
+      const client = await authenticateClient(req, pool, env);
       if (!client) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
       const token = String(req.body?.token || "");
       if (token.includes(".")) {
