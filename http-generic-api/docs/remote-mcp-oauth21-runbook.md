@@ -106,6 +106,41 @@ Discovery is not authorization. Fetching protected-resource metadata, authorizat
 
 The same contract applies to the Staging and Production deployments, with environment-specific resource and issuer endpoints. The canonical scope authority remains `https://auth.mad4b.com/scopes/*` in both environments; Staging may use `dev.mad4b.com` for its resource and OAuth endpoint hosts, but must not publish `https://dev.mad4b.com/scopes/*` as scope authority.
 
+## Governed per-environment client provisioning
+
+Remote MCP client credentials are provisioned independently for each environment by the operator CLI. The flow reuses the existing `remote_mcp_oauth_clients`, `platform_runtime_config`, and `platform_secrets` boundaries; it does not create a new database or a second OAuth client table.
+
+New client IDs are environment-prefixed so that identity mistakes fail closed at the runtime boundary:
+
+| Environment | Resource and issuer hosts | Client ID prefix | Secret storage key |
+|---|---|---|---|
+| Staging | `mcp_dev.mad4b.com` and `dev.mad4b.com` | `mcp_stg_` | `REMOTE_MCP_STAGING_OAUTH_CLIENT_SECRET` |
+| Production | `mcp.mad4b.com` and `auth.mad4b.com` | `mcp_prd_` | `REMOTE_MCP_PRODUCTION_OAUTH_CLIENT_SECRET` |
+
+The generated client secret is at least 32 characters and is never committed to Git, placed in an `.env.example` file, or returned by readiness/status endpoints. Durable storage keeps only encrypted ciphertext and a SHA-256 evidence digest in `platform_secrets`, while the OAuth client row keeps the verification hash in `remote_mcp_oauth_clients`. The provisioning command returns a newly generated secret once so the operator can place it in the approved external client configuration; a later run without `--rotate` preserves the existing secret and returns no secret payload.
+
+Provisioning requires an explicit environment and confirmation token. It also requires at least one exact approved HTTPS callback URI; the callback must be approved in the selected environment before execution:
+
+```bash
+# Staging: run only against the approved Staging runtime DB.
+npm run remote-mcp:client:provision -- \
+  --environment=staging \
+  --confirm=PROVISION_REMOTE_MCP_STAGING \
+  --redirect-uri=<approved-exact-https-callback>
+
+# Production: this is a separate governed operation and is not executed by this PR.
+npm run remote-mcp:client:provision -- \
+  --environment=production \
+  --confirm=PROVISION_REMOTE_MCP_PRODUCTION \
+  --redirect-uri=<approved-exact-https-callback>
+
+# Non-secret readback only.
+npm run remote-mcp:client:status -- --environment=staging
+npm run remote-mcp:client:status -- --environment=production
+```
+
+Before a Production command is run, independently verify the target database, canonical Production resource/issuer, approved callback, secret-storage authority, and owner authorization. This source change defines and tests the provisioning boundary but does not execute Production provisioning, migration, grant, activation, deployment, or client linking. Existing unprefixed DCR identities remain temporarily accepted for compatibility; all newly provisioned identities use the environment-specific prefixes and a Staging runtime rejects `mcp_prd_*` identities while Production rejects `mcp_stg_*` identities.
+
 ## Client registration posture
 
 ### Claude

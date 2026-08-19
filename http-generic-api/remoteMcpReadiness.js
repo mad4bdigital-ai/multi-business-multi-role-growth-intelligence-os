@@ -1,5 +1,6 @@
 import { getRemoteMcpRuntimeConfiguration } from "./remoteMcpConnectorRuntime.js";
 import { buildRemoteMcpScopeCatalogReadiness } from "./remoteMcpScopeCatalogReadiness.js";
+import { readRemoteMcpOAuthClientProvisioningStatus } from "./remoteMcpOAuthClientProvisioning.js";
 import {
   envFlag,
   remoteMcpDynamicClientRegistrationAdvertised,
@@ -77,6 +78,13 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
   const dcrEnabled = remoteMcpDynamicClientRegistrationEnabled(env);
   const dcrAdvertised = remoteMcpDynamicClientRegistrationAdvertised(env);
   const catalogReadiness = buildRemoteMcpScopeCatalogReadiness({ env });
+  const clientProvisioning = await readRemoteMcpOAuthClientProvisioningStatus({ env, pool });
+  const preRegisteredClientReady = Boolean(
+    clientProvisioning.ok
+    && clientProvisioning.client_status === "active"
+    && clientProvisioning.secret_present
+    && clientProvisioning.client_id,
+  );
 
   return {
     ok: true,
@@ -97,6 +105,8 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
       supported_client_profiles: runtime.supported_client_profiles,
     },
     catalog: catalogReadiness,
+    client_provisioning: clientProvisioning,
+    pre_registered_client_ready: preRegisteredClientReady,
     prerequisites: {
       redirect_policy_ready: redirectPolicyReady,
       approved_redirect_origin_count: redirectOrigins.length,

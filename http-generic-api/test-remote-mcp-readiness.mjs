@@ -46,6 +46,8 @@ const env = {
   assert.equal(readiness.operational_ready, true);
   assert.equal(readiness.write_ready, false);
   assert.equal(readiness.registration_ready, true);
+  assert.equal(readiness.client_provisioning.secrets_included, false);
+  assert.equal(readiness.pre_registered_client_ready, false);
   assert.equal(readiness.secrets_included, false);
   assert.equal(JSON.stringify(readiness).includes(env.REMOTE_MCP_OAUTH_SIGNING_SECRET), false);
 }
@@ -64,6 +66,8 @@ const env = {
   assert.equal(readiness.prerequisites.persistence.scope_catalog_ready, false);
   assert.equal(readiness.operational_ready, false);
   assert.equal(readiness.registration_ready, false);
+  assert.equal(readiness.client_provisioning.secrets_included, false);
+  assert.equal(readiness.pre_registered_client_ready, false);
   assert.equal(readiness.secrets_included, false);
 }
 

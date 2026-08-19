@@ -19,6 +19,17 @@ const TOKEN_ENDPOINT_AUTH_METHODS = new Set([
   "client_secret_post",
 ]);
 
+export const REMOTE_MCP_SCOPE_AUTHORITY = "https://auth.mad4b.com/scopes/*";
+export const REMOTE_MCP_CLIENT_CONFIG_KEY_PREFIX = "remote_mcp.oauth.client.";
+export const REMOTE_MCP_CLIENT_SECRET_REF_PREFIX = "platform_secret:REMOTE_MCP_";
+
+const REMOTE_MCP_ENVIRONMENT_KEYS = new Set(["staging", "production"]);
+
+export function normalizeRemoteMcpEnvironment(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return REMOTE_MCP_ENVIRONMENT_KEYS.has(normalized) ? normalized : "unknown";
+}
+
 export function envFlag(value) {
   return String(value || "").trim().toLowerCase() === "true";
 }
@@ -51,6 +62,69 @@ export function resolveRemoteMcpAuthorizationIssuer(env = process.env) {
   } catch {
     return "";
   }
+}
+
+export function resolveRemoteMcpEnvironment(env = process.env) {
+  const explicit = normalizeRemoteMcpEnvironment(env.REMOTE_MCP_ENVIRONMENT);
+  if (explicit !== "unknown") return explicit;
+
+  const resource = resolveRemoteMcpOAuthResource(env);
+  try {
+    const resourceHost = new URL(resource).hostname.toLowerCase();
+    if (resourceHost === "mcp_dev.mad4b.com") return "staging";
+    if (resourceHost === "mcp.mad4b.com") return "production";
+  } catch {}
+
+  const issuer = resolveRemoteMcpAuthorizationIssuer(env);
+  try {
+    const issuerHost = new URL(issuer).hostname.toLowerCase();
+    if (issuerHost === "dev.mad4b.com") return "staging";
+    if (issuerHost === "auth.mad4b.com") return "production";
+  } catch {}
+
+  return "unknown";
+}
+
+export function getRemoteMcpEnvironmentProfile(env = process.env) {
+  const environment = resolveRemoteMcpEnvironment(env);
+  return {
+    environment,
+    resource: resolveRemoteMcpOAuthResource(env),
+    authorization_server: resolveRemoteMcpAuthorizationIssuer(env),
+    scope_authority: REMOTE_MCP_SCOPE_AUTHORITY,
+    client_config_key: `${REMOTE_MCP_CLIENT_CONFIG_KEY_PREFIX}${environment}`,
+    client_secret_ref: environment === "unknown"
+      ? ""
+      : `${REMOTE_MCP_CLIENT_SECRET_REF_PREFIX}${environment.toUpperCase()}_OAUTH_CLIENT_SECRET`,
+    client_id_prefix: remoteMcpClientIdPrefix(environment),
+    secrets_included: false,
+  };
+}
+
+export function remoteMcpClientIdPrefix(environment) {
+  const normalized = normalizeRemoteMcpEnvironment(environment);
+  if (normalized === "staging") return "mcp_stg_";
+  if (normalized === "production") return "mcp_prd_";
+  return "mcp_";
+}
+
+export function generateRemoteMcpClientId(env = process.env) {
+  return `${remoteMcpClientIdPrefix(resolveRemoteMcpEnvironment(env))}${randomBytes(18).toString("base64url")}`;
+}
+
+export function isRemoteMcpClientIdForEnvironment(clientId, env = process.env) {
+  const normalizedClientId = String(clientId || "").trim();
+  if (!/^mcp_[A-Za-z0-9_-]{4,128}$/u.test(normalizedClientId)) return false;
+  const environment = resolveRemoteMcpEnvironment(env);
+  if (environment === "unknown") return true;
+  if (normalizedClientId.startsWith("mcp_stg_") || normalizedClientId.startsWith("mcp_prd_")) {
+    const prefix = remoteMcpClientIdPrefix(environment);
+    return normalizedClientId.startsWith(prefix)
+      && normalizedClientId.slice(prefix.length).length >= 16;
+  }
+  // Existing unprefixed DCR identities remain valid for backward compatibility;
+  // all newly provisioned identities use the environment-specific prefix above.
+  return normalizedClientId.startsWith("mcp_");
 }
 
 export function resolveRemoteMcpOAuthSigningSecret(env = process.env) {

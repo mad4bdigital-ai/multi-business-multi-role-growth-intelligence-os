@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "57926b3d19dbbbc525231db97186fe3985e5a4ec0818ef259bcb02a27edabbf2"
+      "sha256": "70bf06f1efb3277117de9fdbe6602e3fb2c4274044e113f0a3f9d4aa452738e2"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -178,7 +178,7 @@
     },
     {
       "path": "http-generic-api/remoteMcpOAuthProfile.js",
-      "sha256": "62f268cdecf7b945fee64136ba4c9fba2f4538f038692e6a3015c5419c527193"
+      "sha256": "d0aaff7c2d16020c0ae9e0a6e9362a26ad60f8d4b3e57a154aa77428824d1a45"
     },
     {
       "path": "http-generic-api/remoteMcpRequestHost.js",

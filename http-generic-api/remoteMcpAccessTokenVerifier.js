@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { getPool } from "./db.js";
 import { readRemoteMcpGrantByAccessJti } from "./remoteMcpOAuthStore.js";
 import {
+  isRemoteMcpClientIdForEnvironment,
   resolveRemoteMcpAuthorizationIssuer,
   resolveRemoteMcpOAuthResource,
   resolveRemoteMcpOAuthSigningSecret,
@@ -91,6 +92,9 @@ export async function verifyRemoteMcpBearerAuthorization(authorization, options 
   const tenantId = optionalId(claims?.tenant_id);
   const jti = String(claims?.jti || "").trim();
   const expectedSubject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+  if (!isRemoteMcpClientIdForEnvironment(clientId, env)) {
+    return failure(401, "MCP_TOKEN_INVALID", "OAuth access token client identity is not valid for this environment.");
+  }
   if (
     claims?.purpose !== "remote_mcp_access"
     || !userId
