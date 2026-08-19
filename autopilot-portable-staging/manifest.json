@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "45498501db3b0b37bdce209e153c6202993e42cf668b6dc2763dc4fbab81ad85"
+      "sha256": "3062f646dc0b54778a820bc5602f18419b9a8cb1cc1d450d713aad2d62e6c252"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -78,7 +78,7 @@
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "c584768eea4969e170de8b81fec0e956d1770f7dd32db203f46ac5b6254700fa"
+      "sha256": "ea3a4ff8d0c8092ca97700952e54dac66367f9a721715e2013927d83d2516889"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "205988d8aeec0ffbe3262708f66b63f7215541ed5f2c69b9884b9c9033793812"
+      "sha256": "5c13e060dee886c61c2b12f47bd25a761e59129a426c0e040fc9803e7e312b30"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "b3b8f2fe9adfc232055955f0faed6b674702ba6efcfc94fa0f9b8bb99e575386"
+      "sha256": "527a8b4a6006c0d7e689b51e2293e21bea896dea4721ba81f999d06cd65efcf1"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
