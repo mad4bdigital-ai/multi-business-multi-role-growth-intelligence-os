@@ -10,6 +10,7 @@ const manifestPath = path.join(apiRoot, "config", "staging-database-role-migrati
 const generatorPath = path.join(apiRoot, "scripts", "build-staging-schema-bundle.mjs");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const generator = fs.readFileSync(generatorPath, "utf8");
+const baselineSchema = fs.readFileSync(path.join(apiRoot, "schema.sql"), "utf8");
 const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
 
 function runPlan() {
@@ -33,6 +34,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.safety.data_copy_forbidden, true);
   assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
   assert.equal(manifest.source.ordering, "baseline_schema_then_lexicographic_filename");
+  assert.match(baselineSchema, /CREATE TABLE IF NOT EXISTS `workflows`/i);
 });
 
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
