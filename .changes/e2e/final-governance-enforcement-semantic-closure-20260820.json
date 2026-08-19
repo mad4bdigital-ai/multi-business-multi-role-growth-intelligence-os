@@ -14,6 +14,9 @@
       "scripts/test-repository-evaluation.mjs",
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/policy-objection-ci.yml",
+      ".github/governance/test-authority-registry.json",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
       "docs/governance/final-governance-closure-matrix.md"
     ]
   },
@@ -77,6 +80,9 @@
             "scripts/test-repository-evaluation.mjs",
             ".github/workflows/derived-state-closure.yml",
             ".github/workflows/policy-objection-ci.yml",
+            ".github/governance/test-authority-registry.json",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md",
             ".github/tests/repository-governance-fixed-point.test.mjs",
             "docs/governance/final-governance-closure-matrix.md"
           ]
