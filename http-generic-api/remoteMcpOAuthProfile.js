@@ -3,6 +3,7 @@ import {
   REMOTE_MCP_SCOPES as CATALOG_REMOTE_MCP_SCOPES,
   REMOTE_MCP_SUPPORTED_SCOPES as CATALOG_REMOTE_MCP_SUPPORTED_SCOPES,
 } from "./remoteMcpScopeCatalog.js";
+import { TENANT_GPT_SCOPE_AUTHORITY_URL } from "./tenantGptOAuthPreset.js";
 
 export const REMOTE_MCP_RESOURCE = "https://mcp.mad4b.com";
 export const REMOTE_MCP_AUTHORIZATION_SERVER = "https://auth.mad4b.com/auth/mcp";
@@ -19,9 +20,15 @@ const TOKEN_ENDPOINT_AUTH_METHODS = new Set([
   "client_secret_post",
 ]);
 
-export const REMOTE_MCP_SCOPE_AUTHORITY = "https://auth.mad4b.com/scopes/*";
-export const REMOTE_MCP_CLIENT_CONFIG_KEY_PREFIX = "remote_mcp.oauth.client.";
 export const REMOTE_MCP_CLIENT_SECRET_REF_PREFIX = "platform_secret:REMOTE_MCP_";
+
+export function remoteMcpScopeAuthority() {
+  return `${TENANT_GPT_SCOPE_AUTHORITY_URL}/scopes/*`;
+}
+
+export function remoteMcpClientConfigKey(environment) {
+  return `remote_mcp.oauth.client.${normalizeRemoteMcpEnvironment(environment)}`;
+}
 
 const REMOTE_MCP_ENVIRONMENT_KEYS = new Set(["staging", "production"]);
 
@@ -91,8 +98,8 @@ export function getRemoteMcpEnvironmentProfile(env = process.env) {
     environment,
     resource: resolveRemoteMcpOAuthResource(env),
     authorization_server: resolveRemoteMcpAuthorizationIssuer(env),
-    scope_authority: REMOTE_MCP_SCOPE_AUTHORITY,
-    client_config_key: `${REMOTE_MCP_CLIENT_CONFIG_KEY_PREFIX}${environment}`,
+    scope_authority: remoteMcpScopeAuthority(),
+    client_config_key: remoteMcpClientConfigKey(environment),
     client_secret_ref: environment === "unknown"
       ? ""
       : `${REMOTE_MCP_CLIENT_SECRET_REF_PREFIX}${environment.toUpperCase()}_OAUTH_CLIENT_SECRET`,

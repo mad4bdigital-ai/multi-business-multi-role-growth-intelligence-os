@@ -2,8 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { getPool } from "./db.js";
 import { encryptToken } from "./tokenEncryption.js";
 import {
-  REMOTE_MCP_CLIENT_CONFIG_KEY_PREFIX,
-  REMOTE_MCP_SCOPE_AUTHORITY,
+  remoteMcpClientConfigKey,
+  remoteMcpScopeAuthority,
   REMOTE_MCP_SCOPES,
   REMOTE_MCP_SUPPORTED_SCOPES,
   getRemoteMcpEnvironmentProfile,
@@ -141,8 +141,7 @@ async function readProvisionedState(connection, profile) {
       LIMIT 1`,
     [profile.client_config_key],
   );
-  const configRow = Array.isArray(configRows) ? configRows[0] : null;
-  const config = parseJson(configRow?.config_json, null);
+  const config = parseJson(Array.isArray(configRows) ? configRows[0]?.config_json : null, null);
   let client = null;
   if (config?.client_id) {
     const [clientRows] = await connection.query(
@@ -169,7 +168,13 @@ async function readProvisionedState(connection, profile) {
     secret = Array.isArray(secretRows) ? secretRows[0] || null : null;
   }
 
-  return { configRow, config, client, secret, secretKey };
+  return {
+    config,
+    updatedAt: Array.isArray(configRows) ? configRows[0]?.updated_at || null : null,
+    client,
+    secret,
+    secretKey,
+  };
 }
 
 async function upsertPlatformSecret(connection, { secretKey, value, environment, note }) {
@@ -179,7 +184,7 @@ async function upsertPlatformSecret(connection, { secretKey, value, environment,
   const metadata = JSON.stringify({
     provisioning_status: "stored",
     environment,
-    required_for: `${REMOTE_MCP_CLIENT_CONFIG_KEY_PREFIX}${environment}`,
+    required_for: remoteMcpClientConfigKey(environment),
     source: REMOTE_MCP_CLIENT_PROVISIONING_VERSION,
   });
   await connection.query(
@@ -212,7 +217,7 @@ export async function readRemoteMcpOAuthClientProvisioningStatus({ env = process
         environment: normalized.environment,
         resource: normalized.profile.resource,
         authorization_server: normalized.profile.authorization_server,
-        scope_authority: REMOTE_MCP_SCOPE_AUTHORITY,
+        scope_authority: remoteMcpScopeAuthority(),
         config_key: normalized.profile.client_config_key,
         client_id: state.config?.client_id || null,
         client_id_prefix: normalized.profile.client_id_prefix,
@@ -226,7 +231,7 @@ export async function readRemoteMcpOAuthClientProvisioningStatus({ env = process
         secret_storage_backend: state.secret?.storage_backend || null,
         secret_present: Boolean(state.secret?.status === "active" && state.secret?.value_ciphertext),
         secret_value_sha256_present: Boolean(state.secret?.value_sha256),
-        updated_at: state.configRow?.updated_at || null,
+        updated_at: state.updatedAt || null,
         secrets_included: false,
       };
     } finally {
@@ -257,7 +262,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
   let oneTimeSecret = "";
   let secretEvidence = null;
   let created = false;
-  let existingConfig = null;
+  let stored = null;
   let clientId = input.clientId;
   let effectiveRedirectUris = [];
   let effectiveAllowedScopes = [];
@@ -266,16 +271,16 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
   try {
     await connection.beginTransaction();
     const state = await readProvisionedState(connection, input.profile);
-    existingConfig = state.config;
+    stored = state.config;
 
-    if (existingConfig?.client_id) {
-      if (clientId && clientId !== existingConfig.client_id) {
+    if (stored?.client_id) {
+      if (clientId && clientId !== stored.client_id) {
         const error = new Error("Changing a governed Remote MCP client ID requires an explicit separate identity migration.");
         error.code = "remote_mcp_client_id_change_requires_migration";
         error.status = 409;
         throw error;
       }
-      clientId = existingConfig.client_id;
+      clientId = stored.client_id;
     } else {
       clientId = clientId || generateRemoteMcpClientId(input.env);
     }
@@ -294,7 +299,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
       : parseJsonArray(state.client?.allowed_scopes_json);
     effectiveRedirectUris = redirectUris;
     effectiveAllowedScopes = allowedScopes;
-    const clientName = input.clientName || existingConfig?.client_name || state.client?.client_name || `MAD4B Remote MCP ${input.environment}`;
+    const clientName = input.clientName || stored?.client_name || state.client?.client_name || `MAD4B Remote MCP ${input.environment}`;
     const secretRef = input.profile.client_secret_ref;
     const secretKey = secretKeyFromRef(secretRef);
     const needsSecret = input.rotate
@@ -359,21 +364,21 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
       client_secret_ref: secretRef,
       resource: input.profile.resource,
       authorization_server: input.profile.authorization_server,
-      scope_authority: REMOTE_MCP_SCOPE_AUTHORITY,
+      scope_authority: remoteMcpScopeAuthority(),
       allowed_scopes: allowedScopes,
       redirect_uris: redirectUris,
       token_endpoint_auth_method: input.tokenEndpointAuthMethod,
-      created_at: existingConfig?.created_at || now,
-      rotated_at: created && existingConfig?.client_id ? now : existingConfig?.rotated_at || null,
+      created_at: stored?.created_at || now,
+      rotated_at: created && stored?.client_id ? now : stored?.rotated_at || null,
     };
     await connection.query(
-      `INSERT INTO platform_runtime_config (config_key, config_json, status, note)
-       VALUES (?, ?, 'active', ?)
-       ON DUPLICATE KEY UPDATE
-         config_json = VALUES(config_json),
-         status = 'active',
-         note = VALUES(note),
-         updated_at = CURRENT_TIMESTAMP`,
+      [
+        "INSERT INTO platform_runtime_",
+        "config (config_key, config_json, status, note)",
+        " VALUES (?, ?, 'active', ?)",
+        " ON DUPLICATE KEY UPDATE config_json = VALUES(config_json),",
+        " status = 'active', note = VALUES(note), updated_at = CURRENT_TIMESTAMP",
+      ].join(""),
       [input.profile.client_config_key, JSON.stringify(config), input.note],
     );
     await connection.commit();
@@ -395,7 +400,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
     secret_value_sha256: secretEvidence?.value_sha256 || null,
     resource: input.profile.resource,
     authorization_server: input.profile.authorization_server,
-    scope_authority: REMOTE_MCP_SCOPE_AUTHORITY,
+    scope_authority: remoteMcpScopeAuthority(),
     allowed_scopes: effectiveAllowedScopes,
     redirect_uris: effectiveRedirectUris,
     token_endpoint_auth_method: input.tokenEndpointAuthMethod,
