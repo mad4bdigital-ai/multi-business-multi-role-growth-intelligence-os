@@ -27,6 +27,8 @@
       ".github/workflows/github-main-review-policy-live-activation.yml",
       ".github/workflows/github-main-review-policy-readiness-publisher.yml",
       "docs/repository-ci-surface-policy.json",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/githubRepositoryGovernanceAttestation.js",
@@ -213,7 +215,9 @@
             "http-generic-api/githubRepositoryPolicyController.js",
             "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
             "http-generic-api/githubRepositoryGovernanceAttestation.js",
-            "docs/repository-ci-surface-policy.json"
+            "docs/repository-ci-surface-policy.json",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md"
           ]
         }
       ]
