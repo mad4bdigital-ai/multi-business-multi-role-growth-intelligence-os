@@ -1,9 +1,17 @@
 {
   "contract": "mad4b.repository-verifier-registry.v1",
-  "schema_version": 1,
+  "schema_version": 2,
   "execution_model": "safe_registered_processes",
   "allowed_step_types": ["node", "npm", "work_map_dynamic"],
   "shell_execution_forbidden": true,
+  "fixed_point_authorities": {
+    "runner": "scripts/repository-governance-fixed-point.mjs",
+    "test": ".github/tests/repository-governance-fixed-point.test.mjs",
+    "semantic_verifier_bindings": ".github/governance/semantic-verifier-bindings.json",
+    "executable_validator_registry": ".github/governance/executable-validator-registry.json",
+    "test_authority_registry": ".github/governance/test-authority-registry.json",
+    "unknown_authority_mode": "block"
+  },
   "verifiers": [
     {
       "id": "repository_inventory_currentness",
