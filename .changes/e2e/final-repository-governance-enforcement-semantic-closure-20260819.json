@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
+      ".github/derived-state-governance.json",
       ".github/governance/semantic-verifier-bindings.json",
       ".github/governance/executable-validator-registry.json",
       ".github/governance/test-authority-registry.json",
@@ -16,6 +17,7 @@
       ".github/tests/repository-governance-fixed-point.test.mjs",
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-closure.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
       "scripts/repository-governance-fixed-point.mjs"
     ]
   },
@@ -39,13 +41,14 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance maintainer",
           "entrypoint": "Pull request to main",
-          "terminal_outcome": "The exact merge candidate cannot satisfy canonical governance evidence unless semantic verifier projection matches registered authorities, tracked executables pass hardcoded validators or a fingerprint-bound governed exclusion, discovered tests remain registered, each invariant retains test and verifier authority, and the same fixed-point result is consumed by Policy Objection CI and Derived State Closure.",
+          "terminal_outcome": "The exact merge candidate cannot satisfy canonical governance evidence unless semantic verifier projection matches registered authorities, tracked executables pass hardcoded validators or a fingerprint-bound governed exclusion, discovered tests remain registered, each invariant retains test and verifier authority, and every new fixed-point authority self-registers in both canonical control-plane path authorities before the same fixed-point result is consumed by Policy Objection CI and Derived State Closure.",
           "steps": [
             "Load the canonical semantic verifier requirements from main and the fixed-point compatibility projection.",
             "Build the repository semantic report on the exact GitHub merge candidate.",
             "Validate JavaScript, TypeScript, Python, Bash, PowerShell and SQL through hardcoded validators without executing repository-supplied commands.",
             "Keep the zero-byte root SQL inventory placeholder only through an exact-path governed exclusion bound to its current Git blob fingerprint and the existing canonical platform_runtime_config migration.",
             "Discover tracked tests and require both the canonical invariant authority registry and the fixed-point registry to retain protecting tests and verifier authorities.",
+            "Register each new critical fixed-point path in Constitution.control_plane_paths and convergence.automation_control_paths without broadening patterns or adding a Workflow authority.",
             "Attach fixed-point convergence to canonical Policy Objection producer evidence and require that evidence in Derived State Closure."
           ],
           "assertions": [
@@ -56,6 +59,7 @@
             "PowerShell parser validation transports the repository path through a process environment binding rather than interpolating repository data into the PowerShell command string.",
             "Discovered tests minus registered tests minus governed exclusions is empty.",
             "The fixed-point test is registered in the canonical invariant_authorities consumed by the base closure as well as the fixed-point invariant registry.",
+            "All five new fixed-point critical paths are explicitly registered in both canonical control-plane path lists; the manual control-plane self-amendment objection remains intentional.",
             "Removing the last test protecting a registered invariant fails closed.",
             "The root 20260508_add_platform_runtime_config.sql zero-byte inventory placeholder remains protected by a fingerprint-bound governed exclusion while http-generic-api/migrations/038_sprint42_platform_runtime_config.sql remains canonical.",
             "Policy Objection CI and Derived State Closure consume the same exact-candidate fixed-point contract.",
@@ -68,11 +72,13 @@
           ],
           "evidence_paths": [
             ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
+            ".github/derived-state-governance.json",
             ".github/governance/semantic-verifier-bindings.json",
             ".github/governance/executable-validator-registry.json",
             ".github/governance/test-authority-registry.json",
             ".github/governance/verifier-registry.json",
             ".github/tests/repository-governance-fixed-point.test.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
             "scripts/repository-governance-fixed-point.mjs",
             ".github/workflows/policy-objection-ci.yml",
             ".github/workflows/derived-state-closure.yml",
