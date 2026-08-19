@@ -92,6 +92,20 @@ The migration does not enable any route and contains no client credentials.
 - Authorization codes expire after five minutes and become single-use only after successful PKCE verification.
 - Every protected tool call checks the active durable grant for revocation.
 
+## HTTP challenge contract
+
+Remote MCP uses the HTTP authorization challenge defined by the MCP Authorization specification and RFC 6750 in addition to the JSON-RPC error envelope. A protected `tools/call` request without a valid Bearer token returns **HTTP 401** and includes a `WWW-Authenticate` header in the form:
+
+```text
+Bearer resource_metadata="<protected-resource-metadata-url>", scope="<least-privilege-required-scope>"
+```
+
+The response also retains the structured `MCP_AUTH_REQUIRED` error and the `mcp/www_authenticate` metadata for clients that inspect the JSON-RPC body. A token that is valid but lacks the required scope returns **HTTP 403** with a `WWW-Authenticate` challenge; the server never silently widens scopes or downgrades the request to HTTP 200. Clients must use the advertised protected-resource metadata URL to discover the authorization server and then complete the registered OAuth/PKCE flow.
+
+Discovery is not authorization. Fetching protected-resource metadata, authorization-server metadata, or the tool catalog does not grant workspace, tenant, or Brand data access. A remote HTTP account-linking flow is accepted only after the client is represented in the dedicated `remote_mcp_oauth_clients` persistence boundary and the user has completed consent, token issuance, and active-grant checks. Tenant GPT OAuth client identities and tables are never valid substitutes for Remote MCP clients.
+
+The same contract applies to the Staging and Production deployments, with environment-specific resource and issuer endpoints. The canonical scope authority remains `https://auth.mad4b.com/scopes/*` in both environments; Staging may use `dev.mad4b.com` for its resource and OAuth endpoint hosts, but must not publish `https://dev.mad4b.com/scopes/*` as scope authority.
+
 ## Client registration posture
 
 ### Claude

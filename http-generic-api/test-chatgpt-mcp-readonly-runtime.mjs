@@ -183,7 +183,8 @@ function createPool(queryHandler) {
     pool: createPool(() => [[], []]),
     requestId: "request-auth",
   });
-  assert.equal(result.status, 200);
+  assert.equal(result.status, 401);
+  assert.equal(result.headers["www-authenticate"]?.startsWith("Bearer resource_metadata="), true);
   assert.equal(result.body.result.isError, true);
   assert.equal(result.body.result.structuredContent.error.code, "MCP_AUTH_REQUIRED");
   assert(Array.isArray(result.body.result._meta["mcp/www_authenticate"]));

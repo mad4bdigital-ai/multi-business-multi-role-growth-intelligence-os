@@ -45,6 +45,8 @@
             "Validate the exact candidate and the local-only Staging deployment boundary.",
             "Preserve existing local secrets while filling only missing non-secret compatibility defaults.",
             "Validate GPT Actions-compatible OAuth authorization and token contracts independently for Staging and Production identities.",
+            "Validate Remote MCP protected-resource and authorization-server discovery, HTTP OAuth challenge semantics, PKCE, and client-registration boundaries independently for Staging and Production resources.",
+            "Reject reuse of Tenant GPT client identities for Remote MCP grants and require an approved pre-registered or dynamically registered Remote MCP client before protected tools/call.",
             "Run service health, certification, provenance, readback, and redacted evidence checks.",
             "Reject migrations, grants, provider mutations, Production deployment, and credential payload exposure.",
             "Confirm the resulting evidence is bound to the exact candidate SHA."
@@ -54,6 +56,8 @@
             "Staging and Production OAuth hosts, client identities, resource values, and scope authorities remain environment-separated.",
             "GPT Actions no-PKCE compatibility defaults to confidential-client mode only for the canonical client in the selected environment; explicit false is a strict-PKCE kill switch.",
             "Authorization codes remain bound to client ID, canonical redirect URI, resource, and the selected PKCE/confidential-client mode; wrong secret, redirect, resource, replay, and mode downgrade attempts are rejected.",
+            "Unauthenticated Remote MCP tools/call returns HTTP 401 with a resource_metadata and least-privilege scope WWW-Authenticate challenge; insufficient scope returns HTTP 403 without widening authority.",
+            "Remote MCP HTTP account-linking requires a valid remote_mcp_oauth_clients registration and a user Bearer grant; connector discovery alone never authorizes workspace or Brand data.",
             "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
             "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
             "Environment impact is derived from the canonical deployment/domain policies, shared runtime changes declare both affected environments, and Staging certification remains mandatory.",
@@ -66,6 +70,20 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth-challenge-and-client-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-multi-client-profiles.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-readonly-auth-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-readonly-runtime.mjs",
               "args": []
             },
             {
@@ -94,6 +112,14 @@
             ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-auth-oauth-routes.mjs",
+            "http-generic-api/remoteMcpConnectorRuntime.js",
+            "http-generic-api/chatgptMcpRuntime.js",
+            "http-generic-api/remoteMcpAccessTokenVerifier.js",
+            "http-generic-api/remoteMcpOAuthProfile.js",
+            "http-generic-api/routes/remoteMcpOAuthRoutes.js",
+            "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
+            "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
+            "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
             "http-generic-api/tenantGptOAuthPkce.js",
             "http-generic-api/test-staging-environment-certification-contract.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
