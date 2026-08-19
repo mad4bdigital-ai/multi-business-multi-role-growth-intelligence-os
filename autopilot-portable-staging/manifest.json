@@ -26,7 +26,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "sha256": "3158d6d84fbed5bdb1e291a54f67e54d118c50140ff0a030b56ec1f5b63f1a09"
+      "sha256": "6c1fc5d6c77f0d40cc30f4d09ca870340d40e275c234004ce9c121890d165d85"
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
