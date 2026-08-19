@@ -21,8 +21,7 @@ jobs:
       group: github-repository-policy-live-${{ github.event.comment.body }}
       cancel-in-progress: false
     env:
-      TARGET_BRANCH: ${{ contains(github.event.comment.body, 'PRODUCTION') && 'Production' || 'main' }}
-      POLICY_PHASE: ${{ startsWith(github.event.comment.body, 'AUTHORIZE_') && 'readiness' || startsWith(github.event.comment.body, 'APPLY_') && 'apply' || 'verify' }}
+      POLICY_PHASE: ${{ format('{0}:{1}', contains(github.event.comment.body, 'PRODUCTION') && 'Production' || 'main', startsWith(github.event.comment.body, 'AUTHORIZE_') && 'readiness' || startsWith(github.event.comment.body, 'APPLY_') && 'apply' || 'verify') }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
@@ -45,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: github-repository-policy-${{ env.TARGET_BRANCH }}-${{ env.POLICY_PHASE }}-${{ github.run_id }}
+          name: github-repository-policy-evidence-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
