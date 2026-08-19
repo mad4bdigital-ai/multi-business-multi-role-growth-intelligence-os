@@ -10,9 +10,10 @@ const manifestPath = path.join(apiRoot, "config", "staging-database-role-migrati
 const generatorPath = path.join(apiRoot, "scripts", "build-staging-schema-bundle.mjs");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const generator = fs.readFileSync(generatorPath, "utf8");
+const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
 
 function runPlan() {
-  return spawnSync(process.execPath, [generatorPath, "--expected-commit", "1a6c94a9ce9ab9bf011ddf5d38b8a12cb99569b4", "--plan"], {
+  return spawnSync(process.execPath, [generatorPath, "--expected-commit", expectedCommit, "--plan"], {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -46,6 +47,10 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /provider_accessed: false/);
   assert.match(generator, /data_exported: false/);
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
+  assert.ok(generator.includes(String.raw`result.stdout.split(/\r?\n/)`));
+  assert.ok(generator.includes(String.raw`line.split("\t")`));
+  assert.ok(generator.includes(String.raw`/^\s*GRANT\b/imu`));
+  assert.ok(!generator.includes(String.raw`/\\bGRANT\\b/iu`));
   assert.doesNotMatch(generator, /migrate-platform-tables\.mjs/);
 });
 
@@ -54,7 +59,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.plan_only, true);
-  assert.equal(plan.expected_commit, "1a6c94a9ce9ab9bf011ddf5d38b8a12cb99569b4");
+  assert.equal(plan.expected_commit, expectedCommit.toLowerCase());
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
 });

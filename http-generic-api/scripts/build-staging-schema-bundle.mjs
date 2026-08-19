@@ -79,21 +79,22 @@ function migrationFiles() {
 }
 
 function migrationSafetyCheck(file, sql) {
+  const normalizedSql = splitStatements(sql).join("\n");
   const forbidden = [
-    /\\bGRANT\\b/iu,
-    /\\bREVOKE\\b/iu,
-    /\\bCREATE\\s+USER\\b/iu,
-    /\\bALTER\\s+USER\\b/iu,
-    /\\bDROP\\s+DATABASE\\b/iu,
-    /\\bCREATE\\s+DATABASE\\b/iu,
-    /\\bSELECT\\b[\\s\\S]*\\bINTO\\s+(?:OUTFILE|DUMPFILE)\\b/iu,
-    /\\bLOAD\\s+DATA\\b/iu,
+    /^\s*GRANT\b/imu,
+    /^\s*REVOKE\b/imu,
+    /^\s*CREATE\s+USER\b/imu,
+    /^\s*ALTER\s+USER\b/imu,
+    /^\s*DROP\s+DATABASE\b/imu,
+    /^\s*CREATE\s+DATABASE\b/imu,
+    /^\s*SELECT\b[\s\S]*\bINTO\s+(?:OUTFILE|DUMPFILE)\b/imu,
+    /^\s*LOAD\s+DATA\b/imu,
   ];
-  for (const pattern of forbidden) if (pattern.test(sql)) fail(`forbidden authority or external-data SQL in migration ${file}: ${pattern}`);
+  for (const pattern of forbidden) if (pattern.test(normalizedSql)) fail(`forbidden authority or external-data SQL in migration ${file}: ${pattern}`);
 }
 
 function splitStatements(sql) {
-  return sql.split(";").map((statement) => statement.split(/\\r?\\n/).filter((line) => !line.trim().startsWith("--")).join("\\n").trim()).filter(Boolean);
+  return sql.split(";").map((statement) => statement.split(/\r?\n/).filter((line) => !line.trim().startsWith("--")).join("\n").trim()).filter(Boolean);
 }
 
 function migrationPlan(files) {
@@ -131,8 +132,8 @@ function applyMigrations(plan) {
 
 function listTables() {
   const result = dockerExec([containerName, "mariadb", ...dbArgs(["--batch", "--skip-column-names", "-e", "SHOW FULL TABLES"])]);
-  return result.stdout.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [name, type = "BASE TABLE"] = line.split("\\t");
+  return result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [name, type = "BASE TABLE"] = line.split("\t");
     return { name: text(name), type: text(type) || "BASE TABLE" };
   }).filter((row) => /^[A-Za-z0-9_]+$/.test(row.name));
 }
@@ -160,7 +161,7 @@ function makeDump(role, tables, manifest) {
   const names = tables.map((table) => table.name);
   const result = dockerExec([containerName, "mariadb-dump", "--no-data", "--skip-triggers", "--skip-add-locks", "--skip-lock-tables", buildDatabase, ...names]);
   const dump = Buffer.from(result.stdout, "utf8");
-  if (/\\b(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\\s+DATA)\\b/iu.test(result.stdout)) fail(`${role} schema dump contains data mutation statements`);
+  if (/\b(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/iu.test(result.stdout)) fail(`${role} schema dump contains data mutation statements`);
   if (!dump.length) fail(`${role} schema dump is empty`);
   const gz = zlib.gzipSync(dump, { level: 9 });
   const output = path.join(outputDir, roleConfig.bundle_file);
@@ -192,7 +193,7 @@ function writeOutput(manifest, expected, migrationPlanRows, tableSets, bundles) 
     },
   };
   const outputPath = path.join(outputDir, "staging-schema-bundle-manifest.json");
-  fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\\n`);
+  fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
   return outputPath;
 }
 
