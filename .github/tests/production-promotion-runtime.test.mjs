@@ -223,7 +223,7 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   const derivedClosure = read(".github/workflows/derived-state-closure.yml");
   const stagingEligibility = read(".github/workflows/staging-main-deploy-eligibility.yml");
   const stagingCertification = read(".github/workflows/staging-live-certification.yml");
-  const reconciliationWorkflow = read(".github/workflows/governed-production-release-cut-reconciliation.yml");
+  const reconciliationWorkflow = read(".github/workflows/governed-production-promotion-dispatch-bridge.yml");
   const reconciliationScript = read(".github/scripts/production-release-cut-reconciliation.mjs");
 
   assert.match(launcher, /production-promotion-supporting-gates\.mjs/u);
@@ -264,7 +264,7 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(rehearsalScript, /stale_authorization_reusable: false/u);
   assert.match(reconciliationWorkflow, /release\/production-reconciliation\//u);
   assert.match(reconciliationWorkflow, /commit-tree/u);
-  assert.ok(reconciliationWorkflow.includes('-p "$EXPECTED_MAIN_SHA" -p "$EXPECTED_PRODUCTION_SHA"'));
+  assert.ok(reconciliationWorkflow.includes('-p "$main_sha" -p "$production_sha"'));
   assert.match(reconciliationWorkflow, /merge_method_required: merge_commit_only/u);
   assert.match(reconciliationWorkflow, /production_merge: false/u);
   assert.match(reconciliationWorkflow, /persist-credentials: false/u);
@@ -285,7 +285,7 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
     ".github/scripts/production-promotion-rehearsal.mjs",
     ".github/workflows/production-promotion-rehearsal.yml",
     ".github/scripts/production-release-cut-reconciliation.mjs",
-    ".github/workflows/governed-production-release-cut-reconciliation.yml",
+    ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
   ]) {
     assert.ok(constitution.control_plane_paths.includes(controlPath));
     assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(controlPath));

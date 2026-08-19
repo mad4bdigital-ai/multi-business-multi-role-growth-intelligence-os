@@ -154,7 +154,7 @@
     ".github/ops/github-repository-policy-readback.mjs",
     ".github/scripts/production-promotion-rehearsal.mjs",
     ".github/scripts/production-release-cut-reconciliation.mjs",
-    ".github/workflows/governed-production-release-cut-reconciliation.yml",
+    ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
     ".github/tests/derived-state-closure.test.mjs",
     ".github/tests/repository-governance-closure.test.mjs",
     ".github/tests/repository-governance-objection-gate.test.mjs",
