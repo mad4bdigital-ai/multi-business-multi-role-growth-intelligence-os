@@ -4,6 +4,7 @@
   "status": "active_for_local_schema_only_generation",
   "source": {
     "baseline_schema": "http-generic-api/schema.sql",
+    "baseline_foreign_key_policy": "defer_baseline_fk_create_statements_until_after_migrations",
     "migration_directory": "http-generic-api/migrations",
     "ordering": "baseline_schema_then_lexicographic_filename",
     "source_kind": "exact_local_git_checkout",
@@ -112,6 +113,7 @@
     "insert_or_data_statement_is_blocking": true,
     "same_cycle_sha256_manifest_required": true,
     "baseline_schema_required": true,
-    "baseline_schema_safety_checked": true
+    "baseline_schema_safety_checked": true,
+    "baseline_foreign_key_ordering_required": true
   }
 }

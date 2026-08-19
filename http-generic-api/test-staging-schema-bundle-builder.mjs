@@ -34,6 +34,8 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.safety.data_copy_forbidden, true);
   assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
   assert.equal(manifest.source.ordering, "baseline_schema_then_lexicographic_filename");
+  assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
+  assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
   assert.match(baselineSchema, /CREATE TABLE IF NOT EXISTS `workflows`/i);
 });
 
@@ -53,6 +55,7 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
   assert.ok(generator.includes(String.raw`const baselineSchemaPath = path.join(apiRoot, "schema.sql")`));
   assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows)`));
+  assert.ok(generator.includes(String.raw`deferred_foreign_key_sql`));
   assert.ok(generator.includes(String.raw`result.stdout.split(/\r?\n/)`));
   assert.ok(generator.includes(String.raw`line.split("\t")`));
   assert.ok(generator.includes(String.raw`/^\s*GRANT\b/imu`));
@@ -68,6 +71,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.expected_commit, expectedCommit.toLowerCase());
   assert.equal(plan.baseline_schema.file, "schema.sql");
   assert.equal(plan.baseline_schema.sha256.length, 64);
+  assert.equal(plan.baseline_schema.deferred_foreign_key_statement_count, 1);
+  assert.deepEqual(plan.baseline_schema.deferred_foreign_key_tables, ["user_credentials"]);
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
 });

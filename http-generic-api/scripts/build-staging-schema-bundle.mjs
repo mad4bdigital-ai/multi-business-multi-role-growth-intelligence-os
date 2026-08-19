@@ -68,6 +68,7 @@ function readManifest() {
   catch (error) { fail(`role migration manifest is unreadable: ${error.message}`); }
   if (manifest.contract !== "mad4b.staging.database-role-migration-manifest.v1") fail("unsupported role migration manifest contract");
   if (manifest.source?.production_access_forbidden !== true || manifest.safety?.schema_only !== true) fail("role manifest safety policy is incomplete");
+  if (manifest.source?.baseline_foreign_key_policy !== "defer_baseline_fk_create_statements_until_after_migrations" || manifest.validation?.baseline_foreign_key_ordering_required !== true) fail("baseline foreign-key ordering policy is incomplete");
   const roles = manifest.roles || {};
   if (Object.keys(roles).sort().join(",") !== "governance,runtime,runtime_persistence") fail("role manifest must declare exactly three database roles");
   return manifest;
@@ -83,9 +84,37 @@ function baselineSchema() {
   if (!fs.existsSync(baselineSchemaPath)) fail(`canonical baseline schema is missing: ${baselineSchemaPath}`);
   const sql = fs.readFileSync(baselineSchemaPath, "utf8");
   migrationSafetyCheck("schema.sql", sql);
-  const statementCount = splitStatements(sql).length;
-  if (!statementCount) fail("canonical baseline schema is empty");
-  return { file: "schema.sql", path: baselineSchemaPath, sha256: sha256(sql), statement_count: statementCount, bytes: Buffer.byteLength(sql) };
+  const statements = splitStatements(sql);
+  if (!statements.length) fail("canonical baseline schema is empty");
+  const immediate = [];
+  const deferredForeignKey = [];
+  for (const statement of statements) {
+    if (/^\s*CREATE\s+TABLE[\s\S]*\bFOREIGN\s+KEY\b/imu.test(statement)) deferredForeignKey.push(statement);
+    else immediate.push(statement);
+  }
+  const deferredForeignKeyTables = deferredForeignKey.map((statement) => statement.match(/CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+`([^`]+)`/iu)?.[1] || "unknown");
+  return {
+    file: "schema.sql",
+    path: baselineSchemaPath,
+    sha256: sha256(sql),
+    statement_count: statements.length,
+    bytes: Buffer.byteLength(sql),
+    deferred_foreign_key_statement_count: deferredForeignKey.length,
+    deferred_foreign_key_tables: deferredForeignKeyTables,
+    immediate_sql: `${immediate.join(";\n")};\n`,
+    deferred_foreign_key_sql: deferredForeignKey.length ? `${deferredForeignKey.join(";\n")};\n` : "",
+  };
+}
+
+function baselineMetadata(baseline) {
+  return {
+    file: baseline.file,
+    sha256: baseline.sha256,
+    statement_count: baseline.statement_count,
+    bytes: baseline.bytes,
+    deferred_foreign_key_statement_count: baseline.deferred_foreign_key_statement_count,
+    deferred_foreign_key_tables: baseline.deferred_foreign_key_tables,
+  };
 }
 
 function migrationSafetyCheck(file, sql) {
@@ -132,14 +161,17 @@ function startDatabase() {
   fail("disposable MariaDB did not become ready within 180 seconds");
 }
 
+function applySqlSource(label, sql) {
+  const result = dockerExec([containerName, "mariadb", ...dbArgs(["--binary-mode"])], { input: sql, allowFailure: true });
+  if (result.status !== 0) fail(`${label} failed in disposable schema database: ${text(result.stderr).slice(-4000)}`);
+}
 function applyMigrations(baseline, plan) {
-  const sources = [baseline, ...plan];
-  for (const item of sources) {
-    const sourcePath = item.file === "schema.sql" ? baselineSchemaPath : path.join(migrationsDir, item.file);
-    const sql = fs.readFileSync(sourcePath, "utf8");
-    const result = dockerExec([containerName, "mariadb", ...dbArgs(["--binary-mode"])], { input: sql, allowFailure: true });
-    if (result.status !== 0) fail(`${item.file === "schema.sql" ? "baseline schema" : "migration"} ${item.file} failed in disposable schema database: ${text(result.stderr).slice(-4000)}`);
+  applySqlSource("canonical baseline schema pre-migration", baseline.immediate_sql);
+  for (const item of plan) {
+    const sql = fs.readFileSync(path.join(migrationsDir, item.file), "utf8");
+    applySqlSource(`migration ${item.file}`, sql);
   }
+  if (baseline.deferred_foreign_key_sql) applySqlSource("canonical baseline deferred foreign-key tables", baseline.deferred_foreign_key_sql);
 }
 
 function listTables() {
@@ -194,7 +226,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, tableSets,
     provider_accessed: false,
     data_exported: false,
     secrets_included: false,
-    baseline_schema: { file: baseline.file, sha256: baseline.sha256, statement_count: baseline.statement_count, bytes: baseline.bytes },
+    baseline_schema: baselineMetadata(baseline),
     migration_count: migrationPlanRows.length,
     migration_sha256_manifest: migrationPlanRows,
     roles: bundles,
@@ -215,7 +247,7 @@ function printPlan(manifest, baseline, files, rows) {
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
     output_dir: outputDir,
-    baseline_schema: { file: baseline.file, sha256: baseline.sha256, statement_count: baseline.statement_count, bytes: baseline.bytes },
+    baseline_schema: baselineMetadata(baseline),
     migration_count: files.length,
     statement_count: rows.reduce((sum, row) => sum + row.statement_count, 0),
     required_bundle_files: manifest.validation.required_bundle_files,
