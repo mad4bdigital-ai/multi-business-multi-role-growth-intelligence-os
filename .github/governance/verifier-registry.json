@@ -1,84 +1,30 @@
 {
   "contract": "mad4b.repository-verifier-registry.v1",
-  "schema_version": 2,
+  "schema_version": 3,
   "execution_model": "safe_registered_processes",
   "allowed_step_types": ["node", "npm", "work_map_dynamic"],
   "shell_execution_forbidden": true,
+  "fixed_point_authorities": {
+    "runner": "scripts/repository-governance-fixed-point.mjs",
+    "test": ".github/tests/repository-governance-fixed-point.test.mjs",
+    "semantic_verifier_requirements": ".github/governance/semantic-verifier-requirements.json",
+    "semantic_verifier_projection": ".github/governance/semantic-verifier-bindings.json",
+    "executable_validator_registry": ".github/governance/executable-validator-registry.json",
+    "test_authority_registry": ".github/governance/test-authority-registry.json",
+    "unknown_authority_mode": "block"
+  },
   "verifiers": [
-    {
-      "id": "repository_inventory_currentness",
-      "steps": [{ "type": "node", "cwd": ".", "path": "scripts/repository-inventory.mjs", "args": ["--check"] }]
-    },
-    {
-      "id": "repository_evaluation_currentness",
-      "steps": [{ "type": "node", "cwd": ".", "path": "scripts/repository-evaluation.mjs", "args": ["--check", "--enforce"] }]
-    },
-    {
-      "id": "remote_mcp_write_scope_currentness",
-      "steps": [
-        { "type": "node", "cwd": ".", "path": "scripts/remote-mcp-write-scope-semantic-currentness.mjs", "args": [] },
-        { "type": "node", "cwd": ".", "path": "scripts/test-remote-mcp-write-scope-inventory.mjs", "args": [] }
-      ]
-    },
-    {
-      "id": "frontend_openapi_currentness",
-      "steps": [
-        { "type": "npm", "cwd": "http-generic-api", "script": "frontend:dispatch:check" },
-        { "type": "npm", "cwd": "http-generic-api", "script": "openapi:auth:check" },
-        { "type": "npm", "cwd": "http-generic-api", "script": "schemas:check" }
-      ]
-    },
-    {
-      "id": "work_map_currentness",
-      "steps": [
-        {
-          "type": "work_map_dynamic",
-          "cwd": "http-generic-api",
-          "generator": "scripts/platform-work-map-generator.mjs",
-          "binding_verifier": "scripts/spec014-refresh-final-work-map-binding.mjs",
-          "integration_glob": "specs/*/work-map-integration.json"
-        }
-      ]
-    },
-    {
-      "id": "portable_staging_manifest_currentness",
-      "steps": [{ "type": "node", "cwd": ".", "path": "http-generic-api/test-staging-autopilot-closure.mjs", "args": [] }]
-    },
-    {
-      "id": "db_effect_authority",
-      "steps": [
-        { "type": "node", "cwd": "http-generic-api", "path": "test-control-plane-write-authority.mjs", "args": [] },
-        { "type": "node", "cwd": "http-generic-api", "path": "test-runtime-persistence-write-authority.mjs", "args": [] },
-        { "type": "node", "cwd": "http-generic-api", "path": "test-cms-authority-collation-alignment.mjs", "args": [] }
-      ]
-    },
-    {
-      "id": "provider_effect_authority",
-      "steps": [
-        { "type": "node", "cwd": "http-generic-api", "path": "test-growth-control-provider-effect-reconciliation.mjs", "args": [] },
-        { "type": "node", "cwd": "http-generic-api", "path": "test-context-kernel-provider-consent-personal-brand-scope.mjs", "args": [] },
-        { "type": "node", "cwd": ".", "path": "scripts/test-remote-mcp-write-scope-inventory.mjs", "args": [] }
-      ]
-    },
-    {
-      "id": "configuration_drift_currentness",
-      "steps": [
-        { "type": "node", "cwd": "http-generic-api", "path": "scripts/test-configuration-drift-guard.mjs", "args": [] }
-      ]
-    },
-    {
-      "id": "generated_contract_currentness",
-      "steps": [
-        { "type": "node", "cwd": "http-generic-api", "path": "test-resource-surface-openapi-automation.mjs", "args": [] },
-        { "type": "node", "cwd": "http-generic-api", "path": "test-staging-autopilot-closure.mjs", "args": [] }
-      ]
-    },
-    {
-      "id": "test_authority_currentness",
-      "steps": [
-        { "type": "node", "cwd": ".", "path": ".github/tests/repository-governance-closure.test.mjs", "args": [] }
-      ]
-    }
+    {"id":"repository_inventory_currentness","steps":[{"type":"node","cwd":".","path":"scripts/repository-inventory.mjs","args":["--check"]}]},
+    {"id":"repository_evaluation_currentness","steps":[{"type":"node","cwd":".","path":"scripts/repository-evaluation.mjs","args":["--check","--enforce"]}]},
+    {"id":"remote_mcp_write_scope_currentness","steps":[{"type":"node","cwd":".","path":"scripts/remote-mcp-write-scope-semantic-currentness.mjs","args":[]},{"type":"node","cwd":".","path":"scripts/test-remote-mcp-write-scope-inventory.mjs","args":[]}]},
+    {"id":"frontend_openapi_currentness","steps":[{"type":"npm","cwd":"http-generic-api","script":"frontend:dispatch:check"},{"type":"npm","cwd":"http-generic-api","script":"openapi:auth:check"},{"type":"npm","cwd":"http-generic-api","script":"schemas:check"}]},
+    {"id":"work_map_currentness","steps":[{"type":"work_map_dynamic","cwd":"http-generic-api","generator":"scripts/platform-work-map-generator.mjs","binding_verifier":"scripts/spec014-refresh-final-work-map-binding.mjs","integration_glob":"specs/*/work-map-integration.json"}]},
+    {"id":"portable_staging_manifest_currentness","steps":[{"type":"node","cwd":".","path":"http-generic-api/test-staging-autopilot-closure.mjs","args":[]}]},
+    {"id":"db_effect_authority","steps":[{"type":"node","cwd":"http-generic-api","path":"test-control-plane-write-authority.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-runtime-persistence-write-authority.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-cms-authority-collation-alignment.mjs","args":[]}]},
+    {"id":"provider_effect_authority","steps":[{"type":"node","cwd":"http-generic-api","path":"test-growth-control-provider-effect-reconciliation.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-context-kernel-provider-consent-personal-brand-scope.mjs","args":[]},{"type":"node","cwd":".","path":"scripts/test-remote-mcp-write-scope-inventory.mjs","args":[]}]},
+    {"id":"configuration_drift_currentness","steps":[{"type":"node","cwd":"http-generic-api","path":"scripts/test-configuration-drift-guard.mjs","args":[]}]},
+    {"id":"generated_contract_currentness","steps":[{"type":"node","cwd":"http-generic-api","path":"test-resource-surface-openapi-automation.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-staging-autopilot-closure.mjs","args":[]}]},
+    {"id":"test_authority_currentness","steps":[{"type":"node","cwd":".","path":".github/tests/repository-governance-closure.test.mjs","args":[]}]}
   ],
   "safety": {
     "read_only_expected": true,

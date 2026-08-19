@@ -99,6 +99,13 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^docs\/remote-mcp-write-scope-inventory\.md$/u,
   /^http-generic-api\/remote-mcp-write-scope-inventory\.generated\.json$/u,
   /^http-generic-api\/test-governed-generated-artifact-refresh-apply-context\.mjs$/u,
+  /^\.changes\/e2e\/final-repository-governance-enforcement-semantic-closure-20260819\.json$/u,
+  /^\.github\/derived-state-governance\.json$/u,
+  /^\.github\/governance\/(?:executable-validator-registry|semantic-verifier-bindings|test-authority-registry|verifier-registry)\.json$/u,
+  /^\.github\/tests\/repository-governance-fixed-point\.test\.mjs$/u,
+  /^\.github\/workflows\/(?:derived-state-closure|policy-objection-ci)\.yml$/u,
+  /^http-generic-api\/config\/repository-governance-constitution\.json$/u,
+  /^scripts\/repository-governance-fixed-point\.mjs$/u,
 ];
 const WORK_MAP_BOOTSTRAP_GOVERNED_PATHS = [
   "docs/work-maps",

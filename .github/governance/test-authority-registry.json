@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.repository-test-authority-registry.v1",
-  "schema_version": 1,
-  "mode": "registered_test_surfaces_and_invariants",
+  "schema_version": 2,
+  "mode": "registered_test_surfaces_invariants_and_fixed_point",
   "test_file_patterns": [
     ".github/tests/**/*.mjs",
     ".github/tests/**/*.js",
@@ -15,38 +15,69 @@
     "tests/**/*.js"
   ],
   "invariant_authorities": [
-    {
-      "id": "repository_governance_closure",
-      "test_paths": [".github/tests/repository-governance-closure.test.mjs", "scripts/repository-governance-closure.mjs"]
-    },
-    {
-      "id": "server_policy_readback",
-      "test_paths": [".github/ops/test-github-repository-policy-readback-core.mjs", ".github/ops/github-repository-policy-readback-core.mjs", ".github/ops/github-repository-policy-readback.mjs"]
-    },
-    {
-      "id": "branch_generic_policy_target",
-      "test_paths": ["http-generic-api/scripts/test-github-review-policy-target.mjs", "http-generic-api/scripts/github-review-policy-target.mjs", ".github/ops/github-main-review-policy-live-activation.mjs", "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"]
-    },
-    {
-      "id": "environment_impact_closure",
-      "test_paths": ["http-generic-api/test-environment-impact-closure.mjs", "http-generic-api/scripts/environment-impact-closure.mjs"]
-    },
-    {
-      "id": "semantic_verifier_requirements",
-      "test_paths": [".github/tests/repository-governance-closure.test.mjs", ".github/governance/semantic-verifier-requirements.json"]
-    },
-    {
-      "id": "remote_mcp_dynamic_client_profile_registry",
-      "test_paths": ["http-generic-api/test-remote-mcp-client-profile-registry.mjs", "http-generic-api/test-remote-mcp-client-provisioning.mjs"]
-    },
-    {
-      "id": "staging_schema_bundle_bootstrap",
-      "test_paths": ["http-generic-api/test-staging-schema-bundle-builder.mjs", "http-generic-api/scripts/build-staging-schema-bundle.mjs"]
-    }
+    {"id":"repository_governance_closure","test_paths":[".github/tests/repository-governance-closure.test.mjs","scripts/repository-governance-closure.mjs"]},
+    {"id":"repository_governance_fixed_point","test_paths":[".github/tests/repository-governance-fixed-point.test.mjs","scripts/repository-governance-fixed-point.mjs"]},
+    {"id":"generated_artifact_refresh_scope","test_paths":["http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs","http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"]},
+    {"id":"server_policy_readback","test_paths":[".github/ops/test-github-repository-policy-readback-core.mjs",".github/ops/github-repository-policy-readback-core.mjs",".github/ops/github-repository-policy-readback.mjs"]},
+    {"id":"branch_generic_policy_target","test_paths":["http-generic-api/scripts/test-github-review-policy-target.mjs","http-generic-api/scripts/github-review-policy-target.mjs",".github/ops/github-main-review-policy-live-activation.mjs","http-generic-api/test-github-repository-policy-live-activation-contract.mjs"]},
+    {"id":"environment_impact_closure","test_paths":["http-generic-api/test-environment-impact-closure.mjs","http-generic-api/scripts/environment-impact-closure.mjs"]},
+    {"id":"semantic_verifier_requirements","test_paths":[".github/tests/repository-governance-closure.test.mjs",".github/governance/semantic-verifier-requirements.json"]},
+    {"id":"remote_mcp_dynamic_client_profile_registry","test_paths":["http-generic-api/test-remote-mcp-client-profile-registry.mjs","http-generic-api/test-remote-mcp-client-provisioning.mjs"]},
+    {"id":"staging_schema_bundle_bootstrap","test_paths":["http-generic-api/test-staging-schema-bundle-builder.mjs","http-generic-api/scripts/build-staging-schema-bundle.mjs"]}
+  ],
+  "discovery": {
+    "extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx"],
+    "test_path_patterns": [
+      "http-generic-api/test-*.mjs",
+      "http-generic-api/test-*.js",
+      ".github/tests/**/*.mjs",
+      ".github/tests/**/*.js",
+      ".github/ops/test-*.mjs",
+      ".github/ops/test-*.js",
+      "scripts/test-*.mjs",
+      "scripts/test-*.js",
+      "tests/**/*.mjs",
+      "tests/**/*.js",
+      "tests/**/*.test.ts",
+      "tests/**/*.test.tsx",
+      "**/*.test.mjs",
+      "**/*.test.js",
+      "**/*.test.ts",
+      "**/*.test.tsx"
+    ]
+  },
+  "registered_test_patterns": [
+    "http-generic-api/test-*.mjs",
+    "http-generic-api/test-*.js",
+    ".github/tests/**/*.mjs",
+    ".github/tests/**/*.js",
+    ".github/ops/test-*.mjs",
+    ".github/ops/test-*.js",
+    "scripts/test-*.mjs",
+    "scripts/test-*.js",
+    "tests/**/*.mjs",
+    "tests/**/*.js",
+    "tests/**/*.test.ts",
+    "tests/**/*.test.tsx",
+    "**/*.test.mjs",
+    "**/*.test.js",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
+  "governed_exclusions": [],
+  "invariants": [
+    {"invariant_id":"repository_server_policy_activation","protected_by_tests":["http-generic-api/scripts/test-github-review-policy-target.mjs","http-generic-api/test-github-repository-policy-controller.mjs","http-generic-api/test-github-repository-policy-live-activation-contract.mjs"],"protected_by_verifiers":["fixed_point:server_policy_lifecycle"]},
+    {"invariant_id":"repository_semantic_governance","protected_by_tests":[".github/tests/repository-governance-closure.test.mjs",".github/tests/repository-governance-objection-gate.test.mjs",".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:semantic_impact"]},
+    {"invariant_id":"repository_derived_state","protected_by_tests":[".github/tests/derived-state-closure.test.mjs"],"protected_by_verifiers":["work_map_currentness","portable_staging_manifest_currentness"]},
+    {"invariant_id":"tracked_executable_validation","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:executable_universe"]},
+    {"invariant_id":"test_authority_closure","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:test_authority"]}
   ],
   "deleted_test_mode": "block_without_replacement",
   "safety": {
     "read_only_expected": true,
+    "unknown_test_mode": "block",
+    "unprotected_invariant_mode": "block",
+    "test_deletion_requires_remaining_authority": true,
     "secrets_included": false
   }
 }

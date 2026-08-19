@@ -29,7 +29,7 @@ jobs:
   closure:
     name: Derived State Closure Detector
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Resolve exact candidate identity
         id: target
@@ -119,13 +119,16 @@ jobs:
 
       - name: Validate governance contracts
         run: |
+          node scripts/repository-governance-fixed-point.mjs --self-test
           node .github/tests/repository-governance-closure.test.mjs
+          node .github/tests/repository-governance-fixed-point.test.mjs
           node .github/tests/repository-governance-objection-gate.test.mjs
           node .github/tests/derived-state-closure.test.mjs
           node http-generic-api/test-github-repository-policy-controller.mjs
           node http-generic-api/test-github-repository-governance-attestation.mjs
+          node http-generic-api/test-github-repository-policy-live-activation-contract.mjs
 
-      - name: Verify semantic governance closure
+      - name: Verify repository governance fixed point
         env:
           OUT: ${{ runner.temp }}/derived-state-closure
           CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
@@ -134,9 +137,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
-          node scripts/repository-governance-closure.mjs \
+          node scripts/repository-governance-fixed-point.mjs \
             --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --base-sha "$BASE_SHA" \
             --report-file "$OUT/repository-governance.json"
+          node - "$OUT/repository-governance.json" <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (report?.fixed_point?.converged !== true) throw new Error('repository governance fixed point is not converged');
+          NODE
 
       - name: Verify environment impact and migration compatibility closure
         env:
@@ -181,7 +189,8 @@ jobs:
                    [[ "$(jq -r '.source_head_sha' "$evidence")" == "$SOURCE_HEAD_SHA" ]] && \
                    [[ "$(jq -r '.base_sha' "$evidence")" == "$BASE_SHA" ]] && \
                    [[ "$(jq -r '.merge_candidate_sha' "$evidence")" == "$CANDIDATE_SHA" ]] && \
-                   [[ "$(jq -r '.executed_sha' "$evidence")" == "$CANDIDATE_SHA" ]]; then
+                   [[ "$(jq -r '.executed_sha' "$evidence")" == "$CANDIDATE_SHA" ]] && \
+                   [[ "$(jq -r '.fixed_point_converged' "$evidence")" == "true" ]]; then
                   cp "$evidence" "$OUT/canonical-producer-evidence.json"
                   matched="$run_id"
                   break

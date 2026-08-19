@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -411,7 +412,9 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
   const baseSha = String(arg("base-sha", process.env.BASE_SHA || "")).trim().toLowerCase() || null;
   const headSha = String(arg("head-sha", process.env.HEAD_SHA || process.env.EXPECTED_HEAD_SHA || "")).trim().toLowerCase() || null;
   const impactDeclarationPath = String(arg("impact-declaration", process.env.ENVIRONMENT_IMPACT_DECLARATION || "")).trim() || null;
-  const reportFile = path.resolve(arg("report-file", path.join(root, ".artifacts/environment-impact-closure/report.json")));
+  const defaultReportDirectory = process.env.RUNNER_TEMP || os.tmpdir();
+  const defaultReportFile = path.join(defaultReportDirectory, "environment-impact-closure", `report-${process.pid}.json`);
+  const reportFile = path.resolve(arg("report-file", defaultReportFile));
   const report = buildReport({ baseSha, headSha, impactDeclarationPath });
   fs.mkdirSync(path.dirname(reportFile), { recursive: true });
   fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
