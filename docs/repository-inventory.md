@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,199 |
-| Total bytes | 70,264,075 |
-| Counted text lines | 1,649,436 |
+| Tracked files | 7,212 |
+| Total bytes | 70,369,754 |
+| Counted text lines | 1,651,570 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -17,15 +17,15 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,159 |
+| `tests-and-specs` | 2,162 |
 | `documentation` | 1,908 |
-| `api-runtime` | 1,443 |
+| `api-runtime` | 1,447 |
 | `database-migrations` | 783 |
 | `root-and-other` | 297 |
 | `api-contracts` | 191 |
 | `ci-workflows` | 170 |
-| `ci-config` | 116 |
-| `schemas-and-data` | 70 |
+| `ci-config` | 120 |
+| `schemas-and-data` | 72 |
 | `connectors-and-edge` | 29 |
 | `applications` | 19 |
 | `source` | 12 |
@@ -36,9 +36,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,509 |
-| `.mjs` | 1,706 |
-| `.js` | 993 |
-| `.json` | 803 |
+| `.mjs` | 1,714 |
+| `.js` | 994 |
+| `.json` | 807 |
 | `.sql` | 798 |
 | `.yml` | 173 |
 | `.yaml` | 119 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 170 |
 | Database migrations | 783 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,245 |
+| Test/spec files (paths) | 2,249 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -84,7 +84,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `edge/activation-gateway/package.json` | `mad4b-activation-gateway` | `—` | 8 | 0 | 1 |
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 67 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 69 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 22 | 0 | 4 |
 
 ## Largest tracked files
@@ -104,7 +104,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 269,236 | 6392 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 257,408 | 2242 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 259,492 | 2266 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 221,663 | 4707 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
