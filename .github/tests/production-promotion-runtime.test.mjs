@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildReleaseCutPromotionEvidence } from "../scripts/production-promotion-release-cut-evidence.mjs";
 import { resolveSupportingGates, validateGateRegistry } from "../scripts/production-promotion-supporting-gates.mjs";
 import { buildPromotionRehearsalReport } from "../scripts/production-promotion-rehearsal.mjs";
+import { buildReleaseCutReconciliationReport } from "../scripts/production-release-cut-reconciliation.mjs";
 import { selectPromotionRun } from "../scripts/production-promotion-run-selector.mjs";
 import {
   buildApprovalManifest,
@@ -222,6 +223,8 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   const derivedClosure = read(".github/workflows/derived-state-closure.yml");
   const stagingEligibility = read(".github/workflows/staging-main-deploy-eligibility.yml");
   const stagingCertification = read(".github/workflows/staging-live-certification.yml");
+  const reconciliationWorkflow = read(".github/workflows/governed-production-promotion-dispatch-bridge.yml");
+  const reconciliationScript = read(".github/scripts/production-release-cut-reconciliation.mjs");
 
   assert.match(launcher, /production-promotion-supporting-gates\.mjs/u);
   assert.match(launcher, /production-certified-release-cut-validation\.yml/u);
@@ -259,6 +262,16 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.doesNotMatch(rehearsal, /git push|gh pr create|gh workflow run/u);
   assert.match(rehearsalScript, /production_history_not_contained_by_main/u);
   assert.match(rehearsalScript, /stale_authorization_reusable: false/u);
+  assert.match(reconciliationWorkflow, /release\/production-reconciliation\//u);
+  assert.match(reconciliationWorkflow, /commit-tree/u);
+  assert.ok(reconciliationWorkflow.includes('-p "$main_sha" -p "$production_sha"'));
+  assert.match(reconciliationWorkflow, /merge_method_required: merge_commit_only/u);
+  assert.match(reconciliationWorkflow, /production_merge: false/u);
+  assert.match(reconciliationWorkflow, /persist-credentials: false/u);
+  assert.doesNotMatch(reconciliationWorkflow, /gh pr merge|gh api --method PUT[^\n]*\/merge/u);
+  assert.match(reconciliationScript, /first_parent_is_main/u);
+  assert.match(reconciliationScript, /second_parent_is_production/u);
+  assert.match(reconciliationScript, /tree_matches_main/u);
   const impact = productionPromotionContract.environment_impact;
   assert.equal(impact.source_of_truth, "http-generic-api/config/deployment-branch-policy.json");
   assert.deepEqual(new Set(impact.declared_targets), new Set(["staging", "production"]));
@@ -271,6 +284,8 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
     ".changes/e2e/production-promotion-release-cut-controller.json",
     ".github/scripts/production-promotion-rehearsal.mjs",
     ".github/workflows/production-promotion-rehearsal.yml",
+    ".github/scripts/production-release-cut-reconciliation.mjs",
+    ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
   ]) {
     assert.ok(constitution.control_plane_paths.includes(controlPath));
     assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(controlPath));
@@ -279,6 +294,37 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
     assert.match(workflow, /environment-impact-closure\.mjs/u, "environment impact closure must be wired into every staging/promotion readiness surface");
     assert.match(workflow, /migration compatibility closure/u, "migration compatibility must be explicit in the readiness step");
   }
+});
+
+test("release-cut reconciliation requires exact main and Production parents with an exact main tree", () => {
+  const input = {
+    mainSha: sha(1),
+    productionSha: sha(2),
+    reconciliationSha: sha(3),
+    mainTreeSha: sha(5),
+    reconciliationTreeSha: sha(5),
+    parents: [sha(1), sha(2)],
+    currentMainSha: sha(4),
+    currentProductionSha: sha(2),
+    protectedRefsStable: true,
+  };
+  const report = buildReleaseCutReconciliationReport(input);
+  assert.equal(report.ok, true);
+  assert.equal(report.first_parent_is_main, true);
+  assert.equal(report.second_parent_is_production, true);
+  assert.equal(report.tree_matches_main, true);
+  assert.equal(report.merge_method_required, "merge_commit_only");
+  assert.equal(report.main_merge_required, true);
+  assert.equal(report.production_merge, false);
+  assert.equal(report.deployment_executed, false);
+  assert.equal(report.migration_executed, false);
+  assert.equal(report.secrets_included, false);
+  const wrongParent = buildReleaseCutReconciliationReport({ ...input, parents: [sha(2), sha(1)] });
+  assert.equal(wrongParent.ok, false);
+  assert.equal(wrongParent.fail_closed.stale_authorization_reusable, false);
+  const wrongTree = buildReleaseCutReconciliationReport({ ...input, reconciliationTreeSha: sha(6) });
+  assert.equal(wrongTree.ok, false);
+  assert.equal(wrongTree.fail_closed.mutation_allowed, false);
 });
 
 console.log(JSON.stringify({
