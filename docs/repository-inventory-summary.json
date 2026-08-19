@@ -3,23 +3,23 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7213,
-    "bytes": 70375049,
-    "lines": 1651672,
+    "files": 7217,
+    "bytes": 70408203,
+    "lines": 1652307,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2162,
+      "tests-and-specs": 2163,
       "documentation": 1908,
-      "api-runtime": 1447,
+      "api-runtime": 1449,
       "database-migrations": 783,
       "root-and-other": 297,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 120,
-      "schemas-and-data": 73,
+      "schemas-and-data": 74,
       "connectors-and-edge": 29,
       "applications": 19,
       "source": 12,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2509,
-      ".mjs": 1714,
-      ".js": 994,
-      ".json": 808,
+      ".mjs": 1715,
+      ".js": 995,
+      ".json": 810,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3711,
+      "http-generic-api": 3715,
       "docs": 1812,
       "specs": 880,
       ".github": 290,
@@ -176,7 +176,9 @@
         "manifest:deployment",
         "manifest:portable-staging",
         "remote-mcp:client:provision",
+        "remote-mcp:client:profiles",
         "remote-mcp:client:status",
+        "remote-mcp:client:status:all",
         "production:config-preflight",
         "supervisor:readiness",
         "runtime-persistence:readiness",
@@ -249,7 +251,7 @@
     "workflows": 170,
     "migrations": 783,
     "apiContracts": 191,
-    "testSpecFiles": 2249
+    "testSpecFiles": 2250
   },
   "largestFiles": [
     {
@@ -333,8 +335,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 260390,
-      "lines": 2278
+      "bytes": 261504,
+      "lines": 2290
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
