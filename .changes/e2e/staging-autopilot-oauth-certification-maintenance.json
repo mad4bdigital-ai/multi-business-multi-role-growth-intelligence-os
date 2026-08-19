@@ -168,6 +168,7 @@
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
             "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
             "docs/governance/configuration-drift-policy.json",
+            ".github/governance/test-authority-registry.json",
             "http-generic-api/routes/remoteMcpOAuthRoutes.js",
             "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
             "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",

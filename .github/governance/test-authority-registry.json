@@ -34,6 +34,10 @@
     {
       "id": "semantic_verifier_requirements",
       "test_paths": [".github/tests/repository-governance-closure.test.mjs", ".github/governance/semantic-verifier-requirements.json"]
+    },
+    {
+      "id": "remote_mcp_dynamic_client_profile_registry",
+      "test_paths": ["http-generic-api/test-remote-mcp-client-profile-registry.mjs", "http-generic-api/test-remote-mcp-client-provisioning.mjs"]
     }
   ],
   "deleted_test_mode": "block_without_replacement",
