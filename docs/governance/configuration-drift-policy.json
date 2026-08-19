@@ -2228,6 +2228,30 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7430: expectedTree is a read-only Staging certification input binding the exact application Git tree; it is not a runtime setting, secret, or Production mutation authority. Revisit when the Config Catalog binding is governed.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|REMOTE_MCP_ENVIRONMENT|environment_reference|remote.mcp.environment",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7451: the operator-only environment selector is bounded to staging or production, requires explicit confirmation for mutation, and is used for per-environment Remote MCP identity isolation. This PR performs no environment mutation or deployment; revisit when the Config Catalog binding is governed.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|REMOTE_MCP_OAUTH_CLIENT_SECRET|environment_reference|remote.mcp.oauth.client.secret",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7451: this is an operator-supplied one-time provisioning input, never committed or emitted in readback. The provisioner stores only encrypted/hash evidence and requires explicit rotation/confirmation; no real secret is present in the repository or this PR.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|environment|environment_reference|remote.mcp.environment",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7451: the CLI environment value is normalized through the canonical Staging/Production resolver and cannot cross-use client identities. It is an operator input only and does not authorize deployment or database mutation.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/test-remote-mcp-client-provisioning.mjs|TOKEN_ENCRYPTION_KEY|environment_reference|token.encryption.key",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7451: this is a deterministic local test-only encryption fixture, not a deployment credential; the test asserts encrypted/hash persistence and never includes a real secret in tracked files or evidence.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {

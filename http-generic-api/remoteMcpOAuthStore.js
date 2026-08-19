@@ -4,6 +4,7 @@ import {
   REMOTE_MCP_AUTHORIZATION_CODE_TTL_SECONDS,
   REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS,
   createOpaqueToken,
+  generateRemoteMcpClientId,
   sha256,
 } from "./remoteMcpOAuthProfile.js";
 
@@ -82,6 +83,8 @@ async function withConnection(pool, fn) {
 
 export async function registerRemoteMcpOAuthClient({
   pool = getPool(),
+  clientId = "",
+  env = process.env,
   clientName,
   clientProfileKey,
   tokenEndpointAuthMethod,
@@ -89,7 +92,7 @@ export async function registerRemoteMcpOAuthClient({
   redirectUris,
   allowedScopes,
 }) {
-  const clientId = `mcp_${randomUUID().replace(/-/gu, "")}`;
+  const normalizedClientId = String(clientId || "").trim() || generateRemoteMcpClientId(env);
   const registrationAccessToken = createOpaqueToken(32);
   await pool.query(
     `INSERT INTO remote_mcp_oauth_clients
@@ -98,7 +101,7 @@ export async function registerRemoteMcpOAuthClient({
        registration_access_token_hash, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
     [
-      clientId,
+      normalizedClientId,
       clientName,
       clientProfileKey,
       tokenEndpointAuthMethod,
@@ -108,7 +111,7 @@ export async function registerRemoteMcpOAuthClient({
       sha256(registrationAccessToken),
     ],
   );
-  return { client_id: clientId, registration_access_token: registrationAccessToken };
+  return { client_id: normalizedClientId, registration_access_token: registrationAccessToken };
 }
 
 export async function readRemoteMcpOAuthClient(clientId, { pool = getPool() } = {}) {
