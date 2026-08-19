@@ -6,20 +6,31 @@ import { buildGithubRepositoryPolicyCapabilityBinding } from '../../http-generic
 import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';
 
 const PHASE = String(process.env.POLICY_PHASE || '').trim().toLowerCase();
+const TARGET_BRANCH = String(process.env.TARGET_BRANCH || 'main').trim();
 const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
 const KEY = String(process.env.BACKEND_API_KEY || '').trim();
 const GH = String(process.env.GH_READ_TOKEN || '').trim();
 const REPO = String(process.env.REPOSITORY || 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os').trim();
 const ISSUE = Number(process.env.CONTROL_ISSUE || 6625);
-const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-main-review-policy`).trim();
+const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-repository-policy-${TARGET_BRANCH}`).trim();
 
 const [OWNER, NAME] = REPO.split('/');
 const DEFAULT_BRANCH = 'main';
 const PRODUCTION_BRANCH = 'Production';
-const POLICY_CONFIRM = 'APPLY_GITHUB_MAIN_REVIEW_POLICY';
-const READINESS_CONFIRM = 'AUTHORIZE_GITHUB_MAIN_REVIEW_POLICY_READINESS';
-const VERIFY_CONFIRM = 'VERIFY_GITHUB_MAIN_REVIEW_POLICY';
-const READY_PREFIX = 'GITHUB_MAIN_REVIEW_POLICY_READINESS result=pass ';
+const COMMANDS = Object.freeze({
+  main: Object.freeze({
+    readiness: 'AUTHORIZE_GITHUB_MAIN_REVIEW_POLICY_READINESS',
+    apply: 'APPLY_GITHUB_MAIN_REVIEW_POLICY',
+    verify: 'VERIFY_GITHUB_MAIN_REVIEW_POLICY',
+  }),
+  Production: Object.freeze({
+    readiness: 'AUTHORIZE_GITHUB_PRODUCTION_POLICY_READINESS',
+    apply: 'APPLY_GITHUB_PRODUCTION_POLICY',
+    verify: 'VERIFY_GITHUB_PRODUCTION_POLICY',
+  }),
+});
+const READY_PREFIX = 'GITHUB_REPOSITORY_POLICY_READINESS result=pass ';
+const LEGACY_MAIN_READY_PREFIX = 'GITHUB_MAIN_REVIEW_POLICY_READINESS result=pass ';
 const REPOSITORY_BINDING_KEY = 'growth_intelligence_platform.github.primary.production';
 const CAPABILITY_KEY = 'repository_policy_controller';
 const OPERATION_INTENT = 'github_repository_policy_apply';
@@ -35,6 +46,7 @@ const EXPECTED_MIGRATION_STATEMENTS = 6;
 let stage = 'start';
 let mainSha = null;
 let productionSha = null;
+let targetSha = null;
 let migrationChecksum = null;
 let policyFingerprint = null;
 let binding = null;
@@ -82,9 +94,9 @@ async function writeJson(name, value) {
 }
 async function writeState(extra = {}) {
   await writeJson('state.json', {
-    contract: 'github_main_review_policy_live_activation.v1', phase: PHASE, stage,
-    main_sha: mainSha, production_sha: productionSha, migration: MIGRATION,
-    migration_blob_sha: MIGRATION_BLOB_SHA, migration_checksum_sha256: migrationChecksum,
+    contract: 'github_repository_policy_live_activation.v2', phase: PHASE, stage,
+    target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha,
+    migration: MIGRATION, migration_blob_sha: MIGRATION_BLOB_SHA, migration_checksum_sha256: migrationChecksum,
     expected_policy_fingerprint: policyFingerprint, binding_sha256: binding?.binding_sha256 || null,
     capability_envelope_id: envelopeId, apply_sent: applySent, apply_retried: false,
     apply_transport_ok: applyResponse?.transport_ok ?? null, apply_http_status: applyResponse?.status ?? null,
@@ -142,9 +154,10 @@ async function currentRefSha(branch) {
 async function verifySourceAndRuntimeParity() {
   mainSha = await currentRefSha(DEFAULT_BRANCH);
   productionSha = await currentRefSha(PRODUCTION_BRANCH);
-  for (const [path, expectedBlob] of [[MIGRATION_PATH, MIGRATION_BLOB_SHA], [ENVELOPE_CREATOR_PATH, ENVELOPE_CREATOR_BLOB_SHA]]) {
-    const file = await githubJson(`/repos/${REPO}/contents/${path}?ref=${productionSha}`);
-    assert.equal(String(file?.sha || '').toLowerCase(), expectedBlob, `Production source blob mismatch: ${path}`);
+  targetSha = TARGET_BRANCH === DEFAULT_BRANCH ? mainSha : productionSha;
+  for (const [filePath, expectedBlob] of [[MIGRATION_PATH, MIGRATION_BLOB_SHA], [ENVELOPE_CREATOR_PATH, ENVELOPE_CREATOR_BLOB_SHA]]) {
+    const file = await githubJson(`/repos/${REPO}/contents/${filePath}?ref=${productionSha}`);
+    assert.equal(String(file?.sha || '').toLowerCase(), expectedBlob, `Production source blob mismatch: ${filePath}`);
   }
   const migrationFile = await githubJson(`/repos/${REPO}/contents/${MIGRATION_PATH}?ref=${productionSha}`);
   const sql = Buffer.from(String(migrationFile.content || '').replace(/\s+/g, ''), 'base64').toString('utf8');
@@ -154,7 +167,8 @@ async function verifySourceAndRuntimeParity() {
     const [health, version, deployment] = await Promise.all([requestGet(`${BASE}/health`), requestGet(`${BASE}/version`), requestGet(`${BASE}/deployment-info`)]);
     if (health.http_ok && health.payload?.ok === true && version.http_ok && collectShas(version.payload).has(productionSha) && deployment.http_ok && collectShas(deployment.payload).has(productionSha)) {
       assert.equal(await currentRefSha(PRODUCTION_BRANCH), productionSha, 'Production moved during runtime parity');
-      return { main_sha: mainSha, production_sha: productionSha, migration_checksum_sha256: migrationChecksum, attempt, health: 'pass', version: 'pass', deployment: 'pass', secrets_included: false };
+      assert.equal(await currentRefSha(TARGET_BRANCH), targetSha, `${TARGET_BRANCH} moved during runtime parity`);
+      return { target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, migration_checksum_sha256: migrationChecksum, attempt, health: 'pass', version: 'pass', deployment: 'pass', secrets_included: false };
     }
     if (attempt < 24) await new Promise((resolve) => setTimeout(resolve, 15000));
   }
@@ -185,32 +199,42 @@ async function verifyMigration1051Applied() {
   return { ledger_verified: true, apply_policy_status: 'active', capability_readiness: 'ready', live_github_policy_apply: false, secrets_included: false };
 }
 async function controller(mode, extra = {}) {
-  return requireSuccess(await requestRaw('/admin/repository-automation/policy-controller', { mode, owner: OWNER, repo: NAME, default_branch: DEFAULT_BRANCH, ...extra }), `github_repository_policy_${mode}`);
+  return requireSuccess(await requestRaw('/admin/repository-automation/policy-controller', { mode, owner: OWNER, repo: NAME, default_branch: TARGET_BRANCH, ...extra }), `github_repository_policy_${mode}`);
 }
 async function exactPlan() {
   const readback = await controller('readback');
-  assert.equal(String(readback?.main_sha || '').toLowerCase(), mainSha, 'Controller readback main SHA differs from live GitHub main');
+  assert.equal(String(readback?.branch_sha || readback?.main_sha || '').toLowerCase(), targetSha, `Controller readback ${TARGET_BRANCH} SHA differs from live GitHub ref`);
   const plan = await controller('plan');
-  assert.equal(String(plan?.readback?.main_sha || '').toLowerCase(), mainSha, 'Controller plan readback main SHA differs from live GitHub main');
+  assert.equal(String(plan?.expected_commit_sha || plan?.expected_main_sha || '').toLowerCase(), targetSha, `Controller plan ${TARGET_BRANCH} SHA differs from live GitHub ref`);
   policyFingerprint = String(plan?.policy_fingerprint || '').toLowerCase();
   assert.match(policyFingerprint, /^[0-9a-f]{64}$/, 'Controller plan returned no exact policy fingerprint');
-  binding = buildGithubRepositoryPolicyCapabilityBinding({ target: { owner: OWNER, repo: NAME, default_branch: DEFAULT_BRANCH }, expected_main_sha: mainSha, expected_policy_fingerprint: policyFingerprint });
+  binding = buildGithubRepositoryPolicyCapabilityBinding({ target: { owner: OWNER, repo: NAME, default_branch: TARGET_BRANCH }, expected_commit_sha: targetSha, expected_policy_fingerprint: policyFingerprint });
   assert.ok(binding);
+  assert.equal(plan?.confirmation, COMMANDS[TARGET_BRANCH].apply, 'Controller confirmation does not match target branch contract');
   return { readback, plan, binding, secrets_included: false };
+}
+function readinessMarker() {
+  return `${READY_PREFIX}branch=${TARGET_BRANCH} target_sha=${targetSha} policy_fingerprint=${policyFingerprint} binding_sha256=${binding.binding_sha256}`;
 }
 async function requireReadinessMarker() {
   const comments = await githubJson(`/repos/${REPO}/issues/${ISSUE}/comments?per_page=100`);
-  const expected = `${READY_PREFIX}main_sha=${mainSha} policy_fingerprint=${policyFingerprint} binding_sha256=${binding.binding_sha256}`;
-  assert.ok(comments.some((comment) => String(comment?.body || '').trim() === expected), 'Exact main/fingerprint readiness marker is missing');
+  const expected = readinessMarker();
+  const legacy = TARGET_BRANCH === 'main' ? `${LEGACY_MAIN_READY_PREFIX}main_sha=${targetSha} policy_fingerprint=${policyFingerprint} binding_sha256=${binding.binding_sha256}` : null;
+  assert.ok(comments.some((comment) => {
+    const body = String(comment?.body || '').trim();
+    return body === expected || (legacy && body === legacy);
+  }), `Exact ${TARGET_BRANCH}/fingerprint readiness marker is missing`);
   return expected;
 }
 async function createApplyEnvelope() {
+  const requestedBy = `github_actions_github_${TARGET_BRANCH.toLowerCase()}_policy_apply`;
+  const note = `Authorize exactly one external GitHub Ruleset Apply bound to ${TARGET_BRANCH}@${targetSha} and the exact policy fingerprint after typed confirmation and same-cycle readback.`;
   const created = await adminShell('capability_resolution_envelope_create', [
     `--user-id=${ADMIN_USER_ID}`, '--user-role=Admin', '--app-key=github', `--capability-key=${CAPABILITY_KEY}`,
     `--operation-intent=${OPERATION_INTENT}`, '--runtime-surface=system_layer', '--requested-source-tier=platform_managed_fallback',
-    '--requested-by=github_actions_github_main_review_policy_apply', '--ttl-minutes=30', '--explain',
+    `--requested-by=${requestedBy}`, '--ttl-minutes=30', '--explain',
     `--repository-binding-key=${REPOSITORY_BINDING_KEY}`, `--resource-uri=${binding.resource_uri}`,
-    `--expected-commit-sha=${mainSha}`, `--binding-sha256=${binding.binding_sha256}`, `--capability-sha256=${policyFingerprint}`,
+    `--expected-commit-sha=${targetSha}`, `--binding-sha256=${binding.binding_sha256}`, `--capability-sha256=${policyFingerprint}`,
   ], 'github_repository_policy_envelope_create');
   let envelope = keyed(created, 'envelope_id');
   assert.ok(envelope?.envelope_id, 'Repository policy envelope creation returned no envelope id');
@@ -219,75 +243,80 @@ async function createApplyEnvelope() {
   assert.equal(envelope.apply_allowed, false);
   assert.equal(envelope.approval_required, true);
   assert.equal(Number(envelope.blocking_gap_count || 0), 0);
-  const approved = await adminShell('capability_resolution_envelope_approve', [`--envelope-id=${envelope.envelope_id}`, '--approved-by=github_actions', '--decision-note=Approve one exact main-SHA and policy-fingerprint bound repository policy dispatch after explicit APPLY_GITHUB_MAIN_REVIEW_POLICY authorization.', '--ttl-minutes=30'], 'github_repository_policy_envelope_approve');
+  const approved = await adminShell('capability_resolution_envelope_approve', [`--envelope-id=${envelope.envelope_id}`, '--approved-by=github_actions', `--decision-note=${note}`, '--ttl-minutes=30'], 'github_repository_policy_envelope_approve');
   envelope = { ...envelope, ...(keyed(approved, 'envelope_id') || {}), approval_required: false, dispatch_allowed: true };
   assert.equal(envelope.envelope_status, 'ready_for_dispatch');
-  const authorizedPayload = requireSuccess(await requestRaw('/gpt/tools/call', { name: 'capability_resolution_envelope_apply_authorize', tool_args: { envelope_id: envelope.envelope_id, authorized_by: 'github_actions', decision_note: 'Authorize exactly one external GitHub Ruleset Apply bound to current main SHA and policy fingerprint after typed confirmation and same-cycle readback.', ttl_minutes: 30 } }), 'github_repository_policy_envelope_apply_authorize');
+  const authorizedPayload = requireSuccess(await requestRaw('/gpt/tools/call', { name: 'capability_resolution_envelope_apply_authorize', tool_args: { envelope_id: envelope.envelope_id, authorized_by: 'github_actions', decision_note: note, ttl_minutes: 30 } }), 'github_repository_policy_envelope_apply_authorize');
   const authorized = keyed(authorizedPayload, 'apply_allowed') || authorizedPayload;
   assert.equal(authorized?.apply_allowed, true);
   assert.equal(authorized?.policy_key, APPLY_POLICY_KEY);
   assert.equal(authorized?.external_write_allowed, true);
   envelopeId = envelope.envelope_id;
-  return { envelope_id: envelopeId, apply_allowed: true, policy_key: APPLY_POLICY_KEY, secrets_included: false };
+  return { envelope_id: envelopeId, target_branch: TARGET_BRANCH, target_sha: targetSha, apply_allowed: true, policy_key: APPLY_POLICY_KEY, secrets_included: false };
 }
 function readbackProvesGate(readback) {
-  return Boolean(readback && String(readback.main_sha || '').toLowerCase() === mainSha && readback.proof?.server_policy_gate_complete === true && Array.isArray(readback.bypass_actors) && readback.bypass_actors.length === 0);
+  const observedSha = String(readback?.branch_sha || readback?.main_sha || '').toLowerCase();
+  return Boolean(readback && observedSha === targetSha && readback.proof?.server_policy_gate_complete === true && Array.isArray(readback.bypass_actors) && readback.bypass_actors.length === 0);
+}
+function summaryBase() {
+  return { target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, policy_fingerprint: policyFingerprint, binding_sha256: binding?.binding_sha256 || null, secrets_included: false };
 }
 async function readiness() {
-  stage = 'source_runtime_parity'; const parity = await verifySourceAndRuntimeParity(); await writeJson('source-runtime-parity.json', parity);
-  stage = 'migration_1051_ledger'; const authority = await verifyMigration1051Applied(); await writeJson('migration-1051-authority.json', authority);
+  stage = 'source_runtime_parity'; await writeJson('source-runtime-parity.json', await verifySourceAndRuntimeParity());
+  stage = 'migration_1051_ledger'; await writeJson('migration-1051-authority.json', await verifyMigration1051Applied());
   stage = 'policy_readback_plan'; const planned = await exactPlan(); await writeJson('policy-readback.json', planned.readback); await writeJson('policy-plan.json', planned.plan);
   if (planned.readback?.proof?.server_policy_gate_complete === true) {
-    await writeJson('summary.json', { result: 'already_enforced', main_sha: mainSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, server_policy_gate_complete: true, apply_sent_by_this_run: false, secrets_included: false });
+    await writeJson('summary.json', { result: 'already_enforced', ...summaryBase(), server_policy_gate_complete: true, apply_sent_by_this_run: false });
     return;
   }
-  await writeJson('summary.json', { result: 'ready_for_apply', main_sha: mainSha, production_sha: productionSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, resource_uri: binding.resource_uri, migration_1051_verified: true, envelope_created_by_this_run: false, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false, secrets_included: false });
+  await writeJson('summary.json', { result: 'ready_for_apply', ...summaryBase(), resource_uri: binding.resource_uri, readiness_marker: readinessMarker(), migration_1051_verified: true, envelope_created_by_this_run: false, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false });
 }
 async function apply() {
   stage = 'source_runtime_parity'; await writeJson('source-runtime-parity.json', await verifySourceAndRuntimeParity());
   stage = 'migration_1051_ledger'; await writeJson('migration-1051-authority.json', await verifyMigration1051Applied());
   stage = 'policy_readback_plan'; const planned = await exactPlan(); await writeJson('policy-readback.json', planned.readback); await writeJson('policy-plan.json', planned.plan);
   if (planned.readback?.proof?.server_policy_gate_complete === true) {
-    await writeJson('summary.json', { result: 'already_enforced', main_sha: mainSha, policy_fingerprint: policyFingerprint, server_policy_gate_complete: true, apply_sent_by_this_run: false, secrets_included: false }); return;
+    await writeJson('summary.json', { result: 'already_enforced', ...summaryBase(), server_policy_gate_complete: true, apply_sent_by_this_run: false }); return;
   }
   stage = 'readiness_marker'; await requireReadinessMarker();
   stage = 'envelope_create_approve_authorize'; await writeJson('capability-envelope.json', await createApplyEnvelope());
-  assert.equal(await currentRefSha(DEFAULT_BRANCH), mainSha, 'main moved after envelope authorization');
+  assert.equal(await currentRefSha(TARGET_BRANCH), targetSha, `${TARGET_BRANCH} moved after envelope authorization`);
   stage = 'apply_once'; applySent = true; await writeState();
-  applyResponse = await requestRaw('/admin/repository-automation/policy-controller', { mode: 'apply', owner: OWNER, repo: NAME, default_branch: DEFAULT_BRANCH, expected_main_sha: mainSha, expected_policy_fingerprint: policyFingerprint, confirm: POLICY_CONFIRM, capability_envelope_id: envelopeId }, 300000);
+  applyResponse = await requestRaw('/admin/repository-automation/policy-controller', { mode: 'apply', owner: OWNER, repo: NAME, default_branch: TARGET_BRANCH, expected_commit_sha: targetSha, expected_policy_fingerprint: policyFingerprint, confirm: COMMANDS[TARGET_BRANCH].apply, capability_envelope_id: envelopeId }, 300000);
   await writeJson('apply-response.json', applyResponse);
   if (applyResponse.transport_ok && applyResponse.http_ok && applyResponse.payload?.ok !== false) {
     const applied = applyResponse.payload;
     assert.equal(applied?.mutation_executed, true, 'Controller returned success without mutation evidence');
-    assert.equal(String(applied?.expected_main_sha || '').toLowerCase(), mainSha);
+    assert.equal(String(applied?.expected_commit_sha || applied?.expected_main_sha || targetSha).toLowerCase(), targetSha);
     assert.equal(String(applied?.policy_fingerprint || '').toLowerCase(), policyFingerprint);
     assert.ok(readbackProvesGate(applied?.readback), 'Same-cycle controller readback did not prove server policy gate');
-    await writeJson('summary.json', { result: 'applied_and_verified', main_sha: mainSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, apply_sent_by_this_run: true, apply_retried: false, server_policy_gate_complete: true, provider_call_executed: true, external_write_executed: true, credential_payload_accessed: false, force_push_executed: false, repository_content_mutation_executed: false, secrets_included: false });
+    await writeJson('summary.json', { result: 'applied_and_verified', ...summaryBase(), apply_sent_by_this_run: true, apply_retried: false, server_policy_gate_complete: true, provider_call_executed: true, external_write_executed: true, credential_payload_accessed: false, force_push_executed: false, repository_content_mutation_executed: false });
     return;
   }
   stage = 'ambiguous_transport_reconciliation';
   reconciliationReadback = await controller('readback');
   await writeJson('ambiguous-transport-readback.json', reconciliationReadback);
   assert.ok(readbackProvesGate(reconciliationReadback), 'Policy Apply response was unsuccessful/ambiguous and readback does not prove the exact gate; Apply was not retried');
-  await writeJson('summary.json', { result: 'reconciled_after_ambiguous_apply_transport', main_sha: mainSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, apply_sent_by_this_run: true, apply_retried: false, server_policy_gate_complete: true, credential_payload_accessed: false, force_push_executed: false, repository_content_mutation_executed: false, secrets_included: false });
+  await writeJson('summary.json', { result: 'reconciled_after_ambiguous_apply_transport', ...summaryBase(), apply_sent_by_this_run: true, apply_retried: false, server_policy_gate_complete: true, credential_payload_accessed: false, force_push_executed: false, repository_content_mutation_executed: false });
 }
 async function verify() {
   stage = 'source_runtime_parity'; await writeJson('source-runtime-parity.json', await verifySourceAndRuntimeParity());
   stage = 'migration_1051_ledger'; await writeJson('migration-1051-authority.json', await verifyMigration1051Applied());
   stage = 'policy_readback_plan'; const planned = await exactPlan(); await writeJson('verification-readback.json', planned.readback);
-  assert.ok(readbackProvesGate(planned.readback), 'Live GitHub server policy gate is not complete');
-  await writeJson('summary.json', { result: 'verified', main_sha: mainSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, server_policy_gate_complete: true, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false, secrets_included: false });
+  assert.ok(readbackProvesGate(planned.readback), `Live GitHub ${TARGET_BRANCH} server policy gate is not complete`);
+  await writeJson('summary.json', { result: 'verified', ...summaryBase(), server_policy_gate_complete: true, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false });
 }
 
 try {
   assert.ok(['readiness','apply','verify'].includes(PHASE), 'POLICY_PHASE must be readiness, apply, or verify');
+  assert.ok(Object.prototype.hasOwnProperty.call(COMMANDS, TARGET_BRANCH), 'TARGET_BRANCH must be main or Production');
   assert.ok(KEY, 'BACKEND_API_KEY is required'); assert.ok(GH, 'GH_READ_TOKEN is required');
   assert.equal(ISSUE, 6625, 'Live policy activation is bound to control issue #6625');
   await writeState();
   if (PHASE === 'readiness') await readiness(); else if (PHASE === 'apply') await apply(); else await verify();
 } catch (error) {
-  await writeJson('failure.json', { result: 'fail', phase: PHASE, stage, main_sha: mainSha, production_sha: productionSha, policy_fingerprint: policyFingerprint, binding_sha256: binding?.binding_sha256 || null, capability_envelope_id: envelopeId, apply_sent: applySent, apply_retried: false, reconciliation_readback_proved_gate: readbackProvesGate(reconciliationReadback), provider_call_executed: applySent, external_write_executed: applySent, credential_payload_accessed: false, force_push_executed: false, repository_content_mutation_executed: false, error: { name: error?.name || 'Error', code: error?.code || 'policy_live_activation_failed', message: error?.message || String(error), details: error?.details || null }, secrets_included: false });
+  await writeJson('failure.json', { result: 'fail', phase: PHASE, stage, target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, policy_fingerprint: policyFingerprint, binding_sha256: binding?.binding_sha256 || null, capability_envelope_id: envelopeId, apply_sent: applySent, apply_retried: false, reconciliation_readback_proved_gate: readbackProvesGate(reconciliationReadback), provider_call_executed: applySent, external_write_executed: applySent, credential_payload_accessed: false, force_push_executed: false, repository_content_mutation_executed: false, error: { name: error?.name || 'Error', code: error?.code || 'policy_live_activation_failed', message: error?.message || String(error), details: error?.details || null }, secrets_included: false });
   await writeState({ failed: true }); throw error;
 }
 
-export const confirmations = Object.freeze({ READINESS_CONFIRM, POLICY_CONFIRM, VERIFY_CONFIRM });
+export const confirmations = COMMANDS;
