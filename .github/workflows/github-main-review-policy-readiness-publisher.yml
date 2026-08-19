@@ -32,18 +32,18 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Discover exact branch readiness evidence artifact
+      - name: Discover exact lifecycle evidence artifact
         id: readiness
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
-            const suffix = `-readiness-${context.payload.workflow_run.id}`;
+            const expected = `github-repository-policy-evidence-${context.payload.workflow_run.id}`;
             const response = await github.rest.actions.listWorkflowRunArtifacts({ owner: context.repo.owner, repo: context.repo.repo, run_id: context.payload.workflow_run.id, per_page: 100 });
-            const matches = response.data.artifacts.filter((artifact) => /^github-repository-policy-(?:main|Production)-readiness-/.test(artifact.name) && artifact.name.endsWith(suffix) && artifact.expired === false);
-            if (matches.length > 1) { core.setFailed(`Ambiguous repository policy readiness artifacts: ${matches.length}`); return; }
+            const matches = response.data.artifacts.filter((artifact) => artifact.name === expected && artifact.expired === false);
+            if (matches.length > 1) { core.setFailed(`Ambiguous repository policy lifecycle artifacts: ${matches.length}`); return; }
             core.setOutput('found', matches.length === 1 ? 'true' : 'false');
-            core.setOutput('name', matches[0]?.name || '');
-      - name: Download exact readiness evidence
+            core.setOutput('name', expected);
+      - name: Download exact lifecycle evidence
         if: steps.readiness.outputs.found == 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -52,7 +52,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-      - name: Publish exact branch/fingerprint readiness marker
+      - name: Publish exact branch/fingerprint readiness marker when this was a readiness run
         if: steps.readiness.outputs.found == 'true'
         shell: bash
         env:
