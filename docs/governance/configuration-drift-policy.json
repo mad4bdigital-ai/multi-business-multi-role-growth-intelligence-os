@@ -2276,6 +2276,12 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7465: DOCKER_HOST is inspected only to reject non-local Docker contexts before disposable schema generation; the generator is schema-only, fail-closed, and cannot access Production or providers.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/environment-impact-closure.mjs|defaultReportDirectory|environment_reference|runner.temp",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7452: defaultReportDirectory selects RUNNER_TEMP or the OS temp directory solely for report-only environment-impact evidence, preventing worktree contamination; it is not a runtime setting, secret, database mutation, provider mutation, or Production activation authority.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {
