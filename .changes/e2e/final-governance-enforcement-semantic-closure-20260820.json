@@ -12,6 +12,8 @@
       ".specify/schemas/e2e-phases.schema.json",
       "scripts/repository-evaluation.mjs",
       "scripts/test-repository-evaluation.mjs",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/policy-objection-ci.yml",
       "docs/governance/final-governance-closure-matrix.md"
     ]
   },
@@ -73,6 +75,8 @@
             "docs/repository-ci-surface-policy.json",
             "scripts/repository-evaluation.mjs",
             "scripts/test-repository-evaluation.mjs",
+            ".github/workflows/derived-state-closure.yml",
+            ".github/workflows/policy-objection-ci.yml",
             ".github/tests/repository-governance-fixed-point.test.mjs",
             "docs/governance/final-governance-closure-matrix.md"
           ]

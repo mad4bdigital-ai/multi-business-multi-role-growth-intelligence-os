@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { applyBaselineLifecycle, buildEvaluation, compareBaseline, dependencyPreflight, extractSecretMatches, isPlaceholderToken, resolveWorkflowBudget, stripBaselineLifecycle } from "./repository-evaluation.mjs";
 
 const taskLike = extractSecretMatches("task-route-authority-resolver.mjs");
@@ -28,6 +29,11 @@ assert.equal(first.signals.maintainability.workflowBudgetSource, "targetMaxWorkf
 assert.deepEqual(resolveWorkflowBudget({ targetMaxWorkflowFiles: 160, maxWorkflowCount: 100 }), { max: 160, warning: 160, source: "targetMaxWorkflowFiles" });
 assert.deepEqual(resolveWorkflowBudget({ maxWorkflowCount: 120 }), { max: 120, warning: 120, source: "maxWorkflowCount" });
 assert.deepEqual(resolveWorkflowBudget({}), { max: 160, warning: 160, source: "default" });
+for (const workflowPath of [".github/workflows/derived-state-closure.yml", ".github/workflows/policy-objection-ci.yml"]) {
+  const workflow = readFileSync(workflowPath, "utf8");
+  assert.match(workflow, /PSModule\/install-powershell@159c2929fac34e3c7fc55d75e8997fb27fc7f75a/u, `${workflowPath} must provision the pinned PowerShell validator runtime`);
+  assert.match(workflow, /npm ci --ignore-scripts --include=dev/u, `${workflowPath} must retain TypeScript dev dependencies for fixed-point validation`);
+}
 const missingDependencies = dependencyPreflight("/tmp/repository-evaluation-missing-dependencies");
 assert.equal(missingDependencies.ready, false);
 assert.deepEqual(missingDependencies.missing.sort(), ["root-tests", "typecheck"]);

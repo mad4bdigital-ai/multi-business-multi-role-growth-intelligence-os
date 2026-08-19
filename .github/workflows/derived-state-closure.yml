@@ -102,6 +102,12 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
+      - name: Install PowerShell validator runtime
+        uses: PSModule/install-powershell@159c2929fac34e3c7fc55d75e8997fb27fc7f75a # v1
+        with:
+          Version: 7.5.0
+          Token: ${{ github.token }}
+
       - name: Verify exact candidate and all JavaScript syntax
         env:
           EXPECTED_CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
@@ -114,7 +120,7 @@ jobs:
 
       - name: Install dependencies without lifecycle side effects
         run: |
-          npm ci --ignore-scripts
+          npm ci --ignore-scripts --include=dev
           (cd http-generic-api && npm ci --ignore-scripts)
 
       - name: Validate governance contracts
