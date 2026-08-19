@@ -2252,6 +2252,18 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7451: this is a deterministic local test-only encryption fixture, not a deployment credential; the test asserts encrypted/hash persistence and never includes a real secret in tracked files or evidence.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|TARGET_BRANCH|environment_reference|target.branch",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7465: TARGET_BRANCH is a read-only workflow input used to bind repository policy evidence to the intended branch; it is not a credential, provider control, or Production mutation authority.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/build-staging-schema-bundle.mjs|DOCKER_HOST|environment_reference|docker.host",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7465: DOCKER_HOST is inspected only to reject non-local Docker contexts before disposable schema generation; the generator is schema-only, fail-closed, and cannot access Production or providers.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {

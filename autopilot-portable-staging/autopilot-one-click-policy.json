@@ -20,6 +20,19 @@
     "apply_requires_explicit_switch": true,
     "apply_switch": "ApplySchemaBundle",
     "required_files": ["runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz"],
+    "generator": {
+      "path": "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "manifest": "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "confirmation": "BUILD_STAGING_SCHEMA_BUNDLE",
+      "source": "exact_local_git_checkout",
+      "disposable_database_required": true,
+      "role_aware": true,
+      "schema_only": true,
+      "production_access": false,
+      "provider_access": false,
+      "data_export": false,
+      "secrets_included": false
+    },
     "sanitized_data_default": false,
     "migration_apply": false,
     "production_database_access": false

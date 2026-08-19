@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-schema-bootstrap-role-aware",
+  "title": "Role-aware schema-only bundle generation for three-database Staging",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-schema-bootstrap-role-aware.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "autopilot-portable-staging/README.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "docs/governance/configuration-drift-policy.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Generate exact, checksummed, schema-only bundles from disposable MariaDB using a role-aware manifest, then let the existing Windows Staging importer seed the three isolated local databases without Production or provider access.",
+      "e2e_journeys": [
+        {
+          "id": "role-aware-schema-bundle-generation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator and governed CI",
+          "entrypoint": "The operator runs the generator from a clean checkout pinned to an exact main SHA.",
+          "terminal_outcome": "Three non-empty gzipped schema-only bundles and a checksum manifest are produced, with required runtime, governance, and persistence tables present and cross-role ownership violations blocked.",
+          "steps": [
+            "Require an exact checked-out SHA and clean worktree.",
+            "Require a local Docker context and a disposable MariaDB build database.",
+            "Validate every migration for forbidden GRANT, account, provider, and external-data operations.",
+            "Apply the ordered migration chain only inside the disposable schema build database.",
+            "Partition the resulting tables into Runtime, Governance, and Runtime Persistence roles according to the reviewed manifest.",
+            "Emit no-data gzipped bundles and a source/migration/bundle SHA256 manifest.",
+            "Keep Production access, provider access, data export, secrets, and mutation false."
+          ],
+          "assertions": [
+            "The manifest declares exactly three database roles with distinct database and user environment bindings.",
+            "Runtime excludes all Governance and Runtime Persistence contract tables.",
+            "Required baseline tables are checked before a bundle is emitted.",
+            "The generator is fail-closed on a dirty worktree, wrong SHA, non-local Docker context, forbidden SQL, missing table, empty bundle, or missing confirmation.",
+            "The output is schema-only and contains no INSERT, UPDATE, DELETE, REPLACE, or LOAD DATA statements.",
+            "The output manifest binds the exact source commit, every migration checksum, every bundle checksum, and the three role table sets.",
+            "The existing importer remains the only path that applies bundles to local Staging containers.",
+            "No Production migration, grant, deployment, provider mutation, DNS mutation, or secret handling is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-schema-bootstrap-role-aware.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "autopilot-portable-staging/autopilot-one-click-policy.json",
+            "autopilot-portable-staging/README.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "docs/governance/configuration-drift-policy.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
