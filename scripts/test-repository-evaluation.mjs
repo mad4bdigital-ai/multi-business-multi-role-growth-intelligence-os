@@ -29,6 +29,10 @@ assert.equal(first.signals.maintainability.workflowBudgetSource, "targetMaxWorkf
 assert.deepEqual(resolveWorkflowBudget({ targetMaxWorkflowFiles: 160, maxWorkflowCount: 100 }), { max: 160, warning: 160, source: "targetMaxWorkflowFiles" });
 assert.deepEqual(resolveWorkflowBudget({ maxWorkflowCount: 120 }), { max: 120, warning: 120, source: "maxWorkflowCount" });
 assert.deepEqual(resolveWorkflowBudget({}), { max: 160, warning: 160, source: "default" });
+const constitution = JSON.parse(readFileSync("http-generic-api/config/repository-governance-constitution.json", "utf8"));
+for (const controlPlanePath of [".changes/e2e/final-governance-enforcement-semantic-closure-20260820.json", "docs/governance/final-governance-closure-matrix.md"]) {
+  assert.ok(constitution.control_plane_paths.includes(controlPlanePath), `${controlPlanePath} must be registered as a critical control-plane path`);
+}
 for (const workflowPath of [".github/workflows/derived-state-closure.yml", ".github/workflows/policy-objection-ci.yml"]) {
   const workflow = readFileSync(workflowPath, "utf8");
   assert.match(workflow, /PSModule\/install-powershell@159c2929fac34e3c7fc55d75e8997fb27fc7f75a/u, `${workflowPath} must provision the pinned PowerShell validator runtime`);
