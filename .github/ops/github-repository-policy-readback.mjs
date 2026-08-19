@@ -1,15 +1,11 @@
-import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { readGithubRepositoryPolicy } from "../../http-generic-api/githubRepositoryPolicyController.js";
+import { buildBranchReadbackEvidence, buildTwoBranchReadbackEvidence } from "./github-repository-policy-readback-core.mjs";
+import { REGISTERED_POLICY_BRANCHES, resolveTargetBranch } from "../../http-generic-api/scripts/github-review-policy-target.mjs";
 
 const token = String(process.env.GH_READ_TOKEN || "").trim();
 const repository = String(process.env.REPOSITORY || process.env.GITHUB_REPOSITORY || "").trim();
-const expectedMainSha = String(process.env.EXPECTED_MAIN_SHA || "").trim().toLowerCase();
 const evidenceDir = String(process.env.EVIDENCE_DIR || ".artifacts/github-repository-policy-readback").trim();
-
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
 
 function sanitize(value, depth = 0) {
   if (value === null || value === undefined || depth > 12) return value;
@@ -26,40 +22,42 @@ async function writeJson(name, value) {
   await fs.writeFile(`${evidenceDir}/${name}`, `${JSON.stringify(sanitize(value), null, 2)}\n`, "utf8");
 }
 
-assert(token, "GH_READ_TOKEN is required for policy readback.");
-const [owner, repo] = repository.split("/");
-assert(owner && repo, "REPOSITORY must be owner/repo.");
-assert(/^[0-9a-f]{40}$/i.test(expectedMainSha), "EXPECTED_MAIN_SHA must be a full SHA.");
+async function githubJson(pathname) {
+  const response = await fetch(`https://api.github.com${pathname}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    signal: AbortSignal.timeout(30000),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(`GitHub ref read failed HTTP ${response.status}: ${pathname}`);
+  return payload;
+}
 
-const readback = await readGithubRepositoryPolicy({ owner, repo, default_branch: "main" }, { token });
-const actualMainSha = String(readback.main_sha || "").toLowerCase();
-const evidence = {
-  contract: "github_repository_policy_readback_workflow.v1",
-  mode: "readback",
-  target: readback.target,
-  expected_main_sha: expectedMainSha,
-  observed_main_sha: actualMainSha || null,
-  exact_main_sha: actualMainSha === expectedMainSha,
-  branch_protected: readback.branch_protected,
-  ruleset_index_count: readback.ruleset_index_count,
-  active_rule_count: readback.active_rule_count,
-  review_policy_mode: readback.review_policy_mode,
-  finalizer_identity: readback.finalizer_identity,
-  proof: readback.proof,
-  findings: readback.findings,
-  policy_fingerprint: createHash("sha256").update(JSON.stringify(readback.ruleset_details || []), "utf8").digest("hex"),
-  mutation_executed: false,
-  provider_call_executed: false,
-  external_write_executed: false,
-  secrets_included: false,
-};
+async function currentRefSha(branch) {
+  const target = resolveTargetBranch(branch);
+  const ref = await githubJson(`/repos/${repository}/git/ref/heads/${encodeURIComponent(target)}`);
+  const sha = String(ref?.object?.sha || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`${target} did not resolve to a full SHA.`);
+  return sha;
+}
+
+if (!token) throw new Error("GH_READ_TOKEN is required for policy readback.");
+const [owner, repo] = repository.split("/");
+if (!owner || !repo) throw new Error("REPOSITORY must be owner/repo.");
+
+const branches = await Promise.all(REGISTERED_POLICY_BRANCHES.map(async (branch) => {
+  const expectedSha = await currentRefSha(branch);
+  const readback = await readGithubRepositoryPolicy({ owner, repo, default_branch: branch }, { token });
+  return buildBranchReadbackEvidence({ branch, expectedSha, readback });
+}));
+const evidence = buildTwoBranchReadbackEvidence({ branches });
 await writeJson("policy-readback.json", evidence);
 
-if (!evidence.exact_main_sha) {
-  console.error(JSON.stringify({ ok: false, reason: "main_sha_drift", ...evidence }));
-  process.exitCode = 1;
-} else if (readback.proof?.server_policy_gate_complete !== true) {
-  console.error(JSON.stringify({ ok: false, reason: "server_policy_gate_incomplete", ...evidence }));
+if (evidence.server_policy_drift_count > 0) {
+  console.error(JSON.stringify({ ok: false, ...evidence }));
   process.exitCode = 1;
 } else {
   console.log(JSON.stringify({ ok: true, ...evidence }));

@@ -3,7 +3,7 @@ name: GitHub Repository Policy Readback
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, Production]
   schedule:
     - cron: "17 */6 * * *"
 
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   readback:
-    name: Read current main policy without mutation
+    name: Read current main and Production policies without mutation
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
@@ -21,7 +21,6 @@ jobs:
     env:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      EXPECTED_MAIN_SHA: ${{ github.sha }}
       EVIDENCE_DIR: .artifacts/github-repository-policy-readback
     steps:
       - name: Checkout exact workflow event head
@@ -38,7 +37,11 @@ jobs:
         run: npm ci --ignore-scripts --prefix http-generic-api
       - name: Verify readback dependency boundary
         run: node http-generic-api/test-github-repository-policy-readback-import-isolation.mjs
-      - name: Execute readback-only policy controller
+      - name: Verify branch target contract
+        run: node http-generic-api/scripts/test-github-review-policy-target.mjs
+      - name: Verify two-branch readback contract
+        run: node .github/ops/test-github-repository-policy-readback-core.mjs
+      - name: Execute readback-only two-branch policy controller
         run: node .github/ops/github-repository-policy-readback.mjs
       - name: Upload no-secret readback evidence
         if: always()
