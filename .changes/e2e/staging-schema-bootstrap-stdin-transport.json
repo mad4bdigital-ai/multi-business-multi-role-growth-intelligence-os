@@ -1,0 +1,72 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-schema-bootstrap-stdin-transport",
+  "title": "Staging schema bundle migration stdin transport hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-schema-bootstrap-stdin-transport.json",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure every migration sent to the disposable MariaDB build container keeps stdin open on Windows and fails closed if the required schema tables are not produced.",
+      "e2e_journeys": [
+        {
+          "id": "schema-migration-stdin-transport",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The generator runs from an exact clean checkout with explicit BUILD_STAGING_SCHEMA_BUNDLE confirmation.",
+          "terminal_outcome": "The disposable MariaDB receives the complete ordered migration chain, required baseline tables including connected_systems exist, and role-isolated schema-only bundles can be emitted.",
+          "steps": [
+            "Start only the disposable MariaDB build container.",
+            "Invoke docker exec with stdin attached when migration SQL is provided.",
+            "Apply the ordered migration chain and stop on a non-zero database client result.",
+            "List tables and fail closed when any required baseline table is missing.",
+            "Keep Production access, provider access, data export, secrets, and mutation false."
+          ],
+          "assertions": [
+            "docker exec receives -i whenever migration SQL is passed through stdin.",
+            "Read-only docker exec commands do not receive an unnecessary stdin flag.",
+            "The required connected_systems table is checked after the migration chain rather than silently accepting an empty database.",
+            "The existing three-role partition and schema-only guards remain unchanged.",
+            "No Production migration, grant, deployment, provider mutation, DNS mutation, or secret handling is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-stdin-transport-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-schema-bootstrap-stdin-transport.json",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
