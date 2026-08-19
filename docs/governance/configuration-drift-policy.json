@@ -2260,6 +2260,18 @@
       "expires_at": "2026-11-30T23:59:59.000Z"
     },
     {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|REMOTE_MCP_CLIENT_PROFILE_KEY|environment_reference|remote.mcp.client.profile.key",
+      "owner": "platform-team",
+      "reason": "Reviewed in dynamic profile registry PR: REMOTE_MCP_CLIENT_PROFILE_KEY is an operator-only profile selector for the governed provisioning CLI; it selects which registry profile to provision and requires explicit confirmation for mutation. No secret or Production mutation is authorized.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|profileKey|environment_reference|remote.mcp.client.profile.key",
+      "owner": "platform-team",
+      "reason": "Reviewed in dynamic profile registry PR: profileKey is the normalized local variable derived from REMOTE_MCP_CLIENT_PROFILE_KEY in the operator CLI; it routes to the correct registry profile namespace and requires explicit confirmation for mutation. No secret or Production mutation is authorized.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
       "fingerprint": "http-generic-api/scripts/build-staging-schema-bundle.mjs|DOCKER_HOST|environment_reference|docker.host",
       "owner": "platform-team",
       "reason": "Reviewed in PR #7465: DOCKER_HOST is inspected only to reject non-local Docker contexts before disposable schema generation; the generator is schema-only, fail-closed, and cannot access Production or providers.",

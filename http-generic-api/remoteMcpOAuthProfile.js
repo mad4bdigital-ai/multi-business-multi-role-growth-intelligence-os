@@ -4,6 +4,11 @@ import {
   REMOTE_MCP_SUPPORTED_SCOPES as CATALOG_REMOTE_MCP_SUPPORTED_SCOPES,
 } from "./remoteMcpScopeCatalog.js";
 import { TENANT_GPT_SCOPE_AUTHORITY_URL } from "./tenantGptOAuthPreset.js";
+import {
+  getRemoteMcpClientProfile,
+  remoteMcpProfileConfigKey,
+  remoteMcpProfileSecretRef,
+} from "./remoteMcpClientProfileRegistry.js";
 
 export const REMOTE_MCP_RESOURCE = "https://mcp.mad4b.com";
 export const REMOTE_MCP_AUTHORIZATION_SERVER = "https://auth.mad4b.com/auth/mcp";
@@ -26,8 +31,8 @@ export function remoteMcpScopeAuthority() {
   return `${TENANT_GPT_SCOPE_AUTHORITY_URL}/scopes/*`;
 }
 
-export function remoteMcpClientConfigKey(environment) {
-  return `remote_mcp.oauth.client.${normalizeRemoteMcpEnvironment(environment)}`;
+export function remoteMcpClientConfigKey(environment, profileKey = "generic_remote_mcp_client") {
+  return remoteMcpProfileConfigKey(environment, profileKey);
 }
 
 const REMOTE_MCP_ENVIRONMENT_KEYS = new Set(["staging", "production"]);
@@ -92,17 +97,18 @@ export function resolveRemoteMcpEnvironment(env = process.env) {
   return "unknown";
 }
 
-export function getRemoteMcpEnvironmentProfile(env = process.env) {
+export function getRemoteMcpEnvironmentProfile(env = process.env, profileKey = env.REMOTE_MCP_CLIENT_PROFILE_KEY || "generic_remote_mcp_client") {
   const environment = resolveRemoteMcpEnvironment(env);
+  const profile = getRemoteMcpClientProfile(profileKey);
   return {
     environment,
+    profile_key: profile.profile_key,
+    profile,
     resource: resolveRemoteMcpOAuthResource(env),
     authorization_server: resolveRemoteMcpAuthorizationIssuer(env),
     scope_authority: remoteMcpScopeAuthority(),
-    client_config_key: remoteMcpClientConfigKey(environment),
-    client_secret_ref: environment === "unknown"
-      ? ""
-      : `${REMOTE_MCP_CLIENT_SECRET_REF_PREFIX}${environment.toUpperCase()}_OAUTH_CLIENT_SECRET`,
+    client_config_key: remoteMcpClientConfigKey(environment, profile.profile_key),
+    client_secret_ref: environment === "unknown" ? "" : remoteMcpProfileSecretRef(environment, profile.profile_key),
     client_id_prefix: remoteMcpClientIdPrefix(environment),
     secrets_included: false,
   };

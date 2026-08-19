@@ -16,6 +16,12 @@ import {
   remoteMcpDynamicRedirectUriAllowed,
   sha256,
 } from "./remoteMcpOAuthProfile.js";
+import {
+  getRemoteMcpClientProfile,
+  listRemoteMcpClientProfiles,
+  normalizeRemoteMcpProfileRedirectUris,
+  remoteMcpProfileConfigKey,
+} from "./remoteMcpClientProfileRegistry.js";
 
 export const REMOTE_MCP_CLIENT_PROVISIONING_VERSION = "mad4b.remote-mcp-client-provisioning.v1";
 
@@ -43,10 +49,6 @@ function secretKeyFromRef(reference) {
   return match?.[1] || "";
 }
 
-function secretRefForEnvironment(environment) {
-  return `platform_secret:REMOTE_MCP_${environment.toUpperCase()}_OAUTH_CLIENT_SECRET`;
-}
-
 function generateRemoteMcpOAuthClientSecret() {
   return `m4b_rmcp_${randomBytes(32).toString("base64url")}`;
 }
@@ -60,18 +62,6 @@ function assertSecretLength(secret) {
   }
 }
 
-function normalizeRedirectUris(value, env) {
-  const supplied = Array.isArray(value) ? value : [];
-  const normalized = [...new Set(supplied.map((uri) => normalizeRemoteMcpRedirectUri(uri, env)).filter(Boolean))];
-  if (!normalized.length || normalized.length !== supplied.length || normalized.some((uri) => !remoteMcpDynamicRedirectUriAllowed(uri, env))) {
-    const error = new Error("At least one exact approved HTTPS redirect URI is required for a Remote MCP client.");
-    error.code = "remote_mcp_client_redirect_uri_invalid";
-    error.status = 400;
-    throw error;
-  }
-  return normalized;
-}
-
 function normalizeProvisioningInput(args = {}) {
   const inputEnv = args.env || process.env;
   const environment = normalizeRemoteMcpEnvironment(args.environment || inputEnv.REMOTE_MCP_ENVIRONMENT);
@@ -82,8 +72,10 @@ function normalizeProvisioningInput(args = {}) {
     throw error;
   }
 
-  const env = { ...inputEnv, REMOTE_MCP_ENVIRONMENT: environment };
-  const profile = getRemoteMcpEnvironmentProfile(env);
+  const profileKey = text(args.profile_key || inputEnv.REMOTE_MCP_CLIENT_PROFILE_KEY || "generic_remote_mcp_client", 80).toLowerCase();
+  const clientProfile = getRemoteMcpClientProfile(profileKey);
+  const env = { ...inputEnv, REMOTE_MCP_ENVIRONMENT: environment, REMOTE_MCP_CLIENT_PROFILE_KEY: profileKey };
+  const profile = getRemoteMcpEnvironmentProfile(env, profileKey);
   if (!profile.resource || !profile.authorization_server) {
     const error = new Error("Remote MCP resource and authorization server must resolve before client provisioning.");
     error.code = "remote_mcp_environment_profile_invalid";
@@ -91,7 +83,7 @@ function normalizeProvisioningInput(args = {}) {
     throw error;
   }
 
-  const tokenEndpointAuthMethod = normalizeTokenEndpointAuthMethod(args.token_endpoint_auth_method || "client_secret_basic");
+  const tokenEndpointAuthMethod = normalizeTokenEndpointAuthMethod(args.token_endpoint_auth_method || clientProfile.token_endpoint_auth_method || "client_secret_basic");
   if (tokenEndpointAuthMethod !== "client_secret_basic" && tokenEndpointAuthMethod !== "client_secret_post") {
     const error = new Error("Governed Remote MCP provisioning requires a confidential client authentication method.");
     error.code = "remote_mcp_confidential_client_required";
@@ -121,15 +113,17 @@ function normalizeProvisioningInput(args = {}) {
     env,
     profile,
     environment,
+    profileKey,
+    clientProfile,
     clientId: requestedClientId,
-    clientName: text(args.client_name || `MAD4B Remote MCP ${environment}`, 255),
+    clientName: text(args.client_name || `${clientProfile.display_name} (${environment})`, 255),
     tokenEndpointAuthMethod,
-    redirectUris: args.redirect_uris ? normalizeRedirectUris(args.redirect_uris, env) : [],
+    redirectUris: args.redirect_uris ? normalizeRemoteMcpProfileRedirectUris(args.redirect_uris, profileKey, env) : [],
     allowedScopes: scopeResult.scopes,
     scopesExplicit,
     requestedSecret: String(args.client_secret || "").trim(),
     rotate: args.rotate === true,
-    note: text(args.note || `remote_mcp_oauth_client_${environment}`, 255),
+    note: text(args.note || `remote_mcp_oauth_client_${environment}_${profileKey}`, 255),
   };
 }
 
@@ -177,14 +171,14 @@ async function readProvisionedState(connection, profile) {
   };
 }
 
-async function upsertPlatformSecret(connection, { secretKey, value, environment, note }) {
+async function upsertPlatformSecret(connection, { secretKey, value, environment, profileKey, note }) {
   if (!secretKey) throw new Error("remote_mcp_client_secret_ref_invalid");
   assertSecretLength(value);
   const valueSha256 = createHash("sha256").update(value, "utf8").digest("hex");
   const metadata = JSON.stringify({
     provisioning_status: "stored",
     environment,
-    required_for: remoteMcpClientConfigKey(environment),
+    required_for: remoteMcpProfileConfigKey(environment, profileKey),
     source: REMOTE_MCP_CLIENT_PROVISIONING_VERSION,
   });
   await connection.query(
@@ -207,7 +201,7 @@ async function upsertPlatformSecret(connection, { secretKey, value, environment,
 
 export async function readRemoteMcpOAuthClientProvisioningStatus({ env = process.env, pool = getPool() } = {}) {
   try {
-    const normalized = normalizeProvisioningInput({ env, environment: env.REMOTE_MCP_ENVIRONMENT });
+    const normalized = normalizeProvisioningInput({ env, environment: env.REMOTE_MCP_ENVIRONMENT, profile_key: env.REMOTE_MCP_CLIENT_PROFILE_KEY });
     const connection = pool?.getConnection ? await pool.getConnection() : pool;
     try {
       const state = await readProvisionedState(connection, normalized.profile);
@@ -215,6 +209,8 @@ export async function readRemoteMcpOAuthClientProvisioningStatus({ env = process
         ok: true,
         provisioning_version: REMOTE_MCP_CLIENT_PROVISIONING_VERSION,
         environment: normalized.environment,
+        profile_key: normalized.profileKey,
+        profile_name: normalized.clientProfile.display_name,
         resource: normalized.profile.resource,
         authorization_server: normalized.profile.authorization_server,
         scope_authority: remoteMcpScopeAuthority(),
@@ -222,11 +218,12 @@ export async function readRemoteMcpOAuthClientProvisioningStatus({ env = process
         client_id: state.config?.client_id || null,
         client_id_prefix: normalized.profile.client_id_prefix,
         client_name: state.client?.client_name || state.config?.client_name || null,
-        client_profile_key: state.client?.client_profile_key || null,
+        client_profile_key: state.client?.client_profile_key || normalized.profileKey,
         token_endpoint_auth_method: state.client?.token_endpoint_auth_method || null,
         client_status: state.client?.status || "missing",
         registered_redirect_uri_count: parseJsonArray(state.client?.redirect_uris_json).length,
         allowed_scope_count: parseJsonArray(state.client?.allowed_scopes_json).length,
+        callback_mode: normalized.clientProfile.callback.mode,
         client_secret_ref: state.config?.client_secret_ref || normalized.profile.client_secret_ref,
         secret_storage_backend: state.secret?.storage_backend || null,
         secret_present: Boolean(state.secret?.status === "active" && state.secret?.value_ciphertext),
@@ -245,6 +242,23 @@ export async function readRemoteMcpOAuthClientProvisioningStatus({ env = process
       secrets_included: false,
     };
   }
+}
+
+export async function listRemoteMcpOAuthClientProvisioningStatus({ env = process.env, pool = getPool() } = {}) {
+  const profiles = listRemoteMcpClientProfiles();
+  const statuses = [];
+  for (const profile of profiles) {
+    statuses.push(await readRemoteMcpOAuthClientProvisioningStatus({
+      env: { ...env, REMOTE_MCP_CLIENT_PROFILE_KEY: profile.profile_key },
+      pool,
+    }));
+  }
+  return {
+    ok: statuses.every((status) => status.ok),
+    environment: normalizeRemoteMcpEnvironment(env.REMOTE_MCP_ENVIRONMENT),
+    profiles: statuses,
+    secrets_included: false,
+  };
 }
 
 export async function provisionRemoteMcpOAuthClient(args = {}) {
@@ -282,7 +296,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
       }
       clientId = stored.client_id;
     } else {
-      clientId = clientId || generateRemoteMcpClientId(input.env);
+      clientId = clientId || generateRemoteMcpClientId(input.env, input.profileKey);
     }
     if (!isRemoteMcpClientIdForEnvironment(clientId, input.env)) {
       const error = new Error("The Remote MCP client ID is not valid for the selected environment.");
@@ -299,7 +313,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
       : parseJsonArray(state.client?.allowed_scopes_json);
     effectiveRedirectUris = redirectUris;
     effectiveAllowedScopes = allowedScopes;
-    const clientName = input.clientName || stored?.client_name || state.client?.client_name || `MAD4B Remote MCP ${input.environment}`;
+    const clientName = input.clientName || stored?.client_name || state.client?.client_name || `${input.clientProfile.display_name} (${input.environment})`;
     const secretRef = input.profile.client_secret_ref;
     const secretKey = secretKeyFromRef(secretRef);
     const needsSecret = input.rotate
@@ -316,6 +330,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
         secretKey,
         value: oneTimeSecret,
         environment: input.environment,
+        profileKey: input.profileKey,
         note: input.note,
       });
       created = true;
@@ -343,7 +358,7 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
                 status = 'active',
                 updated_at = CURRENT_TIMESTAMP
           WHERE client_id = ?`,
-        [clientName, "generic_remote_mcp_client", input.tokenEndpointAuthMethod, clientSecretHash, JSON.stringify(redirectUris), JSON.stringify(allowedScopes), clientId],
+        [clientName, input.profileKey, input.tokenEndpointAuthMethod, clientSecretHash, JSON.stringify(redirectUris), JSON.stringify(allowedScopes), clientId],
       );
     } else {
       await connection.query(
@@ -351,14 +366,16 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
           (client_id, client_name, client_profile_key, token_endpoint_auth_method,
            client_secret_hash, redirect_uris_json, allowed_scopes_json,
            registration_access_token_hash, status)
-         VALUES (?, ?, 'generic_remote_mcp_client', ?, ?, ?, ?, NULL, 'active')`,
-        [clientId, clientName, input.tokenEndpointAuthMethod, clientSecretHash, JSON.stringify(redirectUris), JSON.stringify(allowedScopes)],
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'active')`,
+        [clientId, clientName, input.profileKey, input.tokenEndpointAuthMethod, clientSecretHash, JSON.stringify(redirectUris), JSON.stringify(allowedScopes)],
       );
     }
 
     const config = {
       provisioning_version: REMOTE_MCP_CLIENT_PROVISIONING_VERSION,
       environment: input.environment,
+      profile_key: input.profileKey,
+      client_profile_key: input.profileKey,
       client_id: clientId,
       client_name: clientName,
       client_secret_ref: secretRef,
@@ -393,6 +410,9 @@ export async function provisionRemoteMcpOAuthClient(args = {}) {
     ok: true,
     provisioning_version: REMOTE_MCP_CLIENT_PROVISIONING_VERSION,
     environment: input.environment,
+    profile_key: input.profileKey,
+    client_profile_key: input.profileKey,
+    callback_mode: input.clientProfile.callback.mode,
     client_id: clientId,
     client_secret: oneTimeSecret || null,
     client_secret_created: created,
@@ -414,4 +434,5 @@ export { generateRemoteMcpOAuthClientSecret };
 export default {
   provisionRemoteMcpOAuthClient,
   readRemoteMcpOAuthClientProvisioningStatus,
+  listRemoteMcpOAuthClientProvisioningStatus,
 };
