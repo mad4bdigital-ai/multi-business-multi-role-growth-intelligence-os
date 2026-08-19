@@ -2252,6 +2252,24 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7451: this is a deterministic local test-only encryption fixture, not a deployment credential; the test asserts encrypted/hash persistence and never includes a real secret in tracked files or evidence.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|TARGET_BRANCH|environment_reference|target.branch",
+      "owner": "platform-team",
+      "reason": "Pre-existing main candidate reviewed in context of dynamic profile registry PR: TARGET_BRANCH is a read-only CI branch reference used for policy activation checks; it is not a runtime setting, secret, or Production mutation authority.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|REMOTE_MCP_CLIENT_PROFILE_KEY|environment_reference|remote.mcp.client.profile.key",
+      "owner": "platform-team",
+      "reason": "Reviewed in dynamic profile registry PR: REMOTE_MCP_CLIENT_PROFILE_KEY is an operator-only profile selector for the governed provisioning CLI; it selects which registry profile to provision and requires explicit confirmation for mutation. No secret or Production mutation is authorized.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|profileKey|environment_reference|remote.mcp.client.profile.key",
+      "owner": "platform-team",
+      "reason": "Reviewed in dynamic profile registry PR: profileKey is the normalized local variable derived from REMOTE_MCP_CLIENT_PROFILE_KEY in the operator CLI; it routes to the correct registry profile namespace and requires explicit confirmation for mutation. No secret or Production mutation is authorized.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {
