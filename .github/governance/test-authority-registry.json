@@ -34,6 +34,10 @@
     {
       "id": "semantic_verifier_requirements",
       "test_paths": [".github/tests/repository-governance-closure.test.mjs", ".github/governance/semantic-verifier-requirements.json"]
+    },
+    {
+      "id": "staging_schema_bundle_bootstrap",
+      "test_paths": ["http-generic-api/test-staging-schema-bundle-builder.mjs", "http-generic-api/scripts/build-staging-schema-bundle.mjs"]
     }
   ],
   "deleted_test_mode": "block_without_replacement",
