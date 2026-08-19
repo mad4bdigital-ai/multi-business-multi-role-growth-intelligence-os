@@ -393,7 +393,7 @@ function Start-LocalStaging([string]$RepoPath, [string]$Sha, [string]$EnvFile) {
     Invoke-Native "powershell.exe" $args
 }
 
-function Seed-SchemaIfAvailable([string]$RepoPath, [string]$ScriptRoot) {
+function Seed-SchemaIfAvailable([string]$RepoPath, [string]$ScriptRoot, [string]$Sha) {
     $dumpDir = Join-Path $ScriptRoot "staging-db-dumps"
     $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
     $available = (Test-Path $dumpDir) -and (($required | Where-Object { -not (Test-Path (Join-Path $dumpDir $_)) }).Count -eq 0)
@@ -403,7 +403,7 @@ function Seed-SchemaIfAvailable([string]$RepoPath, [string]$ScriptRoot) {
         return "skipped_no_schema_bundle"
     }
     $clone = Join-Path $ScriptRoot "Clone-StagingDatabases.ps1"
-    $cloneArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-Mode", "schema_only")
+    $cloneArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-ExpectedCommit", $Sha, "-Mode", "schema_only")
     if ($ApplySchemaBundle) {
         $cloneArgs += "-Apply"
         Invoke-Native "powershell.exe" $cloneArgs
@@ -412,6 +412,17 @@ function Seed-SchemaIfAvailable([string]$RepoPath, [string]$ScriptRoot) {
     Invoke-Native "powershell.exe" $cloneArgs
     Write-Host "Schema bundle found and validated in dry-run mode. Use -ApplySchemaBundle for explicit local Staging database mutation."
     return "schema_only_dry_run"
+}
+
+function Read-SchemaImportState([string]$ScriptRoot, [string]$Sha) {
+    $statePath = Join-Path $ScriptRoot "staging-db-dumps\schema-import-state.json"
+    if (-not (Test-Path -LiteralPath $statePath)) { Fail "Schema import state is missing after explicit apply: $statePath" }
+    try { $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json } catch { Fail "Schema import state is invalid: $statePath" }
+    if ([string]$state.status -ne "completed") { Fail "Schema import did not complete: $($state.status)" }
+    if ([string]$state.source_commit -ne $Sha.ToLowerInvariant()) { Fail "Schema import source commit mismatch" }
+    if ([string]$state.mode -ne "schema_only" -or $state.post_import_role_table_verification -ne $true) { Fail "Schema import verification evidence is incomplete" }
+    if ($state.production_accessed -ne $false -or $state.provider_accessed -ne $false) { Fail "Schema import safety evidence is not fail-closed" }
+    return $state
 }
 
 function Invoke-StagingRecertification([string]$RepoPath, [string]$Sha) {
@@ -485,8 +496,10 @@ if ($Mode -eq "Validate") {
 }
 
 Start-LocalStaging $repo $sha $envFile
-$databaseState = Seed-SchemaIfAvailable $repo $scriptRoot
+$databaseState = Seed-SchemaIfAvailable $repo $scriptRoot $sha
+$schemaImportState = $null
 if ($databaseState -eq "schema_only_applied") {
+    $schemaImportState = Read-SchemaImportState $scriptRoot $sha
     Write-StagingLog -Level info -Component $LogComponent -Stage "database-seed" -Message "explicit Staging schema seed completed; re-certifying same exact commit" -Data @{ sha = $sha }
     Invoke-StagingRecertification $repo $sha
 }
@@ -509,6 +522,10 @@ $schemaSeedApplied = $databaseState -eq "schema_only_applied"
     certified_branch = [string]$runtimeState.certified_branch
     certification_degraded_reasons = @($runtimeState.certification_degraded_reasons)
     database_readiness = [string]$runtimeState.database_readiness
+    schema_import_contract = if ($null -ne $schemaImportState) { [string]$schemaImportState.contract } else { "not_applied" }
+    schema_import_status = if ($null -ne $schemaImportState) { [string]$schemaImportState.status } else { "not_applied" }
+    schema_import_source_commit = if ($null -ne $schemaImportState) { [string]$schemaImportState.source_commit } else { "not_applied" }
+    schema_import_role_table_verification = if ($null -ne $schemaImportState) { ($schemaImportState.post_import_role_table_verification -eq $true) } else { $false }
     migration_applied = $false
     database_mutated = $schemaSeedApplied
     production_deploy = $false

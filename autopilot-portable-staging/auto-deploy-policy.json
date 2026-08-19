@@ -32,6 +32,49 @@
       "activation.mad4b.com"
     ]
   },
+  "schema_bundle_lifecycle": {
+    "manifest_file": "staging-schema-bundle-manifest.json",
+    "manifest_contract": "mad4b.staging.schema-bundle-output.v1",
+    "import_state_file": "schema-import-state.json",
+    "import_state_contract": "mad4b.staging.schema-import-state.v1",
+    "requires_exact_source_commit": true,
+    "requires_schema_only": true,
+    "required_role_files": [
+      "runtime.schema.sql.gz",
+      "governance.schema.sql.gz",
+      "persistence.schema.sql.gz"
+    ],
+    "requires_sha256_and_gzip_verification": true,
+    "requires_post_import_exact_role_table_sets": true,
+    "requires_import_mutex": true,
+    "sanitized_data_default": false
+  },
+  "preflight_lifecycle": {
+    "docker_contexts": ["default", "desktop-linux"],
+    "remote_docker_forbidden": true,
+    "required_mariadb_image": "mariadb:11.4",
+    "docker_server_required": true,
+    "dirty_worktree_forbidden": true,
+    "wrong_sha_forbidden": true
+  },
+  "logging_lifecycle": {
+    "schema_version": 2,
+    "operations_file": "operations.jsonl",
+    "named_mutex": "Global\\Mad4bStagingOperationsLog",
+    "lock_timeout_ms": 15000,
+    "append_retries": 6,
+    "atomic_status_writes": true,
+    "secret_redaction_required": true
+  },
+  "health_monitor_lifecycle": {
+    "minimum_interval_seconds": 30,
+    "default_interval_seconds": 60,
+    "max_backoff_seconds": 900,
+    "single_instance_mutex": "Global\\Mad4bStagingHealthMonitor",
+    "docker_server_readiness_required": true,
+    "recovery_transition_required": true,
+    "repeated_failure_suppression_required": true
+  },
   "safety": {
     "production_deploy": false,
     "hostinger_mutation": false,

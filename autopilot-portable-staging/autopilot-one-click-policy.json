@@ -15,6 +15,36 @@
   },
   "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
   "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
+  "lifecycle": {
+    "preflight": {
+      "docker_server_required": true,
+      "local_contexts": ["default", "desktop-linux"],
+      "mariadb_image": "mariadb:11.4",
+      "dirty_worktree_forbidden": true,
+      "exact_commit_required": true
+    },
+    "schema_import": {
+      "manifest_contract": "mad4b.staging.schema-bundle-output.v1",
+      "state_contract": "mad4b.staging.schema-import-state.v1",
+      "sha256_required": true,
+      "gzip_validation_required": true,
+      "role_table_readback_required": true,
+      "import_mutex_required": true,
+      "recertify_same_commit_after_apply": true
+    },
+    "logging": {
+      "schema_version": 2,
+      "named_mutex": "Global\\Mad4bStagingOperationsLog",
+      "atomic_status_writes": true,
+      "retry_backoff_required": true
+    },
+    "health_monitor": {
+      "single_instance_mutex": "Global\\Mad4bStagingHealthMonitor",
+      "docker_server_gate": true,
+      "failure_backoff_seconds": [60, 120, 240, 480, 900],
+      "recovery_event_required": true
+    }
+  },
   "database_seed": {
     "default_mode": "schema_only_dry_run_if_local_bundle_exists",
     "apply_requires_explicit_switch": true,

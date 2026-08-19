@@ -34,8 +34,9 @@ function fail(message) {
 
 function text(value) { return String(value ?? "").trim(); }
 function sha256(value) { return crypto.createHash("sha256").update(value).digest("hex"); }
-function run(command, commandArgs, { input = undefined, allowFailure = false } = {}) {
-  const result = spawnSync(command, commandArgs, { input, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+function run(command, commandArgs, { input = undefined, allowFailure = false, timeoutMs = 30000 } = {}) {
+  const result = spawnSync(command, commandArgs, { input, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: timeoutMs, killSignal: "SIGKILL" });
+  if (result.error?.code === "ETIMEDOUT") fail(`${command} ${commandArgs.join(" ")} timed out after ${timeoutMs}ms`);
   if (result.error) fail(`${command} could not start: ${result.error.message}`);
   if (!allowFailure && result.status !== 0) {
     const stderr = text(result.stderr).slice(-4000);
@@ -47,9 +48,11 @@ function run(command, commandArgs, { input = undefined, allowFailure = false } =
 
 function requireLocalDocker() {
   if (process.env.DOCKER_HOST || process.env.DOCKER_CONTEXT) fail("DOCKER_HOST and DOCKER_CONTEXT are forbidden");
-  const context = text(run("docker", ["context", "show"]).stdout);
+  const context = text(run("docker", ["context", "show"], { timeoutMs: 10000 }).stdout);
   if (!new Set(["default", "desktop-linux"]).has(context)) fail(`Docker context must be local; received ${context}`);
-  if (!text(run("docker", ["info", "--format", "{{.ServerVersion}}"]).stdout)) fail("Docker daemon is unavailable");
+  if (!text(run("docker", ["info", "--format", "{{.ServerVersion}}"], { timeoutMs: 15000 }).stdout)) fail("Docker daemon is unavailable");
+  const image = run("docker", ["image", "inspect", "mariadb:11.4", "--format", "{{.Id}}"], { allowFailure: true, timeoutMs: 15000 });
+  if (image.status !== 0 || !/^sha256:[0-9a-f]{64}$/i.test(text(image.stdout))) fail("Required local image mariadb:11.4 is unavailable; run docker pull mariadb:11.4 before schema build");
 }
 
 function assertRepositoryState() {
@@ -151,7 +154,7 @@ function dockerExec(args, options = {}) {
 function dbArgs(extra = []) { return ["--protocol=socket", "-uroot", `-p${rootPassword}`, "--database", buildDatabase, ...extra]; }
 
 function startDatabase() {
-  run("docker", ["run", "--detach", "--rm", "--name", containerName, "-e", `MARIADB_ROOT_PASSWORD=${rootPassword}`, "-e", `MARIADB_DATABASE=${buildDatabase}`, "mariadb:11.4"]);
+  run("docker", ["run", "--pull=never", "--detach", "--rm", "--name", containerName, "-e", `MARIADB_ROOT_PASSWORD=${rootPassword}`, "-e", `MARIADB_DATABASE=${buildDatabase}`, "mariadb:11.4"], { timeoutMs: 30000 });
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     const result = dockerExec([containerName, "mariadb-admin", "ping", "-h127.0.0.1", "-uroot", `-p${rootPassword}`, "--silent"], { allowFailure: true });
