@@ -1,0 +1,22 @@
+{
+  "contract": "mad4b.repository-semantic-verifier-bindings.v1",
+  "schema_version": 1,
+  "mode": "facet_to_mandatory_verifier",
+  "verifier_registry": ".github/governance/verifier-registry.json",
+  "bindings": [
+    {"facet":"route","required_verifiers":["frontend_openapi_currentness"]},
+    {"facet":"auth_profile","required_verifiers":["frontend_openapi_currentness"]},
+    {"facet":"scope","required_verifiers":["remote_mcp_write_scope_currentness"]},
+    {"facet":"db_effect","required_verifiers":["remote_mcp_write_scope_currentness"]},
+    {"facet":"provider_effect","required_verifiers":["remote_mcp_write_scope_currentness"]},
+    {"facet":"config","required_verifiers":["portable_staging_manifest_currentness"]},
+    {"facet":"generated_contract","required_verifiers":["frontend_openapi_currentness","work_map_currentness","portable_staging_manifest_currentness"]},
+    {"facet":"test_invariant","required_verifiers":["fixed_point:test_authority"]}
+  ],
+  "safety": {
+    "arbitrary_command_forbidden": true,
+    "unknown_facet_mode": "block",
+    "unknown_verifier_mode": "block",
+    "secrets_included": false
+  }
+}
