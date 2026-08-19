@@ -9,7 +9,8 @@ const SOURCE_HEAD_SHA = String(process.env.SOURCE_HEAD_SHA || '').trim().toLower
 const SOURCE_WORKFLOW = String(process.env.SOURCE_WORKFLOW || '').trim();
 const SUMMARY_PATH = String(process.env.READINESS_SUMMARY_PATH || '').trim();
 const EXPECTED_WORKFLOW = 'Governed GitHub Main Review Policy Live Activation';
-const READY_PREFIX = 'GITHUB_MAIN_REVIEW_POLICY_READINESS result=pass ';
+const READY_PREFIX = 'GITHUB_REPOSITORY_POLICY_READINESS result=pass ';
+const ALLOWED_BRANCHES = new Set(['main', 'Production']);
 
 async function github(pathname, options = {}) {
   const response = await fetch(`https://api.github.com${pathname}`, {
@@ -44,8 +45,11 @@ assert.equal(String(sourceRun?.head_sha || '').toLowerCase(), SOURCE_HEAD_SHA);
 
 const summary = JSON.parse(readFileSync(SUMMARY_PATH, 'utf8'));
 assert.equal(summary?.result, 'ready_for_apply');
+assert.ok(ALLOWED_BRANCHES.has(summary?.target_branch), 'Readiness target branch is not registered');
+assert.match(String(summary?.target_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.main_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.production_sha || ''), /^[0-9a-f]{40}$/);
+assert.equal(summary.target_sha, summary.target_branch === 'main' ? summary.main_sha : summary.production_sha);
 assert.match(String(summary?.policy_fingerprint || ''), /^[0-9a-f]{64}$/);
 assert.match(String(summary?.binding_sha256 || ''), /^[0-9a-f]{64}$/);
 assert.equal(summary?.migration_1051_verified, true);
@@ -55,20 +59,11 @@ assert.equal(summary?.provider_call_executed, false);
 assert.equal(summary?.external_write_executed, false);
 assert.equal(summary?.secrets_included, false);
 
-const marker = `${READY_PREFIX}main_sha=${summary.main_sha} policy_fingerprint=${summary.policy_fingerprint} binding_sha256=${summary.binding_sha256}`;
+const marker = `${READY_PREFIX}branch=${summary.target_branch} target_sha=${summary.target_sha} policy_fingerprint=${summary.policy_fingerprint} binding_sha256=${summary.binding_sha256}`;
+assert.equal(summary?.readiness_marker, marker, 'Readiness summary marker contract mismatch');
 const comments = await github(`/repos/${REPO}/issues/${ISSUE}/comments?per_page=100`);
 if (comments.some((comment) => String(comment?.body || '').trim() === marker)) {
-  console.log(JSON.stringify({
-    ok: true,
-    action: 'unchanged',
-    issue: ISSUE,
-    source_run_id: SOURCE_RUN_ID,
-    source_head_sha: SOURCE_HEAD_SHA,
-    main_sha: summary.main_sha,
-    policy_fingerprint: summary.policy_fingerprint,
-    binding_sha256: summary.binding_sha256,
-    secrets_included: false,
-  }));
+  console.log(JSON.stringify({ ok: true, action: 'unchanged', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, target_branch: summary.target_branch, target_sha: summary.target_sha, policy_fingerprint: summary.policy_fingerprint, binding_sha256: summary.binding_sha256, secrets_included: false }));
   process.exit(0);
 }
 
@@ -77,14 +72,4 @@ await github(`/repos/${REPO}/issues/${ISSUE}/comments`, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ body: marker }),
 });
-console.log(JSON.stringify({
-  ok: true,
-  action: 'created',
-  issue: ISSUE,
-  source_run_id: SOURCE_RUN_ID,
-  source_head_sha: SOURCE_HEAD_SHA,
-  main_sha: summary.main_sha,
-  policy_fingerprint: summary.policy_fingerprint,
-  binding_sha256: summary.binding_sha256,
-  secrets_included: false,
-}));
+console.log(JSON.stringify({ ok: true, action: 'created', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, target_branch: summary.target_branch, target_sha: summary.target_sha, policy_fingerprint: summary.policy_fingerprint, binding_sha256: summary.binding_sha256, secrets_included: false }));
