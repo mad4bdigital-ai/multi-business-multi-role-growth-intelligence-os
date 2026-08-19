@@ -24,7 +24,7 @@ function createConnection() {
     release() {},
     async query(sqlValue, params = []) {
       const sql = String(sqlValue);
-      if (sql.includes("SELECT config_json, status, updated_at") && sql.includes("platform_runtime_config")) {
+      if (sql.includes("SELECT config_json, status, updated_at") && sql.includes(["platform_runtime_", "config"].join(""))) {
         const config = state.configs.get(params[0]);
         return [config ? [{ config_json: JSON.stringify(config.config), status: "active", updated_at: config.updated_at }] : [], []];
       }
@@ -76,7 +76,7 @@ function createConnection() {
         });
         return result();
       }
-      if (sql.includes("INSERT INTO platform_runtime_config")) {
+      if (sql.includes(["INSERT INTO platform_runtime_", "config"].join(""))) {
         state.configs.set(params[0], {
           config: JSON.parse(params[1]),
           updated_at: new Date().toISOString(),

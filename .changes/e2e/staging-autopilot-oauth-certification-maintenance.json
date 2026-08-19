@@ -65,6 +65,7 @@
             "Existing non-empty secrets are preserved and no secret payload is committed or emitted.",
             "No Production mutation, deployment, migration, grant, provider mutation, or force push is introduced.",
             "Environment impact is derived from the canonical deployment/domain policies, shared runtime changes declare both affected environments, and Staging certification remains mandatory.",
+            "Configuration candidate discovery and drift guard converge with zero findings: new operator inputs are explicitly reviewed with bounded expiry, runtime settings follow Config Catalog governance, and policy/storage contracts are not silently promoted to runtime configuration.",
             "The maintenance PR remains mergeable with the current main ref after governed reconciliation, and no force-push or protected-branch mutation is used.",
             "secrets_included is false."
           ],
@@ -105,6 +106,13 @@
               "args": []
             },
             {
+              "id": "configuration-candidate-drift-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-configuration-drift-guard.mjs",
+              "args": []
+            },
+            {
               "id": "staging-environment-certification-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -138,6 +146,10 @@
             "http-generic-api/scripts/provision-remote-mcp-client.mjs",
             "http-generic-api/test-remote-mcp-client-provisioning.mjs",
             "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+            "http-generic-api/scripts/test-configuration-drift-guard.mjs",
+            "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+            "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+            "docs/governance/configuration-drift-policy.json",
             "http-generic-api/routes/remoteMcpOAuthRoutes.js",
             "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
             "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
