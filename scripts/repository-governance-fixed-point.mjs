@@ -162,7 +162,10 @@ function validateExecutableUniverse(files, registry) {
       for (const file of validatorFiles) record(validator, [file], run("bash", ["-n", file], { cwd: root }));
     } else if (validator === "powershell_parser") {
       const code = "$p=$args[0];$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
-      for (const file of validatorFiles) record(validator, [file], run("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code, file], { cwd: root }));
+      for (const file of validatorFiles) {
+        const absolute = path.resolve(root, file);
+        record(validator, [file], run("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code, absolute], { cwd: root }));
+      }
     } else if (validator === "registered_sql_policy") {
       for (const file of validatorFiles) {
         let ok = true, stderr = "";
