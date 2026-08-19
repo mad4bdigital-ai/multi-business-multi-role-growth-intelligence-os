@@ -126,6 +126,10 @@ runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /scripts\/platform-work-map-generator\.mjs", "--write"/u);
   assert.match(toolSource, /scripts\/spec014-refresh-final-work-map-binding\.mjs/u);
   assert.match(toolSource, /014-retail-commerce-operations-growth-os/u);
+  assert.match(toolSource, /final-repository-governance-enforcement-semantic-closure-20260819/u);
+  assert.ok(toolSource.includes(String.raw`/^\.github\/derived-state-governance\.json$/u`));
+  assert.ok(toolSource.includes(String.raw`/^scripts\/repository-governance-fixed-point\.mjs$/u`));
+  assert.equal(toolSource.includes(".github/governance/**"), false);
   assert.match(toolSource, /capture_first_work_map_bootstrap_diff/u);
   assert.match(toolSource, /capture_second_work_map_bootstrap_diff/u);
   assert.match(toolSource, /work_map_self_hosting_not_idempotent/u);
