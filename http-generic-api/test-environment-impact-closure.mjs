@@ -56,6 +56,7 @@ assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-parallel-work-govern
 assert.deepEqual(classifyPath("http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/github-review-policy-target.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/test-github-review-policy-target.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["staging_only", "repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
 

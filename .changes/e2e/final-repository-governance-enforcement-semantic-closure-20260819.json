@@ -17,8 +17,10 @@
       ".github/tests/repository-governance-fixed-point.test.mjs",
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-closure.yml",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "scripts/repository-governance-fixed-point.mjs"
     ]
@@ -71,7 +73,8 @@
             {"id":"repository-governance-fixed-point-contract","runner":"node","working_directory":".","path":".github/tests/repository-governance-fixed-point.test.mjs","args":[]},
             {"id":"repository-governance-base-regression","runner":"node","working_directory":".","path":".github/tests/repository-governance-closure.test.mjs","args":[]},
             {"id":"derived-state-fixed-point-regression","runner":"node","working_directory":".","path":".github/tests/derived-state-closure.test.mjs","args":[]},
-            {"id":"generated-artifact-refresh-scope-regression","runner":"node","working_directory":".","path":"http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs","args":[]}
+            {"id":"generated-artifact-refresh-scope-regression","runner":"node","working_directory":".","path":"http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs","args":[]},
+            {"id":"environment-impact-classification-regression","runner":"node","working_directory":".","path":"http-generic-api/test-environment-impact-closure.mjs","args":[]}
           ],
           "evidence_paths": [
             ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
@@ -81,8 +84,10 @@
             ".github/governance/test-authority-registry.json",
             ".github/governance/verifier-registry.json",
             ".github/tests/repository-governance-fixed-point.test.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "scripts/repository-governance-fixed-point.mjs",
             ".github/workflows/policy-objection-ci.yml",
