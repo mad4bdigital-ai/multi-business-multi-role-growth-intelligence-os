@@ -15,7 +15,7 @@ jobs:
   objections:
     name: Policy Objection Gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout exact GitHub merge candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -27,18 +27,23 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install fixed-point validator dependencies without lifecycle side effects
+        run: npm ci --ignore-scripts
       - name: Prove exact candidate identity
         env:
           MERGE_CANDIDATE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$MERGE_CANDIDATE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - name: Check every tracked JavaScript module recursively
         shell: bash
         run: |
           set -euo pipefail
           git ls-files -z -- '*.js' '*.mjs' '*.cjs' | xargs -0 -r -n 1 -P 4 node --check
-      - name: Evaluate dynamic semantic repository policies
+      - name: Evaluate dynamic semantic repository fixed point
         env:
           SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -49,7 +54,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$OUT"
           node scripts/repository-governance-closure.mjs --self-test
-          node scripts/repository-governance-closure.mjs \
+          node scripts/repository-governance-fixed-point.mjs --self-test
+          node scripts/repository-governance-fixed-point.mjs \
             --expected-sha "$MERGE_CANDIDATE_SHA" \
             --base-sha "$BASE_SHA" \
             --candidate-kind github_merge_candidate \
@@ -59,15 +65,19 @@ jobs:
             --governance-report "$OUT/repository-governance.json" \
             --report-file "$OUT/policy-objections.json"
           node .github/tests/repository-governance-closure.test.mjs
+          node .github/tests/repository-governance-fixed-point.test.mjs
           node .github/tests/repository-governance-objection-gate.test.mjs
           node http-generic-api/test-github-repository-policy-controller.mjs
           node http-generic-api/test-github-repository-governance-attestation.mjs
           EXECUTED_SHA="$(git rev-parse HEAD)"
           test "$EXECUTED_SHA" = "$MERGE_CANDIDATE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
           node - <<'NODE'
           const fs = require('fs');
           const path = require('path');
           const out = process.env.OUT;
+          const report = JSON.parse(fs.readFileSync(path.join(out, 'repository-governance.json'), 'utf8'));
+          if (report?.fixed_point?.converged !== true) throw new Error('repository governance fixed point is not converged');
           const evidence = {
             contract: 'mad4b.repository-governance-producer-evidence.v1',
             producer_id: 'policy-objection-ci',
@@ -80,6 +90,7 @@ jobs:
             base_sha: process.env.BASE_SHA,
             merge_candidate_sha: process.env.MERGE_CANDIDATE_SHA,
             executed_sha: process.env.MERGE_CANDIDATE_SHA,
+            fixed_point_converged: true,
             status: 'completed',
             conclusion: 'success',
             secrets_included: false,
