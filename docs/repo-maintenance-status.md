@@ -335,10 +335,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-spec011-t141-readiness-canary-schema.mjs`
 - `http-generic-api/test-staging-independent-schema-contract.mjs`
 - `http-generic-api/test-staging-openapi-mcp-db-boundary.mjs`
+- `http-generic-api/test-staging-schema-bundle-builder.mjs`
 - `http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs`
 - `http-generic-api/test-support-ticket-admin-remaining-openapi-contracts.mjs`
-- `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
-- ...and 15 more
+- ...and 16 more
 
 ## Maintenance Contract
 

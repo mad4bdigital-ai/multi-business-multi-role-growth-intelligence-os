@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.staging.database-role-migration-manifest.v1",
+  "status": "active_for_local_schema_only_generation",
+  "source": {
+    "migration_directory": "http-generic-api/migrations",
+    "ordering": "lexicographic_filename",
+    "source_kind": "exact_local_git_checkout",
+    "disposable_database_required": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "data_copy_forbidden": true
+  },
+  "safety": {
+    "confirmation": "BUILD_STAGING_SCHEMA_BUNDLE",
+    "schema_only": true,
+    "data_copy_forbidden": true,
+    "sanitized_data": false,
+    "plaintext_secrets": false,
+    "production_mutation": false,
+    "provider_mutation": false,
+    "hostinger_mutation": false,
+    "cloudflare_mutation": false
+  },
+  "roles": {
+    "runtime": {
+      "database_env": "DB_NAME",
+      "user_env": "DB_USER",
+      "container_service": "runtime-db",
+      "bundle_file": "runtime.schema.sql.gz",
+      "required_tables": [
+        "connected_systems",
+        "brands",
+        "actions",
+        "endpoints",
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools",
+        "customer_sessions",
+        "gpt_session_turns"
+      ],
+      "excluded_tables": [
+        "capability_resolution_envelope_ledger",
+        "approval_holds",
+        "governed_migration_authorization_registry",
+        "capability_apply_authorization_policy_registry",
+        "runtime_dispatch_certification_registry",
+        "governed_migration_ledger",
+        "platform_resource_authority_bindings",
+        "platform_resource_recipes",
+        "platform_resource_recipe_steps",
+        "repository_operation_leases",
+        "repository_mutation_plans_v6",
+        "repository_mutation_runs_v6",
+        "runtime_break_glass_incidents",
+        "runtime_break_glass_audit_events",
+        "runtime_verification_runs",
+        "runtime_verification_evidence_chunks",
+        "deployment_attestations",
+        "governed_tool_response_chunks"
+      ],
+      "ownership_policy": "all_disposable_runtime_base_tables_except_explicit_governance_and_persistence_exclusions"
+    },
+    "governance": {
+      "database_env": "GOVERNANCE_DB_NAME",
+      "user_env": "GOVERNANCE_DB_USER",
+      "container_service": "governance-db",
+      "bundle_file": "governance.schema.sql.gz",
+      "required_tables": [
+        "capability_resolution_envelope_ledger",
+        "approval_holds",
+        "governed_migration_authorization_registry",
+        "capability_apply_authorization_policy_registry",
+        "runtime_dispatch_certification_registry",
+        "governed_migration_ledger",
+        "platform_resource_authority_bindings",
+        "platform_resource_recipes",
+        "platform_resource_recipe_steps",
+        "repository_operation_leases",
+        "repository_mutation_plans_v6",
+        "repository_mutation_runs_v6",
+        "runtime_break_glass_incidents",
+        "runtime_break_glass_audit_events",
+        "runtime_verification_runs",
+        "runtime_verification_evidence_chunks",
+        "deployment_attestations"
+      ],
+      "ownership_policy": "explicit_governance_contract_tables_only"
+    },
+    "runtime_persistence": {
+      "database_env": "RUNTIME_PERSISTENCE_DB_NAME",
+      "user_env": "RUNTIME_PERSISTENCE_DB_USER",
+      "container_service": "persistence-db",
+      "bundle_file": "persistence.schema.sql.gz",
+      "required_tables": [
+        "governed_tool_response_chunks"
+      ],
+      "ownership_policy": "explicit_runtime_persistence_contract_tables_only"
+    }
+  },
+  "validation": {
+    "required_role_count": 3,
+    "required_bundle_files": [
+      "runtime.schema.sql.gz",
+      "governance.schema.sql.gz",
+      "persistence.schema.sql.gz"
+    ],
+    "missing_required_table_is_blocking": true,
+    "unexpected_governance_or_persistence_table_is_blocking": true,
+    "runtime_exclusion_violation_is_blocking": true,
+    "empty_bundle_is_blocking": true,
+    "insert_or_data_statement_is_blocking": true,
+    "same_cycle_sha256_manifest_required": true
+  }
+}

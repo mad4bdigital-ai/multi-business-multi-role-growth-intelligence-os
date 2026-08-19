@@ -12,7 +12,22 @@ Before loading the deployment workflow, the CMD entry point runs `Bootstrap-Stag
 
 The launcher is intentionally safe when a schema bundle is absent. It starts fresh local databases and does not apply migrations or copy data. To seed schemas automatically, place the approved local files `runtime.schema.sql.gz`, `governance.schema.sql.gz`, and `persistence.schema.sql.gz` in `autopilot-portable-staging\staging-db-dumps\`; the one-click runner consumes them only as `schema_only`. Production dumps and sanitized data are never accepted by this path.
 
-Use `-RequireSchemaBundle` only when the local schema bundle is already present and the run must fail closed if it is missing.
+When no approved bundle exists, generate one from the exact local Git checkout rather than applying the legacy single-database migration runner. The generator uses disposable MariaDB only, partitions the result into the three declared database roles, emits checksums, rejects authority SQL and data export, and never connects to Production or a provider. From the repository root, first review the plan:
+
+```powershell
+$Sha = (git rev-parse HEAD)
+node .\http-generic-api\scripts\build-staging-schema-bundle.mjs --expected-commit $Sha --plan
+```
+
+After reviewing the plan, generate the local schema-only bundle with the explicit confirmation:
+
+```powershell
+node .\http-generic-api\scripts\build-staging-schema-bundle.mjs `
+  --expected-commit $Sha `
+  --confirm BUILD_STAGING_SCHEMA_BUNDLE
+```
+
+The output is `autopilot-portable-staging\staging-db-dumps\` plus `staging-schema-bundle-manifest.json`. Run the existing importer in dry-run mode first, then use `-ApplySchemaBundle` only for the local Staging databases. The generator and importer both require a clean exact checkout. Use `-RequireSchemaBundle` only when the local schema bundle is already present and the run must fail closed if it is missing.
 
 The one-click runner records only non-secret state in the ignored `one-click-state.json`. It never creates DNS records, changes Cloudflare configuration, deploys Hostinger, runs migrations, or enables Production/provider mutation.
 

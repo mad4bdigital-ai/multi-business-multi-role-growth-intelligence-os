@@ -38,6 +38,10 @@
     {
       "id": "remote_mcp_dynamic_client_profile_registry",
       "test_paths": ["http-generic-api/test-remote-mcp-client-profile-registry.mjs", "http-generic-api/test-remote-mcp-client-provisioning.mjs"]
+    },
+    {
+      "id": "staging_schema_bundle_bootstrap",
+      "test_paths": ["http-generic-api/test-staging-schema-bundle-builder.mjs", "http-generic-api/scripts/build-staging-schema-bundle.mjs"]
     }
   ],
   "deleted_test_mode": "block_without_replacement",
