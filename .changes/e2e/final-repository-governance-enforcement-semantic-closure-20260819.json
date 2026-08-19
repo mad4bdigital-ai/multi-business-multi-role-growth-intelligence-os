@@ -19,6 +19,8 @@
       ".github/workflows/derived-state-closure.yml",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/environment-impact-closure.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
