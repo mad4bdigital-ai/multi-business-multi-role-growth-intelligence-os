@@ -90,6 +90,7 @@
           "http-generic-api/Dockerfile.staging",
           "http-generic-api/.env.staging.example",
           "http-generic-api/scripts/staging-*.mjs",
+          "http-generic-api/scripts/build-staging-schema-bundle.mjs",
           "http-generic-api/test-staging-*.mjs",
           "STAGING-*.md"
         ],

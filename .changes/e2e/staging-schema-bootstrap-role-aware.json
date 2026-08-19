@@ -14,6 +14,8 @@
       "autopilot-portable-staging/autopilot-one-click-policy.json",
       "autopilot-portable-staging/README.md",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "docs/governance/configuration-drift-policy.json",
       ".github/derived-state-governance.json"
     ]
   },
@@ -77,6 +79,8 @@
             "autopilot-portable-staging/autopilot-one-click-policy.json",
             "autopilot-portable-staging/README.md",
             "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "docs/governance/configuration-drift-policy.json",
             ".github/derived-state-governance.json"
           ]
         }
