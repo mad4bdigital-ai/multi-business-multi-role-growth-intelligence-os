@@ -32,8 +32,9 @@ for (const command of [
   'APPLY_GITHUB_PRODUCTION_POLICY',
   'VERIFY_GITHUB_PRODUCTION_POLICY',
 ]) assert.match(liveWorkflow, new RegExp(command));
-assert.match(liveWorkflow, /TARGET_BRANCH: .*'Production'.*'main'/);
-assert.match(liveWorkflow, /POLICY_PHASE:/);
+assert.doesNotMatch(liveWorkflow, /TARGET_BRANCH:/);
+assert.match(liveWorkflow, /POLICY_PHASE: \$\{\{ format\('\{0\}:\{1\}'/);
+assert.match(liveWorkflow, /github-repository-policy-evidence-\$\{\{ github\.run_id \}\}/);
 assert.equal((liveWorkflow.match(/node \.github\/ops\/github-main-review-policy-live-activation\.mjs/g) || []).length, 1, 'One branch-parameterized activation runner should own the lifecycle');
 assert.match(liveWorkflow, /persist-credentials: false/);
 
@@ -43,7 +44,7 @@ assert.match(publisherWorkflow, /Governed GitHub Main Review Policy Live Activat
 assert.match(publisherWorkflow, /actions: read/);
 assert.match(publisherWorkflow, /contents: read/);
 assert.match(publisherWorkflow, /issues: write/);
-assert.match(publisherWorkflow, /github-repository-policy-\(\?:main\|Production\)-readiness-/);
+assert.match(publisherWorkflow, /const expected = `github-repository-policy-evidence-\$\{context\.payload\.workflow_run\.id\}`;/);
 assert.match(publisherWorkflow, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
 assert.match(publisherWorkflow, /persist-credentials: false/);
 
@@ -55,14 +56,15 @@ assert.match(migrationRunner, /external_write_executed: false/);
 assert.match(migrationRunner, /SOURCE_PR must identify the merged source PR/);
 
 assert.equal((liveRunner.match(/applyResponse = await requestRaw\('\/admin\/repository-automation\/policy-controller'/g) || []).length, 1, 'Live policy runner must contain exactly one Ruleset Apply transport call');
-assert.match(liveRunner, /TARGET_BRANCH/);
-assert.match(liveRunner, /TARGET_BRANCH must be main or Production/);
+assert.doesNotMatch(liveRunner, /process\.env\.TARGET_BRANCH/);
+assert.match(liveRunner, /function targetBranch\(\)/);
+assert.match(liveRunner, /function lifecyclePhase\(\)/);
 assert.match(liveRunner, /APPLY_GITHUB_MAIN_REVIEW_POLICY/);
 assert.match(liveRunner, /APPLY_GITHUB_PRODUCTION_POLICY/);
 assert.match(liveRunner, /GITHUB_REPOSITORY_POLICY_READINESS result=pass /);
 assert.match(liveRunner, /expected_commit_sha: targetSha/);
-assert.match(liveRunner, /default_branch: TARGET_BRANCH/);
-assert.match(liveRunner, /assert\.equal\(await currentRefSha\(TARGET_BRANCH\), targetSha/);
+assert.match(liveRunner, /default_branch: targetBranch\(\)/);
+assert.match(liveRunner, /assert\.equal\(await currentRefSha\(targetBranch\(\)\), targetSha/);
 assert.match(liveRunner, /verifyMigration1051Applied/);
 assert.match(liveRunner, /capability_resolution_envelope_apply_authorize/);
 assert.match(liveRunner, /ambiguous_transport_reconciliation/);
@@ -72,6 +74,7 @@ assert.match(liveRunner, /repository_content_mutation_executed: false/);
 
 assert.match(publisher, /EXPECTED_WORKFLOW = 'Governed GitHub Main Review Policy Live Activation'/);
 assert.match(publisher, /ALLOWED_BRANCHES = new Set\(\['main', 'Production'\]\)/);
+assert.match(publisher, /action: 'not_readiness'/);
 assert.match(publisher, /branch=\$\{summary\.target_branch\} target_sha=\$\{summary\.target_sha\}/);
 assert.match(publisher, /assert\.equal\(summary\?\.migration_1051_verified, true\)/);
 assert.match(publisher, /assert\.equal\(summary\?\.envelope_created_by_this_run, false\)/);
