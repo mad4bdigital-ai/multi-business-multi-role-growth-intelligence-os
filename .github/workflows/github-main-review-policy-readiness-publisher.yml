@@ -12,7 +12,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: github-main-review-policy-readiness-publisher-${{ github.event.workflow_run.id }}
+  group: github-repository-policy-readiness-publisher-${{ github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
@@ -32,27 +32,27 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Discover exact readiness evidence artifact
+      - name: Discover exact branch readiness evidence artifact
         id: readiness
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
-            const expected = `github-main-review-policy-readiness-${context.payload.workflow_run.id}`;
+            const suffix = `-readiness-${context.payload.workflow_run.id}`;
             const response = await github.rest.actions.listWorkflowRunArtifacts({ owner: context.repo.owner, repo: context.repo.repo, run_id: context.payload.workflow_run.id, per_page: 100 });
-            const matches = response.data.artifacts.filter((artifact) => artifact.name === expected && artifact.expired === false);
-            if (matches.length > 1) { core.setFailed(`Ambiguous GitHub main review policy readiness artifact: ${matches.length}`); return; }
+            const matches = response.data.artifacts.filter((artifact) => /^github-repository-policy-(?:main|Production)-readiness-/.test(artifact.name) && artifact.name.endsWith(suffix) && artifact.expired === false);
+            if (matches.length > 1) { core.setFailed(`Ambiguous repository policy readiness artifacts: ${matches.length}`); return; }
             core.setOutput('found', matches.length === 1 ? 'true' : 'false');
-            core.setOutput('name', expected);
+            core.setOutput('name', matches[0]?.name || '');
       - name: Download exact readiness evidence
         if: steps.readiness.outputs.found == 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ steps.readiness.outputs.name }}
-          path: ${{ runner.temp }}/github-main-review-policy-readiness
+          path: ${{ runner.temp }}/github-repository-policy-readiness
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-      - name: Publish exact main/fingerprint readiness marker
+      - name: Publish exact branch/fingerprint readiness marker
         if: steps.readiness.outputs.found == 'true'
         shell: bash
         env:
@@ -62,5 +62,5 @@ jobs:
           SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
           CONTROL_ISSUE: '6625'
-          READINESS_SUMMARY_PATH: ${{ runner.temp }}/github-main-review-policy-readiness/summary.json
+          READINESS_SUMMARY_PATH: ${{ runner.temp }}/github-repository-policy-readiness/summary.json
         run: node http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs
