@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   readback:
-    name: Read current main policy without mutation
+    name: Read current main and Production policy without mutation
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
@@ -38,7 +38,7 @@ jobs:
         run: npm ci --ignore-scripts --prefix http-generic-api
       - name: Verify readback dependency boundary
         run: node http-generic-api/test-github-repository-policy-readback-import-isolation.mjs
-      - name: Execute readback-only policy controller
+      - name: Execute two-branch readback-only policy controller
         run: node .github/ops/github-repository-policy-readback.mjs
       - name: Upload no-secret readback evidence
         if: always()
