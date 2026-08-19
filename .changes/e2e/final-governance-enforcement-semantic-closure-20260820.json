@@ -19,6 +19,9 @@
       ".github/derived-state-governance.json",
       "docs/work-maps/README.md",
       "docs/work-maps/repository-automation-map.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "autopilot-portable-staging/manifest.json",
       "docs/governance/final-governance-closure-matrix.md"
     ]
   },
@@ -87,6 +90,9 @@
             ".github/derived-state-governance.json",
             "docs/work-maps/README.md",
             "docs/work-maps/repository-automation-map.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "autopilot-portable-staging/manifest.json",
             ".github/tests/repository-governance-fixed-point.test.mjs",
             "docs/governance/final-governance-closure-matrix.md"
           ]
