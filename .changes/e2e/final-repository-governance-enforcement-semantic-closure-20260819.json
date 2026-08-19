@@ -16,7 +16,6 @@
       ".github/tests/repository-governance-fixed-point.test.mjs",
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-closure.yml",
-      "20260508_add_platform_runtime_config.sql",
       "scripts/repository-governance-fixed-point.mjs"
     ]
   },
@@ -40,22 +39,24 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance maintainer",
           "entrypoint": "Pull request to main",
-          "terminal_outcome": "The exact merge candidate cannot satisfy canonical governance evidence unless semantic verifier projection matches registered authorities, tracked executables pass hardcoded validators, discovered tests remain registered, each invariant retains test and verifier authority, and the same fixed-point result is consumed by Policy Objection CI and Derived State Closure.",
+          "terminal_outcome": "The exact merge candidate cannot satisfy canonical governance evidence unless semantic verifier projection matches registered authorities, tracked executables pass hardcoded validators or a fingerprint-bound governed exclusion, discovered tests remain registered, each invariant retains test and verifier authority, and the same fixed-point result is consumed by Policy Objection CI and Derived State Closure.",
           "steps": [
             "Load the canonical semantic verifier requirements from main and the fixed-point compatibility projection.",
             "Build the repository semantic report on the exact GitHub merge candidate.",
             "Validate JavaScript, TypeScript, Python, Bash, PowerShell and SQL through hardcoded validators without executing repository-supplied commands.",
-            "Delete the superseded zero-byte root SQL artifact after proving the canonical platform_runtime_config migration remains present.",
-            "Discover tracked tests and require registered invariants to retain protecting tests and verifier authorities.",
+            "Keep historical non-executable placeholders only through exact-path governed exclusions bound to the current Git blob fingerprint and an existing canonical replacement.",
+            "Discover tracked tests and require both the canonical invariant authority registry and the fixed-point registry to retain protecting tests and verifier authorities.",
             "Attach fixed-point convergence to canonical Policy Objection producer evidence and require that evidence in Derived State Closure."
           ],
           "assertions": [
             "No new Workflow authority is added.",
             "Registry data cannot provide arbitrary shell commands or arbitrary command-line arguments.",
-            "Tracked executables minus validated executables minus governed exclusions is empty.",
+            "Tracked executables minus successfully validated executables minus fingerprint-bound governed exclusions is empty.",
+            "A governed executable exclusion becomes blocking when its blob fingerprint changes or its declared canonical replacement disappears.",
+            "PowerShell parser validation transports the repository path through a process environment binding rather than interpolating repository data into the PowerShell command string.",
             "Discovered tests minus registered tests minus governed exclusions is empty.",
+            "The fixed-point test is registered in the canonical invariant_authorities consumed by the base closure as well as the fixed-point invariant registry.",
             "Removing the last test protecting a registered invariant fails closed.",
-            "The root 20260508_add_platform_runtime_config.sql zero-byte artifact is removed while http-generic-api/migrations/038_sprint42_platform_runtime_config.sql remains canonical.",
             "Policy Objection CI and Derived State Closure consume the same exact-candidate fixed-point contract.",
             "No live Ruleset Apply, Production deployment, database/provider mutation, credential payload access, force push, or protected-ref mutation is performed by this PR."
           ],

@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { splitMigrationSqlStatements } from "../http-generic-api/migrationSqlStatements.js";
 
@@ -42,6 +43,25 @@ export function globRegex(glob) {
   return new RegExp(`^${source}$`, "u");
 }
 function matchesAny(file, patterns = []) { return patterns.some((pattern) => globRegex(pattern).test(file)); }
+function gitBlobSha(buffer) {
+  const body = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  return createHash("sha1").update(`blob ${body.length}\0`).update(body).digest("hex");
+}
+function executableExclusionMap(registry) {
+  const map = new Map();
+  for (const exclusion of registry.governed_exclusions || []) {
+    if (!exclusion?.path || !exclusion?.expected_blob_sha || !exclusion?.reason || !exclusion?.replacement_path) throw new Error("invalid governed executable exclusion");
+    if (!/^[0-9a-f]{40}$/u.test(exclusion.expected_blob_sha)) throw new Error(`invalid governed executable exclusion fingerprint: ${exclusion.path}`);
+    for (const candidate of [exclusion.path, exclusion.replacement_path]) {
+      const normalized = path.posix.normalize(candidate);
+      if (path.posix.isAbsolute(candidate) || normalized === ".." || normalized.startsWith("../")) throw new Error(`invalid governed executable exclusion path: ${candidate}`);
+    }
+    if (!fs.existsSync(path.join(root, exclusion.replacement_path))) throw new Error(`governed executable exclusion replacement missing: ${exclusion.replacement_path}`);
+    if (map.has(exclusion.path)) throw new Error(`duplicate governed executable exclusion: ${exclusion.path}`);
+    map.set(exclusion.path, exclusion);
+  }
+  return map;
+}
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8")); }
 function gitFiles() {
   const result = spawnSync("git", ["ls-files", "-z"], { cwd: root, encoding: null, maxBuffer: 64 * 1024 * 1024 });
@@ -81,6 +101,7 @@ export function validateRegistryContracts({ semanticBindings, executableRegistry
   if (testAuthority?.contract !== "mad4b.repository-test-authority-registry.v1") errors.push("test_authority_contract_mismatch");
   if (verifierRegistry?.contract !== "mad4b.repository-verifier-registry.v1") errors.push("verifier_registry_contract_mismatch");
   try { validatorMap(executableRegistry); } catch (error) { errors.push(String(error.message || error)); }
+  try { executableExclusionMap(executableRegistry); } catch (error) { errors.push(String(error.message || error)); }
   const facetIds = new Set();
   for (const binding of semanticBindings.bindings || []) {
     if (!binding?.facet || facetIds.has(binding.facet) || !Array.isArray(binding.required_verifiers) || !binding.required_verifiers.length) errors.push(`invalid_semantic_binding:${binding?.facet || "missing"}`);
@@ -132,19 +153,47 @@ export function evaluateTestAuthority(files, registry, verifierRegistry) {
 }
 function validateExecutableUniverse(files, registry) {
   const extensionValidators = validatorMap(registry);
-  const exclusions = registry.governed_exclusions || [];
-  const tracked = files.filter((file) => extensionValidators.has(path.extname(file).toLowerCase()) && !matchesAny(file, exclusions));
-  const byValidator = new Map();
+  const exclusions = executableExclusionMap(registry);
+  const tracked = files.filter((file) => extensionValidators.has(path.extname(file).toLowerCase()));
+  const validationTargets = [];
+  const governedExcluded = [];
+  const failures = [];
   for (const file of tracked) {
+    const exclusion = exclusions.get(file);
+    if (exclusion) {
+      const actualBlobSha = gitBlobSha(fs.readFileSync(path.join(root, file)));
+      if (actualBlobSha === exclusion.expected_blob_sha) {
+        governedExcluded.push({
+          path: file,
+          expected_blob_sha: exclusion.expected_blob_sha,
+          replacement_path: exclusion.replacement_path,
+          reason: exclusion.reason,
+        });
+        continue;
+      }
+      failures.push({
+        validator: "governed_exclusion_fingerprint",
+        files: [file],
+        status: 1,
+        error: "governed_exclusion_fingerprint_mismatch",
+        stderr_tail: `expected ${exclusion.expected_blob_sha}, got ${actualBlobSha}`,
+      });
+      continue;
+    }
+    validationTargets.push(file);
+  }
+  const byValidator = new Map();
+  for (const file of validationTargets) {
     const validator = extensionValidators.get(path.extname(file).toLowerCase());
     if (!byValidator.has(validator)) byValidator.set(validator, []);
     byValidator.get(validator).push(file);
   }
-  const failures = [];
   const checked = [];
+  const validated = [];
   const record = (validator, filesForRun, result) => {
     checked.push(...filesForRun);
-    if (!result.ok) failures.push({ validator, files: filesForRun, status: result.status, error: result.error, stderr_tail: result.stderr_tail });
+    if (result.ok) validated.push(...filesForRun);
+    else failures.push({ validator, files: filesForRun, status: result.status, error: result.error, stderr_tail: result.stderr_tail });
   };
   for (const [validator, validatorFiles] of byValidator) {
     if (validator === "node_check") {
@@ -161,10 +210,10 @@ function validateExecutableUniverse(files, registry) {
     } else if (validator === "bash_parse") {
       for (const file of validatorFiles) record(validator, [file], run("bash", ["-n", file], { cwd: root }));
     } else if (validator === "powershell_parser") {
-      const code = "$p=$args[0];$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
+      const code = "$p=$env:MAD4B_VALIDATE_PATH;$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
       for (const file of validatorFiles) {
         const absolute = path.resolve(root, file);
-        record(validator, [file], run("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code, absolute], { cwd: root }));
+        record(validator, [file], run("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code], { cwd: root, env: { MAD4B_VALIDATE_PATH: absolute } }));
       }
     } else if (validator === "registered_sql_policy") {
       for (const file of validatorFiles) {
@@ -181,7 +230,15 @@ function validateExecutableUniverse(files, registry) {
     }
   }
   const failedFiles = stableUnique(failures.flatMap((entry) => entry.files || []));
-  return { tracked, checked: stableUnique(checked), failures, failed_files: failedFiles };
+  return {
+    tracked,
+    validation_targets: stableUnique(validationTargets),
+    checked: stableUnique(checked),
+    validated: stableUnique(validated),
+    governed_excluded: governedExcluded.sort((a, b) => a.path.localeCompare(b.path)),
+    failures,
+    failed_files: failedFiles,
+  };
 }
 async function main() {
   const semanticBindings = readJson(semanticBindingPath);
@@ -211,7 +268,7 @@ async function main() {
     uncovered_semantic_impact_count: semantic.uncovered.length,
     missing_required_verifier_count: semantic.missing_verifiers.length + tests.missing_invariant_verifiers.length,
     unregistered_test_count: tests.unregistered.length,
-    unvalidated_executable_count: executables.failed_files.length,
+    unvalidated_executable_count: Math.max(0, executables.tracked.length - executables.validated.length - executables.governed_excluded.length),
     unprotected_invariant_count: tests.missing_invariant_tests.length,
     fixed_point_registry_error_count: registryErrors.length,
   };
