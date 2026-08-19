@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7204,
+  "file_count": 7208,
   "route_count": 1076,
   "write_route_count": 654,
   "classified_write_surface_count": 38,
@@ -6502,8 +6502,8 @@
     },
     {
       "route_id": "http-generic-api/routes/remoteMcpOAuthRoutes.js#POST:/auth/mcp/oauth/register:0",
-      "source_line": 176,
-      "source_offset": 8537,
+      "source_line": 178,
+      "source_offset": 8674,
       "method": "POST",
       "path": "/auth/mcp/oauth/register",
       "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
@@ -6511,8 +6511,8 @@
     },
     {
       "route_id": "http-generic-api/routes/remoteMcpOAuthRoutes.js#GET:/auth/mcp/oauth/authorize:1",
-      "source_line": 226,
-      "source_offset": 11189,
+      "source_line": 230,
+      "source_offset": 11389,
       "method": "GET",
       "path": "/auth/mcp/oauth/authorize",
       "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
@@ -6520,8 +6520,8 @@
     },
     {
       "route_id": "http-generic-api/routes/remoteMcpOAuthRoutes.js#POST:/auth/mcp/oauth/code:2",
-      "source_line": 262,
-      "source_offset": 13497,
+      "source_line": 268,
+      "source_offset": 13922,
       "method": "POST",
       "path": "/auth/mcp/oauth/code",
       "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
@@ -6529,8 +6529,8 @@
     },
     {
       "route_id": "http-generic-api/routes/remoteMcpOAuthRoutes.js#POST:/auth/mcp/oauth/token:3",
-      "source_line": 316,
-      "source_offset": 16890,
+      "source_line": 324,
+      "source_offset": 17539,
       "method": "POST",
       "path": "/auth/mcp/oauth/token",
       "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
@@ -6538,8 +6538,8 @@
     },
     {
       "route_id": "http-generic-api/routes/remoteMcpOAuthRoutes.js#POST:/auth/mcp/oauth/revoke:4",
-      "source_line": 366,
-      "source_offset": 21574,
+      "source_line": 374,
+      "source_offset": 22228,
       "method": "POST",
       "path": "/auth/mcp/oauth/revoke",
       "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
@@ -38066,10 +38066,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
-        "source_line": 176,
+        "source_line": 178,
         "handler_window_lines": [
-          176,
-          224
+          178,
+          228
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38132,10 +38132,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
-        "source_line": 262,
+        "source_line": 268,
         "handler_window_lines": [
-          262,
-          314
+          268,
+          322
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38201,10 +38201,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
-        "source_line": 316,
+        "source_line": 324,
         "handler_window_lines": [
-          316,
-          364
+          324,
+          372
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38265,10 +38265,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/remoteMcpOAuthRoutes.js",
-        "source_line": 366,
+        "source_line": 374,
         "handler_window_lines": [
-          366,
-          390
+          374,
+          398
         ],
         "evidence_flags": {
           "handler_window_present": true,

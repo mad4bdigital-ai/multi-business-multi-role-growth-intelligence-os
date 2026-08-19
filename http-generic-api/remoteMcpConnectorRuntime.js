@@ -127,10 +127,16 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
       description: verification.message,
     })]
     : undefined;
+  const httpStatus = verification.status === 401
+    ? 401
+    : verification.code === "MCP_SCOPE_INSUFFICIENT"
+      ? 403
+      : 200;
   return {
-    status: 200,
+    status: httpStatus,
     headers: {
       "content-type": "application/json",
+      ...(challenge ? { "www-authenticate": challenge[0] } : {}),
       "x-request-id": requestId,
     },
     body: {

@@ -200,6 +200,17 @@ function activePool({ active = true, subjectActiveCount = 1, grant = {} } = {}) 
 }
 
 {
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token({ client_id: "mcp_prd_cross_environment_client_123456" })}`, {
+    env: { ...env, REMOTE_MCP_ENVIRONMENT: "staging" },
+    pool: activePool(),
+    requiredScopes: ["workspaces.read"],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 401);
+  assert.equal(result.code, "MCP_TOKEN_INVALID");
+}
+
+{
   const result = await verifyRemoteMcpBearerAuthorization("");
   assert.equal(result.ok, false);
   assert.equal(result.code, "MCP_AUTH_REQUIRED");

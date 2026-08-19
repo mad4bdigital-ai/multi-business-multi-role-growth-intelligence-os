@@ -664,8 +664,12 @@ export async function handleChatGptMcpRequest({
         description: principalResult.message,
       });
       return {
-        status: 200,
-        headers: { "content-type": "application/json", "x-request-id": requestId },
+        status: principalResult.status === 401 ? 401 : 403,
+        headers: {
+          "content-type": "application/json",
+          "www-authenticate": challenge,
+          "x-request-id": requestId,
+        },
         body: jsonRpcSuccess(id, toolErrorResult({
           code: principalResult.code,
           message: principalResult.message,

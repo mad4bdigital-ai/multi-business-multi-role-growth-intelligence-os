@@ -59,6 +59,7 @@ const staticDiscoveryCommands = [
   "node test-remote-mcp-multi-client-profiles.mjs",
   "node test-remote-mcp-oauth21-profile.mjs",
   "node test-remote-mcp-access-token-verifier.mjs",
+  "node test-remote-mcp-client-provisioning.mjs",
   "node test-remote-mcp-oauth21-routes.mjs",
   "node test-database-lifecycle-incident-bridge.mjs",
   "node test-database-lifecycle-operational-status.mjs",

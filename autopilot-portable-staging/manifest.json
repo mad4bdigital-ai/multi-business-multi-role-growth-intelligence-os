@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "57926b3d19dbbbc525231db97186fe3985e5a4ec0818ef259bcb02a27edabbf2"
+      "sha256": "70bf06f1efb3277117de9fdbe6602e3fb2c4274044e113f0a3f9d4aa452738e2"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "1822e2f891e3b8355a6416283db2150ba67780b2660ed28a4529b62db92c0039"
+      "sha256": "bd6f435f48038c3d87f70eb23281cd90679e3baa814a2ddd221dcda028c34d3f"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "72a753dcc18ee8a0b07d351913cc08d29cb3863326885d4f75a978c186bbbf5b"
+      "sha256": "311f8e93989d460331eb9f8a06a2ba14a0819abfc26443941da7055d818dbd07"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "f41d1a8cc3a1eb95ec3cb1cfce7101e41c01be316ad8b34b814fd7cc6f7ce00a"
+      "sha256": "278e440523f923bd95b68c090e29c7a2dac621793db5880a2285cf953e308a7c"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,15 +170,15 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "447390e938d213c5d14808a12015ee43591c0d0eb15fb95c6426aab050add5ff"
+      "sha256": "c4169444341e48318330a4baae881e769c4fb978de1cdb5eb834eb0dc8a537a8"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
-      "sha256": "8a269faf0f7c1a8b916c9c75cf1f116ab80f8480e250e366be13811d9c7e93e0"
+      "sha256": "9213ece5e946344be2208eb93c05033f6107ef6a8e1e26cda1e6e6bd4609aa93"
     },
     {
       "path": "http-generic-api/remoteMcpOAuthProfile.js",
-      "sha256": "62f268cdecf7b945fee64136ba4c9fba2f4538f038692e6a3015c5419c527193"
+      "sha256": "8e4596ac6d8f2fe62f84c2e5737ad3dcb21bf2303d76e73a20f9309d78ceabb2"
     },
     {
       "path": "http-generic-api/remoteMcpRequestHost.js",
