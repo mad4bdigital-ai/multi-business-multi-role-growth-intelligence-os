@@ -1,6 +1,9 @@
 import { getRemoteMcpRuntimeConfiguration } from "./remoteMcpConnectorRuntime.js";
 import { buildRemoteMcpScopeCatalogReadiness } from "./remoteMcpScopeCatalogReadiness.js";
-import { readRemoteMcpOAuthClientProvisioningStatus } from "./remoteMcpOAuthClientProvisioning.js";
+import {
+  listRemoteMcpOAuthClientProvisioningStatus,
+  readRemoteMcpOAuthClientProvisioningStatus,
+} from "./remoteMcpOAuthClientProvisioning.js";
 import {
   envFlag,
   remoteMcpDynamicClientRegistrationAdvertised,
@@ -79,12 +82,16 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
   const dcrAdvertised = remoteMcpDynamicClientRegistrationAdvertised(env);
   const catalogReadiness = buildRemoteMcpScopeCatalogReadiness({ env });
   const clientProvisioning = await readRemoteMcpOAuthClientProvisioningStatus({ env, pool });
-  const preRegisteredClientReady = Boolean(
-    clientProvisioning.ok
-    && clientProvisioning.client_status === "active"
-    && clientProvisioning.secret_present
-    && clientProvisioning.client_id,
-  );
+  const clientProvisioningProfiles = await listRemoteMcpOAuthClientProvisioningStatus({ env, pool });
+  const provisionedProfiles = clientProvisioningProfiles.ok
+    ? clientProvisioningProfiles.profiles
+    : [clientProvisioning];
+  const preRegisteredClientReady = provisionedProfiles.some((profile) => Boolean(
+    profile.ok
+    && profile.client_status === "active"
+    && profile.secret_present
+    && profile.client_id,
+  ));
 
   return {
     ok: true,
@@ -106,6 +113,7 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
     },
     catalog: catalogReadiness,
     client_provisioning: clientProvisioning,
+    client_provisioning_profiles: clientProvisioningProfiles,
     pre_registered_client_ready: preRegisteredClientReady,
     prerequisites: {
       redirect_policy_ready: redirectPolicyReady,

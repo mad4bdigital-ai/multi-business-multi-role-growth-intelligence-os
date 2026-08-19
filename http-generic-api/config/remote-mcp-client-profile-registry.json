@@ -1,0 +1,105 @@
+{
+  "$schema": "https://schemas.mad4b.com/remote-mcp-client-profile-registry.schema.json",
+  "contract": "mad4b.remote-mcp-client-profile-registry.v1",
+  "schema_version": 1,
+  "description": "Governed Remote MCP OAuth client profiles. Add a profile here with an approved callback policy, owner, risk, and isolated storage suffix; never add secrets.",
+  "profiles": [
+    {
+      "profile_key": "anthropic_claude",
+      "display_name": "Claude web custom connector",
+      "provider": "Anthropic",
+      "surface": "claude_web",
+      "owner": "platform-team",
+      "risk": "high",
+      "status": "active",
+      "client_profile_key": "anthropic_claude",
+      "storage_suffix": "ANTHROPIC_CLAUDE",
+      "callback": {
+        "mode": "fixed",
+        "uris": ["https://claude.ai/api/mcp/auth_callback"],
+        "source_url": "https://docs.anthropic.com/en/docs/agents-and-tools/mcp-connector"
+      },
+      "token_endpoint_auth_method": "client_secret_basic",
+      "scope_policy": "read_only_catalog",
+      "readback_evidence": ["environment", "profile_key", "client_id", "client_id_prefix", "secret_ref", "secret_presence", "redirect_uri_count", "scope_count"]
+    },
+    {
+      "profile_key": "openai_chatgpt",
+      "display_name": "ChatGPT MCP connector",
+      "provider": "OpenAI",
+      "surface": "chatgpt_connector",
+      "owner": "platform-team",
+      "risk": "high",
+      "status": "active",
+      "client_profile_key": "openai_chatgpt",
+      "storage_suffix": "OPENAI_CHATGPT",
+      "callback": {
+        "mode": "origin_path_policy",
+        "allowed_origins": ["https://chatgpt.com"],
+        "allowed_exact_paths": ["/connector_platform_oauth_redirect"],
+        "allowed_path_prefixes": ["/connector/oauth/"],
+        "source_url": "https://developers.openai.com/plugins/build/auth"
+      },
+      "token_endpoint_auth_method": "client_secret_basic",
+      "scope_policy": "read_only_catalog",
+      "readback_evidence": ["environment", "profile_key", "client_id", "client_id_prefix", "secret_ref", "secret_presence", "redirect_uri_count", "scope_count"]
+    },
+    {
+      "profile_key": "google_gemini_enterprise",
+      "display_name": "Gemini Enterprise custom MCP data store",
+      "provider": "Google",
+      "surface": "gemini_enterprise_custom_mcp",
+      "owner": "platform-team",
+      "risk": "high",
+      "status": "active",
+      "client_profile_key": "google_gemini_enterprise",
+      "storage_suffix": "GOOGLE_GEMINI_ENTERPRISE",
+      "callback": {
+        "mode": "fixed",
+        "uris": ["https://vertexaisearch.cloud.google.com/oauth-redirect"],
+        "source_url": "https://docs.cloud.google.com/gemini/enterprise/docs/connectors/custom-mcp-server/set-up-custom-mcp-server"
+      },
+      "token_endpoint_auth_method": "client_secret_basic",
+      "scope_policy": "read_only_catalog",
+      "readback_evidence": ["environment", "profile_key", "client_id", "client_id_prefix", "secret_ref", "secret_presence", "redirect_uri_count", "scope_count"]
+    },
+    {
+      "profile_key": "manus_remote_mcp",
+      "display_name": "Manus Custom MCP connector",
+      "provider": "Manus",
+      "surface": "manus_custom_mcp",
+      "owner": "platform-team",
+      "risk": "high",
+      "status": "active",
+      "client_profile_key": "manus_remote_mcp",
+      "storage_suffix": "MANUS_REMOTE_MCP",
+      "callback": {
+        "mode": "operator_exact_https",
+        "source_url": "https://manus.im/docs/integrations/custom-mcp",
+        "operator_approval_required": true
+      },
+      "token_endpoint_auth_method": "client_secret_basic",
+      "scope_policy": "read_only_catalog",
+      "readback_evidence": ["environment", "profile_key", "client_id", "client_id_prefix", "secret_ref", "secret_presence", "redirect_uri_count", "scope_count"]
+    },
+    {
+      "profile_key": "generic_remote_mcp_client",
+      "display_name": "Generic Remote MCP client",
+      "provider": "Generic",
+      "surface": "generic_remote_mcp",
+      "owner": "platform-team",
+      "risk": "high",
+      "status": "active",
+      "client_profile_key": "generic_remote_mcp_client",
+      "storage_suffix": "GENERIC_REMOTE_MCP_CLIENT",
+      "callback": {
+        "mode": "operator_exact_https",
+        "source_url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "operator_approval_required": true
+      },
+      "token_endpoint_auth_method": "client_secret_basic",
+      "scope_policy": "read_only_catalog",
+      "readback_evidence": ["environment", "profile_key", "client_id", "client_id_prefix", "secret_ref", "secret_presence", "redirect_uri_count", "scope_count"]
+    }
+  ]
+}
