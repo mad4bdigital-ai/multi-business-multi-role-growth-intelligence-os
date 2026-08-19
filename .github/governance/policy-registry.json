@@ -128,6 +128,44 @@
       "description": "Policy registry must be uniquely keyed and use safe declarative assertion primitives.",
       "remediation": "Repair the policy registry contract and assertion declarations.",
       "assertions": [{ "type": "metric_zero", "metric": "policy_registry_error_count" }]
+    },
+    {
+      "id": "semantic-impact-verifier-closure",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Every changed semantic impact facet must resolve to registered verifier authority.",
+      "remediation": "Register a safe verifier for each affected semantic facet and repair the requirements registry.",
+      "assertions": [
+        { "type": "metric_zero", "metric": "semantic_verifier_requirements_error_count" },
+        { "type": "metric_zero", "metric": "missing_required_verifiers" },
+        { "type": "metric_zero", "metric": "uncovered_semantic_impact_count" }
+      ]
+    },
+    {
+      "id": "executable-validation-closure",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Changed executables must have semantic classes and safe registered verifier authority.",
+      "remediation": "Register the executable semantic class and a valid safe verifier, or add an explicit governed exclusion.",
+      "assertions": [
+        { "type": "metric_zero", "metric": "verifier_registry_error_count" },
+        { "type": "metric_zero", "metric": "unvalidated_executable_count" }
+      ]
+    },
+    {
+      "id": "test-authority-closure",
+      "version": 1,
+      "severity": "blocking",
+      "waiverable": false,
+      "description": "Changed or removed tests must remain registered as invariant authority and cannot silently remove coverage.",
+      "remediation": "Register the changed test path and provide a replacement authority before deleting or renaming a registered test.",
+      "assertions": [
+        { "type": "metric_zero", "metric": "test_authority_registry_error_count" },
+        { "type": "metric_zero", "metric": "unregistered_test_count" },
+        { "type": "metric_zero", "metric": "test_authority_removal_count" }
+      ]
     }
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "contract": "mad4b.repository-semantic-verifier-requirements.v1",
+  "schema_version": 1,
+  "mode": "facet_to_registered_verifier_requirements",
+  "unknown_semantic_impact_mode": "block",
+  "requirements": [
+    { "id": "route_semantic_closure", "when_facets": ["route"], "required_verifiers": ["frontend_openapi_currentness"] },
+    { "id": "auth_profile_semantic_closure", "when_facets": ["auth_profile"], "required_verifiers": ["frontend_openapi_currentness"] },
+    { "id": "scope_semantic_closure", "when_facets": ["scope"], "required_verifiers": ["db_effect_authority", "provider_effect_authority"] },
+    { "id": "db_effect_authority_closure", "when_facets": ["db_effect"], "required_verifiers": ["db_effect_authority"] },
+    { "id": "provider_effect_authority_closure", "when_facets": ["provider_effect"], "required_verifiers": ["provider_effect_authority"] },
+    { "id": "configuration_registry_closure", "when_facets": ["config"], "required_verifiers": ["configuration_drift_currentness"] },
+    { "id": "generated_contract_closure", "when_facets": ["generated_contract"], "required_verifiers": ["generated_contract_currentness"] },
+    { "id": "test_invariant_authority_closure", "when_facets": ["test_invariant"], "required_verifiers": ["test_authority_currentness"] }
+  ],
+  "safety": {
+    "read_only_expected": true,
+    "arbitrary_verifier_ids_forbidden": true,
+    "secrets_included": false
+  }
+}

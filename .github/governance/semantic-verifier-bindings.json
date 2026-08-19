@@ -1,17 +1,18 @@
 {
   "contract": "mad4b.repository-semantic-verifier-bindings.v1",
   "schema_version": 1,
-  "mode": "facet_to_mandatory_verifier",
+  "mode": "compatibility_projection_of_canonical_requirements",
+  "source_authority": ".github/governance/semantic-verifier-requirements.json",
   "verifier_registry": ".github/governance/verifier-registry.json",
   "bindings": [
     {"facet":"route","required_verifiers":["frontend_openapi_currentness"]},
     {"facet":"auth_profile","required_verifiers":["frontend_openapi_currentness"]},
-    {"facet":"scope","required_verifiers":["remote_mcp_write_scope_currentness"]},
-    {"facet":"db_effect","required_verifiers":["remote_mcp_write_scope_currentness"]},
-    {"facet":"provider_effect","required_verifiers":["remote_mcp_write_scope_currentness"]},
-    {"facet":"config","required_verifiers":["portable_staging_manifest_currentness"]},
-    {"facet":"generated_contract","required_verifiers":["frontend_openapi_currentness","work_map_currentness","portable_staging_manifest_currentness"]},
-    {"facet":"test_invariant","required_verifiers":["fixed_point:test_authority"]}
+    {"facet":"scope","required_verifiers":["db_effect_authority","provider_effect_authority"]},
+    {"facet":"db_effect","required_verifiers":["db_effect_authority"]},
+    {"facet":"provider_effect","required_verifiers":["provider_effect_authority"]},
+    {"facet":"config","required_verifiers":["configuration_drift_currentness"]},
+    {"facet":"generated_contract","required_verifiers":["generated_contract_currentness"]},
+    {"facet":"test_invariant","required_verifiers":["test_authority_currentness"]}
   ],
   "safety": {
     "arbitrary_command_forbidden": true,

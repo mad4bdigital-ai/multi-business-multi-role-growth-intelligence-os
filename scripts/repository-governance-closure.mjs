@@ -12,6 +12,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const constitutionPath = path.join(root, "http-generic-api/config/repository-governance-constitution.json");
 const policyRegistryPath = path.join(root, ".github/governance/policy-registry.json");
 const semanticRegistryPath = path.join(root, ".github/governance/semantic-surface-registry.json");
+const semanticVerifierRequirementsPath = path.join(root, ".github/governance/semantic-verifier-requirements.json");
+const verifierRegistryPath = path.join(root, ".github/governance/verifier-registry.json");
+const testAuthorityRegistryPath = path.join(root, ".github/governance/test-authority-registry.json");
 const derivedRegistryPath = path.join(root, ".github/derived-state-governance.json");
 const ciSurfacePolicyPath = path.join(root, "docs/repository-ci-surface-policy.json");
 
@@ -230,6 +233,82 @@ function validateSemanticRegistry(registry) {
   }
   return stableUnique(errors);
 }
+function validateVerifierRegistry(registry) {
+  const errors = [];
+  if (registry?.contract !== "mad4b.repository-verifier-registry.v1") errors.push("verifier_registry_contract_mismatch");
+  if (registry?.execution_model !== "safe_registered_processes") errors.push("verifier_registry_execution_model_invalid");
+  if (registry?.shell_execution_forbidden !== true) errors.push("verifier_registry_shell_execution_not_forbidden");
+  const allowed = new Set(registry.allowed_step_types || []);
+  const ids = new Set();
+  for (const verifier of registry.verifiers || []) {
+    if (!verifier?.id || ids.has(verifier.id)) errors.push(`verifier_id_duplicate_or_missing:${verifier?.id || "missing"}`);
+    ids.add(verifier?.id);
+    if (!Array.isArray(verifier.steps) || !verifier.steps.length) errors.push(`verifier_steps_missing:${verifier?.id || "missing"}`);
+    for (const step of verifier.steps || []) {
+      if (!allowed.has(step?.type)) errors.push(`verifier_step_type_not_allowed:${verifier.id}:${step?.type || "missing"}`);
+      if (!["node", "npm"].includes(step?.type)) continue;
+      if (step.type === "npm") {
+        const packageJson = path.join(root, step.cwd || ".", "package.json");
+        if (!step.script || !fs.existsSync(packageJson)) errors.push(`verifier_npm_step_invalid:${verifier.id}`);
+        else {
+          try {
+            const scripts = readJson(packageJson).scripts || {};
+            if (!Object.prototype.hasOwnProperty.call(scripts, step.script)) errors.push(`verifier_npm_script_missing:${verifier.id}:${step.script}`);
+          } catch { errors.push(`verifier_npm_package_unreadable:${verifier.id}`); }
+        }
+      } else {
+        if (!step.path || path.posix.isAbsolute(step.path) || step.path.split("/").includes("..")) errors.push(`verifier_node_path_invalid:${verifier.id}`);
+        else if (!fs.existsSync(path.join(root, step.cwd || ".", step.path))) errors.push(`verifier_node_path_missing:${verifier.id}:${step.path}`);
+      }
+    }
+  }
+  return stableUnique(errors);
+}
+function validateSemanticVerifierRequirements(registry, verifierRegistry) {
+  const errors = [];
+  if (registry?.contract !== "mad4b.repository-semantic-verifier-requirements.v1") errors.push("semantic_verifier_requirements_contract_mismatch");
+  if (registry?.unknown_semantic_impact_mode !== "block") errors.push("semantic_verifier_unknown_impact_not_blocking");
+  const verifierIds = new Set((verifierRegistry.verifiers || []).map((entry) => entry.id));
+  const ids = new Set();
+  for (const requirement of registry.requirements || []) {
+    if (!requirement?.id || ids.has(requirement.id)) errors.push(`semantic_verifier_requirement_duplicate_or_missing:${requirement?.id || "missing"}`);
+    ids.add(requirement?.id);
+    if (!Array.isArray(requirement.when_facets) || !requirement.when_facets.length) errors.push(`semantic_verifier_requirement_facets_missing:${requirement?.id || "missing"}`);
+    if (!Array.isArray(requirement.required_verifiers) || !requirement.required_verifiers.length) errors.push(`semantic_verifier_requirement_verifiers_missing:${requirement?.id || "missing"}`);
+    for (const verifierId of requirement.required_verifiers || []) if (!verifierIds.has(verifierId)) errors.push(`semantic_verifier_required_id_unregistered:${requirement.id}:${verifierId}`);
+  }
+  return stableUnique(errors);
+}
+function validateTestAuthorityRegistry(registry) {
+  const errors = [];
+  if (registry?.contract !== "mad4b.repository-test-authority-registry.v1") errors.push("test_authority_registry_contract_mismatch");
+  if (registry?.deleted_test_mode !== "block_without_replacement") errors.push("test_authority_deleted_test_mode_not_blocking");
+  const ids = new Set();
+  for (const invariant of registry.invariant_authorities || []) {
+    if (!invariant?.id || ids.has(invariant.id)) errors.push(`test_authority_invariant_duplicate_or_missing:${invariant?.id || "missing"}`);
+    ids.add(invariant?.id);
+    if (!Array.isArray(invariant.test_paths) || !invariant.test_paths.length) errors.push(`test_authority_paths_missing:${invariant?.id || "missing"}`);
+    for (const testPath of invariant.test_paths || []) if (!isRepositoryRelativePath(testPath)) errors.push(`test_authority_path_invalid:${invariant.id}`);
+  }
+  for (const pattern of registry.test_file_patterns || []) try { globRegex(pattern); } catch { errors.push(`test_authority_pattern_invalid:${pattern}`); }
+  return stableUnique(errors);
+}
+function requiredVerifierClosure(inventory, requirements, verifierRegistry) {
+  const changedFacets = stableUnique(inventory.changes.flatMap((entry) => entry.paths.flatMap((node) => node.facets || [])));
+  const registered = new Set((verifierRegistry.verifiers || []).map((entry) => entry.id));
+  const applicable = (requirements.requirements || []).filter((entry) => (entry.when_facets || []).some((facet) => changedFacets.includes(facet)));
+  const required = stableUnique(applicable.flatMap((entry) => entry.required_verifiers || []));
+  const missing = required.filter((id) => !registered.has(id));
+  return { changed_facets: changedFacets, applicable_requirements: applicable.map((entry) => entry.id), required_verifiers: required, missing_required_verifiers: missing, uncovered_semantic_impact_count: missing.length };
+}
+function testAuthorityClosure(inventory, registry) {
+  const patterns = (registry.test_file_patterns || []).map((entry) => globRegex(entry));
+  const registeredPaths = new Set((registry.invariant_authorities || []).flatMap((entry) => entry.test_paths || []));
+  const changedTests = stableUnique(inventory.changes.flatMap((entry) => entry.paths.filter((node) => !node.historical && patterns.some((matcher) => matcher.test(node.path))).map((node) => node.path)));
+  const unregisteredTests = changedTests.filter((file) => !registeredPaths.has(file));
+  const removedRegisteredTests = stableUnique(inventory.changes.filter((entry) => ["D", "R"].includes(entry.status)).flatMap((entry) => entry.paths.filter((node) => node.historical && registeredPaths.has(node.path) && !(entry.paths || []).some((candidate) => !candidate.historical && registeredPaths.has(candidate.path))).map((node) => node.path)));
+  return { changed_test_paths: changedTests, unregistered_tests: unregisteredTests, removed_registered_tests: removedRegisteredTests, unregistered_test_count: unregisteredTests.length, test_authority_removal_count: removedRegisteredTests.length };
+}
 function dottedPathError(value) {
   if (typeof value !== "string" || !value) return "missing";
   if (value.includes("\0")) return "nul";
@@ -272,7 +351,7 @@ function authorityConflicts(constitution, derived) {
   if (constitution?.contract !== "mad4b.repository-governance-constitution.v1") conflicts.push("constitution_contract_mismatch");
   if (derived?.contract !== "mad4b.repository-derived-state-governance.v1") conflicts.push("derived_registry_contract_mismatch");
   if (derived?.repository_governance?.constitution !== constitution.authority?.source_of_truth) conflicts.push("derived_registry_constitution_pointer_mismatch");
-  for (const [key, authorityKey] of [["policy_registry","policy_registry"],["evidence_producer_registry","evidence_producer_registry"],["waiver_ledger","waiver_ledger"],["semantic_surface_registry","semantic_surface_registry"],["verifier_registry","verifier_registry"]]) {
+  for (const [key, authorityKey] of [["policy_registry","policy_registry"],["evidence_producer_registry","evidence_producer_registry"],["waiver_ledger","waiver_ledger"],["semantic_surface_registry","semantic_surface_registry"],["verifier_registry","verifier_registry"],["semantic_verifier_requirements","semantic_verifier_requirements"],["test_authority_registry","test_authority_registry"]]) {
     if (derived?.repository_governance?.[key] !== constitution.authority?.[authorityKey]) conflicts.push(`${key}_pointer_mismatch`);
   }
   if (derived?.required_check_name !== constitution.authority?.final_gate_context) conflicts.push("final_gate_context_mismatch");
@@ -364,6 +443,9 @@ if (process.argv.includes("--self-test")) {
 const constitution = readJson(constitutionPath);
 const policyRegistry = readJson(policyRegistryPath);
 const semanticRegistry = readJson(semanticRegistryPath);
+const semanticVerifierRequirements = readJson(semanticVerifierRequirementsPath);
+const verifierRegistry = readJson(verifierRegistryPath);
+const testAuthorityRegistry = readJson(testAuthorityRegistryPath);
 const derivedRegistry = readJson(derivedRegistryPath);
 const ciSurfacePolicy = fs.existsSync(ciSurfacePolicyPath) ? readJson(ciSurfacePolicyPath) : {};
 const expectedSha = arg("expected-sha", gitText(["rev-parse", "HEAD"]).trim());
@@ -381,6 +463,11 @@ const semanticGraph = buildSemanticGraph(inventory, baseSha, semanticRegistry);
 const graph = derivedGraph(derivedRegistry);
 const registryErrors = validateRegistry(policyRegistry);
 const semanticRegistryErrors = validateSemanticRegistry(semanticRegistry);
+const verifierRegistryErrors = validateVerifierRegistry(verifierRegistry);
+const semanticVerifierRequirementsErrors = validateSemanticVerifierRequirements(semanticVerifierRequirements, verifierRegistry);
+const testAuthorityRegistryErrors = validateTestAuthorityRegistry(testAuthorityRegistry);
+const requiredVerifiers = requiredVerifierClosure(inventory, semanticVerifierRequirements, verifierRegistry);
+const testAuthority = testAuthorityClosure(inventory, testAuthorityRegistry);
 const conflicts = authorityConflicts(constitution, derivedRegistry);
 const protectedPaths = new Set(derivedRegistry.convergence?.automation_control_paths || []);
 const unregisteredControl = stableUnique((constitution.control_plane_paths || []).filter((file) => !protectedPaths.has(file)));
@@ -398,6 +485,14 @@ const metrics = {
   deletion_dangling_reference_count: semanticGraph.dangling_references.length,
   semantic_unresolved_dependency_count: semanticGraph.unresolved_dependencies.length,
   semantic_registry_error_count: semanticRegistryErrors.length,
+  verifier_registry_error_count: verifierRegistryErrors.length,
+  semantic_verifier_requirements_error_count: semanticVerifierRequirementsErrors.length,
+  test_authority_registry_error_count: testAuthorityRegistryErrors.length,
+  missing_required_verifiers: requiredVerifiers.missing_required_verifiers.length,
+  uncovered_semantic_impact_count: requiredVerifiers.uncovered_semantic_impact_count,
+  unvalidated_executable_count: inventory.unknown_semantic_executables.length,
+  unregistered_test_count: testAuthority.unregistered_test_count,
+  test_authority_removal_count: testAuthority.test_authority_removal_count,
   missing_derived_dependency_count: graph.missing_dependencies.length,
   derived_cycle_count: graph.cycles.length,
   unregistered_control_plane_path_count: unregisteredControl.length,
@@ -432,12 +527,18 @@ const report = {
   authority_conflicts: conflicts,
   policy_registry_errors: registryErrors,
   semantic_registry_errors: semanticRegistryErrors,
+  verifier_registry_errors: verifierRegistryErrors,
+  semantic_verifier_requirements_errors: semanticVerifierRequirementsErrors,
+  test_authority_registry_errors: testAuthorityRegistryErrors,
+  required_verifier_closure: requiredVerifiers,
+  test_authority_closure: testAuthority,
   unregistered_control_plane_paths: unregisteredControl,
   change_inventory: {
     changed_entry_count: inventory.changes.length,
     unknown_surfaces: inventory.unknown_surfaces,
     unknown_executables: inventory.unknown_executables,
     unknown_semantic_executables: inventory.unknown_semantic_executables,
+    unvalidated_executables: inventory.unknown_semantic_executables,
     unclassified_historical_paths: inventory.unclassified_historical_paths,
     changes: inventory.changes,
   },
