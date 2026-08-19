@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7199,
-    "bytes": 70264075,
-    "lines": 1649436,
+    "files": 7208,
+    "bytes": 70343494,
+    "lines": 1651027,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2159,
+      "tests-and-specs": 2161,
       "documentation": 1908,
-      "api-runtime": 1443,
+      "api-runtime": 1446,
       "database-migrations": 783,
       "root-and-other": 297,
       "api-contracts": 191,
       "ci-workflows": 170,
-      "ci-config": 116,
+      "ci-config": 120,
       "schemas-and-data": 70,
       "connectors-and-edge": 29,
       "applications": 19,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2509,
-      ".mjs": 1706,
-      ".js": 993,
-      ".json": 803,
+      ".mjs": 1712,
+      ".js": 994,
+      ".json": 805,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,10 +61,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3703,
+      "http-generic-api": 3708,
       "docs": 1812,
       "specs": 880,
-      ".github": 286,
+      ".github": 290,
       ".changes": 265,
       "canonicals": 70,
       "local-connector": 23,
@@ -175,6 +175,8 @@
         "readiness:verify-plan",
         "manifest:deployment",
         "manifest:portable-staging",
+        "remote-mcp:client:provision",
+        "remote-mcp:client:status",
         "production:config-preflight",
         "supervisor:readiness",
         "runtime-persistence:readiness",
@@ -247,7 +249,7 @@
     "workflows": 170,
     "migrations": 783,
     "apiContracts": 191,
-    "testSpecFiles": 2245
+    "testSpecFiles": 2248
   },
   "largestFiles": [
     {
@@ -331,8 +333,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 257408,
-      "lines": 2242
+      "bytes": 259492,
+      "lines": 2266
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
