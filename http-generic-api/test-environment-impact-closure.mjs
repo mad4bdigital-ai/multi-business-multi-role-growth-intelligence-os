@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import { buildReport, classifyChange, classifyPath } from "./scripts/environment-impact-closure.mjs";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -56,6 +57,8 @@ assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-parallel-work-govern
 assert.deepEqual(classifyPath("http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/github-review-policy-target.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/test-github-review-policy-target.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["staging_only", "repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
 
@@ -96,5 +99,15 @@ const reportFile = path.join(os.tmpdir(), `environment-impact-${process.pid}.jso
 fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
 assert.equal(JSON.parse(fs.readFileSync(reportFile, "utf8")).contract, "mad4b.environment-impact-closure.v1");
 fs.rmSync(reportFile, { force: true });
+
+const cli = spawnSync(process.execPath, [path.join(apiRoot, "scripts/environment-impact-closure.mjs")], {
+  cwd: root,
+  encoding: "utf8",
+});
+assert.equal(cli.status, 0, `${cli.stdout}\n${cli.stderr}`);
+const cliSummary = JSON.parse(cli.stdout.trim());
+assert.equal(path.relative(root, cliSummary.report_file).startsWith(".."), true, "default report must stay outside repository root");
+fs.rmSync(cliSummary.report_file, { force: true });
+
 console.log("environment impact closure contract tests passed");
 void root;

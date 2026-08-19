@@ -1,0 +1,29 @@
+{
+  "contract": "mad4b.repository-executable-validator-registry.v1",
+  "schema_version": 2,
+  "execution_model": "hardcoded_safe_validators",
+  "validators": [
+    {"extensions":[".js",".mjs",".cjs"],"validator":"node_check"},
+    {"extensions":[".ts",".tsx"],"validator":"typescript_no_emit"},
+    {"extensions":[".py"],"validator":"python_ast_parse"},
+    {"extensions":[".sh"],"validator":"bash_parse"},
+    {"extensions":[".ps1"],"validator":"powershell_parser"},
+    {"extensions":[".sql"],"validator":"registered_sql_policy"}
+  ],
+  "governed_exclusions": [
+    {
+      "path": "20260508_add_platform_runtime_config.sql",
+      "expected_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "replacement_path": "http-generic-api/migrations/038_sprint42_platform_runtime_config.sql",
+      "reason": "Historical zero-byte compatibility placeholder; canonical platform_runtime_config migration is governed at replacement_path. Any blob change invalidates this exclusion."
+    }
+  ],
+  "safety": {
+    "shell_execution_from_registry_forbidden": true,
+    "arbitrary_arguments_from_repository_forbidden": true,
+    "network_access_required": false,
+    "missing_validator_binary_mode": "block",
+    "governed_exclusions_must_be_blob_fingerprint_bound": true,
+    "secrets_included": false
+  }
+}
