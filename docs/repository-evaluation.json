@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "7c1298e609228bcdc4fd217aa16273cd4b2988864617504eb8e8784a3b50fbba",
+  "inputFingerprint": "dcf708ae42f82d17798dbb3d8c8e49990692d3b46a05a1d715251c6490b5d1cd",
   "inventory": {
-    "files": 7193,
-    "bytes": 70142976,
+    "files": 7199,
+    "bytes": 70264075,
     "directories": 266,
     "categories": 13
   },
@@ -18,16 +18,15 @@
       "unpinnedActions": 0,
       "unpinnedActionRefs": [],
       "budget": {
-        "max": 160,
+        "max": 100,
         "warning": 155,
         "status": "exceeded"
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7156,
+      "trackedTextFilesScanned": 7162,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
-        "http-generic-api/test-github-repository-policy-controller.mjs",
         "http-generic-api/test-sequential-test-progress-report.mjs",
         "scripts/test-repository-evaluation.mjs"
       ]
@@ -49,7 +48,7 @@
       "output": "Repository CI declares an explicit setup-dotnet SDK contract; local binary probe is opt-in."
     },
     "maintainability": {
-      "workflowBudget": 160,
+      "workflowBudget": 100,
       "workflowBudgetWarning": 155,
       "workflowBudgetStatus": "exceeded",
       "totalLargeFiles": 4,
@@ -59,18 +58,22 @@
   },
   "policies": {
     "ciSurface": {
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "contract": "mad4b.repository-ci-surface-policy.v1",
-      "maxWorkflowCount": 160,
+      "targetMaxWorkflowFiles": 160,
+      "ratchetMode": "no_growth_until_target",
+      "growthSeverity": "blocking",
       "warningWorkflowCount": 155,
       "requireOverlapCheck": true,
       "requireActionPinning": true,
-      "rationale": "The repository has a large but governed workflow surface. The budget is enforced together with an early warning threshold, action SHA pinning, and the automation overlap analyzer so growth remains observable and uncoordinated overlap fails the evaluation loop.",
+      "requireExplicitPermissions": true,
+      "newWorkflowRequiresConsolidationEvidence": true,
+      "rationale": "Workflow count is a governance attack/failure surface, not only a maintainability metric. A candidate may reduce the count toward 160 but may not increase it above the base count while the base remains above target; once at or below target, the 160 ceiling is hard.",
       "owner": "platform-governance",
       "evidence": [
         ".github/workflows/automation-overlap-guard.yml",
         "http-generic-api/scripts/automation-overlap-analyzer.mjs",
-        "docs/automation-overlap-governance.md",
+        "scripts/repository-governance-closure.mjs",
         "scripts/repository-evaluation.mjs"
       ],
       "secrets_included": false
@@ -120,8 +123,8 @@
         "run",
         "inventory:check"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "inventory-selftest",
@@ -130,8 +133,8 @@
         "run",
         "inventory:test"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "typecheck",
@@ -140,8 +143,8 @@
         "run",
         "typecheck"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "root-tests",
@@ -151,8 +154,8 @@
         "--",
         "--runInBand"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     },
     {
       "id": "automation-overlap",
@@ -161,8 +164,8 @@
         "http-generic-api/scripts/automation-overlap-analyzer.mjs",
         "--check"
       ],
-      "status": "not-run",
-      "exitCode": null
+      "status": "passed",
+      "exitCode": 0
     }
   ],
   "gaps": [
@@ -174,8 +177,8 @@
       "blocking": false,
       "evidence": {
         "workflowCount": 170,
-        "maxWorkflowCount": 160,
-        "overlapCheck": "not-run"
+        "maxWorkflowCount": 100,
+        "overlapCheck": "passed"
       },
       "impact": "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
       "recommendation": "Keep the workflow count within the declared budget and maintain a passing automation overlap check.",
@@ -202,7 +205,7 @@
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1936117
+            "bytes": 1936125
           },
           {
             "path": "docs/staging-write-route-partition-2026-08-14.json",
