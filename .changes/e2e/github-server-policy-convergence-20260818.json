@@ -34,6 +34,7 @@
       "http-generic-api/routes/repositoryAutomationRoutes.js",
       "http-generic-api/test-github-repository-governance-attestation.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
       "http-generic-api/scripts/e2e-phase-governance-core.mjs",
       "http-generic-api/scripts/e2e-phase-governance.mjs",
       "http-generic-api/scripts/github-review-policy-target.mjs",
@@ -210,6 +211,7 @@
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
             "http-generic-api/githubRepositoryGovernanceAttestation.js",
             "docs/repository-ci-surface-policy.json"
           ]
