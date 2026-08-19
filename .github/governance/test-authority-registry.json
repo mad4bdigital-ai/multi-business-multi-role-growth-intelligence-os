@@ -63,31 +63,11 @@
   ],
   "governed_exclusions": [],
   "invariants": [
-    {
-      "invariant_id": "repository_server_policy_activation",
-      "protected_by_tests": ["http-generic-api/scripts/test-github-review-policy-target.mjs","http-generic-api/test-github-repository-policy-controller.mjs","http-generic-api/test-github-repository-policy-live-activation-contract.mjs"],
-      "protected_by_verifiers": ["fixed_point:server_policy_lifecycle"]
-    },
-    {
-      "invariant_id": "repository_semantic_governance",
-      "protected_by_tests": [".github/tests/repository-governance-closure.test.mjs",".github/tests/repository-governance-objection-gate.test.mjs",".github/tests/repository-governance-fixed-point.test.mjs"],
-      "protected_by_verifiers": ["fixed_point:semantic_impact"]
-    },
-    {
-      "invariant_id": "repository_derived_state",
-      "protected_by_tests": [".github/tests/derived-state-closure.test.mjs"],
-      "protected_by_verifiers": ["work_map_currentness","portable_staging_manifest_currentness"]
-    },
-    {
-      "invariant_id": "tracked_executable_validation",
-      "protected_by_tests": [".github/tests/repository-governance-fixed-point.test.mjs"],
-      "protected_by_verifiers": ["fixed_point:executable_universe"]
-    },
-    {
-      "invariant_id": "test_authority_closure",
-      "protected_by_tests": [".github/tests/repository-governance-fixed-point.test.mjs"],
-      "protected_by_verifiers": ["fixed_point:test_authority"]
-    }
+    {"invariant_id":"repository_server_policy_activation","protected_by_tests":["http-generic-api/scripts/test-github-review-policy-target.mjs","http-generic-api/test-github-repository-policy-controller.mjs","http-generic-api/test-github-repository-policy-live-activation-contract.mjs"],"protected_by_verifiers":["fixed_point:server_policy_lifecycle"]},
+    {"invariant_id":"repository_semantic_governance","protected_by_tests":[".github/tests/repository-governance-closure.test.mjs",".github/tests/repository-governance-objection-gate.test.mjs",".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:semantic_impact"]},
+    {"invariant_id":"repository_derived_state","protected_by_tests":[".github/tests/derived-state-closure.test.mjs"],"protected_by_verifiers":["work_map_currentness","portable_staging_manifest_currentness"]},
+    {"invariant_id":"tracked_executable_validation","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:executable_universe"]},
+    {"invariant_id":"test_authority_closure","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:test_authority"]}
   ],
   "deleted_test_mode": "block_without_replacement",
   "safety": {
