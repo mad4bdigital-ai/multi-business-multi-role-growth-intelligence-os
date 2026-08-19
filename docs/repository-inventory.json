@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7212,
-    "bytes": 70369754,
-    "lines": 1651570,
+    "bytes": 70370974,
+    "lines": 1651587,
     "directories": 266,
     "categories": 13
   },
@@ -8570,9 +8570,9 @@
       "path": ".changes/e2e/staging-schema-bootstrap-role-aware.json",
       "category": "schemas-and-data",
       "extension": ".json",
-      "bytes": 4760,
-      "lines": 88,
-      "sha256": "9216922c303197606194223e64aa992ac1e9a4040277ec2fa85f85893f66a113",
+      "bytes": 5012,
+      "lines": 92,
+      "sha256": "7f005af9a46a9a61627c3deb7a4325908128d5e27c17b5882bc93d52cda0ca50",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13038,7 +13038,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "de015abde871fabb97ffe28112783ecceb6abc662c41022680d996de107e11ca",
+      "sha256": "4f4e08b3cd84f2869ea9ef2b5eece9b9c18673d7226a426f7d844ee6b84ab303",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30647,9 +30647,9 @@
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 259492,
-      "lines": 2266,
-      "sha256": "c05e7b9bac8007e7db2e2a4855cb0b2003cadec6d4f0715f09bbfd01258e51ae",
+      "bytes": 260390,
+      "lines": 2278,
+      "sha256": "329b54b3311c73f0a250d3474ee47405065e672b9eb7bf9a52ffd19d145ede0e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37335,9 +37335,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 7642,
-      "lines": 187,
-      "sha256": "205988d8aeec0ffbe3262708f66b63f7215541ed5f2c69b9884b9c9033793812",
+      "bytes": 7712,
+      "lines": 188,
+      "sha256": "5c13e060dee886c61c2b12f47bd25a761e59129a426c0e040fc9803e7e312b30",
       "mode": "644",
       "executable": false,
       "generated": false
