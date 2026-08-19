@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7213,
-    "bytes": 70374657,
-    "lines": 1651666,
+    "bytes": 70375049,
+    "lines": 1651672,
     "directories": 266,
     "categories": 13
   },
@@ -13049,7 +13049,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "e55f48ca0bb1168bff218da21c9ea8e8229983386bc0cf601bc94242fa6145e3",
+      "sha256": "b479988bfe494b9265c177103fb7f9405de81c66c2d68006d5fd192fa8ef4b16",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -55067,9 +55067,9 @@
       "path": "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "category": "schemas-and-data",
       "extension": ".mjs",
-      "bytes": 11898,
-      "lines": 240,
-      "sha256": "f18ce9b2c6ced0f90b8264c8caa261c76490363f7c78349390b4e1da3918a540",
+      "bytes": 11953,
+      "lines": 241,
+      "sha256": "3921ec0fdaabeccd4ecea0d2ca5f9fc42cdec60fa2ed0a467fc22af5d90169f4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -71688,9 +71688,9 @@
       "path": "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3033,
-      "lines": 61,
-      "sha256": "a99a21c8fe96dcd580fbadabe702f4b100654c70304366de9b525ac455e75e6d",
+      "bytes": 3370,
+      "lines": 66,
+      "sha256": "d412d72efe1b730e3cd2ad5b0784abec3aa6c14c5274a45ee4f9a7ee4576696b",
       "mode": "644",
       "executable": false,
       "generated": false
