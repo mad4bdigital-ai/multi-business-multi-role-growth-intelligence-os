@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  listRemoteMcpOAuthClientProvisioningStatus,
   provisionRemoteMcpOAuthClient,
   readRemoteMcpOAuthClientProvisioningStatus,
 } from "./remoteMcpOAuthClientProvisioning.js";
@@ -52,11 +53,11 @@ function createConnection() {
         state.clients.set(params[0], {
           client_id: params[0],
           client_name: params[1],
-          client_profile_key: "generic_remote_mcp_client",
-          token_endpoint_auth_method: params[2],
-          client_secret_hash: params[3],
-          redirect_uris_json: params[4],
-          allowed_scopes_json: params[5],
+          client_profile_key: params[2],
+          token_endpoint_auth_method: params[3],
+          client_secret_hash: params[4],
+          redirect_uris_json: params[5],
+          allowed_scopes_json: params[6],
           status: "active",
           expires_at: null,
         });
@@ -124,6 +125,52 @@ assert.equal(stagingStatus.client_id, staging.client_id);
 assert.equal(stagingStatus.secret_present, true);
 assert.equal(stagingStatus.secrets_included, false);
 assert.equal("client_secret" in stagingStatus, false);
+
+const stagingClaude = await provisionRemoteMcpOAuthClient({
+  env: stagingEnv,
+  pool,
+  environment: "staging",
+  profile_key: "anthropic_claude",
+  redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
+  scopes: ["workspaces.read"],
+});
+assert.equal(stagingClaude.ok, true);
+assert.equal(stagingClaude.profile_key, "anthropic_claude");
+assert.match(stagingClaude.client_id, /^mcp_stg_[A-Za-z0-9_-]{16,}$/u);
+assert.equal(stagingClaude.client_secret.length >= 32, true);
+assert.notEqual(stagingClaude.client_id, staging.client_id);
+assert.equal(state.configs.get("remote_mcp.oauth.client.staging.anthropic_claude").config.profile_key, "anthropic_claude");
+assert.equal(state.secrets.get("REMOTE_MCP_STAGING_ANTHROPIC_CLAUDE_OAUTH_CLIENT_SECRET").value_ciphertext.length > 0, true);
+
+const stagingChatGPT = await provisionRemoteMcpOAuthClient({
+  env: stagingEnv,
+  pool,
+  environment: "staging",
+  profile_key: "openai_chatgpt",
+  redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+  scopes: ["brands.read"],
+});
+assert.equal(stagingChatGPT.ok, true);
+assert.equal(stagingChatGPT.profile_key, "openai_chatgpt");
+assert.notEqual(stagingChatGPT.client_id, stagingClaude.client_id);
+assert.notEqual(stagingChatGPT.client_secret, stagingClaude.client_secret);
+assert.equal(state.configs.get("remote_mcp.oauth.client.staging.openai_chatgpt").config.profile_key, "openai_chatgpt");
+assert.equal(state.secrets.get("REMOTE_MCP_STAGING_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_ciphertext.length > 0, true);
+
+const stagingClaudeStatus = await readRemoteMcpOAuthClientProvisioningStatus({
+  env: { ...stagingEnv, REMOTE_MCP_CLIENT_PROFILE_KEY: "anthropic_claude" },
+  pool,
+});
+assert.equal(stagingClaudeStatus.profile_key, "anthropic_claude");
+assert.equal(stagingClaudeStatus.client_id, stagingClaude.client_id);
+assert.equal(stagingClaudeStatus.secrets_included, false);
+assert.equal("client_secret" in stagingClaudeStatus, false);
+
+const allStagingStatus = await listRemoteMcpOAuthClientProvisioningStatus({ env: stagingEnv, pool });
+assert.equal(allStagingStatus.environment, "staging");
+assert.equal(allStagingStatus.profiles.length >= 5, true);
+assert.equal(allStagingStatus.secrets_included, false);
+for (const profileStatus of allStagingStatus.profiles) assert.equal("client_secret" in profileStatus, false);
 
 const stagingSecondRun = await provisionRemoteMcpOAuthClient({
   env: stagingEnv,

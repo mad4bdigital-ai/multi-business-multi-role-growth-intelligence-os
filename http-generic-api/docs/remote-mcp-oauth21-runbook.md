@@ -106,40 +106,61 @@ Discovery is not authorization. Fetching protected-resource metadata, authorizat
 
 The same contract applies to the Staging and Production deployments, with environment-specific resource and issuer endpoints. The canonical scope authority remains `https://auth.mad4b.com/scopes/*` in both environments; Staging may use `dev.mad4b.com` for its resource and OAuth endpoint hosts, but must not publish `https://dev.mad4b.com/scopes/*` as scope authority.
 
-## Governed per-environment client provisioning
+## Governed dynamic client-profile provisioning
 
-Remote MCP client credentials are provisioned independently for each environment by the operator CLI. The flow reuses the existing `remote_mcp_oauth_clients`, `platform_runtime_config`, and `platform_secrets` boundaries; it does not create a new database or a second OAuth client table.
+Remote MCP client credentials are provisioned independently for each **environment and profile**. The flow reuses the existing `remote_mcp_oauth_clients`, `platform_runtime_config`, and `platform_secrets` boundaries; it does not create a new database or a second OAuth client table. The registry source of truth is `http-generic-api/config/remote-mcp-client-profile-registry.json`, guarded by its JSON Schema and runtime validation.
 
-New client IDs are environment-prefixed so that identity mistakes fail closed at the runtime boundary:
+New client IDs are environment-prefixed so identity mistakes fail closed at the runtime boundary. Each profile also receives a distinct config key, secret reference, and `client_profile_key`; the legacy generic profile retains its old key for backward compatibility:
 
-| Environment | Resource and issuer hosts | Client ID prefix | Secret storage key |
+| Profile key | Surface | Callback policy | Staging secret namespace |
 |---|---|---|---|
-| Staging | `mcp_dev.mad4b.com` and `dev.mad4b.com` | `mcp_stg_` | `REMOTE_MCP_STAGING_OAUTH_CLIENT_SECRET` |
-| Production | `mcp.mad4b.com` and `auth.mad4b.com` | `mcp_prd_` | `REMOTE_MCP_PRODUCTION_OAUTH_CLIENT_SECRET` |
+| `anthropic_claude` | Claude web custom connector | Fixed `https://claude.ai/api/mcp/auth_callback` | `REMOTE_MCP_STAGING_ANTHROPIC_CLAUDE_OAUTH_CLIENT_SECRET` |
+| `openai_chatgpt` | ChatGPT MCP connector | `https://chatgpt.com/connector_platform_oauth_redirect` or callback-ID path `https://chatgpt.com/connector/oauth/{callback_id}` | `REMOTE_MCP_STAGING_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET` |
+| `google_gemini_enterprise` | Gemini Enterprise custom MCP data store | Fixed `https://vertexaisearch.cloud.google.com/oauth-redirect` | `REMOTE_MCP_STAGING_GOOGLE_GEMINI_ENTERPRISE_OAUTH_CLIENT_SECRET` |
+| `manus_remote_mcp` | Manus Custom MCP | Operator-supplied exact approved HTTPS callback; never guessed | `REMOTE_MCP_STAGING_MANUS_REMOTE_MCP_OAUTH_CLIENT_SECRET` |
+| `generic_remote_mcp_client` | Generic compatibility client | Operator-supplied exact approved HTTPS callback; protocol evidence: `https://modelcontextprotocol.io/specification/2026-07-28` | Legacy `REMOTE_MCP_STAGING_OAUTH_CLIENT_SECRET` |
 
-The generated client secret is at least 32 characters and is never committed to Git, placed in an `.env.example` file, or returned by readiness/status endpoints. Durable storage keeps only encrypted ciphertext and a SHA-256 evidence digest in `platform_secrets`, while the OAuth client row keeps the verification hash in `remote_mcp_oauth_clients`. The provisioning command returns a newly generated secret once so the operator can place it in the approved external client configuration; a later run without `--rotate` preserves the existing secret and returns no secret payload.
+Production uses the same profile suffixes under the `mcp_prd_` and `REMOTE_MCP_PRODUCTION_*` namespaces, but Production provisioning is a separate governed operation and is not executed by this PR. The generated client secret is at least 32 characters and is never committed to Git, placed in an `.env.example` file, or returned by readiness/status endpoints. Durable storage keeps only encrypted ciphertext and a SHA-256 evidence digest in `platform_secrets`, while the OAuth client row keeps the verification hash in `remote_mcp_oauth_clients`. The provisioning command returns a newly generated secret once so the operator can place it in the approved external client configuration; a later run without `--rotate` preserves the existing profile secret and returns no secret payload.
 
-Provisioning requires an explicit environment and confirmation token. It also requires at least one exact approved HTTPS callback URI; the callback must be approved in the selected environment before execution:
+List the available profiles without mutation, then provision one profile at a time against the explicitly selected environment database:
 
 ```bash
-# Staging: run only against the approved Staging runtime DB.
+# Non-mutating registry-only profile discovery; no environment or database is required.
+npm run remote-mcp:client:profiles
+
+# Staging examples; each command creates a separate client identity and one-time secret.
 npm run remote-mcp:client:provision -- \
   --environment=staging \
+  --profile=anthropic_claude \
   --confirm=PROVISION_REMOTE_MCP_STAGING \
-  --redirect-uri=<approved-exact-https-callback>
+  --redirect-uri=https://claude.ai/api/mcp/auth_callback
 
-# Production: this is a separate governed operation and is not executed by this PR.
 npm run remote-mcp:client:provision -- \
-  --environment=production \
-  --confirm=PROVISION_REMOTE_MCP_PRODUCTION \
-  --redirect-uri=<approved-exact-https-callback>
+  --environment=staging \
+  --profile=openai_chatgpt \
+  --confirm=PROVISION_REMOTE_MCP_STAGING \
+  --redirect-uri=https://chatgpt.com/connector_platform_oauth_redirect
 
-# Non-secret readback only.
-npm run remote-mcp:client:status -- --environment=staging
-npm run remote-mcp:client:status -- --environment=production
+npm run remote-mcp:client:provision -- \
+  --environment=staging \
+  --profile=google_gemini_enterprise \
+  --confirm=PROVISION_REMOTE_MCP_STAGING \
+  --redirect-uri=https://vertexaisearch.cloud.google.com/oauth-redirect
+
+npm run remote-mcp:client:provision -- \
+  --environment=staging \
+  --profile=manus_remote_mcp \
+  --confirm=PROVISION_REMOTE_MCP_STAGING \
+  --redirect-uri=<operator-approved-exact-https-callback>
+
+# Non-secret readback for one profile or all active profiles.
+npm run remote-mcp:client:status -- --environment=staging --profile=anthropic_claude
+npm run remote-mcp:client:status:all -- --environment=staging
 ```
 
-Before a Production command is run, independently verify the target database, canonical Production resource/issuer, approved callback, secret-storage authority, and owner authorization. This source change defines and tests the provisioning boundary but does not execute Production provisioning, migration, grant, activation, deployment, or client linking. Existing unprefixed DCR identities remain temporarily accepted for compatibility; all newly provisioned identities use the environment-specific prefixes and a Staging runtime rejects `mcp_prd_*` identities while Production rejects `mcp_stg_*` identities.
+Adding a future profile is registry work, not a new storage design: add a unique `profile_key`, `client_profile_key`, `storage_suffix`, owner, risk, callback policy with official source evidence, confidential token auth method, read-only scope policy, and required readback evidence to the registry; run the registry/schema tests and Configuration Drift Guard. Never add secrets, reuse another profile’s storage suffix, widen scopes, or use a guessed callback. Profiles using `operator_exact_https` remain blocked until an operator supplies an exact approved callback.
+
+Before any Production command is run, independently verify the target database, canonical Production resource/issuer, profile callback, secret-storage authority, and owner authorization. This source change defines and tests the provisioning boundary but does not execute Production provisioning, migration, grant, activation, deployment, or client linking. Existing unprefixed DCR identities remain temporarily accepted for compatibility; all newly provisioned identities use the environment-specific prefixes and a Staging runtime rejects `mcp_prd_*` identities while Production rejects `mcp_stg_*` identities.
 
 ## Client registration posture
 

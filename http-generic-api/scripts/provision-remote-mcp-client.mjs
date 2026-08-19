@@ -3,9 +3,11 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { listRemoteMcpClientProfiles } from "../remoteMcpClientProfileRegistry.js";
 import {
   provisionRemoteMcpOAuthClient,
   readRemoteMcpOAuthClientProvisioningStatus,
+  listRemoteMcpOAuthClientProvisioningStatus,
 } from "../remoteMcpOAuthClientProvisioning.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +49,12 @@ function loadEnvFile(filePath) {
   }
 }
 
+const listProfiles = process.argv.includes("--list-profiles");
+if (listProfiles) {
+  console.log(JSON.stringify(listRemoteMcpClientProfiles(), null, 2));
+  process.exit(0);
+}
+
 const environment = String(argValue("environment") || process.env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase();
 if (!environment || !["staging", "production"].includes(environment)) {
   console.error("Usage requires --environment=staging|production.");
@@ -56,10 +64,16 @@ if (!environment || !["staging", "production"].includes(environment)) {
 const envFile = argValue("env-file") || (environment === "staging" ? resolve(apiRoot, ".env.staging") : resolve(apiRoot, ".env"));
 loadEnvFile(envFile);
 process.env.REMOTE_MCP_ENVIRONMENT = environment;
+const profileKey = argValue("profile") || process.env.REMOTE_MCP_CLIENT_PROFILE_KEY || "generic_remote_mcp_client";
+process.env.REMOTE_MCP_CLIENT_PROFILE_KEY = profileKey;
 
 const pool = getPool();
 try {
-  if (process.argv.includes("--status")) {
+  if (process.argv.includes("--all-status")) {
+    const result = await listRemoteMcpOAuthClientProvisioningStatus({ env: process.env, pool });
+    console.log(JSON.stringify(result, null, 2));
+    process.exitCode = result.ok ? 0 : 1;
+  } else if (process.argv.includes("--status")) {
     const result = await readRemoteMcpOAuthClientProvisioningStatus({ env: process.env, pool });
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.ok ? 0 : 1;
@@ -73,6 +87,7 @@ try {
         env: process.env,
         pool,
         environment,
+        profile_key: profileKey,
         client_id: argValue("client-id"),
         client_name: argValue("client-name"),
         client_secret: process.env.REMOTE_MCP_OAUTH_CLIENT_SECRET || "",
@@ -80,7 +95,7 @@ try {
         scopes: argValues("scope"),
         token_endpoint_auth_method: argValue("token-endpoint-auth-method") || "client_secret_basic",
         rotate: process.argv.includes("--rotate"),
-        note: argValue("note") || `remote_mcp_oauth_client_${environment}_operator`,
+        note: argValue("note") || `remote_mcp_oauth_client_${environment}_${profileKey}_operator`,
       });
       console.log(JSON.stringify(result, null, 2));
       console.error("Store client_secret in the approved client configuration now. It is returned once and is never included in status/readback.");
