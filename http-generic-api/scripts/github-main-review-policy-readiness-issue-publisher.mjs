@@ -44,7 +44,10 @@ assert.equal(sourceRun?.conclusion, 'success');
 assert.equal(String(sourceRun?.head_sha || '').toLowerCase(), SOURCE_HEAD_SHA);
 
 const summary = JSON.parse(readFileSync(SUMMARY_PATH, 'utf8'));
-assert.equal(summary?.result, 'ready_for_apply');
+if (summary?.result !== 'ready_for_apply') {
+  console.log(JSON.stringify({ ok: true, action: 'not_readiness', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, result: summary?.result || null, secrets_included: false }));
+  process.exit(0);
+}
 assert.ok(ALLOWED_BRANCHES.has(summary?.target_branch), 'Readiness target branch is not registered');
 assert.match(String(summary?.target_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.main_sha || ''), /^[0-9a-f]{40}$/);
