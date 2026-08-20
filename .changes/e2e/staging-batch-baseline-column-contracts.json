@@ -11,6 +11,7 @@
       ".changes/e2e/staging-batch-baseline-column-contracts.json",
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",
       "http-generic-api/migrations/004_sprint04_customer_ops.sql",
@@ -38,7 +39,7 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -94,6 +95,7 @@
             ".changes/e2e/staging-batch-baseline-column-contracts.json",
             ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/config/staging-database-role-migration-manifest.json",
             "http-generic-api/migrations/004_sprint04_customer_ops.sql",
