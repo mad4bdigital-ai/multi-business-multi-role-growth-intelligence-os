@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7222,
-    "bytes": 70501084,
+    "bytes": 70501111,
     "lines": 1653730,
     "directories": 266,
     "categories": 13
@@ -13099,7 +13099,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "7b72e6cfc995f3930fe86b5fabd761ba09c04bc265e216b5a644c92f804c8016",
+      "sha256": "dc8523ff21c9c37f61586eec0792a6c401e828322e2f966d57aad65d6311d37b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54369,9 +54369,9 @@
       "path": "http-generic-api/schema.sql",
       "category": "schemas-and-data",
       "extension": ".sql",
-      "bytes": 27883,
+      "bytes": 27910,
       "lines": 556,
-      "sha256": "c9d59d48ba5fd4a3a212cb52f0419e818fb6c6ecd5ff43620de7e6447a758cf5",
+      "sha256": "d29e029c2f1aa0eb3cff29b6d6cac0296fa79172351aca285259c5495017b6b9",
       "mode": "644",
       "executable": false,
       "generated": false
