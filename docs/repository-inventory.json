@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7228,
-    "bytes": 70550131,
-    "lines": 1654569,
+    "bytes": 70550278,
+    "lines": 1654571,
     "directories": 266,
     "categories": 13
   },
@@ -8620,9 +8620,9 @@
       "path": ".changes/e2e/staging-local-connector-legacy-reconciliation.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 3225,
-      "lines": 72,
-      "sha256": "3e3a3a5c52a00ff1714d1281c5c2f62b20ae6baf92f86c1b250589d8b3125c70",
+      "bytes": 3372,
+      "lines": 74,
+      "sha256": "e24765777ec39901b2b4ef3ac5dd1987c7cbac08a055ad05f95f70d0dbdc7efd",
       "mode": "644",
       "executable": false,
       "generated": false
