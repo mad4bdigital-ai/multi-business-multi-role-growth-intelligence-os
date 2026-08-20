@@ -1,0 +1,71 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-local-connector-legacy-reconciliation",
+  "title": "Reconcile legacy local connector table shape before tunnel seed",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-local-connector-legacy-reconciliation.json",
+      "http-generic-api/migrations/030_sprint33_local_connector_tables.sql",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reconcile the legacy local_connector_user_configs table created by migration 017 before migration 032 seeds tunnel_url.",
+      "e2e_journeys": [
+        {
+          "id": "legacy-local-connector-before-tunnel-seed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The exact ordered migration chain applies migration 030 before migration 032.",
+          "terminal_outcome": "The existing local_connector_user_configs table has tunnel_url before the migration 032 INSERT, so the bundle build continues fail-closed only for real contract violations.",
+          "steps": [
+            "Migration 017 creates the legacy local connector table shape.",
+            "Migration 030 creates the current local connector tables and explicitly adds tunnel_url if absent.",
+            "Migration 032 adds connector_secret and seeds tunnel_url through the existing table contract.",
+            "The schema bundle remains exact-SHA, three-role, schema-only, and production/provider isolated."
+          ],
+          "assertions": [
+            "Migration 030 contains an idempotent ALTER for tunnel_url after device_id.",
+            "Migration 032's seed columns are covered by the reconciled table shape.",
+            "The ordered filenames remain 017 before 030 before 032.",
+            "No Production or provider access is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-local-connector-legacy-reconciliation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-local-connector-legacy-reconciliation.json",
+            "http-generic-api/migrations/017_sprint21_output_sink_router.sql",
+            "http-generic-api/migrations/030_sprint33_local_connector_tables.sql",
+            "http-generic-api/migrations/032_sprint35_local_connector_seed.sql",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
