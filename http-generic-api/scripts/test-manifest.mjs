@@ -54,6 +54,7 @@ const staticDiscoveryCommands = [
   "node test-custom-gpt-environment-aware-contract.mjs",
   "node test-openapi-security-scheme-cardinality.mjs",
   "node test-spec020-runtime-database-readiness-contract.mjs",
+  "node test-runtime-remediation-batch-plan.mjs",
   "node test-openapi-gap-closure-plan.mjs",
   "node test-cms-authority-reconciliation.mjs",
   "node test-remote-mcp-multi-client-profiles.mjs",
