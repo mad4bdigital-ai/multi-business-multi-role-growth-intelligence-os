@@ -113,8 +113,16 @@ assert.ok(
   "unrecognized review states must fail closed against policy.review_states",
 );
 assert.ok(
-  workflow.includes('if [[ "${review_state}" = "ready_for_implementation" ]]; then'),
-  "only ready_for_implementation manifests may enter registry refresh write scope",
+  workflow.includes('implementation_status="$(jq -er \'.implementation_readiness.status // ""\' "${binding_path}")"'),
+  "writer must inspect implementation readiness before granting maintenance refresh scope",
+);
+assert.ok(
+  workflow.includes('"${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false"'),
+  "only blocked, secret-free draft manifests may enter governance-only registry refresh scope",
+);
+assert.ok(
+  workflow.includes('"${review_state}" = "ready_for_implementation"'),
+  "ready_for_implementation manifests must remain in registry refresh write scope",
 );
 assert.ok(
   workflow.includes('cat "${target_binding_file}" "${registry_refresh_binding_file}" | sort -u > "${writer_binding_file}"'),

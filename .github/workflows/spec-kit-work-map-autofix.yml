@@ -196,8 +196,14 @@ jobs:
             test -f "${binding_path}"
             manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
             review_state="$(jq -er '.review_state' "${binding_path}")"
+            implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
+            secrets_included="$(jq -er '.secrets_included // true' "${binding_path}")"
             test "${manifest_feature_key}" = "${feature_key}"
-            test "${review_state}" = "ready_for_implementation"
+            if [[ "${review_state}" != "ready_for_implementation" \
+              && ! ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
+              echo "::error::Target Work Map manifest is outside the bounded writer states: ${binding_path} review_state=${review_state} implementation_status=${implementation_status} secrets_included=${secrets_included}"
+              exit 1
+            fi
             printf '%s\n' "${binding_path}" >> "${target_binding_file}"
           done < "${target_binding_candidates}"
 
@@ -266,13 +272,19 @@ jobs:
               test -f "${binding_path}"
               manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
               review_state="$(jq -er '.review_state' "${binding_path}")"
+              implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
+              secrets_included="$(jq -er '.secrets_included // true' "${binding_path}")"
               test "${manifest_feature_key}" = "${feature_key}"
               if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
                 echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
                 exit 1
               fi
-              if [[ "${review_state}" = "ready_for_implementation" ]]; then
+              if [[ "${review_state}" = "ready_for_implementation" \
+                || ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
                 printf '%s\n' "${binding_path}" >> "${registry_refresh_binding_file}"
+              elif [[ "${review_state}" != "draft" || "${implementation_status}" != "blocked" || "${secrets_included}" != "false" ]]; then
+                echo "::error::Registry-refresh Work Map manifest is outside the bounded writer states: ${binding_path} review_state=${review_state} implementation_status=${implementation_status} secrets_included=${secrets_included}"
+                exit 1
               fi
             done < "${registry_refresh_binding_candidates}"
           fi
