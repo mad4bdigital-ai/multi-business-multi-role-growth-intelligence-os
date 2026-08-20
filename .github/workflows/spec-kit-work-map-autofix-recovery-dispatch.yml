@@ -173,7 +173,7 @@ jobs:
           [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
           dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
           payload="$(jq -cn \
-            --arg ref main \
+            --arg ref "${TARGET_BRANCH}" \
             --arg pr_number "${PR_NUMBER}" \
             --arg branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
@@ -188,7 +188,7 @@ jobs:
           for _ in $(seq 1 30); do
             delegated_run_id="$(gh api \
               "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs?event=workflow_dispatch&per_page=30" \
-              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\" and .head_branch == \"main\" and .actor.login == \"github-actions[bot]\")] | sort_by(.created_at) | last | .id // empty")"
+              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\" and .head_branch == \"${TARGET_BRANCH}\" and .actor.login == \"github-actions[bot]\")] | sort_by(.created_at) | last | .id // empty")"
             if [[ -n "${delegated_run_id}" ]]; then
               break
             fi

@@ -202,6 +202,12 @@ assert.match(recoveryWorkflow, /--arg recovery_run_id "\$\{GITHUB_RUN_ID\}"/u);
 assert.match(recoveryWorkflow, /--arg delegation_comment_id "\$\{DELEGATION_COMMENT_ID\}"/u);
 assert.match(recoveryWorkflow, /pr_number:\$pr_number,branch:\$branch,expected_head_sha:\$expected_head_sha,recovery_run_id:\$recovery_run_id,delegation_comment_id:\$delegation_comment_id/u);
 assert.match(recoveryWorkflow, /actions\/workflows\/spec-kit-work-map-autofix\.yml\/dispatches/u);
+assert.match(recoveryWorkflow, /--arg ref "\$\{TARGET_BRANCH\}"/u);
+assert.ok(recoveryWorkflow.includes('.head_branch == \\"${TARGET_BRANCH}\\"'));
+
+assert.doesNotMatch(recoveryWorkflow, /--arg ref main/u);
+assert.ok(!recoveryWorkflow.includes('.head_branch == \\"main\\"'));
+
 assert.match(recoveryWorkflow, /state=revoked recovery_outcome=blocked/u);
 assert.match(recoveryWorkflow, /authorization_consumed:\$authorization_consumed/u);
 assert.match(recoveryWorkflow, /delegation_comment_id:\$delegation_comment_id/u);
