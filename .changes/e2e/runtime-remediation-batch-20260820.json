@@ -13,6 +13,8 @@
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "autopilot-portable-staging/manifest.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-runtime-remediation-batch-plan.mjs"
     ]
@@ -84,6 +86,8 @@
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "autopilot-portable-staging/manifest.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md",
             "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/test-runtime-remediation-batch-plan.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs"
