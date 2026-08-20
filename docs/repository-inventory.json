@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7225,
-    "bytes": 70528417,
-    "lines": 1654174,
+    "bytes": 70528476,
+    "lines": 1654175,
     "directories": 266,
     "categories": 13
   },
@@ -37528,9 +37528,9 @@
       "path": "http-generic-api/config/repository-governance-constitution.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 15041,
-      "lines": 235,
-      "sha256": "fed0d58281b88e441a38a78692c776ef0663321ca14494d8159064de99cd92d6",
+      "bytes": 15100,
+      "lines": 236,
+      "sha256": "476358df803d5e4bf60d0f3d3409513744e7e68c036c9c651fd658495de08381",
       "mode": "644",
       "executable": false,
       "generated": false
