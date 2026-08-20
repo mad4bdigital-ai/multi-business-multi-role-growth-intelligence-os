@@ -37,6 +37,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
   assert.deepEqual(manifest.validation.required_endpoints_baseline_columns, ["child_openai_schema_file_id"]);
+  assert.deepEqual(manifest.validation.required_validation_repair_baseline_columns, ["validation_type", "repair_action", "repair_status", "priority"]);
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
   assert.deepEqual(manifest.validation.required_runtime_support_tables, ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
@@ -85,6 +86,23 @@ test("baseline endpoints schema covers the pre-use migration column contract", (
   assert.match(migration023, /AFTER `child_openai_schema_file_id`/i);
 });
 
+test("baseline validation_repair schema covers the pre-use migration 040 contract", () => {
+  const quote = String.fromCharCode(96);
+  for (const column of manifest.validation.required_validation_repair_baseline_columns) {
+    assert.equal(baselineSchema.includes(`${quote}${column}${quote}`), true, `validation_repair baseline missing ${column}`);
+  }
+  const migration039 = fs.readFileSync(path.join(apiRoot, "migrations", "039_sprint43_data_integrity_and_missing_tables.sql"), "utf8");
+  const migration040 = fs.readFileSync(path.join(apiRoot, "migrations", "040_sprint44_expand_surfaces_and_repair_schema.sql"), "utf8");
+  assert.match(migration039, /CREATE TABLE IF NOT EXISTS `validation_repair`/i);
+  assert.match(migration039, /validation_type/i);
+  assert.match(migration039, /repair_action/i);
+  assert.match(migration039, /repair_status/i);
+  assert.match(migration039, /priority/i);
+  assert.match(migration040, /AFTER `validation_type`/i);
+  assert.match(migration040, /AFTER `repair_status`/i);
+  assert.match(migration040, /AFTER `repair_action`/i);
+});
+
 test("local connector migration reconciles legacy table shape before tunnel seed", () => {
   const migrationsDir = path.join(apiRoot, "migrations");
   const migration017 = fs.readFileSync(path.join(migrationsDir, "017_sprint21_output_sink_router.sql"), "utf8");
@@ -126,7 +144,9 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /mcp_catalog_required_columns/);
   assert.match(generator, /required_actions_baseline_columns/);
   assert.match(generator, /required_endpoints_baseline_columns/);
+  assert.match(generator, /required_validation_repair_baseline_columns/);
   assert.match(generator, /endpoints baseline column contract is incomplete/);
+  assert.match(generator, /validation_repair baseline column contract is incomplete/);
 });
 
 test("generator plan-only mode inventories the exact migration chain", () => {
@@ -141,6 +161,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.deferred_foreign_key_tables, ["user_credentials"]);
   assert.deepEqual(plan.baseline_schema.required_actions_baseline_columns.sort(), manifest.validation.required_actions_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_endpoints_baseline_columns.sort(), manifest.validation.required_endpoints_baseline_columns.slice().sort());
+  assert.deepEqual(plan.baseline_schema.required_validation_repair_baseline_columns.sort(), manifest.validation.required_validation_repair_baseline_columns.slice().sort());
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [

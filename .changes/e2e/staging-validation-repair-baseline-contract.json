@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-validation-repair-baseline-contract",
+  "title": "Complete validation_repair baseline columns before migration 040",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-validation-repair-baseline-contract.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/migrations/039_sprint43_data_integrity_and_missing_tables.sql",
+      "http-generic-api/migrations/040_sprint44_expand_surfaces_and_repair_schema.sql",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure the canonical validation_repair baseline contains every column required by migration 040 before its ordered ALTER TABLE clauses execute.",
+      "e2e_journeys": [
+        {
+          "id": "validation-repair-baseline-before-migration-040",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The exact ordered migration chain applies the canonical baseline, migration 039, and migration 040 in lexicographic order.",
+          "terminal_outcome": "Migration 040 can apply its validation_repair ALTER clauses without an unknown validation_type, repair_action, or repair_status predecessor, and the generator remains schema-only and fail-closed.",
+          "steps": [
+            "The canonical baseline declares validation_type, repair_action, repair_status, and priority on validation_repair.",
+            "Migration 039 remains idempotent when the baseline table already exists.",
+            "Migration 040 extends the table using the now-present predecessor columns.",
+            "The manifest preflight reports and validates the four-column contract before disposable MariaDB starts.",
+            "No Production database, provider, or data copy path is introduced."
+          ],
+          "assertions": [
+            "The manifest declares required_validation_repair_baseline_columns.",
+            "schema.sql contains all required validation_repair baseline columns.",
+            "The generator emits the validation_repair baseline contract in plan evidence.",
+            "The schema bundle regression suite covers migration 039 to 040 ordering.",
+            "Production and provider access remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-validation-repair-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-validation-repair-baseline-contract.json",
+            "http-generic-api/schema.sql",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/migrations/039_sprint43_data_integrity_and_missing_tables.sql",
+            "http-generic-api/migrations/040_sprint44_expand_surfaces_and_repair_schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
