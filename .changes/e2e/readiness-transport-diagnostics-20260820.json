@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "readiness-transport-diagnostics-20260820",
+  "title": "Readiness transport diagnostic evidence hardening",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/readiness-transport-diagnostics-20260820.json",
+      ".github/derived-state-governance.json",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve bounded no-secret HTTP and transport diagnostics when Main or Production policy readiness cannot complete Migration 1051 readback, without changing runtime authority or enabling any live mutation.",
+      "e2e_journeys": [
+        {
+          "id": "readiness-transport-diagnostic-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance CI",
+          "entrypoint": "The existing live activation readiness runner executes on the exact PR candidate.",
+          "terminal_outcome": "Readiness evidence records only transport status, HTTP status, safe error code, and top-level response keys when Migration 1051 readback fails; credentials and response payloads remain excluded.",
+          "steps": [
+            "Keep the existing x-api-key admin/service request contract unchanged.",
+            "Capture bounded no-secret failure metadata for the Migration 1051 readback assertion.",
+            "Guard the diagnostic fields with the existing policy contract test.",
+            "Run environment-impact and derived-state closure checks on the exact candidate.",
+            "Keep readiness read-only and leave Branch Protection, Rulesets, database, migration, grant, provider, and Production effects disabled."
+          ],
+          "assertions": [
+            "The runner continues to send BACKEND_API_KEY through x-api-key.",
+            "No response body or credential value is written to evidence.",
+            "The diagnostic declares secrets_included=false.",
+            "Environment impact is explicitly declared for staging and production.",
+            "Production mutation remains false and live staging certification remains required.",
+            "No Branch Protection or Rulesets Apply, migration, grant, SQL/DB mutation, provider mutation, credential payload read, force-push, or Production activation occurs."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "repository-governance-objection-gate",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-objection-gate.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/readiness-transport-diagnostics-20260820.json",
+            ".github/ops/github-main-review-policy-live-activation.mjs",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

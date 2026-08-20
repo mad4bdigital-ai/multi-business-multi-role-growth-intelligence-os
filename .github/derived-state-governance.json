@@ -89,6 +89,7 @@
       ".changes/e2e/pr7434-environment-impact-closure.json",
       ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
       ".changes/e2e/runtime-admin-api-key-header-20260820.json",
+      ".changes/e2e/readiness-transport-diagnostics-20260820.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",

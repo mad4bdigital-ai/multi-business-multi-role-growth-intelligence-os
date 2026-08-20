@@ -203,7 +203,22 @@ async function verifyMigration1051Applied() {
   const result = await requestRaw("/gpt/tools/call", { name: "governed_migration_schema_readback", tool_args: { migration: MIGRATION, expected_checksum_sha256: migrationChecksum, expected_statement_count: EXPECTED_MIGRATION_STATEMENTS, expected_tables: ["platform_resource_adapters", "platform_capability_readback_contracts", "capability_apply_authorization_policy_registry", "repository_capability_bindings", "repository_capability_policy_layers", "governed_migration_authorization_registry"] } }, 180000);
   const readback = keyed(result.payload, "readback_status");
   const ledger = readback?.ledger;
-  assert.ok(result.transport_ok && result.http_ok, "Migration 1051 readback transport failed");
+  if (!result.transport_ok || !result.http_ok) {
+    const diagnostic = {
+      transport_ok: Boolean(result.transport_ok),
+      http_status: result.status ?? null,
+      http_ok: Boolean(result.http_ok),
+      transport_error: result.transport_error || null,
+      response_ok: result.payload?.ok ?? null,
+      response_error_code: result.payload?.error?.code || result.payload?.error_code || keyed(result.payload, "code") || null,
+      response_keys: result.payload && typeof result.payload === "object" ? Object.keys(result.payload).slice(0, 20) : [],
+      secrets_included: false,
+    };
+    const error = new Error("Migration 1051 readback transport failed");
+    error.code = "migration_1051_readback_transport_failed";
+    error.details = diagnostic;
+    throw error;
+  }
   assert.equal(readback?.readback_status, "pass", "Migration 1051 readback is not pass");
   assert.equal(ledger?.found, true, "Migration 1051 apply ledger is absent");
   assert.equal(ledger?.migration_file, MIGRATION);
