@@ -92,24 +92,28 @@ function baselineSchema(manifest) {
   const requiredEndpointColumns = manifest.validation?.required_endpoints_baseline_columns;
   const requiredValidationRepairColumns = manifest.validation?.required_validation_repair_baseline_columns;
   const requiredPlatformContractSurfacesColumns = manifest.validation?.required_platform_contract_surfaces_baseline_columns;
+  const requiredPlatformEndpointToolExportsColumns = manifest.validation?.required_platform_endpoint_tool_exports_baseline_columns;
   const requiredTenantSecretsColumns = manifest.validation?.required_tenant_secrets_baseline_columns;
   const requiredPlatformSecretsColumns = manifest.validation?.required_platform_secrets_baseline_columns;
   if (!Array.isArray(requiredActionColumns) || requiredActionColumns.length === 0) fail("role manifest required_actions_baseline_columns contract is missing");
   if (!Array.isArray(requiredEndpointColumns) || requiredEndpointColumns.length === 0) fail("role manifest required_endpoints_baseline_columns contract is missing");
   if (!Array.isArray(requiredValidationRepairColumns) || requiredValidationRepairColumns.length === 0) fail("role manifest required_validation_repair_baseline_columns contract is missing");
   if (!Array.isArray(requiredPlatformContractSurfacesColumns) || requiredPlatformContractSurfacesColumns.length === 0) fail("role manifest required_platform_contract_surfaces_baseline_columns contract is missing");
+  if (!Array.isArray(requiredPlatformEndpointToolExportsColumns) || requiredPlatformEndpointToolExportsColumns.length === 0) fail("role manifest required_platform_endpoint_tool_exports_baseline_columns contract is missing");
   if (!Array.isArray(requiredTenantSecretsColumns) || requiredTenantSecretsColumns.length === 0) fail("role manifest required_tenant_secrets_baseline_columns contract is missing");
   if (!Array.isArray(requiredPlatformSecretsColumns) || requiredPlatformSecretsColumns.length === 0) fail("role manifest required_platform_secrets_baseline_columns contract is missing");
   const actionsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`actions`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   const endpointsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`endpoints`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   const validationRepairBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`validation_repair`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   const platformContractSurfacesBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`platform_contract_surfaces`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
+  const platformEndpointToolExportsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`platform_endpoint_tool_exports`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   const tenantSecretsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`tenant_secrets`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   const platformSecretsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`platform_secrets`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   if (!actionsBlock) fail("canonical baseline schema is missing the actions table definition");
   if (!endpointsBlock) fail("canonical baseline schema is missing the endpoints table definition");
   if (!validationRepairBlock) fail("canonical baseline schema is missing the validation_repair table definition");
   if (!platformContractSurfacesBlock) fail("canonical baseline schema is missing the platform_contract_surfaces table definition");
+  if (!platformEndpointToolExportsBlock) fail("canonical baseline schema is missing the platform_endpoint_tool_exports table definition");
   if (!tenantSecretsBlock) fail("canonical baseline schema is missing the tenant_secrets table definition");
   if (!platformSecretsBlock) fail("canonical baseline schema is missing the platform_secrets table definition");
   const quote = String.fromCharCode(96);
@@ -117,12 +121,14 @@ function baselineSchema(manifest) {
   const missingEndpointColumns = requiredEndpointColumns.filter((column) => !endpointsBlock.includes(`${quote}${column}${quote}`));
   const missingValidationRepairColumns = requiredValidationRepairColumns.filter((column) => !validationRepairBlock.includes(`${quote}${column}${quote}`));
   const missingPlatformContractSurfacesColumns = requiredPlatformContractSurfacesColumns.filter((column) => !platformContractSurfacesBlock.includes(`${quote}${column}${quote}`));
+  const missingPlatformEndpointToolExportsColumns = requiredPlatformEndpointToolExportsColumns.filter((column) => !platformEndpointToolExportsBlock.includes(`${quote}${column}${quote}`));
   const missingTenantSecretsColumns = requiredTenantSecretsColumns.filter((column) => !tenantSecretsBlock.includes(`${quote}${column}${quote}`));
   const missingPlatformSecretsColumns = requiredPlatformSecretsColumns.filter((column) => !platformSecretsBlock.includes(`${quote}${column}${quote}`));
   if (missingActionColumns.length) fail(`actions baseline column contract is incomplete: ${missingActionColumns.join(", ")}`);
   if (missingEndpointColumns.length) fail(`endpoints baseline column contract is incomplete: ${missingEndpointColumns.join(", ")}`);
   if (missingValidationRepairColumns.length) fail(`validation_repair baseline column contract is incomplete: ${missingValidationRepairColumns.join(", ")}`);
   if (missingPlatformContractSurfacesColumns.length) fail(`platform_contract_surfaces baseline column contract is incomplete: ${missingPlatformContractSurfacesColumns.join(", ")}`);
+  if (missingPlatformEndpointToolExportsColumns.length) fail(`platform_endpoint_tool_exports baseline column contract is incomplete: ${missingPlatformEndpointToolExportsColumns.join(", ")}`);
   if (missingTenantSecretsColumns.length) fail(`tenant_secrets baseline column contract is incomplete: ${missingTenantSecretsColumns.join(", ")}`);
   if (missingPlatformSecretsColumns.length) fail(`platform_secrets baseline column contract is incomplete: ${missingPlatformSecretsColumns.join(", ")}`);
   const statements = splitStatements(sql);
@@ -146,6 +152,7 @@ function baselineSchema(manifest) {
     required_endpoints_baseline_columns: requiredEndpointColumns,
     required_validation_repair_baseline_columns: requiredValidationRepairColumns,
     required_platform_contract_surfaces_baseline_columns: requiredPlatformContractSurfacesColumns,
+    required_platform_endpoint_tool_exports_baseline_columns: requiredPlatformEndpointToolExportsColumns,
     required_tenant_secrets_baseline_columns: requiredTenantSecretsColumns,
     required_platform_secrets_baseline_columns: requiredPlatformSecretsColumns,
     immediate_sql: `${immediate.join(";\n")};\n`,
@@ -165,6 +172,7 @@ function baselineMetadata(baseline) {
     required_endpoints_baseline_columns: baseline.required_endpoints_baseline_columns,
     required_validation_repair_baseline_columns: baseline.required_validation_repair_baseline_columns,
     required_platform_contract_surfaces_baseline_columns: baseline.required_platform_contract_surfaces_baseline_columns,
+    required_platform_endpoint_tool_exports_baseline_columns: baseline.required_platform_endpoint_tool_exports_baseline_columns,
     required_tenant_secrets_baseline_columns: baseline.required_tenant_secrets_baseline_columns,
     required_platform_secrets_baseline_columns: baseline.required_platform_secrets_baseline_columns,
   };
