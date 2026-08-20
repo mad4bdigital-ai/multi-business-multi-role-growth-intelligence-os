@@ -143,7 +143,7 @@ async function requestGet(url, timeoutMs = 20000) {
 }
 async function requestRaw(pathname, body, timeoutMs = 300000) {
   try {
-    const response = await fetch(`${BASE}${pathname}`, { method: "POST", redirect: "error", headers: { Authorization: `Bearer ${KEY}`, Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+    const response = await fetch(`${BASE}${pathname}`, { method: "POST", redirect: "error", headers: { "x-api-key": KEY, Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
     const text = await response.text();
     let payload; try { payload = text ? JSON.parse(text) : null; } catch { payload = { non_json_response: true }; }
     return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
