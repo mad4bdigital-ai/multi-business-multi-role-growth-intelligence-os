@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7252,
-    "bytes": 70673335,
-    "lines": 1656900,
+    "bytes": 70673731,
+    "lines": 1656907,
     "directories": 266,
     "categories": 13
   },
@@ -8644,9 +8644,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8526,
-      "lines": 133,
-      "sha256": "eb6414a8dad2ad6992bcf0bebe9272437a2847f0cf989ecee13e64724dcb593b",
+      "bytes": 8692,
+      "lines": 135,
+      "sha256": "857a3aedda6035993f02b53702eebaf9314ce9cf5439856b1632ca3dd6f9aec4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -74303,9 +74303,9 @@
       "path": "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 19204,
-      "lines": 355,
-      "sha256": "4ef0acb63f8e10b83efcd8389cd97cf3a3e43c34b9016b836e30e516f434faf9",
+      "bytes": 19434,
+      "lines": 360,
+      "sha256": "43949dd2e10ef707a21f8857647918f045b061aa8b4709961852d60b41cbde9a",
       "mode": "644",
       "executable": false,
       "generated": false
