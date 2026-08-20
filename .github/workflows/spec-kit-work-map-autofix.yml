@@ -144,9 +144,11 @@ jobs:
           target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
           registry_refresh_binding_candidates="${RUNNER_TEMP}/work-map-autofix-registry-refresh-binding-candidates.txt"
           registry_refresh_binding_file="${RUNNER_TEMP}/work-map-autofix-registry-refresh-bindings.txt"
+          registry_refresh_skipped_binding_file="${RUNNER_TEMP}/work-map-autofix-registry-refresh-skipped-bindings.tsv"
           writer_binding_file="${RUNNER_TEMP}/work-map-autofix-writer-bindings.txt"
           : > "${target_binding_file}"
           : > "${registry_refresh_binding_file}"
+          : > "${registry_refresh_skipped_binding_file}"
           : > "${writer_binding_file}"
 
           git cat-file -e "${expected_base_sha}^{commit}"
@@ -301,8 +303,8 @@ jobs:
               echo "::error::Registry-refresh Work Map preflight failed for an eligible manifest: ${binding_path}"
               exit 1
             elif [[ "${review_state}" != "draft" || "${implementation_status}" != "blocked" || "${secrets_included}" != "false" ]]; then
-              echo "::error::Registry-refresh Work Map manifest is outside the bounded writer states: ${binding_path} review_state=${review_state} implementation_status=${implementation_status} secrets_included=${secrets_included}"
-              exit 1
+              printf '%s\t%s\t%s\t%s\n' "${binding_path}" "${review_state}" "${implementation_status}" "${secrets_included}" >> "${registry_refresh_skipped_binding_file}"
+              continue
             fi
           done < "${registry_refresh_binding_candidates}"
 
@@ -313,11 +315,14 @@ jobs:
           generator_preview_drift_count="$(jq -r '.drift_files | length' "${generator_preview_file}")"
           echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
           echo "REGISTRY_REFRESH_BINDING_FILE=${registry_refresh_binding_file}" >> "$GITHUB_ENV"
+          echo "REGISTRY_REFRESH_SKIPPED_BINDING_FILE=${registry_refresh_skipped_binding_file}" >> "$GITHUB_ENV"
           echo "WRITER_BINDING_FILE=${writer_binding_file}" >> "$GITHUB_ENV"
           echo "REGISTRY_REFRESH_REQUIRED=${registry_refresh_required}" >> "$GITHUB_ENV"
           echo "pr_number=${actual_pr_number}" >> "$GITHUB_OUTPUT"
           echo "target_binding_count=${target_binding_count}" >> "$GITHUB_OUTPUT"
           echo "registry_refresh_binding_count=${registry_refresh_binding_count}" >> "$GITHUB_OUTPUT"
+          registry_refresh_skipped_binding_count="$(wc -l < "${registry_refresh_skipped_binding_file}" | tr -d '[:space:]')"
+          echo "registry_refresh_skipped_binding_count=${registry_refresh_skipped_binding_count}" >> "$GITHUB_OUTPUT"
           echo "writer_binding_count=${writer_binding_count}" >> "$GITHUB_OUTPUT"
           echo "registry_refresh_required=${registry_refresh_required}" >> "$GITHUB_OUTPUT"
           echo "generator_preview_drift_count=${generator_preview_drift_count}" >> "$GITHUB_OUTPUT"

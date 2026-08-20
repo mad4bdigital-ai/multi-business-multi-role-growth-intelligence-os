@@ -46,6 +46,7 @@ for (const token of [
   "REGISTRY_REFRESH_REQUIRED",
   "registry_refresh_binding_candidates",
   "registry_refresh_binding_file",
+  "registry_refresh_skipped_binding_file",
   "writer_binding_file",
   "generator_preview_file",
   "generator_preview_exit_code",
@@ -127,6 +128,12 @@ assert.ok(
 assert.ok(
   workflow.includes('"${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false"'),
   "only blocked, secret-free draft manifests may enter governance-only registry refresh scope",
+);
+assert.ok(
+  workflow.includes('registry_refresh_skipped_binding_file')
+    && workflow.includes('>> "${registry_refresh_skipped_binding_file}"')
+    && workflow.includes('continue'),
+  "ineligible draft manifests must be skipped with bounded evidence rather than gaining writer authority",
 );
 assert.ok(
   workflow.includes('"${review_state}" = "ready_for_implementation"'),
