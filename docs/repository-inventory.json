@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7241,
-    "bytes": 70651539,
-    "lines": 1656459,
+    "files": 7249,
+    "bytes": 70656918,
+    "lines": 1656561,
     "directories": 266,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2163,
       "documentation": 1909,
-      "api-runtime": 1454,
+      "api-runtime": 1462,
       "database-migrations": 783,
       "root-and-other": 312,
       "api-contracts": 191,
@@ -29,7 +29,7 @@
       ".md": 2510,
       ".mjs": 1719,
       ".js": 995,
-      ".json": 829,
+      ".json": 837,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3720,
+      "http-generic-api": 3728,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
@@ -8631,9 +8631,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 6402,
-      "lines": 105,
-      "sha256": "aa7293be3d04a31ed907a3e709cdde4cc5b5d667ce5f92e7cc7dd8fe2235514b",
+      "bytes": 7830,
+      "lines": 123,
+      "sha256": "89590930925f37f56647d3912c354a69601730c2ba6162ae700a4863cfeadf90",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13242,7 +13242,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "a06e799e48f12315a25523ed96cd4ae5881cde396d04472e1ed8df0be9385352",
+      "sha256": "04bbc3b7df332d60c17933d3940f900048b2fdec516e6583ccdfdaf8b56d13f2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32338,7 +32338,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "ff8d7601ad7864eac628d159ee012ee70b2a1e2c116119c322d164b2918cef36",
+      "sha256": "b708c179c9762a76e4033ea8c33f86b0be13ccbcc2ad273442772c24808c8585",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34907,6 +34907,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 350,
+      "lines": 8,
+      "sha256": "744dbfae30711f59dfe49be3294f977190b43c2aa9a2c0ac496229da60c4c141",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/activation-surfaces/exclusions/agent_handoff_state_access_log.json",
       "category": "api-runtime",
       "extension": ".json",
@@ -34957,6 +34968,17 @@
       "bytes": 463,
       "lines": 8,
       "sha256": "0378db4c6208f5a9337da83a23e51be290c0266e6eea1310c32227ac0c573f23",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/contacts.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 323,
+      "lines": 8,
+      "sha256": "6f18a119725e2a2127942a484ffe7803be197db0f5957e23e8b251a795f80e64",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -35160,6 +35182,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/activation-surfaces/exclusions/customers.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 322,
+      "lines": 8,
+      "sha256": "7e355c83a08cb35829e37c1ae63161284ad85176a39c5a8db74e23c4f09f1149",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/activation-surfaces/exclusions/execution_intent_contract_bindings.json",
       "category": "api-runtime",
       "extension": ".json",
@@ -35243,6 +35276,17 @@
       "bytes": 405,
       "lines": 8,
       "sha256": "035741edbbcb05ee91e0690485a9b2014d3236b7f14bee3367457a8cd7c7f204",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 344,
+      "lines": 8,
+      "sha256": "9ebf7448cf5bc11e3876cc91a20247bc3ef9d8f16a8f9ab4fd0d9b3d38f6431e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -35419,6 +35463,17 @@
       "bytes": 467,
       "lines": 8,
       "sha256": "83b1eba77de59e51bf61138a9ee3fed8d27325fcfd01a67708dbe53cacdc6bb9",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 360,
+      "lines": 8,
+      "sha256": "b0ab8b085e0b8d43ff291143251450a75b6278d86cbe9639deec93a38e21a458",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -35617,6 +35672,39 @@
       "bytes": 427,
       "lines": 8,
       "sha256": "cc7bdfb070e7ec4e2bbf90419aa7d3d62f020f6d9e2a3ec320556964a3442db4",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/threads.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 330,
+      "lines": 8,
+      "sha256": "3aa333ac2f37c4877f16d7f1ad73d3d8eead752d743ca15764a2978fc9afd725",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/tickets.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 332,
+      "lines": 8,
+      "sha256": "2ea8c5b5bc0c3d7aa18535ad8dd04e6ce9c20aead8479cbc48863dfc18340a43",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 348,
+      "lines": 8,
+      "sha256": "8c8371b94e551030e414fa53e1fb416efa382e3e8889a315b6265daeadf0612b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37693,9 +37781,9 @@
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 14150,
-      "lines": 443,
-      "sha256": "b87f423767fc8fa88256134a695b92bcf8c1264f2865ccc58bbc7b7578226059",
+      "bytes": 14092,
+      "lines": 442,
+      "sha256": "a190e0f72d6490b1df8fe5a6f1d11e65e52405f7698c75ebb39715a8334142b4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -41224,9 +41312,9 @@
       "path": "http-generic-api/migrations/004_sprint04_customer_ops.sql",
       "category": "database-migrations",
       "extension": ".sql",
-      "bytes": 4805,
+      "bytes": 4955,
       "lines": 113,
-      "sha256": "7f6873a07641445212a673601b9c8981d59c40fc534a00e28851cfa87e6a83e9",
+      "sha256": "79d10f47e6a07b3945d038d1052a68bd731d9179951dca16f5c79f5d5f876dfb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -41279,9 +41367,9 @@
       "path": "http-generic-api/migrations/009_sprint05_logic_graph.sql",
       "category": "database-migrations",
       "extension": ".sql",
-      "bytes": 3548,
+      "bytes": 3668,
       "lines": 77,
-      "sha256": "66b0149766b4a29d878ea09e842a896b332a9cd37d970795e8bec880ab606e07",
+      "sha256": "37b05998e8acc9c86fd701b450e24a2b738adbaad46291e7aabe7d981930d066",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -41730,9 +41818,9 @@
       "path": "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql",
       "category": "database-migrations",
       "extension": ".sql",
-      "bytes": 22694,
-      "lines": 494,
-      "sha256": "30a67515598dfbf9aa646bdb871b2798b7487f9f98644f1e33186a610ae066b8",
+      "bytes": 23712,
+      "lines": 514,
+      "sha256": "b42982850297826ba77811e0ac2d348807a0c884a079cc358729be84e86b2e2a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52070,9 +52158,9 @@
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 1936125,
-      "lines": 58551,
-      "sha256": "3ee90381e03fd4d09919860e133ba1362c742457701e0efb20722324c719bdde",
+      "bytes": 1936154,
+      "lines": 58552,
+      "sha256": "8eb5d8258c408bc8e605470db4ac70f710727908b274c777f5b1f045bae03065",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -74345,9 +74433,9 @@
       "path": "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 23786,
+      "bytes": 23769,
       "lines": 498,
-      "sha256": "d9a9c40d0a0b164e6d10027c0d7e11d66ec0d2f0ddc31523ee072185785aa7c4",
+      "sha256": "ca36116b251accf7a98d4540cbb397a656757e5061526c4d174ceef307eeaa7e",
       "mode": "644",
       "executable": false,
       "generated": false

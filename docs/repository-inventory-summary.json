@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7241,
-    "bytes": 70651539,
-    "lines": 1656459,
+    "files": 7249,
+    "bytes": 70656918,
+    "lines": 1656561,
     "directories": 266,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2163,
       "documentation": 1909,
-      "api-runtime": 1454,
+      "api-runtime": 1462,
       "database-migrations": 783,
       "root-and-other": 312,
       "api-contracts": 191,
@@ -29,7 +29,7 @@
       ".md": 2510,
       ".mjs": 1719,
       ".js": 995,
-      ".json": 829,
+      ".json": 837,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3720,
+      "http-generic-api": 3728,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
@@ -269,8 +269,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936125,
-      "lines": 58551
+      "bytes": 1936154,
+      "lines": 58552
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
