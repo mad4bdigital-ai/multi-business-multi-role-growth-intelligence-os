@@ -111,6 +111,7 @@
         "id": "shared_runtime",
         "patterns": [
           "http-generic-api/routes/**",
+          "http-generic-api/schema.sql",
           "http-generic-api/src/**",
           "http-generic-api/public/**",
           "http-generic-api/*.js",

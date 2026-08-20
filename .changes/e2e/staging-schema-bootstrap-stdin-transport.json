@@ -39,7 +39,8 @@
           "terminal_outcome": "The disposable MariaDB receives the complete ordered migration chain, required baseline tables including connected_systems exist, and role-isolated schema-only bundles can be emitted.",
           "steps": [
             "Start only the disposable MariaDB build container.",
-            "Apply the canonical schema.sql baseline before invoking the ordered migration chain.",
+            "Apply the canonical schema.sql baseline tables before invoking the ordered migration chain.",
+            "Defer only baseline CREATE TABLE statements with foreign keys until their referenced migration tables exist.",
             "Invoke docker exec with stdin attached when baseline or migration SQL is provided.",
             "Apply the ordered migration chain and stop on a non-zero database client result.",
             "List tables and fail closed when any required baseline table is missing.",
@@ -47,7 +48,8 @@
           ],
           "assertions": [
             "docker exec receives -i whenever baseline or migration SQL is passed through stdin.",
-            "The canonical schema.sql baseline is hashed, safety-checked, and applied before migrations.",
+            "The canonical schema.sql baseline is hashed and safety-checked.",
+            "The user_credentials foreign-key table is applied after migrations create users, without disabling referential integrity.",
             "Read-only docker exec commands do not receive an unnecessary stdin flag.",
             "The required connected_systems table is checked after the migration chain rather than silently accepting an empty database.",
             "The existing three-role partition and schema-only guards remain unchanged.",

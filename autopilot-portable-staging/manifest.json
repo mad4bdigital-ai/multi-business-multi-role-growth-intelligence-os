@@ -26,15 +26,15 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "sha256": "dbddc745911ae253f21859857c84a7b8209ad82b6c56cb92e42847868276f3a9"
+      "sha256": "ad43a5b7321790dc39b0bca5cc8c1f16532250e69ff9569aa9715dc1c89d1a7e"
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "e444384ee0ba144697b1eb792087a84c93e3f044fd5fcc358afa77f13dd16151"
+      "sha256": "d3e44f048c433ee55fbb5a988e1559159ddafe60c3e27f79f656519ceecdf498"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "74d8966c1a5f233f408fb9a88557a668f00a2b65b6a3f3b603034f83a5989bfe"
+      "sha256": "3acc820e03bdb3391fb9aef5f0f248a4ecbbd9769c4e1a2dff423e2daf6726f1"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -50,7 +50,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
-      "sha256": "d987c084391663997a7e24e50e6d4be2928497c94c3ebc4065d2129726bca7dd"
+      "sha256": "df6a3dbaef0114b381060d0c73327635d06e97fb9c0cf03c9296846abb21b1c7"
     },
     {
       "path": "autopilot-portable-staging/Staging-Maintenance.cmd",
@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Operations-Log.ps1",
-      "sha256": "9ffd787a268150caa3e874fcd0c82e8793f77ff54e544f4e981485a60b604260"
+      "sha256": "0449130216c59655384edf24e12b3938289b4b7e7a136dd156ffe3f39091af8c"
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
@@ -74,11 +74,11 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "852d274c2ff7094af365d1dc25f93265d10250d79987cb8bc412b3d707c22b13"
+      "sha256": "3005cbcc2e0ae07cb82512668a52492df53ca3d023b83c5dc7dac26a110a788b"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "ea3a4ff8d0c8092ca97700952e54dac66367f9a721715e2013927d83d2516889"
+      "sha256": "6a79420881dc556d5d622245fd138c7e0a92271729e51df62f5ed4657fb75a1a"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "b78f2663a182a201dc0a07b1805ec58fdef2b07654e4d6a4793fb10de152ae2d"
+      "sha256": "bc4c3a9a9ec353380f467c4c7936ba3d0691e036f1ffb4245b634e39244e3d76"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "3d4c3403a77f19a558c470af4997cd4e1d7f3f8b6e2e3ca35f601b8132253838"
+      "sha256": "df01ae0438e0348bb81a90babc944a1c2f6d162e57abfd573b42d28ab6860c81"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "2a5c13efdf1627e5df28835ad1aeec3016b5d25b2ea74b06a1cca969e4a4e896"
+      "sha256": "72413c24bdf82457911b677ceca6f3fc50ecaf7d9115e1fa8785db18a1f6798d"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "6212ed42430390d21d40d610bd1d89bde390435adf5b9298a27e0c515e882a66"
+      "sha256": "9347e40fdd0a514f5e7b0cac50e3e48fa498d643bfc0f89cbda4ea2b17faa0d5"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",

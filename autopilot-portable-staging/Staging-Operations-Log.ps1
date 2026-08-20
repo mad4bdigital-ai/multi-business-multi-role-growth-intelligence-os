@@ -1,9 +1,8 @@
-Set-StrictMode -Version Latest
-$script:StagingLogSchemaVersion = 1
+$script:StagingLogSchemaVersion = 2
+$script:StagingLogWriteFailureAt = $null
 
 function Get-StagingRunId {
-    # PowerShell StrictMode throws when an unset global variable is read directly.
-    # Read through Get-Variable so the first durable log record can initialize its ID.
+    # StrictMode throws when an unset global variable is read directly.
     $current = Get-Variable -Name Mad4bStagingRunId -Scope Global -ValueOnly -ErrorAction SilentlyContinue
     if ([string]::IsNullOrWhiteSpace([string]$current)) {
         $global:Mad4bStagingRunId = [guid]::NewGuid().ToString("N")
@@ -24,6 +23,49 @@ function Get-StagingLogRoot {
 
 function Get-StagingLogFile([string]$Name = "operations.jsonl") {
     return Join-Path (Get-StagingLogRoot) $Name
+}
+
+function Invoke-StagingLogLocked([scriptblock]$Action) {
+    $mutex = $null
+    $acquired = $false
+    try {
+        $mutex = New-Object System.Threading.Mutex($false, "Global\Mad4bStagingOperationsLog")
+        try {
+            $acquired = $mutex.WaitOne(15000)
+        } catch [System.Threading.AbandonedMutexException] {
+            $acquired = $true
+        }
+        if (-not $acquired) { throw "shared Staging log lock timeout after 15 seconds" }
+        & $Action
+    } finally {
+        if ($acquired -and $null -ne $mutex) { try { $mutex.ReleaseMutex() } catch { } }
+        if ($null -ne $mutex) { try { $mutex.Dispose() } catch { } }
+    }
+}
+
+function Write-StagingUtf8Atomic([string]$Path, [string]$Text) {
+    $temporary = "$Path.$PID.$([guid]::NewGuid().ToString('N')).tmp"
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    try {
+        [IO.File]::WriteAllText($temporary, $Text, $encoding)
+        $completed = $false
+        for ($attempt = 0; $attempt -lt 6 -and -not $completed; $attempt++) {
+            try {
+                Move-Item -LiteralPath $temporary -Destination $Path -Force -ErrorAction Stop
+                $completed = $true
+            } catch {
+                if ($attempt -eq 5) { throw }
+                Start-Sleep -Milliseconds ([int](50 * [math]::Pow(2, $attempt)))
+            }
+        }
+    } finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+function Write-StagingAtomicJson([string]$Path, [object]$Value, [int]$Depth = 10) {
+    $json = $Value | ConvertTo-Json -Depth $Depth
+    Invoke-StagingLogLocked { Write-StagingUtf8Atomic $Path $json }
 }
 
 function Rotate-StagingOperationsLog {
@@ -58,6 +100,7 @@ function Write-StagingLog {
         [Parameter(Mandatory = $true)][string]$Message,
         [hashtable]$Data = @{}
     )
+    $record = $null
     try {
         $safeData = @{}
         foreach ($key in $Data.Keys) { $safeData[$key] = ConvertTo-StagingSafeText $Data[$key] }
@@ -73,18 +116,34 @@ function Write-StagingLog {
             pid = $PID
             computer = $env:COMPUTERNAME
         }
-        $line = $record | ConvertTo-Json -Depth 8 -Compress
-        Add-Content -LiteralPath (Get-StagingLogFile) -Encoding utf8 -Value $line
-        Rotate-StagingOperationsLog
-        $latest = Join-Path (Get-StagingLogRoot) "latest-status.json"
-        $record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $latest -Encoding utf8
-        if ($Level -eq "error") {
-            $failure = Join-Path (Get-StagingLogRoot) "last-failure.json"
-            $record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $failure -Encoding utf8
+        $line = ($record | ConvertTo-Json -Depth 8 -Compress) + [Environment]::NewLine
+        Invoke-StagingLogLocked {
+            $encoding = New-Object System.Text.UTF8Encoding($false)
+            $written = $false
+            for ($attempt = 0; $attempt -lt 6 -and -not $written; $attempt++) {
+                try {
+                    [IO.File]::AppendAllText((Get-StagingLogFile), $line, $encoding)
+                    $written = $true
+                } catch {
+                    if ($attempt -eq 5) { throw }
+                    Start-Sleep -Milliseconds ([int](50 * [math]::Pow(2, $attempt)))
+                }
+            }
+            Rotate-StagingOperationsLog
+            $latest = Join-Path (Get-StagingLogRoot) "latest-status.json"
+            Write-StagingUtf8Atomic $latest ($record | ConvertTo-Json -Depth 8)
+            if ($Level -eq "error") {
+                $failure = Join-Path (Get-StagingLogRoot) "last-failure.json"
+                Write-StagingUtf8Atomic $failure ($record | ConvertTo-Json -Depth 8)
+            }
         }
     } catch {
-        # Logging must never turn a fail-closed decision into a fail-open decision.
-        Write-Host "STAGING_LOG_WRITE_FAILED: $($_.Exception.Message)" -ForegroundColor DarkYellow
+        $now = (Get-Date).ToUniversalTime()
+        $shouldReport = $null -eq $script:StagingLogWriteFailureAt -or (($now - $script:StagingLogWriteFailureAt).TotalSeconds -ge 60)
+        if ($shouldReport) {
+            $script:StagingLogWriteFailureAt = $now
+            Write-Host "STAGING_LOG_WRITE_FAILED: $($_.Exception.Message)" -ForegroundColor DarkYellow
+        }
     }
 }
 
@@ -103,7 +162,7 @@ function Write-StagingHeartbeat {
         timestamp = $now
         data = $Data
     }
-    $heartbeat | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Get-StagingLogFile ("{0}-heartbeat.json" -f $Component)) -Encoding utf8
+    Write-StagingAtomicJson (Get-StagingLogFile ("{0}-heartbeat.json" -f $Component)) $heartbeat 10
     Write-StagingLog -Level info -Component $Component -Stage "heartbeat" -Message "component heartbeat" -Data ($Data + @{ heartbeat_at = $now })
 }
 

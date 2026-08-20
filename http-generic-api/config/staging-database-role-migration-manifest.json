@@ -4,6 +4,7 @@
   "status": "active_for_local_schema_only_generation",
   "source": {
     "baseline_schema": "http-generic-api/schema.sql",
+    "baseline_foreign_key_policy": "defer_baseline_fk_create_statements_until_after_migrations",
     "migration_directory": "http-generic-api/migrations",
     "ordering": "baseline_schema_then_lexicographic_filename",
     "source_kind": "exact_local_git_checkout",
@@ -32,8 +33,23 @@
       "required_tables": [
         "connected_systems",
         "brands",
+        "brand_core",
         "actions",
         "endpoints",
+        "execution_policies",
+        "hosting_accounts",
+        "site_runtime_inventory",
+        "site_settings_inventory",
+        "plugins",
+        "business_activity_types",
+        "business_type_profiles",
+        "brand_paths",
+        "task_routes",
+        "workflows",
+        "registry_surfaces_catalog",
+        "validation_repair",
+        "json_assets",
+        "execution_log",
         "admin_platform_endpoint_tools",
         "tenant_platform_endpoint_tools",
         "customer_sessions",
@@ -98,8 +114,52 @@
       "ownership_policy": "explicit_runtime_persistence_contract_tables_only"
     }
   },
+  "canonical_seed_lifecycle": {
+    "contract": "mad4b.staging.canonical-seed-manifest.v1",
+    "target_role": "runtime",
+    "replay_mode": "explicit_local_staging_only",
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "seed_files": [
+      "039_sprint43_data_integrity_and_missing_tables.sql",
+      "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+      "20260815_custom_gpt_mcp_catalog_levels.sql"
+    ],
+    "readback_required": true,
+    "mcp_catalog_required_columns": [
+      "admin_platform_endpoint_tools.mcp_catalog_level",
+      "tenant_platform_endpoint_tools.mcp_catalog_level"
+    ]
+  },
   "validation": {
     "required_role_count": 3,
+    "required_runtime_table_census": [
+      "brands",
+      "brand_core",
+      "actions",
+      "endpoints",
+      "execution_policies",
+      "hosting_accounts",
+      "site_runtime_inventory",
+      "site_settings_inventory",
+      "plugins",
+      "business_activity_types",
+      "business_type_profiles",
+      "brand_paths",
+      "task_routes",
+      "workflows",
+      "registry_surfaces_catalog",
+      "validation_repair",
+      "json_assets",
+      "execution_log"
+    ],
+    "required_runtime_support_tables": [
+      "connected_systems",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+      "customer_sessions",
+      "gpt_session_turns"
+    ],
     "required_bundle_files": [
       "runtime.schema.sql.gz",
       "governance.schema.sql.gz",
@@ -112,6 +172,7 @@
     "insert_or_data_statement_is_blocking": true,
     "same_cycle_sha256_manifest_required": true,
     "baseline_schema_required": true,
-    "baseline_schema_safety_checked": true
+    "baseline_schema_safety_checked": true,
+    "baseline_foreign_key_ordering_required": true
   }
 }
