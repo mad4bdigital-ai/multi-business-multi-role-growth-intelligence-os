@@ -6,6 +6,8 @@ param(
     [string]$Ref = "main",
     [string]$ExpectedCommit = "",
     [switch]$StartTunnel,
+    [switch]$RequireSchemaBundle,
+    [switch]$ApplySchemaBundle,
     [switch]$ValidateOnly,
     [switch]$Stop,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
@@ -24,7 +26,7 @@ if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git sa
 . $WindowsPreflightPath
 . $GitSafetyPath
 $LogComponent = "app-operations"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
 trap {
     Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
     Write-Host "APP_OPERATIONS_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
@@ -195,6 +197,8 @@ function Invoke-SelfUpdate {
         "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
     )
     if ($StartTunnel) { $childArgs += "-StartTunnel" }
+    if ($RequireSchemaBundle) { $childArgs += "-RequireSchemaBundle" }
+    if ($ApplySchemaBundle) { $childArgs += "-ApplySchemaBundle" }
     if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
     if ($Stop) { $childArgs += "-Stop" }
     if ($SkipBuild) { $childArgs += "-SkipBuild" }
@@ -236,6 +240,29 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
     }
     return ""
 }
+function Seed-SchemaBundle([string]$RepoPath, [string]$Sha) {
+    $dumpDir = Join-Path $RepoPath "autopilot-portable-staging\staging-db-dumps"
+    $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
+    $available = (Test-Path -LiteralPath $dumpDir) -and (($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dumpDir $_)) }).Count -eq 0)
+    if (-not $available) {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "schema-bundle" -Message "no local schema-only bundle found; leaving fresh Staging databases unchanged"
+        return "skipped_no_schema_bundle"
+    }
+    $clone = Join-Path $RepoPath "autopilot-portable-staging\Clone-StagingDatabases.ps1"
+    if (-not (Test-Path -LiteralPath $clone)) { Fail "Clone-StagingDatabases.ps1 is missing: $clone" }
+    $cloneArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-ExpectedCommit", $Sha, "-Mode", "schema_only")
+    if ($ApplySchemaBundle) {
+        $cloneArgs += "-Apply"
+        Invoke-Native "powershell.exe" $cloneArgs
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "schema-bundle" -Outcome "success" -Message "explicit local Staging schema-only bundle applied" -Data @{ commit = $Sha; mode = "schema_only"; production_accessed = $false; provider_accessed = $false }
+        return "schema_only_applied"
+    }
+    Invoke-Native "powershell.exe" $cloneArgs
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "schema-bundle" -Outcome "success" -Message "local Staging schema-only bundle validated in dry-run mode" -Data @{ commit = $Sha; mode = "schema_only"; production_accessed = $false; provider_accessed = $false }
+    return "schema_only_dry_run"
+}
+
 function Quarantine-KnownBackupFiles([string]$RepoPath) {
     $backupRoot = Join-Path $env:USERPROFILE "MAD4B-Staging-Backups"
     $backupFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepoPath "autopilot-portable-staging") -Filter "*.backup" -File -ErrorAction SilentlyContinue)
@@ -439,6 +466,7 @@ try {
     }
     Invoke-Native "docker" ($composeArgs + @("ps"))
 
+    $schemaSeedStatus = Seed-SchemaBundle $RepositoryPath $ExpectedCommit
     $baseState = @{
         commit = $ExpectedCommit
         ref = $Ref
@@ -451,6 +479,9 @@ try {
         build_action = $buildAction
         image_reused = [bool]$imageReused
         tunnel_started = [bool]$StartTunnel
+        schema_bundle_required = [bool]$RequireSchemaBundle
+        schema_bundle_apply_requested = [bool]$ApplySchemaBundle
+        schema_seed_status = $schemaSeedStatus
         certification_status = "pending"
         certification_ready = $false
         migration_applied = $false

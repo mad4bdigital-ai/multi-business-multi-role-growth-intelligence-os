@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS `endpoints` (
   `endpoint_path_or_function`   TEXT,
   `route_target`                VARCHAR(255),
   `openai_action_name`          VARCHAR(255),
+  `child_openai_schema_file_id` VARCHAR(255),
   `module_binding`              VARCHAR(255),
   `connector_family`            VARCHAR(255),
   `status`                      VARCHAR(100),

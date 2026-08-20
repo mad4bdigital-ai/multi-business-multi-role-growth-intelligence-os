@@ -88,12 +88,18 @@ function baselineSchema(manifest) {
   const sql = fs.readFileSync(baselineSchemaPath, "utf8");
   migrationSafetyCheck("schema.sql", sql);
   const requiredActionColumns = manifest.validation?.required_actions_baseline_columns;
+  const requiredEndpointColumns = manifest.validation?.required_endpoints_baseline_columns;
   if (!Array.isArray(requiredActionColumns) || requiredActionColumns.length === 0) fail("role manifest required_actions_baseline_columns contract is missing");
+  if (!Array.isArray(requiredEndpointColumns) || requiredEndpointColumns.length === 0) fail("role manifest required_endpoints_baseline_columns contract is missing");
   const actionsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`actions`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
+  const endpointsBlock = sql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`endpoints`\s*\(([\s\S]*?)\)\s*ENGINE=/iu)?.[1] || "";
   if (!actionsBlock) fail("canonical baseline schema is missing the actions table definition");
+  if (!endpointsBlock) fail("canonical baseline schema is missing the endpoints table definition");
   const quote = String.fromCharCode(96);
   const missingActionColumns = requiredActionColumns.filter((column) => !actionsBlock.includes(`${quote}${column}${quote}`));
+  const missingEndpointColumns = requiredEndpointColumns.filter((column) => !endpointsBlock.includes(`${quote}${column}${quote}`));
   if (missingActionColumns.length) fail(`actions baseline column contract is incomplete: ${missingActionColumns.join(", ")}`);
+  if (missingEndpointColumns.length) fail(`endpoints baseline column contract is incomplete: ${missingEndpointColumns.join(", ")}`);
   const statements = splitStatements(sql);
   if (!statements.length) fail("canonical baseline schema is empty");
   const immediate = [];
@@ -112,6 +118,7 @@ function baselineSchema(manifest) {
     deferred_foreign_key_statement_count: deferredForeignKey.length,
     deferred_foreign_key_tables: deferredForeignKeyTables,
     required_actions_baseline_columns: requiredActionColumns,
+    required_endpoints_baseline_columns: requiredEndpointColumns,
     immediate_sql: `${immediate.join(";\n")};\n`,
     deferred_foreign_key_sql: deferredForeignKey.length ? `${deferredForeignKey.join(";\n")};\n` : "",
   };
@@ -126,6 +133,7 @@ function baselineMetadata(baseline) {
     deferred_foreign_key_statement_count: baseline.deferred_foreign_key_statement_count,
     deferred_foreign_key_tables: baseline.deferred_foreign_key_tables,
     required_actions_baseline_columns: baseline.required_actions_baseline_columns,
+    required_endpoints_baseline_columns: baseline.required_endpoints_baseline_columns,
   };
 }
 
