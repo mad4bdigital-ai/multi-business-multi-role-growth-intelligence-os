@@ -96,7 +96,7 @@
     {"id":"api_runtime","patterns":["http-generic-api/*.js","http-generic-api/*.mjs","http-generic-api/scripts/**/*.mjs","http-generic-api/wordpress/**/*.js"]},
     {"id":"typescript_runtime","patterns":["src/**/*.ts","src/**/*.tsx","edge/**/*.ts","edge/**/*.tsx"]},
     {"id":"portable_staging_runtime","patterns":["autopilot-portable-staging/**/*.js","autopilot-portable-staging/**/*.mjs","autopilot-portable-staging/**/*.sh","autopilot-portable-staging/**/*.ps1"]},
-    {"id":"staging_schema_bootstrap","patterns":["http-generic-api/scripts/build-staging-schema-bundle.mjs","http-generic-api/test-staging-schema-bundle-builder.mjs"]}
+    {"id":"staging_schema_bootstrap","patterns":["http-generic-api/schema.sql","http-generic-api/scripts/build-staging-schema-bundle.mjs","http-generic-api/test-staging-schema-bundle-builder.mjs"]}
   ],
   "surface_classes": [
     {"id":"governance_control_plane","risk":"critical","patterns":[".github/**",".specify/**","docs/governance/**",".changes/e2e/**"]},

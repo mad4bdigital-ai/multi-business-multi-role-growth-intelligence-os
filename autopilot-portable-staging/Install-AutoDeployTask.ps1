@@ -47,7 +47,8 @@ $healthEscapedScript = $healthScript.Replace('"', '\"')
 $healthEscapedRepo = $RepositoryPath.Replace('"', '\"')
 $healthArguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$healthEscapedScript`" -RepositoryPath `"$healthEscapedRepo`" -IntervalSeconds $HealthIntervalSeconds"
 $healthAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $healthArguments -WorkingDirectory $scriptRoot
-Register-ScheduledTask -TaskName $HealthTaskName -Action $healthAction -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+$healthTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME" -RandomDelay (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName $HealthTaskName -Action $healthAction -Trigger $healthTrigger -Settings $settings -Principal $principal -Force | Out-Null
 Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel=$StartTunnel"
 Write-Host "STAGING_HEALTH_TASK_INSTALLED: task=$HealthTaskName interval_seconds=$HealthIntervalSeconds"
 Write-Host "Both tasks run only when this Windows user is logged in and never change Production, DNS, Hostinger, or database state."

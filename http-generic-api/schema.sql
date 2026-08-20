@@ -467,7 +467,77 @@ CREATE TABLE IF NOT EXISTS `execution_log` (
   KEY `idx_entry_type`       (`entry_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-SET FOREIGN_KEY_CHECKS = 1;
+-- ── 16. Business Activity Type Registry ────────────────────────────────────────
+-- This table is a baseline prerequisite for migration 1043 and the runtime census.
+CREATE TABLE IF NOT EXISTS `business_activity_types` (
+  `id`                              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `business_activity_type_key`     VARCHAR(255) NOT NULL,
+  `activity_key`                   VARCHAR(255),
+  `business_type_key`              VARCHAR(255),
+  `label`                          VARCHAR(255),
+  `parent_activity_type`           VARCHAR(255),
+  `default_knowledge_profile_key`  VARCHAR(255),
+  `supported_engine_categories`    TEXT,
+  `supported_route_keys`           TEXT,
+  `supported_workflows`             TEXT,
+  `brand_core_required`             VARCHAR(20),
+  `status`                          VARCHAR(100),
+  `notes`                           TEXT,
+  `active`                          VARCHAR(20),
+  `created_at`                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_business_activity_type_key` (`business_activity_type_key`),
+  KEY `idx_business_activity_type_business_type` (`business_type_key`),
+  KEY `idx_business_activity_type_active` (`active`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 17. Business Type Knowledge Profiles ───────────────────────────────────────
+-- This table is a baseline prerequisite for migration 039 and context resolution.
+CREATE TABLE IF NOT EXISTS `business_type_profiles` (
+  `id`                              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `business_type_key`              VARCHAR(255) NOT NULL,
+  `knowledge_profile_key`           VARCHAR(255),
+  `supported_engine_categories`     TEXT,
+  `authoritative_read_home`         VARCHAR(255),
+  `business_type_specific_read_home` VARCHAR(255),
+  `shared_knowledge_read_home`      VARCHAR(255),
+  `compatible_route_keys`           TEXT,
+  `compatible_workflows`            TEXT,
+  `profile_status`                  VARCHAR(100),
+  `notes`                           TEXT,
+  `active`                          VARCHAR(20),
+  `created_at`                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_business_type_profile_key` (`business_type_key`),
+  KEY `idx_business_type_profile_knowledge` (`knowledge_profile_key`),
+  KEY `idx_business_type_profile_active` (`active`, `profile_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 18. Brand Path Resolver Registry ────────────────────────────────────────────
+-- This table is a baseline prerequisite for migration 039 and brand/path readback.
+CREATE TABLE IF NOT EXISTS `brand_paths` (
+  `id`                              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `brand_key`                       VARCHAR(255) NOT NULL,
+  `normalized_brand_name`           VARCHAR(255),
+  `business_type_key`               VARCHAR(255),
+  `knowledge_profile_key`           VARCHAR(255),
+  `brand_folder_id`                 VARCHAR(255),
+  `brand_folder_path`               VARCHAR(500),
+  `brand_core_docs_json`            TEXT,
+  `target_key`                      VARCHAR(255),
+  `base_url`                        VARCHAR(500),
+  `status`                          VARCHAR(100),
+  `active`                          VARCHAR(20),
+  `created_at`                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_brand_path_brand_key` (`brand_key`),
+  KEY `idx_brand_path_target_key` (`target_key`),
+  KEY `idx_brand_path_business_type` (`business_type_key`),
+  KEY `idx_brand_path_active` (`active`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `user_credentials` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -480,4 +550,6 @@ CREATE TABLE IF NOT EXISTS `user_credentials` (
   UNIQUE KEY `uq_user_provider` (`user_id`, `auth_provider`),
   KEY `idx_provider_id` (`auth_provider`, `provider_id`),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;

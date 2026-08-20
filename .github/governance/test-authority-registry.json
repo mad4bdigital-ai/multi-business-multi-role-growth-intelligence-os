@@ -23,7 +23,7 @@
     {"id":"environment_impact_closure","test_paths":["http-generic-api/test-environment-impact-closure.mjs","http-generic-api/scripts/environment-impact-closure.mjs"]},
     {"id":"semantic_verifier_requirements","test_paths":[".github/tests/repository-governance-closure.test.mjs",".github/governance/semantic-verifier-requirements.json"]},
     {"id":"remote_mcp_dynamic_client_profile_registry","test_paths":["http-generic-api/test-remote-mcp-client-profile-registry.mjs","http-generic-api/test-remote-mcp-client-provisioning.mjs"]},
-    {"id":"staging_schema_bundle_bootstrap","test_paths":["http-generic-api/test-staging-schema-bundle-builder.mjs","http-generic-api/scripts/build-staging-schema-bundle.mjs"]}
+    {"id":"staging_schema_bundle_bootstrap","test_paths":["http-generic-api/test-staging-schema-bundle-builder.mjs","http-generic-api/test-staging-auto-deploy-contract.mjs","http-generic-api/test-staging-one-click-autopilot-contract.mjs","http-generic-api/test-staging-operations-logging-contract.mjs","http-generic-api/scripts/build-staging-schema-bundle.mjs"]}
   ],
   "discovery": {
     "extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx"],
