@@ -550,6 +550,6 @@ CREATE TABLE IF NOT EXISTS `user_credentials` (
   UNIQUE KEY `uq_user_provider` (`user_id`, `auth_provider`),
   KEY `idx_provider_id` (`auth_provider`, `provider_id`),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
