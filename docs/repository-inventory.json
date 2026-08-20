@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7252,
-    "bytes": 70677325,
-    "lines": 1656986,
+    "bytes": 70678405,
+    "lines": 1657014,
     "directories": 266,
     "categories": 13
   },
@@ -57583,9 +57583,9 @@
       "path": "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 30367,
-      "lines": 693,
-      "sha256": "070d09e017a9297f590e451e43de079501d8244c6381dc287225a55dc1377e91",
+      "bytes": 31447,
+      "lines": 721,
+      "sha256": "2baa1ef23e056a1931a15023f1710655ee423f399f974f106892d0adfb5784db",
       "mode": "644",
       "executable": false,
       "generated": false
