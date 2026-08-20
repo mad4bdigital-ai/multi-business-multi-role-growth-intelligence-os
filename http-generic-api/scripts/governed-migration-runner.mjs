@@ -688,7 +688,15 @@ main()
     await closePoolQuietly();
   })
   .catch(async (error) => {
-    console.error(JSON.stringify({ ok: false, error: error?.message || String(error), secrets_included: false }, null, 2));
+    console.error(JSON.stringify({
+      ok: false,
+      error: {
+        code: error?.code || "governed_migration_runner_unhandled_failure",
+        name: error?.name || "Error",
+        message: error?.message || String(error),
+      },
+      secrets_included: false,
+    }, null, 2));
     await closePoolQuietly();
     process.exit(1);
   });

@@ -258,10 +258,23 @@ function sanitizeRunnerDiagnostic(value = "", maxLength = 2000) {
     .slice(0, maxLength);
 }
 
+function extractRunnerDiagnosticCode(value = "") {
+  const text = String(value || "");
+  const explicitCode = text.match(/\b(?:error_code|runner_error_code|code)\s*["']?\s*[:=]\s*["']?([A-Za-z0-9_.-]{2,160})/i)?.[1] || "";
+  const mysqlCode = text.match(/\b(ER_[A-Z0-9_]+)\b/)?.[1] || "";
+  return (explicitCode || mysqlCode || "").slice(0, 160) || null;
+}
+
 function runnerFailureDetails(error, inspection) {
-  const stderrSummary = sanitizeRunnerDiagnostic(error?.stderr || error?.message || "");
-  const stdoutSummary = sanitizeRunnerDiagnostic(error?.stdout || "");
+  const rawStderr = String(error?.stderr || "");
+  const rawStdout = String(error?.stdout || "");
+  const fallbackMessage = String(error?.message || "");
+  const stderrSummary = sanitizeRunnerDiagnostic(rawStderr || fallbackMessage);
+  const stdoutSummary = sanitizeRunnerDiagnostic(rawStdout);
   const diagnosticText = `${stderrSummary}\n${stdoutSummary}`;
+  const diagnosticSummary = stderrSummary || stdoutSummary || sanitizeRunnerDiagnostic(fallbackMessage) || null;
+  const diagnosticSource = rawStderr ? "stderr" : (rawStdout ? "stdout" : (fallbackMessage ? "error_message" : null));
+  const diagnosticCode = extractRunnerDiagnosticCode(diagnosticText) || extractRunnerDiagnosticCode(fallbackMessage);
   const mysqlCode = diagnosticText.match(/\b(ER_[A-Z0-9_]+)\b/)?.[1] || null;
   return {
     migration: inspection.migration,
@@ -269,9 +282,12 @@ function runnerFailureDetails(error, inspection) {
     exit_code: error?.code ?? error?.exitCode ?? null,
     signal: error?.signal || null,
     runner_error_code: mysqlCode || null,
+    runner_diagnostic_code: diagnosticCode,
+    runner_diagnostic_source: diagnosticSource,
+    runner_diagnostic_summary: diagnosticSummary,
     stderr_summary: stderrSummary || null,
     stdout_summary: stdoutSummary || null,
-    diagnostic_truncated: String(error?.stderr || "").length > 2000 || String(error?.stdout || "").length > 2000,
+    diagnostic_truncated: rawStderr.length > 2000 || rawStdout.length > 2000,
     retry_without_readback_allowed: false,
     secrets_included: false,
   };
