@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-admin-api-key-header-20260820",
+  "title": "Runtime admin API-key header contract repair",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-admin-api-key-header-20260820.json",
+      ".github/derived-state-governance.json",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+      "docs/repository-evaluation-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair the admin authentication header contract used by the Main review-policy and Migration 1051 readiness runners while preserving read-only readiness and all live mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-admin-api-key-header-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance CI",
+          "entrypoint": "The existing live activation contract test runs on the exact PR candidate.",
+          "terminal_outcome": "Both runners send BACKEND_API_KEY through x-api-key, matching the auth.mad4b.com admin/service contract, and the regression guard rejects the old Bearer form.",
+          "steps": [
+            "Read the runtime endpoint contract and reproduce the unauthenticated 401 response without credentials.",
+            "Update only the request header construction in the Main policy and Migration 1051 runners.",
+            "Register the changed Migration 1051 runner in both governance control-plane registries.",
+            "Regenerate Repository Inventory and Repository Evaluation through official generators.",
+            "Run the existing policy, readback, governance, environment-impact, and derived-state checks on the exact candidate.",
+            "Keep readiness read-only and leave Branch Protection, Rulesets, database, migration, provider, and Production effects disabled."
+          ],
+          "assertions": [
+            "The runtime admin/service request uses x-api-key: BACKEND_API_KEY.",
+            "The runners do not use Authorization: Bearer BACKEND_API_KEY.",
+            "The changed critical governance path is registered in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Environment impact is explicitly declared for staging and production.",
+            "Live staging certification remains required and production mutation remains false.",
+            "No Branch Protection or Rulesets Apply, migration, grant, SQL/DB mutation, provider mutation, credential payload read, force-push, or Production activation occurs."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "repository-governance-objection-gate",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-objection-gate.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-admin-api-key-header-20260820.json",
+            ".github/derived-state-governance.json",
+            ".github/ops/github-main-review-policy-live-activation.mjs",
+            ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+            "docs/repository-evaluation-summary.json",
+            "docs/repository-evaluation.json",
+            "docs/repository-evaluation.md",
+            "docs/repository-inventory-summary.json",
+            "docs/repository-inventory.json",
+            "docs/repository-inventory.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

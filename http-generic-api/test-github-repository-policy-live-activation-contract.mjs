@@ -54,12 +54,16 @@ assert.match(migrationRunner, /live_github_policy_apply: false/);
 assert.match(migrationRunner, /provider_call_executed: false/);
 assert.match(migrationRunner, /external_write_executed: false/);
 assert.match(migrationRunner, /SOURCE_PR must identify the merged source PR/);
+assert.ok(migrationRunner.includes("headers: { 'x-api-key': KEY, Accept: 'application/json', 'Content-Type': 'application/json' }"));
+assert.doesNotMatch(migrationRunner, /Authorization: `Bearer \$\{KEY\}/);
 
 assert.equal((liveRunner.match(/applyResponse = await requestRaw\(["']\/admin\/repository-automation\/policy-controller/g) || []).length, 1, "Live policy runner must contain exactly one Ruleset Apply transport call");
 assert.match(liveRunner, /apply_retried: false/);
 assert.match(liveRunner, /readinessMarkerPrefix\(TARGET_BRANCH\)/);
 assert.match(liveRunner, /branchConfirmation\(TARGET_BRANCH\)/);
 assert.match(liveRunner, /verifyMigration1051Applied/);
+assert.ok(liveRunner.includes('headers: { "x-api-key": KEY, Accept: "application/json", "Content-Type": "application/json" }'));
+assert.doesNotMatch(liveRunner, /Authorization: `Bearer \$\{KEY\}/);
 assert.match(liveRunner, /capability_resolution_envelope_apply_authorize/);
 assert.match(liveRunner, /currentRefSha\(TARGET_BRANCH\), targetSha/);
 assert.match(liveRunner, /ambiguous_transport_reconciliation/);
