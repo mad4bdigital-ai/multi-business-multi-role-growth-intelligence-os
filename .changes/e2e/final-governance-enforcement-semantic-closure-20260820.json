@@ -22,6 +22,13 @@
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "docs/remote-mcp-write-scope-inventory.md",
       "autopilot-portable-staging/manifest.json",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json",
       "docs/governance/final-governance-closure-matrix.md"
     ]
   },
@@ -93,6 +100,13 @@
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "docs/remote-mcp-write-scope-inventory.md",
             "autopilot-portable-staging/manifest.json",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+            "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+            "specs/021-portable-staging-autopilot/work-map-integration.json",
             ".github/tests/repository-governance-fixed-point.test.mjs",
             "docs/governance/final-governance-closure-matrix.md"
           ]
