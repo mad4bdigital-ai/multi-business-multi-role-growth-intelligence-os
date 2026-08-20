@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7225,
-    "bytes": 70528476,
-    "lines": 1654175,
+    "bytes": 70528591,
+    "lines": 1654179,
     "directories": 266,
     "categories": 13
   },
@@ -8565,9 +8565,9 @@
       "path": ".changes/e2e/staging-actions-baseline-contract.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4164,
-      "lines": 81,
-      "sha256": "ecfd784ad61f688cf7f3440277a338414b9b26a4272deafe83a10e49cf0d2392",
+      "bytes": 4218,
+      "lines": 84,
+      "sha256": "e8b81e3cb642ffa2aaa872cc6ab53e5777903919122a03ecea884da7c6cac3fe",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9775,9 +9775,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 14785,
-      "lines": 197,
-      "sha256": "77982eb9e9b19dd4cc77460f226ff2ad8791fd2366b1a15f7188f1cdc90e2f69",
+      "bytes": 14846,
+      "lines": 198,
+      "sha256": "836292a2abce08b0d5e6be24bd7cc02a5d441c3a2a1458e2726c1cf223081baa",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32217,7 +32217,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "ed64e64af8bdeaa3a60b2eebe36cdee86ccb5c9a2b0184d9c0168cfb54314742",
+      "sha256": "dd7c4162df2bb3fe33c36ab3fc76b100b55b5c50c76036970786813313ac5efd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51918,7 +51918,7 @@
       "extension": ".json",
       "bytes": 1936125,
       "lines": 58551,
-      "sha256": "7cded7a89577d725e23cea759478c8d28852e8da3ecba1851c75fa7432c9ef4c",
+      "sha256": "1b8805a569618052dfe10f86e19439550201084923bc099b191a10a630985461",
       "mode": "644",
       "executable": false,
       "generated": false
