@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7225,
-    "bytes": 70528591,
-    "lines": 1654179,
+    "files": 7226,
+    "bytes": 70534564,
+    "lines": 1654296,
     "directories": 266,
     "categories": 13
   },
@@ -15,7 +15,7 @@
       "documentation": 1909,
       "api-runtime": 1449,
       "database-migrations": 783,
-      "root-and-other": 301,
+      "root-and-other": 302,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 123,
@@ -29,7 +29,7 @@
       ".md": 2510,
       ".mjs": 1717,
       ".js": 995,
-      ".json": 815,
+      ".json": 816,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -65,7 +65,7 @@
       "docs": 1813,
       "specs": 880,
       ".github": 293,
-      ".changes": 270,
+      ".changes": 271,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 21,
@@ -7275,6 +7275,17 @@
       "generated": false
     },
     {
+      "path": ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 5282,
+      "lines": 108,
+      "sha256": "98fcb4362a8c9c01893519a0fef704126d518670ea2c53a43c90e87b00880395",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".changes/e2e/managed-execution-projections-reconciliation.json",
       "category": "root-and-other",
       "extension": ".json",
@@ -9931,7 +9942,7 @@
       "extension": ".mjs",
       "bytes": 25030,
       "lines": 338,
-      "sha256": "df0b011a72c511163878cf0d0bbc6e14fa397ab8b6eea71fed9cd4ef27644d21",
+      "sha256": "8a32181c5f70bee3013113ec088749ff269a69a104142a63407923178943e91f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13121,7 +13132,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "e71b37b4c31f6fbe7cbca02e9df56abda117ee8318fe3fa9c68fedb2ca1e8d99",
+      "sha256": "ebe04869bd7a1bda0418bb804431cd8cc0802f70844feec04d2f1f3614c1fde1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32217,7 +32228,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "dd7c4162df2bb3fe33c36ab3fc76b100b55b5c50c76036970786813313ac5efd",
+      "sha256": "8097b2d0d02783b6bc6291e93bc75777146634d2bc43e2a3249dd7b2fda796f1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51918,7 +51929,7 @@
       "extension": ".json",
       "bytes": 1936125,
       "lines": 58551,
-      "sha256": "1b8805a569618052dfe10f86e19439550201084923bc099b191a10a630985461",
+      "sha256": "ed013407e91611addce12e70b7a095a0c97913899f5b6f0f415450bc6604b1b1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -65116,9 +65127,9 @@
       "path": "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 4912,
-      "lines": 73,
-      "sha256": "d3fa19b326deddce5476b033ddbf37e63a9c88391b77e1598d195f34b1258a29",
+      "bytes": 5603,
+      "lines": 82,
+      "sha256": "7f8b194592d8eb6804d87992e78768e7db5f447bb656615407affbeb74a9dfed",
       "mode": "644",
       "executable": false,
       "generated": false
