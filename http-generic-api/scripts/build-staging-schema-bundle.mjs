@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import zlib from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { splitStatements } from "./staging-sql-parser.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -182,10 +183,6 @@ function migrationSafetyCheck(file, sql) {
     /^\s*LOAD\s+DATA\b/imu,
   ];
   for (const pattern of forbidden) if (pattern.test(normalizedSql)) fail(`forbidden authority or external-data SQL in migration ${file}: ${pattern}`);
-}
-
-function splitStatements(sql) {
-  return sql.split(";").map((statement) => statement.split(/\r?\n/).filter((line) => !line.trim().startsWith("--")).join("\n").trim()).filter(Boolean);
 }
 
 function migrationPlan(files) {

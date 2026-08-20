@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { splitStatements } from "./scripts/staging-sql-parser.mjs";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
@@ -19,6 +20,15 @@ function runPlan() {
     encoding: "utf8",
   });
 }
+
+test("SQL splitter preserves semicolons inside quoted literals and strips comments safely", () => {
+  const sql = `-- Values are provisioned separately; this schema contains no secret payloads.\nCREATE TABLE IF NOT EXISTS \`tenant_secrets\` (\`id\` BIGINT UNSIGNED NOT NULL);\nINSERT INTO \`tenant_secrets\` (\`metadata_json\`) VALUES (JSON_OBJECT('note', 'a;b'));\n/* block comment; remains data-safe */\nUPDATE \`tenant_secrets\` SET \`metadata_json\` = '{"value":"x;y"}' WHERE \`id\` = 1;`;
+  assert.deepEqual(splitStatements(sql), [
+    "CREATE TABLE IF NOT EXISTS `tenant_secrets` (`id` BIGINT UNSIGNED NOT NULL)",
+    "INSERT INTO `tenant_secrets` (`metadata_json`) VALUES (JSON_OBJECT('note', 'a;b'))",
+    "/* block comment; remains data-safe */\nUPDATE `tenant_secrets` SET `metadata_json` = '{\"value\":\"x;y\"}' WHERE `id` = 1",
+  ]);
+});
 
 test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
