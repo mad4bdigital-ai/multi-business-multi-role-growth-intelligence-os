@@ -20,7 +20,7 @@
     },
     {
       "id": "db_effect",
-      "path_patterns": ["http-generic-api/migrations/**/*.sql", "migrations/**/*.sql"],
+      "path_patterns": ["http-generic-api/migrations/**/*.sql", "migrations/**/*.sql", "http-generic-api/schema.sql"],
       "content_patterns": ["\\b(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|REPLACE|TRUNCATE)\\b", "\\.(?:query|execute)\\s*\\(", "\\bgetPool\\s*\\("]
     },
     {
