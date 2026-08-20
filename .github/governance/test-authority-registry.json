@@ -17,6 +17,7 @@
   "invariant_authorities": [
     {"id":"repository_governance_closure","test_paths":[".github/tests/repository-governance-closure.test.mjs","scripts/repository-governance-closure.mjs"]},
     {"id":"repository_governance_fixed_point","test_paths":[".github/tests/repository-governance-fixed-point.test.mjs","scripts/repository-governance-fixed-point.mjs"]},
+    {"id":"repository_evaluation_loop","test_paths":["scripts/test-repository-evaluation.mjs"]},
     {"id":"generated_artifact_refresh_scope","test_paths":["http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs","http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"]},
     {"id":"server_policy_readback","test_paths":[".github/ops/test-github-repository-policy-readback-core.mjs",".github/ops/github-repository-policy-readback-core.mjs",".github/ops/github-repository-policy-readback.mjs"]},
     {"id":"branch_generic_policy_target","test_paths":["http-generic-api/scripts/test-github-review-policy-target.mjs","http-generic-api/scripts/github-review-policy-target.mjs",".github/ops/github-main-review-policy-live-activation.mjs","http-generic-api/test-github-repository-policy-live-activation-contract.mjs"]},
@@ -70,7 +71,8 @@
     {"invariant_id":"repository_semantic_governance","protected_by_tests":[".github/tests/repository-governance-closure.test.mjs",".github/tests/repository-governance-objection-gate.test.mjs",".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:semantic_impact"]},
     {"invariant_id":"repository_derived_state","protected_by_tests":[".github/tests/derived-state-closure.test.mjs"],"protected_by_verifiers":["work_map_currentness","portable_staging_manifest_currentness"]},
     {"invariant_id":"tracked_executable_validation","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:executable_universe"]},
-    {"invariant_id":"test_authority_closure","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:test_authority"]}
+    {"invariant_id":"test_authority_closure","protected_by_tests":[".github/tests/repository-governance-fixed-point.test.mjs"],"protected_by_verifiers":["fixed_point:test_authority"]},
+    {"invariant_id":"repository_evaluation_loop","protected_by_tests":["scripts/test-repository-evaluation.mjs"],"protected_by_verifiers":["repository_evaluation_currentness"]}
   ],
   "deleted_test_mode": "block_without_replacement",
   "safety": {

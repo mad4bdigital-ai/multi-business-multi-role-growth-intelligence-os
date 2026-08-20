@@ -71,6 +71,7 @@
     "automation_control_paths": [
       ".changes/e2e/derived-state-closure-governance-20260815.json",
       ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
+      ".changes/e2e/final-governance-enforcement-semantic-closure-20260820.json",
       ".changes/e2e/github-server-policy-convergence-20260818.json",
       ".changes/e2e/spec018-runtime-readiness-evidence-closeout.json",
       ".changes/e2e/e2e-contract-reference-integrity.json",
@@ -166,6 +167,7 @@
       "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
       "docs/repository-ci-surface-policy.json",
       "docs/governance/configuration-drift-policy.json",
+      "docs/governance/final-governance-closure-matrix.md",
       "docs/governance/production-readiness-consolidated-fix.md",
       "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
       ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",

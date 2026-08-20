@@ -62,6 +62,23 @@ function readOptionalJson(relativePath, fallback) {
   return existsSync(absolute(relativePath)) ? readJson(relativePath) : fallback;
 }
 
+function positiveInteger(value) {
+  const normalized = Number(value);
+  return Number.isInteger(normalized) && normalized > 0 ? normalized : null;
+}
+
+function resolveWorkflowBudget(policy = {}) {
+  const target = positiveInteger(policy.targetMaxWorkflowFiles);
+  const legacy = positiveInteger(policy.maxWorkflowCount);
+  const max = target ?? legacy ?? 160;
+  const warning = positiveInteger(policy.warningWorkflowCount) ?? max;
+  return Object.freeze({
+    max,
+    warning,
+    source: target !== null ? "targetMaxWorkflowFiles" : legacy !== null ? "maxWorkflowCount" : "default",
+  });
+}
+
 function commandName() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
@@ -223,7 +240,7 @@ function addGap(gaps, gap) {
   });
 }
 
-function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals }) {
+function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet, workflowBudget, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals }) {
   const gaps = [];
   const overlapCheck = checks.find((check) => check.id === "automation-overlap");
   const failedChecks = checks.filter((check) => check.status === "failed");
@@ -233,7 +250,7 @@ function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet, ciSu
   if (workflow.missingExplicitPermissions > 0) addGap(gaps, { gapId: "SEC-CI-EXPLICIT-PERMISSIONS", domain: "security", severity: "medium", status: "open", blocking: false, evidence: workflow, impact: "Some workflows do not declare an explicit permission boundary.", recommendation: "Review each workflow and declare the minimum required permissions." });
   if (workflow.broadWrite > 0) addGap(gaps, { gapId: "SEC-CI-BROAD-WRITE", domain: "security", severity: "medium", status: "open", blocking: false, evidence: { broadWrite: workflow.broadWrite }, impact: "Some workflows request write-level authority.", recommendation: "Replace broad write permissions with least-privilege scopes." });
   if (ciSurfacePolicy.requireActionPinning === true && workflow.unpinnedActions > 0) addGap(gaps, { gapId: "SEC-CI-UNPINNED-ACTIONS", domain: "security", severity: "medium", status: "open", blocking: false, evidence: { unpinnedActions: workflow.unpinnedActions, samples: workflow.unpinnedActionRefs }, impact: "Workflow action references are mutable tags or branches and can drift without review.", recommendation: "Pin every third-party or first-party action reference to a full commit SHA and retain the release tag in a comment." });
-  const workflowBudgetExceeded = workflow.workflowCount > Number(ciSurfacePolicy.maxWorkflowCount ?? 100);
+  const workflowBudgetExceeded = workflow.workflowCount > workflowBudget.max;
   const overlapCheckMissingOrFailed = ciSurfacePolicy.requireOverlapCheck === true && overlapCheck?.status !== "passed";
   if (workflowBudgetExceeded || overlapCheckMissingOrFailed) {
     addGap(gaps, {
@@ -244,7 +261,8 @@ function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet, ciSu
       blocking: false,
       evidence: {
         workflowCount: workflow.workflowCount,
-        maxWorkflowCount: Number(ciSurfacePolicy.maxWorkflowCount ?? 100),
+        maxWorkflowCount: workflowBudget.max,
+        workflowBudgetSource: workflowBudget.source,
         overlapCheck: overlapCheck?.status ?? "not-run",
       },
       impact: "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
@@ -338,14 +356,13 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   // The inventory remains complete, but generated evaluation files are excluded from
   // evaluator inputs to avoid a self-referential fingerprint/write cycle.
   const evaluationInventory = { ...inventory, files: inventory.files.filter((file) => !EVALUATION_OUTPUT_PATHS.has(file.path)) };
-  const ciSurfacePolicy = readOptionalJson(CI_SURFACE_POLICY_PATH, { maxWorkflowCount: 100, requireOverlapCheck: false });
+  const ciSurfacePolicy = readOptionalJson(CI_SURFACE_POLICY_PATH, { targetMaxWorkflowFiles: 160, requireOverlapCheck: false });
   const dependencyAuditPolicy = readOptionalJson(DEPENDENCY_AUDIT_POLICY_PATH, { ciNetworkAuditRequired: false });
   const largeFilePolicy = readOptionalJson(LARGE_FILE_POLICY_PATH, { files: [] });
   const workflow = workflowSignals(evaluationInventory);
-  const workflowBudget = Number(ciSurfacePolicy.maxWorkflowCount ?? 100);
-  const workflowBudgetWarning = Number(ciSurfacePolicy.warningWorkflowCount ?? workflowBudget);
-  const workflowBudgetStatus = workflow.workflowCount > workflowBudget ? "exceeded" : workflow.workflowCount >= workflowBudgetWarning ? "near-limit" : "within-budget";
-  workflow.budget = { max: workflowBudget, warning: workflowBudgetWarning, status: workflowBudgetStatus };
+  const workflowBudget = resolveWorkflowBudget(ciSurfacePolicy);
+  const workflowBudgetStatus = workflow.workflowCount > workflowBudget.max ? "exceeded" : workflow.workflowCount >= workflowBudget.warning ? "near-limit" : "within-budget";
+  workflow.budget = { max: workflowBudget.max, warning: workflowBudget.warning, source: workflowBudget.source, status: workflowBudgetStatus };
   const secrets = secretSignals(evaluationInventory);
   const audit = auditSignals(evaluationInventory, includeNetwork);
   const evaluatedBytes = evaluationInventory.files.reduce((total, file) => total + file.bytes, 0);
@@ -359,7 +376,7 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   ];
   const largeFiles = largeFileSignals(evaluationInventory, largeFilePolicy);
   const inputFingerprint = sha256({ inventoryFiles: evaluationInventory.files, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFilePolicy, largeFiles, checks: checks.map(({ id, status, exitCode }) => ({ id, status, exitCode })) });
-  const gaps = collectGaps({ inventory: evaluationInventory, checks, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals: largeFiles });
+  const gaps = collectGaps({ inventory: evaluationInventory, checks, workflow, secrets, audit, dotnet, workflowBudget, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals: largeFiles });
   const lifecycle = applyBaselineLifecycle({ gaps }, baseline);
   const blockingGapIds = gaps.filter((gap) => gap.blocking && gap.status === "open").map((gap) => gap.gapId);
   const warningGapIds = gaps.filter((gap) => !gap.blocking && gap.status !== "resolved").map((gap) => gap.gapId);
@@ -376,8 +393,9 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
       audit,
       dotnet,
       maintainability: {
-        workflowBudget: workflowBudget,
-        workflowBudgetWarning,
+        workflowBudget: workflowBudget.max,
+        workflowBudgetWarning: workflowBudget.warning,
+        workflowBudgetSource: workflowBudget.source,
         workflowBudgetStatus,
         totalLargeFiles: largeFiles.all.length,
         approvedLargeFiles: largeFiles.approved.length,
@@ -497,6 +515,6 @@ function main(argv = process.argv.slice(2)) {
   if (options.enforce && evaluation.gate.decision === "fail") process.exitCode = 1;
 }
 
-export { buildEvaluation, compareBaseline, applyBaselineLifecycle, stripBaselineLifecycle, renderMarkdown, buildSummary, extractSecretMatches, isPlaceholderToken, dependencyPreflight };
+export { buildEvaluation, compareBaseline, applyBaselineLifecycle, stripBaselineLifecycle, renderMarkdown, buildSummary, extractSecretMatches, isPlaceholderToken, dependencyPreflight, resolveWorkflowBudget };
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

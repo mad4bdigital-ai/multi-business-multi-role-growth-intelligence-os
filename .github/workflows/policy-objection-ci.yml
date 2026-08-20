@@ -29,8 +29,13 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Install PowerShell validator runtime
+        uses: PSModule/install-powershell@159c2929fac34e3c7fc55d75e8997fb27fc7f75a # v1
+        with:
+          Version: 7.5.0
+          Token: ${{ github.token }}
       - name: Install fixed-point validator dependencies without lifecycle side effects
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --include=dev
       - name: Prove exact candidate identity
         env:
           MERGE_CANDIDATE_SHA: ${{ github.sha }}

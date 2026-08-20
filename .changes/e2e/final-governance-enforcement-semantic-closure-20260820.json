@@ -1,0 +1,163 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "final-governance-enforcement-semantic-closure-20260820",
+  "title": "Final governance enforcement semantic closure and evaluation budget alignment",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/final-governance-enforcement-semantic-closure-20260820.json",
+      ".specify/schemas/e2e-phases.schema.json",
+      "scripts/repository-evaluation.mjs",
+      "scripts/test-repository-evaluation.mjs",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/workflows/policy-objection-ci.yml",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "autopilot-portable-staging/manifest.json",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json",
+      "docs/governance/final-governance-closure-matrix.md"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align repository evaluation with the Constitution-owned CI workflow ratchet, preserve legacy policy compatibility without a second authority, and document the boundary between source governance closure and live GitHub enforcement.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-workflow-budget-to-readonly-governance-report",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance maintainer",
+          "entrypoint": "Repository evaluation on an exact candidate",
+          "terminal_outcome": "The evaluator resolves targetMaxWorkflowFiles as the canonical workflow budget, exposes the authority source in the report, retains a bounded legacy fallback, and records governance closure without mutating observability artifacts or applying live GitHub policy.",
+          "steps": [
+            "Load the repository CI surface policy and resolve targetMaxWorkflowFiles before the legacy maxWorkflowCount fallback.",
+            "Evaluate workflow count and overlap signals against the canonical target and preserve deterministic fingerprints.",
+            "Run repository-evaluation regression fixtures for canonical, legacy, and default policy shapes.",
+            "Run governance and fixed-point self-tests with read-only safety assertions.",
+            "Record the source/live enforcement boundary without inferring GitHub protected-ref state from repository files."
+          ],
+          "assertions": [
+            "targetMaxWorkflowFiles is preferred when it is present and valid.",
+            "A conflicting legacy maxWorkflowCount cannot override targetMaxWorkflowFiles.",
+            "Legacy-only and empty policy shapes resolve through bounded compatibility fallbacks.",
+            "The evaluator reports workflowBudgetSource and does not create a second CI surface authority.",
+            "No generated repository inventory/evaluation artifact is added to the feature PR.",
+            "No live Ruleset Apply, protected-ref mutation, force push, database mutation, provider mutation, migration, grant, production activation, or secret disclosure is performed by this PR."
+          ],
+          "tests": [
+            {
+              "id": "repository-evaluation-budget-compatibility",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/test-repository-evaluation.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-governance-fixed-point-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-fixed-point.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/final-governance-enforcement-semantic-closure-20260820.json",
+            ".specify/schemas/e2e-phases.schema.json",
+            "docs/repository-ci-surface-policy.json",
+            "scripts/repository-evaluation.mjs",
+            "scripts/test-repository-evaluation.mjs",
+            ".github/workflows/derived-state-closure.yml",
+            ".github/workflows/policy-objection-ci.yml",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "autopilot-portable-staging/manifest.json",
+            "specs/004-tenant-asset-federation/work-map-integration.json",
+            "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+            "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+            "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+            "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+            "specs/015-tenant-operating-system-studio/work-map-integration.json",
+            "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+            "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+            "specs/021-portable-staging-autopilot/work-map-integration.json",
+            ".github/tests/repository-governance-fixed-point.test.mjs",
+            "docs/governance/final-governance-closure-matrix.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "repository-evaluation-budget-compatibility",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "scripts/test-repository-evaluation.mjs",
+          "args": []
+        },
+        {
+          "id": "repository-governance-fixed-point-contract",
+          "runner": "node",
+          "working_directory": ".",
+          "path": ".github/tests/repository-governance-fixed-point.test.mjs",
+          "args": []
+        }
+      ],
+      "evidence_paths": [
+        ".changes/e2e/final-governance-enforcement-semantic-closure-20260820.json",
+        ".specify/schemas/e2e-phases.schema.json",
+        "docs/repository-ci-surface-policy.json",
+        "scripts/repository-evaluation.mjs",
+        "scripts/test-repository-evaluation.mjs",
+        ".github/tests/repository-governance-fixed-point.test.mjs",
+        "specs/004-tenant-asset-federation/work-map-integration.json",
+        "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+        "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+        "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+        "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+        "specs/015-tenant-operating-system-studio/work-map-integration.json",
+        "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+        "docs/governance/final-governance-closure-matrix.md"
+      ]
+    }
+  ]
+}
