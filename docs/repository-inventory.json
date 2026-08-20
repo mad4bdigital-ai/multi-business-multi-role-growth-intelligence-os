@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7249,
-    "bytes": 70656918,
-    "lines": 1656561,
+    "files": 7252,
+    "bytes": 70670787,
+    "lines": 1656870,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2163,
+      "tests-and-specs": 2164,
       "documentation": 1909,
-      "api-runtime": 1462,
+      "api-runtime": 1463,
       "database-migrations": 783,
-      "root-and-other": 312,
+      "root-and-other": 313,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 123,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1719,
+      ".mjs": 1720,
       ".js": 995,
-      ".json": 837,
+      ".json": 839,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3728,
+      "http-generic-api": 3730,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
-      ".changes": 281,
+      ".changes": 282,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 21,
@@ -2672,6 +2672,7 @@
       "http-generic-api/test-runtime-profile-contract.mjs",
       "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
       "http-generic-api/test-runtime-registry-authority.mjs",
+      "http-generic-api/test-runtime-remediation-batch-plan.mjs",
       "http-generic-api/test-runtime-verification-contract.mjs",
       "http-generic-api/test-runtime-workflow-resolver.mjs",
       "http-generic-api/test-safe-additive-repair-policy-literal.mjs",
@@ -4925,6 +4926,7 @@
       "http-generic-api/test-runtime-profile-contract.mjs",
       "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
       "http-generic-api/test-runtime-registry-authority.mjs",
+      "http-generic-api/test-runtime-remediation-batch-plan.mjs",
       "http-generic-api/test-runtime-verification-contract.mjs",
       "http-generic-api/test-runtime-workflow-resolver.mjs",
       "http-generic-api/test-safe-additive-repair-policy-literal.mjs",
@@ -7836,6 +7838,17 @@
       "generated": false
     },
     {
+      "path": ".changes/e2e/runtime-remediation-batch-20260820.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 5495,
+      "lines": 107,
+      "sha256": "ced0e9184158141c96c2bfddcb9e0fc59a67e5dcc5efdeca18f5f475a48f93f0",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".changes/e2e/runtime-response-schema-mutation-reconciliation.json",
       "category": "schemas-and-data",
       "extension": ".json",
@@ -8631,9 +8644,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 7830,
-      "lines": 123,
-      "sha256": "89590930925f37f56647d3912c354a69601730c2ba6162ae700a4863cfeadf90",
+      "bytes": 7950,
+      "lines": 125,
+      "sha256": "63cb4e110a94b10c211ea6212b02c86199166ffde1c80bd960508c13aff9b565",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9896,9 +9909,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 15779,
-      "lines": 211,
-      "sha256": "44dff626cafac7ec3471816d12a2d0115078d2a75a6ec240f1f5c19f69078689",
+      "bytes": 15841,
+      "lines": 212,
+      "sha256": "4f99e1a850ffdc4efdb1eafa313d6303ba304ab2382134daf3e1880a220f8bed",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9973,9 +9986,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 5344,
-      "lines": 86,
-      "sha256": "aa052b25c7df2432cd16f67660be58d2b6c0008d5bf60e6884c5fb023c34d9c8",
+      "bytes": 5779,
+      "lines": 89,
+      "sha256": "b13280187c4b78c2f1de98ba2b85ca61f5e53679879a5539c593ae37b1c4f89b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13242,7 +13255,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "04bbc3b7df332d60c17933d3940f900048b2fdec516e6583ccdfdaf8b56d13f2",
+      "sha256": "b3e949f120a33b48d2f49d4dc955fea5e1d02f6edc9751a6542a1ec6f71fc433",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32338,7 +32351,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "b708c179c9762a76e4033ea8c33f86b0be13ccbcc2ad273442772c24808c8585",
+      "sha256": "946f9fcb6c8509149ec24ce8bb6955d63df639a0e1f652750fddf41fa2e6f2d5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33801,7 +33814,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "370b39b68f51d8088502588cfe36d0c1f72a218cbc3a2e3909032b50c82fb7e9",
+      "sha256": "a8225742b91d1bedcddd369f9cf69388b0cf831cddbdb83b72fa6033c05338bd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33834,7 +33847,7 @@
       "extension": ".md",
       "bytes": 14572,
       "lines": 175,
-      "sha256": "3a16b95ac90e4b533675383e290c0ef8fa38b7633aea0bdec6a072d274c63f12",
+      "sha256": "5c70abb4a49c1e3197d7e6b5752c8e413fe3d51aa81d422e3b591c08ae0f8a41",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33845,7 +33858,7 @@
       "extension": ".md",
       "bytes": 4850,
       "lines": 77,
-      "sha256": "eef4953be5a382d38dd2c017d3777b566cd033d3ab74a35f504170d732242d7c",
+      "sha256": "e5d3b5f08dd4dabb99828959c209c7eaeb7f4b72953dbc50dfc1c423382c8b8e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33876,9 +33889,9 @@
       "path": "docs/work-maps/data-model-domain-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 120993,
+      "bytes": 121005,
       "lines": 874,
-      "sha256": "b3b845b55e07d3245906a7b160777bc46edc096f0dfd8a82ebe64564252aa62d",
+      "sha256": "d3064510836ae26791e59ae169341424bf6dd3438189f28b0146ce6927ca852e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33889,7 +33902,7 @@
       "extension": ".md",
       "bytes": 16659,
       "lines": 161,
-      "sha256": "4b62ea3543bfef93c1c890c1a47311400a69e9f164dbc28c7c281d1985be94d2",
+      "sha256": "a378a208e11c75f41310590763dacff37e7ba607633eefc4a44982117848ee3b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33900,7 +33913,7 @@
       "extension": ".md",
       "bytes": 5832,
       "lines": 81,
-      "sha256": "c5afe9f6925cd37d928c2741cb695f00e4686dbebae1d5da5105bcc81e056fe8",
+      "sha256": "99dbf839891bf2314d364268b00eebd15a14937f6a5a68e7099dffa5909f3972",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33922,7 +33935,7 @@
       "extension": ".md",
       "bytes": 48223,
       "lines": 346,
-      "sha256": "8ad6ee81af72d49e0b2c74964d9ef8dc955dc9c247ac854490ba40f719984e1c",
+      "sha256": "94175f7957872dec24e9f7e6ecc95a9c5927c90b5b1eb5a747dc005267ecfb40",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33933,7 +33946,7 @@
       "extension": ".md",
       "bytes": 39017,
       "lines": 287,
-      "sha256": "2809b48d8781b3a4bf5b312c0045a989d1404d7ec5b4494ac117dd0a0700c68d",
+      "sha256": "a211bb4e019bcf2ee806dec8e2e3f9d9e42ad221c16811f1b8afa4e41ccb0d28",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33955,7 +33968,7 @@
       "extension": ".md",
       "bytes": 45883,
       "lines": 427,
-      "sha256": "a875a054540244e865d77edfc57b750752e1e0d8d32f5a14ead701e8037a7525",
+      "sha256": "515ec7587887b6e99e0b008f7ed392ab0d54b7108d5ce92aaecbe27182acedb0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33988,7 +34001,7 @@
       "extension": ".md",
       "bytes": 17199,
       "lines": 156,
-      "sha256": "0fcb5be3a7cb21084ee3323bac022a433f091a56c9f02e83d09104431a9c3280",
+      "sha256": "526cb9b188583e4432e458562f9c1a1ddb9355ed17ec0d282c5639e67c535805",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33999,7 +34012,7 @@
       "extension": ".md",
       "bytes": 5209,
       "lines": 54,
-      "sha256": "a6d39c613756d2e80d2ade029e2dd50a900d4dedc699635956c16351051e6a76",
+      "sha256": "41f27a690a58b47c564bbb56755faf6132c3bdef682e2bca1f0f483d3fc5fe69",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34010,7 +34023,7 @@
       "extension": ".md",
       "bytes": 26669,
       "lines": 223,
-      "sha256": "b6c9bbd29f7c8e8245aedd7e583095ede25f70164edc9b6af04ee88c00f5bc6a",
+      "sha256": "4e87d1e6059902a9896a6b836e2e89dc7fb1d8744270ae7ae422b397efcdb40d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37770,9 +37783,20 @@
       "path": "http-generic-api/config/repository-governance-constitution.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 16007,
-      "lines": 249,
-      "sha256": "a1c6cd6e61bd6df1c46736d74f811ed75ab1724c25dcf432299b5deb1d11d301",
+      "bytes": 16067,
+      "lines": 250,
+      "sha256": "e1d60ea608aa6d8083c0f3fd93360390c1c8c7d8c69753f50447439903502085",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/config/runtime-remediation-batch-plan.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 4071,
+      "lines": 115,
+      "sha256": "16dba571f4f2fcd69a4758e3fa18b07acff2a5c20d38d7a4a0d09736f030c535",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -39719,7 +39743,7 @@
       "extension": ".json",
       "bytes": 25188,
       "lines": 646,
-      "sha256": "d7ca1dc5a9dc4eab4f2727aa3c0adbe25da52f7d2260220f2899eb965532318c",
+      "sha256": "ed0a0df6bcdcd3a21b95516d1f639c103aa4035eb41f1a4a3a29d96c0cf3f18f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -39730,7 +39754,7 @@
       "extension": ".json",
       "bytes": 3474187,
       "lines": 97972,
-      "sha256": "5a4948f5a48ada4fa720bcb91b8ca20d657c8fdf50c15e88406d5ec7c09e5912",
+      "sha256": "081b7b0cdf1510c15a1979276ecc8d40f67027585c0bde36865278272559e881",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52160,7 +52184,7 @@
       "extension": ".json",
       "bytes": 1936154,
       "lines": 58552,
-      "sha256": "8eb5d8258c408bc8e605470db4ac70f710727908b274c777f5b1f045bae03065",
+      "sha256": "adc52ae52e6c6452238579d0ed4ffb4ff5f95ba735f8ac25978b486305fbfc6a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -58164,9 +58188,9 @@
       "path": "http-generic-api/scripts/test-manifest.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 9287,
-      "lines": 175,
-      "sha256": "d21b06759ec5379f170d4529a4eab7352000ddd93dd91c893c0866bef6bb6344",
+      "bytes": 9337,
+      "lines": 176,
+      "sha256": "83a9a8f6b28a14bf705d34b76732f2964253c684406103716e26f8453873e202",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70844,6 +70868,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 3564,
+      "lines": 79,
+      "sha256": "03130360eb5b0dd6c5fa9b0739144d922d0ca8cf6cb9e63a4cec0dd33ef7b3df",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-runtime-verification-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -83125,7 +83160,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "c45fd14a4eda5768bf0a034f460f856b77346114cea8c49a71f744f857f0e924",
+      "sha256": "a0772476041661437ea7eeb8b10ad64638eeec61b6b73f2355bb9da5c38331d5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83686,7 +83721,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "c551ae20c73c5a22fee4fa8c1afef82e4b7f957c3b3ce755ff315a6beff2386f",
+      "sha256": "2d48ff3ec3dfbfbcec05ed8ffa29ad8aefd6b205abfb495ead2a2bd9f044d67d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84522,7 +84557,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "a5fe949d642a21fcdad9934391ebc0672308072e392d84c02546bafcfceff968",
+      "sha256": "380e4abb14821a17068ac328394aa505119c8e8c5b35ff90637f595c83e088f0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84764,7 +84799,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "71feaa31b69d813ce6441e32b03ddd58ce6bf0235902948e67e0b48a808e327d",
+      "sha256": "85e4daa5833b88aeed3343cd35f9aeabc7eb8b26d229e5996cfe0a148956cf91",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85083,7 +85118,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "f0b474cfea3cdac40b3e20d9f6cdb50c2886b62b6970fbe2181dc82e6d0dbe8a",
+      "sha256": "10f1fd8ab52f7f452df9c69dcf8d346043e95d3820569a6c72d0261ef7d9d774",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85303,7 +85338,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "c7460516eafe30818fb9da92503ab1f762785a796f9b15ff71c077ff360a6bcd",
+      "sha256": "8603dfbde2c85a25073ebfe7add79d10a94bbdaec979a7e240f434c320d26360",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85314,7 +85349,7 @@
       "extension": ".json",
       "bytes": 269236,
       "lines": 6392,
-      "sha256": "498e40c105a767d7d18308e04e509b789c6d54bd3a4434eca0cff8c6d8a183fa",
+      "sha256": "39ca09c722e0edbfeaeb53b932fd284ca7bfdd8de962a052aff23766771d375d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85369,7 +85404,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "f3968609bdf48ea4b10d024dfc9f57cf7a456b865642f654732afb7b9029a1ab",
+      "sha256": "7b92c5539f9dedd9b9b890628f869c5171d48701849c4c78bf69f753189ad7a3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85446,7 +85481,7 @@
       "extension": ".json",
       "bytes": 49481,
       "lines": 1334,
-      "sha256": "c7c66755d094c3a889bf3e851a5234856ff3ed5da21194efc5f6c1fb16b47a42",
+      "sha256": "880705168dcda5b252dbbda7b8a3757e76cdfc95f63110390911d2e6a4e858a7",
       "mode": "644",
       "executable": false,
       "generated": false
