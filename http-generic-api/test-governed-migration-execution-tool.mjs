@@ -525,6 +525,9 @@ function fakeReadinessRepairResult(mode) {
       assert.equal(error.details.exit_code, 9);
       assert.equal(error.details.signal, "SIGTERM");
       assert.equal(error.details.runner_error_code, "ER_CHECK_CONSTRAINT_VIOLATED");
+      assert.equal(error.details.runner_diagnostic_code, "ER_CHECK_CONSTRAINT_VIOLATED");
+      assert.equal(error.details.runner_diagnostic_source, "stderr");
+      assert.match(error.details.runner_diagnostic_summary, /input_schema must contain valid JSON/);
       assert.match(error.details.stderr_summary, /input_schema must contain valid JSON/);
       assert.match(error.details.stderr_summary, /SECRET_DATABASE_PASSWORD=\[redacted\]/);
       assert.match(error.details.stdout_summary, /Bearer \[redacted\]/);
