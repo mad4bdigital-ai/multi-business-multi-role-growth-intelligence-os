@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-platform-contract-surfaces-baseline-contract",
+  "title": "Complete platform_contract_surfaces baseline before migration 041",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-platform-contract-surfaces-baseline-contract.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/migrations/041_sprint44b_knowledge_surface_enforcement.sql",
+      "http-generic-api/knowledgeSurfaceResolver.js",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure the canonical baseline creates platform_contract_surfaces with every column required by migration 041 and the knowledge-surface runtime before the ordered migration replay starts.",
+      "e2e_journeys": [
+        {
+          "id": "platform-contract-surfaces-baseline-before-migration-041",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The exact local Git checkout applies schema.sql and the lexicographically ordered migration chain in disposable MariaDB.",
+          "terminal_outcome": "Migration 041 can add business_type_scope and execute its updates without an unknown platform_contract_surfaces table, while the generator remains schema-only and fail-closed.",
+          "steps": [
+            "The canonical baseline declares platform_contract_surfaces with the runtime-facing identity, scope, lifecycle, authority, adapter, file, and folder columns.",
+            "Migration 041 remains idempotent and adds business_type_scope after surface_scope.",
+            "The manifest requires platform_contract_surfaces in the runtime support contract and validates its baseline columns.",
+            "The generator reports the platform_contract_surfaces baseline contract in plan evidence before disposable MariaDB starts.",
+            "The regression suite covers the baseline-to-migration-041 ordering and the schema-only safety contract.",
+            "No Production database, provider, credential, or data-copy path is introduced."
+          ],
+          "assertions": [
+            "schema.sql contains the platform_contract_surfaces baseline table definition.",
+            "The manifest declares required_platform_contract_surfaces_baseline_columns.",
+            "The runtime role requires platform_contract_surfaces and the support-table census includes it.",
+            "The generator fails closed when the platform_contract_surfaces table or any required baseline column is missing.",
+            "The generator emits the platform_contract_surfaces baseline contract in plan evidence.",
+            "Production mutation, provider mutation, data copy, and force-push remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-platform-contract-surfaces-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-platform-contract-surfaces-baseline-contract.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/migrations/041_sprint44b_knowledge_surface_enforcement.sql",
+            "http-generic-api/knowledgeSurfaceResolver.js",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

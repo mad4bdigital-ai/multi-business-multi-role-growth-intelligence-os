@@ -32,6 +32,7 @@
       "bundle_file": "runtime.schema.sql.gz",
       "required_tables": [
         "connected_systems",
+        "platform_contract_surfaces",
         "brands",
         "brand_core",
         "actions",
@@ -155,6 +156,7 @@
     ],
     "required_runtime_support_tables": [
       "connected_systems",
+      "platform_contract_surfaces",
       "admin_platform_endpoint_tools",
       "tenant_platform_endpoint_tools",
       "customer_sessions",
@@ -213,6 +215,18 @@
       "repair_action",
       "repair_status",
       "priority"
+    ],
+    "required_platform_contract_surfaces_baseline_columns": [
+      "surface_id",
+      "surface_name",
+      "surface_type",
+      "file_id",
+      "folder_id",
+      "surface_scope",
+      "active_status",
+      "authority_status",
+      "runtime_consumption_status",
+      "current_runtime_adapter"
     ]
   }
 }
