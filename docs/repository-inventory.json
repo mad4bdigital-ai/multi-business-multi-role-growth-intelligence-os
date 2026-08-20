@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7252,
-    "bytes": 70671160,
-    "lines": 1656875,
+    "bytes": 70673198,
+    "lines": 1656899,
     "directories": 266,
     "categories": 13
   },
@@ -8644,9 +8644,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8250,
-      "lines": 129,
-      "sha256": "5db0cd7829c0e9136fc46165eb4896f6d05e03393c6b3b6ba41c3abcc7933c4d",
+      "bytes": 8526,
+      "lines": 133,
+      "sha256": "eb6414a8dad2ad6992bcf0bebe9272437a2847f0cf989ecee13e64724dcb593b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12164,9 +12164,9 @@
       "path": ".github/workflows/spec-kit-work-map-autofix.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 45456,
-      "lines": 784,
-      "sha256": "57251f4a36942010b7e0e845ec5c615d501cd7e9e3af5b7ce3c4c8255044c647",
+      "bytes": 46769,
+      "lines": 796,
+      "sha256": "93ea39f96269eff124278d2cd6b8bde510b9304f29e2af0a5cec6a083f1487d3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13255,7 +13255,7 @@
       "extension": ".json",
       "bytes": 12729,
       "lines": 321,
-      "sha256": "abb657d8a0467deecb700b86ca3eb6b0f6bfb47798391405e590cb8aa10ec52e",
+      "sha256": "28c0ffcdc50b9d3c394dc4986be0243ca1e332c66f7dee247442128d0fcd3046",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -74292,9 +74292,9 @@
       "path": "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7651,
-      "lines": 156,
-      "sha256": "dc92b0f04a4dcbb855acf09210a67127244f959012de5371d28e0e06d6aea2da",
+      "bytes": 8100,
+      "lines": 164,
+      "sha256": "b6f1c133137f8abb8715f50be97eff742cc3f70fb8007d22f120367479a61aab",
       "mode": "644",
       "executable": false,
       "generated": false
