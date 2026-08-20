@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7228,
-    "bytes": 70550278,
-    "lines": 1654571,
+    "files": 7231,
+    "bytes": 70551938,
+    "lines": 1654598,
     "directories": 266,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2163,
       "documentation": 1909,
-      "api-runtime": 1449,
+      "api-runtime": 1452,
       "database-migrations": 783,
       "root-and-other": 304,
       "api-contracts": 191,
@@ -29,7 +29,7 @@
       ".md": 2510,
       ".mjs": 1717,
       ".js": 995,
-      ".json": 818,
+      ".json": 821,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3715,
+      "http-generic-api": 3718,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
@@ -8620,9 +8620,9 @@
       "path": ".changes/e2e/staging-local-connector-legacy-reconciliation.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 3372,
-      "lines": 74,
-      "sha256": "e24765777ec39901b2b4ef3ac5dd1987c7cbac08a055ad05f95f70d0dbdc7efd",
+      "bytes": 3654,
+      "lines": 77,
+      "sha256": "17e40d9a7334691974ff11073a4265a0d37feb769c44289ecbd89d74ba67ea6b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -35259,6 +35259,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/activation-surfaces/exclusions/local_connector_file_access_rules.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 448,
+      "lines": 8,
+      "sha256": "0ddcbb8455b3a5e211cec11a215539782b1abe9a7a07863bd050879516e2aad9",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/activation-surfaces/exclusions/local_connector_heartbeats.json",
       "category": "api-runtime",
       "extension": ".json",
@@ -35298,6 +35309,28 @@
       "bytes": 363,
       "lines": 8,
       "sha256": "9b84a6ca9da1bf7498025321ef50d27e1fd8937d6af35fb54a9320b8e0be6939",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/local_connector_shell_allowlists.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 463,
+      "lines": 8,
+      "sha256": "28274ebfc9419cc4fc0246bf0f347cda965faa6148894eaeb05ecffe54ef0527",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/local_connector_user_configs.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 467,
+      "lines": 8,
+      "sha256": "83b1eba77de59e51bf61138a9ee3fed8d27325fcfd01a67708dbe53cacdc6bb9",
       "mode": "644",
       "executable": false,
       "generated": false
