@@ -118,6 +118,7 @@
           "http-generic-api/*.js",
           "http-generic-api/*.mjs",
           "http-generic-api/scripts/provision-remote-mcp-client.mjs",
+          "http-generic-api/scripts/governed-migration-runner.mjs",
           "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
           "http-generic-api/scripts/generate-deployment-manifest.mjs",
           "edge/**",
