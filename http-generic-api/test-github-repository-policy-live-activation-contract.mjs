@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
@@ -9,6 +10,12 @@ const publisherWorkflow = read("../.github/workflows/github-main-review-policy-r
 const migrationRunner = read("../.github/ops/github-repository-policy-1051-governed-rollout.mjs");
 const liveRunner = read("../.github/ops/github-main-review-policy-live-activation.mjs");
 const publisher = read("./scripts/github-main-review-policy-readiness-issue-publisher.mjs");
+const gitBlobSha = (path) => {
+  const bytes = fs.readFileSync(new URL(path, import.meta.url));
+  return createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${bytes.length}\0`), bytes])).digest("hex");
+};
+const migrationBlobSha = gitBlobSha("../http-generic-api/migrations/1051_github_repository_policy_live_apply_authority.sql");
+const envelopeCreatorBlobSha = gitBlobSha("../http-generic-api/scripts/capability-resolution-envelope-create.mjs");
 
 assert.match(migrationWorkflow, /^name: Governed Migration 1051 GitHub Repository Policy Authority Rollout/m);
 assert.match(migrationWorkflow, /permissions:\n  contents: read/);
@@ -59,6 +66,8 @@ assert.match(liveRunner, /ambiguous_transport_reconciliation/);
 assert.match(liveRunner, /Apply was not retried/);
 assert.match(liveRunner, /force_push_executed: false/);
 assert.match(liveRunner, /repository_content_mutation_executed: false/);
+assert.match(liveRunner, new RegExp(`const MIGRATION_BLOB_SHA = "${migrationBlobSha}";`));
+assert.match(liveRunner, new RegExp(`const ENVELOPE_CREATOR_BLOB_SHA = "${envelopeCreatorBlobSha}";`));
 
 assert.match(publisher, /EXPECTED_WORKFLOW = "Governed GitHub Review Policy Live Activation"/);
 assert.match(publisher, /assert\.equal\(summary\?\.migration_1051_verified, true\)/);
