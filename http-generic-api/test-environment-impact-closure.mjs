@@ -47,6 +47,7 @@ assert.deepEqual(
 const classes = policy.path_classes;
 assert.deepEqual(classifyPath("autopilot-portable-staging/Start-AutoPilot.ps1", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/routes/tenantTools.js", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("http-generic-api/schema.sql", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
@@ -66,6 +67,10 @@ const sharedChange = classifyChange({ status: "M", path: "http-generic-api/route
 assert.deepEqual(sharedChange.classes, ["shared_runtime"]);
 assert.deepEqual(sharedChange.environments, ["production", "staging"]);
 assert.equal(sharedChange.requires_live_certification, true);
+const schemaChange = classifyChange({ status: "M", path: "http-generic-api/schema.sql", previous_path: null }, classes);
+assert.deepEqual(schemaChange.classes, ["shared_runtime"]);
+assert.deepEqual(schemaChange.environments, ["production", "staging"]);
+assert.equal(schemaChange.requires_live_certification, true);
 
 const e2eGovernanceChange = classifyChange({
   status: "M",
