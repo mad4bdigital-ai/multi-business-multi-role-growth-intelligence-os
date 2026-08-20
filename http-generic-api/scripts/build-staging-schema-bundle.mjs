@@ -12,6 +12,7 @@ const repoRoot = path.resolve(apiRoot, "..");
 const manifestPath = path.join(apiRoot, "config", "staging-database-role-migration-manifest.json");
 const migrationsDir = path.join(apiRoot, "migrations");
 const baselineSchemaPath = path.join(apiRoot, "schema.sql");
+const orderedPreuseAuditPath = path.join(apiRoot, "scripts", "audit-staging-migration-preuse.mjs");
 
 const args = process.argv.slice(2);
 const arg = (name, fallback = null) => {
@@ -84,10 +85,58 @@ function migrationFiles() {
   return files;
 }
 
+function createTableBlock(sql, tableName) {
+  const quote = String.fromCharCode(96);
+  const escaped = String(tableName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return sql.match(new RegExp(`CREATE\\s+TABLE(?:\\s+IF\\s+NOT\\s+EXISTS)?\\s+(?:${quote})?${escaped}(?:${quote})?\\s*\\(([\\s\\S]*?)\\)\\s*ENGINE\\s*=`, "iu"))?.[1] || "";
+}
+
+function createTableLikeSource(sql, tableName) {
+  const quote = String.fromCharCode(96);
+  const escaped = String(tableName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return sql.match(new RegExp(`CREATE\\s+TABLE(?:\\s+IF\\s+NOT\\s+EXISTS)?\\s+(?:${quote})?${escaped}(?:${quote})?\\s+LIKE\\s+(?:${quote})?([^\\s;${quote}]+)(?:${quote})?`, "iu"))?.[1] || "";
+}
+
+function baselineColumnExists(block, column) {
+  const quote = String.fromCharCode(96);
+  const escaped = String(column).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[,\\s])(?:${quote})?${escaped}(?:${quote})?\\s+`, "iu").test(block);
+}
+
+function baselineColumnContracts(manifest) {
+  const validation = manifest.validation || {};
+  const sources = validation.baseline_column_contract_sources;
+  if (!sources || typeof sources !== "object" || Array.isArray(sources)) fail("role manifest baseline_column_contract_sources contract is missing");
+  const contracts = [];
+  for (const [contractKey, source] of Object.entries(sources)) {
+    const columns = validation[contractKey];
+    if (!Array.isArray(columns) || columns.length === 0) fail(`role manifest ${contractKey} contract is missing`);
+    if (!source || typeof source !== "object" || typeof source.table !== "string" || typeof source.source_file !== "string") fail(`role manifest ${contractKey} source mapping is incomplete`);
+    const sourcePath = path.resolve(repoRoot, source.source_file);
+    if (!fs.existsSync(sourcePath)) fail(`${contractKey} source file is missing: ${source.source_file}`);
+    const sourceSql = fs.readFileSync(sourcePath, "utf8");
+    migrationSafetyCheck(source.source_file, sourceSql);
+    let block = createTableBlock(sourceSql, source.table);
+    let resolvedFrom = source.table;
+    const likeSource = createTableLikeSource(sourceSql, source.table);
+    if (!block && likeSource) {
+      block = createTableBlock(sourceSql, likeSource);
+      resolvedFrom = likeSource;
+      if (source.inherits_from && source.inherits_from !== likeSource) fail(`${contractKey} inheritance mapping disagrees with canonical CREATE TABLE LIKE source`);
+    }
+    if (!block) fail(`${contractKey} source is missing canonical CREATE TABLE definition for ${source.table}`);
+    const missing = columns.filter((column) => !baselineColumnExists(block, column));
+    if (missing.length) fail(`${source.table} baseline column contract is incomplete: ${missing.join(", ")}`);
+    contracts.push({ contract: contractKey, table: source.table, source_file: source.source_file, resolved_from: resolvedFrom, columns });
+  }
+  return contracts;
+}
+
 function baselineSchema(manifest) {
   if (!fs.existsSync(baselineSchemaPath)) fail(`canonical baseline schema is missing: ${baselineSchemaPath}`);
   const sql = fs.readFileSync(baselineSchemaPath, "utf8");
   migrationSafetyCheck("schema.sql", sql);
+  const requiredBaselineColumnContracts = baselineColumnContracts(manifest);
   const requiredActionColumns = manifest.validation?.required_actions_baseline_columns;
   const requiredEndpointColumns = manifest.validation?.required_endpoints_baseline_columns;
   const requiredValidationRepairColumns = manifest.validation?.required_validation_repair_baseline_columns;
@@ -155,6 +204,7 @@ function baselineSchema(manifest) {
     required_platform_endpoint_tool_exports_baseline_columns: requiredPlatformEndpointToolExportsColumns,
     required_tenant_secrets_baseline_columns: requiredTenantSecretsColumns,
     required_platform_secrets_baseline_columns: requiredPlatformSecretsColumns,
+    baseline_column_contracts: requiredBaselineColumnContracts,
     immediate_sql: `${immediate.join(";\n")};\n`,
     deferred_foreign_key_sql: deferredForeignKey.length ? `${deferredForeignKey.join(";\n")};\n` : "",
   };
@@ -175,6 +225,7 @@ function baselineMetadata(baseline) {
     required_platform_endpoint_tool_exports_baseline_columns: baseline.required_platform_endpoint_tool_exports_baseline_columns,
     required_tenant_secrets_baseline_columns: baseline.required_tenant_secrets_baseline_columns,
     required_platform_secrets_baseline_columns: baseline.required_platform_secrets_baseline_columns,
+    baseline_column_contracts: baseline.baseline_column_contracts,
   };
 }
 
@@ -199,6 +250,26 @@ function migrationPlan(files) {
     migrationSafetyCheck(file, sql);
     return { file, sha256: sha256(sql), statement_count: splitStatements(sql).length, bytes: Buffer.byteLength(sql) };
   });
+}
+
+function orderedPreuseAudit() {
+  if (!fs.existsSync(orderedPreuseAuditPath)) fail(`ordered pre-use audit script is missing: ${orderedPreuseAuditPath}`);
+  const result = run(process.execPath, [orderedPreuseAuditPath, repoRoot], { allowFailure: true, timeoutMs: 120000 });
+  if (result.status !== 0) fail(`ordered pre-use audit failed: ${text(result.stderr).slice(-4000) || text(result.stdout).slice(-4000)}`);
+  let audit;
+  try { audit = JSON.parse(result.stdout); }
+  catch (error) { fail(`ordered pre-use audit returned invalid JSON: ${error.message}`); }
+  const missingColumns = Number(audit.counts?.missing_column || 0);
+  if (missingColumns > 0) fail(`ordered pre-use audit found ${missingColumns} missing-column pre-use gaps; repair canonical DDL before schema build`);
+  return {
+    script: "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+    baseline_tables: Number(audit.baseline_tables || 0),
+    migration_files: Number(audit.migration_files || 0),
+    unique_true_preuse_gaps: Number(audit.unique_true_preuse_gaps || 0),
+    missing_column_gaps: missingColumns,
+    missing_table_gaps: Number(audit.counts?.missing_table || 0),
+    same_statement_false_positives: Number(audit.same_statement_false_positives || 0),
+  };
 }
 
 function canonicalSeedPlan(manifest, files) {
@@ -291,7 +362,7 @@ function makeDump(role, tables, manifest) {
   return { file: roleConfig.bundle_file, sha256: sha256(gz), compressed_bytes: gz.length, table_count: tables.length, tables: names };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -307,6 +378,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     migration_count: migrationPlanRows.length,
     migration_sha256_manifest: migrationPlanRows,
     canonical_seed_lifecycle: canonicalSeeds,
+    ordered_preuse_audit: orderedAudit,
     roles: bundles,
     validation: {
       required_tables_checked: true,
@@ -314,6 +386,8 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       runtime_exclusions_checked: true,
       no_data_statements_checked: true,
       three_role_partition_checked: true,
+      ordered_preuse_audit_checked: true,
+      missing_column_gaps_checked: true,
     },
   };
   const outputPath = path.join(outputDir, "staging-schema-bundle-manifest.json");
@@ -321,7 +395,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
   return outputPath;
 }
 
-function printPlan(manifest, baseline, files, rows, canonicalSeeds) {
+function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
@@ -330,6 +404,7 @@ function printPlan(manifest, baseline, files, rows, canonicalSeeds) {
     migration_count: files.length,
     statement_count: rows.reduce((sum, row) => sum + row.statement_count, 0),
     canonical_seed_lifecycle: canonicalSeeds,
+    ordered_preuse_audit: orderedAudit,
     required_bundle_files: manifest.validation.required_bundle_files,
     confirmation_required: manifest.safety.confirmation,
     production_access_forbidden: true,
@@ -342,9 +417,10 @@ const manifest = readManifest();
 const baseline = baselineSchema(manifest);
 const files = migrationFiles();
 const rows = migrationPlan(files);
+const orderedAudit = orderedPreuseAudit();
 const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
-  printPlan(manifest, baseline, files, rows, canonicalSeeds);
+  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -361,7 +437,7 @@ try {
       governance: makeDump("governance", sets.governance, manifest),
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, sets, bundles);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, sets, bundles);
 
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {

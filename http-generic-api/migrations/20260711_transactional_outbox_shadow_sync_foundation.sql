@@ -4,10 +4,12 @@
 
 CREATE TABLE IF NOT EXISTS platform_outbox_event_types (
   event_type VARCHAR(160) NOT NULL PRIMARY KEY,
+  aggregate_type VARCHAR(160) NULL,
   current_schema_version SMALLINT UNSIGNED NOT NULL DEFAULT 1,
   producer_key VARCHAR(120) NOT NULL,
   payload_classification ENUM('public','internal','restricted') NOT NULL DEFAULT 'internal',
   contains_pii TINYINT(1) NOT NULL DEFAULT 0,
+  active TINYINT(1) NOT NULL DEFAULT 1,
   status ENUM('draft','active','paused','retired') NOT NULL DEFAULT 'draft',
   description VARCHAR(500) NULL,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),

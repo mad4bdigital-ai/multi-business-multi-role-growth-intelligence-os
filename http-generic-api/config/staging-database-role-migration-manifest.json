@@ -295,6 +295,148 @@
       "metadata_json",
       "status",
       "created_by"
-    ]
+    ],
+    "required_admin_platform_endpoint_tools_baseline_columns": [
+      "updated_at",
+      "input_schema_json",
+      "secrets_included"
+    ],
+    "required_tenant_platform_endpoint_tools_baseline_columns": [
+      "updated_at",
+      "input_schema_json",
+      "secrets_included"
+    ],
+    "required_brand_core_baseline_columns": [
+      "active_status"
+    ],
+    "required_tickets_baseline_columns": [
+      "occurrence_count",
+      "is_test",
+      "environment",
+      "visibility_class",
+      "target_capability",
+      "related_ticket_id",
+      "parent_ticket_id",
+      "supersedes_ticket_id",
+      "first_response_due_at",
+      "triage_due_at",
+      "first_response_at",
+      "triaged_at",
+      "last_seen_at"
+    ],
+    "required_workflows_baseline_columns": [
+      "required_variable_profile",
+      "input_contract_profile",
+      "supported_ingress_channels",
+      "supports_structured_api_calls",
+      "supported_model_providers",
+      "model_adapter_required",
+      "allowed_actor_roles",
+      "allowed_governance_levels",
+      "client_allowed",
+      "team_allowed",
+      "admin_only",
+      "brand_scope_enforced",
+      "supported_languages",
+      "translation_step_required",
+      "locale_sensitive"
+    ],
+    "required_task_routes_baseline_columns": [
+      "required_variable_profile",
+      "variable_contract_group",
+      "supported_ingress_channels",
+      "requires_conversational_inference",
+      "supports_structured_api_calls",
+      "supported_model_providers",
+      "allowed_actor_roles",
+      "allowed_governance_levels",
+      "client_allowed",
+      "team_allowed",
+      "admin_only",
+      "brand_scope_enforced",
+      "supported_languages",
+      "translation_step_required",
+      "locale_sensitive"
+    ],
+    "required_logic_definitions_baseline_columns": [
+      "source_url",
+      "package_version",
+      "skill_manifest"
+    ],
+    "required_memory_scope_type_registry_baseline_columns": [
+      "display_name",
+      "description",
+      "scope_layer",
+      "identity_table",
+      "identity_key_column",
+      "parent_scope_type",
+      "supports_tenant_id",
+      "supports_user_id",
+      "supports_workspace_key",
+      "supports_brand_key",
+      "supports_activity_type_key",
+      "supports_role_key",
+      "default_visibility_scope",
+      "approval_required",
+      "metadata_json"
+    ],
+    "required_endpoints_schema_overlay_baseline_columns": [
+      "schema_overlay_status",
+      "schema_overlay_notes"
+    ],
+    "required_platform_outbox_event_types_baseline_columns": [
+      "aggregate_type",
+      "active"
+    ],
+    "required_tenant_resolution_cases_baseline_columns": [
+      "ticket_id"
+    ],
+    "baseline_column_contract_sources": {
+      "required_admin_platform_endpoint_tools_baseline_columns": {
+        "table": "admin_platform_endpoint_tools",
+        "source_file": "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql"
+      },
+      "required_tenant_platform_endpoint_tools_baseline_columns": {
+        "table": "tenant_platform_endpoint_tools",
+        "source_file": "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql",
+        "inherits_from": "admin_platform_endpoint_tools"
+      },
+      "required_brand_core_baseline_columns": {
+        "table": "brand_core",
+        "source_file": "http-generic-api/schema.sql"
+      },
+      "required_tickets_baseline_columns": {
+        "table": "tickets",
+        "source_file": "http-generic-api/migrations/004_sprint04_customer_ops.sql"
+      },
+      "required_workflows_baseline_columns": {
+        "table": "workflows",
+        "source_file": "http-generic-api/schema.sql"
+      },
+      "required_task_routes_baseline_columns": {
+        "table": "task_routes",
+        "source_file": "http-generic-api/schema.sql"
+      },
+      "required_logic_definitions_baseline_columns": {
+        "table": "logic_definitions",
+        "source_file": "http-generic-api/migrations/009_sprint05_logic_graph.sql"
+      },
+      "required_memory_scope_type_registry_baseline_columns": {
+        "table": "memory_scope_type_registry",
+        "source_file": "http-generic-api/migrations/245_sprint68_agent_governance_runtime.sql"
+      },
+      "required_endpoints_schema_overlay_baseline_columns": {
+        "table": "endpoints",
+        "source_file": "http-generic-api/schema.sql"
+      },
+      "required_platform_outbox_event_types_baseline_columns": {
+        "table": "platform_outbox_event_types",
+        "source_file": "http-generic-api/migrations/20260711_transactional_outbox_shadow_sync_foundation.sql"
+      },
+      "required_tenant_resolution_cases_baseline_columns": {
+        "table": "tenant_resolution_cases",
+        "source_file": "http-generic-api/migrations/20260709_tenant_resolution_registry_schema.sql"
+      }
+    }
   }
 }

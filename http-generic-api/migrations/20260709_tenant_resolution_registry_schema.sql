@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS `tenant_resolution_cases` (
   `tenant_id` VARCHAR(64) NOT NULL,
   `workspace_id` VARCHAR(64) NULL,
   `resource_ref` VARCHAR(512) NULL,
+  `ticket_id` VARCHAR(64) NULL,
   `root_family` VARCHAR(128) NOT NULL,
   `playbook_key` VARCHAR(191) NOT NULL,
   `status` ENUM('detected','diagnosing','needs_connection','needs_approval','ready_to_apply','applying','verifying','resolved','deferred_by_policy','escalated','blocked_missing_authority','cancelled') NOT NULL DEFAULT 'detected',
