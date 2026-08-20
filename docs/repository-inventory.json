@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7252,
-    "bytes": 70673198,
-    "lines": 1656899,
+    "bytes": 70673335,
+    "lines": 1656900,
     "directories": 266,
     "categories": 13
   },
@@ -9986,9 +9986,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 5779,
-      "lines": 89,
-      "sha256": "b13280187c4b78c2f1de98ba2b85ca61f5e53679879a5539c593ae37b1c4f89b",
+      "bytes": 5916,
+      "lines": 90,
+      "sha256": "b8ffdc58a6813d614b760c7678d9778a793fd4799963c41272063488a77c9a98",
       "mode": "644",
       "executable": false,
       "generated": false
