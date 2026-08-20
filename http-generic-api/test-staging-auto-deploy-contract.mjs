@@ -32,6 +32,18 @@ assert.equal(policy.schema_bundle_lifecycle.requires_exact_source_commit, true);
 assert.equal(policy.schema_bundle_lifecycle.requires_sha256_and_gzip_verification, true);
 assert.equal(policy.schema_bundle_lifecycle.requires_post_import_exact_role_table_sets, true);
 assert.equal(policy.schema_bundle_lifecycle.requires_import_mutex, true);
+assert.equal(policy.schema_bundle_lifecycle.required_runtime_registry_table_count, 18);
+assert.deepEqual(policy.schema_bundle_lifecycle.required_runtime_support_tables, ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
+assert.equal(policy.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
+assert.deepEqual(policy.canonical_seed_lifecycle.seed_files, [
+  "039_sprint43_data_integrity_and_missing_tables.sql",
+  "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+]);
+assert.equal(policy.canonical_seed_lifecycle.explicit_apply_only, true);
+assert.equal(policy.canonical_seed_lifecycle.readback_required, true);
+assert.equal(policy.activation_gateway.readback_gate.stale_policy_blocks_activation, true);
+assert.equal(policy.activation_gateway.readback_gate.schema_and_catalog_readiness_required, true);
 assert.equal(policy.preflight_lifecycle.required_mariadb_image, "mariadb:11.4");
 assert.equal(policy.logging_lifecycle.atomic_status_writes, true);
 assert.equal(policy.health_monitor_lifecycle.recovery_transition_required, true);
@@ -149,6 +161,8 @@ assert.match(certificationHelper, /STAGING_CERT_APP_IMAGE_ID/);
 assert.match(oneClickScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
 assert.match(oneClickScript, /EligibilityNoRunGraceSeconds/);
 assert.match(oneClickScript, /No Staging Main Deploy Eligibility workflow run was found/);
+assert.match(oneClickScript, /Canonical seed\/readback evidence is incomplete/);
+assert.match(oneClickScript, /canonical_seed_readback/);
 assert.match(oneClickScript, /BuildMode/);
 assert.match(deployScript, /Global\\Mad4bPortableStagingAutoPilot/);
 assert.doesNotMatch(deployScript, /CLOUDFLARE_TUNNEL_TOKEN\s*=/i);
@@ -188,6 +202,12 @@ assert.match(schemaImporter, /Get-FileHash -Algorithm SHA256/);
 assert.match(schemaImporter, /Test-GzipFile/);
 assert.match(schemaImporter, /Global\\Mad4bStagingSchemaImport/);
 assert.match(schemaImporter, /schema-import-state\.json/);
+assert.match(schemaImporter, /canonical_seed_status/);
+assert.match(schemaImporter, /canonical_seed_readback/);
+assert.match(schemaImporter, /requiredRuntimeCensus/);
+assert.match(schemaImporter, /Assert-ContainsSet/);
+assert.match(schemaImporter, /mcp_catalog_level/);
+assert.match(schemaImporter, /STAGING_CANONICAL_SEEDS_COMPLETED/);
 assert.match(schemaImporter, /post_import_role_table_verification/);
 assert.match(schemaImporter, /Assert-SetEqual/);
 assert.match(schemaImporter, /production_accessed/);

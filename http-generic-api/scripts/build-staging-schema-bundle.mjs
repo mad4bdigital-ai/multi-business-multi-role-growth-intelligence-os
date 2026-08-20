@@ -147,6 +147,26 @@ function migrationPlan(files) {
   });
 }
 
+function canonicalSeedPlan(manifest, files) {
+  const lifecycle = manifest.canonical_seed_lifecycle || {};
+  if (lifecycle.contract !== "mad4b.staging.canonical-seed-manifest.v1") fail("canonical seed lifecycle contract is missing or unsupported");
+  if (lifecycle.target_role !== "runtime" || lifecycle.replay_mode !== "explicit_local_staging_only") fail("canonical seed lifecycle must target runtime with explicit local replay only");
+  if (lifecycle.production_access_forbidden !== true || lifecycle.provider_access_forbidden !== true || lifecycle.readback_required !== true) fail("canonical seed lifecycle safety/readback policy is incomplete");
+  const orderedFiles = Array.isArray(lifecycle.seed_files) ? lifecycle.seed_files : [];
+  if (!orderedFiles.length) fail("canonical seed lifecycle declares no seed files");
+  const available = new Set(files);
+  const rows = orderedFiles.map((file) => {
+    if (!available.has(file)) fail(`canonical seed file is not part of the exact migration chain: ${file}`);
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    migrationSafetyCheck(file, sql);
+    if (!/\b(?:INSERT|UPDATE)\b/iu.test(sql)) fail(`canonical seed file contains no deterministic seed statements: ${file}`);
+    return { file, sha256: sha256(sql), statement_count: splitStatements(sql).length, bytes: Buffer.byteLength(sql), target_role: lifecycle.target_role };
+  });
+  const requiredColumns = Array.isArray(lifecycle.mcp_catalog_required_columns) ? lifecycle.mcp_catalog_required_columns : [];
+  if (requiredColumns.length !== 2 || !requiredColumns.includes("admin_platform_endpoint_tools.mcp_catalog_level") || !requiredColumns.includes("tenant_platform_endpoint_tools.mcp_catalog_level")) fail("canonical seed lifecycle MCP catalog column contract is incomplete");
+  return { contract: lifecycle.contract, target_role: lifecycle.target_role, replay_mode: lifecycle.replay_mode, production_access_forbidden: true, provider_access_forbidden: true, readback_required: true, seed_files: rows, mcp_catalog_required_columns: requiredColumns };
+}
+
 function dockerExec(args, options = {}) {
   const stdinFlag = options.input === undefined ? [] : ["-i"];
   return run("docker", ["exec", ...stdinFlag, ...args], options);
@@ -217,7 +237,7 @@ function makeDump(role, tables, manifest) {
   return { file: roleConfig.bundle_file, sha256: sha256(gz), compressed_bytes: gz.length, table_count: tables.length, tables: names };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -232,9 +252,11 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, tableSets,
     baseline_schema: baselineMetadata(baseline),
     migration_count: migrationPlanRows.length,
     migration_sha256_manifest: migrationPlanRows,
+    canonical_seed_lifecycle: canonicalSeeds,
     roles: bundles,
     validation: {
       required_tables_checked: true,
+      required_runtime_table_census: manifest.validation.required_runtime_table_census,
       runtime_exclusions_checked: true,
       no_data_statements_checked: true,
       three_role_partition_checked: true,
@@ -245,7 +267,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, tableSets,
   return outputPath;
 }
 
-function printPlan(manifest, baseline, files, rows) {
+function printPlan(manifest, baseline, files, rows, canonicalSeeds) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
@@ -253,6 +275,7 @@ function printPlan(manifest, baseline, files, rows) {
     baseline_schema: baselineMetadata(baseline),
     migration_count: files.length,
     statement_count: rows.reduce((sum, row) => sum + row.statement_count, 0),
+    canonical_seed_lifecycle: canonicalSeeds,
     required_bundle_files: manifest.validation.required_bundle_files,
     confirmation_required: manifest.safety.confirmation,
     production_access_forbidden: true,
@@ -265,8 +288,9 @@ const manifest = readManifest();
 const baseline = baselineSchema();
 const files = migrationFiles();
 const rows = migrationPlan(files);
+const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
-  printPlan(manifest, baseline, files, rows);
+  printPlan(manifest, baseline, files, rows, canonicalSeeds);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -278,12 +302,13 @@ try {
   applyMigrations(baseline, rows);
   tables = listTables();
   const sets = roleTableSets(manifest, tables);
-  const bundles = {
-    runtime: makeDump("runtime", sets.runtime, manifest),
-    governance: makeDump("governance", sets.governance, manifest),
-    runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
-  };
-  const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, sets, bundles);
+      const bundles = {
+      runtime: makeDump("runtime", sets.runtime, manifest),
+      governance: makeDump("governance", sets.governance, manifest),
+      runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
+    };
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, sets, bundles);
+
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {
   run("docker", ["rm", "--force", containerName], { allowFailure: true });

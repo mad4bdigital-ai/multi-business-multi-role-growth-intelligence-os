@@ -30,7 +30,29 @@
       "gzip_validation_required": true,
       "role_table_readback_required": true,
       "import_mutex_required": true,
-      "recertify_same_commit_after_apply": true
+      "recertify_same_commit_after_apply": true,
+      "required_runtime_registry_table_count": 18,
+      "required_runtime_support_tables": ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]
+    },
+    "canonical_seeds": {
+      "contract": "mad4b.staging.canonical-seed-manifest.v1",
+      "target_role": "runtime",
+      "seed_files": [
+        "039_sprint43_data_integrity_and_missing_tables.sql",
+        "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+        "20260815_custom_gpt_mcp_catalog_levels.sql"
+      ],
+      "explicit_apply_only": true,
+      "readback_required": true,
+      "mcp_catalog_columns_required": ["admin_platform_endpoint_tools.mcp_catalog_level", "tenant_platform_endpoint_tools.mcp_catalog_level"],
+      "canonical_rows_required": ["registry_surfaces_catalog", "business_type_profiles", "brand_paths", "business_activity_types.hvac_air_conditioning_services"]
+    },
+    "activation_readiness": {
+      "schema_and_catalog_readiness_required": true,
+      "gateway_policy_not_stale_required": true,
+      "gateway_policy_hash_current_required": true,
+      "gateway_exact_source_commit_required": true,
+      "stale_policy_blocks_activation": true
     },
     "logging": {
       "schema_version": 2,

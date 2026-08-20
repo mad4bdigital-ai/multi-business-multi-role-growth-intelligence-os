@@ -26,6 +26,14 @@
       "openapi.tenant-gpt.activation.staging.yaml",
       "openapi.custom-gpt.activation-admin.staging.yaml"
     ],
+    "readback_gate": {
+      "gateway_health_required": true,
+      "policy_not_stale_required": true,
+      "policy_hash_current_required": true,
+      "exact_source_commit_required": true,
+      "schema_and_catalog_readiness_required": true,
+      "stale_policy_blocks_activation": true
+    },
     "production_hosts_forbidden": [
       "auth.mad4b.com",
       "mcp.mad4b.com",
@@ -47,7 +55,24 @@
     "requires_sha256_and_gzip_verification": true,
     "requires_post_import_exact_role_table_sets": true,
     "requires_import_mutex": true,
-    "sanitized_data_default": false
+    "sanitized_data_default": false,
+    "required_runtime_registry_table_count": 18,
+    "required_runtime_support_tables": ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]
+  },
+  "canonical_seed_lifecycle": {
+    "contract": "mad4b.staging.canonical-seed-manifest.v1",
+    "target_role": "runtime",
+    "seed_files": [
+      "039_sprint43_data_integrity_and_missing_tables.sql",
+      "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+      "20260815_custom_gpt_mcp_catalog_levels.sql"
+    ],
+    "explicit_apply_only": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "readback_required": true,
+    "mcp_catalog_columns_required": ["admin_platform_endpoint_tools.mcp_catalog_level", "tenant_platform_endpoint_tools.mcp_catalog_level"],
+    "canonical_rows_required": ["registry_surfaces_catalog", "business_type_profiles", "brand_paths", "business_activity_types.hvac_air_conditioning_services"]
   },
   "preflight_lifecycle": {
     "docker_contexts": ["default", "desktop-linux"],

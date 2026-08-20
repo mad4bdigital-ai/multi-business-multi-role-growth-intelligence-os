@@ -50,7 +50,15 @@ function Get-Env([string]$Name) {
     if (-not $line) { return "" }
     return ($line -replace "^$([regex]::Escape($Name))=", "")
 }
+function Get-ObjectProperty([object]$Object, [string]$Name) {
+    if ($null -eq $Object) { return $null }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
 function Classify-HealthError([string]$Message) {
+    if ($Message -match '(?i)GATEWAY_POLICY_STALE|activation gateway.*stale|gateway.*policy.*stale') { return "activation_policy_stale" }
+    if ($Message -match '(?i)activation gateway|gateway health') { return "activation_gateway_unavailable" }
     if ($Message -match '(?i)docker|pipe|daemon|server') { return "docker_unavailable" }
     if ($Message -match '(?i)compose') { return "compose_invalid" }
     if ($Message -match '(?i)service') { return "service_unhealthy" }
@@ -85,6 +93,8 @@ function Invoke-HealthCheck {
         ok = $false
     }
     $state = Read-HealthState
+    $activationExpected = ((Get-Env "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true")
+    $activationHost = Get-Env "ACTIVATION_HOST_GATEWAY_HOST"
     try {
         if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw "docker command is missing" }
         if ($env:DOCKER_HOST -or $env:DOCKER_CONTEXT) { throw "remote Docker environment is forbidden" }
@@ -93,6 +103,26 @@ function Invoke-HealthCheck {
         $server = (& docker info --format "{{.ServerVersion}}" 2>$null | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($server)) { throw "Docker daemon is unavailable" }
         $snapshot.docker_context = $context
+        $snapshot.activation_gateway = [ordered]@{ expected = $activationExpected; host = $activationHost; status = "not_checked"; stale = $null; code = $null; source_commit = $null; policy_hash = $null }
+        if ($activationExpected) {
+            if ([string]::IsNullOrWhiteSpace($activationHost) -or $activationHost -notmatch '^(?i:activation-dev\.mad4b\.com)$') { throw "Activation Gateway host is missing or outside the Staging allowlist" }
+            try {
+                $gatewayHealth = Invoke-RestMethod -Uri ("https://" + $activationHost + "/health") -Method Get -TimeoutSec 10 -ErrorAction Stop
+            } catch { throw "Activation Gateway health request failed: $($_.Exception.Message)" }
+            $gatewayOk = Get-ObjectProperty $gatewayHealth "ok"
+            $gatewayStale = Get-ObjectProperty $gatewayHealth "stale"
+            $gatewayError = Get-ObjectProperty $gatewayHealth "error"
+            $gatewayCode = if ($null -ne (Get-ObjectProperty $gatewayHealth "code")) { [string](Get-ObjectProperty $gatewayHealth "code") } elseif ($null -ne (Get-ObjectProperty $gatewayError "code")) { [string](Get-ObjectProperty $gatewayError "code") } else { $null }
+            $gatewaySourceCommit = Get-ObjectProperty $gatewayHealth "sourceCommit"
+            $gatewayPolicyHash = Get-ObjectProperty $gatewayHealth "policyHash"
+            $snapshot.activation_gateway.status = if ($gatewayOk -eq $true) { "healthy" } else { "unhealthy" }
+            $snapshot.activation_gateway.stale = if ($null -ne $gatewayStale) { [bool]$gatewayStale } else { $null }
+            $snapshot.activation_gateway.code = $gatewayCode
+            $snapshot.activation_gateway.source_commit = if ($null -ne $gatewaySourceCommit) { [string]$gatewaySourceCommit } else { $null }
+            $snapshot.activation_gateway.policy_hash = if ($null -ne $gatewayPolicyHash) { [string]$gatewayPolicyHash } else { $null }
+            if ($gatewayOk -ne $true) { throw "Activation Gateway health is not ready" }
+            if ($gatewayStale -eq $true -or [string]$gatewayCode -eq "GATEWAY_POLICY_STALE") { throw "GATEWAY_POLICY_STALE: Activation Gateway policy is stale" }
+        }
         $compose = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
         & docker @compose config --quiet 2>$null
         if ($LASTEXITCODE -ne 0) { throw "Staging Compose model is invalid" }

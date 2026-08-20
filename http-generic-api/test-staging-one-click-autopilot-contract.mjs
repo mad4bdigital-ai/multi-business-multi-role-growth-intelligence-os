@@ -27,6 +27,18 @@ assert.equal(policy.database_seed.apply_requires_explicit_switch, true);
 assert.equal(policy.database_seed.apply_switch, "ApplySchemaBundle");
 assert.equal(policy.database_seed.migration_apply, false);
 assert.equal(policy.database_seed.production_database_access, false);
+assert.equal(policy.lifecycle.schema_import.required_runtime_registry_table_count, 18);
+assert.deepEqual(policy.lifecycle.schema_import.required_runtime_support_tables, ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
+assert.equal(policy.lifecycle.canonical_seeds.contract, "mad4b.staging.canonical-seed-manifest.v1");
+assert.deepEqual(policy.lifecycle.canonical_seeds.seed_files, [
+  "039_sprint43_data_integrity_and_missing_tables.sql",
+  "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+]);
+assert.equal(policy.lifecycle.canonical_seeds.explicit_apply_only, true);
+assert.equal(policy.lifecycle.canonical_seeds.readback_required, true);
+assert.equal(policy.lifecycle.activation_readiness.stale_policy_blocks_activation, true);
+assert.equal(policy.lifecycle.activation_readiness.schema_and_catalog_readiness_required, true);
 assert.deepEqual(policy.safety, {
   production_deploy: false,
   hostinger_mutation: false,
@@ -90,6 +102,11 @@ assert.match(launcher, /schema_only_dry_run/);
 assert.match(launcher, /schema_only_applied/);
 assert.match(launcher, /explicit Staging schema seed completed; re-certifying same exact commit/);
 assert.match(launcher, /staging_schema_seed_applied = \$schemaSeedApplied/);
+assert.match(launcher, /canonical_seed_status/);
+assert.match(launcher, /canonical_seed_readback/);
+assert.match(launcher, /Canonical seed\/readback evidence is incomplete/);
+assert.match(launcher, /Activation Gateway cannot be enabled until schema\/catalog\/gateway readback is ready/);
+assert.match(launcher, /gateway_policy_not_stale/);
 assert.match(launcher, /database_mutated = \$schemaSeedApplied/);
 assert.match(launcher, /certification_status = \[string\]\$runtimeState\.certification_status/);
 assert.match(launcher, /AUTO_PILOT_ONE_CLICK_DEGRADED/);
