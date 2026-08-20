@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.runtime-remediation-batch.v1",
+  "status": "prepared-only",
+  "authority": "shadow-library-only",
+  "runtime_mutation_allowed": false,
+  "production_activation_allowed": false,
+  "grant_mutation_allowed": false,
+  "migration_apply_allowed": false,
+  "credentials_read_allowed": false,
+  "secrets_included": false,
+  "exact_head_required": true,
+  "target_branches": ["main", "Production"],
+  "source_schema_migrations": [
+    {
+      "migration": "20260815_custom_gpt_mcp_catalog_levels.sql",
+      "checksum_sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+      "database_role": "runtime",
+      "required_objects": [
+        "admin_platform_endpoint_tools.mcp_catalog_level",
+        "tenant_platform_endpoint_tools.mcp_catalog_level"
+      ],
+      "operator_path": "migration_apply_guarded_dry_run_then_migration_apply_guarded_apply",
+      "same_cycle_readback_required": true
+    },
+    {
+      "migration": "225_sprint67_capability_resolution_envelope_ledger.sql",
+      "checksum_sha256": "35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419",
+      "database_role": "governance",
+      "required_objects": [
+        "capability_resolution_envelope_ledger",
+        "platform_runtime_config.capability_resolution_envelope_ledger_policy_v1",
+        "admin_platform_endpoint_tools.capability_resolution_envelope_create"
+      ],
+      "operator_path": "migration_apply_guarded_dry_run_then_migration_apply_guarded_apply",
+      "same_cycle_readback_required": true
+    }
+  ],
+  "write_authority_profiles": [
+    {
+      "profile_key": "runtime_inventory_writer",
+      "identity_env_prefix": "RUNTIME_INVENTORY_DB_",
+      "database_role": "runtime",
+      "tables": [
+        {
+          "table": "actions",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "openapi_endpoint_inventory_sync"
+        },
+        {
+          "table": "endpoints",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "endpoint_inventory_sync"
+        },
+        {
+          "table": "dynamic_audit_scheduler_runs",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "dynamic_audit_scheduler"
+        },
+        {
+          "table": "openapi_endpoint_inventory_sync_runs",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "openapi_inventory_sync_readback"
+        }
+      ],
+      "same_cycle_readback_required": true,
+      "global_privileges_forbidden": true,
+      "grant_option_forbidden": true
+    }
+  ],
+  "queue_policy": {
+    "status": "decision_required",
+    "redis_path": {
+      "required_variables": ["REDIS_URL", "QUEUE_WORKER_ENABLED"],
+      "worker_value": "TRUE",
+      "readback": ["redis_connectivity", "worker_started", "queue_health"]
+    },
+    "sql_fallback_path": {
+      "allowed": true,
+      "required_contract_change": "health_and_policy_must_explicitly_report_safe_degradation",
+      "worker_started": false
+    }
+  },
+  "execution_order": [
+    "runtime_deployment_exact_head_readback",
+    "mcp_catalog_levels_dry_run",
+    "mcp_catalog_levels_apply_operator_only",
+    "mcp_catalog_levels_schema_readback",
+    "runtime_inventory_privilege_readonly_preflight",
+    "runtime_inventory_grant_operator_only",
+    "runtime_inventory_same_cycle_readback",
+    "runtime_restart_and_startup_reconciliation_readback",
+    "capability_envelope_ledger_dry_run",
+    "capability_envelope_ledger_apply_operator_only",
+    "capability_envelope_ledger_readback",
+    "migration_1051_readiness",
+    "main_policy_readiness",
+    "production_policy_readiness"
+  ],
+  "readiness_evidence": {
+    "no_secrets": true,
+    "required_fields": [
+      "exact_head",
+      "migration_checksum",
+      "schema_readback",
+      "privilege_readback",
+      "same_cycle_readback",
+      "runtime_integrity",
+      "startup_reconciliation",
+      "queue_policy_state"
+    ]
+  },
+  "operator_approval_required": true
+}

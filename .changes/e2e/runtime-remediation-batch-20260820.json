@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-remediation-batch-20260820",
+  "title": "Prepare a governed runtime remediation batch for schema, write authority, and queue readiness",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-remediation-batch-20260820.json",
+      "http-generic-api/config/runtime-remediation-batch-plan.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prepare a no-secret, prepared-only remediation plan and contract guard for runtime schema, write-authority, and queue readiness without applying migrations, grants, or production activation.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-remediation-batch-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance CI",
+          "entrypoint": "The remediation batch contract test runs on the exact PR candidate.",
+          "terminal_outcome": "The plan validates exact migration checksums, direct-table authority profiles, queue decision paths, and all prepared-only boundaries without connecting to runtime or executing SQL.",
+          "steps": [
+            "Read the runtime database readiness and write-authority contracts.",
+            "Validate the mcp catalog migration and capability envelope ledger migration checksums.",
+            "Validate runtime inventory writer table bindings and allowed operations.",
+            "Validate Redis and SQL fallback decision requirements.",
+            "Run the contract test and include it in the canonical test manifest.",
+            "Keep migration, grant, database, provider, production activation, and GitHub policy effects disabled."
+          ],
+          "assertions": [
+            "The remediation plan remains status prepared-only and authority shadow-library-only.",
+            "runtime_mutation_allowed, grant_mutation_allowed, migration_apply_allowed, and production_activation_allowed remain false.",
+            "The mcp catalog and envelope ledger checksums match the repository files.",
+            "The runtime inventory writer uses direct-table bindings with SELECT/INSERT/UPDATE only and no grant option.",
+            "Redis is a decision path and SQL fallback is explicitly safe-degradation only.",
+            "No migration, grant, SQL/DB mutation, provider mutation, credential read, force-push, Branch Protection/Rulesets Apply, or Production activation occurs."
+          ],
+          "tests": [
+            {
+              "id": "runtime-remediation-batch-plan",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "repository-governance-objection-gate",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-objection-gate.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+                  "http-generic-api/config/runtime-remediation-batch-plan.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+            "http-generic-api/scripts/environment-impact-closure.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "operator_approval_required": true
+}
