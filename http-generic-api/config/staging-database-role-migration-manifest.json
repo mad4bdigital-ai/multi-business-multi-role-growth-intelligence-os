@@ -204,6 +204,9 @@
       "schema_json",
       "import_job_id",
       "schema_imported_at"
+    ],
+    "required_endpoints_baseline_columns": [
+      "child_openai_schema_file_id"
     ]
   }
 }

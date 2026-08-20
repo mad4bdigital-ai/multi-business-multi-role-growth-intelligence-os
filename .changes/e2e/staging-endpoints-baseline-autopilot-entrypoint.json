@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-endpoints-baseline-autopilot-entrypoint",
+  "title": "Complete endpoints baseline contract and direct AutoPilot schema bundle entrypoint",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-endpoints-baseline-autopilot-entrypoint.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make endpoints migration pre-use columns explicit in the canonical baseline and make direct Start-AutoPilot schema bundle flags fail-closed and schema-only.",
+      "e2e_journeys": [
+        {
+          "id": "endpoints-baseline-before-migration-023",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The generator runs from an exact clean main checkout with explicit BUILD_STAGING_SCHEMA_BUNDLE confirmation.",
+          "terminal_outcome": "Migration 023 can add schema import tracking columns after the canonical endpoints baseline without unknown-column failure.",
+          "steps": [
+            "Read required_endpoints_baseline_columns from the role manifest.",
+            "Validate every required endpoints column in schema.sql before disposable MariaDB starts.",
+            "Apply baseline and ordered migrations only after endpoints preflight passes.",
+            "Keep the schema bundle three-role, schema-only, exact-SHA, and free of Production/provider access."
+          ],
+          "assertions": [
+            "The canonical endpoints baseline includes child_openai_schema_file_id before migration 023.",
+            "The generator emits required_endpoints_baseline_columns in plan evidence.",
+            "An incomplete endpoints contract fails before disposable MariaDB execution.",
+            "production_accessed is false and provider_accessed is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-endpoints-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-endpoints-baseline-autopilot-entrypoint.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        },
+        {
+          "id": "direct-autopilot-schema-bundle-entrypoint",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Portable Windows AutoPilot",
+          "entrypoint": "Start-AutoPilot.ps1 accepts RequireSchemaBundle and ApplySchemaBundle.",
+          "terminal_outcome": "The direct entrypoint validates or applies the three-role schema-only bundle through Clone-StagingDatabases before certification and never accesses Production.",
+          "steps": [
+            "Require all three role bundle files when either schema flag is set.",
+            "Invoke Clone-StagingDatabases.ps1 in schema_only mode with the exact expected commit.",
+            "Apply only when ApplySchemaBundle is explicitly set; otherwise perform dry-run validation.",
+            "Persist schema seed status in AutoPilot state and continue same-cycle certification."
+          ],
+          "assertions": [
+            "Missing bundle is fail-closed when RequireSchemaBundle or ApplySchemaBundle is set.",
+            "The direct entrypoint uses schema_only mode and explicit local apply semantics.",
+            "No Production/provider mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-endpoints-baseline-autopilot-entrypoint.json",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
