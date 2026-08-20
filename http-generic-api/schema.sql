@@ -383,7 +383,30 @@ CREATE TABLE IF NOT EXISTS `registry_surfaces_catalog` (
   UNIQUE KEY `uq_surface_id` (`surface_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── 13. Validation & Repair Registry ──────────────────────────────────────────
+-- ── 13. Platform Contract Surfaces Registry ───────────────────────────────────
+-- Baseline prerequisite for migration 041 and knowledge-surface runtime reads.
+-- business_type_scope is intentionally added by migration 041 after this baseline.
+CREATE TABLE IF NOT EXISTS `platform_contract_surfaces` (
+  `id`                         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `surface_id`                 VARCHAR(255) NOT NULL,
+  `surface_name`               VARCHAR(255),
+  `surface_type`               VARCHAR(100),
+  `file_id`                    VARCHAR(255),
+  `folder_id`                  VARCHAR(255),
+  `surface_scope`              VARCHAR(100),
+  `active_status`              VARCHAR(20),
+  `authority_status`           VARCHAR(100),
+  `runtime_consumption_status` VARCHAR(100),
+  `current_runtime_adapter`    VARCHAR(255),
+  `created_at`                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_platform_contract_surface_id` (`surface_id`),
+  KEY `idx_platform_contract_surface_runtime` (`runtime_consumption_status`, `active_status`),
+  KEY `idx_platform_contract_surface_type` (`surface_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 14. Validation & Repair Registry ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `validation_repair` (
   `id`                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `validation_id`       VARCHAR(255),

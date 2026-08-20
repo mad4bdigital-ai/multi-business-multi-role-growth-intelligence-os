@@ -39,7 +39,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.deepEqual(manifest.validation.required_endpoints_baseline_columns, ["child_openai_schema_file_id"]);
   assert.deepEqual(manifest.validation.required_validation_repair_baseline_columns, ["validation_type", "repair_action", "repair_status", "priority"]);
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
-  assert.deepEqual(manifest.validation.required_runtime_support_tables, ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
+  assert.deepEqual(manifest.validation.required_runtime_support_tables, ["connected_systems", "platform_contract_surfaces", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
     "039_sprint43_data_integrity_and_missing_tables.sql",
@@ -55,6 +55,11 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     assert.match(baselineSchema, new RegExp("CREATE TABLE IF NOT EXISTS " + quote + table + quote, "i"));
   }
   assert.match(baselineSchema, /CREATE TABLE IF NOT EXISTS `workflows`/i);
+  assert.match(baselineSchema, /CREATE TABLE IF NOT EXISTS `platform_contract_surfaces`/i);
+  assert.deepEqual(manifest.validation.required_platform_contract_surfaces_baseline_columns, [
+    "surface_id", "surface_name", "surface_type", "file_id", "folder_id", "surface_scope",
+    "active_status", "authority_status", "runtime_consumption_status", "current_runtime_adapter",
+  ]);
 });
 
 test("baseline actions schema covers the full migration column contract", () => {
@@ -103,6 +108,18 @@ test("baseline validation_repair schema covers the pre-use migration 040 contrac
   assert.match(migration040, /AFTER `repair_action`/i);
 });
 
+test("platform contract surfaces baseline exists before migration 041 and covers the runtime contract", () => {
+  const quote = String.fromCharCode(96);
+  for (const column of manifest.validation.required_platform_contract_surfaces_baseline_columns) {
+    assert.equal(baselineSchema.includes(`${quote}${column}${quote}`), true, `platform_contract_surfaces baseline missing ${column}`);
+  }
+  const migration041 = fs.readFileSync(path.join(apiRoot, "migrations", "041_sprint44b_knowledge_surface_enforcement.sql"), "utf8");
+  assert.match(migration041, /ALTER TABLE `platform_contract_surfaces`/i);
+  assert.match(migration041, /ADD COLUMN IF NOT EXISTS `business_type_scope`/i);
+  assert.match(migration041, /AFTER `surface_scope`/i);
+  assert.match(migration041, /UPDATE `platform_contract_surfaces`/i);
+});
+
 test("local connector migration reconciles legacy table shape before tunnel seed", () => {
   const migrationsDir = path.join(apiRoot, "migrations");
   const migration017 = fs.readFileSync(path.join(migrationsDir, "017_sprint21_output_sink_router.sql"), "utf8");
@@ -147,6 +164,8 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /required_validation_repair_baseline_columns/);
   assert.match(generator, /endpoints baseline column contract is incomplete/);
   assert.match(generator, /validation_repair baseline column contract is incomplete/);
+  assert.match(generator, /required_platform_contract_surfaces_baseline_columns/);
+  assert.match(generator, /platform_contract_surfaces baseline column contract is incomplete/);
 });
 
 test("generator plan-only mode inventories the exact migration chain", () => {
@@ -162,6 +181,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_actions_baseline_columns.sort(), manifest.validation.required_actions_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_endpoints_baseline_columns.sort(), manifest.validation.required_endpoints_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_validation_repair_baseline_columns.sort(), manifest.validation.required_validation_repair_baseline_columns.slice().sort());
+  assert.deepEqual(plan.baseline_schema.required_platform_contract_surfaces_baseline_columns.sort(), manifest.validation.required_platform_contract_surfaces_baseline_columns.slice().sort());
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
