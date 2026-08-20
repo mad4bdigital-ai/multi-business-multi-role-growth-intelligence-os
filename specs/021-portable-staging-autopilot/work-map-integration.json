@@ -3,8 +3,8 @@
   "feature_key": "021-portable-staging-autopilot",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "9baf930b468279c649c8b2155c9d6c90ef7c955269f79a0fe75d7d8757681c89",
-    "index_source_hash": "e9c8341a911ee5e8cb0c732a823c7e595e6f4c5c92d0a30d32287a7973576079",
+    "fingerprint": "b81773a00bd1102b3487a2544eee765cab43cebcd2def287ba5410cf5e43219b",
+    "index_source_hash": "23a752c890fd1b6b9ccf7739f240f063fa81ed1f60f70984a0dd596f505a7b82",
     "coverage_source_hash": "a3c3932511ea2c4afa69d2a3a40925d5b7e50262ab48025bcf7c3189fc20265f",
     "map_count": 19,
     "domain_count": 16,
