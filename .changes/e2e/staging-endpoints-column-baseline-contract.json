@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-endpoints-column-baseline-contract",
+  "title": "Complete endpoints baseline columns before endpoint upserts",
+  "delivery_mode": "single_pr",
+  "merge_contract": { "minimum_phase": "mvp" },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-endpoints-column-baseline-contract.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/migrations/023_sprint28_schema_import.sql",
+      "http-generic-api/migrations/068_sprint58_cloudflare_readonly_runtime.sql",
+      "http-generic-api/migrations/1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
+      "http-generic-api/migrations/1026_sprint69_github_actions_runs_read_dispatch.sql",
+      "http-generic-api/migrations/1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
+      "http-generic-api/migrations/1038_sprint69_github_actions_workflow_control_dispatch.sql",
+      "http-generic-api/migrations/20260718_github_list_issue_comments_endpoint.sql",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/sqlEndpointRegistryLoader.js",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the canonical endpoints baseline compatible with all endpoint identity, governance, schema, and runtime-binding columns used before and after the first live replay upserts.",
+      "e2e_journeys": [
+        {
+          "id": "endpoints-baseline-before-first-upsert",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The exact local checkout applies schema.sql and the lexicographically ordered migration chain in disposable MariaDB.",
+          "terminal_outcome": "Endpoint seed/upsert migrations can write endpoint_title and the full runtime governance/schema contract without unknown-column failures, and endpoint registry consumers can read the same fields.",
+          "steps": [
+            "The canonical endpoints baseline defines identity, title/provider, execution/dependency/logging metadata, category/review/legacy flags, request/schema capability flags, runtime binding profile, access flags, and writeback scope.",
+            "The manifest declares the expanded required_endpoints_baseline_columns contract.",
+            "The generator validates every required endpoints column before disposable MariaDB replay and includes the contract in plan evidence.",
+            "Migration 068 and later endpoint registrations can insert/update the full contract deterministically without provider calls or secret payloads.",
+            "Runtime endpoint registry loaders can select endpoint_title, provider_family, runtime_binding_profile, schema_json, and governance fields from the baseline.",
+            "Production and provider mutation remain forbidden."
+          ],
+          "assertions": [
+            "schema.sql contains every required endpoints baseline column.",
+            "Migration 068 exercises the widened endpoint contract and is replay-compatible.",
+            "Migration 1023 exercises dependency, logging, runtime-binding, access, and schema columns.",
+            "The generator fails closed when any required endpoint baseline column is absent.",
+            "Regression tests cover migration ordering and plan evidence.",
+            "No plaintext secret or external mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-endpoints-column-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-endpoints-column-baseline-contract.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/migrations/023_sprint28_schema_import.sql",
+            "http-generic-api/migrations/068_sprint58_cloudflare_readonly_runtime.sql",
+            "http-generic-api/migrations/1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
+            "http-generic-api/migrations/1026_sprint69_github_actions_runs_read_dispatch.sql",
+            "http-generic-api/migrations/1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
+            "http-generic-api/migrations/1038_sprint69_github_actions_workflow_control_dispatch.sql",
+            "http-generic-api/migrations/20260718_github_list_issue_comments_endpoint.sql",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/sqlEndpointRegistryLoader.js",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

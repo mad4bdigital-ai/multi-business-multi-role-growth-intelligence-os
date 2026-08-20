@@ -46,7 +46,13 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.source.ordering, "baseline_schema_then_lexicographic_filename");
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
-  assert.deepEqual(manifest.validation.required_endpoints_baseline_columns, ["child_openai_schema_file_id"]);
+  assert.deepEqual(manifest.validation.required_endpoints_baseline_columns, [
+    "endpoint_title", "provider_family", "child_openai_schema_file_id", "execution_layer", "dependencies",
+    "logging_target", "category_group", "category_detail", "last_reviewed_at", "legacy_status",
+    "client_interface_agnostic", "request_envelope_required", "structured_api_supported",
+    "conversational_trigger_supported", "schema_json", "runtime_binding_profile", "admin_only",
+    "client_allowed", "team_allowed", "writeback_scope",
+  ]);
   assert.deepEqual(manifest.validation.required_validation_repair_baseline_columns, ["validation_type", "repair_action", "repair_status", "priority"]);
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
   assert.deepEqual(manifest.validation.required_runtime_support_tables, ["connected_systems", "platform_contract_surfaces", "platform_endpoint_tool_exports", "tenant_secrets", "platform_secrets", "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
@@ -102,6 +108,14 @@ test("baseline endpoints schema covers the pre-use migration column contract", (
   const migration023 = fs.readFileSync(path.join(apiRoot, "migrations", "023_sprint28_schema_import.sql"), "utf8");
   assert.match(migration023, /ALTER TABLE `endpoints`/i);
   assert.match(migration023, /AFTER `child_openai_schema_file_id`/i);
+  const migration068 = fs.readFileSync(path.join(apiRoot, "migrations", "068_sprint58_cloudflare_readonly_runtime.sql"), "utf8");
+  for (const column of ["endpoint_title", "provider_family", "execution_layer", "category_group", "category_detail", "last_reviewed_at", "legacy_status", "client_interface_agnostic", "request_envelope_required", "structured_api_supported", "conversational_trigger_supported", "writeback_scope", "schema_json"]) {
+    assert.match(migration068, new RegExp(column), `migration 068 must exercise endpoints.${column}`);
+  }
+  const migration1023 = fs.readFileSync(path.join(apiRoot, "migrations", "1023_sprint69_github_rest_endpoint_dispatch_foundation.sql"), "utf8");
+  for (const column of ["dependencies", "logging_target", "runtime_binding_profile", "admin_only", "client_allowed", "team_allowed"]) {
+    assert.match(migration1023, new RegExp(column), `migration 1023 must exercise endpoints.${column}`);
+  }
 });
 
 test("baseline validation_repair schema covers the pre-use migration 040 contract", () => {

@@ -218,7 +218,26 @@
       "schema_imported_at"
     ],
     "required_endpoints_baseline_columns": [
-      "child_openai_schema_file_id"
+      "endpoint_title",
+      "provider_family",
+      "child_openai_schema_file_id",
+      "execution_layer",
+      "dependencies",
+      "logging_target",
+      "category_group",
+      "category_detail",
+      "last_reviewed_at",
+      "legacy_status",
+      "client_interface_agnostic",
+      "request_envelope_required",
+      "structured_api_supported",
+      "conversational_trigger_supported",
+      "schema_json",
+      "runtime_binding_profile",
+      "admin_only",
+      "client_allowed",
+      "team_allowed",
+      "writeback_scope"
     ],
     "required_validation_repair_baseline_columns": [
       "validation_type",
