@@ -112,6 +112,7 @@
         "patterns": [
           "http-generic-api/routes/**",
           "http-generic-api/schema.sql",
+          "http-generic-api/migrations/**",
           "http-generic-api/src/**",
           "http-generic-api/public/**",
           "http-generic-api/*.js",
@@ -138,6 +139,7 @@
           ".dockerignore",
           "docs/governance/**",
           "scripts/**",
+          "http-generic-api/activation-surfaces/**",
           "http-generic-api/config/**",
           "http-generic-api/scripts/e2e-*.mjs",
           "http-generic-api/scripts/test-e2e-*.mjs",
