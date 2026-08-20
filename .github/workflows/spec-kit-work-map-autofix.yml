@@ -256,38 +256,55 @@ jobs:
             registry_refresh_required=true
           fi
 
-          if [[ "${registry_refresh_required}" = "true" ]]; then
-            git ls-files -- "${spec_root}/[0-9][0-9][0-9]-*/${manifest_filename}" \
-              | sort -u > "${registry_refresh_binding_candidates}"
+          git ls-files -- "${spec_root}/[0-9][0-9][0-9]-*/${manifest_filename}" \
+            | sort -u > "${registry_refresh_binding_candidates}"
+          registry_refresh_check_dir="${DIAGNOSTIC_ROOT}/registry-refresh-checks"
+          mkdir -p "${registry_refresh_check_dir}"
+          generator_drift_scope="${registry_refresh_required}"
 
-            while IFS= read -r binding_path; do
-              [[ -z "${binding_path}" ]] && continue
-              feature_and_manifest="${binding_path#${spec_root}/}"
-              feature_key="${feature_and_manifest%/${manifest_filename}}"
-              if [[ "${binding_path}" != "${spec_root}/${feature_key}/${manifest_filename}" \
-                || ! "${feature_key}" =~ ^[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
-                echo "::error::Registry-refresh Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
-                exit 1
-              fi
-              test -f "${binding_path}"
-              manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
-              review_state="$(jq -er '.review_state' "${binding_path}")"
-              implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
-              secrets_included="$(jq -er '.secrets_included // true' "${binding_path}")"
-              test "${manifest_feature_key}" = "${feature_key}"
-              if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
-                echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
-                exit 1
-              fi
-              if [[ "${review_state}" = "ready_for_implementation" \
-                || ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            feature_and_manifest="${binding_path#${spec_root}/}"
+            feature_key="${feature_and_manifest%/${manifest_filename}}"
+            if [[ "${binding_path}" != "${spec_root}/${feature_key}/${manifest_filename}" \
+              || ! "${feature_key}" =~ ^[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
+              echo "::error::Registry-refresh Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
+              exit 1
+            fi
+            test -f "${binding_path}"
+            manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
+            review_state="$(jq -er '.review_state' "${binding_path}")"
+            implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
+            secrets_included="$(jq -er '.secrets_included // true' "${binding_path}")"
+            test "${manifest_feature_key}" = "${feature_key}"
+            if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
+              echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
+              exit 1
+            fi
+            if [[ "${review_state}" = "ready_for_implementation" \
+              || ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
+              if [[ "${generator_drift_scope}" = "true" ]]; then
                 printf '%s\n' "${binding_path}" >> "${registry_refresh_binding_file}"
-              elif [[ "${review_state}" != "draft" || "${implementation_status}" != "blocked" || "${secrets_included}" != "false" ]]; then
-                echo "::error::Registry-refresh Work Map manifest is outside the bounded writer states: ${binding_path} review_state=${review_state} implementation_status=${implementation_status} secrets_included=${secrets_included}"
-                exit 1
+                continue
               fi
-            done < "${registry_refresh_binding_candidates}"
-          fi
+              check_file="${registry_refresh_check_dir}/${feature_key}.log"
+              if node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+                --feature-key "${feature_key}" --check > "${check_file}" 2>&1; then
+                continue
+              fi
+              if grep -Fq "Stale Work Map registry binding" "${check_file}"; then
+                printf '%s\n' "${binding_path}" >> "${registry_refresh_binding_file}"
+                registry_refresh_required=true
+                continue
+              fi
+              cat "${check_file}"
+              echo "::error::Registry-refresh Work Map preflight failed for an eligible manifest: ${binding_path}"
+              exit 1
+            elif [[ "${review_state}" != "draft" || "${implementation_status}" != "blocked" || "${secrets_included}" != "false" ]]; then
+              echo "::error::Registry-refresh Work Map manifest is outside the bounded writer states: ${binding_path} review_state=${review_state} implementation_status=${implementation_status} secrets_included=${secrets_included}"
+              exit 1
+            fi
+          done < "${registry_refresh_binding_candidates}"
 
           cat "${target_binding_file}" "${registry_refresh_binding_file}" | sort -u > "${writer_binding_file}"
           target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"

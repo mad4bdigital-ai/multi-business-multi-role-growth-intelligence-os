@@ -26,8 +26,13 @@ assert.match(
 );
 assert.match(
   validator,
-  /manifest\.review_state === "ready_for_implementation" \|\| !policy\.review_states\.includes\(manifest\.review_state\)/u,
+  /manifest\.review_state === "ready_for_implementation"\s*\|\|\s*!policy\.review_states\.includes\(manifest\.review_state\)/u,
   "validator must keep ready manifests and malformed review-state manifests in fail-closed registry refresh scope",
+);
+assert.match(
+  validator,
+  /manifest\.review_state === "draft"[\s\S]*manifest\.implementation_readiness\?\.status === "blocked"[\s\S]*manifest\.secrets_included === false/u,
+  "validator must include only blocked, secret-free draft manifests for governance-only maintenance refresh",
 );
 assert.match(
   validator,
@@ -62,6 +67,9 @@ assert.ok(
   "writer must derive the template trigger from policy rather than hardcoding a feature",
 );
 assert.ok(workflow.includes('registry_refresh_required=false'));
+assert.ok(workflow.includes('registry_refresh_check_dir="${DIAGNOSTIC_ROOT}/registry-refresh-checks"'));
+assert.ok(workflow.includes('generator_drift_scope="${registry_refresh_required}"'));
+assert.ok(workflow.includes('Stale Work Map registry binding'));
 assert.ok(workflow.includes('"${changed_file}" = "${policy_file}"'));
 assert.ok(workflow.includes('"${changed_file}" = "${policy_template_path}"'));
 assert.ok(workflow.includes('"${changed_file}" = "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"'));

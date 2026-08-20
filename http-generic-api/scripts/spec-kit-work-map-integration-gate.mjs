@@ -572,7 +572,11 @@ export function validateRepository(options = {}) {
   const registryRefreshFeatures = manifestFeatures.filter((feature) => {
     try {
       const manifest = readJson(path.join(root, policy.spec_root, feature, policy.manifest_filename));
-      return manifest.review_state === "ready_for_implementation" || !policy.review_states.includes(manifest.review_state);
+      return manifest.review_state === "ready_for_implementation"
+        || !policy.review_states.includes(manifest.review_state)
+        || (manifest.review_state === "draft"
+          && manifest.implementation_readiness?.status === "blocked"
+          && manifest.secrets_included === false);
     } catch {
       return true;
     }
