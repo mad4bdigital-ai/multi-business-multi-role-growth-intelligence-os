@@ -207,6 +207,12 @@
     ],
     "required_endpoints_baseline_columns": [
       "child_openai_schema_file_id"
+    ],
+    "required_validation_repair_baseline_columns": [
+      "validation_type",
+      "repair_action",
+      "repair_status",
+      "priority"
     ]
   }
 }
