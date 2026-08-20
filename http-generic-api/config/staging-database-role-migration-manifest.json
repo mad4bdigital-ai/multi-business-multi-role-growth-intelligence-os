@@ -173,6 +173,37 @@
     "same_cycle_sha256_manifest_required": true,
     "baseline_schema_required": true,
     "baseline_schema_safety_checked": true,
-    "baseline_foreign_key_ordering_required": true
+    "baseline_foreign_key_ordering_required": true,
+    "required_actions_baseline_columns": [
+      "action_id",
+      "action_title",
+      "action_class",
+      "action_scope",
+      "endpoint_group",
+      "route_target",
+      "execution_layer",
+      "logging_target",
+      "inventory_role",
+      "admin_only",
+      "client_allowed",
+      "team_allowed",
+      "review_required",
+      "provider_agnostic",
+      "request_envelope_required",
+      "structured_api_supported",
+      "writeback_scope",
+      "secret_store_ref",
+      "openai_schema_file_name",
+      "openai_schema_ref",
+      "openai_schema_storage_surface",
+      "oauth_config_ref",
+      "oauth_client_id_ref",
+      "oauth_client_secret_ref",
+      "oauth_binding_status",
+      "runtime_binding_profile",
+      "schema_json",
+      "import_job_id",
+      "schema_imported_at"
+    ]
   }
 }

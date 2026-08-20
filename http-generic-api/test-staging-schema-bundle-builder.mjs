@@ -55,6 +55,25 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.match(baselineSchema, /CREATE TABLE IF NOT EXISTS `workflows`/i);
 });
 
+test("baseline actions schema covers the full migration column contract", () => {
+  const quote = String.fromCharCode(96);
+  const requiredColumns = [
+    "action_id", "action_title", "action_class", "action_scope", "endpoint_group", "route_target",
+    "execution_layer", "logging_target", "inventory_role", "admin_only", "client_allowed", "team_allowed",
+    "review_required", "provider_agnostic", "request_envelope_required", "structured_api_supported", "writeback_scope",
+    "secret_store_ref", "openai_schema_file_name", "openai_schema_ref", "openai_schema_storage_surface",
+    "oauth_config_ref", "oauth_client_id_ref", "oauth_client_secret_ref", "oauth_binding_status",
+    "runtime_binding_profile", "schema_json", "import_job_id", "schema_imported_at",
+  ];
+  for (const column of requiredColumns) {
+    assert.equal(baselineSchema.includes(`${quote}${column}${quote}`), true, `actions baseline missing ${column}`);
+  }
+  const migration022 = fs.readFileSync(path.join(apiRoot, "migrations", "022_sprint27_makecom_integration_fix.sql"), "utf8");
+  assert.match(migration022, /UPDATE `actions`/i);
+  assert.match(migration022, /action_title/i);
+  assert.match(migration022, /WHERE action_id/i);
+});
+
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
   const runtimeExcluded = new Set(manifest.roles.runtime.excluded_tables);
   for (const table of manifest.roles.governance.required_tables) assert.equal(runtimeExcluded.has(table), true, `runtime must exclude governance table ${table}`);
@@ -80,6 +99,7 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /canonicalSeedPlan/);
   assert.match(generator, /required_runtime_table_census/);
   assert.match(generator, /mcp_catalog_required_columns/);
+  assert.match(generator, /required_actions_baseline_columns/);
 });
 
 test("generator plan-only mode inventories the exact migration chain", () => {
@@ -92,6 +112,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.baseline_schema.sha256.length, 64);
   assert.equal(plan.baseline_schema.deferred_foreign_key_statement_count, 1);
   assert.deepEqual(plan.baseline_schema.deferred_foreign_key_tables, ["user_credentials"]);
+  assert.deepEqual(plan.baseline_schema.required_actions_baseline_columns.sort(), manifest.validation.required_actions_baseline_columns.slice().sort());
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
