@@ -9,7 +9,12 @@
   "scope": {
     "include": [
       ".changes/e2e/readiness-transport-diagnostics-20260820.json",
+      ".github/derived-state-governance.json",
       ".github/ops/github-main-review-policy-live-activation.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
     ]
   },
