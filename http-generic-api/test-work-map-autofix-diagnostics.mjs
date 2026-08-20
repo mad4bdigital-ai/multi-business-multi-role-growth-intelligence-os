@@ -262,6 +262,8 @@ assert.ok(
   "Recovery revocation and writer consumption must be serialized by the same PR-keyed delegation lease.",
 );
 assert.match(writerWorkflow, /EXPECTED_HEAD_SHA/u);
+assert.match(writerWorkflow, /if \.secrets_included == false then "false"/u);
+assert.doesNotMatch(writerWorkflow, /jq -er '\.secrets_included \/\/ true'/u);
 assert.match(writerWorkflow, /remote_head_sha/u);
 assert.match(writerWorkflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
 assert.match(writerWorkflow, /git push/u);

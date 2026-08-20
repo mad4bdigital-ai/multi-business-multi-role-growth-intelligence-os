@@ -197,7 +197,7 @@ jobs:
             manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
             review_state="$(jq -er '.review_state' "${binding_path}")"
             implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
-            secrets_included="$(jq -er '.secrets_included // true' "${binding_path}")"
+            secrets_included="$(jq -er 'if .secrets_included == false then "false" else ((.secrets_included // true) | tostring) end' "${binding_path}")"
             test "${manifest_feature_key}" = "${feature_key}"
             if [[ "${review_state}" != "ready_for_implementation" \
               && ! ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
@@ -275,7 +275,7 @@ jobs:
             manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
             review_state="$(jq -er '.review_state' "${binding_path}")"
             implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
-            secrets_included="$(jq -er '.secrets_included // true' "${binding_path}")"
+            secrets_included="$(jq -er 'if .secrets_included == false then "false" else ((.secrets_included // true) | tostring) end' "${binding_path}")"
             test "${manifest_feature_key}" = "${feature_key}"
             if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
               echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
