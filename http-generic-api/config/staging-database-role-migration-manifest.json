@@ -33,6 +33,7 @@
       "required_tables": [
         "connected_systems",
         "platform_contract_surfaces",
+        "platform_endpoint_tool_exports",
         "tenant_secrets",
         "platform_secrets",
         "secret_references",
@@ -161,6 +162,7 @@
     "required_runtime_support_tables": [
       "connected_systems",
       "platform_contract_surfaces",
+      "platform_endpoint_tool_exports",
       "tenant_secrets",
       "platform_secrets",
       "secret_references",
@@ -235,6 +237,22 @@
       "authority_status",
       "runtime_consumption_status",
       "current_runtime_adapter"
+    ],
+    "required_platform_endpoint_tool_exports_baseline_columns": [
+      "export_key",
+      "parent_action_key",
+      "endpoint_key",
+      "tool_name",
+      "scope_class",
+      "tenant_id",
+      "status",
+      "source_endpoint_id",
+      "import_policy_json",
+      "input_schema_json",
+      "output_schema_json",
+      "auth_policy_json",
+      "execution_policy_json",
+      "notes"
     ],
     "required_tenant_secrets_baseline_columns": [
       "tenant_id",

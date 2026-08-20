@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-platform-endpoint-tool-exports-baseline-contract",
+  "title": "Complete platform endpoint tool exports baseline before migration 062",
+  "delivery_mode": "single_pr",
+  "merge_contract": { "minimum_phase": "mvp" },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-platform-endpoint-tool-exports-baseline-contract.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/migrations/062_sprint56b_connector_registry_diagnostic_views.sql",
+      "http-generic-api/migrations/066_sprint57_app_tool_bindings.sql",
+      "http-generic-api/migrations/141_sprint65_gpt_schema_db_coverage_guard.sql",
+      "http-generic-api/migrations/141_sprint65_gpt_schema_db_registry_coverage.sql",
+      "http-generic-api/migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql",
+      "http-generic-api/platformEndpointToolFacade.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define the platform endpoint export registry in the canonical schema before migration 062 creates diagnostic views and later migrations perform export upserts.",
+      "e2e_journeys": [
+        {
+          "id": "platform-endpoint-tool-exports-before-first-use",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The exact local Git checkout applies schema.sql and the ordered migration chain in disposable MariaDB.",
+          "terminal_outcome": "Migration 062 can create views over platform_endpoint_tool_exports, and later export migrations can insert/update deterministic contract metadata without unknown-table failures.",
+          "steps": [
+            "The canonical baseline defines export identity, endpoint/action binding, tool/scope/status, tenant scope, source endpoint, JSON policy/schema fields, notes, and timestamps.",
+            "The manifest declares platform_endpoint_tool_exports as a required runtime support table and validates its baseline column contract.",
+            "The generator checks table and column presence before MariaDB replay and emits the contract in plan evidence.",
+            "Runtime listing and dispatch consumers can filter active exports by tenant and scope without reading secret payloads.",
+            "No provider access, Production mutation, data copy, or plaintext secret is introduced."
+          ],
+          "assertions": [
+            "schema.sql contains platform_endpoint_tool_exports before the migration chain.",
+            "Migration 062 can create its diagnostic view against the baseline table.",
+            "The generator fails closed when the table or required column is absent.",
+            "The runtime support contract includes platform_endpoint_tool_exports.",
+            "The regression suite covers first-use ordering and plan evidence.",
+            "Production/provider mutation remains forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-platform-endpoint-tool-exports-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-platform-endpoint-tool-exports-baseline-contract.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/migrations/062_sprint56b_connector_registry_diagnostic_views.sql",
+            "http-generic-api/migrations/066_sprint57_app_tool_bindings.sql",
+            "http-generic-api/migrations/141_sprint65_gpt_schema_db_coverage_guard.sql",
+            "http-generic-api/migrations/141_sprint65_gpt_schema_db_registry_coverage.sql",
+            "http-generic-api/migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql",
+            "http-generic-api/platformEndpointToolFacade.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

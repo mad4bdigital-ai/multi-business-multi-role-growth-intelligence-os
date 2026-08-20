@@ -153,7 +153,36 @@ CREATE TABLE IF NOT EXISTS `endpoints` (
   KEY `idx_parent_action_key` (`parent_action_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── 5. Execution Policy Registry ──────────────────────────────────────────────
+-- ── 5. Platform Endpoint Tool Exports ──────────────────────────────────────────
+-- Baseline prerequisite for migration 062 and platform export runtime reads.
+-- Export rows contain contract metadata only; no secret payloads are stored here.
+CREATE TABLE IF NOT EXISTS `platform_endpoint_tool_exports` (
+  `id`                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `export_key`            VARCHAR(255) NOT NULL,
+  `parent_action_key`     VARCHAR(255) NOT NULL,
+  `endpoint_key`          VARCHAR(255) NOT NULL,
+  `tool_name`             VARCHAR(255) NOT NULL,
+  `scope_class`           VARCHAR(32) NOT NULL DEFAULT 'admin',
+  `tenant_id`             VARCHAR(36) NULL,
+  `status`                VARCHAR(32) NOT NULL DEFAULT 'active',
+  `source_endpoint_id`    BIGINT UNSIGNED NULL,
+  `import_policy_json`    JSON NULL,
+  `input_schema_json`     JSON NULL,
+  `output_schema_json`    JSON NULL,
+  `auth_policy_json`      JSON NULL,
+  `execution_policy_json` JSON NULL,
+  `notes`                 TEXT NULL,
+  `created_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_platform_endpoint_tool_export_key` (`export_key`),
+  KEY `idx_platform_endpoint_tool_export_action_endpoint` (`parent_action_key`, `endpoint_key`),
+  KEY `idx_platform_endpoint_tool_export_tool_status` (`tool_name`, `status`),
+  KEY `idx_platform_endpoint_tool_export_source_status` (`source_endpoint_id`, `status`),
+  KEY `idx_platform_endpoint_tool_export_tenant_scope` (`tenant_id`, `scope_class`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 6. Execution Policy Registry ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `execution_policies` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `policy_group`    VARCHAR(255),
