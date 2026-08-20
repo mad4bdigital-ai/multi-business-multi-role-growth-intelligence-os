@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "main-policy-live-source-parity-pin-20260820",
+  "title": "Main review policy live source parity pin repair",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair the live review-policy source parity pin and add a deterministic Git blob regression guard while preserving read-only readiness, no provider mutation, no database mutation, no migration apply, and no Production activation.",
+      "e2e_journeys": [
+        {
+          "id": "live-policy-source-parity-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance CI",
+          "entrypoint": "The live policy activation contract test runs on the exact PR candidate.",
+          "terminal_outcome": "The runner pins both reviewed source blobs to their actual repository Git blob SHA values and the contract fails closed if either pin drifts.",
+          "steps": [
+            "Read the live activation runner and policy target contract.",
+            "Compute Git blob SHA values for migration 1051 and the envelope creator from repository bytes.",
+            "Assert that the runner pins match the computed values.",
+            "Run environment-impact closure and governance closure on the exact candidate.",
+            "Keep readiness read-only and leave Branch Protection, Rulesets, database, migration, provider, and Production effects disabled."
+          ],
+          "assertions": [
+            "The envelope creator pin equals the current repository blob SHA 3ee2196a86cc66d5dc7de771b6fdaccd8fa45f14.",
+            "The migration 1051 pin equals the current repository blob SHA a705b4425c962b65efae3f92a7e9ef20706e0841.",
+            "A stale source pin fails the contract before runtime parity or any external call.",
+            "Environment impact is explicitly declared for staging and production.",
+            "Live staging certification remains required and production mutation remains false.",
+            "No Branch Protection or Rulesets Apply, migration, grant, SQL/DB mutation, provider mutation, credential payload read, force-push, or Production activation occurs."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "github-review-policy-target-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-github-review-policy-target.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
+            ".github/ops/github-main-review-policy-live-activation.mjs",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "http-generic-api/scripts/test-github-review-policy-target.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
