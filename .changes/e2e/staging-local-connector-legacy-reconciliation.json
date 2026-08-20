@@ -11,6 +11,9 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-local-connector-legacy-reconciliation.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_file_access_rules.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_shell_allowlists.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_user_configs.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/030_sprint33_local_connector_tables.sql",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
