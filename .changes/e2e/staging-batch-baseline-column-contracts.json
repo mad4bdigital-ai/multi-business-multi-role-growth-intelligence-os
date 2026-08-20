@@ -10,6 +10,7 @@
     "include": [
       ".changes/e2e/staging-batch-baseline-column-contracts.json",
       ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",
       "http-generic-api/migrations/004_sprint04_customer_ops.sql",
@@ -91,6 +92,7 @@
           "evidence_paths": [
             ".changes/e2e/staging-batch-baseline-column-contracts.json",
             ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/config/staging-database-role-migration-manifest.json",
             "http-generic-api/migrations/004_sprint04_customer_ops.sql",
