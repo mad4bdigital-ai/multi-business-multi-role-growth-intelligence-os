@@ -36,6 +36,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.source.ordering, "baseline_schema_then_lexicographic_filename");
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
+  assert.deepEqual(manifest.validation.required_endpoints_baseline_columns, ["child_openai_schema_file_id"]);
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
   assert.deepEqual(manifest.validation.required_runtime_support_tables, ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
@@ -74,6 +75,16 @@ test("baseline actions schema covers the full migration column contract", () => 
   assert.match(migration022, /WHERE action_id/i);
 });
 
+test("baseline endpoints schema covers the pre-use migration column contract", () => {
+  const quote = String.fromCharCode(96);
+  for (const column of manifest.validation.required_endpoints_baseline_columns) {
+    assert.equal(baselineSchema.includes(`${quote}${column}${quote}`), true, `endpoints baseline missing ${column}`);
+  }
+  const migration023 = fs.readFileSync(path.join(apiRoot, "migrations", "023_sprint28_schema_import.sql"), "utf8");
+  assert.match(migration023, /ALTER TABLE `endpoints`/i);
+  assert.match(migration023, /AFTER `child_openai_schema_file_id`/i);
+});
+
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
   const runtimeExcluded = new Set(manifest.roles.runtime.excluded_tables);
   for (const table of manifest.roles.governance.required_tables) assert.equal(runtimeExcluded.has(table), true, `runtime must exclude governance table ${table}`);
@@ -100,6 +111,8 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /required_runtime_table_census/);
   assert.match(generator, /mcp_catalog_required_columns/);
   assert.match(generator, /required_actions_baseline_columns/);
+  assert.match(generator, /required_endpoints_baseline_columns/);
+  assert.match(generator, /endpoints baseline column contract is incomplete/);
 });
 
 test("generator plan-only mode inventories the exact migration chain", () => {
@@ -113,6 +126,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.baseline_schema.deferred_foreign_key_statement_count, 1);
   assert.deepEqual(plan.baseline_schema.deferred_foreign_key_tables, ["user_credentials"]);
   assert.deepEqual(plan.baseline_schema.required_actions_baseline_columns.sort(), manifest.validation.required_actions_baseline_columns.slice().sort());
+  assert.deepEqual(plan.baseline_schema.required_endpoints_baseline_columns.sort(), manifest.validation.required_endpoints_baseline_columns.slice().sort());
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
