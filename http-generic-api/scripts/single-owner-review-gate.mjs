@@ -46,12 +46,22 @@ export function evaluateReviewGate({ owner, author, headSha, collaborators = [],
   if (!singleOwnerEligible) {
     return { ok: false, mode: "blocked", reason: "single_owner_eligibility_not_proven", eligible_humans: eligible, reviewer: null };
   }
-  const review = byAuthor.get(author);
-  const body = String(review?.body || "");
-  const attested = review?.state === "COMMENTED"
-    && review?.commit_id === headSha
-    && body.includes(SINGLE_OWNER_ATTESTATION_TOKEN)
-    && body.includes(headSha);
+  const attestationReview = (Array.isArray(reviews) ? reviews : [])
+    .filter((review) => {
+      const login = review?.user?.login || review?.author?.login;
+      const body = String(review?.body || "");
+      return login === author
+        && review?.state === "COMMENTED"
+        && review?.commit_id === headSha
+        && body.includes(SINGLE_OWNER_ATTESTATION_TOKEN)
+        && body.includes(headSha);
+    })
+    .sort((left, right) => {
+      const leftTime = Date.parse(left?.submitted_at || left?.submittedAt || 0) || 0;
+      const rightTime = Date.parse(right?.submitted_at || right?.submittedAt || 0) || 0;
+      return rightTime - leftTime;
+    })[0];
+  const attested = Boolean(attestationReview);
   return {
     ok: attested,
     mode: "single_owner_attestation",

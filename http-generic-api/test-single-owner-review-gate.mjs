@@ -112,4 +112,36 @@ const admin = { login: soleHuman, type: "User", permissions: { admin: true, main
   assert.match(workflowSource, /jobs:\n  evaluate:\n    name: Single Owner Review Gate/);
 }
 
-console.log(JSON.stringify({ ok: true, test: "single_owner_review_gate", secrets_included: false }));
+{
+  const result = evaluateReviewGate({
+    owner,
+    author: soleHuman,
+    headSha: sha,
+    collaborators: [admin],
+    reviews: [
+      {
+        user: { login: soleHuman },
+        state: "COMMENTED",
+        commit_id: sha,
+        submitted_at: "2026-08-07T00:00:00Z",
+        body: `OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}`,
+      },
+      {
+        user: { login: soleHuman },
+        state: "COMMENTED",
+        commit_id: sha,
+        submitted_at: "2026-08-07T00:01:00Z",
+        body: `ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY\nexact_head_sha: ${sha}`,
+      },
+    ],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.reason, "single_owner_exact_head_attestation");
+}
+
+console.log(JSON.stringify({
+  ok: true,
+  test: "single_owner_review_gate",
+  event_order_regression: "owner_attestation_survives_later_activation_review",
+  secrets_included: false,
+}));
