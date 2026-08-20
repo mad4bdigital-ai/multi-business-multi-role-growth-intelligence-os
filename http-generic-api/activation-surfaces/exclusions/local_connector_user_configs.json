@@ -1,0 +1,7 @@
+{
+  "surface_key": "local_connector_user_configs",
+  "source_table": "local_connector_user_configs",
+  "reason": "Excluded because this table stores internal per-device connector configuration for the governed local connector path. Tenant-visible activation cards, public activation APIs, and object-level activation authorization are intentionally deferred to a separate runtime surface contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

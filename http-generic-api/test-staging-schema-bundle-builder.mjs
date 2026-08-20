@@ -85,6 +85,20 @@ test("baseline endpoints schema covers the pre-use migration column contract", (
   assert.match(migration023, /AFTER `child_openai_schema_file_id`/i);
 });
 
+test("local connector migration reconciles legacy table shape before tunnel seed", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const migration017 = fs.readFileSync(path.join(migrationsDir, "017_sprint21_output_sink_router.sql"), "utf8");
+  const migration030 = fs.readFileSync(path.join(migrationsDir, "030_sprint33_local_connector_tables.sql"), "utf8");
+  const migration032 = fs.readFileSync(path.join(migrationsDir, "032_sprint35_local_connector_seed.sql"), "utf8");
+  assert.match(migration017, /CREATE TABLE IF NOT EXISTS `local_connector_user_configs`/i);
+  assert.match(migration030, /ALTER TABLE `local_connector_user_configs`/i);
+  assert.match(migration030, /ADD COLUMN IF NOT EXISTS `tunnel_url`/i);
+  assert.match(migration030, /AFTER `device_id`/i);
+  assert.match(migration032, /INSERT IGNORE INTO `local_connector_user_configs`/i);
+  assert.match(migration032, /config_id, user_id, tenant_id, device_id, tunnel_url, connector_secret, is_enabled/i);
+  assert.ok(["017_sprint21_output_sink_router.sql", "030_sprint33_local_connector_tables.sql", "032_sprint35_local_connector_seed.sql"].every((file, index, files) => index === 0 || files[index - 1] < file));
+});
+
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
   const runtimeExcluded = new Set(manifest.roles.runtime.excluded_tables);
   for (const table of manifest.roles.governance.required_tables) assert.equal(runtimeExcluded.has(table), true, `runtime must exclude governance table ${table}`);
