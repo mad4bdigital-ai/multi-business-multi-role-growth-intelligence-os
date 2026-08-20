@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7222,
-    "bytes": 70501111,
-    "lines": 1653730,
+    "bytes": 70501584,
+    "lines": 1653736,
     "directories": 266,
     "categories": 13
   },
@@ -37396,9 +37396,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 7872,
-      "lines": 190,
-      "sha256": "b78f2663a182a201dc0a07b1805ec58fdef2b07654e4d6a4793fb10de152ae2d",
+      "bytes": 7913,
+      "lines": 191,
+      "sha256": "bc4c3a9a9ec353380f467c4c7936ba3d0691e036f1ffb4245b634e39244e3d76",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64302,9 +64302,9 @@
       "path": "http-generic-api/test-environment-impact-closure.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7201,
-      "lines": 114,
-      "sha256": "c1d25c95f711aba90285a6f05d390047a5f5d4395ceea50dff492883dfd1a1e8",
+      "bytes": 7633,
+      "lines": 119,
+      "sha256": "bd936e2c1c7e973d2ded30bfa7d2bb3da09b8119a59d1fc1b5dbb9fbeb0ad20e",
       "mode": "644",
       "executable": false,
       "generated": false
