@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7252,
-    "bytes": 70670941,
-    "lines": 1656872,
+    "bytes": 70671160,
+    "lines": 1656875,
     "directories": 266,
     "categories": 13
   },
@@ -8644,9 +8644,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8104,
-      "lines": 127,
-      "sha256": "9d9e298adb6bface7578d2a3527a840c86e8cc7d98efd5f161ec714e483d130c",
+      "bytes": 8250,
+      "lines": 129,
+      "sha256": "5db0cd7829c0e9136fc46165eb4896f6d05e03393c6b3b6ba41c3abcc7933c4d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37684,9 +37684,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 8010,
-      "lines": 193,
-      "sha256": "dbb9fa3e3a6840fe2d6a78b0ef8273dac3cd16ade026b8f5490441d29db164ac",
+      "bytes": 8083,
+      "lines": 194,
+      "sha256": "a6821d1e5af3e5d374f03df2be20917690c8be54d73ed3aab8297a49032db5a2",
       "mode": "644",
       "executable": false,
       "generated": false
