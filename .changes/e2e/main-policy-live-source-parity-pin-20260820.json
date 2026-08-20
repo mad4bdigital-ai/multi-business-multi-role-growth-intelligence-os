@@ -10,7 +10,10 @@
     "include": [
       ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
       ".github/ops/github-main-review-policy-live-activation.mjs",
-      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
     ]
   },
   "merge_contract": {
@@ -78,6 +81,9 @@
             ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
             ".github/ops/github-main-review-policy-live-activation.mjs",
             "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "http-generic-api/scripts/test-github-review-policy-target.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
