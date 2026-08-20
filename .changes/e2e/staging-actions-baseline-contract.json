@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-actions-baseline-contract",
+  "title": "Complete Staging actions baseline contract before ordered migrations",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-actions-baseline-contract.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-evaluation-summary.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the canonical baseline actions table satisfy the full ordered migration contract and fail closed before disposable SQL execution when required columns are absent.",
+      "e2e_journeys": [
+        {
+          "id": "actions-baseline-before-migration-chain",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The generator runs from an exact clean main checkout with explicit BUILD_STAGING_SCHEMA_BUNDLE confirmation.",
+          "terminal_outcome": "The disposable MariaDB can replay migration 022 and the remaining ordered chain without unknown actions columns, while the generated bundles remain three-role, schema-only, and readback governed.",
+          "steps": [
+            "Read the role manifest required_actions_baseline_columns contract.",
+            "Validate every required actions column in the canonical schema.sql before starting disposable MariaDB.",
+            "Apply the baseline and ordered migrations only after the preflight passes.",
+            "Verify actions metadata, schema-import fields, and SQL-only auth-reference fields remain available to later migrations.",
+            "Keep Production access, provider access, data export, secrets, and mutation false.",
+            "Require live Staging certification before any Activation or cross-environment promotion decision."
+          ],
+          "assertions": [
+            "migration 022 does not fail on action_title, action_id, endpoint_group, or route_target.",
+            "The baseline actions table includes the metadata, authorization-reference, OpenAPI-reference, and schema-import columns required by the migration chain.",
+            "The generator reports required_actions_baseline_columns in plan evidence and blocks closed when the contract is incomplete.",
+            "The schema bundle remains exact-SHA, disposable-MariaDB, three-role, schema-only, and canonical-seed governed.",
+            "No Production migration, grant, deployment, provider mutation, DNS mutation, or secret handling is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-actions-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-actions-baseline-contract.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
