@@ -10,6 +10,7 @@ const manifestPath = path.join(apiRoot, "config", "staging-database-role-migrati
 const generatorPath = path.join(apiRoot, "scripts", "build-staging-schema-bundle.mjs");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const generator = fs.readFileSync(generatorPath, "utf8");
+const baselineSchema = fs.readFileSync(path.join(apiRoot, "schema.sql"), "utf8");
 const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
 
 function runPlan() {
@@ -31,6 +32,9 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.source.provider_access_forbidden, true);
   assert.equal(manifest.safety.schema_only, true);
   assert.equal(manifest.safety.data_copy_forbidden, true);
+  assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
+  assert.equal(manifest.source.ordering, "baseline_schema_then_lexicographic_filename");
+  assert.match(baselineSchema, /CREATE TABLE IF NOT EXISTS `workflows`/i);
 });
 
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
@@ -47,6 +51,8 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /provider_accessed: false/);
   assert.match(generator, /data_exported: false/);
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
+  assert.ok(generator.includes(String.raw`const baselineSchemaPath = path.join(apiRoot, "schema.sql")`));
+  assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows)`));
   assert.ok(generator.includes(String.raw`result.stdout.split(/\r?\n/)`));
   assert.ok(generator.includes(String.raw`line.split("\t")`));
   assert.ok(generator.includes(String.raw`/^\s*GRANT\b/imu`));
@@ -60,6 +66,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.plan_only, true);
   assert.equal(plan.expected_commit, expectedCommit.toLowerCase());
+  assert.equal(plan.baseline_schema.file, "schema.sql");
+  assert.equal(plan.baseline_schema.sha256.length, 64);
   assert.equal(plan.migration_count, 783);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
 });

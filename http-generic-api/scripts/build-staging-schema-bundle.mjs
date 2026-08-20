@@ -10,6 +10,7 @@ const apiRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(apiRoot, "..");
 const manifestPath = path.join(apiRoot, "config", "staging-database-role-migration-manifest.json");
 const migrationsDir = path.join(apiRoot, "migrations");
+const baselineSchemaPath = path.join(apiRoot, "schema.sql");
 
 const args = process.argv.slice(2);
 const arg = (name, fallback = null) => {
@@ -78,6 +79,15 @@ function migrationFiles() {
   return files;
 }
 
+function baselineSchema() {
+  if (!fs.existsSync(baselineSchemaPath)) fail(`canonical baseline schema is missing: ${baselineSchemaPath}`);
+  const sql = fs.readFileSync(baselineSchemaPath, "utf8");
+  migrationSafetyCheck("schema.sql", sql);
+  const statementCount = splitStatements(sql).length;
+  if (!statementCount) fail("canonical baseline schema is empty");
+  return { file: "schema.sql", path: baselineSchemaPath, sha256: sha256(sql), statement_count: statementCount, bytes: Buffer.byteLength(sql) };
+}
+
 function migrationSafetyCheck(file, sql) {
   const normalizedSql = splitStatements(sql).join("\n");
   const forbidden = [
@@ -122,11 +132,13 @@ function startDatabase() {
   fail("disposable MariaDB did not become ready within 180 seconds");
 }
 
-function applyMigrations(plan) {
-  for (const item of plan) {
-    const sql = fs.readFileSync(path.join(migrationsDir, item.file), "utf8");
+function applyMigrations(baseline, plan) {
+  const sources = [baseline, ...plan];
+  for (const item of sources) {
+    const sourcePath = item.file === "schema.sql" ? baselineSchemaPath : path.join(migrationsDir, item.file);
+    const sql = fs.readFileSync(sourcePath, "utf8");
     const result = dockerExec([containerName, "mariadb", ...dbArgs(["--binary-mode"])], { input: sql, allowFailure: true });
-    if (result.status !== 0) fail(`migration ${item.file} failed in disposable schema database: ${text(result.stderr).slice(-4000)}`);
+    if (result.status !== 0) fail(`${item.file === "schema.sql" ? "baseline schema" : "migration"} ${item.file} failed in disposable schema database: ${text(result.stderr).slice(-4000)}`);
   }
 }
 
@@ -170,7 +182,7 @@ function makeDump(role, tables, manifest) {
   return { file: roleConfig.bundle_file, sha256: sha256(gz), compressed_bytes: gz.length, table_count: tables.length, tables: names };
 }
 
-function writeOutput(manifest, expected, migrationPlanRows, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -182,6 +194,7 @@ function writeOutput(manifest, expected, migrationPlanRows, tableSets, bundles) 
     provider_accessed: false,
     data_exported: false,
     secrets_included: false,
+    baseline_schema: { file: baseline.file, sha256: baseline.sha256, statement_count: baseline.statement_count, bytes: baseline.bytes },
     migration_count: migrationPlanRows.length,
     migration_sha256_manifest: migrationPlanRows,
     roles: bundles,
@@ -197,11 +210,12 @@ function writeOutput(manifest, expected, migrationPlanRows, tableSets, bundles) 
   return outputPath;
 }
 
-function printPlan(manifest, files, rows) {
+function printPlan(manifest, baseline, files, rows) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
     output_dir: outputDir,
+    baseline_schema: { file: baseline.file, sha256: baseline.sha256, statement_count: baseline.statement_count, bytes: baseline.bytes },
     migration_count: files.length,
     statement_count: rows.reduce((sum, row) => sum + row.statement_count, 0),
     required_bundle_files: manifest.validation.required_bundle_files,
@@ -213,10 +227,11 @@ function printPlan(manifest, files, rows) {
 }
 
 const manifest = readManifest();
+const baseline = baselineSchema();
 const files = migrationFiles();
 const rows = migrationPlan(files);
 if (planOnly) {
-  printPlan(manifest, files, rows);
+  printPlan(manifest, baseline, files, rows);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -225,7 +240,7 @@ requireLocalDocker();
 let tables = [];
 try {
   startDatabase();
-  applyMigrations(rows);
+  applyMigrations(baseline, rows);
   tables = listTables();
   const sets = roleTableSets(manifest, tables);
   const bundles = {
@@ -233,7 +248,7 @@ try {
     governance: makeDump("governance", sets.governance, manifest),
     runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
   };
-  const outputPath = writeOutput(manifest, expectedCommit, rows, sets, bundles);
+  const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, sets, bundles);
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {
   run("docker", ["rm", "--force", containerName], { allowFailure: true });
