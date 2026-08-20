@@ -3,305 +3,54 @@
   "feature_key": "009-local-connector-reachability-recovery",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "1de708ada9a1917418799ac9ee8c75569a0a9e9f9a8c8c631e02e45812735f30",
-    "index_source_hash": "7cdb7bb8c4054b84678c9da0b969607c72746c90c00eb8eb584d187c3bc06856",
-    "coverage_source_hash": "76b6a26419dddb723584d534c1efc52f556ea0cdd2095c474b41fe0e478e8908",
+    "fingerprint": "793a1cd9f81595f40822028e47509a69bf498f1db140418d964695467346a302",
+    "index_source_hash": "4b8fe90b9cfe4903ef355cbf3b5dba732a223fc09b41810bf0ad9a0d7d2ebe9f",
+    "coverage_source_hash": "a3c3932511ea2c4afa69d2a3a40925d5b7e50262ab48025bcf7c3189fc20265f",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
     "taxonomy_gap_cluster_count": 0
   },
   "work_map_decisions": {
-    "activation-access-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "activation-onboarding-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "agent-skill-plugin-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "asset-package-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "commercial-usage-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "connector-provider-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "data-model-domain-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "delivery-support-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "execution-log-evidence-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "migration-lifecycle-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "observability-release-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "platform-resource-graph-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "platform-runtime-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "policy-authority-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "repository-automation-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "repository-development-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "session-memory-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "work-map-coverage-matrix": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "workflow-task-orchestration-map": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    }
+    "activation-access-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "activation-onboarding-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "agent-skill-plugin-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "asset-package-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "commercial-usage-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "connector-provider-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "data-model-domain-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "delivery-support-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "execution-log-evidence-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "migration-lifecycle-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "observability-release-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "platform-resource-graph-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "platform-runtime-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "policy-authority-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "repository-automation-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "repository-development-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "session-memory-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "work-map-coverage-matrix": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "workflow-task-orchestration-map": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]}
   },
   "domain_decisions": {
-    "activation-and-onboarding": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "agents-and-intelligence": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "assets-and-packages": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "brand-and-business": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "commercial-and-usage": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "connectors-and-providers": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "delivery-and-support": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "developer-and-api": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "governance-and-authority": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "migration-and-lifecycle": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "observability-and-release": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "platform-resources-and-graph": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "repository-and-development": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "sessions-and-memory": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "tenancy-and-identity": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    },
-    "workflow-and-tasks": {
-      "decision": "needs_analysis",
-      "rationale": "Pending current analysis; implementation remains blocked.",
-      "owner": "platform-team",
-      "evidence_refs": [
-        "docs/work-maps/README.md"
-      ]
-    }
+    "activation-and-onboarding": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "agents-and-intelligence": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "assets-and-packages": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "brand-and-business": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "commercial-and-usage": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "connectors-and-providers": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "delivery-and-support": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "developer-and-api": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "governance-and-authority": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "migration-and-lifecycle": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "observability-and-release": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "platform-resources-and-graph": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "repository-and-development": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "sessions-and-memory": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "tenancy-and-identity": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]},
+    "workflow-and-tasks": {"decision":"needs_analysis","rationale":"Pending current analysis; implementation remains blocked.","owner":"platform-team","evidence_refs":["docs/work-maps/README.md"]}
   },
-  "dimension_discovery": {
-    "registry_gap_clusters": {},
-    "new_dimension_candidates": [],
-    "no_new_dimensions_rationale": "No taxonomy gaps exist; feature integration analysis remains pending."
-  },
-  "implementation_readiness": {
-    "status": "blocked"
-  },
+  "dimension_discovery": {"registry_gap_clusters":{},"new_dimension_candidates":[],"no_new_dimensions_rationale":"No taxonomy gaps exist; feature integration analysis remains pending."},
+  "implementation_readiness": {"status":"blocked"},
   "secrets_included": false
 }
