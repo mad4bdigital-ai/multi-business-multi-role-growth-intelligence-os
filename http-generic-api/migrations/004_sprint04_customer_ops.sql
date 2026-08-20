@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `customers` (
   UNIQUE KEY `uq_customer_id` (`customer_id`),
   KEY `idx_tenant` (`tenant_id`),
   KEY `idx_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `contacts` (
   `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `contacts` (
   UNIQUE KEY `uq_contact_id` (`contact_id`),
   KEY `idx_customer` (`customer_id`),
   KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `threads` (
   `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS `threads` (
   KEY `idx_tenant` (`tenant_id`),
   KEY `idx_customer` (`customer_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `tickets` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   KEY `idx_customer` (`customer_id`),
   KEY `idx_status` (`status`),
   KEY `idx_category` (`category`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `timeline_events` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -109,4 +109,4 @@ CREATE TABLE IF NOT EXISTS `timeline_events` (
   KEY `idx_customer` (`customer_id`),
   KEY `idx_ticket` (`ticket_id`),
   KEY `idx_type` (`event_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;

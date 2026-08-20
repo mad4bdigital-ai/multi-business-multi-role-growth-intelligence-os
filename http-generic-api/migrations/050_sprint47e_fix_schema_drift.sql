@@ -19,7 +19,7 @@ CREATE TABLE `admin_platform_endpoint_tools` (
   `path_param_keys` JSON            NULL,
   `input_schema`    JSON            NULL,
   `fixed_body`      JSON            NULL,
-    `tags`             VARCHAR(255)    NULL,
+  `tags`             VARCHAR(255)    NULL,
   `input_schema_json` JSON           NULL,
   `is_enabled`       TINYINT(1)      NOT NULL DEFAULT 1,
   `sort_order`       INT             NOT NULL DEFAULT 0,
@@ -31,7 +31,27 @@ CREATE TABLE `admin_platform_endpoint_tools` (
   KEY `idx_enabled_sort` (`is_enabled`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `tenant_platform_endpoint_tools` LIKE `admin_platform_endpoint_tools`;
+CREATE TABLE `tenant_platform_endpoint_tools` (
+  `id`              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `tool_key`        VARCHAR(128)    NOT NULL,
+  `display_name`    VARCHAR(200)    NOT NULL,
+  `description`     TEXT            NOT NULL,
+  `http_method`     VARCHAR(10)     NOT NULL DEFAULT 'POST',
+  `http_path`       VARCHAR(512)    NOT NULL,
+  `path_param_keys` JSON            NULL,
+  `input_schema`    JSON            NULL,
+  `fixed_body`      JSON            NULL,
+  `tags`            VARCHAR(255)    NULL,
+  `input_schema_json` JSON           NULL,
+  `is_enabled`      TINYINT(1)      NOT NULL DEFAULT 1,
+  `sort_order`      INT             NOT NULL DEFAULT 0,
+  `secrets_included` TINYINT(1)     NOT NULL DEFAULT 0,
+  `created_at`      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tenant_tool_key` (`tool_key`),
+  KEY `idx_tenant_enabled_sort` (`is_enabled`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── GPT conversation turns table ─────────────────────────────────────────────
 -- Separate from session_turns (Sprint 22, Claude Code CLI schema).

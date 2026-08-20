@@ -1,0 +1,7 @@
+{
+  "surface_key": "logic_definitions",
+  "source_table": "logic_definitions",
+  "reason": "Excluded because logic definition persistence is an internal graph registry and is not an Activation surface; execution exposure requires a separately governed capability and authorization contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

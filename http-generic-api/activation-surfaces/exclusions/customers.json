@@ -1,0 +1,7 @@
+{
+  "surface_key": "customers",
+  "source_table": "customers",
+  "reason": "Excluded because the customer support persistence table is not an Activation surface; customer APIs require a separate object-level authorization and bounded response contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

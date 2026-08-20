@@ -22,7 +22,16 @@
       "http-generic-api/schema.sql",
       "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+      "http-generic-api/activation-surfaces/exclusions/customers.json",
+      "http-generic-api/activation-surfaces/exclusions/contacts.json",
+      "http-generic-api/activation-surfaces/exclusions/threads.json",
+      "http-generic-api/activation-surfaces/exclusions/tickets.json",
+      "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
+      "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
+      "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
+      "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json"
     ]
   },
   "environment_impact": {
@@ -49,7 +58,7 @@
             "The ordered audit tracks CREATE, DROP, ALTER, INSERT, UPDATE, DELETE, and FROM/JOIN state in baseline-then-lexicographic order.",
             "Same-statement ALTER predecessors are excluded from the blocking missing-column result, while string literals are removed from DML column and FROM/JOIN detection.",
             "Canonical DDL is widened for brand_core, endpoints, task_routes, workflows, admin/tenant endpoint tools, tickets, logic_definitions, tenant_resolution_cases, memory_scope_type_registry, and platform_outbox_event_types.",
-            "The manifest declares full baseline column contracts and the exact source file for each canonical CREATE, including CREATE TABLE LIKE inheritance.",
+            "The manifest declares full baseline column contracts and the exact source file for each canonical CREATE, including separate admin and tenant endpoint-tool DDL.",
             "The generator validates those contracts and runs the ordered audit before confirmation and before any Docker database mutation.",
             "Plan evidence records 783 migrations, zero missing-column gaps, and the known non-blocking missing-table diagnostic count.",
             "Production, Hostinger, Cloudflare, providers, data copy, and external mutations remain forbidden."
@@ -94,7 +103,16 @@
             "http-generic-api/schema.sql",
             "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
-            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+            "http-generic-api/activation-surfaces/exclusions/customers.json",
+            "http-generic-api/activation-surfaces/exclusions/contacts.json",
+            "http-generic-api/activation-surfaces/exclusions/threads.json",
+            "http-generic-api/activation-surfaces/exclusions/tickets.json",
+            "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
+            "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
+            "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
+            "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json"
           ]
         }
       ]

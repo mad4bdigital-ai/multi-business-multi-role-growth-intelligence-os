@@ -398,8 +398,7 @@
       },
       "required_tenant_platform_endpoint_tools_baseline_columns": {
         "table": "tenant_platform_endpoint_tools",
-        "source_file": "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql",
-        "inherits_from": "admin_platform_endpoint_tools"
+        "source_file": "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql"
       },
       "required_brand_core_baseline_columns": {
         "table": "brand_core",

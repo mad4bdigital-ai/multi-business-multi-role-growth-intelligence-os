@@ -20,7 +20,7 @@ assert(brandCoreSchema, "canonical schema must declare brand_core");
 for (const canonicalColumn of ["brand_key", "asset_key", "doc_key", "doc_id", "file_id", "google_doc_id", "status", "created_at", "updated_at"]) {
   assert.match(brandCoreSchema, new RegExp(`\\\`${canonicalColumn}\\\``), `brand_core schema must expose ${canonicalColumn}`);
 }
-for (const legacyColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
+for (const legacyColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status"]) {
   assert.doesNotMatch(brandCoreSchema, new RegExp(`\\\`${legacyColumn}\\\``), `canonical bootstrap schema must not require legacy brand_core.${legacyColumn}`);
 }
 

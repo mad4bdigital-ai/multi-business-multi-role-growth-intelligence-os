@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `logic_definitions` (
   KEY `idx_logic_key` (`logic_key`),
   KEY `idx_parent` (`parent_logic_id`),
   KEY `idx_type` (`logic_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `logic_packs` (
   `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `logic_packs` (
   UNIQUE KEY `uq_pack_id` (`pack_id`),
   KEY `idx_pack_key` (`pack_key`),
   KEY `idx_type` (`pack_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `pack_attachments` (
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS `pack_attachments` (
   UNIQUE KEY `uq_attachment_id` (`attachment_id`),
   KEY `idx_pack` (`pack_id`),
   KEY `idx_target` (`target_type`, `target_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `adaptation_records` (
   `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -73,4 +73,4 @@ CREATE TABLE IF NOT EXISTS `adaptation_records` (
   UNIQUE KEY `uq_adaptation_id` (`adaptation_id`),
   KEY `idx_logic` (`logic_id`),
   KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
