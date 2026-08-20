@@ -3,9 +3,13 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-const root = process.cwd();
-const planPath = path.join(root, "http-generic-api", "config", "runtime-remediation-batch-plan.json");
-const packagePath = path.join(root, "http-generic-api", "package.json");
+const workingDirectory = process.cwd();
+const root = fs.existsSync(path.join(workingDirectory, "http-generic-api"))
+  ? workingDirectory
+  : path.resolve(workingDirectory, "..");
+const apiRoot = path.join(root, "http-generic-api");
+const planPath = path.join(apiRoot, "config", "runtime-remediation-batch-plan.json");
+const packagePath = path.join(apiRoot, "package.json");
 const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
 const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const sha256 = (value) => crypto.createHash("sha256").update(value, "utf8").digest("hex");
@@ -23,7 +27,7 @@ assert.equal(plan.operator_approval_required, true);
 assert.equal(packageJson.scripts["runtime:remediation:plan-check"], undefined);
 
 for (const migration of plan.source_schema_migrations) {
-  const migrationPath = path.join(root, "http-generic-api", "migrations", migration.migration);
+  const migrationPath = path.join(apiRoot, "migrations", migration.migration);
   const sql = fs.readFileSync(migrationPath, "utf8");
   assert.equal(sha256(sql), migration.checksum_sha256, `${migration.migration} checksum drift`);
 }
