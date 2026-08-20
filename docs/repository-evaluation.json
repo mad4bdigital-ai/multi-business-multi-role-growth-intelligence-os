@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "13afaab7f6af11f0fc48f932c022d995768aaab9c196274c3f3fa01e1a3e049a",
+  "inputFingerprint": "18081744fa340d47d713972153249fcb468dcb84be73b4d32369f60482b6b8db",
   "inventory": {
-    "files": 7222,
-    "bytes": 70501584,
+    "files": 7224,
+    "bytes": 70519701,
     "directories": 266,
     "categories": 13
   },
@@ -18,13 +18,14 @@
       "unpinnedActions": 0,
       "unpinnedActionRefs": [],
       "budget": {
-        "max": 100,
+        "max": 160,
         "warning": 155,
+        "source": "targetMaxWorkflowFiles",
         "status": "exceeded"
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7185,
+      "trackedTextFilesScanned": 7187,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-sequential-test-progress-report.mjs",
@@ -48,8 +49,9 @@
       "output": "Repository CI declares an explicit setup-dotnet SDK contract; local binary probe is opt-in."
     },
     "maintainability": {
-      "workflowBudget": 100,
+      "workflowBudget": 160,
       "workflowBudgetWarning": 155,
+      "workflowBudgetSource": "targetMaxWorkflowFiles",
       "workflowBudgetStatus": "exceeded",
       "totalLargeFiles": 4,
       "approvedLargeFiles": 2,
@@ -177,7 +179,8 @@
       "blocking": false,
       "evidence": {
         "workflowCount": 170,
-        "maxWorkflowCount": 100,
+        "maxWorkflowCount": 160,
+        "workflowBudgetSource": "targetMaxWorkflowFiles",
         "overlapCheck": "passed"
       },
       "impact": "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
