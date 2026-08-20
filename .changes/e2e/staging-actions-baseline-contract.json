@@ -4,6 +4,9 @@
   "feature_key": "staging-actions-baseline-contract",
   "title": "Complete Staging actions baseline contract before ordered migrations",
   "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "current_phase": "mvp",
   "scope": {
     "include": [
