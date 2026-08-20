@@ -597,6 +597,50 @@ CREATE TABLE IF NOT EXISTS `brand_paths` (
   KEY `idx_brand_path_active` (`active`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ── 19. Tenant Secret Slots ────────────────────────────────────────────────────
+-- Baseline prerequisites for migration 058 and tenant-scoped credential resolution.
+-- Values are provisioned separately; this schema contains no secret payloads.
+CREATE TABLE IF NOT EXISTS `tenant_secrets` (
+  `id`                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tenant_id`         VARCHAR(36) NOT NULL,
+  `secret_key`        VARCHAR(128) NOT NULL,
+  `secret_type`       VARCHAR(64) NOT NULL,
+  `storage_backend`   ENUM('gcp_secret_manager','mounted_file','external_vault','env_ref','manual','db_encrypted') NOT NULL DEFAULT 'manual',
+  `secret_ref`        VARCHAR(255) NULL,
+  `value_sha256`      CHAR(64) NULL,
+  `value_ciphertext`  LONGTEXT NULL,
+  `metadata_json`     LONGTEXT NULL,
+  `status`            VARCHAR(64) NOT NULL DEFAULT 'active',
+  `created_by`        VARCHAR(64) NULL,
+  `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_tenant_secret_key` (`tenant_id`, `secret_key`),
+  KEY `idx_tenant_secrets_status` (`tenant_id`, `status`),
+  KEY `idx_tenant_secrets_storage` (`storage_backend`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 20. Platform Secret Slots ──────────────────────────────────────────────────
+-- Baseline prerequisite for migration 058 and platform-scoped credential resolution.
+CREATE TABLE IF NOT EXISTS `platform_secrets` (
+  `id`                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `secret_key`        VARCHAR(128) NOT NULL,
+  `secret_type`       VARCHAR(64) NOT NULL,
+  `storage_backend`   ENUM('gcp_secret_manager','mounted_file','external_vault','env_ref','manual','db_encrypted') NOT NULL DEFAULT 'manual',
+  `secret_ref`        VARCHAR(255) NULL,
+  `value_sha256`      CHAR(64) NULL,
+  `value_ciphertext`  LONGTEXT NULL,
+  `metadata_json`     LONGTEXT NULL,
+  `status`            VARCHAR(64) NOT NULL DEFAULT 'active',
+  `created_by`        VARCHAR(64) NULL,
+  `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_platform_secret_key` (`secret_key`),
+  KEY `idx_platform_secrets_status` (`status`),
+  KEY `idx_platform_secrets_storage` (`storage_backend`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `user_credentials` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` VARCHAR(36) NOT NULL,

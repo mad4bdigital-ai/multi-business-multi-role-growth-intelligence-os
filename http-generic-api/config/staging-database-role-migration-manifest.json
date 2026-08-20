@@ -33,6 +33,10 @@
       "required_tables": [
         "connected_systems",
         "platform_contract_surfaces",
+        "tenant_secrets",
+        "platform_secrets",
+        "secret_references",
+        "credential_bindings",
         "brands",
         "brand_core",
         "actions",
@@ -157,6 +161,10 @@
     "required_runtime_support_tables": [
       "connected_systems",
       "platform_contract_surfaces",
+      "tenant_secrets",
+      "platform_secrets",
+      "secret_references",
+      "credential_bindings",
       "admin_platform_endpoint_tools",
       "tenant_platform_endpoint_tools",
       "customer_sessions",
@@ -227,6 +235,29 @@
       "authority_status",
       "runtime_consumption_status",
       "current_runtime_adapter"
+    ],
+    "required_tenant_secrets_baseline_columns": [
+      "tenant_id",
+      "secret_key",
+      "secret_type",
+      "storage_backend",
+      "secret_ref",
+      "value_sha256",
+      "value_ciphertext",
+      "metadata_json",
+      "status",
+      "created_by"
+    ],
+    "required_platform_secrets_baseline_columns": [
+      "secret_key",
+      "secret_type",
+      "storage_backend",
+      "secret_ref",
+      "value_sha256",
+      "value_ciphertext",
+      "metadata_json",
+      "status",
+      "created_by"
     ]
   }
 }
