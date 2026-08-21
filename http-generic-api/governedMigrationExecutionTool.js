@@ -567,6 +567,14 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
         details,
       );
     }
+    if (details.signal) {
+      throw toolError(
+        "governed_migration_runner_signaled",
+        "Governed migration runner terminated from an external process signal.",
+        502,
+        details,
+      );
+    }
     const diagnostic = details.runner_error_code
       || details.stderr_summary?.split(/\r?\n/, 1)?.[0]
       || "runner process exited unsuccessfully";
