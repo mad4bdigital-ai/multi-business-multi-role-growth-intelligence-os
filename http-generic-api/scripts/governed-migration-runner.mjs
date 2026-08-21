@@ -719,7 +719,7 @@ main()
     await closePoolQuietly();
   })
   .catch(async (error) => {
-    console.error(JSON.stringify({
+    process.stderr.write(`${JSON.stringify({
       ok: false,
       error: {
         code: error?.code || "governed_migration_runner_unhandled_failure",
@@ -729,7 +729,7 @@ main()
         duration_ms: Math.max(0, Date.now() - diagnosticStartedAt),
       },
       secrets_included: false,
-    }, null, 2));
+    }, null, 2)}\n`);
     await closePoolQuietly();
-    process.exit(1);
+    process.exitCode = 1;
   });
