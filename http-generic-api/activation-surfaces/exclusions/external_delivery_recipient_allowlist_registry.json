@@ -1,0 +1,7 @@
+{
+  "surface_key": "external_delivery_recipient_allowlist_registry",
+  "source_table": "external_delivery_recipient_allowlist_registry",
+  "reason": "Excluded because this registry stores governed recipient allowlist policy metadata and is not itself an Activation surface; any live external delivery remains subject to separate adapter, approval-hold, and send-gate controls.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

@@ -4,7 +4,9 @@
   "feature_key": "staging-batch-baseline-column-contracts",
   "title": "Close all ordered pre-use baseline column gaps before Staging schema replay",
   "delivery_mode": "single_pr",
-  "merge_contract": { "minimum_phase": "mvp" },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "current_phase": "mvp",
   "scope": {
     "include": [
@@ -47,12 +49,16 @@
       "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
       "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
       "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
-      "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json"
+      "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
+      "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -108,7 +114,9 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
-              "args": ["."]
+              "args": [
+                "."
+              ]
             }
           ],
           "evidence_paths": [
@@ -151,7 +159,8 @@
             "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
             "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
             "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
-            "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json"
+            "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
+            "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
           ]
         }
       ]
