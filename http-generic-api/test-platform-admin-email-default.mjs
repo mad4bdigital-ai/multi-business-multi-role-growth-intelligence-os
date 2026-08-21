@@ -45,6 +45,12 @@ for (const expected of [
   assert(migration.includes(expected), `migration must include ${expected}`);
 }
 
+const allowlistCreateIndex = migration.indexOf("CREATE TABLE IF NOT EXISTS `external_delivery_recipient_allowlist_registry`");
+const allowlistInsertIndex = migration.indexOf("INSERT INTO external_delivery_recipient_allowlist_registry");
+assert(allowlistCreateIndex >= 0, "migration 1002 must create the allowlist registry idempotently");
+assert(allowlistInsertIndex >= 0, "migration 1002 must seed the allowlist registry");
+assert(allowlistCreateIndex < allowlistInsertIndex, "migration 1002 must create the allowlist registry before first use");
+
 const helperBlock = providerGate.slice(
   providerGate.indexOf("async function resolvePlatformAdminEmail"),
   providerGate.indexOf("async function recipientAllowlistAllowed")
