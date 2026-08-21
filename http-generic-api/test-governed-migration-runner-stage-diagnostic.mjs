@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const runner = "scripts/governed-migration-runner.mjs";
 const migration = "20260815_custom_gpt_mcp_catalog_levels.sql";
 const dbKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT"];
@@ -13,7 +16,7 @@ env.GOVERNED_MIGRATION_DIAGNOSTIC = "1";
 
 try {
   await execFileAsync(process.execPath, [runner, `--migration=${migration}`, "--dry-run"], {
-    cwd: process.cwd(),
+    cwd: HERE,
     env,
     maxBuffer: 1024 * 1024,
   });
