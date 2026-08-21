@@ -271,10 +271,10 @@ test("canonical table bootstrap resolves ordered migration pre-use inside dispos
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
   assert.match(generator, /canonical table bootstrap leaves/iu);
-  const policy = bootstrap.entries.find((entry) => entry.table === "capability_apply_authorization_policy_registry");
-  assert.equal(policy.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
-  assert.equal(policy.source_file, "902_sprint68_dynamic_capability_apply_authorization_policy.sql");
-  assert.equal(policy.sha256.length, 64);
+  const authorizationRegistry = bootstrap.entries.find((entry) => entry.table === "capability_apply_authorization_policy_registry");
+  assert.equal(authorizationRegistry.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
+  assert.equal(authorizationRegistry.source_file, "902_sprint68_dynamic_capability_apply_authorization_policy.sql");
+  assert.equal(authorizationRegistry.sha256.length, 64);
   const dispatch = bootstrap.entries.find((entry) => entry.table === "runtime_dispatch_certification_registry");
   assert.equal(dispatch.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
   assert.match(dispatch.source_file, /^178_/);
