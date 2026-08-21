@@ -286,6 +286,27 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v3";
+const RUNNER_DIAGNOSTIC_ENABLED = process.env.GOVERNED_MIGRATION_DIAGNOSTIC !== "0";
+let currentDiagnosticStage = "module_loaded";
+const diagnosticStartedAt = Date.now();
+
+function emitRunnerDiagnostic(stage, details = {}) {
+  currentDiagnosticStage = String(stage || "unknown");
+  if (!RUNNER_DIAGNOSTIC_ENABLED) return;
+  try {
+    process.stderr.write(`${JSON.stringify({
+      event: "governed_migration_runner_stage",
+      diagnostic_code: `governed_migration_runner_${currentDiagnosticStage}`,
+      stage: currentDiagnosticStage,
+      duration_ms: Math.max(0, Date.now() - diagnosticStartedAt),
+      ...details,
+      secrets_included: false,
+    })}\n`);
+  } catch {
+  }
+}
+
+emitRunnerDiagnostic("module_loaded");
 
 function parseArgs(argv = process.argv.slice(2)) {
   const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false, capabilityEnvelopeId: "" };
@@ -469,26 +490,36 @@ async function recordMigrationLedger({
 }
 
 async function main() {
+  emitRunnerDiagnostic("main_entered");
   const args = parseArgs();
+  emitRunnerDiagnostic("arguments_parsed", {
+    migration: path.basename(args.migration || "") || null,
+    mode: args.mode,
+  });
   const migration = path.basename(args.migration || "");
   if (!migration) throw new Error("--migration is required.");
   const capabilityEnvelopeId = normalizeCapabilityEnvelopeId(args.capabilityEnvelopeId);
   if (args.capabilityEnvelopeId && !capabilityEnvelopeId) {
     throw new Error("--capability-envelope-id must be a UUID when provided.");
   }
+  emitRunnerDiagnostic("authorization_preflight_started", { migration, mode: args.mode });
   const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
   if (!authorization.authorized) {
     throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
   }
+  emitRunnerDiagnostic("authorization_preflight_passed", { migration, mode: args.mode });
 
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
+  emitRunnerDiagnostic("migration_artifact_read_started", { migration, migration_path: migrationPath });
   const sql = await fs.readFile(migrationPath, "utf8");
+  emitRunnerDiagnostic("migration_artifact_read_completed", { migration, migration_path: migrationPath });
   const migration_checksum_sha256 = sha256(sql);
   const preflight = assessMigrationSqlPreflight(migration, sql);
   const requirements = extractMigrationReadinessRequirementsFromSql(sql);
   const statements = splitSqlStatements(sql);
   const statement_count = statements.length;
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
+  emitRunnerDiagnostic("schema_preflight_started", { migration, mode: args.mode });
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
   const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
   const collation_preflight = await runDatabaseCollationPreflight({ pool: getPool(), sql, migration });
@@ -694,6 +725,8 @@ main()
         code: error?.code || "governed_migration_runner_unhandled_failure",
         name: error?.name || "Error",
         message: error?.message || String(error),
+        diagnostic_stage: currentDiagnosticStage,
+        duration_ms: Math.max(0, Date.now() - diagnosticStartedAt),
       },
       secrets_included: false,
     }, null, 2));
