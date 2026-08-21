@@ -1,0 +1,113 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-autopilot-git-transport-resilience",
+  "title": "Staging Auto Pilot Git transport resilience with exact-SHA fail-closed guards",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-autopilot-git-transport-resilience.json",
+      "autopilot-portable-staging/Staging-GitTransport.ps1",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make transient GitHub smart-HTTP resets recoverable through a bounded transport-aware retry while preserving exact-SHA, clean-worktree, origin-identity, and fail-closed deployment guards across every local Staging entrypoint.",
+      "e2e_journeys": [
+        {
+          "id": "staging-git-transport-resilience",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Staging Auto Pilot and governed CI",
+          "entrypoint": "A Staging bootstrap, one-click launcher, Auto Pilot, or scheduled Auto-Deploy watcher reads GitHub state before local execution.",
+          "terminal_outcome": "Transient Git transport failures retry with bounded backoff and explicit HTTP/1.1 plus protocol-0 options; non-retryable failures, exhausted retries, SHA mismatch, dirty worktrees, and invalid provenance remain fail-closed before Docker or database mutation.",
+          "steps": [
+            "Validate the canonical GitHub origin identity and preserve the exact target ref contract.",
+            "Run Git reads and fetches through one shared transport helper with bounded retry and sanitized diagnostics.",
+            "Verify the fetched ref resolves to the exact expected commit before checkout or eligibility use.",
+            "Reload the exact checked-out launcher and preserve manifest hash and build-context provenance checks.",
+            "Continue to canonical Compose, app health, certification, and readback only after Git convergence.",
+            "Keep Production deployment, Hostinger mutation, Cloudflare DNS mutation, database migration, provider mutation, and force-push disabled."
+          ],
+          "assertions": [
+            "Retry is limited to known transient transport failures and cannot convert SHA, auth, dirty-tree, or policy errors into success.",
+            "Each retry uses protocol.version=0 and http.version=HTTP/1.1 explicitly inside the Git invocation; no persistent user Git configuration is changed.",
+            "Retry attempts and transport mode are recorded without secrets, while remote URLs and credentials are sanitized from diagnostics.",
+            "An exhausted or non-retryable Git failure stops before checkout, Docker build, Compose up, schema import, tunnel start, or certification.",
+            "The fetched ref and checked-out HEAD remain exact 40-character SHA values and must equal the expected candidate.",
+            "All four local Staging callers use the shared helper: Start-AutoPilot, One-Click, Bootstrap, and Auto-Deploy.",
+            "The portable manifest includes and hashes the shared helper through the governed manifest writer.",
+            "No Production branch, Production runtime, provider, DNS, migration, grant, or database mutation is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "portable-staging-manifest-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/generate-portable-staging-manifest.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-autopilot-git-transport-resilience.json",
+            "autopilot-portable-staging/Staging-GitTransport.ps1",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

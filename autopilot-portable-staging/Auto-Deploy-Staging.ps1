@@ -23,6 +23,9 @@ if ($SkipBuild) {
 $GitSafetyPath = Join-Path $PSScriptRoot "Staging-GitSafety.ps1"
 if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git safety helper: $GitSafetyPath" }
 . $GitSafetyPath
+$GitTransportPath = Join-Path $PSScriptRoot "Staging-GitTransport.ps1"
+if (-not (Test-Path -LiteralPath $GitTransportPath)) { throw "Missing shared Git transport helper: $GitTransportPath" }
+. $GitTransportPath
 $LogComponent = "auto-deploy"
 $script:AutoPilotRunMutex = $null
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds }
@@ -61,6 +64,15 @@ function Require-Command([string]$Name) {
 }
 
 function Invoke-NativeText([string]$File, [string[]]$Arguments) {
+    if ($File -ieq "git") {
+        try {
+            $gitResult = Invoke-StagingGit $Arguments
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "native:git-read" -Outcome "success" -Message "Git read completed with bounded retry" -Data @{ command = $File; arguments = ($Arguments -join " "); attempts = $gitResult.attempts; transport = $gitResult.transport }
+            return (($gitResult.output | Out-String).Trim())
+        } catch {
+            Fail $_.Exception.Message
+        }
+    }
     $text = & $File @Arguments 2>$null
     if ($LASTEXITCODE -ne 0) { Fail "$File failed while reading remote state" }
     return (($text | Out-String).Trim())
