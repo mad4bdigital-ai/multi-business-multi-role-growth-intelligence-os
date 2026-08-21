@@ -17,7 +17,8 @@
       "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
-      ".github/governance/test-authority-registry.json"
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/deployment-branch-policy.json"
     ]
   },
   "merge_contract": {
@@ -25,7 +26,7 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
