@@ -3,8 +3,8 @@
   "feature_key": "015-tenant-operating-system-studio",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "77408abffa6a09c4ca28071a21f03dfec2735f2c97eee5a868eba24b60db1d3c",
-    "index_source_hash": "8e208ed18d73a3b1d53711f490d7588414b0eafba7eeda39288def1483bd95bf",
+    "fingerprint": "6c6d02f84cf065365bac51bc707dd1c6e5ca9a7d8f16bfa5bc31ea19e79f32c5",
+    "index_source_hash": "b0be2473928c48965dcca159c58915542dd9aeee2f625f8b530730c17da6b84b",
     "coverage_source_hash": "12fdd6fa6e143cfa4f08ceff90b9612495fae623a4b88b8835ed7da2e150f5bf",
     "map_count": 19,
     "domain_count": 16,
