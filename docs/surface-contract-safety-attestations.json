@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 156,
+  "item_count": 160,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -261,7 +261,7 @@
     },
     {
       "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
-      "migration_sha256": "2b9fdfcdc14d3f33d3041bb41cf66b407092e4304f09db79e5cbc2f85381ae9a",
+      "migration_sha256": "8ca3a7de9edb836a1f367f5cddcd0b9beefcd8f2bd79b4430aeb370eb9a061d4",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_human_review",
@@ -742,18 +742,18 @@
     },
     {
       "migration_file": "1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
-      "migration_sha256": "44e13630c7a12aca402cc5649cea84f73d51b7276586a6cdadf4e77179437760",
+      "migration_sha256": "27c6810e4a6b60611373a8b9de2d366930eb061383c59244b70f440f6004b25c",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "critical_review",
+      "queue_class_at_attestation": "high_review",
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 5,
       "surface_counts": {
         "plugins": 0,
-        "tools": 20,
+        "tools": 1,
         "views": 0,
         "policies": 0,
         "routes": 3
@@ -762,26 +762,7 @@
         {
           "action_key": "verify_tool_registry_binding",
           "targets": [
-            "1023_sprint69_github_rest_endpoint_dispatch_foundation",
-            "approved_preflight_dry_run_validated",
-            "db_admin_tool",
-            "dry_run_preflight_completed",
-            "github_issue_labels_exact_readback_v1",
-            "github_issue_labels_list_readback_v1",
-            "github_list_issue_labels",
-            "github_pr_state_readback_v1",
-            "github_rest_endpoint_dispatch",
-            "github_update_pull_request",
-            "live_execution_approved",
-            "mutation_preflight_required",
-            "ptdb_github_rest_dispatch_label_remove",
-            "ptdb_github_rest_dispatch_labels_add",
-            "ptdb_github_rest_dispatch_labels_list",
-            "ptdb_github_rest_dispatch_labels_set",
-            "ptdb_github_rest_dispatch_pr_update",
-            "requires_runtime_preflight",
-            "requires_same_cycle_readback",
-            "same_cycle_readback_required"
+            "github_rest_endpoint_dispatch"
           ]
         }
       ],
@@ -876,12 +857,12 @@
     },
     {
       "migration_file": "1023_sprint69_sql_cache_runtime_policy.sql",
-      "migration_sha256": "7ee1213176aeed389d412448d9bd9f86cabb65953e862266dd3d4cce83307efc",
+      "migration_sha256": "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "high_review",
-      "gap_severity_at_attestation": "medium",
+      "queue_class_at_attestation": "low_review",
+      "gap_severity_at_attestation": "none",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 2,
@@ -1234,66 +1215,23 @@
     },
     {
       "migration_file": "1026_sprint69_github_actions_runs_read_dispatch.sql",
-      "migration_sha256": "911073a565b2aadc1c1a78bb9489c290b187a036b128cd1a986a5418577a53d9",
+      "migration_sha256": "6cffc1fa244dc6ed86e3d0a63a4e8c1bea28d5de9e9e940d38ca43f265d1810c",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
-      "evidence_mode": "checksum_bound_human_review",
-      "review_status": "approved_checksum_bound_internal_sql",
-      "reviewed_by": "platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4",
-      "reviewed_at": "2026-07-05T22:40:00Z",
-      "rationale": "Human review confirmed that the checksum-bound migration only registers read-only GitHub Actions workflow-run endpoint metadata in internal registry tables and schemas. It does not execute the endpoint, call GitHub, read credential payloads, include raw secrets, send externally, write externally, deploy, or authorize migration execution. The route-like surface is documented for OpenAPI and runtime binding review only.",
-      "execution_authorized": false,
-      "queue_class_at_attestation": "critical_review",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 5,
-      "accepted_preflight_risks": {},
-      "accepted_forbidden_patterns": [],
-      "required_sql_fragments": [
-        "github_list_workflow_runs_for_repo",
-        "/repos/{owner}/{repo}/actions/runs",
-        "ACT-GH-REST-043",
-        "github_actions_runs_read",
-        "github_actions_workflow_runs_list",
-        "github_actions_runs_list_readback_v1",
-        "ptdb_github_rest_dispatch_workflow_runs_list",
-        "method_and_path_from_endpoints_only",
-        "same_cycle_readback_required",
-        "caller_supplied_authorization_forbidden"
-      ],
       "surface_counts": {
         "plugins": 0,
-        "tools": 12,
+        "tools": 0,
         "views": 0,
         "policies": 0,
         "routes": 1
       },
-      "runtime_reviews": [
-        {
-          "action_key": "review_openapi_contract",
-          "targets": [
-            "/repos/{owner}/{repo}/actions/runs"
-          ]
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "targets": [
-            "1026_sprint69_github_actions_runs_read_dispatch",
-            "db_admin_tool",
-            "exclude_pull_requests",
-            "github_actions_runs_list_readback_v1",
-            "github_actions_workflow_runs_list",
-            "github_list_workflow_runs_for_repo",
-            "github_rest_endpoint_dispatch",
-            "mutation_preflight_required",
-            "ptdb_github_rest_dispatch_workflow_runs_list",
-            "requires_runtime_preflight",
-            "requires_same_cycle_readback",
-            "same_cycle_readback_required"
-          ]
-        }
-      ],
+      "runtime_reviews": [],
       "safety_markers": {
         "no_provider_call": true,
         "no_credential_payload_read": true,
@@ -1310,19 +1248,11 @@
         "external_sends": false,
         "deploys": false,
         "secrets_included": false
-      },
-      "migration_effects": {
-        "internal_database_write": true,
-        "schema_mutation": false,
-        "external_write": false,
-        "provider_call": false,
-        "credential_payload_read": false,
-        "secrets_included": false
       }
     },
     {
       "migration_file": "1026_sprint69_repository_reconciliation_automation.sql",
-      "migration_sha256": "288babca148977b93d172e8a9cfe2681070a506fe3b7cf43b1d48ab498f609f2",
+      "migration_sha256": "6111029cd9dd026da815f2a4816cadb2e37d9a8a39fc2a51806034a31778e667",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_human_review",
@@ -1354,7 +1284,7 @@
         "'migration_apply_allowed',FALSE",
         "'automatic_activation_allowed',FALSE",
         "'recipe_status','planned'",
-        "'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return')"
+        "'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','caller_supplied_lease_authority','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return')"
       ],
       "surface_counts": {
         "plugins": 0,
@@ -2219,18 +2149,18 @@
     },
     {
       "migration_file": "1038_sprint69_github_actions_workflow_control_dispatch.sql",
-      "migration_sha256": "163085b3b9f80b1dc6a3339d8e43dfb5455c34a4cec3a371365a754d45016ef2",
+      "migration_sha256": "9f80c0b852f448825c218f762f1d35e3de2cb12c008396dda8fab51c48605766",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "critical_review",
+      "queue_class_at_attestation": "high_review",
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 8,
       "surface_counts": {
         "plugins": 0,
-        "tools": 17,
+        "tools": 0,
         "views": 0,
         "policies": 1,
         "routes": 3
@@ -2240,28 +2170,6 @@
           "action_key": "verify_policy_seed_readiness",
           "targets": [
             "missing_endpoint_registry_first_policy_v1"
-          ]
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "targets": [
-            "1038_sprint69_github_actions_workflow_control_dispatch",
-            "admin_platform_endpoint_tools",
-            "db_admin_tool",
-            "execution_readiness",
-            "github_actions_workflow_control_readback_v1",
-            "github_create_workflow_dispatch",
-            "github_rest_endpoint_dispatch",
-            "mutation_preflight_required",
-            "platform_endpoint_tool_exports",
-            "platform_tool_dispatch_bindings",
-            "ptdb_github_rest_dispatch_",
-            "required_readback",
-            "requires_runtime_preflight",
-            "requires_same_cycle_readback",
-            "same_cycle_readback_required",
-            "same_cycle_runtime_preflight",
-            "system_layer_tools"
           ]
         }
       ],
@@ -3219,12 +3127,12 @@
     },
     {
       "migration_file": "20260704_platform_resource_authority_grant_tool.sql",
-      "migration_sha256": "80e407bea72401c6e284cd3080fddbee144bd315ecc06694defcd7763a54a410",
+      "migration_sha256": "b4b92c27329cb7099ecc63d1c04c8332b3cfe26c66d7a55538f005d976fa03c3",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "critical_review",
-      "gap_severity_at_attestation": "high",
+      "queue_class_at_attestation": "low_review",
+      "gap_severity_at_attestation": "none",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 2,
@@ -3239,7 +3147,7 @@
         {
           "action_key": "verify_tool_registry_binding",
           "targets": [
-            "20260704_platform_resource_authority_grant_tool"
+            "platform_resource_authority_grant_apply"
           ]
         }
       ],
@@ -3501,67 +3409,6 @@
       }
     },
     {
-      "migration_file": "20260709_tenant_resolution_registry_schema.sql",
-      "migration_sha256": "553d90eb41fdde473f73552ef28b6290a62ddd42cef252072a2df93614a236db",
-      "checksum_canonicalization": "utf8_lf_v1",
-      "attestation_status": "verified_static_no_external_side_effects",
-      "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "critical_review",
-      "gap_severity_at_attestation": "medium",
-      "preflight_status": "pass",
-      "preflight_risk_count": 0,
-      "statement_count": 5,
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 18,
-        "views": 0,
-        "policies": 0,
-        "routes": 0
-      },
-      "runtime_reviews": [
-        {
-          "action_key": "verify_tool_registry_binding",
-          "targets": [
-            "apply_tool_key",
-            "budget_preflight_only",
-            "closeout_requires_readback",
-            "connector_runtime_readiness",
-            "decision_tool_key",
-            "diagnostic_tool_key",
-            "fk_tenant_resolution_readbacks_case",
-            "google_ads_setup_preflight",
-            "google_ads_setup_preflight_v1",
-            "idx_tenant_resolution_readbacks_case_created",
-            "idx_tenant_resolution_readbacks_playbook_decision",
-            "last_preflight_json",
-            "local_command_dispatch_allowed",
-            "readback_tool_key",
-            "tenant_resolution_readback",
-            "tenant_resolution_readbacks",
-            "tenant_skill_approval_decision_v1",
-            "uq_tenant_resolution_readbacks_readback_id"
-          ]
-        }
-      ],
-      "safety_markers": {
-        "no_provider_call": true,
-        "no_credential_payload_read": true,
-        "no_raw_secrets": true,
-        "no_external_send": true,
-        "no_external_write": true,
-        "secrets_included_false": true
-      },
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "20260710_repo_conflict_intelligence.sql",
       "migration_sha256": "54f38805f95041d459ef8553dd2ee954973823e8a66a6f7abb5cd851ca5215f2",
       "checksum_canonicalization": "utf8_lf_v1",
@@ -3725,23 +3572,30 @@
     },
     {
       "migration_file": "20260711_transactional_outbox_shadow_sync_foundation.sql",
-      "migration_sha256": "7b721841e6c876ab2f03dedb8affca6ceb37d0c31172cd4706207eb528d1df05",
+      "migration_sha256": "6eb9bd78d097b18537fbd40c0ab933302046b247f0704b100b953fd71e4c4ee4",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "critical_review",
-      "gap_severity_at_attestation": "high",
+      "queue_class_at_attestation": "low_review",
+      "gap_severity_at_attestation": "none",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 8,
       "surface_counts": {
         "plugins": 0,
-        "tools": 0,
+        "tools": 1,
         "views": 0,
         "policies": 0,
         "routes": 1
       },
-      "runtime_reviews": [],
+      "runtime_reviews": [
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "platform_outbox_worker"
+          ]
+        }
+      ],
       "safety_markers": {
         "no_provider_call": true,
         "no_credential_payload_read": true,
@@ -5072,38 +4926,23 @@
     },
     {
       "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
-      "migration_sha256": "b64bd583f01e849fedb391b689acbc573053fa881fe1ad1f99d3636fd53549ae",
+      "migration_sha256": "5f3b09807002eb76864e7c3bf1e16ac8d52369fbbdbc5a67c481e218c5e2d866",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
-      "queue_class_at_attestation": "critical_review",
+      "queue_class_at_attestation": "high_review",
       "gap_severity_at_attestation": "high",
       "preflight_status": "pass",
       "preflight_risk_count": 0,
       "statement_count": 4,
       "surface_counts": {
         "plugins": 0,
-        "tools": 9,
+        "tools": 0,
         "views": 0,
         "policies": 0,
         "routes": 1
       },
-      "runtime_reviews": [
-        {
-          "action_key": "verify_tool_registry_binding",
-          "targets": [
-            "20260718_github_list_issue_comments_endpoint",
-            "db_admin_tool",
-            "github_issue_comments_list_readback_v1",
-            "github_list_issue_comments",
-            "github_rest_endpoint_dispatch",
-            "ptdb_github_rest_dispatch_issue_comments_list",
-            "requires_runtime_preflight",
-            "requires_same_cycle_readback",
-            "same_cycle_readback_required"
-          ]
-        }
-      ],
+      "runtime_reviews": [],
       "safety_markers": {
         "no_provider_call": true,
         "no_credential_payload_read": true,
@@ -7319,6 +7158,238 @@
             "v_remaining_tenant_runtime_lifecycle_gap_readiness",
             "v_wordpress_action_surface_contract",
             "v_wordpress_action_surface_reconciliation"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260811_runtime_break_glass_authority_metadata_v1.sql",
+      "migration_sha256": "3031712f8443a625e20c7caba09719c5a0203edcd90a368328bd355266cd2a69",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 2,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 0,
+        "policies": 1,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "runtime_break_glass_bounded_file_patch_apply_policy_v1"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260812_dynamic_canonical_resource_registry.sql",
+      "migration_sha256": "1ced4a0e5df432e452421a0f35db7f969ea496af09f73ad62676b1bc8f27acfb",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "medium_review",
+      "gap_severity_at_attestation": "low",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 3,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_canonical_resource_activation_registry"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260812_resource_surface_policy_decisions_consolidated.sql",
+      "migration_sha256": "e4427cd06efadcd099cbf4f26e268412ec3a9072e6fccd6e7f515d8866bb4827",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 1,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 2,
+        "policies": 1,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "platform_resource_api_coverage_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_canonical_resource_activation_registry",
+            "v_repository_reconciliation_apply_readiness"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+      "migration_sha256": "701537932b947424c0fb19634bcb2202e9e3042e9a261508d1ea21aff80f4953",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "medium_review",
+      "gap_severity_at_attestation": "low",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 16,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 6,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_platform_virtual_tool_bindings_classified",
+            "v_platform_virtual_tool_bindings_current",
+            "v_platform_virtual_tool_capabilities_current",
+            "v_platform_virtual_tool_capability_gaps",
+            "v_platform_virtual_tool_exports_current",
+            "v_platform_virtual_tool_identity_resolution"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260815_platform_configuration_catalog_and_resolver.sql",
+      "migration_sha256": "cc4672125fea34f1ce363c8989a47b0277e336fa16afeec43f6333ea915f2379",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "medium_review",
+      "gap_severity_at_attestation": "low",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 3,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_bootstrap_only"
           ]
         }
       ],
