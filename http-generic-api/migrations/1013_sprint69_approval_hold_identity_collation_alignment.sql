@@ -219,15 +219,15 @@ FROM (
 CROSS JOIN (
   SELECT COUNT(*) AS orphan_reference_count
   FROM (
-    SELECT c.approval_hold_id AS hold_id FROM ads_provider_profile_onboarding_requests c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM execution_enablement_requests c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM growth_intelligence_actions c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM local_gateway_tool_call_log c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM repository_advisory_comment_plans c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM repository_mutation_plans_v6 c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM repository_mutation_runs_v6 c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE h.hold_id IS NULL
-    UNION ALL SELECT c.hold_id FROM tenant_ssh_cli_approval_requests c LEFT JOIN approval_holds h ON h.hold_id = c.hold_id WHERE h.hold_id IS NULL
-    UNION ALL SELECT c.approval_hold_id FROM ticket_workflow_links c LEFT JOIN approval_holds h ON h.hold_id = c.approval_hold_id WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS hold_id FROM ads_provider_profile_onboarding_requests c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM execution_enablement_requests c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM growth_intelligence_actions c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM local_gateway_tool_call_log c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM repository_advisory_comment_plans c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM repository_mutation_plans_v6 c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM repository_mutation_runs_v6 c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM tenant_ssh_cli_approval_requests c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE h.hold_id IS NULL
+    UNION ALL SELECT CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM ticket_workflow_links c LEFT JOIN approval_holds h ON CONVERT(h.hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(c.approval_hold_id USING utf8mb4) COLLATE utf8mb4_unicode_ci WHERE c.approval_hold_id IS NOT NULL AND h.hold_id IS NULL
   ) orphan_rows
 ) orphan_metrics;
 
