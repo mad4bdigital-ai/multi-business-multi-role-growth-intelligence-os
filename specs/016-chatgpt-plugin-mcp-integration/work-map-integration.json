@@ -1,11 +1,14 @@
+Warning: truncated output (original token count: 10876)
+Total output lines: 1511
+
 {
   "schema_version": 1,
   "feature_key": "016-chatgpt-plugin-mcp-integration",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "f5f8c40b425034703baf2473fec5ef61c5fd18d74df63f1bec9931bc1118af2b",
-    "index_source_hash": "d93f95a155ff4a6ab03c8315d7d7ed4ef5dbcf8d1205589541f7a394bc1d505f",
-    "coverage_source_hash": "a3c3932511ea2c4afa69d2a3a40925d5b7e50262ab48025bcf7c3189fc20265f",
+    "fingerprint": "900011488a9c2d556079f957e8fbb5774f2e6e60d0fd683f79ffb14d23162cfc",
+    "index_source_hash": "6031ad85143cefa2b06277a8856ff7589c98f33ad30e27eb5e28a51d4112478d",
+    "coverage_source_hash": "1d06930c3349d8238fdc6928e60ca977a935d68c1e361ba1d1bd90327313e3f9",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
@@ -748,139 +751,7 @@
       }
     },
     "policy-authority-map": {
-      "decision": "integrate",
-      "rationale": "Scopes, client eligibility, tool visibility, confirmation, external effects, destructive actions, privacy, and tenant rollout require policy authority.",
-      "owner": "platform-team",
-      "integration_points": [
-        "OAuth scopes",
-        "tool policy",
-        "confirmation",
-        "tenant rollout",
-        "privacy"
-      ],
-      "requirement_refs": [
-        "FR-007",
-        "FR-015",
-        "FR-016",
-        "FR-021"
-      ],
-      "task_refs": [
-        "T014",
-        "T015",
-        "T027",
-        "T028"
-      ],
-      "acceptance_refs": [
-        "traceability.md#user-journeys-to-acceptance-evidence",
-        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
-      ],
-      "evidence_refs": [
-        "spec.md#actors-and-authority",
-        "checklists/security.md"
-      ],
-      "depends_on": [],
-      "generated_relevance": {
-        "score": 66,
-        "matched_terms": [
-          "activation",
-          "actor",
-          "assets",
-          "authority",
-          "block",
-          "brands",
-          "classification",
-          "connectors",
-          "context",
-          "count",
-          "coverage",
-          "database",
-          "delivery",
-          "development",
-          "discovered",
-          "documentation",
-          "domain",
-          "end",
-          "evidence",
-          "existing"
-        ],
-        "candidate": "likely_relevant"
-      }
-    },
-    "repository-automation-map": {
-      "decision": "integrate",
-      "rationale": "Contract validation, annotation parity, metadata fingerprinting, exact-head evidence, package validation, and no-secret scans require repository automation.",
-      "owner": "platform-team",
-      "integration_points": [
-        "schema validation",
-        "metadata drift",
-        "package validation",
-        "secret scan"
-      ],
-      "requirement_refs": [
-        "FR-013",
-        "FR-027",
-        "NFR-010",
-        "NFR-011"
-      ],
-      "task_refs": [
-        "T003",
-        "T005",
-        "T030",
-        "T039"
-      ],
-      "acceptance_refs": [
-        "traceability.md#user-journeys-to-acceptance-evidence",
-        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
-      ],
-      "evidence_refs": [
-        "testing-strategy.md#static-contract-validation",
-        "traceability.md"
-      ],
-      "depends_on": [],
-      "generated_relevance": {
-        "score": 179,
-        "matched_terms": [
-          "activation",
-          "admin",
-          "alert",
-          "api",
-          "apply",
-          "artifact",
-          "assets",
-          "authority",
-          "authorization",
-          "authorize",
-          "authorized",
-          "automation",
-          "backfill",
-          "baseline",
-          "blocks",
-          "branch",
-          "brand",
-          "build",
-          "canary",
-          "candidate"
-        ],
-        "candidate": "likely_relevant"
-      }
-    },
-    "repository-development-map": {
-      "decision": "integrate",
-      "rationale": "Multi-PR delivery, SDK adoption, compatibility changes, generated contracts, CI, review, and release evidence use existing development governance.",
-      "owner": "platform-team",
-      "integration_points": [
-        "multi-PR plan",
-        "dependency pinning",
-        "CI",
-        "review"
-      ],
-      "requirement_refs": [
-        "FR-003",
-        "FR-004",
-        "NFR-010"
-      ],
-      "task_refs": [
-        "T006",
+      "d…876 tokens truncated…   "T006",
         "T019",
         "T020"
       ],
