@@ -545,6 +545,38 @@ function fakeReadinessRepairResult(mode) {
 {
   await assert.rejects(
     () => runGovernedMigrationExecution(baseInput(), {
+      executionId: "incident-20260815",
+      execFile: async () => {
+        const error = new Error("runner failed");
+        error.code = 1;
+        error.stderr = JSON.stringify({
+          ok: false,
+          error: {
+            code: "governed_migration_runner_unhandled_failure",
+            name: "Error",
+            message: `Migration is not authorized for governed runner: ${MIGRATION} (authorization_registry_row_missing)`,
+          },
+          secrets_included: false,
+        });
+        throw error;
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, "governed_migration_authorization_required");
+      assert.equal(error.status, 409);
+      assert.equal(error.details.execution_id, "incident-20260815");
+      assert.equal(error.details.runner_error_code, "governed_migration_runner_unhandled_failure");
+      assert.equal(error.details.authorization_reason, "authorization_registry_row_missing");
+      assert.equal(error.details.authorization_required, true);
+      assert.equal(error.details.secrets_included, false);
+      return true;
+    },
+  );
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput(), {
       executionId: "incident-225",
       timeoutMs: 25,
       execFile: async () => {
