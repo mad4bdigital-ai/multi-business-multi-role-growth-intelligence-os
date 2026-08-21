@@ -233,6 +233,7 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(launcher, /approval-manifest\.json/u);
   assert.match(launcher, /select\(\.head_sha == \$cut\)/u);
   assert.match(launcher, /--arg cut "\$RELEASE_CUT_SHA"/u);
+  assert.doesNotMatch(launcher, /--arg candidate "\$CANDIDATE_SHA" -r/u);
   const r7 = read(".github/workflows/hostinger-production-runtime-readback-r7.yml");
   assert.match(r7, /production-r7-decision\.mjs/u);
   assert.match(r7, /public_get_only: true/u);
