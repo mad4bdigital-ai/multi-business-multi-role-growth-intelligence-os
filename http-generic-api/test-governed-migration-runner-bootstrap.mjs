@@ -14,7 +14,7 @@ async function runBootstrap(tempDir) {
   try {
     await execFileAsync(process.execPath, [path.join(tempDir, "governed-migration-runner-bootstrap.mjs")], {
       cwd: tempDir,
-      env: { ...process.env, GOVERNED_MIGRATION_EXECUTION_ID: "bootstrap-test" },
+      env: { ...process.env },
       maxBuffer: 1024 * 1024,
     });
     assert.fail("bootstrap wrapper should fail for the fixture");

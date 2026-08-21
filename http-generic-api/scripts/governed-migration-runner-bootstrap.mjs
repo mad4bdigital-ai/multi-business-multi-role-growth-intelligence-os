@@ -6,7 +6,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RUNNER_PATH = path.join(__dirname, "governed-migration-runner.mjs");
-const executionId = String(process.env.GOVERNED_MIGRATION_EXECUTION_ID || "").trim() || null;
 const startedAt = Date.now();
 
 function safeMessage(error) {
@@ -27,7 +26,6 @@ function failurePayload(error, stage, runnerExists = null) {
       stage,
       runner_path: RUNNER_PATH,
       runner_exists: runnerExists,
-      execution_id: executionId,
       duration_ms: Math.max(0, Date.now() - startedAt),
     },
     secrets_included: false,
