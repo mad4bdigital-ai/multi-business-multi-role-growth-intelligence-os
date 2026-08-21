@@ -19,7 +19,8 @@
       "http-generic-api/test-staging-autopilot-closure.mjs",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/deployment-branch-policy.json",
-      "http-generic-api/config/repository-governance-constitution.json"
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "merge_contract": {
@@ -108,7 +109,8 @@
             "http-generic-api/test-staging-auto-deploy-contract.mjs",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/deployment-branch-policy.json",
-            "http-generic-api/config/repository-governance-constitution.json"
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
