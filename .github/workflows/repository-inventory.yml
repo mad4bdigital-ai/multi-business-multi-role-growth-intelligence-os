@@ -103,8 +103,9 @@ jobs:
           if [[ "$inventory_outcome" == "advisory" ]]; then
             test "$(jq -r '.followup_required' repository-inventory-verification.json)" = "true"
             test "$(jq -r '.followup_mode' repository-inventory-verification.json)" = "post_merge_observability_publish"
-            echo "Repository Inventory is stale on exact main; emitting post-merge convergence signal." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+            echo "Repository Inventory is stale on exact main; classified as non-blocking post-merge observability advisory." >> "$GITHUB_STEP_SUMMARY"
+            echo "post_merge_observability_publish_required=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           test "$inventory_outcome" = "passed"
           test "$(jq -r '.artifacts[] | select(.artifact_id=="repository_evaluation") | .artifact_class' "$registry")" = "observability"

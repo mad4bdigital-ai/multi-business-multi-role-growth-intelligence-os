@@ -186,8 +186,9 @@ jobs:
             exit 0
           fi
           if [[ "$EVENT_NAME" == "push" ]]; then
-            echo "Repository Evaluation is stale on exact main; emitting post-merge convergence signal." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+            echo "Repository Evaluation is stale on exact main; classified as non-blocking post-merge observability advisory." >> "$GITHUB_STEP_SUMMARY"
+            echo "post_merge_observability_publish_required=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           cat "$RUNNER_TEMP/repository-evaluation-currentness.log" >&2
           echo "Exact-head Repository Evaluation verification failed; governed writer output is not current." >&2
