@@ -85,10 +85,30 @@ CREATE TABLE IF NOT EXISTS external_prompt_artifact_registry (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS memory_scope_type_registry (
-  scope_type VARCHAR(64) NOT NULL PRIMARY KEY, priority INT NOT NULL,
+  scope_type VARCHAR(64) NOT NULL PRIMARY KEY,
+  priority INT NOT NULL DEFAULT 0,
   cross_scope_default ENUM('deny','allow_read') NOT NULL DEFAULT 'deny',
-  status ENUM('active','disabled') NOT NULL DEFAULT 'active', notes TEXT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  display_name VARCHAR(160) NULL,
+  description TEXT NULL,
+  scope_layer VARCHAR(64) NOT NULL DEFAULT 'platform',
+  identity_table VARCHAR(128) NULL,
+  identity_key_column VARCHAR(128) NULL,
+  parent_scope_type VARCHAR(64) NULL,
+  supports_tenant_id TINYINT(1) NOT NULL DEFAULT 0,
+  supports_user_id TINYINT(1) NOT NULL DEFAULT 0,
+  supports_workspace_key TINYINT(1) NOT NULL DEFAULT 0,
+  supports_brand_key TINYINT(1) NOT NULL DEFAULT 0,
+  supports_activity_type_key TINYINT(1) NOT NULL DEFAULT 0,
+  supports_role_key TINYINT(1) NOT NULL DEFAULT 0,
+  default_visibility_scope VARCHAR(64) NOT NULL DEFAULT 'platform_admin',
+  approval_required TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('active','disabled','archived') NOT NULL DEFAULT 'active',
+  metadata_json LONGTEXT NULL CHECK (JSON_VALID(metadata_json) OR metadata_json IS NULL),
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_memory_scope_layer_status (scope_layer, status),
+  KEY idx_memory_scope_parent (parent_scope_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS memory_scope_links (

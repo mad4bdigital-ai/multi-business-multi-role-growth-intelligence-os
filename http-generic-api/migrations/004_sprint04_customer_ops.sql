@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `customers` (
   UNIQUE KEY `uq_customer_id` (`customer_id`),
   KEY `idx_tenant` (`tenant_id`),
   KEY `idx_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `contacts` (
   `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `contacts` (
   UNIQUE KEY `uq_contact_id` (`contact_id`),
   KEY `idx_customer` (`customer_id`),
   KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `threads` (
   `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS `threads` (
   KEY `idx_tenant` (`tenant_id`),
   KEY `idx_customer` (`customer_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `tickets` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -67,6 +67,19 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   `assigned_to`   VARCHAR(36) NULL,
   `service_mode`  ENUM('self_serve','assisted','managed') NOT NULL DEFAULT 'self_serve',
   `metadata_json` TEXT NULL,
+  `occurrence_count` INT NOT NULL DEFAULT 0,
+  `is_test` TINYINT(1) NOT NULL DEFAULT 0,
+  `environment` VARCHAR(32) NOT NULL DEFAULT 'production',
+  `visibility_class` VARCHAR(64) NOT NULL DEFAULT 'customer_visible',
+  `target_capability` VARCHAR(191) NULL,
+  `related_ticket_id` VARCHAR(64) NULL,
+  `parent_ticket_id` VARCHAR(64) NULL,
+  `supersedes_ticket_id` VARCHAR(64) NULL,
+  `first_response_due_at` DATETIME NULL,
+  `triage_due_at` DATETIME NULL,
+  `first_response_at` DATETIME NULL,
+  `triaged_at` DATETIME NULL,
+  `last_seen_at` DATETIME NULL,
   `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -75,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   KEY `idx_customer` (`customer_id`),
   KEY `idx_status` (`status`),
   KEY `idx_category` (`category`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `timeline_events` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -96,4 +109,4 @@ CREATE TABLE IF NOT EXISTS `timeline_events` (
   KEY `idx_customer` (`customer_id`),
   KEY `idx_ticket` (`ticket_id`),
   KEY `idx_type` (`event_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;

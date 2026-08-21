@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7248,
+  "file_count": 7258,
   "route_count": 1076,
   "write_route_count": 654,
   "classified_write_surface_count": 38,
@@ -52180,6 +52180,7 @@
       "path": "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql",
       "tables": [
         "partial",
+        "CURRENT_TIMESTAMP",
         "session_turns",
         "gpt_session_turns",
         "admin_platform_endpoint_tools",

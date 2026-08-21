@@ -1,0 +1,7 @@
+{
+  "surface_key": "tickets",
+  "source_table": "tickets",
+  "reason": "Excluded because ticket lifecycle persistence is not itself an Activation surface; tenant-visible ticket operations require a separately governed API and object-level authorization contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

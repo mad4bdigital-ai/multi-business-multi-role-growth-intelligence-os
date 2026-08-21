@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7242,
-    "bytes": 70629700,
-    "lines": 1656054,
+    "files": 7252,
+    "bytes": 70686207,
+    "lines": 1657132,
     "directories": 266,
     "categories": 13
   },
@@ -13,9 +13,9 @@
     "byCategory": {
       "tests-and-specs": 2164,
       "documentation": 1909,
-      "api-runtime": 1454,
+      "api-runtime": 1463,
       "database-migrations": 783,
-      "root-and-other": 312,
+      "root-and-other": 313,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 123,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1719,
+      ".mjs": 1720,
       ".js": 995,
-      ".json": 830,
+      ".json": 839,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3721,
+      "http-generic-api": 3730,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
-      ".changes": 281,
+      ".changes": 282,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 21,
@@ -269,8 +269,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936125,
-      "lines": 58551
+      "bytes": 1936154,
+      "lines": 58552
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",

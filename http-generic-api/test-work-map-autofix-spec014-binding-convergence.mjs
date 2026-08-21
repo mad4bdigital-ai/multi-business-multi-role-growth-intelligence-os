@@ -198,7 +198,12 @@ assert.ok(
 assert.match(workflow, /manifest_feature_key="\$\(jq -er '\.feature_key' "\$\{binding_path\}"\)"/u);
 assert.match(workflow, /review_state="\$\(jq -er '\.review_state' "\$\{binding_path\}"\)"/u);
 assert.match(workflow, /test "\$\{manifest_feature_key\}" = "\$\{feature_key\}"/u);
-assert.match(workflow, /test "\$\{review_state\}" = "ready_for_implementation"/u);
+assert.match(workflow, /"\$\{review_state\}" = "ready_for_implementation"/u);
+assert.match(
+  workflow,
+  /"\$\{review_state\}" = "draft" && "\$\{implementation_status\}" = "blocked" && "\$\{secrets_included\}" = "false"/u,
+  "draft manifests may enter only secret-free blocked governance-only refresh scope",
+);
 const metadataIndex = workflow.indexOf('gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta}"');
 const capIndex = workflow.indexOf("if (( expected_changed_files > 3000 )); then");
 const immutableInventoryIndex = workflow.indexOf('git diff --name-only --find-renames "${expected_base_sha}...${EXPECTED_HEAD_SHA}"');

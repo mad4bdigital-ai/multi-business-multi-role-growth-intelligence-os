@@ -1,0 +1,146 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-batch-baseline-column-contracts",
+  "title": "Close all ordered pre-use baseline column gaps before Staging schema replay",
+  "delivery_mode": "single_pr",
+  "merge_contract": { "minimum_phase": "mvp" },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-batch-baseline-column-contracts.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      "http-generic-api/scripts/single-owner-review-gate.mjs",
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      "http-generic-api/test-single-owner-review-gate.mjs",
+      "http-generic-api/test-work-map-autofix-diagnostics.mjs",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/migrations/004_sprint04_customer_ops.sql",
+      "http-generic-api/migrations/009_sprint05_logic_graph.sql",
+      "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql",
+      "http-generic-api/migrations/20260709_tenant_resolution_registry_schema.sql",
+      "http-generic-api/migrations/20260711_transactional_outbox_shadow_sync_foundation.sql",
+      "http-generic-api/migrations/20260720_dynamic_growth_control_plane_foundation.sql",
+      "http-generic-api/migrations/245_sprint68_agent_governance_runtime.sql",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs",
+      "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
+      "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+      "http-generic-api/activation-surfaces/exclusions/customers.json",
+      "http-generic-api/activation-surfaces/exclusions/contacts.json",
+      "http-generic-api/activation-surfaces/exclusions/threads.json",
+      "http-generic-api/activation-surfaces/exclusions/tickets.json",
+      "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
+      "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
+      "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
+      "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the complete ordered baseline and migration chain replay-compatible, fail closed before disposable MariaDB execution, and preserve the three-database Staging-only bootstrap boundary.",
+      "e2e_journeys": [
+        {
+          "id": "ordered-preuse-baseline-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "The exact local checkout runs the repository ordered pre-use audit, validates manifest-declared canonical CREATE contracts, then applies schema.sql and all 783 lexicographically ordered migrations in disposable MariaDB.",
+          "terminal_outcome": "All audited missing-column pre-use gaps are zero; the generator can proceed to canonical seed lifecycle and role-aware schema bundle construction without successive unknown-column failures.",
+          "steps": [
+            "The ordered audit tracks CREATE, DROP, ALTER, INSERT, UPDATE, DELETE, and FROM/JOIN state in baseline-then-lexicographic order.",
+            "Same-statement ALTER predecessors are excluded from the blocking missing-column result, while string literals are removed from DML column and FROM/JOIN detection.",
+            "Canonical DDL is widened for brand_core, endpoints, task_routes, workflows, admin/tenant endpoint tools, tickets, logic_definitions, tenant_resolution_cases, memory_scope_type_registry, and platform_outbox_event_types.",
+            "The manifest declares full baseline column contracts and the exact source file for each canonical CREATE, including separate admin and tenant endpoint-tool DDL.",
+            "The generator validates those contracts and runs the ordered audit before confirmation and before any Docker database mutation.",
+            "Plan evidence records 783 migrations, zero missing-column gaps, and the known non-blocking missing-table diagnostic count.",
+            "Production, Hostinger, Cloudflare, providers, data copy, and external mutations remain forbidden."
+          ],
+          "assertions": [
+            "The ordered audit reports missing_column_gaps equal to zero after all batch DDL repairs.",
+            "The generator fails closed when a manifest-declared canonical table, inherited table source, or required column is absent.",
+            "The generator fails closed when a future migration introduces an ordered missing-column pre-use gap.",
+            "The manifest and plan evidence contain all eleven batch contract sources.",
+            "Regression tests cover the full lifecycle, governance, memory, endpoint overlay, outbox, and tenant-resolution contracts.",
+            "Schema-only and three-role isolation policies remain unchanged.",
+            "No plaintext secret or external mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-batch-baseline-column-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-batch-baseline-column-contracts.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            "http-generic-api/scripts/single-owner-review-gate.mjs",
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-single-owner-review-gate.mjs",
+            "http-generic-api/test-work-map-autofix-diagnostics.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/migrations/004_sprint04_customer_ops.sql",
+            "http-generic-api/migrations/009_sprint05_logic_graph.sql",
+            "http-generic-api/migrations/050_sprint47e_fix_schema_drift.sql",
+            "http-generic-api/migrations/20260709_tenant_resolution_registry_schema.sql",
+            "http-generic-api/migrations/20260711_transactional_outbox_shadow_sync_foundation.sql",
+            "http-generic-api/migrations/20260720_dynamic_growth_control_plane_foundation.sql",
+            "http-generic-api/migrations/245_sprint68_agent_governance_runtime.sql",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs",
+            "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
+            "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+            "http-generic-api/activation-surfaces/exclusions/customers.json",
+            "http-generic-api/activation-surfaces/exclusions/contacts.json",
+            "http-generic-api/activation-surfaces/exclusions/threads.json",
+            "http-generic-api/activation-surfaces/exclusions/tickets.json",
+            "http-generic-api/activation-surfaces/exclusions/timeline_events.json",
+            "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
+            "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
+            "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

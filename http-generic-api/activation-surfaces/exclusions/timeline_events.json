@@ -1,0 +1,7 @@
+{
+  "surface_key": "timeline_events",
+  "source_table": "timeline_events",
+  "reason": "Excluded because timeline event persistence is an internal customer-operations table and is not an Activation surface; future readback must be introduced through a bounded governed contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

@@ -255,3 +255,74 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
 });
+
+
+test("batch baseline contracts cover every ordered pre-use column repair", () => {
+  const contracts = manifest.validation.baseline_column_contract_sources;
+  assert.ok(contracts && typeof contracts === "object");
+  const expectedTables = [
+    "admin_platform_endpoint_tools",
+    "tenant_platform_endpoint_tools",
+    "brand_core",
+    "tickets",
+    "workflows",
+    "task_routes",
+    "logic_definitions",
+    "memory_scope_type_registry",
+    "endpoints",
+    "platform_outbox_event_types",
+    "tenant_resolution_cases",
+  ];
+  assert.deepEqual(Object.values(contracts).map((entry) => entry.table), expectedTables);
+  for (const [contractKey, source] of Object.entries(contracts)) {
+    const columns = manifest.validation[contractKey];
+    assert.ok(Array.isArray(columns) && columns.length > 0, `${contractKey} must declare columns`);
+    const sourceSql = fs.readFileSync(path.resolve(repoRoot, source.source_file), "utf8");
+    assert.match(sourceSql, /CREATE\s+TABLE/i, `${contractKey} canonical table definition missing`);
+    assert.ok(sourceSql.includes(source.table), `${contractKey} table name missing`);
+    if (source.inherits_from) {
+      assert.match(sourceSql, /LIKE/i);
+      assert.ok(sourceSql.includes(source.inherits_from));
+    }
+  }
+  assert.deepEqual(manifest.validation.required_admin_platform_endpoint_tools_baseline_columns, ["updated_at", "input_schema_json", "secrets_included"]);
+  assert.deepEqual(manifest.validation.required_tenant_platform_endpoint_tools_baseline_columns, ["updated_at", "input_schema_json", "secrets_included"]);
+  assert.deepEqual(manifest.validation.required_brand_core_baseline_columns, ["active_status"]);
+  assert.deepEqual(manifest.validation.required_logic_definitions_baseline_columns, ["source_url", "package_version", "skill_manifest"]);
+  assert.deepEqual(manifest.validation.required_endpoints_schema_overlay_baseline_columns, ["schema_overlay_status", "schema_overlay_notes"]);
+  assert.deepEqual(manifest.validation.required_platform_outbox_event_types_baseline_columns, ["aggregate_type", "active"]);
+  assert.deepEqual(manifest.validation.required_tenant_resolution_cases_baseline_columns, ["ticket_id"]);
+});
+
+test("batch baseline contracts include full lifecycle, governance, and memory columns", () => {
+  assert.deepEqual(manifest.validation.required_tickets_baseline_columns, [
+    "occurrence_count", "is_test", "environment", "visibility_class", "target_capability",
+    "related_ticket_id", "parent_ticket_id", "supersedes_ticket_id", "first_response_due_at",
+    "triage_due_at", "first_response_at", "triaged_at", "last_seen_at",
+  ]);
+  assert.deepEqual(manifest.validation.required_task_routes_baseline_columns, [
+    "required_variable_profile", "variable_contract_group", "supported_ingress_channels",
+    "requires_conversational_inference", "supports_structured_api_calls", "supported_model_providers",
+    "allowed_actor_roles", "allowed_governance_levels", "client_allowed", "team_allowed", "admin_only",
+    "brand_scope_enforced", "supported_languages", "translation_step_required", "locale_sensitive",
+  ]);
+  assert.deepEqual(manifest.validation.required_workflows_baseline_columns, [
+    "required_variable_profile", "input_contract_profile", "supported_ingress_channels",
+    "supports_structured_api_calls", "supported_model_providers", "model_adapter_required",
+    "allowed_actor_roles", "allowed_governance_levels", "client_allowed", "team_allowed", "admin_only",
+    "brand_scope_enforced", "supported_languages", "translation_step_required", "locale_sensitive",
+  ]);
+  assert.deepEqual(manifest.validation.required_memory_scope_type_registry_baseline_columns, [
+    "display_name", "description", "scope_layer", "identity_table", "identity_key_column", "parent_scope_type",
+    "supports_tenant_id", "supports_user_id", "supports_workspace_key", "supports_brand_key",
+    "supports_activity_type_key", "supports_role_key", "default_visibility_scope", "approval_required", "metadata_json",
+  ]);
+});
+
+test("generator preflight emits batch baseline contract evidence", () => {
+  assert.match(generator, /function baselineColumnContracts/);
+  assert.match(generator, /baseline_column_contract_sources/);
+  assert.match(generator, /function createTableLikeSource/);
+  assert.match(generator, /function baselineColumnExists/);
+  assert.match(generator, /baseline_column_contracts: baseline\.baseline_column_contracts/);
+});

@@ -1,0 +1,7 @@
+{
+  "surface_key": "adaptation_records",
+  "source_table": "adaptation_records",
+  "reason": "Excluded because logic adaptation persistence is an internal governance record and is not an Activation surface; any apply capability requires an explicit approval and readback contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

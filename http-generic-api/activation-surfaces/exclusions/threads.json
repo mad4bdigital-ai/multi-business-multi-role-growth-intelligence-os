@@ -1,0 +1,7 @@
+{
+  "surface_key": "threads",
+  "source_table": "threads",
+  "reason": "Excluded because thread persistence is an internal customer-operations table and is not an Activation surface; a future thread API must declare its own authorization and response contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

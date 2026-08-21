@@ -26,8 +26,13 @@ assert.match(
 );
 assert.match(
   validator,
-  /manifest\.review_state === "ready_for_implementation" \|\| !policy\.review_states\.includes\(manifest\.review_state\)/u,
+  /manifest\.review_state === "ready_for_implementation"\s*\|\|\s*!policy\.review_states\.includes\(manifest\.review_state\)/u,
   "validator must keep ready manifests and malformed review-state manifests in fail-closed registry refresh scope",
+);
+assert.match(
+  validator,
+  /manifest\.review_state === "draft"[\s\S]*manifest\.implementation_readiness\?\.status === "blocked"[\s\S]*manifest\.secrets_included === false/u,
+  "validator must include only blocked, secret-free draft manifests for governance-only maintenance refresh",
 );
 assert.match(
   validator,
@@ -41,6 +46,7 @@ for (const token of [
   "REGISTRY_REFRESH_REQUIRED",
   "registry_refresh_binding_candidates",
   "registry_refresh_binding_file",
+  "registry_refresh_skipped_binding_file",
   "writer_binding_file",
   "generator_preview_file",
   "generator_preview_exit_code",
@@ -62,6 +68,9 @@ assert.ok(
   "writer must derive the template trigger from policy rather than hardcoding a feature",
 );
 assert.ok(workflow.includes('registry_refresh_required=false'));
+assert.ok(workflow.includes('registry_refresh_check_dir="${DIAGNOSTIC_ROOT}/registry-refresh-checks"'));
+assert.ok(workflow.includes('generator_drift_scope="${registry_refresh_required}"'));
+assert.ok(workflow.includes('Stale Work Map registry binding'));
 assert.ok(workflow.includes('"${changed_file}" = "${policy_file}"'));
 assert.ok(workflow.includes('"${changed_file}" = "${policy_template_path}"'));
 assert.ok(workflow.includes('"${changed_file}" = "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"'));
@@ -113,8 +122,22 @@ assert.ok(
   "unrecognized review states must fail closed against policy.review_states",
 );
 assert.ok(
-  workflow.includes('if [[ "${review_state}" = "ready_for_implementation" ]]; then'),
-  "only ready_for_implementation manifests may enter registry refresh write scope",
+  workflow.includes('implementation_status="$(jq -er \'.implementation_readiness.status // ""\' "${binding_path}")"'),
+  "writer must inspect implementation readiness before granting maintenance refresh scope",
+);
+assert.ok(
+  workflow.includes('"${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false"'),
+  "only blocked, secret-free draft manifests may enter governance-only registry refresh scope",
+);
+assert.ok(
+  workflow.includes('registry_refresh_skipped_binding_file')
+    && workflow.includes('>> "${registry_refresh_skipped_binding_file}"')
+    && workflow.includes('continue'),
+  "ineligible draft manifests must be skipped with bounded evidence rather than gaining writer authority",
+);
+assert.ok(
+  workflow.includes('"${review_state}" = "ready_for_implementation"'),
+  "ready_for_implementation manifests must remain in registry refresh write scope",
 );
 assert.ok(
   workflow.includes('cat "${target_binding_file}" "${registry_refresh_binding_file}" | sort -u > "${writer_binding_file}"'),

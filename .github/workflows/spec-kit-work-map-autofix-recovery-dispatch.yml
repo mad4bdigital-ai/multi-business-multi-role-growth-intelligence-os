@@ -173,7 +173,7 @@ jobs:
           [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
           dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
           payload="$(jq -cn \
-            --arg ref main \
+            --arg ref "${TARGET_BRANCH}" \
             --arg pr_number "${PR_NUMBER}" \
             --arg branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
@@ -188,7 +188,7 @@ jobs:
           for _ in $(seq 1 30); do
             delegated_run_id="$(gh api \
               "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs?event=workflow_dispatch&per_page=30" \
-              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\" and .head_branch == \"main\" and .actor.login == \"github-actions[bot]\")] | sort_by(.created_at) | last | .id // empty")"
+              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\" and .head_branch == \"${TARGET_BRANCH}\" and .actor.login == \"github-actions[bot]\")] | sort_by(.created_at) | last | .id // empty")"
             if [[ -n "${delegated_run_id}" ]]; then
               break
             fi
@@ -196,6 +196,30 @@ jobs:
           done
           [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
           echo "run_id=${delegated_run_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore authorization marker after blocked dispatch
+        if: ${{ failure() && steps.target.outcome == 'success' && steps.authorization.outcome == 'success' && steps.dispatch.outcome != 'success' }}
+        id: rollback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
+          AUTHORIZATION_MARKER: ${{ env.AUTHORIZATION_MARKER }}
+        run: |
+          set -euo pipefail
+          pr_file="${REPORT_DIR}/authorization-rollback-pr.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "${pr_file}"
+          current_head_sha="$(jq -er '.head.sha' "${pr_file}")"
+          test "${current_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          body="$(jq -r '.body // ""' "${pr_file}")"
+          if ! grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"; then
+            printf '%s\n\n%s\n' "$(printf '%s' "${body}" | sed -E 's/(\\n)+$//')" "${AUTHORIZATION_MARKER}" > "${REPORT_DIR}/authorization-rollback-body.md"
+            jq -Rs '{body:.}' "${REPORT_DIR}/authorization-rollback-body.md" > "${REPORT_DIR}/authorization-rollback-payload.json"
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --input "${REPORT_DIR}/authorization-rollback-payload.json" >/dev/null
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""' | grep -Fq "${AUTHORIZATION_MARKER}"
+          echo "restored=true" >> "$GITHUB_OUTPUT"
 
       - name: Publish structured recovery evidence on target PR
         if: always()

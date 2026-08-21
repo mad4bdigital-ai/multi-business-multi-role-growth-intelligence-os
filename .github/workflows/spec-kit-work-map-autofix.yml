@@ -144,9 +144,11 @@ jobs:
           target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
           registry_refresh_binding_candidates="${RUNNER_TEMP}/work-map-autofix-registry-refresh-binding-candidates.txt"
           registry_refresh_binding_file="${RUNNER_TEMP}/work-map-autofix-registry-refresh-bindings.txt"
+          registry_refresh_skipped_binding_file="${RUNNER_TEMP}/work-map-autofix-registry-refresh-skipped-bindings.tsv"
           writer_binding_file="${RUNNER_TEMP}/work-map-autofix-writer-bindings.txt"
           : > "${target_binding_file}"
           : > "${registry_refresh_binding_file}"
+          : > "${registry_refresh_skipped_binding_file}"
           : > "${writer_binding_file}"
 
           git cat-file -e "${expected_base_sha}^{commit}"
@@ -196,8 +198,14 @@ jobs:
             test -f "${binding_path}"
             manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
             review_state="$(jq -er '.review_state' "${binding_path}")"
+            implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
+            secrets_included="$(jq -er 'if .secrets_included == false then "false" else ((.secrets_included // true) | tostring) end' "${binding_path}")"
             test "${manifest_feature_key}" = "${feature_key}"
-            test "${review_state}" = "ready_for_implementation"
+            if [[ "${review_state}" != "ready_for_implementation" \
+              && ! ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
+              echo "::error::Target Work Map manifest is outside the bounded writer states: ${binding_path} review_state=${review_state} implementation_status=${implementation_status} secrets_included=${secrets_included}"
+              exit 1
+            fi
             printf '%s\n' "${binding_path}" >> "${target_binding_file}"
           done < "${target_binding_candidates}"
 
@@ -250,32 +258,55 @@ jobs:
             registry_refresh_required=true
           fi
 
-          if [[ "${registry_refresh_required}" = "true" ]]; then
-            git ls-files -- "${spec_root}/[0-9][0-9][0-9]-*/${manifest_filename}" \
-              | sort -u > "${registry_refresh_binding_candidates}"
+          git ls-files -- "${spec_root}/[0-9][0-9][0-9]-*/${manifest_filename}" \
+            | sort -u > "${registry_refresh_binding_candidates}"
+          registry_refresh_check_dir="${DIAGNOSTIC_ROOT}/registry-refresh-checks"
+          mkdir -p "${registry_refresh_check_dir}"
+          generator_drift_scope="${registry_refresh_required}"
 
-            while IFS= read -r binding_path; do
-              [[ -z "${binding_path}" ]] && continue
-              feature_and_manifest="${binding_path#${spec_root}/}"
-              feature_key="${feature_and_manifest%/${manifest_filename}}"
-              if [[ "${binding_path}" != "${spec_root}/${feature_key}/${manifest_filename}" \
-                || ! "${feature_key}" =~ ^[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
-                echo "::error::Registry-refresh Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
-                exit 1
-              fi
-              test -f "${binding_path}"
-              manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
-              review_state="$(jq -er '.review_state' "${binding_path}")"
-              test "${manifest_feature_key}" = "${feature_key}"
-              if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
-                echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
-                exit 1
-              fi
-              if [[ "${review_state}" = "ready_for_implementation" ]]; then
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            feature_and_manifest="${binding_path#${spec_root}/}"
+            feature_key="${feature_and_manifest%/${manifest_filename}}"
+            if [[ "${binding_path}" != "${spec_root}/${feature_key}/${manifest_filename}" \
+              || ! "${feature_key}" =~ ^[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
+              echo "::error::Registry-refresh Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
+              exit 1
+            fi
+            test -f "${binding_path}"
+            manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
+            review_state="$(jq -er '.review_state' "${binding_path}")"
+            implementation_status="$(jq -er '.implementation_readiness.status // ""' "${binding_path}")"
+            secrets_included="$(jq -er 'if .secrets_included == false then "false" else ((.secrets_included // true) | tostring) end' "${binding_path}")"
+            test "${manifest_feature_key}" = "${feature_key}"
+            if ! jq -e --arg review_state "${review_state}" '.review_states | index($review_state) != null' "${policy_file}" >/dev/null; then
+              echo "::error::Registry-refresh Work Map manifest has an unrecognized review_state: ${binding_path} (${review_state})"
+              exit 1
+            fi
+            if [[ "${review_state}" = "ready_for_implementation" \
+              || ( "${review_state}" = "draft" && "${implementation_status}" = "blocked" && "${secrets_included}" = "false" ) ]]; then
+              if [[ "${generator_drift_scope}" = "true" ]]; then
                 printf '%s\n' "${binding_path}" >> "${registry_refresh_binding_file}"
+                continue
               fi
-            done < "${registry_refresh_binding_candidates}"
-          fi
+              check_file="${registry_refresh_check_dir}/${feature_key}.log"
+              if node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+                --feature-key "${feature_key}" --check > "${check_file}" 2>&1; then
+                continue
+              fi
+              if grep -Fq "Stale Work Map registry binding" "${check_file}"; then
+                printf '%s\n' "${binding_path}" >> "${registry_refresh_binding_file}"
+                registry_refresh_required=true
+                continue
+              fi
+              cat "${check_file}"
+              echo "::error::Registry-refresh Work Map preflight failed for an eligible manifest: ${binding_path}"
+              exit 1
+            elif [[ "${review_state}" != "draft" || "${implementation_status}" != "blocked" || "${secrets_included}" != "false" ]]; then
+              printf '%s\t%s\t%s\t%s\n' "${binding_path}" "${review_state}" "${implementation_status}" "${secrets_included}" >> "${registry_refresh_skipped_binding_file}"
+              continue
+            fi
+          done < "${registry_refresh_binding_candidates}"
 
           cat "${target_binding_file}" "${registry_refresh_binding_file}" | sort -u > "${writer_binding_file}"
           target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"
@@ -284,11 +315,14 @@ jobs:
           generator_preview_drift_count="$(jq -r '.drift_files | length' "${generator_preview_file}")"
           echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
           echo "REGISTRY_REFRESH_BINDING_FILE=${registry_refresh_binding_file}" >> "$GITHUB_ENV"
+          echo "REGISTRY_REFRESH_SKIPPED_BINDING_FILE=${registry_refresh_skipped_binding_file}" >> "$GITHUB_ENV"
           echo "WRITER_BINDING_FILE=${writer_binding_file}" >> "$GITHUB_ENV"
           echo "REGISTRY_REFRESH_REQUIRED=${registry_refresh_required}" >> "$GITHUB_ENV"
           echo "pr_number=${actual_pr_number}" >> "$GITHUB_OUTPUT"
           echo "target_binding_count=${target_binding_count}" >> "$GITHUB_OUTPUT"
           echo "registry_refresh_binding_count=${registry_refresh_binding_count}" >> "$GITHUB_OUTPUT"
+          registry_refresh_skipped_binding_count="$(wc -l < "${registry_refresh_skipped_binding_file}" | tr -d '[:space:]')"
+          echo "registry_refresh_skipped_binding_count=${registry_refresh_skipped_binding_count}" >> "$GITHUB_OUTPUT"
           echo "writer_binding_count=${writer_binding_count}" >> "$GITHUB_OUTPUT"
           echo "registry_refresh_required=${registry_refresh_required}" >> "$GITHUB_OUTPUT"
           echo "generator_preview_drift_count=${generator_preview_drift_count}" >> "$GITHUB_OUTPUT"
@@ -311,7 +345,8 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RECOVERY_RUN_ID}" > "${recovery_file}"
           test "$(jq -r '.path' "${recovery_file}")" = ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
           test "$(jq -r '.event' "${recovery_file}")" = "workflow_dispatch"
-          test "$(jq -r '.head_branch' "${recovery_file}")" = "main"
+          recovery_head_branch="$(jq -r '.head_branch' "${recovery_file}")"
+          test "${recovery_head_branch}" = "${TARGET_BRANCH}"
           test "$(jq -r '.status' "${recovery_file}")" = "completed"
           test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
           recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}")"

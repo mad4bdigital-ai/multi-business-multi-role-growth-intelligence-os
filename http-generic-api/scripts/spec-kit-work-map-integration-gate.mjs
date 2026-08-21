@@ -555,6 +555,29 @@ function featureImplementationChanged(feature, changedFiles, root, policy, globa
   return !preparedOnlyBindingRefresh(feature, changedFiles, root, policy);
 }
 
+function isDraftSafeMaintenanceManifest(manifest = {}) {
+  return manifest.review_state === "draft"
+    && manifest.implementation_readiness?.status === "blocked"
+    && manifest.secrets_included === false;
+}
+
+function expectedRegistryBinding(registry) {
+  return {
+    fingerprint: registry.fingerprint,
+    index_source_hash: registry.signature.index_source_hash,
+    coverage_source_hash: registry.signature.coverage_source_hash,
+    map_count: registry.maps.length,
+    domain_count: registry.domains.length,
+    uncategorized_count: registry.uncategorized_objects.length,
+    taxonomy_gap_cluster_count: registry.taxonomy_gap_clusters.length,
+  };
+}
+
+function hasStaleRegistryBinding(manifest, registry) {
+  const actual = manifest?.registry || {};
+  return Object.entries(expectedRegistryBinding(registry)).some(([field, expected]) => actual[field] !== expected);
+}
+
 export function validateRepository(options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(path.join(root, DEFAULT_POLICY_PATH));
@@ -572,13 +595,20 @@ export function validateRepository(options = {}) {
   const registryRefreshFeatures = manifestFeatures.filter((feature) => {
     try {
       const manifest = readJson(path.join(root, policy.spec_root, feature, policy.manifest_filename));
-      return manifest.review_state === "ready_for_implementation" || !policy.review_states.includes(manifest.review_state);
+      return manifest.review_state === "ready_for_implementation"
+        || !policy.review_states.includes(manifest.review_state)
+        || (isDraftSafeMaintenanceManifest(manifest) && hasStaleRegistryBinding(manifest, registry));
     } catch {
       return true;
     }
   });
   const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));
   const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));
+  const registryRefreshOnlyFeatures = new Set(
+    policyChanged
+      ? registryRefreshFeatures.filter((feature) => !changedFeatures.includes(feature) && !newFeatures.includes(feature))
+      : [],
+  );
   const targets = options.all
     ? manifestFeatures
     : unique([
@@ -605,7 +635,9 @@ export function validateRepository(options = {}) {
       root,
       policy,
       registry,
-      implementationRequired: featureImplementationChanged(feature, changedFiles, root, policy, runtimeChanged),
+      implementationRequired: registryRefreshOnlyFeatures.has(feature)
+        ? false
+        : featureImplementationChanged(feature, changedFiles, root, policy, runtimeChanged),
     }));
   }
 

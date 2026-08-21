@@ -1,0 +1,7 @@
+{
+  "surface_key": "gpt_session_turns",
+  "source_table": "gpt_session_turns",
+  "reason": "Excluded because GPT session turn persistence is an internal conversation store and is not an Activation surface; any tenant-visible readback requires a separately governed contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

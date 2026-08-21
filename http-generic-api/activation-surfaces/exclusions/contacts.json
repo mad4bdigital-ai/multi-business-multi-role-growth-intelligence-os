@@ -1,0 +1,7 @@
+{
+  "surface_key": "contacts",
+  "source_table": "contacts",
+  "reason": "Excluded because contact persistence belongs to customer operations and is not an Activation surface; any future exposure requires an explicit object-level authorization contract.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
