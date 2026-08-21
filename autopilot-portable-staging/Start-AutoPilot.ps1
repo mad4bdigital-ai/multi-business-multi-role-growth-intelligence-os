@@ -25,6 +25,9 @@ if (-not (Test-Path -LiteralPath $WindowsPreflightPath)) { throw "Missing shared
 if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git safety helper: $GitSafetyPath" }
 . $WindowsPreflightPath
 . $GitSafetyPath
+$GitTransportPath = Join-Path $PSScriptRoot "Staging-GitTransport.ps1"
+if (-not (Test-Path -LiteralPath $GitTransportPath)) { throw "Missing shared Git transport helper: $GitTransportPath" }
+. $GitTransportPath
 $LogComponent = "app-operations"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
 trap {
@@ -41,6 +44,17 @@ function Fail([string]$Message) {
 function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailure) {
     Write-Host ("> {0} {1}" -f $File, ($Arguments -join " "))
     Write-StagingOperationBoundary -Component $LogComponent -Stage "native:$File" -Outcome "start" -Message "application command started" -Data @{ command = $File; arguments = ($Arguments -join " ") }
+    if ($File -ieq "git") {
+        try {
+            $gitResult = Invoke-StagingGit $Arguments
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "native:git" -Outcome "success" -Message "Git command completed with bounded retry" -Data @{ command = $File; arguments = ($Arguments -join " "); attempts = $gitResult.attempts; transport = $gitResult.transport }
+            return 0
+        } catch {
+            Write-StagingLog -Level error -Component $LogComponent -Stage "native:git" -Message $_.Exception.Message -Data @{ command = $File; arguments = ($Arguments -join " ") }
+            if ($AllowFailure) { return 1 }
+            Fail $_.Exception.Message
+        }
+    }
     & $File @Arguments
     $code = $LASTEXITCODE
     if ($code -ne 0 -and -not $AllowFailure) {
@@ -52,6 +66,15 @@ function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailur
 }
 
 function Get-NativeText([string]$File, [string[]]$Arguments) {
+    if ($File -ieq "git") {
+        try {
+            $gitTextResult = Invoke-StagingGit $Arguments
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "native:git-read" -Outcome "success" -Message "Git read completed with bounded retry" -Data @{ command = $File; arguments = ($Arguments -join " "); attempts = $gitTextResult.attempts; transport = $gitTextResult.transport }
+            return (($gitTextResult.output | Out-String).Trim())
+        } catch {
+            Fail $_.Exception.Message
+        }
+    }
     $text = & $File @Arguments 2>$null
     if ($LASTEXITCODE -ne 0) { Fail "$File failed while reading local state" }
     return (($text | Out-String).Trim())

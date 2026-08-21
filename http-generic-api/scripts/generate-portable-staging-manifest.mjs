@@ -7,6 +7,9 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..");
 const MANIFEST_RELATIVE_PATH = "autopilot-portable-staging/manifest.json";
 const MANIFEST_PATH = path.join(REPO_ROOT, MANIFEST_RELATIVE_PATH);
+const REQUIRED_PORTABLE_STAGING_FILES = [
+  "autopilot-portable-staging/Staging-GitTransport.ps1",
+];
 const check = process.argv.includes("--check");
 const write = process.argv.includes("--write") || !check;
 if (check && write) throw new Error("--check and --write are mutually exclusive");
@@ -28,19 +31,30 @@ if (manifest.schema_version !== 1 || !Array.isArray(manifest.files)) {
 }
 
 const seen = new Set();
+const refreshedFiles = manifest.files.map((entry) => {
+  const relativePath = String(entry.path || "").replaceAll("\\", "/");
+  assertRelativeManifestPath(relativePath);
+  if (seen.has(relativePath)) throw new Error(`duplicate portable staging manifest path: ${relativePath}`);
+  seen.add(relativePath);
+  const absolutePath = path.join(REPO_ROOT, relativePath);
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    throw new Error(`portable staging manifest file is missing: ${relativePath}`);
+  }
+  return { ...entry, path: relativePath, sha256: sha256(absolutePath) };
+});
+for (const relativePath of REQUIRED_PORTABLE_STAGING_FILES) {
+  assertRelativeManifestPath(relativePath);
+  if (seen.has(relativePath)) continue;
+  const absolutePath = path.join(REPO_ROOT, relativePath);
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    throw new Error(`required portable staging manifest file is missing: ${relativePath}`);
+  }
+  refreshedFiles.push({ path: relativePath, sha256: sha256(absolutePath) });
+  seen.add(relativePath);
+}
 const refreshed = {
   ...manifest,
-  files: manifest.files.map((entry) => {
-    const relativePath = String(entry.path || "").replaceAll("\\", "/");
-    assertRelativeManifestPath(relativePath);
-    if (seen.has(relativePath)) throw new Error(`duplicate portable staging manifest path: ${relativePath}`);
-    seen.add(relativePath);
-    const absolutePath = path.join(REPO_ROOT, relativePath);
-    if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
-      throw new Error(`portable staging manifest file is missing: ${relativePath}`);
-    }
-    return { ...entry, path: relativePath, sha256: sha256(absolutePath) };
-  }),
+  files: refreshedFiles,
 };
 
 const nextText = `${JSON.stringify(refreshed, null, 2)}\n`;

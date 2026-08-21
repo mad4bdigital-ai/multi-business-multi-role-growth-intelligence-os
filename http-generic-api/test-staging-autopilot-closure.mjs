@@ -13,6 +13,7 @@ for (const entry of manifest.files) {
   const digest = crypto.createHash("sha256").update(content).digest("hex");
   assert.equal(digest, entry.sha256, `manifest hash mismatch: ${entry.path}`);
 }
+assert.ok(manifest.files.some((entry) => entry.path === "autopilot-portable-staging/Staging-GitTransport.ps1"));
 
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
 const dockerfile = read("http-generic-api/Dockerfile.staging");
