@@ -523,8 +523,8 @@ function fakeReadinessRepairResult(mode) {
       },
     }),
     (error) => {
-      assert.equal(error.code, "governed_migration_runner_failed");
-      assert.equal(error.status, 409);
+      assert.equal(error.code, "governed_migration_runner_signaled");
+      assert.equal(error.status, 502);
       assert.equal(error.details.exit_code, 9);
       assert.equal(error.details.signal, "SIGTERM");
       assert.equal(error.details.runner_error_code, "ER_CHECK_CONSTRAINT_VIOLATED");
