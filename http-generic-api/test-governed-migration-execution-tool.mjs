@@ -329,6 +329,9 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(executed, true);
   assert.equal(result.applies_sql, false);
   assert.equal(result.same_cycle_readback_verified, true);
+  assert.match(result.execution_id, /^[0-9a-f-]{36}$/);
+  assert.equal(result.runner_timeout_ms, 300000);
+  assert.equal(result.runner_capture_limit_bytes, 4 * 1024 * 1024);
 }
 
 {
@@ -536,6 +539,59 @@ function fakeReadinessRepairResult(mode) {
       assert.equal(error.details.secrets_included, false);
       return true;
     }
+  );
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput(), {
+      executionId: "incident-225",
+      timeoutMs: 25,
+      execFile: async () => {
+        const error = new Error("Command failed after timeout");
+        error.code = "ETIMEDOUT";
+        error.killed = true;
+        error.signal = "SIGTERM";
+        throw error;
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, "governed_migration_runner_timeout");
+      assert.equal(error.status, 504);
+      assert.equal(error.details.execution_id, "incident-225");
+      assert.equal(error.details.timeout_ms, 25);
+      assert.equal(error.details.timed_out, true);
+      assert.equal(error.details.output_limit_exceeded, false);
+      assert.equal(error.details.retry_without_readback_allowed, false);
+      assert.equal(error.details.secrets_included, false);
+      return true;
+    },
+  );
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput(), {
+      executionId: "incident-1048",
+      maxBuffer: 1024,
+      execFile: async () => {
+        const error = new Error("stdout maxBuffer length exceeded");
+        error.code = "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
+        error.stdout = "x".repeat(2048);
+        throw error;
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, "governed_migration_runner_output_limit_exceeded");
+      assert.equal(error.status, 502);
+      assert.equal(error.details.execution_id, "incident-1048");
+      assert.equal(error.details.capture_limit_bytes, 1024);
+      assert.equal(error.details.stdout_captured_bytes, 2048);
+      assert.equal(error.details.output_limit_exceeded, true);
+      assert.equal(error.details.diagnostic_truncated, true);
+      assert.equal(error.details.retry_without_readback_allowed, false);
+      return true;
+    },
   );
 }
 
