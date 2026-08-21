@@ -252,15 +252,16 @@ function migrationPlan(files) {
   });
 }
 
-function orderedPreuseAudit() {
+function orderedPreuseAudit(bootstrapEntries = []) {
   if (!fs.existsSync(orderedPreuseAuditPath)) fail(`ordered pre-use audit script is missing: ${orderedPreuseAuditPath}`);
-  const result = run(process.execPath, [orderedPreuseAuditPath, repoRoot], { allowFailure: true, timeoutMs: 120000 });
+  const auditArgs = [orderedPreuseAuditPath, repoRoot];
+  if (bootstrapEntries.length) auditArgs.push("--canonical-bootstrap", Buffer.from(JSON.stringify(bootstrapEntries)).toString("base64"));
+  const result = run(process.execPath, auditArgs, { allowFailure: true, timeoutMs: 120000 });
   if (result.status !== 0) fail(`ordered pre-use audit failed: ${text(result.stderr).slice(-4000) || text(result.stdout).slice(-4000)}`);
   let audit;
   try { audit = JSON.parse(result.stdout); }
   catch (error) { fail(`ordered pre-use audit returned invalid JSON: ${error.message}`); }
   const missingColumns = Number(audit.counts?.missing_column || 0);
-  if (missingColumns > 0) fail(`ordered pre-use audit found ${missingColumns} missing-column pre-use gaps; repair canonical DDL before schema build`);
   return {
     script: "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
     baseline_tables: Number(audit.baseline_tables || 0),
@@ -269,7 +270,74 @@ function orderedPreuseAudit() {
     missing_column_gaps: missingColumns,
     missing_table_gaps: Number(audit.counts?.missing_table || 0),
     same_statement_false_positives: Number(audit.same_statement_false_positives || 0),
+    gaps: audit.gaps || [],
   };
+}
+
+function canonicalTableBootstrap(files, audit) {
+  const definitions = new Map();
+  for (const file of files) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    for (const statement of splitStatements(sql)) {
+      const tableMatch = statement.match(/^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\(/iu);
+      const viewMatch = statement.match(/^\s*CREATE\s+OR\s+REPLACE\s+VIEW\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\b/iu);
+      const match = tableMatch || viewMatch;
+      if (!match) continue;
+      const table = (match[1] || match[2]).toLowerCase();
+      if (!definitions.has(table)) definitions.set(table, { table, object_type: tableMatch ? "table" : "view", source_file: file, statement });
+    }
+  }
+
+  const requested = audit.gaps.filter((gap) => gap.kind === "missing_table" && definitions.has(gap.table));
+  const batches = new Map();
+  for (const gap of requested) {
+    const file = path.basename(gap.file);
+    if (!batches.has(file)) batches.set(file, new Map());
+    const batch = batches.get(file);
+    const visiting = new Set();
+    const add = (table) => {
+      if (batch.has(table)) return;
+      if (visiting.has(table)) fail(`canonical table bootstrap contains a foreign-key dependency cycle at ${table}`);
+      const definition = definitions.get(table);
+      if (!definition) return;
+      visiting.add(table);
+      const dependencyPattern = definition.object_type === "view"
+        ? /\b(?:FROM|JOIN)\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/giu
+        : /\bREFERENCES\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/giu;
+      for (const reference of definition.statement.matchAll(dependencyPattern)) {
+        const parent = (reference[1] || reference[2]).toLowerCase();
+        if (parent !== table && definitions.has(parent)) add(parent);
+      }
+      visiting.delete(table);
+      batch.set(table, definition);
+    };
+    add(gap.table);
+  }
+
+  const entries = [];
+  for (const file of files) {
+    for (const definition of batches.get(file)?.values() || []) {
+      entries.push({ file, table: definition.table, object_type: definition.object_type, source_file: definition.source_file, sha256: sha256(definition.statement), statement: definition.statement });
+    }
+  }
+  return {
+    contract: "mad4b.staging.canonical-table-preuse-bootstrap.v1",
+    replay_mode: "idempotent_canonical_create_before_first_ordered_use",
+    disposable_database_only: true,
+    production_access_forbidden: true,
+    provider_access_forbidden: true,
+    secrets_included: false,
+    unresolved_missing_table_gaps: audit.missing_table_gaps - requested.length,
+    resolved_missing_table_gaps: requested.length,
+    table_count: new Set(entries.filter((entry) => entry.object_type === "table").map((entry) => entry.table)).size,
+    view_count: new Set(entries.filter((entry) => entry.object_type === "view").map((entry) => entry.table)).size,
+    entry_count: entries.length,
+    entries,
+  };
+}
+
+function bootstrapMetadata(bootstrap) {
+  return { ...bootstrap, entries: bootstrap.entries.map(({ statement, ...entry }) => entry) };
 }
 
 function canonicalSeedPlan(manifest, files) {
@@ -313,9 +381,12 @@ function applySqlSource(label, sql) {
   const result = dockerExec([containerName, "mariadb", ...dbArgs(["--binary-mode"])], { input: sql, allowFailure: true });
   if (result.status !== 0) fail(`${label} failed in disposable schema database: ${text(result.stderr).slice(-4000)}`);
 }
-function applyMigrations(baseline, plan) {
+function applyMigrations(baseline, plan, bootstrap) {
   applySqlSource("canonical baseline schema pre-migration", baseline.immediate_sql);
   for (const item of plan) {
+    for (const entry of bootstrap.entries.filter((candidate) => candidate.file === item.file)) {
+      applySqlSource(`canonical table bootstrap ${entry.table} from ${entry.source_file}`, `${entry.statement};\n`);
+    }
     const sql = fs.readFileSync(path.join(migrationsDir, item.file), "utf8");
     applySqlSource(`migration ${item.file}`, sql);
   }
@@ -362,7 +433,7 @@ function makeDump(role, tables, manifest) {
   return { file: roleConfig.bundle_file, sha256: sha256(gz), compressed_bytes: gz.length, table_count: tables.length, tables: names };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, bootstrap, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -378,7 +449,8 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     migration_count: migrationPlanRows.length,
     migration_sha256_manifest: migrationPlanRows,
     canonical_seed_lifecycle: canonicalSeeds,
-    ordered_preuse_audit: orderedAudit,
+    ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
+    canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     roles: bundles,
     validation: {
       required_tables_checked: true,
@@ -388,6 +460,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       three_role_partition_checked: true,
       ordered_preuse_audit_checked: true,
       missing_column_gaps_checked: true,
+      canonical_table_bootstrap_checked: true,
     },
   };
   const outputPath = path.join(outputDir, "staging-schema-bundle-manifest.json");
@@ -395,7 +468,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
   return outputPath;
 }
 
-function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit) {
+function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, bootstrap) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
@@ -404,7 +477,8 @@ function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit
     migration_count: files.length,
     statement_count: rows.reduce((sum, row) => sum + row.statement_count, 0),
     canonical_seed_lifecycle: canonicalSeeds,
-    ordered_preuse_audit: orderedAudit,
+    ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
+    canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     required_bundle_files: manifest.validation.required_bundle_files,
     confirmation_required: manifest.safety.confirmation,
     production_access_forbidden: true,
@@ -417,10 +491,17 @@ const manifest = readManifest();
 const baseline = baselineSchema(manifest);
 const files = migrationFiles();
 const rows = migrationPlan(files);
-const orderedAudit = orderedPreuseAudit();
+const initialAudit = orderedPreuseAudit();
+if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
+const tableBootstrap = canonicalTableBootstrap(files, initialAudit);
+const orderedAudit = orderedPreuseAudit(tableBootstrap.entries.map(({ file, table, object_type, source_file }) => ({ file, table, object_type, source_file })));
+if (orderedAudit.missing_column_gaps > 0) {
+  const missing = orderedAudit.gaps.filter((gap) => gap.kind === "missing_column").map((gap) => `${gap.table}.${gap.column} in ${path.basename(gap.file)}`);
+  fail(`canonical table bootstrap exposes ${orderedAudit.missing_column_gaps} missing-column pre-use gaps: ${missing.join(", ")}; repair canonical DDL before schema build`);
+}
 const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
-  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit);
+  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, tableBootstrap);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -429,7 +510,7 @@ requireLocalDocker();
 let tables = [];
 try {
   startDatabase();
-  applyMigrations(baseline, rows);
+  applyMigrations(baseline, rows, tableBootstrap);
   tables = listTables();
   const sets = roleTableSets(manifest, tables);
       const bundles = {
@@ -437,7 +518,7 @@ try {
       governance: makeDump("governance", sets.governance, manifest),
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, sets, bundles);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, tableBootstrap, sets, bundles);
 
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {

@@ -10,6 +10,13 @@ const migrationsDir = path.join(repoRoot, "http-generic-api", "migrations");
 const migrations = fs.readdirSync(migrationsDir)
   .filter((name) => name.endsWith(".sql"))
   .sort((a, b) => a.localeCompare(b));
+const bootstrapFlagIndex = process.argv.indexOf("--canonical-bootstrap");
+const canonicalBootstrap = bootstrapFlagIndex === -1 ? [] : JSON.parse(Buffer.from(process.argv[bootstrapFlagIndex + 1], "base64").toString("utf8"));
+const bootstrapByFile = new Map();
+for (const entry of canonicalBootstrap) {
+  if (!bootstrapByFile.has(entry.file)) bootstrapByFile.set(entry.file, []);
+  bootstrapByFile.get(entry.file).push(entry);
+}
 
 const tables = new Map();
 const events = [];
@@ -223,8 +230,12 @@ const stripStringLiterals = (sql) => {
 };
 const parseFromJoins = (sql, file, line) => {
   const clean = stripStringLiterals(stripComments(sql));
+  const localSources = new Set([...clean.matchAll(/(?:\bWITH(?:\s+RECURSIVE)?|,)\s*(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\s*\(/ig)].map((match) => tableName(match[1] ?? match[2])));
   for (const match of clean.matchAll(/(?:FROM|JOIN)\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
     const table = match[1] ?? match[2];
+    const normalized = tableName(table);
+    if (localSources.has(normalized) || ["information_schema", "performance_schema", "mysql", "sys", "coalesce", "is"].includes(normalized)) continue;
+    if (normalized === "tags" && /\bTRIM\s*\([^)]*$/iu.test(clean.slice(0, match.index))) continue;
     if (!ensureTable(table)) record({ kind: "missing_table", table, file, line, statement: sql, detail: "FROM/JOIN source is absent" });
   }
 };
@@ -238,11 +249,28 @@ const processStatement = (sql, file, line) => {
   if (parseUpdate(sql, file, line)) { parseFromJoins(sql, file, line); return; }
   if (parseDelete(sql, file, line)) { parseFromJoins(sql, file, line); return; }
   if (/\b(?:CREATE|OR\s+REPLACE)\s+VIEW\b|\bSELECT\b/i.test(clean)) parseFromJoins(sql, file, line);
+  const view = clean.match(/\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/iu);
+  if (view) addTable(view[1] ?? view[2]);
+  const temporary = clean.match(/\bCREATE\s+TEMPORARY\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\b/iu);
+  if (temporary) addTable(temporary[1] ?? temporary[2]);
 };
 
 const baselineSql = fs.readFileSync(schemaPath, "utf8");
 for (const statement of splitStatements(baselineSql)) processStatement(statement, "schema.sql", lineOf(baselineSql, baselineSql.indexOf(statement)));
 for (const file of migrations) {
+  for (const entry of bootstrapByFile.get(file) || []) {
+    if (!migrations.includes(entry.source_file)) throw new Error(`canonical bootstrap source is outside the exact migration chain: ${entry.source_file}`);
+    const sourceSql = fs.readFileSync(path.join(migrationsDir, entry.source_file), "utf8");
+    const statement = splitStatements(sourceSql).find((candidate) => {
+      const pattern = entry.object_type === "view"
+        ? /^\s*CREATE\s+OR\s+REPLACE\s+VIEW\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\b/iu
+        : /^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\(/iu;
+      const match = candidate.match(pattern);
+      return match && (match[1] || match[2]).toLowerCase() === entry.table;
+    });
+    if (!statement) throw new Error(`canonical idempotent bootstrap definition is missing for ${entry.table}`);
+    processStatement(statement, `canonical-bootstrap:${entry.source_file}`, lineOf(sourceSql, sourceSql.indexOf(statement)));
+  }
   const relative = path.join("http-generic-api", "migrations", file);
   const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
   for (const statement of splitStatements(sql)) processStatement(statement, relative, lineOf(sql, sql.indexOf(statement)));

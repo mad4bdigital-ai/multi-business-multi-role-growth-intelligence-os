@@ -204,7 +204,7 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /data_exported: false/);
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
   assert.ok(generator.includes(String.raw`const baselineSchemaPath = path.join(apiRoot, "schema.sql")`));
-  assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows)`));
+  assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows, tableBootstrap)`));
   assert.ok(generator.includes(String.raw`deferred_foreign_key_sql`));
   assert.ok(generator.includes(String.raw`result.stdout.split(/\r?\n/)`));
   assert.ok(generator.includes(String.raw`line.split("\t")`));
@@ -254,6 +254,47 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260815_custom_gpt_mcp_catalog_levels.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
+});
+
+test("canonical table bootstrap resolves ordered migration pre-use inside disposable staging only", () => {
+  const result = runPlan();
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const plan = JSON.parse(result.stdout);
+  const bootstrap = plan.canonical_table_bootstrap;
+  assert.equal(bootstrap.contract, "mad4b.staging.canonical-table-preuse-bootstrap.v1");
+  assert.equal(bootstrap.disposable_database_only, true);
+  assert.equal(bootstrap.production_access_forbidden, true);
+  assert.equal(bootstrap.provider_access_forbidden, true);
+  assert.equal(bootstrap.secrets_included, false);
+  assert.ok(bootstrap.table_count >= 70);
+  assert.ok(bootstrap.view_count >= 6);
+  assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
+  assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
+  const policy = bootstrap.entries.find((entry) => entry.table === "capability_apply_authorization_policy_registry");
+  assert.equal(policy.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
+  assert.equal(policy.source_file, "902_sprint68_dynamic_capability_apply_authorization_policy.sql");
+  assert.equal(policy.sha256.length, 64);
+  const dispatch = bootstrap.entries.find((entry) => entry.table === "runtime_dispatch_certification_registry");
+  assert.equal(dispatch.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
+  assert.match(dispatch.source_file, /^178_/);
+  assert.equal(bootstrap.entries.some((entry) => entry.table.startsWith("tmp_")), false);
+  assert.equal(bootstrap.entries.some((entry) => Object.hasOwn(entry, "statement")), false);
+});
+
+test("skill package catalog and migration authorization use their canonical source-table contracts", () => {
+  const migrationDir = path.join(apiRoot, "migrations");
+  const skillCatalog = fs.readFileSync(path.join(migrationDir, "273_sprint68_activation_catalog_authorized_surfaces.sql"), "utf8");
+  const installer = fs.readFileSync(path.join(apiRoot, "skillInstaller.mjs"), "utf8");
+  assert.match(skillCatalog, /CREATE TABLE IF NOT EXISTS `skill_packages`/iu);
+  assert.ok(skillCatalog.indexOf("CREATE TABLE IF NOT EXISTS `skill_packages`") < skillCatalog.indexOf("CREATE OR REPLACE VIEW `v_activation_skill_package_catalog`"));
+  for (const column of ["package_id", "package_key", "display_name", "source_url", "source_type", "version", "manifest_json", "logic_key", "install_status", "enabled", "installed_at", "updated_at"]) {
+    assert.match(skillCatalog, new RegExp("`" + column + "`", "u"));
+  }
+  assert.match(installer, /INSERT INTO \\`skill_packages\\`/u);
+
+  const grant = fs.readFileSync(path.join(migrationDir, "20260704_platform_resource_authority_grant_tool.sql"), "utf8");
+  assert.match(grant, /\(migration_file, authorization_status, risk_tier, notes\)/u);
+  assert.doesNotMatch(grant, /\b(?:migration_key|migration_path|risk_class|authorized_for_review)\b/u);
 });
 
 
