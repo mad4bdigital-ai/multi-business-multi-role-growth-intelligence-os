@@ -9,7 +9,11 @@
   "production": {
     "hostname": "auth.mad4b.com",
     "hostname_family_policy": "http-generic-api/config/domain-family-policy.json",
-    "hostnames": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
+    "hostnames": [
+      "auth.mad4b.com",
+      "mcp.mad4b.com",
+      "activation.mad4b.com"
+    ],
     "source_branch": "Production",
     "upstream_branch": "main",
     "deployment_provider": "hostinger",
@@ -25,7 +29,11 @@
   "staging": {
     "hostname": "dev.mad4b.com",
     "hostname_family_policy": "http-generic-api/config/domain-family-policy.json",
-    "hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
+    "hostnames": [
+      "dev.mad4b.com",
+      "mcp_dev.mad4b.com",
+      "activation-dev.mad4b.com"
+    ],
     "source_branch": "main",
     "runtime_location": "local_device",
     "lifecycle_status": "planned",
@@ -69,7 +77,9 @@
       "edge/activation-gateway/generated/route-policy.staging.json"
     ],
     "impact_declarations": {
-      "patterns": [".changes/e2e/*.json"],
+      "patterns": [
+        ".changes/e2e/*.json"
+      ],
       "source_of_truth_field": "environment_impact.source_of_truth",
       "required_for_environment_changes": true
     },
@@ -94,7 +104,9 @@
           "http-generic-api/test-staging-*.mjs",
           "STAGING-*.md"
         ],
-        "environments": ["staging"],
+        "environments": [
+          "staging"
+        ],
         "requires_live_certification": true
       },
       {
@@ -104,7 +116,9 @@
           "http-generic-api/config/production-*.json",
           "http-generic-api/scripts/production-*.mjs"
         ],
-        "environments": ["production"],
+        "environments": [
+          "production"
+        ],
         "requires_live_certification": true
       },
       {
@@ -127,7 +141,10 @@
           "http-generic-api/frontend-surface-dispatch.generated.json",
           "specs/020-platform-resource-identity-brand-governance/**"
         ],
-        "environments": ["staging", "production"],
+        "environments": [
+          "staging",
+          "production"
+        ],
         "requires_live_certification": true
       },
       {
@@ -142,6 +159,7 @@
           "scripts/**",
           "http-generic-api/activation-surfaces/**",
           "http-generic-api/config/**",
+          "http-generic-api/context-kernel-hardcoding-scan.config.json",
           "http-generic-api/scripts/e2e-*.mjs",
           "http-generic-api/scripts/test-e2e-*.mjs",
           "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
@@ -169,7 +187,9 @@
           "specs/*/tasks.md",
           "specs/021-portable-staging-autopilot/e2e-phases.json"
         ],
-        "environments": ["repository"],
+        "environments": [
+          "repository"
+        ],
         "requires_live_certification": false
       }
     ],
