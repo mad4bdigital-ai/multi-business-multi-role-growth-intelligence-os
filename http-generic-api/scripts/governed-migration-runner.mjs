@@ -286,7 +286,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v3";
-const RUNNER_DIAGNOSTIC_ENABLED = process.env.GOVERNED_MIGRATION_DIAGNOSTIC !== "0";
+const RUNNER_DIAGNOSTIC_ENABLED = true;
 let currentDiagnosticStage = "module_loaded";
 const diagnosticStartedAt = Date.now();
 
