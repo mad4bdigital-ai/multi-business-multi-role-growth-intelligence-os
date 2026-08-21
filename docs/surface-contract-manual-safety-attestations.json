@@ -5,7 +5,7 @@
   "items": [
     {
       "migration_file": "1013_sprint69_approval_hold_identity_collation_alignment.sql",
-      "migration_sha256": "2b9fdfcdc14d3f33d3041bb41cf66b407092e4304f09db79e5cbc2f85381ae9a",
+      "migration_sha256": "8ca3a7de9edb836a1f367f5cddcd0b9beefcd8f2bd79b4430aeb370eb9a061d4",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_human_review",

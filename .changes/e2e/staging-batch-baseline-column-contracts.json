@@ -35,12 +35,15 @@
       "http-generic-api/migrations/273_sprint68_activation_catalog_authorized_surfaces.sql",
       "http-generic-api/migrations/909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
       "http-generic-api/migrations/1002_sprint68_platform_admin_email_default.sql",
+      "http-generic-api/migrations/1013_sprint69_approval_hold_identity_collation_alignment.sql",
       "http-generic-api/schema.sql",
       "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "http-generic-api/test-platform-admin-email-default.mjs",
+      "http-generic-api/test-approval-hold-identity-collation-alignment.mjs",
+      "docs/surface-contract-manual-safety-attestations.json",
       "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs",
       "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
       "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
@@ -119,6 +122,13 @@
               "args": [
                 "."
               ]
+            },
+            {
+              "id": "approval-hold-identity-collation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-approval-hold-identity-collation-alignment.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -147,12 +157,14 @@
             "http-generic-api/migrations/273_sprint68_activation_catalog_authorized_surfaces.sql",
             "http-generic-api/migrations/909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
             "http-generic-api/migrations/1002_sprint68_platform_admin_email_default.sql",
+            "http-generic-api/migrations/1013_sprint69_approval_hold_identity_collation_alignment.sql",
             "http-generic-api/schema.sql",
             "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
             "http-generic-api/test-platform-admin-email-default.mjs",
+            "http-generic-api/test-approval-hold-identity-collation-alignment.mjs",
             "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs",
             "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
             "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
