@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const providerGate = readFileSync("supportTicketExternalSendProviderGateService.js", "utf8");
 const migration = readFileSync("migrations/1002_sprint68_platform_admin_email_default.sql", "utf8");
+const baselineSchema = readFileSync("schema.sql", "utf8");
 
 for (const expected of [
   "resolvePlatformAdminEmail",
@@ -16,6 +17,16 @@ for (const expected of [
   "effectivePayloadJson",
 ]) {
   assert(providerGate.includes(expected), `provider gate must include ${expected}`);
+}
+
+for (const expected of [
+  "external_delivery_recipient_allowlist_registry",
+  "allowlist_id",
+  "recipient_pattern",
+  "approval_hold_id",
+  "expires_at",
+]) {
+  assert(baselineSchema.includes(expected), `baseline schema must include ${expected} before migration 1002`);
 }
 
 for (const expected of [
