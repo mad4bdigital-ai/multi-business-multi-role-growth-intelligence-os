@@ -38,7 +38,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - SQL route coverage in OpenAPI: 32/34 (94.12%)
 - SQL route-like literals exempted from OpenAPI scoring: 676/710
 - SQL routes missing OpenAPI path coverage: 2
-- Migrations without explicit `secrets_included=false` marker: 7
+- Migrations without explicit `secrets_included=false` marker: 8
 
 ### Surface Totals
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 466 |
-| no_credential_payload_read | 463 |
-| no_raw_secrets | 462 |
-| no_external_send | 464 |
-| no_external_write | 465 |
-| secrets_included_false | 470 |
+| no_provider_call | 465 |
+| no_credential_payload_read | 462 |
+| no_raw_secrets | 461 |
+| no_external_send | 463 |
+| no_external_write | 464 |
+| secrets_included_false | 469 |
 
 ### Route Classification Coverage
 
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 16
+- Total queue items: 17
 - Critical review: 4
 - High review: 2
 - Medium review: 7
-- Low review: 3
+- Low review: 4
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -111,6 +111,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260728_governed_response_chunk_ownership.sql` | medium_review | 317 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
 | `1026_sprint69_repository_reconciliation_automation.sql` | low_review | 180 | none | 0 | 0 | 4 | add_explicit_safety_markers |
 | `20260711_transactional_outbox_shadow_sync_foundation.sql` | low_review | 136 | none | 0 | 0 | 6 | verify_tool_registry_binding, add_explicit_safety_markers |
+| `20260704_platform_resource_authority_grant_tool.sql` | low_review | 135 | none | 0 | 0 | 6 | verify_tool_registry_binding, add_explicit_safety_markers |
 | `1023_sprint69_sql_cache_runtime_policy.sql` | low_review | 123 | none | 0 | 0 | 6 | verify_policy_seed_readiness, add_explicit_safety_markers |
 
 
