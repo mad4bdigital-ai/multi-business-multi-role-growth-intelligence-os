@@ -340,8 +340,8 @@ jobs:
           CERTIFIED_RUN_ID=""
           for _ in $(seq 1 60); do
             CERTIFIED_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-certified-release-cut-validation.yml/runs?event=pull_request_target&per_page=100" \
-              | jq --argjson pr "$VALIDATION_PR" --arg title "$VALIDATION_TITLE" --arg candidate "$CANDIDATE_SHA" -r \
-                '[.workflow_runs[] | select(((.pull_requests // []) | map(.number) | index($pr)) != null or .display_title == $title) | select(.head_sha == $candidate) | select(.status != "completed" or .conclusion == "success")] | sort_by(.created_at, .id) | last | .id // empty')"
+              | jq --argjson pr "$VALIDATION_PR" --arg title "$VALIDATION_TITLE" --arg cut "$RELEASE_CUT_SHA" -r \
+                '[.workflow_runs[] | select(((.pull_requests // []) | map(.number) | index($pr)) != null or .display_title == $title) | select(.head_sha == $cut) | select(.status != "completed" or .conclusion == "success")] | sort_by(.created_at, .id) | last | .id // empty')"
             [[ -n "$CERTIFIED_RUN_ID" ]] && break
             sleep 5
           done
