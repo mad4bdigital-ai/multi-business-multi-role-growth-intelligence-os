@@ -28,6 +28,9 @@ $oneClickScript = Join-Path $scriptRoot "One-Click-Staging.ps1"
 $gitSafetyPath = Join-Path $scriptRoot "Staging-GitSafety.ps1"
 if (-not (Test-Path -LiteralPath $gitSafetyPath)) { Fail "Staging-GitSafety.ps1 is missing: $gitSafetyPath" }
 . $gitSafetyPath
+$gitTransportPath = Join-Path $scriptRoot "Staging-GitTransport.ps1"
+if (-not (Test-Path -LiteralPath $gitTransportPath)) { throw "Staging-GitTransport.ps1 is missing: $gitTransportPath" }
+. $gitTransportPath
 
 function Fail([string]$Message) {
     try {
@@ -62,14 +65,22 @@ function Release-AutoPilotRunLock {
 }
 
 function Invoke-Git([string[]]$Arguments) {
-    & git @Arguments
-    if ($LASTEXITCODE -ne 0) { Fail "git $($Arguments -join ' ') failed with exit code $LASTEXITCODE" }
+    try {
+        $result = Invoke-StagingGit $Arguments
+        Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap Git command completed attempts=" + $result.attempts)
+    } catch {
+        Fail $_.Exception.Message
+    }
 }
 
 function Get-GitText([string[]]$Arguments) {
-    $value = (& git @Arguments 2>$null | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) { Fail "git $($Arguments -join ' ') failed while reading repository state" }
-    return $value
+    try {
+        $result = Invoke-StagingGit $Arguments
+        Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap Git read completed attempts=" + $result.attempts)
+        return (($result.output | Out-String).Trim())
+    } catch {
+        Fail $_.Exception.Message
+    }
 }
 
 trap {

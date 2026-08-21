@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "036fa144bcf8965426adc29800d9c63ef00cb0997c768a8699323a640d107962"
+      "sha256": "b3c743f1395340fcd9308c9278454e2d6ffffb635813abb06d26549f5e03db9b"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "3acc820e03bdb3391fb9aef5f0f248a4ecbbd9769c4e1a2dff423e2daf6726f1"
+      "sha256": "663a9294a13c1090b63fa342c074540dd21df9d8e84844e1a45b828f1143c446"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "6d9fe018ac83cbd473b21aaac3943a353ecbeefe38d17bb07e937df80de4a98a"
+      "sha256": "567840f3ef7fe6b63f79f7b6bf2c8c58114b6b661b28fd480cf2748fb47a31a3"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "5a6f41d90e1fd95ddc77e25724bb123d7776042fc4457dbb416464430909e4ae"
+      "sha256": "1e25fe5a324ed6b1b15bbbb1c56708586a64d787a2d00835ed010e63930a062d"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "5ddae73f4fe916053923b10d6cece70309ef6c4450967a3e5b3c313d1b4dfe44"
+      "sha256": "0729372c5910fbf9e6b01237ddba7a084984d6d829f7b9a520792b6a8c08cae2"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "f1a2ff671cddcf9fa98e5cc36b88893ff0f34635b295b53394a3d81d7b85ac94"
+      "sha256": "a6bbb0bf1d6a6b485aef12c82cabf1a2fd6e6337b68c1e36a7268af5f848475c"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "7bd8d821f82dbd2fb821f475851fe6fe46271eed65098cded4fc35a1270b9d49"
+      "sha256": "a3b89c37e51d10202224aeeff53cd27a4ffef1c8a4b2cb7d2a7f672baf15dec7"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -302,11 +302,15 @@
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
-      "sha256": "27abe5d5920a9f6988e824ca8ea717d3be0d9f3e8cc9030ad8fb979ba6bc106e"
+      "sha256": "a7f0ddb163650b4cfdca2cf35933d5161743d4bfcfa7ef1337661027d15633ac"
     },
     {
       "path": "autopilot-portable-staging/Staging-GitSafety.ps1",
       "sha256": "77f735cb82811fbbe0a193eda9b63b617494279c240e69e700dc44c6e3ad5882"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-GitTransport.ps1",
+      "sha256": "3ff503800a5f9727f286ff10b3b8b05125d81c47f473cd11b3a2a59958862928"
     }
   ],
   "safety": {
