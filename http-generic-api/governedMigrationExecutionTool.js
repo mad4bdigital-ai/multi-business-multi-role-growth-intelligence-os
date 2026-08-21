@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -265,10 +265,18 @@ function extractRunnerDiagnosticCode(value = "") {
   return (explicitCode || mysqlCode || "").slice(0, 160) || null;
 }
 
-function runnerFailureDetails(error, inspection) {
+function runnerFailureDetails(error, inspection, lifecycle = {}) {
   const rawStderr = String(error?.stderr || "");
   const rawStdout = String(error?.stdout || "");
   const fallbackMessage = String(error?.message || "");
+  const durationMs = Math.max(0, Number(lifecycle.durationMs || 0));
+  const timeoutMs = Math.max(0, Number(lifecycle.timeoutMs || 0));
+  const maxBuffer = Math.max(0, Number(lifecycle.maxBuffer || 0));
+  const timedOut = error?.code === "ETIMEDOUT"
+    || error?.code === "ERR_CHILD_PROCESS_TIMEOUT"
+    || (error?.killed === true && timeoutMs > 0 && durationMs >= timeoutMs);
+  const outputLimitExceeded = error?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+    || /maxbuffer/i.test(fallbackMessage);
   const stderrSummary = sanitizeRunnerDiagnostic(rawStderr || fallbackMessage);
   const stdoutSummary = sanitizeRunnerDiagnostic(rawStdout);
   const diagnosticText = `${stderrSummary}\n${stdoutSummary}`;
@@ -279,7 +287,15 @@ function runnerFailureDetails(error, inspection) {
   return {
     migration: inspection.migration,
     execution_mode: inspection.mode,
-    exit_code: error?.code ?? error?.exitCode ?? null,
+    execution_id: lifecycle.executionId || null,
+    duration_ms: durationMs,
+    timeout_ms: timeoutMs || null,
+    timed_out: timedOut,
+    capture_limit_bytes: maxBuffer || null,
+    stderr_captured_bytes: Buffer.byteLength(rawStderr, "utf8"),
+    stdout_captured_bytes: Buffer.byteLength(rawStdout, "utf8"),
+    output_limit_exceeded: outputLimitExceeded,
+    exit_code: Number.isInteger(error?.code) ? error.code : (error?.exitCode ?? null),
     signal: error?.signal || null,
     runner_error_code: mysqlCode || null,
     runner_diagnostic_code: diagnosticCode,
@@ -312,7 +328,22 @@ function parseRunnerErrorPayload(value = "") {
 
 function classifyRunnerFailure(error, inspection) {
   const payload = parseRunnerErrorPayload(error?.stderr) || parseRunnerErrorPayload(error?.stdout);
-  const runnerMessage = String(payload?.error || payload?.message || error?.message || "").trim();
+  const nestedError = payload?.error && typeof payload.error === "object" && !Array.isArray(payload.error)
+    ? payload.error
+    : null;
+  const runnerMessage = String(
+    nestedError?.message
+      || (typeof payload?.error === "string" ? payload.error : "")
+      || payload?.message
+      || error?.message
+      || "",
+  ).trim();
+  const runnerCode = String(
+    nestedError?.code
+      || payload?.error_code
+      || payload?.runner_error_code
+      || "",
+  ).trim() || null;
   const authorizationMatch = runnerMessage.match(
     /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i,
   );
@@ -328,6 +359,7 @@ function classifyRunnerFailure(error, inspection) {
       authorization_required: true,
       authorization_reason: authorizationMatch[2] || "migration_not_authorized",
       next_step: "run governed_migration_authorization_bootstrap for the checksum-bound migration before governed_migration_execute",
+      runner_error_code: runnerCode,
       runner_error_message: sanitizeRunnerDiagnostic(runnerMessage, 1000) || null,
       secrets_included: false,
     },
@@ -487,29 +519,78 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   }
 
   const execute = deps.execFile || execFileAsync;
+  const executionId = String(deps.executionId || randomUUID());
+  const timeoutMs = Number(deps.timeoutMs || 300000);
+  const maxBuffer = Number(deps.maxBuffer || 4 * 1024 * 1024);
+  const startedAt = Date.now();
   let execution;
   try {
     execution = await execute(process.execPath, args, {
       cwd: deps.apiDir || API_DIR,
-      timeout: Number(deps.timeoutMs || 300000),
-      maxBuffer: Number(deps.maxBuffer || 4 * 1024 * 1024),
+      timeout: timeoutMs,
+      maxBuffer,
       windowsHide: true,
+      env: {
+        ...process.env,
+        GOVERNED_MIGRATION_EXECUTION_ID: executionId,
+      },
     });
   } catch (error) {
+    const durationMs = Date.now() - startedAt;
     const classified = classifyRunnerFailure(error, inspection);
-    if (classified) throw toolError(classified.code, classified.message, classified.status, classified.details);
-    const details = runnerFailureDetails(error, inspection);
+    if (classified) {
+      throw toolError(classified.code, classified.message, classified.status, {
+        ...classified.details,
+        execution_id: executionId,
+        duration_ms: durationMs,
+      });
+    }
+    const details = runnerFailureDetails(error, inspection, {
+      executionId,
+      durationMs,
+      timeoutMs,
+      maxBuffer,
+    });
+    if (details.timed_out) {
+      throw toolError(
+        "governed_migration_runner_timeout",
+        "Governed migration runner exceeded the bounded local execution deadline.",
+        504,
+        details,
+      );
+    }
+    if (details.output_limit_exceeded) {
+      throw toolError(
+        "governed_migration_runner_output_limit_exceeded",
+        "Governed migration runner exceeded the bounded diagnostic capture limit.",
+        502,
+        details,
+      );
+    }
+    if (details.signal) {
+      throw toolError(
+        "governed_migration_runner_signaled",
+        "Governed migration runner terminated from an external process signal.",
+        502,
+        details,
+      );
+    }
     const diagnostic = details.runner_error_code
       || details.stderr_summary?.split(/\r?\n/, 1)?.[0]
       || "runner process exited unsuccessfully";
     throw toolError("governed_migration_runner_failed", `Governed migration runner failed: ${diagnostic}`, 409, details);
   }
 
+  const durationMs = Date.now() - startedAt;
   const result = parseRunnerOutput(execution?.stdout);
   validateRunnerReadback(result, inspection);
   return {
     ...result,
     execution_mode: inspection.mode,
+    execution_id: executionId,
+    execution_duration_ms: durationMs,
+    runner_timeout_ms: timeoutMs,
+    runner_capture_limit_bytes: maxBuffer,
     capability_envelope_id: approvedCapabilityEnvelopeId || null,
     required_envelope: inspection.required_envelope,
     deployed_commit_sha: inspection.deployment?.commit_sha || null,
