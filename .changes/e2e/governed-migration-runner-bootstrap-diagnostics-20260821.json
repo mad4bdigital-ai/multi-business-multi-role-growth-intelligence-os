@@ -1,0 +1,116 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-migration-runner-bootstrap-diagnostics-20260821",
+  "title": "Governed migration runner bootstrap and early-exit diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-migration-runner-bootstrap-diagnostics-20260821.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/governedMigrationExecutionTool.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
+      "http-generic-api/scripts/governed-migration-runner.mjs",
+      "http-generic-api/test-governed-migration-runner-bootstrap.mjs",
+      "http-generic-api/test-governed-migration-runner-stage-diagnostic.mjs",
+      "specs/020-platform-resource-identity-brand-governance/**",
+      "specs/021-portable-staging-autopilot/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make governed migration runner artifact, module-import, and startup-stage failures observable through bounded redacted diagnostics while preserving the shadow/library-only boundary and without applying migrations, grants, provider mutations, or Production activation.",
+      "e2e_journeys": [
+        {
+          "id": "governed-migration-runner-early-exit-diagnostics",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed migration operator and CI",
+          "entrypoint": "The governed migration execution tool starts the bootstrap wrapper for a dry-run migration request.",
+          "terminal_outcome": "Artifact and module-import failures produce bounded redacted diagnostics, while valid runner startup reaches stage tracing and remains fail-closed before any database or provider mutation.",
+          "steps": [
+            "Resolve the runner path relative to the tracked bootstrap module.",
+            "Check artifact readability before importing the runner.",
+            "Capture module-import failures with a stage, bounded message, runner existence flag, and secrets_included=false.",
+            "Emit runner startup stages for module load, main entry, argument parsing, authorization preflight, artifact resolution, and schema preflight when those stages are reached.",
+            "Run regression tests with missing dependencies or DB configuration so no database connection, migration application, grant, or provider mutation occurs.",
+            "Regenerate portable staging and Remote MCP write-scope artifacts only through their official generators.",
+            "Keep Production activation, migration apply, DB grants, provider mutation, force push, and secret output disabled."
+          ],
+          "assertions": [
+            "Missing runner artifacts fail closed with runner_artifact_readability rather than an unstructured exit.",
+            "Import-time failures fail closed with runner_module_import and do not expose secret values or connection strings.",
+            "The stage diagnostic path is bounded and reports secrets_included=false.",
+            "The execution tool retains child-process timing, output, signal, and diagnostic fields without authorizing execution.",
+            "Dry-run regression tests do not require a live database and do not perform SQL or provider mutations.",
+            "Generated manifest and inventory artifacts are current according to their official generators.",
+            "The environment declaration covers both staging and production because shared runtime code is changed, and requires live staging certification.",
+            "No migration, grant, provider mutation, Production deployment, Branch Protection change, Ruleset change, or force push is introduced.",
+            "The PR remains bound to its exact candidate SHA and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "governed-migration-runner-bootstrap-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-runner-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-migration-runner-stage-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-runner-stage-diagnostic.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-write-scope-generated-refresh",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governed-migration-runner-bootstrap-diagnostics-20260821.json",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/governedMigrationExecutionTool.js",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
+            "http-generic-api/scripts/governed-migration-runner.mjs",
+            "http-generic-api/test-governed-migration-runner-bootstrap.mjs",
+            "http-generic-api/test-governed-migration-runner-stage-diagnostic.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

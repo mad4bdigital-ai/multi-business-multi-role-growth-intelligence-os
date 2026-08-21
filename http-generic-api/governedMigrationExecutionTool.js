@@ -10,7 +10,7 @@ import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MIGRATIONS_DIR = path.join(API_DIR, "migrations");
-const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner.mjs");
+const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner-bootstrap.mjs");
 const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_readiness_repair.sql";
 const GOVERNED_MIGRATION_APP_KEY = "platform_orchestration";
 const GOVERNED_MIGRATION_CAPABILITY_KEY = "governed_migration_execute";
@@ -279,10 +279,26 @@ function runnerFailureDetails(error, inspection, lifecycle = {}) {
     || /maxbuffer/i.test(fallbackMessage);
   const stderrSummary = sanitizeRunnerDiagnostic(rawStderr || fallbackMessage);
   const stdoutSummary = sanitizeRunnerDiagnostic(rawStdout);
+  const structuredPayload = parseRunnerErrorPayload(rawStderr) || parseRunnerErrorPayload(rawStdout);
+  const structuredError = structuredPayload?.error && typeof structuredPayload.error === "object" && !Array.isArray(structuredPayload.error)
+    ? structuredPayload.error
+    : null;
+  const structuredMessage = sanitizeRunnerDiagnostic(
+    structuredError?.message
+      || (typeof structuredPayload?.error === "string" ? structuredPayload.error : "")
+      || structuredPayload?.message
+      || "",
+  );
+  const structuredCode = String(
+    structuredError?.code
+      || structuredPayload?.error_code
+      || structuredPayload?.runner_error_code
+      || "",
+  ).trim() || null;
   const diagnosticText = `${stderrSummary}\n${stdoutSummary}`;
-  const diagnosticSummary = stderrSummary || stdoutSummary || sanitizeRunnerDiagnostic(fallbackMessage) || null;
-  const diagnosticSource = rawStderr ? "stderr" : (rawStdout ? "stdout" : (fallbackMessage ? "error_message" : null));
-  const diagnosticCode = extractRunnerDiagnosticCode(diagnosticText) || extractRunnerDiagnosticCode(fallbackMessage);
+  const diagnosticSummary = structuredMessage || stderrSummary || stdoutSummary || sanitizeRunnerDiagnostic(fallbackMessage) || null;
+  const diagnosticSource = structuredPayload ? `${rawStderr ? "stderr" : "stdout"}_json` : (rawStderr ? "stderr" : (rawStdout ? "stdout" : (fallbackMessage ? "error_message" : null)));
+  const diagnosticCode = structuredCode || extractRunnerDiagnosticCode(diagnosticText) || extractRunnerDiagnosticCode(fallbackMessage);
   const mysqlCode = diagnosticText.match(/\b(ER_[A-Z0-9_]+)\b/)?.[1] || null;
   return {
     migration: inspection.migration,
@@ -312,18 +328,48 @@ function runnerFailureDetails(error, inspection, lifecycle = {}) {
 function parseRunnerErrorPayload(value = "") {
   const raw = String(value || "").trim();
   if (!raw) return null;
-  const candidates = [raw];
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) candidates.push(raw.slice(firstBrace, lastBrace + 1));
-  for (const candidate of candidates) {
+  const parsedObjects = [];
+  const addParsedObject = (candidate) => {
     try {
       const parsed = JSON.parse(candidate);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) parsedObjects.push(parsed);
     } catch {
     }
+  };
+
+  addParsedObject(raw);
+  for (let start = 0; start < raw.length; start += 1) {
+    if (raw[start] !== "{") continue;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < raw.length; index += 1) {
+      const character = raw[index];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (character === "\\") escaped = true;
+        else if (character === '"') inString = false;
+        continue;
+      }
+      if (character === '"') {
+        inString = true;
+        continue;
+      }
+      if (character === "{") depth += 1;
+      else if (character === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          addParsedObject(raw.slice(start, index + 1));
+          break;
+        }
+      }
+    }
   }
-  return null;
+
+  return parsedObjects.find((parsed) => parsed?.ok === false && parsed?.error)
+    || parsedObjects.find((parsed) => parsed?.error && typeof parsed.error === "object")
+    || parsedObjects[0]
+    || null;
 }
 
 function classifyRunnerFailure(error, inspection) {
