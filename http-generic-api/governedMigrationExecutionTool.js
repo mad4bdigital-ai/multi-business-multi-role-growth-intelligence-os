@@ -328,7 +328,22 @@ function parseRunnerErrorPayload(value = "") {
 
 function classifyRunnerFailure(error, inspection) {
   const payload = parseRunnerErrorPayload(error?.stderr) || parseRunnerErrorPayload(error?.stdout);
-  const runnerMessage = String(payload?.error || payload?.message || error?.message || "").trim();
+  const nestedError = payload?.error && typeof payload.error === "object" && !Array.isArray(payload.error)
+    ? payload.error
+    : null;
+  const runnerMessage = String(
+    nestedError?.message
+      || (typeof payload?.error === "string" ? payload.error : "")
+      || payload?.message
+      || error?.message
+      || "",
+  ).trim();
+  const runnerCode = String(
+    nestedError?.code
+      || payload?.error_code
+      || payload?.runner_error_code
+      || "",
+  ).trim() || null;
   const authorizationMatch = runnerMessage.match(
     /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i,
   );
@@ -344,6 +359,7 @@ function classifyRunnerFailure(error, inspection) {
       authorization_required: true,
       authorization_reason: authorizationMatch[2] || "migration_not_authorized",
       next_step: "run governed_migration_authorization_bootstrap for the checksum-bound migration before governed_migration_execute",
+      runner_error_code: runnerCode,
       runner_error_message: sanitizeRunnerDiagnostic(runnerMessage, 1000) || null,
       secrets_included: false,
     },
