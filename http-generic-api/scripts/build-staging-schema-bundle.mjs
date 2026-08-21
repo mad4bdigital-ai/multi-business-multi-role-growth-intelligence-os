@@ -495,6 +495,10 @@ const initialAudit = orderedPreuseAudit();
 if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
 const tableBootstrap = canonicalTableBootstrap(files, initialAudit);
 const orderedAudit = orderedPreuseAudit(tableBootstrap.entries.map(({ file, table, object_type, source_file }) => ({ file, table, object_type, source_file })));
+if (orderedAudit.missing_table_gaps > 0) {
+  const missing = orderedAudit.gaps.filter((gap) => gap.kind === "missing_table").map((gap) => `${gap.table} in ${path.basename(gap.file)}`);
+  fail(`canonical table bootstrap leaves ${orderedAudit.missing_table_gaps} unresolved schema-object pre-use gaps: ${missing.join(", ")}; add canonical idempotent DDL before schema build`);
+}
 if (orderedAudit.missing_column_gaps > 0) {
   const missing = orderedAudit.gaps.filter((gap) => gap.kind === "missing_column").map((gap) => `${gap.table}.${gap.column} in ${path.basename(gap.file)}`);
   fail(`canonical table bootstrap exposes ${orderedAudit.missing_column_gaps} missing-column pre-use gaps: ${missing.join(", ")}; repair canonical DDL before schema build`);
