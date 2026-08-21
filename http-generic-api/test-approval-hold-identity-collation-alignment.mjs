@@ -62,6 +62,10 @@ assert(sql.includes("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_r
 assert(sql.includes("expected_column_count = 10"));
 assert(sql.includes("collation_mismatch_count"));
 assert(sql.includes("orphan_reference_count"));
+const readinessView = sql.slice(sql.indexOf("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"));
+assert.equal((readinessView.match(/LEFT JOIN approval_holds h ON/g) || []).length, 9);
+assert.equal((readinessView.match(/CONVERT\(h\.hold_id USING utf8mb4\) COLLATE utf8mb4_unicode_ci = CONVERT\(c\.(?:approval_hold_id|hold_id) USING utf8mb4\) COLLATE utf8mb4_unicode_ci/g) || []).length, 9);
+assert(!/LEFT JOIN approval_holds h ON h\.hold_id\s*=\s*c\./.test(readinessView), "readiness view must not use implicit Approval Hold collation comparisons");
 assert(sql.includes("approval_hold_identity_collation_v1"));
 assert(sql.includes("runtime_compatibility_join_retained_until_verified"));
 assert(!/DROP\s+TABLE/i.test(sql));
