@@ -38,14 +38,14 @@
       "docs/change-documentation-governance.md": 13
     },
     "safety_marker_counts": {
-      "no_provider_call": 467,
-      "no_credential_payload_read": 464,
-      "no_raw_secrets": 463,
-      "no_external_send": 465,
-      "no_external_write": 466,
-      "secrets_included_false": 471
+      "no_provider_call": 466,
+      "no_credential_payload_read": 463,
+      "no_raw_secrets": 462,
+      "no_external_send": 464,
+      "no_external_write": 465,
+      "secrets_included_false": 470
     },
-    "safety_marker_gap_migrations": 6,
+    "safety_marker_gap_migrations": 7,
     "route_coverage": {
       "sql_route_count": 34,
       "total_sql_route_like_count": 710,
@@ -66,19 +66,19 @@
     }
   },
   "queue": {
-    "total_items": 15,
+    "total_items": 16,
     "class_counts": {
       "critical_review": 4,
       "high_review": 2,
       "medium_review": 7,
-      "low_review": 2
+      "low_review": 3
     }
   },
   "triage": {
-    "total_items": 15,
+    "total_items": 16,
     "class_counts": {
       "new_surface_immediate_review": 6,
-      "safety_marker_review": 8,
+      "safety_marker_review": 9,
       "standard_backlog_review": 1
     },
     "gate_candidate_count": 6
@@ -86,8 +86,8 @@
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 13,
-    "blocking_new_item_count": 13
+    "new_item_count": 14,
+    "blocking_new_item_count": 14
   },
   "top_immediate_items": [
     {

@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 15
+- Total queue items: 16
 - Critical review: 4
 - High review: 2
 - Medium review: 7
-- Low review: 2
+- Low review: 3
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -209,7 +209,20 @@
 - Remediation actions:
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 15. `1023_sprint69_sql_cache_runtime_policy.sql`
+### 15. `20260711_transactional_outbox_shadow_sync_foundation.sql`
+
+- Queue class: low_review
+- Score: 136
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_outbox_worker`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 16. `1023_sprint69_sql_cache_runtime_policy.sql`
 
 - Queue class: low_review
 - Score: 123
