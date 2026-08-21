@@ -52,18 +52,16 @@ ON DUPLICATE KEY UPDATE
   updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO governed_migration_authorization_registry
-  (migration_key, migration_path, authorization_status, risk_class, notes)
+  (migration_file, authorization_status, risk_tier, notes)
 VALUES
   (
-    '20260704_platform_resource_authority_grant_tool',
-    'http-generic-api/migrations/20260704_platform_resource_authority_grant_tool.sql',
-    'authorized_for_review',
+    '20260704_platform_resource_authority_grant_tool.sql',
+    'authorized',
     'medium',
     'Additive tool registration only. Runtime grants remain bounded by TTL, typed confirmation, expected SHA, and same-cycle readback.'
   )
 ON DUPLICATE KEY UPDATE
-  migration_path = VALUES(migration_path),
   authorization_status = VALUES(authorization_status),
-  risk_class = VALUES(risk_class),
+  risk_tier = VALUES(risk_tier),
   notes = VALUES(notes),
   updated_at = CURRENT_TIMESTAMP;

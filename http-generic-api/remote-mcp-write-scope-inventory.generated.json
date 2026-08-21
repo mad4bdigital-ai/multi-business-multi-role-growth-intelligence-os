@@ -54646,7 +54646,7 @@
         "admin_platform_endpoint_tools",
         "display_name",
         "governed_migration_authorization_registry",
-        "migration_path"
+        "authorization_status"
       ],
       "write_scopes": [],
       "catalog_fingerprints": []
@@ -57013,6 +57013,8 @@
     {
       "path": "http-generic-api/migrations/273_sprint68_activation_catalog_authorized_surfaces.sql",
       "tables": [
+        "skill_packages",
+        "CURRENT_TIMESTAMP",
         "tenants",
         "agents",
         "agent_skills",
@@ -57027,7 +57029,6 @@
         "app_integration_tool_bindings",
         "platform_orchestration_plugins",
         "skill_manifests",
-        "skill_packages",
         "logic_packs",
         "local_gateway_tools",
         "v_activation_agent_catalog",

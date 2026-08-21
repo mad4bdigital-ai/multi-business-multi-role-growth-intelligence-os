@@ -2,6 +2,24 @@
 -- Safe tenant-scoped catalog/readback views for remaining activation-relevant platform catalogs.
 -- These views intentionally expose identifiers/status/flags only and exclude prompts, manifests, schemas, policies, URLs, args, and payload JSON.
 
+CREATE TABLE IF NOT EXISTS `skill_packages` (
+  `package_id` VARCHAR(128) NOT NULL,
+  `package_key` VARCHAR(191) NOT NULL,
+  `display_name` VARCHAR(255) NOT NULL,
+  `source_url` TEXT NULL,
+  `source_type` VARCHAR(64) NOT NULL,
+  `version` VARCHAR(64) NOT NULL,
+  `manifest_json` JSON NULL,
+  `logic_key` VARCHAR(191) NOT NULL,
+  `install_status` VARCHAR(32) NOT NULL DEFAULT 'installed',
+  `enabled` TINYINT(1) NOT NULL DEFAULT 1,
+  `installed_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`package_id`),
+  UNIQUE KEY `uq_skill_packages_package_key` (`package_key`),
+  KEY `idx_skill_packages_catalog_status` (`install_status`, `enabled`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE OR REPLACE VIEW `v_activation_agent_catalog` AS
 SELECT
   t.`tenant_id`,
