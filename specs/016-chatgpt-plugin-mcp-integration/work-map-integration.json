@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 10876)
-Total output lines: 1511
-
 {
   "schema_version": 1,
   "feature_key": "016-chatgpt-plugin-mcp-integration",
@@ -751,7 +748,139 @@ Total output lines: 1511
       }
     },
     "policy-authority-map": {
-      "d…876 tokens truncated…   "T006",
+      "decision": "integrate",
+      "rationale": "Scopes, client eligibility, tool visibility, confirmation, external effects, destructive actions, privacy, and tenant rollout require policy authority.",
+      "owner": "platform-team",
+      "integration_points": [
+        "OAuth scopes",
+        "tool policy",
+        "confirmation",
+        "tenant rollout",
+        "privacy"
+      ],
+      "requirement_refs": [
+        "FR-007",
+        "FR-015",
+        "FR-016",
+        "FR-021"
+      ],
+      "task_refs": [
+        "T014",
+        "T015",
+        "T027",
+        "T028"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "spec.md#actors-and-authority",
+        "checklists/security.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 66,
+        "matched_terms": [
+          "activation",
+          "actor",
+          "assets",
+          "authority",
+          "block",
+          "brands",
+          "classification",
+          "connectors",
+          "context",
+          "count",
+          "coverage",
+          "database",
+          "delivery",
+          "development",
+          "discovered",
+          "documentation",
+          "domain",
+          "end",
+          "evidence",
+          "existing"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "repository-automation-map": {
+      "decision": "integrate",
+      "rationale": "Contract validation, annotation parity, metadata fingerprinting, exact-head evidence, package validation, and no-secret scans require repository automation.",
+      "owner": "platform-team",
+      "integration_points": [
+        "schema validation",
+        "metadata drift",
+        "package validation",
+        "secret scan"
+      ],
+      "requirement_refs": [
+        "FR-013",
+        "FR-027",
+        "NFR-010",
+        "NFR-011"
+      ],
+      "task_refs": [
+        "T003",
+        "T005",
+        "T030",
+        "T039"
+      ],
+      "acceptance_refs": [
+        "traceability.md#user-journeys-to-acceptance-evidence",
+        "traceability.md#functional-requirements-to-operation-paths-and-tasks"
+      ],
+      "evidence_refs": [
+        "testing-strategy.md#static-contract-validation",
+        "traceability.md"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 179,
+        "matched_terms": [
+          "activation",
+          "admin",
+          "alert",
+          "api",
+          "apply",
+          "artifact",
+          "assets",
+          "authority",
+          "authorization",
+          "authorize",
+          "authorized",
+          "automation",
+          "backfill",
+          "baseline",
+          "blocks",
+          "branch",
+          "brand",
+          "build",
+          "canary",
+          "candidate"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "repository-development-map": {
+      "decision": "integrate",
+      "rationale": "Multi-PR delivery, SDK adoption, compatibility changes, generated contracts, CI, review, and release evidence use existing development governance.",
+      "owner": "platform-team",
+      "integration_points": [
+        "multi-PR plan",
+        "dependency pinning",
+        "CI",
+        "review"
+      ],
+      "requirement_refs": [
+        "FR-003",
+        "FR-004",
+        "NFR-010"
+      ],
+      "task_refs": [
+        "T006",
         "T019",
         "T020"
       ],
