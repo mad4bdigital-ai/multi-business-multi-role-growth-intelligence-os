@@ -69,6 +69,7 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".changes/e2e/governed-migration-runner-bootstrap-diagnostics-20260821.json",
       ".changes/e2e/remote-mcp-oauth-path-format-guard.json",
       ".changes/e2e/derived-state-closure-governance-20260815.json",
       ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
