@@ -32,6 +32,12 @@
   ],
   "approved_findings": [
     {
+      "path": "http-generic-api/schema.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 730,
+      "reason": "Canonical platform-scope sentinel for the global tenant row required by the allowlist baseline and idempotent migrations 909 and 1002; this is not a customer fallback and remains bounded by the registry unique key."
+    },
+    {
       "path": "http-generic-api/src/infrastructure/growthControlPlane/growthControlPlaneRepository.js",
       "rule_id": "zero_scope_fallback",
       "line": 445,

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const providerGate = readFileSync("supportTicketExternalSendProviderGateService.js", "utf8");
 const migration = readFileSync("migrations/1002_sprint68_platform_admin_email_default.sql", "utf8");
 const baselineSchema = readFileSync("schema.sql", "utf8");
+const hardcodingConfig = JSON.parse(readFileSync("context-kernel-hardcoding-scan.config.json", "utf8"));
 
 for (const expected of [
   "resolvePlatformAdminEmail",
@@ -18,6 +19,11 @@ for (const expected of [
 ]) {
   assert(providerGate.includes(expected), `provider gate must include ${expected}`);
 }
+
+const sentinelApproval = hardcodingConfig.approved_findings.find((item) => item.path === "http-generic-api/schema.sql" && item.rule_id === "zero_scope_fallback");
+assert(sentinelApproval, "hardcoding scanner must explicitly approve the bounded platform-scope sentinel");
+assert.equal(sentinelApproval.line, 730, "hardcoding scanner approval must remain line-bound to the baseline sentinel");
+assert(sentinelApproval.reason.includes("migrations 909 and 1002"), "sentinel approval must explain the migration dependency");
 
 for (const expected of [
   "external_delivery_recipient_allowlist_registry",
