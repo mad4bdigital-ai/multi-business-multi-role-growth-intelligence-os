@@ -722,6 +722,28 @@ CREATE TABLE IF NOT EXISTS `platform_secrets` (
   KEY `idx_platform_secrets_storage` (`storage_backend`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ── 21. External Delivery Recipient Allowlist Registry ─────────────────────────
+-- Baseline prerequisite for migrations 909 and 1002.
+-- Rows are policy metadata only; no secret recipient payloads are stored here.
+CREATE TABLE IF NOT EXISTS `external_delivery_recipient_allowlist_registry` (
+  `allowlist_id` VARCHAR(36) NOT NULL,
+  `tenant_id` VARCHAR(64) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+  `adapter_key` VARCHAR(160) NOT NULL DEFAULT '*',
+  `channel` VARCHAR(64) NOT NULL DEFAULT 'email',
+  `match_type` VARCHAR(32) NOT NULL DEFAULT 'exact_email',
+  `recipient_pattern` VARCHAR(320) NOT NULL,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'active',
+  `approval_hold_id` VARCHAR(64) NULL,
+  `created_by` VARCHAR(128) NULL,
+  `reason` VARCHAR(512) NULL,
+  `expires_at` DATETIME NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`allowlist_id`),
+  UNIQUE KEY `uq_external_delivery_allowlist_scope_pattern` (`tenant_id`, `adapter_key`, `channel`, `match_type`, `recipient_pattern`),
+  KEY `idx_external_delivery_allowlist_lookup` (`tenant_id`, `adapter_key`, `channel`, `status`, `expires_at`),
+  KEY `idx_external_delivery_allowlist_status` (`status`, `expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `user_credentials` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` VARCHAR(36) NOT NULL,
