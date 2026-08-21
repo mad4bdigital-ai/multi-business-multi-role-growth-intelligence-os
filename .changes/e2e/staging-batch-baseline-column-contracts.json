@@ -43,6 +43,7 @@
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "http-generic-api/test-platform-admin-email-default.mjs",
       "http-generic-api/test-approval-hold-identity-collation-alignment.mjs",
+      "docs/surface-contract-manual-safety-attestations.json",
       "http-generic-api/test-work-map-autofix-registry-refresh-scope.mjs",
       "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
       "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
