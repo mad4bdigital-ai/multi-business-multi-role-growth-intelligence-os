@@ -349,7 +349,7 @@ jobs:
           test "${recovery_head_branch}" = "${TARGET_BRANCH}"
           test "$(jq -r '.status' "${recovery_file}")" = "completed"
           test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
-          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}")"
+          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}" | tr -d '\r')"
           [[ "${recovery_run_attempt}" =~ ^[1-9][0-9]*$ ]]
 
           gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" > "${delegation_file}"
