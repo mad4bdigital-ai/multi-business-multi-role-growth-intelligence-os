@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7263,
-    "bytes": 70751136,
-    "lines": 1658317,
+    "bytes": 70751396,
+    "lines": 1658321,
     "directories": 266,
     "categories": 13
   },
@@ -7211,9 +7211,9 @@
       "path": ".changes/e2e/hostinger-storage-workmap-gate-scope-20260822.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 6688,
-      "lines": 121,
-      "sha256": "29a8fce7a58d680f3401c41e4ca4cbd3e363afa4705888b7b7269b7e37600e87",
+      "bytes": 6948,
+      "lines": 125,
+      "sha256": "1008e49d119ff7b39478163b6c36f8472b389e7a4ea87d8dcb7f0d3c9431a1f5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32414,7 +32414,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "770b5e798e3c65164a54f49e1167cfa4fea433d73c1a25e1b2242265213a5a72",
+      "sha256": "2bee2cf6d94b8b0c14aa5d51f19ac836164d5adace321f8f6143a37c572c097b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52258,7 +52258,7 @@
       "extension": ".json",
       "bytes": 1936189,
       "lines": 58553,
-      "sha256": "49a012d98accaf2a5c3afa86d4e321330a8b733db34a9ecd0ce1b2e163403312",
+      "sha256": "9515a3f029b54d32a3c9ef133ca71a59e4aaa581a4a171a3efd4d49545f09c51",
       "mode": "644",
       "executable": false,
       "generated": false
