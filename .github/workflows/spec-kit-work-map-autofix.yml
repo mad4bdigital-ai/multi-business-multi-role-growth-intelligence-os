@@ -349,7 +349,7 @@ jobs:
           test "${recovery_head_branch}" = "${TARGET_BRANCH}"
           test "$(jq -r '.status' "${recovery_file}")" = "completed"
           test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
-          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}")"
+          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}" | tr -d '\r')"
           [[ "${recovery_run_attempt}" =~ ^[1-9][0-9]*$ ]]
 
           gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" > "${delegation_file}"
@@ -357,14 +357,14 @@ jobs:
           test "$(jq -r '.issue_url' "${delegation_file}")" = "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}"
 
           expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
-          actual_grant="$(jq -r '.body' "${delegation_file}")"
+          actual_grant="$(jq -r '.body' "${delegation_file}" | tr -d '\r')"
           test "${actual_grant}" = "${expected_grant}"
 
           consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
           jq -n --arg body "${consumed_grant}" '{body:$body}' > "${delegation_payload}"
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
             --input "${delegation_payload}" >/dev/null
-          readback_grant="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body')"
+          readback_grant="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body' | tr -d '\r')"
           test "${readback_grant}" = "${consumed_grant}"
           echo "consumed=true" >> "$GITHUB_OUTPUT"
 

@@ -257,6 +257,9 @@ assert.match(writerWorkflow, /test "\$\(jq -r '\.conclusion' "\$\{recovery_file\
 assert.match(writerWorkflow, /test "\$\(jq -r '\.user\.login' "\$\{delegation_file\}"\)" = "github-actions\[bot\]"/u);
 assert.match(writerWorkflow, /WORK_MAP_WRITER_DELEGATION contract=mad4b\.work-map-writer-delegation\.v1 state=issued/u);
 assert.match(writerWorkflow, /target_branch=\$\{TARGET_BRANCH\} expected_head_sha=\$\{EXPECTED_HEAD_SHA\} authorization_consumed=true/u);
+assert.match(writerWorkflow, /recovery_run_attempt="\$\(jq -r '\.run_attempt' "\$\{recovery_file\}" \| tr -d '\\r'\)"/u);
+assert.match(writerWorkflow, /actual_grant="\$\(jq -r '\.body' "\$\{delegation_file\}" \| tr -d '\\r'\)"/u);
+assert.match(writerWorkflow, /readback_grant="\$\(gh api "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/comments\/\$\{DELEGATION_COMMENT_ID\}" --jq '\.body' \| tr -d '\\r'\)"/u);
 assert.match(writerWorkflow, /state=consumed recovery_run_id=\$\{RECOVERY_RUN_ID\}/u);
 assert.match(writerWorkflow, /writer_run_id=\$\{GITHUB_RUN_ID\}/u);
 assert.match(writerWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/comments\/\$\{DELEGATION_COMMENT_ID\}"/u);
