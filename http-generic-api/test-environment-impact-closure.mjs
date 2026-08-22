@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { buildReport, classifyChange, classifyPath } from "./scripts/environment-impact-closure.mjs";
+import { buildReport, classifyChange, classifyPath, parseNameStatusLine } from "./scripts/environment-impact-closure.mjs";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
@@ -62,6 +62,21 @@ assert.deepEqual(classifyPath("http-generic-api/scripts/test-generated-artifact-
 assert.deepEqual(classifyPath("http-generic-api/scripts/environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["staging_only", "repository_governance"]);
 assert.deepEqual(classifyPath("docs/README.md", classes), []);
+assert.deepEqual(classifyPath("Updating Registry Patch Index.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("deployment_parity_checklist.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("docs/ai-docs-agent-governance.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("docs/auto-docs-agent/README.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("docs/change-documentation-governance.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(parseNameStatusLine("M\tUpdating Registry Patch Index.md"), {
+  status: "M",
+  path: "Updating Registry Patch Index.md",
+  previous_path: null,
+});
+assert.deepEqual(parseNameStatusLine("R100\told file.md\tnew file.md"), {
+  status: "R100",
+  path: "new file.md",
+  previous_path: "old file.md",
+});
 
 const sharedChange = classifyChange({ status: "M", path: "http-generic-api/routes/tenantTools.js", previous_path: null }, classes);
 assert.deepEqual(sharedChange.classes, ["shared_runtime"]);
