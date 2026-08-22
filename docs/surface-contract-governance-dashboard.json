@@ -33,19 +33,19 @@
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 13,
       "deployment_parity_checklist.md": 13,
-      "docs/ai-docs-agent-governance.md": 13,
-      "docs/auto-docs-agent/README.md": 13,
-      "docs/change-documentation-governance.md": 13
+      "docs/ai-docs-agent-governance.md": 8,
+      "docs/auto-docs-agent/README.md": 8,
+      "docs/change-documentation-governance.md": 8
     },
     "safety_marker_counts": {
-      "no_provider_call": 465,
-      "no_credential_payload_read": 462,
-      "no_raw_secrets": 461,
-      "no_external_send": 463,
-      "no_external_write": 464,
-      "secrets_included_false": 469
+      "no_provider_call": 471,
+      "no_credential_payload_read": 470,
+      "no_raw_secrets": 470,
+      "no_external_send": 470,
+      "no_external_write": 471,
+      "secrets_included_false": 474
     },
-    "safety_marker_gap_migrations": 8,
+    "safety_marker_gap_migrations": 3,
     "route_coverage": {
       "sql_route_count": 34,
       "total_sql_route_like_count": 710,
@@ -66,28 +66,28 @@
     }
   },
   "queue": {
-    "total_items": 17,
+    "total_items": 13,
     "class_counts": {
       "critical_review": 4,
       "high_review": 2,
       "medium_review": 7,
-      "low_review": 4
+      "low_review": 0
     }
   },
   "triage": {
-    "total_items": 17,
+    "total_items": 13,
     "class_counts": {
       "new_surface_immediate_review": 6,
-      "safety_marker_review": 10,
-      "standard_backlog_review": 1
+      "safety_marker_review": 3,
+      "standard_backlog_review": 4
     },
     "gate_candidate_count": 6
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 15,
-    "blocking_new_item_count": 15
+    "new_item_count": 11,
+    "blocking_new_item_count": 11
   },
   "top_immediate_items": [
     {
@@ -273,38 +273,26 @@
     },
     {
       "migration_file": "20260812_resource_surface_policy_decisions_consolidated.sql",
-      "score": 592,
+      "score": 460,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "medium",
       "missing_docs": [
         "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
+        "deployment_parity_checklist.md"
       ],
       "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
+      "safety_marker_gaps": [],
       "remediation_action_keys": [
         "document_surface_contract",
         "verify_policy_seed_readiness",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
+        "verify_readback_view"
       ],
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-policy-review",
-        "db-readback-review",
-        "safety-contract-review"
+        "db-readback-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {
@@ -319,31 +307,24 @@
     },
     {
       "migration_file": "20260811_runtime_break_glass_authority_metadata_v1.sql",
-      "score": 511,
+      "score": 439,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "medium",
       "missing_docs": [
         "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
+        "deployment_parity_checklist.md"
       ],
       "missing_openapi_routes": [],
-      "safety_marker_gaps": [
-        "no_raw_secrets"
-      ],
+      "safety_marker_gaps": [],
       "remediation_action_keys": [
         "document_surface_contract",
-        "verify_policy_seed_readiness",
-        "add_explicit_safety_markers"
+        "verify_policy_seed_readiness"
       ],
       "owner_hints": [
         "docs-agent/human-review",
-        "runtime-policy-review",
-        "safety-contract-review"
+        "runtime-policy-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {

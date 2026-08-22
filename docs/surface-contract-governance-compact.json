@@ -4,8 +4,8 @@
   "docs_completion_percent": 97.27,
   "docs_complete_count": 464,
   "docs_gap_count": 13,
-  "queue_items": 17,
-  "blocking_new_item_count": 15,
+  "queue_items": 13,
+  "blocking_new_item_count": 11,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -35,26 +35,26 @@
     {
       "migration_file": "20260812_resource_surface_policy_decisions_consolidated.sql",
       "queue_class": "high_review",
-      "score": 592,
+      "score": 460,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
       "migration_file": "20260811_runtime_break_glass_authority_metadata_v1.sql",
       "queue_class": "high_review",
-      "score": 511,
+      "score": 439,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 676,
   "total_sql_route_like_count": 710,
-  "safety_marker_gap_migrations": 8,
+  "safety_marker_gap_migrations": 3,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 15,
-    "warning_new_item_count": 15
+    "blocking_new_item_count": 11,
+    "warning_new_item_count": 11
   },
   "safety": {
     "executes_provider_calls": false,

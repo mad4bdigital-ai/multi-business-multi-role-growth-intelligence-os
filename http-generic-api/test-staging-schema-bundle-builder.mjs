@@ -118,6 +118,26 @@ test("baseline endpoints schema covers the pre-use migration column contract", (
   }
 });
 
+test("GitHub endpoint runtime binding profiles are valid JSON literals", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const writerFiles = [
+    "1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
+    "1026_sprint69_github_actions_runs_read_dispatch.sql",
+    "1038_sprint69_github_actions_workflow_control_dispatch.sql",
+    "20260718_github_list_issue_comments_endpoint.sql",
+  ];
+  for (const file of writerFiles) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    assert.match(sql, /JSON_QUOTE\('delegated_http_runtime_binding'\)/, `${file} must write a valid JSON string profile`);
+    const withoutValidWrapper = sql.replaceAll("JSON_QUOTE('delegated_http_runtime_binding')", "");
+    assert.equal(
+      withoutValidWrapper.includes("'delegated_http_runtime_binding'"),
+      false,
+      `${file} must not insert a bare non-JSON runtime_binding_profile literal`,
+    );
+  }
+});
+
 test("baseline validation_repair schema covers the pre-use migration 040 contract", () => {
   const quote = String.fromCharCode(96);
   for (const column of manifest.validation.required_validation_repair_baseline_columns) {

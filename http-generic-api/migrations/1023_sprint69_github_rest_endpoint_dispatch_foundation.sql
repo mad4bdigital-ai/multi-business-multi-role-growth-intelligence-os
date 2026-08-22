@@ -48,7 +48,7 @@ INSERT INTO endpoints (
       '429', JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
   'Canonical read-only GitHub issue-label endpoint. Method and path resolve only from endpoints authority.'
 ),
 (
@@ -79,7 +79,7 @@ INSERT INTO endpoints (
       '429', JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
   'Canonical GitHub issue-label mutation endpoint. Mutation remains behind runtime approval, authority, audit, and readback gates.'
 ),
 (
@@ -110,7 +110,7 @@ INSERT INTO endpoints (
       '429', JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
   'Canonical GitHub issue-label replacement endpoint. Mutation remains behind runtime approval, authority, audit, and readback gates.'
 ),
 (
@@ -141,7 +141,7 @@ INSERT INTO endpoints (
       '429', JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'TRUE', 'operations_log|approved_repository_metadata',
   'Canonical GitHub issue-label deletion endpoint. Mutation remains behind runtime approval, authority, audit, and readback gates.'
 )
 ON DUPLICATE KEY UPDATE
