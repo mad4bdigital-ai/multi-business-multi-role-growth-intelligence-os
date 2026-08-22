@@ -26,6 +26,8 @@ function failurePayload(error, stage, runnerExists = null) {
       stage,
       runner_path: RUNNER_PATH,
       runner_exists: runnerExists,
+      runner_diagnostic_stage: error?.diagnostic_stage || null,
+      cause_code: error?.code || null,
       duration_ms: Math.max(0, Date.now() - startedAt),
     },
     secrets_included: false,
@@ -43,10 +45,27 @@ async function main() {
     return;
   }
 
+  let runnerModule;
   try {
-    await import(pathToFileURL(RUNNER_PATH).href);
+    runnerModule = await import(pathToFileURL(RUNNER_PATH).href);
   } catch (error) {
     process.stderr.write(`${JSON.stringify(failurePayload(error, "runner_module_import", runnerExists), null, 2)}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (typeof runnerModule?.runGovernedMigrationRunner !== "function") {
+    const error = new Error("Runner module does not export runGovernedMigrationRunner().");
+    error.code = "runner_lifecycle_export_missing";
+    process.stderr.write(`${JSON.stringify(failurePayload(error, "runner_module_contract", runnerExists), null, 2)}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  try {
+    await runnerModule.runGovernedMigrationRunner(process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`${JSON.stringify(failurePayload(error, "runner_execution", runnerExists), null, 2)}\n`);
     process.exitCode = 1;
   }
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import { classifyMigrationReadbackFailure } from "../.github/ops/lib/migration-readback-diagnostics.mjs";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 
@@ -9,7 +10,27 @@ const liveWorkflow = read("../.github/workflows/github-main-review-policy-live-a
 const publisherWorkflow = read("../.github/workflows/github-main-review-policy-readiness-publisher.yml");
 const migrationRunner = read("../.github/ops/github-repository-policy-1051-governed-rollout.mjs");
 const liveRunner = read("../.github/ops/github-main-review-policy-live-activation.mjs");
+const readbackDiagnostics = read("../.github/ops/lib/migration-readback-diagnostics.mjs");
 const publisher = read("./scripts/github-main-review-policy-readiness-issue-publisher.mjs");
+const conflictFailure = classifyMigrationReadbackFailure(
+  { transport_ok: true, status: 409, http_ok: false, payload: { ok: false } },
+  { readback_status: "fail", ledger: { found: false }, expectations: { missing: { tables: ["x"], columns: [], indexes: [], rule_conditions: [] } } },
+);
+assert.equal(conflictFailure.code, "migration_1051_readback_not_pass");
+assert.equal(conflictFailure.status, 409);
+assert.equal(conflictFailure.details.transport_ok, true);
+assert.equal(conflictFailure.details.response_readback_status, "fail");
+assert.equal(conflictFailure.details.response_ledger_found, false);
+assert.deepEqual(conflictFailure.details.response_missing_counts, { tables: 1, columns: 0, indexes: 0, rule_conditions: 0 });
+
+const transportFailure = classifyMigrationReadbackFailure(
+  { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: "AbortError" },
+  null,
+);
+assert.equal(transportFailure.code, "migration_1051_readback_transport_failed");
+assert.equal(transportFailure.status, 502);
+assert.equal(transportFailure.details.transport_ok, false);
+
 const gitBlobSha = (path) => {
   const bytes = fs.readFileSync(new URL(path, import.meta.url));
   return createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${bytes.length}\0`), bytes])).digest("hex");
@@ -62,9 +83,12 @@ assert.match(liveRunner, /apply_retried: false/);
 assert.match(liveRunner, /readinessMarkerPrefix\(TARGET_BRANCH\)/);
 assert.match(liveRunner, /branchConfirmation\(TARGET_BRANCH\)/);
 assert.match(liveRunner, /verifyMigration1051Applied/);
-assert.match(liveRunner, /migration_1051_readback_transport_failed/);
-assert.match(liveRunner, /response_error_code/);
-assert.match(liveRunner, /response_keys/);
+assert.match(liveRunner, /classifyMigrationReadbackFailure/);
+assert.match(readbackDiagnostics, /migration_1051_readback_transport_failed/);
+assert.match(readbackDiagnostics, /migration_1051_readback_not_pass/);
+assert.match(readbackDiagnostics, /response_error_code/);
+assert.match(readbackDiagnostics, /response_readback_status/);
+assert.match(readbackDiagnostics, /response_missing_counts/);
 assert.ok(liveRunner.includes('headers: { "x-api-key": KEY, Accept: "application/json", "Content-Type": "application/json" }'));
 assert.doesNotMatch(liveRunner, /Authorization: `Bearer \$\{KEY\}/);
 assert.match(liveRunner, /capability_resolution_envelope_apply_authorize/);

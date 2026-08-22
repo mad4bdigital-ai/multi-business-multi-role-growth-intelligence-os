@@ -14,6 +14,15 @@ assert(!runner.includes("const ALLOWED_MIGRATIONS"), "runner must not expose har
 assert(runner.includes("legacy_bootstrap_fallback"), "runner must retain a safe bootstrap fallback while registry table is absent");
 assert(runner.includes("migration_not_authorized_in_db_registry"), "runner must fail closed when DB registry exists and migration is missing");
 assert(runner.includes("authorization"), "runner output must include authorization evidence for diagnostics");
+assert(runner.includes("existing_apply_ledger_lookup_started"), "runner must inspect exact apply ledger before live schema preflight");
+assert(runner.includes("exact_apply_ledger_found"), "runner must emit an exact apply ledger diagnostic");
+assert(runner.includes("already_applied: true"), "dry-run must return an already_applied envelope for exact applied checksum");
+assert(runner.includes("live_schema_preflight_skipped: true"), "already-applied dry-run must skip expensive live schema preflight");
+assert(runner.includes("governed_migration_already_applied"), "apply must fail closed for an exact already-applied checksum");
+assert(
+  runner.indexOf("existing_apply_ledger_lookup_started") < runner.indexOf("schema_preflight_started"),
+  "exact apply ledger lookup must precede schema preflight",
+);
 assert(runner.includes("319_sprint69_dynamic_container_authority_foundation.sql"), "container foundation migration must be bootstrap-authorized before its self-authorization row exists");
 assert(runner.includes("320_sprint69_dynamic_container_authority_runtime_contracts.sql"), "container runtime migration must be bootstrap-authorized before its self-authorization row exists");
 assert(containerFoundationMigration.includes("'319_sprint69_dynamic_container_authority_foundation.sql','authorized','migration_seed'"), "container foundation migration must self-authorize future governed reads and apply");

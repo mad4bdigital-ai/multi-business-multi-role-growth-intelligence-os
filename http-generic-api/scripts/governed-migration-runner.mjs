@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getPool } from "../db.js";
 import { runDatabaseCollationPreflight } from "../databaseCollationPolicyGuard.js";
 import { assessLiveIdentifierComparisonContracts } from "../canonicalIdentifierContract.js";
@@ -489,9 +489,9 @@ async function recordMigrationLedger({
   return { run_id, runner_version: RUNNER_VERSION, recorded: true, capability_envelope_id: normalizedCapabilityEnvelopeId || null };
 }
 
-async function main() {
+async function main(argv = process.argv.slice(2)) {
   emitRunnerDiagnostic("main_entered");
-  const args = parseArgs();
+  const args = parseArgs(argv);
   emitRunnerDiagnostic("arguments_parsed", {
     migration: path.basename(args.migration || "") || null,
     mode: args.mode,
@@ -519,10 +519,64 @@ async function main() {
   const statements = splitSqlStatements(sql);
   const statement_count = statements.length;
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
+  emitRunnerDiagnostic("existing_apply_ledger_lookup_started", { migration, mode: args.mode });
+  const existingApplyLedger = !args.recordOnly
+    ? await findLedgerEntry(migration, migration_checksum_sha256, "apply")
+    : null;
+  emitRunnerDiagnostic("existing_apply_ledger_lookup_completed", {
+    migration,
+    mode: args.mode,
+    found: Boolean(existingApplyLedger),
+  });
+
+  if (existingApplyLedger && args.mode === "apply" && !args.recordOnly) {
+    const error = new Error(`Migration already applied for exact checksum: ${migration}`);
+    error.code = "governed_migration_already_applied";
+    throw error;
+  }
+
+  if (existingApplyLedger && args.mode !== "apply" && !args.recordOnly) {
+    emitRunnerDiagnostic("exact_apply_ledger_found", {
+      migration,
+      mode: args.mode,
+      run_id: existingApplyLedger.run_id || null,
+    });
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "dry_run",
+      migration,
+      migration_checksum_sha256,
+      applies_sql: false,
+      already_applied: true,
+      existing_apply_ledger: existingApplyLedger,
+      authorization,
+      collation_preflight: {
+        status: "skipped",
+        reason: "exact_apply_ledger_found",
+        secrets_included: false,
+      },
+      preflight,
+      statement_count,
+      requirements: artifactNames(requirements),
+      before_schema_objects: [],
+      live_schema_preflight_skipped: true,
+      required_confirmation: confirmationFor(migration),
+      capability_envelope_id: capabilityEnvelopeId || null,
+      secrets_included: false,
+    }, null, 2));
+    return;
+  }
+
   emitRunnerDiagnostic("schema_preflight_started", { migration, mode: args.mode });
+  emitRunnerDiagnostic("existing_schema_objects_started", { migration, mode: args.mode });
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  emitRunnerDiagnostic("existing_schema_objects_completed", { migration, mode: args.mode });
+  emitRunnerDiagnostic("identifier_contract_preflight_started", { migration, mode: args.mode });
   const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
+  emitRunnerDiagnostic("identifier_contract_preflight_completed", { migration, mode: args.mode });
+  emitRunnerDiagnostic("collation_preflight_started", { migration, mode: args.mode });
   const collation_preflight = await runDatabaseCollationPreflight({ pool: getPool(), sql, migration });
+  emitRunnerDiagnostic("collation_preflight_completed", { migration, mode: args.mode });
 
   if (!collation_preflight.ready) {
     console.log(JSON.stringify({
@@ -714,22 +768,38 @@ async function closePoolQuietly() {
   }
 }
 
-main()
-  .then(async () => {
+export async function runGovernedMigrationRunner(argv = process.argv.slice(2)) {
+  try {
+    return await main(argv);
+  } catch (error) {
+    if (error && typeof error === "object") {
+      error.diagnostic_stage ||= currentDiagnosticStage;
+      error.diagnostic_duration_ms ||= Math.max(0, Date.now() - diagnosticStartedAt);
+    }
+    throw error;
+  } finally {
     await closePoolQuietly();
-  })
-  .catch(async (error) => {
+  }
+}
+
+function isDirectExecution() {
+  const entrypoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
+  return Boolean(entrypoint) && import.meta.url === entrypoint;
+}
+
+if (isDirectExecution()) {
+  runGovernedMigrationRunner().catch(async (error) => {
     process.stderr.write(`${JSON.stringify({
       ok: false,
       error: {
         code: error?.code || "governed_migration_runner_unhandled_failure",
         name: error?.name || "Error",
         message: error?.message || String(error),
-        diagnostic_stage: currentDiagnosticStage,
-        duration_ms: Math.max(0, Date.now() - diagnosticStartedAt),
+        diagnostic_stage: error?.diagnostic_stage || currentDiagnosticStage,
+        duration_ms: error?.diagnostic_duration_ms || Math.max(0, Date.now() - diagnosticStartedAt),
       },
       secrets_included: false,
     }, null, 2)}\n`);
-    await closePoolQuietly();
     process.exitCode = 1;
   });
+}
