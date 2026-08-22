@@ -253,26 +253,29 @@
     },
     {
       "migration_file": "1026_sprint69_repository_reconciliation_automation.sql",
-      "migration_sha256": "6111029cd9dd026da815f2a4816cadb2e37d9a8a39fc2a51806034a31778e667",
+      "migration_sha256": "0791c588721a948c0e0e935073d795e0f9880d90d6c5132b0688f6e0f7cedc8a",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_human_review",
       "review_status": "approved_checksum_bound_internal_sql",
       "reviewed_by": "platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4",
       "reviewed_at": "2026-07-11T04:30:00Z",
-      "rationale": "Human review confirmed that the checksum-bound PREPARE and EXECUTE pairs can select only two idempotent internal ALTER statements for repository_mutation_runs_v6: adding the nullable idempotency_key column and adding its unique index when absent. The remaining SQL seeds a planned, fail-closed reconciliation recipe and blocking policy that forbid force push, protected-branch direct writes, blind retry, migration apply, automatic activation, secret return, and provider mutation without plan-bound approvals and same-cycle readback. This attestation grants no migration execution, deployment, provider-call, credential-read, external-write, or secret-return authority.",
+      "rationale": "Human review confirmed that the checksum-bound PREPARE and EXECUTE pairs select only the two idempotent internal ALTER statements for repository_mutation_runs_v6, while the added step_kind compatibility ALTER is a deterministic internal schema alignment required before seeding the existing engine-owned recipe steps. The remaining SQL seeds a planned, fail-closed reconciliation recipe and blocking policy that forbid force push, protected-branch direct writes, blind retry, migration apply, automatic activation, secret return, and provider mutation without plan-bound approvals and same-cycle readback. This attestation grants no migration execution, deployment, provider-call, credential-read, external-write, or secret-return authority.",
       "execution_authorized": false,
       "queue_class_at_attestation": "critical_review",
       "gap_severity_at_attestation": "high",
-      "preflight_status": "pass",
-      "preflight_risk_count": 0,
-      "statement_count": 14,
-      "accepted_preflight_risks": {},
+      "preflight_status": "warn",
+      "preflight_risk_count": 1,
+      "statement_count": 15,
+      "accepted_preflight_risks": {
+        "alter_table_requires_manual_idempotency_review": 1
+      },
       "accepted_forbidden_patterns": [
         "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",
         "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b"
       ],
       "required_sql_fragments": [
+        "ALTER TABLE `platform_resource_recipe_steps`",
         "SET @repo_mutation_idempotency_column_sql := IF(",
         "PREPARE repo_mutation_idempotency_column_stmt FROM @repo_mutation_idempotency_column_sql;",
         "EXECUTE repo_mutation_idempotency_column_stmt;",

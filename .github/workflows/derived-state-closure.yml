@@ -148,7 +148,7 @@ jobs:
             --report-file "$OUT/repository-governance.json"
           node - "$OUT/repository-governance.json" <<'NODE'
           const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const report = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
           if (report?.fixed_point?.converged !== true) throw new Error('repository governance fixed point is not converged');
           NODE
 
