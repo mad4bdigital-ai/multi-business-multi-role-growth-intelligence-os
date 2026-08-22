@@ -70,11 +70,12 @@ try {
   const lifecycleStages = lifecycleLines.slice(0, 4).map((line) => JSON.parse(line));
   assert.deepEqual(
     lifecycleStages.map((event) => event.stage),
-    ["module_loaded", "main_entered", "arguments_parsed", "authorization_preflight_started"],
+    ["module_loaded", "main_entered", "arguments_parsed", "migration_artifact_read_started"],
   );
   const lifecycleFailure = lifecycleResult.payload;
   assert.equal(lifecycleFailure.ok, false);
   assert.equal(lifecycleFailure.error.stage, "runner_execution");
+  assert.equal(lifecycleFailure.error.code, "DB_CONFIG_MISSING");
   assert.equal(lifecycleFailure.error.runner_diagnostic_stage, "authorization_preflight_started");
   assert.equal(lifecycleFailure.error.cause_code, "DB_CONFIG_MISSING");
   assert.equal(lifecycleFailure.secrets_included, false);

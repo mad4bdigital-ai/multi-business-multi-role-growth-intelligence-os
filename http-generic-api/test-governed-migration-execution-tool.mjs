@@ -330,8 +330,54 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(result.applies_sql, false);
   assert.equal(result.same_cycle_readback_verified, true);
   assert.match(result.execution_id, /^[0-9a-f-]{36}$/);
-  assert.equal(result.runner_timeout_ms, 110000);
+  assert.equal(result.runner_timeout_ms, 45000);
   assert.equal(result.runner_capture_limit_bytes, 4 * 1024 * 1024);
+}
+
+{
+  const result = await runGovernedMigrationExecution(baseInput(), {
+    timeoutMs: 110000,
+    execFile: async () => ({
+      stdout: JSON.stringify({
+        ...fakeResult("dry_run"),
+        already_applied: true,
+        existing_apply_ledger: { run_id: "run-1025" },
+        live_schema_preflight_skipped: true,
+        schema_readback_required: true,
+      }),
+      stderr: "",
+    }),
+  });
+  assert.equal(result.already_applied, true);
+  assert.equal(result.runner_timeout_ms, 45000);
+
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput(), {
+      execFile: async () => ({
+        stdout: JSON.stringify({
+          ...fakeResult("dry_run"),
+          already_applied: true,
+          existing_apply_ledger: { run_id: "run-1025" },
+          live_schema_preflight_skipped: true,
+        }),
+        stderr: "",
+      }),
+    }),
+    (error) => error.code === "governed_migration_runner_invalid_applied_readback" && error.status === 502,
+  );
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope(),
+      execFile: async () => ({
+        stdout: JSON.stringify({ ...fakeResult("apply"), already_applied: true }),
+        stderr: "",
+      }),
+    }),
+    (error) => error.code === "governed_migration_runner_invalid_applied_readback" && error.status === 502,
+  );
 }
 
 {
@@ -571,6 +617,31 @@ function fakeReadinessRepairResult(mode) {
       assert.equal(error.details.secrets_included, false);
       return true;
     },
+  );
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput(), {
+      execFile: async () => {
+        const error = new Error("runner rejected the artifact");
+        error.code = 1;
+        error.stderr = JSON.stringify({
+          ok: false,
+          error: {
+            code: "governed_migration_runner_bootstrap_failed",
+            cause_code: "governed_migration_authorization_checksum_mismatch",
+            message: "Governed migration authorization checksum does not match the artifact.",
+          },
+          secrets_included: false,
+        });
+        throw error;
+      },
+    }),
+    (error) => error.code === "governed_migration_authorization_checksum_mismatch"
+      && error.status === 409
+      && error.details.runner_error_code === "governed_migration_authorization_checksum_mismatch"
+      && error.details.secrets_included === false,
   );
 }
 

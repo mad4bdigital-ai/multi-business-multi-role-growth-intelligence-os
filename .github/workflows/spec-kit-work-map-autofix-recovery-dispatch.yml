@@ -49,6 +49,68 @@ jobs:
           mkdir -p "${report_dir}"
           echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
 
+      - name: Restore consumed authorization after proven exact-head writer failure
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "${REQUESTED_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${REQUESTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "${MANUAL_CONFIRMATION}" = "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"
+          pr_file="${REPORT_DIR}/retry-authorization-pr.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" > "${pr_file}"
+          test "$(jq -r '.state' "${pr_file}")" = "open"
+          test "$(jq -r '.base.ref' "${pr_file}")" = "main"
+          test "$(jq -r '.head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.sha' "${pr_file}")" = "${REQUESTED_HEAD_SHA}"
+          body="$(jq -r '.body // ""' "${pr_file}")"
+          if grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"; then
+            exit 0
+          fi
+
+          target_branch="$(jq -r '.head.ref' "${pr_file}")"
+          failed_run_id="$(gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs" \
+            -f event=workflow_dispatch -f branch="${target_branch}" -f per_page=30 \
+            --jq ".workflow_runs | map(select(.head_sha == \"${REQUESTED_HEAD_SHA}\" and .actor.login == \"github-actions[bot]\" and .status == \"completed\" and .conclusion == \"failure\")) | sort_by(.created_at) | last | .id // empty")"
+          if [[ ! "${failed_run_id}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "No proven exact-head delegated writer failure can restore consumed authorization."
+            exit 0
+          fi
+
+          comments_file="${REPORT_DIR}/retry-authorization-comments.json"
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${REQUESTED_PR_NUMBER}/comments?per_page=100" > "${comments_file}"
+          delegation_comment_id="$(jq -r --arg branch "${target_branch}" --arg head "${REQUESTED_HEAD_SHA}" --arg pr "${REQUESTED_PR_NUMBER}" '
+            [.[] | select(.user.login == "github-actions[bot]"
+              and (.body | startswith("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state="))
+              and (.body | contains(" pr_number=" + $pr + " "))
+              and (.body | contains(" target_branch=" + $branch + " "))
+              and (.body | contains(" expected_head_sha=" + $head + " "))
+              and (.body | contains(" authorization_consumed=true"))
+              and ((.body | contains(" state=issued ")) or (.body | contains(" state=consumed "))))]
+            | last | .id // empty' "${comments_file}")"
+          if [[ ! "${delegation_comment_id}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "No exact-head bot-issued writer delegation can restore consumed authorization."
+            exit 0
+          fi
+          grant_body="$(jq -r --argjson id "${delegation_comment_id}" '.[] | select(.id == $id) | .body' "${comments_file}" | tr -d '\r\n')"
+          if [[ " ${grant_body} " == *" state=consumed "* ]]; then
+            [[ " ${grant_body} " == *" writer_run_id=${failed_run_id} "* ]]
+            revoked_grant="${grant_body/ state=consumed / state=revoked recovery_outcome=writer_failed }"
+          else
+            revoked_grant="${grant_body/ state=issued / state=revoked recovery_outcome=writer_failed }"
+          fi
+          jq -n --arg body "${revoked_grant}" '{body:$body}' > "${REPORT_DIR}/retry-authorization-revoke.json"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${delegation_comment_id}" \
+            --input "${REPORT_DIR}/retry-authorization-revoke.json" >/dev/null
+          jq -n --arg body "${body}" --arg marker "${AUTHORIZATION_MARKER}" \
+            '{body:(if $body == "" then $marker else $body + "\n\n" + $marker end)}' \
+            > "${REPORT_DIR}/retry-authorization-restore.json"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" \
+            --input "${REPORT_DIR}/retry-authorization-restore.json" >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" --jq '.body // ""' | grep -Fq "${AUTHORIZATION_MARKER}"
+
       - name: Resolve and validate exact same-repository target
         id: target
         shell: bash
