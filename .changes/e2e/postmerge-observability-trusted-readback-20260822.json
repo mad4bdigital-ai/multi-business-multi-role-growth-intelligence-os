@@ -12,6 +12,7 @@
       ".github/workflows/repository-evaluation.yml",
       "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       ".github/derived-state-governance.json"
     ]
   },
