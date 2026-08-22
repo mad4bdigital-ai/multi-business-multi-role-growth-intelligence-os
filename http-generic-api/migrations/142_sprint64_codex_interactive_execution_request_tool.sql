@@ -48,7 +48,7 @@ ON DUPLICATE KEY UPDATE
 -- Keep the generic desktop enqueue tool schema in sync with the new governed action.
 UPDATE `admin_platform_endpoint_tools`
 SET `input_schema` = JSON_SET(
-  CAST(`input_schema` AS JSON),
+  CASE WHEN JSON_VALID(`input_schema`) THEN `input_schema` ELSE JSON_OBJECT() END,
   '$.properties.action.enum',
   JSON_ARRAY('open_url', 'open_n8n', 'notify', 'focus_local_manager', 'codex_exec_readonly')
 )

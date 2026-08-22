@@ -138,6 +138,19 @@ test("GitHub endpoint runtime binding profiles are valid JSON literals", () => {
   }
 });
 
+test("MariaDB migrations do not use unsupported CAST AS JSON syntax", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const migrationFiles = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql"));
+  for (const file of migrationFiles) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    assert.doesNotMatch(
+      sql,
+      /CAST\s*\([^;]*?\s+AS\s+JSON\s*\)/i,
+      `${file} must not use CAST(... AS JSON), which is unsupported by MariaDB 11.4`,
+    );
+  }
+});
+
 test("binding identifier width is widened before every descriptive binding writer", () => {
   const migrationsDir = path.join(apiRoot, "migrations");
   const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();

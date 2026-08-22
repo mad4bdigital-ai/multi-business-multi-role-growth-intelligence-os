@@ -27,8 +27,8 @@ SET e.status = 'skipped',
         ELSE 'ticket_not_open'
       END,
       '$.skipped_by', '20260722_skip_ineligible_auth_email_outbox_smoke_notifications',
-      '$.external_send_performed', CAST('false' AS JSON),
-      '$.secrets_included', CAST('false' AS JSON)
+      '$.external_send_performed', false,
+      '$.secrets_included', false
     )
 WHERE e.purpose = 'support_ticket_admin_notification'
   AND e.status = 'queued'
