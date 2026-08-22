@@ -519,10 +519,64 @@ async function main(argv = process.argv.slice(2)) {
   const statements = splitSqlStatements(sql);
   const statement_count = statements.length;
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
+  emitRunnerDiagnostic("existing_apply_ledger_lookup_started", { migration, mode: args.mode });
+  const existingApplyLedger = !args.recordOnly
+    ? await findLedgerEntry(migration, migration_checksum_sha256, "apply")
+    : null;
+  emitRunnerDiagnostic("existing_apply_ledger_lookup_completed", {
+    migration,
+    mode: args.mode,
+    found: Boolean(existingApplyLedger),
+  });
+
+  if (existingApplyLedger && args.mode === "apply" && !args.recordOnly) {
+    const error = new Error(`Migration already applied for exact checksum: ${migration}`);
+    error.code = "governed_migration_already_applied";
+    throw error;
+  }
+
+  if (existingApplyLedger && args.mode !== "apply" && !args.recordOnly) {
+    emitRunnerDiagnostic("exact_apply_ledger_found", {
+      migration,
+      mode: args.mode,
+      run_id: existingApplyLedger.run_id || null,
+    });
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "dry_run",
+      migration,
+      migration_checksum_sha256,
+      applies_sql: false,
+      already_applied: true,
+      existing_apply_ledger: existingApplyLedger,
+      authorization,
+      collation_preflight: {
+        status: "skipped",
+        reason: "exact_apply_ledger_found",
+        secrets_included: false,
+      },
+      preflight,
+      statement_count,
+      requirements: artifactNames(requirements),
+      before_schema_objects: [],
+      live_schema_preflight_skipped: true,
+      required_confirmation: confirmationFor(migration),
+      capability_envelope_id: capabilityEnvelopeId || null,
+      secrets_included: false,
+    }, null, 2));
+    return;
+  }
+
   emitRunnerDiagnostic("schema_preflight_started", { migration, mode: args.mode });
+  emitRunnerDiagnostic("existing_schema_objects_started", { migration, mode: args.mode });
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  emitRunnerDiagnostic("existing_schema_objects_completed", { migration, mode: args.mode });
+  emitRunnerDiagnostic("identifier_contract_preflight_started", { migration, mode: args.mode });
   const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
+  emitRunnerDiagnostic("identifier_contract_preflight_completed", { migration, mode: args.mode });
+  emitRunnerDiagnostic("collation_preflight_started", { migration, mode: args.mode });
   const collation_preflight = await runDatabaseCollationPreflight({ pool: getPool(), sql, migration });
+  emitRunnerDiagnostic("collation_preflight_completed", { migration, mode: args.mode });
 
   if (!collation_preflight.ready) {
     console.log(JSON.stringify({
