@@ -330,7 +330,7 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(result.applies_sql, false);
   assert.equal(result.same_cycle_readback_verified, true);
   assert.match(result.execution_id, /^[0-9a-f-]{36}$/);
-  assert.equal(result.runner_timeout_ms, 300000);
+  assert.equal(result.runner_timeout_ms, 110000);
   assert.equal(result.runner_capture_limit_bytes, 4 * 1024 * 1024);
 }
 
