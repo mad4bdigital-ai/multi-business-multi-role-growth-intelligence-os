@@ -391,8 +391,8 @@ jobs:
   assert.ok(writerWorkflow.includes('test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${pr_count}" = "1"'));
   assert.ok(writerWorkflow.includes('head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}"'));
-  assert.ok(writerWorkflow.includes('test "$(jq -r \'.status\' "${recovery_file}")" = "completed"'));
-  assert.ok(writerWorkflow.includes('test "$(jq -r \'.conclusion\' "${recovery_file}")" = "success"'));
+  assert.ok(writerWorkflow.includes('test "$(jq -r \'.status\' "${recovery_file}" | normalize_scalar)" = "completed"'));
+  assert.ok(writerWorkflow.includes('test "$(jq -r \'.conclusion\' "${recovery_file}" | normalize_scalar)" = "success"'));
   assert.ok(writerWorkflow.includes("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued"));
   assert.ok(writerWorkflow.includes("state=consumed recovery_run_id=${RECOVERY_RUN_ID}"));
   assert.ok(writerWorkflow.includes('issues/comments/${DELEGATION_COMMENT_ID}'));
