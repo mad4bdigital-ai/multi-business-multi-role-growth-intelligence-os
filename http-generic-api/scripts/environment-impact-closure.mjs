@@ -95,6 +95,16 @@ function classifyChange(change, pathClasses = []) {
   };
 }
 
+function parseNameStatusLine(line = "") {
+  const [status = "", ...parts] = String(line).split("\t");
+  const paths = parts.filter(Boolean);
+  return {
+    status,
+    path: paths.at(-1) || "",
+    previous_path: status.startsWith("R") || status.startsWith("C") ? paths.at(-2) || null : null,
+  };
+}
+
 function changedPaths(baseSha, headSha) {
   if (!SHA_RE.test(baseSha || "") || !SHA_RE.test(headSha || "") || baseSha === headSha) return [];
   const output = requireGitNameStatus(baseSha, headSha);
@@ -102,15 +112,7 @@ function changedPaths(baseSha, headSha) {
     .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => {
-      const [status, ...parts] = line.split(/\s+/u);
-      const paths = parts.filter(Boolean);
-      return {
-        status,
-        path: paths.at(-1) || "",
-        previous_path: status.startsWith("R") || status.startsWith("C") ? paths.at(-2) || null : null,
-      };
-    });
+    .map(parseNameStatusLine);
 }
 
 function requireGitNameStatus(baseSha, headSha) {
@@ -406,7 +408,7 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
   };
 }
 
-export { buildReport, classifyChange, classifyPath, globToRegExp };
+export { buildReport, classifyChange, classifyPath, globToRegExp, parseNameStatusLine };
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("environment-impact-closure.mjs")) {
   const baseSha = String(arg("base-sha", process.env.BASE_SHA || "")).trim().toLowerCase() || null;

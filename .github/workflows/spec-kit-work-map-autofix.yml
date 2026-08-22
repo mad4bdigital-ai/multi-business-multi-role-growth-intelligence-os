@@ -345,24 +345,24 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RECOVERY_RUN_ID}" > "${recovery_file}"
           test "$(jq -r '.path' "${recovery_file}")" = ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
           test "$(jq -r '.event' "${recovery_file}")" = "workflow_dispatch"
-          recovery_head_branch="$(jq -r '.head_branch' "${recovery_file}")"
-          recovery_repository="$(jq -r '.repository.full_name' "${recovery_file}")"
+          recovery_head_branch="$(jq -r '.head_branch' "${recovery_file}" | normalize_scalar)"
+          recovery_repository="$(jq -r '.repository.full_name' "${recovery_file}" | normalize_scalar)"
           test "${recovery_repository}" = "${GITHUB_REPOSITORY}"
           if [[ "${recovery_head_branch}" != "main" && "${recovery_head_branch}" != "${TARGET_BRANCH}" ]]; then
             echo "::error::Recovery execution must originate from trusted main or the exact authorized target branch."
             exit 1
           fi
-          test "$(jq -r '.status' "${recovery_file}")" = "completed"
-          test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
-          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}" | tr -d '\r')"
+          test "$(jq -r '.status' "${recovery_file}" | normalize_scalar)" = "completed"
+          test "$(jq -r '.conclusion' "${recovery_file}" | normalize_scalar)" = "success"
+          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}" | normalize_scalar)"
           [[ "${recovery_run_attempt}" =~ ^[1-9][0-9]*$ ]]
 
           gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" > "${delegation_file}"
-          test "$(jq -r '.user.login' "${delegation_file}")" = "github-actions[bot]"
-          test "$(jq -r '.issue_url' "${delegation_file}")" = "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}"
+          test "$(jq -r '.user.login' "${delegation_file}" | normalize_scalar)" = "github-actions[bot]"
+          test "$(jq -r '.issue_url' "${delegation_file}" | normalize_scalar)" = "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}"
 
           expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
-          actual_grant="$(jq -r '.body' "${delegation_file}" | tr -d '\r\n')"
+          actual_grant="$(jq -r '.body' "${delegation_file}" | normalize_scalar)"
           printf 'delegation_grant_issue_lengths actual=%s expected=%s\n' "${#actual_grant}" "${#expected_grant}"
           test "${actual_grant}" = "${expected_grant}"
 
