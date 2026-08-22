@@ -1,0 +1,77 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "postmerge-observability-trusted-readback-20260822",
+  "title": "Classify post-merge observability drift as non-blocking and preserve trusted readback diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/postmerge-observability-trusted-readback-20260822.json",
+      ".github/workflows/repository-inventory.yml",
+      ".github/workflows/repository-evaluation.yml",
+      "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep repository inventory and evaluation evidence authoritative while classifying known post-merge observability staleness as advisory and non-blocking, and preserve fail-closed behavior for unclassified readback failures.",
+      "e2e_journeys": [
+        {
+          "id": "postmerge-observability-advisory",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed post-merge GitHub Actions readback",
+          "entrypoint": "main or Production receives a push and the inventory/evaluation readback workflows verify exact-head derived artifacts.",
+          "terminal_outcome": "Known stale observability produces explicit advisory evidence and a successful non-blocking workflow result; unexpected verification failures remain blocking and fail closed.",
+          "steps": [
+            "Verify exact checked-out head and derived-state policy invariants.",
+            "Classify only the declared stale_observability contract as advisory.",
+            "Publish bounded evidence and retain post-merge follow-up requirements.",
+            "Keep all database, migration, provider, policy Apply, and production activation operations disabled."
+          ],
+          "assertions": [
+            "The advisory path requires followup_required=true and followup_mode=post_merge_observability_publish.",
+            "The advisory path exits successfully without claiming that the artifact is current.",
+            "Non-advisory verification failures still exit non-zero.",
+            "No secrets are written to evidence.",
+            "No runtime, database, migration, grant, provider, Branch Protection, Ruleset, or Production activation mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "postmerge-observability-advisory-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-postmerge-observability-advisory-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/postmerge-observability-trusted-readback-20260822.json",
+            ".github/workflows/repository-inventory.yml",
+            ".github/workflows/repository-evaluation.yml",
+            "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
