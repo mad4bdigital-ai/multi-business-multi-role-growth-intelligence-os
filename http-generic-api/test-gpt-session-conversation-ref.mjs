@@ -50,6 +50,7 @@ assert.ok(migration.includes("CREATE TABLE IF NOT EXISTS `gpt_session_conversati
 assert.ok(migration.includes("personal_conversation_url"));
 assert.ok(migration.includes("share_url"));
 assert.ok(migration.includes("interface_scope"));
+assert.match(migration, /`status` VARCHAR\(32\)[\s\S]*`is_primary` TINYINT\(1\) NOT NULL DEFAULT 0/u);
 assert.ok(migration.includes("gpt_session_conversation_ref_upsert"));
 assert.ok(migration.includes("admin_platform_endpoint_tools"));
 assert.ok(migration.includes("tenant_platform_endpoint_tools"));
