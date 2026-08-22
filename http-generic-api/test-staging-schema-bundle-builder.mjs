@@ -289,6 +289,20 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /platform_secrets baseline column contract is incomplete/);
 });
 
+test("migration 1030 widens catalog tags before append-only governance updates", () => {
+  const migration1030 = fs.readFileSync(path.join(apiRoot, "migrations", "1030_sprint69_default_blocker_recovery_governance_seed.sql"), "utf8");
+  const tables = ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "local_gateway_tools"];
+  const firstUpdate = migration1030.indexOf("UPDATE admin_platform_endpoint_tools");
+  assert.ok(firstUpdate > 0, "migration 1030 must retain the admin catalog update");
+  const quote = String.fromCharCode(96);
+  for (const table of tables) {
+    const alter = new RegExp(`ALTER TABLE ${quote}${table}${quote}\\s+MODIFY COLUMN ${quote}tags${quote} TEXT NULL`, "i");
+    assert.match(migration1030, alter, `${table}.tags must be widened before strict-mode updates`);
+    assert.ok(migration1030.search(alter) < firstUpdate, `${table}.tags widening must precede catalog updates`);
+  }
+  assert.doesNotMatch(migration1030, /\b(?:LEFT|SUBSTRING|TRUNCATE)\s*\(/i, "migration 1030 must not truncate governance tags");
+});
+
 test("generator plan-only mode inventories the exact migration chain", () => {
   const result = runPlan();
   assert.equal(result.status, 0, result.stderr || result.stdout);
