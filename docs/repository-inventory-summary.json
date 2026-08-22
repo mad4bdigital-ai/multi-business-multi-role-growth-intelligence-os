@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7252,
-    "bytes": 70686207,
-    "lines": 1657132,
+    "files": 7263,
+    "bytes": 70751396,
+    "lines": 1658321,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2164,
+      "tests-and-specs": 2168,
       "documentation": 1909,
-      "api-runtime": 1463,
+      "api-runtime": 1465,
       "database-migrations": 783,
-      "root-and-other": 313,
+      "root-and-other": 318,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 123,
@@ -27,13 +27,13 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1720,
+      ".mjs": 1725,
       ".js": 995,
-      ".json": 839,
+      ".json": 844,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
-      ".ps1": 19,
+      ".ps1": 20,
       ".ts": 16,
       ".cs": 14,
       ".jsx": 9,
@@ -61,14 +61,14 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3730,
+      "http-generic-api": 3736,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
-      ".changes": 282,
+      ".changes": 286,
       "canonicals": 70,
       "local-connector": 23,
-      "autopilot-portable-staging": 21,
+      "autopilot-portable-staging": 22,
       "apps": 19,
       "scripts": 19,
       "schemas": 17,
@@ -251,7 +251,7 @@
     "workflows": 170,
     "migrations": 783,
     "apiContracts": 191,
-    "testSpecFiles": 2252
+    "testSpecFiles": 2256
   },
   "largestFiles": [
     {
@@ -269,8 +269,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936154,
-      "lines": 58552
+      "bytes": 1936189,
+      "lines": 58553
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -329,8 +329,8 @@
     {
       "path": "docs/surface-contract-safety-attestations.json",
       "category": "documentation",
-      "bytes": 265603,
-      "lines": 7914
+      "bytes": 266574,
+      "lines": 7985
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",
