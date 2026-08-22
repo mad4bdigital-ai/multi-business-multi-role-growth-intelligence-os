@@ -7,6 +7,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const registry = JSON.parse(read(".github/derived-state-governance.json"));
 const verifierRegistry = JSON.parse(read(".github/governance/verifier-registry.json"));
 const workflow = read(".github/workflows/derived-state-closure.yml");
+const finalReadbackWorkflow = read(".github/workflows/hostinger-storage-final-work-map-readback-guard.yml");
 const repair = read(".github/workflows/derived-state-repair-dispatch.yml");
 const finalizer = read(".github/workflows/derived-state-converged-automerge.yml");
 const script = read("scripts/derived-state-closure.mjs");
@@ -40,6 +41,8 @@ assert.match(workflow, /Checkout exact GitHub merge candidate|Checkout exact can
 assert.match(workflow, /canonical-producer-evidence\.json/u);
 assert.match(workflow, /node - "\$OUT\/repository-governance\.json" <<'NODE'[\s\S]*process\.argv\[2\]/u);
 assert.doesNotMatch(workflow, /readFileSync\(process\.argv\[1\], 'utf8'\)/u);
+assert.equal((finalReadbackWorkflow.match(/process\.argv\[2\]/gu) || []).length, 2);
+assert.doesNotMatch(finalReadbackWorkflow, /process\.argv\[1\]/u);
 assert.match(workflow, /merge_candidate_sha/u);
 assert.match(workflow, /executed_sha/u);
 assert.match(workflow, /repository-governance-evidence-finalizer\.mjs/u);
