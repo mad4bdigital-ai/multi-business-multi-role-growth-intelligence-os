@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getPool } from "../db.js";
 import { runDatabaseCollationPreflight } from "../databaseCollationPolicyGuard.js";
 import { assessLiveIdentifierComparisonContracts } from "../canonicalIdentifierContract.js";
@@ -489,9 +489,9 @@ async function recordMigrationLedger({
   return { run_id, runner_version: RUNNER_VERSION, recorded: true, capability_envelope_id: normalizedCapabilityEnvelopeId || null };
 }
 
-async function main() {
+async function main(argv = process.argv.slice(2)) {
   emitRunnerDiagnostic("main_entered");
-  const args = parseArgs();
+  const args = parseArgs(argv);
   emitRunnerDiagnostic("arguments_parsed", {
     migration: path.basename(args.migration || "") || null,
     mode: args.mode,
@@ -714,22 +714,38 @@ async function closePoolQuietly() {
   }
 }
 
-main()
-  .then(async () => {
+export async function runGovernedMigrationRunner(argv = process.argv.slice(2)) {
+  try {
+    return await main(argv);
+  } catch (error) {
+    if (error && typeof error === "object") {
+      error.diagnostic_stage ||= currentDiagnosticStage;
+      error.diagnostic_duration_ms ||= Math.max(0, Date.now() - diagnosticStartedAt);
+    }
+    throw error;
+  } finally {
     await closePoolQuietly();
-  })
-  .catch(async (error) => {
+  }
+}
+
+function isDirectExecution() {
+  const entrypoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
+  return Boolean(entrypoint) && import.meta.url === entrypoint;
+}
+
+if (isDirectExecution()) {
+  runGovernedMigrationRunner().catch(async (error) => {
     process.stderr.write(`${JSON.stringify({
       ok: false,
       error: {
         code: error?.code || "governed_migration_runner_unhandled_failure",
         name: error?.name || "Error",
         message: error?.message || String(error),
-        diagnostic_stage: currentDiagnosticStage,
-        duration_ms: Math.max(0, Date.now() - diagnosticStartedAt),
+        diagnostic_stage: error?.diagnostic_stage || currentDiagnosticStage,
+        duration_ms: error?.diagnostic_duration_ms || Math.max(0, Date.now() - diagnosticStartedAt),
       },
       secrets_included: false,
     }, null, 2)}\n`);
-    await closePoolQuietly();
     process.exitCode = 1;
   });
+}

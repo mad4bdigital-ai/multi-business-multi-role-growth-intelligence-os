@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner-bootstrap.mjs");
+const DEFAULT_RUNNER_TIMEOUT_MS = 110_000;
 const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_readiness_repair.sql";
 const GOVERNED_MIGRATION_APP_KEY = "platform_orchestration";
 const GOVERNED_MIGRATION_CAPABILITY_KEY = "governed_migration_execute";
@@ -566,7 +567,9 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
 
   const execute = deps.execFile || execFileAsync;
   const executionId = String(deps.executionId || randomUUID());
-  const timeoutMs = Number(deps.timeoutMs || 300000);
+  const timeoutMs = Number.isFinite(Number(deps.timeoutMs)) && Number(deps.timeoutMs) > 0
+    ? Number(deps.timeoutMs)
+    : DEFAULT_RUNNER_TIMEOUT_MS;
   const maxBuffer = Number(deps.maxBuffer || 4 * 1024 * 1024);
   const startedAt = Date.now();
   let execution;
