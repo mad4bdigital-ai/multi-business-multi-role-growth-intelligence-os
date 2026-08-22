@@ -2072,6 +2072,7 @@
     "scripts/repository-inventory.mjs|outputSummary|environment_reference|inventory.summary",
     "scripts/test-repository-evaluation.mjs|environmentProbe|literal_declaration|environmentprobe",
     "scripts/validate-staging-openapi-governance.mjs|policyPath|literal_declaration|policypath",
+    "http-generic-api/governedMigrationExecutionTool.js|DEFAULT_RUNNER_TIMEOUT_MS|literal_declaration|runner.timeout.ms",
     "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker"
   ],
   "max_existing_secret_candidates": 341,
