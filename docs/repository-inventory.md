@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,266 |
-| Total bytes | 70,773,991 |
-| Counted text lines | 1,658,784 |
+| Total bytes | 70,759,092 |
+| Counted text lines | 1,658,309 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -103,14 +103,14 @@ This report is generated deterministically from the Git index. It is intentional
 | `specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json` | api-contracts | 291,182 | 7445 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 269,236 | 6392 |
-| `docs/surface-contract-safety-attestations.json` | documentation | 266,574 | 7985 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 262,040 | 2296 |
+| `docs/surface-contract-safety-attestations.json` | documentation | 266,975 | 7996 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 262,162 | 2297 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 221,663 | 4707 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
 | `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 207,503 | 4441 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
-| `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
+| `Updating Registry Patch Index.md` | documentation | 156,080 | 1830 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,453 | 3364 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 148,022 | 1352 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml` | api-contracts | 142,240 | 3805 |
