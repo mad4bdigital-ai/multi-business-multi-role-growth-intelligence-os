@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "1e25fe5a324ed6b1b15bbbb1c56708586a64d787a2d00835ed010e63930a062d"
+      "sha256": "6978f6922c82e10391ad3f6e56d474c4aef83e5690bb11eb70d3117efe1a371a"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "674514e8fa866696ba1151d84b77cdd8f2f2fcbea2dbfe6280e9fbae84a594a7"
+      "sha256": "0a0613715e899266d2b8661ef5669b50cfa2b83264a82941c562c02a48cea5a3"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "a6bbb0bf1d6a6b485aef12c82cabf1a2fd6e6337b68c1e36a7268af5f848475c"
+      "sha256": "f7bc3dfb9bd59845e573a892b77c673d6038f9481ece40cd6f1fd1b97d5ed04e"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",

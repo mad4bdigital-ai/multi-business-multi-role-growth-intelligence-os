@@ -138,6 +138,33 @@ test("GitHub endpoint runtime binding profiles are valid JSON literals", () => {
   }
 });
 
+test("binding identifier width is widened before every descriptive binding writer", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+  const compatibilityFile = "067_sprint69_binding_id_width_compatibility.sql";
+  const compatibilityIndex = orderedMigrations.indexOf(compatibilityFile);
+  assert.notEqual(compatibilityIndex, -1, "binding_id compatibility migration must exist");
+
+  const overlongWriterFiles = [
+    "1024_sprint69_openapi_endpoint_inventory_sync.sql",
+    "20260630_dynamic_capability_governance_persistence.sql",
+    "20260714_tenant_connection_shadow_contract_bootstrap.sql",
+    "20260715_platform_capability_shadow_certification_issue.sql",
+    "20260720_github_file_patch_shadow_certification_issue.sql",
+    "239_sprint67_google_ads_budget_preflight_binding.sql",
+    "265_sprint68_platform_orchestration_capability_binding.sql",
+    "904_sprint68_support_ticket_lifecycle_snapshot_apply_binding.sql",
+    "997_sprint68_openrouter_provider_smoke_capability_binding.sql",
+  ];
+  for (const file of overlongWriterFiles) {
+    assert.ok(orderedMigrations.indexOf(file) > compatibilityIndex, `${file} must run after binding_id compatibility migration`);
+  }
+
+  const compatibilitySql = fs.readFileSync(path.join(migrationsDir, compatibilityFile), "utf8");
+  assert.match(compatibilitySql, /ALTER TABLE `app_integration_action_bindings`[\s\S]*MODIFY COLUMN `binding_id` VARCHAR\(128\) NOT NULL/i);
+  assert.match(compatibilitySql, /ALTER TABLE `credential_bindings`[\s\S]*MODIFY COLUMN `binding_id` VARCHAR\(128\) NOT NULL/i);
+});
+
 test("baseline validation_repair schema covers the pre-use migration 040 contract", () => {
   const quote = String.fromCharCode(96);
   for (const column of manifest.validation.required_validation_repair_baseline_columns) {
@@ -266,7 +293,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 783);
+  assert.equal(plan.migration_count, 784);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
     "039_sprint43_data_integrity_and_missing_tables.sql",
