@@ -97,5 +97,10 @@ jobs:
       - name: Execute orchestration envelope and reconciliation regression
         run: node http-generic-api/test-hostinger-storage-orchestrator.mjs
 
+      - name: Validate storage Work Map gate scope
+        run: node http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs
+
       - name: Validate Spec Kit Work Map integration
+        env:
+          WORK_MAP_CHANGED_FILES_JSON: '["specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"]'
         run: node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
