@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 13
+- Total queue items: 14
 - Critical review: 4
 - High review: 2
 - Medium review: 7
-- Low review: 0
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -191,4 +191,17 @@
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
 - `verify_readback_view` → db-readback-review; targets: `v_canonical_resource_activation_registry`
+
+### 14. `1025_sprint69_activation_archive_dynamic_control_authority.sql`
+
+- Queue class: low_review
+- Score: 96
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=2
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `activation_run_archive_get`, `tenant_activation_run_archive_get`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 

@@ -2,10 +2,10 @@
   "ok": false,
   "schema_version": "surface-contract-gap-trends-v1",
   "baseline_item_count": 125,
-  "current_queue_items": 13,
-  "current_triaged_items": 13,
+  "current_queue_items": 14,
+  "current_triaged_items": 14,
   "current_gate_candidates": 6,
-  "blocking_new_item_count": 11,
+  "blocking_new_item_count": 12,
   "docs_completion_percent": 97.27,
   "openapi_sql_route_coverage_percent": 94.12,
   "openapi_exempt_sql_route_count": 676,
@@ -15,8 +15,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 11,
-    "warning_new_item_count": 11
+    "blocking_new_item_count": 12,
+    "warning_new_item_count": 12
   },
   "safety": {
     "executes_provider_calls": false,
