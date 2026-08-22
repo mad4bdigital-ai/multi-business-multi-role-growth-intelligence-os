@@ -30,7 +30,7 @@ try {
   const finalEnvelope = JSON.parse(stderr.slice(finalEnvelopeStart + 1).trim());
   assert.deepEqual(
     stageEvents.map((event) => event.stage),
-    ["module_loaded", "main_entered", "arguments_parsed", "authorization_preflight_started"],
+    ["module_loaded", "main_entered", "arguments_parsed", "migration_artifact_read_started"],
   );
   assert.equal(stageEvents[0].secrets_included, false);
   assert.equal(finalEnvelope.error.code, "DB_CONFIG_MISSING");

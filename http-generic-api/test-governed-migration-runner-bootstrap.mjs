@@ -70,7 +70,7 @@ try {
   const lifecycleStages = lifecycleLines.slice(0, 4).map((line) => JSON.parse(line));
   assert.deepEqual(
     lifecycleStages.map((event) => event.stage),
-    ["module_loaded", "main_entered", "arguments_parsed", "authorization_preflight_started"],
+    ["module_loaded", "main_entered", "arguments_parsed", "migration_artifact_read_started"],
   );
   const lifecycleFailure = lifecycleResult.payload;
   assert.equal(lifecycleFailure.ok, false);

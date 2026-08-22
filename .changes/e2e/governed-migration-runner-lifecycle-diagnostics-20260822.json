@@ -23,6 +23,7 @@
       "http-generic-api/test-governed-migration-execution-tool.mjs",
       "http-generic-api/test-governed-migration-runner-bootstrap.mjs",
       "http-generic-api/test-governed-migration-runner-dynamic-authorization.mjs",
+      "http-generic-api/test-governed-migration-runner-integrity.mjs",
       "http-generic-api/test-governed-migration-runner-stage-diagnostic.mjs",
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
@@ -59,6 +60,8 @@
           "terminal_outcome": "The runner exposes stage diagnostics, returns a bounded envelope before the external proxy deadline, short-circuits exact already-applied dry-runs without expensive schema preflight, and policy readiness distinguishes HTTP 409 readback conflicts from transport failures.",
           "steps": [
             "Validate dynamic migration authorization from the DB-backed registry with fail-closed fallback behavior.",
+            "Bind authorized migration metadata to the exact artifact checksum and statement count, rejecting incomplete or mismatched bindings.",
+            "Bound all read-only schema and ledger preflight queries while preserving raw pool queries for DDL Apply.",
             "Look up the exact apply ledger by migration filename, checksum, and mode before expensive live schema preflight.",
             "Return an explicit already_applied dry-run envelope for an exact applied checksum and reject duplicate Apply before SQL execution.",
             "Emit bounded stage diagnostics around schema-object, identifier-contract, collation, and runner execution phases.",
@@ -69,7 +72,8 @@
             "A missing, revoked, or non-authorized DB registry row remains fail-closed.",
             "Exact applied-ledger dry-runs do not execute migration SQL or wait for unnecessary live schema preflight.",
             "Duplicate Apply for the exact checksum is blocked before SQL execution.",
-            "Child-runner timeout remains overrideable and defaults below the documented external proxy read timeout.",
+            "Already-applied envelopes require an exact ledger run id, an explicit skipped live preflight marker, and independent schema readback.",
+            "Child-runner dry-runs are capped at 45 seconds while Apply retains its longer execution deadline.",
             "HTTP 409 readback is not mislabeled as transport failure.",
             "No migration, grant, provider write, production activation, protected-ref bypass, or plaintext secret is introduced by the patch."
           ],
@@ -96,6 +100,13 @@
               "args": []
             },
             {
+              "id": "governed-migration-runner-integrity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-runner-integrity.mjs",
+              "args": []
+            },
+            {
               "id": "governed-migration-schema-readback",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -117,6 +128,7 @@
             "http-generic-api/test-governed-migration-execution-tool.mjs",
             "http-generic-api/test-governed-migration-runner-bootstrap.mjs",
             "http-generic-api/test-governed-migration-runner-dynamic-authorization.mjs",
+            "http-generic-api/test-governed-migration-runner-integrity.mjs",
             "http-generic-api/test-governed-migration-runner-stage-diagnostic.mjs",
             ".github/ops/github-main-review-policy-live-activation.mjs",
             ".github/ops/lib/migration-readback-diagnostics.mjs",

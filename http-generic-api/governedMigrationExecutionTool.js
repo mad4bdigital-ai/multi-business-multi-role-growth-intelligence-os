@@ -11,7 +11,8 @@ const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner-bootstrap.mjs");
-const DEFAULT_RUNNER_TIMEOUT_MS = 110_000;
+const DEFAULT_RUNNER_TIMEOUT_MS = 300_000;
+const DEFAULT_DRY_RUN_RUNNER_TIMEOUT_MS = 45_000;
 const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_readiness_repair.sql";
 const GOVERNED_MIGRATION_APP_KEY = "platform_orchestration";
 const GOVERNED_MIGRATION_CAPABILITY_KEY = "governed_migration_execute";
@@ -431,6 +432,15 @@ function validateRunnerReadback(result, inspection) {
     if (result.applies_sql !== false || result.mode !== "dry_run") {
       throw toolError("governed_migration_dry_run_contract_violation", "Dry-run result must confirm applies_sql=false.", 502);
     }
+    if (result.already_applied === true) {
+      if (!result.existing_apply_ledger?.run_id || result.live_schema_preflight_skipped !== true || result.schema_readback_required !== true) {
+        throw toolError(
+          "governed_migration_runner_invalid_applied_readback",
+          "Applied migration readback is incomplete.",
+          502,
+        );
+      }
+    }
     if (inspection.atomic_runner_required && result.preflight?.recommended_action === "record_only") {
       throw toolError(
         "governed_migration_record_only_manual_readback_required",
@@ -567,9 +577,18 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
 
   const execute = deps.execFile || execFileAsync;
   const executionId = String(deps.executionId || randomUUID());
-  const timeoutMs = Number.isFinite(Number(deps.timeoutMs)) && Number(deps.timeoutMs) > 0
-    ? Number(deps.timeoutMs)
-    : DEFAULT_RUNNER_TIMEOUT_MS;
+  const isDryRun = inspection.mode === "dry_run";
+  const defaultTimeoutMs = isDryRun ? DEFAULT_DRY_RUN_RUNNER_TIMEOUT_MS : DEFAULT_RUNNER_TIMEOUT_MS;
+  const requestedTimeoutValue = deps.timeoutMs
+    ?? process.env.GOVERNED_MIGRATION_RUNNER_TIMEOUT_MS
+    ?? defaultTimeoutMs;
+  const requestedTimeoutMs = Number(requestedTimeoutValue);
+  const normalizedTimeoutMs = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0
+    ? requestedTimeoutMs
+    : defaultTimeoutMs;
+  const timeoutMs = isDryRun
+    ? Math.min(normalizedTimeoutMs, DEFAULT_DRY_RUN_RUNNER_TIMEOUT_MS)
+    : normalizedTimeoutMs;
   const maxBuffer = Number(deps.maxBuffer || 4 * 1024 * 1024);
   const startedAt = Date.now();
   let execution;
