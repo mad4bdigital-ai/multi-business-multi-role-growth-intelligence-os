@@ -52,7 +52,7 @@ INSERT INTO endpoints (
       '429',JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'FALSE',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'FALSE',
   'operations_log|approved_repository_ci_control',
   'Admin-only GitHub Actions workflow rerun endpoint. Method and path resolve only from SQL endpoint authority.'
 ),
@@ -86,7 +86,7 @@ INSERT INTO endpoints (
       '429',JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'FALSE',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'FALSE',
   'operations_log|approved_repository_ci_control',
   'Admin-only GitHub Actions failed-jobs rerun endpoint. Method and path resolve only from SQL endpoint authority.'
 ),
@@ -132,7 +132,7 @@ INSERT INTO endpoints (
       '429',JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'FALSE',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'FALSE',
   'operations_log|approved_repository_ci_control',
   'Admin-only GitHub Actions workflow_dispatch endpoint. Method and path resolve only from SQL endpoint authority.'
 )

@@ -47,7 +47,7 @@ INSERT INTO endpoints (
       '429', JSON_OBJECT('description','Rate limited')
     )
   ),
-  'delegated_http_runtime_binding', 'TRUE', 'FALSE', 'TRUE',
+  JSON_QUOTE('delegated_http_runtime_binding'), 'TRUE', 'FALSE', 'TRUE',
   'operations_log|approved_repository_metadata',
   'Canonical read-only GitHub issue and pull-request conversation-comments endpoint. Pull-request review comments are a separate resource.'
 )
