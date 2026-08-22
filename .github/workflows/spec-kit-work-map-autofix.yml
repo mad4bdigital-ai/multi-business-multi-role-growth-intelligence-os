@@ -371,7 +371,11 @@ jobs:
           test "${patched_grant}" = "${consumed_grant}"
           readback_grant=""
           for attempt in 1 2 3 4 5; do
-            readback_grant="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body' | tr -d '\r\n')"
+            readback_url="repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}?readback_nonce=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
+            readback_grant="$(gh api "${readback_url}" \
+              -H 'Cache-Control: no-cache' \
+              -H 'Pragma: no-cache' \
+              --jq '.body' | tr -d '\r\n')"
             printf 'delegation_grant_readback attempt=%s length=%s\n' "${attempt}" "${#readback_grant}"
             [[ "${readback_grant}" = "${consumed_grant}" ]] && break
             sleep "${attempt}"
