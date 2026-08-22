@@ -17,7 +17,7 @@ ON DUPLICATE KEY UPDATE
 
 UPDATE admin_platform_endpoint_tools
    SET input_schema = JSON_SET(
-     CAST(input_schema AS JSON),
+     CASE WHEN JSON_VALID(input_schema) THEN input_schema ELSE JSON_OBJECT() END,
      '$.properties.authority_context',
      JSON_OBJECT(
        'type','object',
