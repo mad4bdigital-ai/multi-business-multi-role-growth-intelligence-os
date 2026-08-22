@@ -19,10 +19,10 @@
     "minimum_phase": "mvp"
   },
   "environment_impact": {
-    "source_of_truth": "http-generic-api/config/repository-governance-constitution.json",
-    "declared_targets": ["main", "Production"],
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
-    "live_staging_certification_required": false,
+    "live_staging_certification_required": true,
     "production_mutation_allowed": false
   },
   "phases": [
