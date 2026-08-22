@@ -174,6 +174,7 @@ const projectionDriftPlan = buildRepositoryReconciliationPlan({
 assert.notEqual(projectionDriftPlan.plan_sha256, plan.plan_sha256, "projection drift must change plan hash");
 
 const migration = fs.readFileSync(new URL("./migrations/1026_sprint69_repository_reconciliation_automation.sql", import.meta.url), "utf8");
+assert.match(migration, /ALTER TABLE `platform_resource_recipe_steps`[\s\S]*MODIFY COLUMN `step_kind` ENUM\([^)]*'engine_internal'[^)]*\)/);
 assert.match(migration, /'build_resolution_commit','engine_internal','reconcile_branch','github_detached_resolution_commit_create'/);
 assert.match(migration, /'create_merge_commit','engine_internal','build_resolution_commit','github_branch_merge_commit_create'/);
 assert.match(migration, /'resolution_commit_source_step','build_resolution_commit'/);
