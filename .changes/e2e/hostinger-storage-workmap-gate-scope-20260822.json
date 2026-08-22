@@ -21,7 +21,20 @@
       "docs/repository-evaluation-summary.json",
       "docs/work-maps/README.md",
       "docs/work-maps/repository-automation-map.md",
-      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json"
     ]
   },
   "merge_contract": {
@@ -84,7 +97,20 @@
             "docs/repository-evaluation-summary.json",
             "docs/work-maps/README.md",
             "docs/work-maps/repository-automation-map.md",
-            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/004-tenant-asset-federation/work-map-integration.json",
+            "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+            "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+            "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+            "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+            "specs/015-tenant-operating-system-studio/work-map-integration.json",
+            "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+            "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+            "specs/021-portable-staging-autopilot/work-map-integration.json"
           ]
         }
       ]
