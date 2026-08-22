@@ -1,0 +1,124 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-storage-workmap-gate-scope-20260822",
+  "title": "Scope the specialized Hostinger storage Work Map gate to its governed feature manifest",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-storage-workmap-gate-scope-20260822.json",
+      ".github/workflows/hostinger-storage-cleanup-guard.yml",
+      "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-evaluation-summary.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the specialized Hostinger storage Work Map workflow validate only its own feature manifest while preserving the repository-wide fail-closed gate semantics for other workflows.",
+      "e2e_journeys": [
+        {
+          "id": "hostinger-storage-workmap-gate-scope",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Hostinger storage workflow",
+          "entrypoint": "The Hostinger storage orchestration guard runs after a main push or a matching pull request change.",
+          "terminal_outcome": "The workflow validates the storage feature's exact Work Map manifest and does not fail because unrelated draft Work Maps are present.",
+          "steps": [
+            "Read the workflow's explicit changed-file scope.",
+            "Assert the scope contains only the governed storage feature manifest.",
+            "Run the existing exact changed-file fail-closed Work Map gate.",
+            "Preserve repository-wide Work Map validation in the dedicated global workflows."
+          ],
+          "assertions": [
+            "The specialized workflow uses an exact non-wildcard changed-file scope.",
+            "The scope is limited to specs/014-governed-hostinger-storage-orchestration/work-map-integration.json.",
+            "The gate continues to use --ci --changed and does not use --all.",
+            "Unclassified or unexpected findings remain blocking.",
+            "No secrets, runtime, database, migration, grant, provider, Branch Protection, Ruleset, or Production activation mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-work-map-gate-scope",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-work-map-gate-scope.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-storage-workmap-gate-scope-20260822.json",
+            ".github/workflows/hostinger-storage-cleanup-guard.yml",
+            "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "docs/repository-inventory.json",
+            "docs/repository-inventory.md",
+            "docs/repository-inventory-summary.json",
+            "docs/repository-evaluation.json",
+            "docs/repository-evaluation.md",
+            "docs/repository-evaluation-summary.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/004-tenant-asset-federation/work-map-integration.json",
+            "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+            "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+            "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+            "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+            "specs/015-tenant-operating-system-studio/work-map-integration.json",
+            "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+            "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+            "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+            "specs/021-portable-staging-autopilot/work-map-integration.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
