@@ -75,6 +75,7 @@
       "docs/work-maps/work-map-coverage-matrix.md",
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/test-gpt-session-conversation-ref.mjs",
       "http-generic-api/test-repository-reconciliation-engine-routing.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-platform-admin-email-default.mjs",
@@ -92,6 +93,7 @@
       "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
       "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
       "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
+      "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
       "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
     ]
   },
@@ -234,6 +236,7 @@
             "docs/work-maps/work-map-coverage-matrix.md",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-gpt-session-conversation-ref.mjs",
             "http-generic-api/test-repository-reconciliation-engine-routing.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-platform-admin-email-default.mjs",
@@ -251,6 +254,7 @@
             "http-generic-api/activation-surfaces/exclusions/logic_definitions.json",
             "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
             "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
+            "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
             "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
           ]
         }
