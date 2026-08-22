@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7266,
-    "bytes": 70763120,
-    "lines": 1658413,
+    "files": 7267,
+    "bytes": 70767543,
+    "lines": 1658505,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2168,
+      "tests-and-specs": 2169,
       "documentation": 1909,
       "api-runtime": 1465,
       "database-migrations": 784,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1726,
+      ".mjs": 1727,
       ".js": 995,
       ".json": 845,
       ".sql": 799,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3737,
+      "http-generic-api": 3738,
       "docs": 1813,
       "specs": 880,
       ".github": 294,
@@ -2223,6 +2223,7 @@
       "http-generic-api/test-governed-migration-reconciliation-runtime-lock.mjs",
       "http-generic-api/test-governed-migration-runner-bootstrap.mjs",
       "http-generic-api/test-governed-migration-runner-dynamic-authorization.mjs",
+      "http-generic-api/test-governed-migration-runner-integrity.mjs",
       "http-generic-api/test-governed-migration-runner-stage-diagnostic.mjs",
       "http-generic-api/test-governed-migration-runner-tenant-db-query-readonly-allowlist.mjs",
       "http-generic-api/test-governed-migration-schema-readback-tool.mjs",
@@ -4481,6 +4482,7 @@
       "http-generic-api/test-governed-migration-reconciliation-runtime-lock.mjs",
       "http-generic-api/test-governed-migration-runner-bootstrap.mjs",
       "http-generic-api/test-governed-migration-runner-dynamic-authorization.mjs",
+      "http-generic-api/test-governed-migration-runner-integrity.mjs",
       "http-generic-api/test-governed-migration-runner-stage-diagnostic.mjs",
       "http-generic-api/test-governed-migration-runner-tenant-db-query-readonly-allowlist.mjs",
       "http-generic-api/test-governed-migration-schema-readback-tool.mjs",
@@ -10877,7 +10879,7 @@
       "extension": ".yml",
       "bytes": 12700,
       "lines": 259,
-      "sha256": "5ee683f29bc50f2b300557f4780660cb8c751aea92f99c8538ae0a5c835f9243",
+      "sha256": "aeab7dd86688fc2b34108ebaaa677a7ae05b6b52d60a70f777f2e715f1e32bbc",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13341,7 +13343,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "4ba458e59a77626bdeced8fae735895f15895cebe5fb43ba631285502370c51d",
+      "sha256": "923cb5c5ebe801a08d3828ee140048f1694194f365dfef8af8291d722061b0a2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32437,7 +32439,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "85ac7a4293cc4bbcc2c3e601e8a8b8b5307e431422a99858c55391a500877793",
+      "sha256": "ad293d1c2ee1bbe6374f74228e07e09f6dbbd334645a7a3f13c80725041de634",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -39840,7 +39842,7 @@
       "extension": ".json",
       "bytes": 25188,
       "lines": 646,
-      "sha256": "ed0a0df6bcdcd3a21b95516d1f639c103aa4035eb41f1a4a3a29d96c0cf3f18f",
+      "sha256": "f6a3ee209d6451a40eab664e5d76e73125e64fb42070cf41ff488a1eb8fefcb8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -39849,9 +39851,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3474187,
+      "bytes": 3474185,
       "lines": 97972,
-      "sha256": "081b7b0cdf1510c15a1979276ecc8d40f67027585c0bde36865278272559e881",
+      "sha256": "8b0019e7d4798c8acfe40083790713972b916ac64f93347fd087d0f8ac964269",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52292,7 +52294,7 @@
       "extension": ".json",
       "bytes": 1936189,
       "lines": 58553,
-      "sha256": "4aebf9844add292cc3036ad14e7c6723726e1611604ed9df16d4c382383c925d",
+      "sha256": "e5632ec48c2c3eb73425e9c12199d60d98b6bbb161aefe26ffea6428b708c314",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -66032,6 +66034,17 @@
       "bytes": 5628,
       "lines": 51,
       "sha256": "b2d1171c0af25dec052794085794dc97780c1e3a937ac485ca70560bb76e1a17",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-governed-migration-runner-integrity.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 4425,
+      "lines": 92,
+      "sha256": "b7fa4a2c6bfb644ca250bb60139459261358b488f1cddb951d311db40cb802f6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85501,7 +85514,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "8603dfbde2c85a25073ebfe7add79d10a94bbdaec979a7e240f434c320d26360",
+      "sha256": "b9a045fa4a9eaaf39abfcbdf912cc885b84d79a689fc821740850f2ae18fb96c",
       "mode": "644",
       "executable": false,
       "generated": false
