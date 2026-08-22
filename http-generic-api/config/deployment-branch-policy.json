@@ -157,6 +157,7 @@
           ".specify/spec-kit-work-map-integration-policy.json",
           ".dockerignore",
           "docs/governance/**",
+          "docs/surface-contract-**",
           "scripts/**",
           "http-generic-api/activation-surfaces/**",
           "http-generic-api/config/**",
