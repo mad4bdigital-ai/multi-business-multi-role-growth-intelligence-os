@@ -291,8 +291,7 @@ let currentDiagnosticStage = "module_loaded";
 const diagnosticStartedAt = Date.now();
 export function resolveGovernedMigrationPreflightQueryTimeout(value = process.env.GOVERNED_MIGRATION_PREFLIGHT_QUERY_TIMEOUT_MS) {
   const requestedTimeout = Number(value || 10_000);
-  const safeTimeout = Number.isFinite(requestedTimeout) ? requestedTimeout : 10_000;
-  return Math.min(Math.max(safeTimeout, 1_000), 30_000);
+  return Math.min(Math.max(Number.isFinite(requestedTimeout) ? requestedTimeout : 10_000, 1_000), 30_000);
 }
 
 const PREFLIGHT_QUERY_TIMEOUT_MS = resolveGovernedMigrationPreflightQueryTimeout();

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(HERE, "scripts", "spec014-refresh-final-work-map-binding.mjs");
+const READBACK_WORKFLOW = path.resolve(HERE, "..", ".github", "workflows", "hostinger-storage-final-work-map-readback-guard.yml");
 const HOSTINGER = "014-governed-hostinger-storage-orchestration";
 const RETAIL = "014-retail-commerce-operations-growth-os";
 const ALLOW_PRECONVERGENCE_STALE = (
@@ -70,6 +71,11 @@ assert.match(missingValue.stderr, /requires a value/);
 
 const unknownArgument = run(["--unexpected"], [1]);
 assert.match(unknownArgument.stderr, /Unknown argument/);
+
+const readbackWorkflow = fs.readFileSync(READBACK_WORKFLOW, "utf8");
+assert.match(readbackWorkflow, /const dir = process\.argv\[2\];/u);
+assert.match(readbackWorkflow, /fs\.readFileSync\(process\.argv\[2\], 'utf8'\)/u);
+assert.doesNotMatch(readbackWorkflow, /process\.argv\[1\]/u);
 
 console.log(JSON.stringify({
   ok: true,
