@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "5d3c6bc8eeb8a74b09e6408876c2953fb3c28a1246c8fcc9efc6763229c2be92",
+  "inputFingerprint": "6134b4aeb6ffac22cd66cde458f392a5e60178ebc50892acdf6a10bbc66a8f23",
   "inventory": {
-    "files": 7261,
-    "bytes": 70742735,
+    "files": 7263,
+    "bytes": 70748828,
     "directories": 266,
     "categories": 13
   },
@@ -25,7 +25,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7224,
+      "trackedTextFilesScanned": 7226,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-sequential-test-progress-report.mjs",

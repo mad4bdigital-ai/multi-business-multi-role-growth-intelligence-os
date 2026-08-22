@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7261,
-    "bytes": 70742735,
-    "lines": 1658154,
+    "files": 7263,
+    "bytes": 70748828,
+    "lines": 1658289,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2167,
+      "tests-and-specs": 2168,
       "documentation": 1909,
       "api-runtime": 1465,
       "database-migrations": 783,
-      "root-and-other": 317,
+      "root-and-other": 318,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 123,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1724,
+      ".mjs": 1725,
       ".js": 995,
-      ".json": 843,
+      ".json": 844,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3735,
+      "http-generic-api": 3736,
       "docs": 1813,
       "specs": 880,
       ".github": 293,
-      ".changes": 285,
+      ".changes": 286,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -2358,6 +2358,7 @@
       "http-generic-api/test-hostinger-storage-toolchain.mjs",
       "http-generic-api/test-hostinger-storage-unknown-outcome.mjs",
       "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+      "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
       "http-generic-api/test-hostinger-stored-credential-apply-policy.mjs",
       "http-generic-api/test-http-generic-api-root-fanout-audit.mjs",
       "http-generic-api/test-hybrid-local-managed-agent-runtime.mjs",
@@ -4615,6 +4616,7 @@
       "http-generic-api/test-hostinger-storage-toolchain.mjs",
       "http-generic-api/test-hostinger-storage-unknown-outcome.mjs",
       "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+      "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
       "http-generic-api/test-hostinger-stored-credential-apply-policy.mjs",
       "http-generic-api/test-http-generic-api-root-fanout-audit.mjs",
       "http-generic-api/test-hybrid-local-managed-agent-runtime.mjs",
@@ -7201,6 +7203,17 @@
       "bytes": 6542,
       "lines": 115,
       "sha256": "80f81bed7761db42ae9531a84351e6d24e32ffe66e8838ec8db209dce4df0452",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/hostinger-storage-workmap-gate-scope-20260822.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 4504,
+      "lines": 95,
+      "sha256": "c4ab6845149c2fe7e6eea84797d0907b56000a840db5c23128d548f48b90f507",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33864,7 +33877,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "c164a16fbf93eb63d228d4e4f3d42f5681e9d310874d93471ff05e63e9cc576d",
+      "sha256": "148c61c841080d9b485b95c58f8f472404294089423e0eebb2c446c5000c5ad9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34029,7 +34042,7 @@
       "extension": ".md",
       "bytes": 49846,
       "lines": 541,
-      "sha256": "4d7073236d9042f64ac67abdb3b4623a804dab34a53aeb2842d8ea98f9738915",
+      "sha256": "f1f3e8b92e6b3288acee505f2de2adfc67f896ef200a36eb52d80a1c7e2d7302",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67486,6 +67499,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 1589,
+      "lines": 40,
+      "sha256": "8287d7d5edff629d73c32afd1ef8e7c88c0d88b81b8fac87cb738b06d8eba30a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-hostinger-stored-credential-apply-policy.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -83265,7 +83289,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "9670025be8a16a1b49627ec5af0cecaff397e9f87ba487225ce660c24e0a1978",
+      "sha256": "bab6b52fe257b2d683bea78b739b1dcea1db6099545c8458ac854ae838b4537f",
       "mode": "644",
       "executable": false,
       "generated": false

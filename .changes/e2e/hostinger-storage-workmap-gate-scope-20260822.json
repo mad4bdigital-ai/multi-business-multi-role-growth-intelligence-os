@@ -18,7 +18,10 @@
       "docs/repository-inventory-summary.json",
       "docs/repository-evaluation.json",
       "docs/repository-evaluation.md",
-      "docs/repository-evaluation-summary.json"
+      "docs/repository-evaluation-summary.json",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
     ]
   },
   "merge_contract": {
@@ -78,7 +81,10 @@
             "docs/repository-inventory-summary.json",
             "docs/repository-evaluation.json",
             "docs/repository-evaluation.md",
-            "docs/repository-evaluation-summary.json"
+            "docs/repository-evaluation-summary.json",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
           ]
         }
       ]
