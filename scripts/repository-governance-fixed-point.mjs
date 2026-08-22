@@ -301,7 +301,7 @@ async function main() {
   };
   if (blockingReasons.length) report.converged = false;
   fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ contract: report.fixed_point.contract, candidate_sha: report?.candidate?.sha || null, converged: report.fixed_point.converged, metrics }));
+  console.log(JSON.stringify({ contract: report.fixed_point.contract, candidate_sha: report?.candidate?.sha || null, converged: report.converged === true && report.fixed_point.converged === true, fixed_point_converged: report.fixed_point.converged, blocking_failure_policy_ids: report.blocking_failure_policy_ids || [], metrics }));
   if ((Number.isInteger(base.status) && base.status !== 0) || blockingReasons.length) process.exitCode = 1;
 }
 

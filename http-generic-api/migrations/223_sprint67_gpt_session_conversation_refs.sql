@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `gpt_session_conversation_refs` (
   `source` VARCHAR(64) NOT NULL DEFAULT 'manual_user_supplied',
   `captured_by` VARCHAR(128) NOT NULL DEFAULT 'custom_gpt',
   `status` VARCHAR(32) NOT NULL DEFAULT 'active',
+  `is_primary` TINYINT(1) NOT NULL DEFAULT 0,
   `metadata_json` LONGTEXT NULL CHECK (metadata_json IS NULL OR JSON_VALID(metadata_json)),
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
