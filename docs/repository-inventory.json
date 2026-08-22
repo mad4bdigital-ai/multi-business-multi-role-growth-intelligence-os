@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7266,
-    "bytes": 70759092,
-    "lines": 1658309,
+    "files": 7267,
+    "bytes": 70760232,
+    "lines": 1658324,
     "directories": 266,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2168,
       "documentation": 1909,
-      "api-runtime": 1465,
+      "api-runtime": 1466,
       "database-migrations": 784,
       "root-and-other": 319,
       "api-contracts": 191,
@@ -29,7 +29,7 @@
       ".md": 2510,
       ".mjs": 1726,
       ".js": 995,
-      ".json": 845,
+      ".json": 846,
       ".sql": 799,
       ".yml": 173,
       ".yaml": 119,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3737,
+      "http-generic-api": 3738,
       "docs": 1813,
       "specs": 880,
       ".github": 294,
@@ -8708,9 +8708,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 16661,
-      "lines": 262,
-      "sha256": "f77b2a558ada296121925bf968058f0aaa7a60e888239d83678f77a04472876f",
+      "bytes": 16985,
+      "lines": 266,
+      "sha256": "106d5361e90a3d3502145f0b9c9e0293f3c0493f6361f61e52f9e6a4d222f646",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12239,9 +12239,9 @@
       "path": ".github/workflows/spec-kit-work-map-autofix.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 48336,
+      "bytes": 48375,
       "lines": 819,
-      "sha256": "d2a89cd4a938e7e479b3795bb699839d63186dd0033d0d76a46d9c54f333ebaf",
+      "sha256": "d83c0c292df1d5029e4e9a7e2ea6a546fbebe28d7ac512c196e0d1bd09e4f9ec",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -35386,6 +35386,17 @@
       "bytes": 405,
       "lines": 8,
       "sha256": "035741edbbcb05ee91e0690485a9b2014d3236b7f14bee3367457a8cd7c7f204",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 373,
+      "lines": 8,
+      "sha256": "7cd77380c9a51439f3c1e14ccc3039837a7710e67dc1b79da841d6d4b2a34134",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -74444,9 +74455,9 @@
       "path": "http-generic-api/test-work-map-autofix-diagnostics.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 17777,
-      "lines": 289,
-      "sha256": "d7a03bb8bf16a63ecea536838a5e50f4487ac187e60025c7d8c8fefdb481427d",
+      "bytes": 18181,
+      "lines": 292,
+      "sha256": "1f01c21a93b90f4e55718ff1d0e8cc7641f04cd1daf1f4e69ee6147866aa999b",
       "mode": "644",
       "executable": false,
       "generated": false
