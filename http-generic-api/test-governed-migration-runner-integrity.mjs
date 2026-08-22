@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { enforceAuthorizationArtifactBinding } from "./scripts/governed-migration-runner.mjs";
+import {
+  enforceAuthorizationArtifactBinding,
+  resolveGovernedMigrationPreflightQueryTimeout,
+} from "./scripts/governed-migration-runner.mjs";
 
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const bootstrap = readFileSync("scripts/governed-migration-runner-bootstrap.mjs", "utf8");
@@ -28,6 +31,11 @@ assert.ok(applyStart >= 0 && applyEnd > applyStart, "applyStatements must remain
 const applySource = runner.slice(applyStart, applyEnd);
 assert.match(applySource, /pool\.query\(statement\)/u, "DDL apply must retain raw pool.query(statement)");
 assert.doesNotMatch(applySource, /preflightQuery/u, "bounded preflight query must not be used for DDL apply");
+assert.equal(resolveGovernedMigrationPreflightQueryTimeout("not-a-number"), 10_000);
+assert.equal(resolveGovernedMigrationPreflightQueryTimeout("Infinity"), 10_000);
+assert.equal(resolveGovernedMigrationPreflightQueryTimeout("250"), 1_000);
+assert.equal(resolveGovernedMigrationPreflightQueryTimeout("45000"), 30_000);
+assert.equal(resolveGovernedMigrationPreflightQueryTimeout("5000"), 5_000);
 
 const checksum = "a".repeat(64);
 const matchingAuthorization = {

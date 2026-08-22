@@ -28,6 +28,18 @@ for (const artifact of registry.artifacts) {
   if (artifact.artifact_class === "observability") assert.equal(artifact.merge_blocking, false);
   if (artifact.artifact_class === "semantic") assert.equal(artifact.merge_blocking, true);
 }
+const frontendProjection = registry.artifacts.find((artifact) => artifact.artifact_id === "frontend_openapi_projection");
+assert.ok(frontendProjection, "frontend/OpenAPI projection must remain registered");
+for (const output of [
+  "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+  "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+]) {
+  assert.ok(frontendProjection.outputs.includes(output), `frontend/OpenAPI projection omits downstream output ${output}`);
+}
+const frontendVerifier = verifierRegistry.verifiers.find((verifier) => verifier.id === "frontend_openapi_currentness");
+const frontendVerifierScripts = frontendVerifier.steps.map((step) => step.script).filter(Boolean);
+assert.ok(frontendVerifierScripts.indexOf("frontend:dispatch:check") < frontendVerifierScripts.indexOf("openapi:detail-gaps:check"));
+assert.ok(frontendVerifierScripts.indexOf("openapi:detail-gaps:check") < frontendVerifierScripts.indexOf("openapi:gap-closure-plan:check"));
 assert.match(script, /loadVerifierRegistry/u);
 assert.match(script, /work_map_dynamic/u);
 assert.match(script, /registeredWorkMapFeatures/u);

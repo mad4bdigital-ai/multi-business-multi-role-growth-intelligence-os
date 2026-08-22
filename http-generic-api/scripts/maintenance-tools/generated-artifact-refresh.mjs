@@ -37,6 +37,8 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
+  "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+  "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
   STAGING_MANIFEST_PATH,
 ]);
 const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
@@ -407,6 +409,8 @@ function runFrontendOpenApiRefresh() {
   run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
   run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
+  run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
+  run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();
 
@@ -415,6 +419,8 @@ function runFrontendOpenApiRefresh() {
     ["verify_openapi_auth_operation_insertion", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"]],
     ["verify_frontend_governance", "node", ["test-frontend-operation-governance-generator.mjs"]],
     ["verify_frontend_dispatch", "node", ["test-frontend-surface-dispatch.mjs"]],
+    ["verify_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:check"]],
+    ["verify_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:check"]],
     ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],

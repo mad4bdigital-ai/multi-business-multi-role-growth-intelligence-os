@@ -292,7 +292,8 @@ function runnerFailureDetails(error, inspection, lifecycle = {}) {
       || "",
   );
   const structuredCode = String(
-    structuredError?.code
+    structuredError?.cause_code
+      || structuredError?.code
       || structuredPayload?.error_code
       || structuredPayload?.runner_error_code
       || "",
@@ -315,7 +316,7 @@ function runnerFailureDetails(error, inspection, lifecycle = {}) {
     output_limit_exceeded: outputLimitExceeded,
     exit_code: Number.isInteger(error?.code) ? error.code : (error?.exitCode ?? null),
     signal: error?.signal || null,
-    runner_error_code: mysqlCode || null,
+    runner_error_code: mysqlCode || structuredCode || null,
     runner_diagnostic_code: diagnosticCode,
     runner_diagnostic_source: diagnosticSource,
     runner_diagnostic_summary: diagnosticSummary,
@@ -387,7 +388,8 @@ function classifyRunnerFailure(error, inspection) {
       || "",
   ).trim();
   const runnerCode = String(
-    nestedError?.code
+    nestedError?.cause_code
+      || nestedError?.code
       || payload?.error_code
       || payload?.runner_error_code
       || "",
@@ -395,7 +397,23 @@ function classifyRunnerFailure(error, inspection) {
   const authorizationMatch = runnerMessage.match(
     /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i,
   );
-  if (!authorizationMatch) return null;
+  if (!authorizationMatch) {
+    if (!/^governed_migration_(?:authorization_(?:checksum_mismatch|statement_count_mismatch|checksum_binding_required)|already_applied)$/u.test(runnerCode || "")) {
+      return null;
+    }
+    return {
+      code: runnerCode,
+      status: 409,
+      message: sanitizeRunnerDiagnostic(runnerMessage, 1000) || "Governed migration runner rejected the approved artifact contract.",
+      details: {
+        migration: inspection.migration,
+        execution_mode: inspection.mode,
+        runner_error_code: runnerCode,
+        retry_without_readback_allowed: false,
+        secrets_included: false,
+      },
+    };
+  }
   return {
     code: "governed_migration_authorization_required",
     status: 409,
@@ -458,6 +476,9 @@ function validateRunnerReadback(result, inspection) {
     return;
   }
 
+  if (result.already_applied === true) {
+    throw toolError("governed_migration_runner_invalid_applied_readback", "Apply cannot certify an already-applied migration readback.", 502);
+  }
   if (result.mode !== "apply" || result.applies_sql !== true || Number(result.statements_executed) !== inspection.statement_count) {
     throw toolError("governed_migration_apply_readback_failed", "Apply readback did not confirm all approved statements were executed.", 502);
   }

@@ -368,6 +368,19 @@ function fakeReadinessRepairResult(mode) {
 }
 
 {
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope(),
+      execFile: async () => ({
+        stdout: JSON.stringify({ ...fakeResult("apply"), already_applied: true }),
+        stderr: "",
+      }),
+    }),
+    (error) => error.code === "governed_migration_runner_invalid_applied_readback" && error.status === 502,
+  );
+}
+
+{
   const structuredEnvelope = {
     timestamp: "2026-06-26T14:35:39.644Z",
     level: "LOG",
@@ -604,6 +617,31 @@ function fakeReadinessRepairResult(mode) {
       assert.equal(error.details.secrets_included, false);
       return true;
     },
+  );
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput(), {
+      execFile: async () => {
+        const error = new Error("runner rejected the artifact");
+        error.code = 1;
+        error.stderr = JSON.stringify({
+          ok: false,
+          error: {
+            code: "governed_migration_runner_bootstrap_failed",
+            cause_code: "governed_migration_authorization_checksum_mismatch",
+            message: "Governed migration authorization checksum does not match the artifact.",
+          },
+          secrets_included: false,
+        });
+        throw error;
+      },
+    }),
+    (error) => error.code === "governed_migration_authorization_checksum_mismatch"
+      && error.status === 409
+      && error.details.runner_error_code === "governed_migration_authorization_checksum_mismatch"
+      && error.details.secrets_included === false,
   );
 }
 

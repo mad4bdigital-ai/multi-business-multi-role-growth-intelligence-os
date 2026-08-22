@@ -75,6 +75,7 @@ try {
   const lifecycleFailure = lifecycleResult.payload;
   assert.equal(lifecycleFailure.ok, false);
   assert.equal(lifecycleFailure.error.stage, "runner_execution");
+  assert.equal(lifecycleFailure.error.code, "DB_CONFIG_MISSING");
   assert.equal(lifecycleFailure.error.runner_diagnostic_stage, "authorization_preflight_started");
   assert.equal(lifecycleFailure.error.cause_code, "DB_CONFIG_MISSING");
   assert.equal(lifecycleFailure.secrets_included, false);

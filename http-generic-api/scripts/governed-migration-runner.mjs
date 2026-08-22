@@ -289,10 +289,13 @@ const RUNNER_VERSION = "governed-migration-runner-v3";
 const RUNNER_DIAGNOSTIC_ENABLED = true;
 let currentDiagnosticStage = "module_loaded";
 const diagnosticStartedAt = Date.now();
-const PREFLIGHT_QUERY_TIMEOUT_MS = Math.min(
-  Math.max(Number(process.env.GOVERNED_MIGRATION_PREFLIGHT_QUERY_TIMEOUT_MS || 10_000), 1_000),
-  30_000,
-);
+export function resolveGovernedMigrationPreflightQueryTimeout(value = process.env.GOVERNED_MIGRATION_PREFLIGHT_QUERY_TIMEOUT_MS) {
+  const requestedTimeout = Number(value || 10_000);
+  const safeTimeout = Number.isFinite(requestedTimeout) ? requestedTimeout : 10_000;
+  return Math.min(Math.max(safeTimeout, 1_000), 30_000);
+}
+
+const PREFLIGHT_QUERY_TIMEOUT_MS = resolveGovernedMigrationPreflightQueryTimeout();
 
 function preflightQuery(sql, params = []) {
   return getPool().query({ sql, timeout: PREFLIGHT_QUERY_TIMEOUT_MS }, params);

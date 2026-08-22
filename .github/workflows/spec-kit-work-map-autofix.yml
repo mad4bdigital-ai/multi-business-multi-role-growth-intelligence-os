@@ -346,7 +346,12 @@ jobs:
           test "$(jq -r '.path' "${recovery_file}")" = ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
           test "$(jq -r '.event' "${recovery_file}")" = "workflow_dispatch"
           recovery_head_branch="$(jq -r '.head_branch' "${recovery_file}")"
-          test "${recovery_head_branch}" = "${TARGET_BRANCH}"
+          recovery_repository="$(jq -r '.repository.full_name' "${recovery_file}")"
+          test "${recovery_repository}" = "${GITHUB_REPOSITORY}"
+          if [[ "${recovery_head_branch}" != "main" && "${recovery_head_branch}" != "${TARGET_BRANCH}" ]]; then
+            echo "::error::Recovery execution must originate from trusted main or the exact authorized target branch."
+            exit 1
+          fi
           test "$(jq -r '.status' "${recovery_file}")" = "completed"
           test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
           recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}" | tr -d '\r')"
@@ -358,13 +363,8 @@ jobs:
 
           expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
           actual_grant="$(jq -r '.body' "${delegation_file}" | tr -d '\r\n')"
-          printf '%s' "${actual_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-actual.txt"
-          printf '%s' "${expected_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-expected.txt"
           printf 'delegation_grant_issue_lengths actual=%s expected=%s\n' "${#actual_grant}" "${#expected_grant}"
-          if ! cmp -s "${DIAGNOSTIC_ROOT}/delegation-grant-actual.txt" "${DIAGNOSTIC_ROOT}/delegation-grant-expected.txt"; then
-            echo 'delegation_grant_issue=content_mismatch'
-            exit 1
-          fi
+          test "${actual_grant}" = "${expected_grant}"
 
           consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
           patch_response="${DIAGNOSTIC_ROOT}/writer-delegation-consume-response.json"
@@ -372,13 +372,8 @@ jobs:
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
             --input "${delegation_payload}" > "${patch_response}"
           patched_grant="$(jq -r '.body' "${patch_response}" | tr -d '\r\n')"
-          printf '%s' "${patched_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-patched.txt"
-          printf '%s' "${consumed_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-consumed.txt"
           printf 'delegation_grant_patch_lengths patched=%s consumed=%s\n' "${#patched_grant}" "${#consumed_grant}"
-          if ! cmp -s "${DIAGNOSTIC_ROOT}/delegation-grant-patched.txt" "${DIAGNOSTIC_ROOT}/delegation-grant-consumed.txt"; then
-            echo 'delegation_grant_patch=content_mismatch'
-            exit 1
-          fi
+          test "${patched_grant}" = "${consumed_grant}"
           readback_grant=""
           for attempt in 1 2 3 4 5; do
             readback_url="repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}?readback_nonce=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
@@ -390,11 +385,7 @@ jobs:
             [[ "${readback_grant}" = "${consumed_grant}" ]] && break
             sleep "${attempt}"
           done
-          printf '%s' "${readback_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-readback.txt"
-          if ! cmp -s "${DIAGNOSTIC_ROOT}/delegation-grant-readback.txt" "${DIAGNOSTIC_ROOT}/delegation-grant-consumed.txt"; then
-            echo 'delegation_grant_readback=content_mismatch'
-            exit 1
-          fi
+          test "${readback_grant}" = "${consumed_grant}"
           echo "consumed=true" >> "$GITHUB_OUTPUT"
 
       - name: Validate generator and governance contracts
