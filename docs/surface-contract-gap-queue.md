@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 13
+- Total queue items: 8
 - Critical review: 4
-- High review: 2
-- Medium review: 7
+- High review: 0
+- Medium review: 4
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -71,34 +71,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_growth_recommendation_feedback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 5. `20260812_resource_surface_policy_decisions_consolidated.sql`
-
-- Queue class: high_review
-- Score: 460
-- Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=0, views=2, policies=1, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_resource_api_coverage_policy_v1`
-- `verify_readback_view` → db-readback-review; targets: `v_canonical_resource_activation_registry`, `v_repository_reconciliation_apply_readiness`
-
-### 6. `20260811_runtime_break_glass_authority_metadata_v1.sql`
-
-- Queue class: high_review
-- Score: 439
-- Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=0, views=0, policies=1, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `runtime_break_glass_bounded_file_patch_apply_policy_v1`
-
-### 7. `20260810_platform_runtime_registry_drift_reconciliation.sql`
+### 5. `20260810_platform_runtime_registry_drift_reconciliation.sql`
 
 - Queue class: medium_review
 - Score: 389
@@ -112,7 +85,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_semantic_capability_canonical_reconciliation`, `v_wordpress_registry_runtime_reconciliation`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 8. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
+### 6. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
 
 - Queue class: medium_review
 - Score: 358
@@ -126,7 +99,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 9. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+### 7. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
 
 - Queue class: medium_review
 - Score: 334
@@ -140,7 +113,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 10. `20260728_governed_response_chunk_ownership.sql`
+### 8. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 317
@@ -152,43 +125,4 @@
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_ownership_readiness`
-
-### 11. `20260813_virtual_tool_endpoint_scoped_capability_identity.sql`
-
-- Queue class: medium_review
-- Score: 310
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=0, views=6, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- `verify_readback_view` → db-readback-review; targets: `v_platform_virtual_tool_bindings_classified`, `v_platform_virtual_tool_bindings_current`, `v_platform_virtual_tool_capabilities_current`, `v_platform_virtual_tool_capability_gaps`, `v_platform_virtual_tool_exports_current`, `v_platform_virtual_tool_identity_resolution`
-
-### 12. `20260815_platform_configuration_catalog_and_resolver.sql`
-
-- Queue class: medium_review
-- Score: 261
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- `verify_readback_view` → db-readback-review; targets: `v_bootstrap_only`
-
-### 13. `20260812_dynamic_canonical_resource_registry.sql`
-
-- Queue class: medium_review
-- Score: 260
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`
-- `verify_readback_view` → db-readback-review; targets: `v_canonical_resource_activation_registry`
 

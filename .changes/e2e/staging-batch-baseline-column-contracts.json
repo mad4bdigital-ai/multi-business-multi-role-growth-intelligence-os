@@ -35,6 +35,7 @@
       "http-generic-api/migrations/273_sprint68_activation_catalog_authorized_surfaces.sql",
       "http-generic-api/migrations/909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
       "http-generic-api/migrations/1002_sprint68_platform_admin_email_default.sql",
+      "http-generic-api/migrations/067_sprint69_binding_id_width_compatibility.sql",
       "http-generic-api/migrations/1013_sprint69_approval_hold_identity_collation_alignment.sql",
       "http-generic-api/migrations/1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
       "http-generic-api/migrations/1026_sprint69_github_actions_runs_read_dispatch.sql",
@@ -84,7 +85,7 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Staging schema bundle generator",
-          "entrypoint": "The exact local checkout runs the repository ordered pre-use audit, validates manifest-declared canonical CREATE contracts, then applies schema.sql and all 783 lexicographically ordered migrations in disposable MariaDB.",
+          "entrypoint": "The exact local checkout runs the repository ordered pre-use audit, validates manifest-declared canonical CREATE contracts, then applies schema.sql and all 784 lexicographically ordered migrations in disposable MariaDB.",
           "terminal_outcome": "All audited missing-column pre-use gaps are zero; the generator can proceed to canonical seed lifecycle and role-aware schema bundle construction without successive unknown-column failures.",
           "steps": [
             "The ordered audit tracks CREATE, DROP, ALTER, INSERT, UPDATE, DELETE, and FROM/JOIN state in baseline-then-lexicographic order.",
@@ -92,7 +93,7 @@
             "Canonical DDL is widened for brand_core, endpoints, task_routes, workflows, admin/tenant endpoint tools, tickets, logic_definitions, tenant_resolution_cases, memory_scope_type_registry, and platform_outbox_event_types.",
             "The manifest declares full baseline column contracts and the exact source file for each canonical CREATE, including separate admin and tenant endpoint-tool DDL.",
             "The generator validates those contracts and runs the ordered audit before confirmation and before any Docker database mutation.",
-            "Plan evidence records 783 migrations, zero missing-column gaps, and the known non-blocking missing-table diagnostic count.",
+            "Plan evidence records 784 migrations, zero missing-column gaps, and the known non-blocking missing-table diagnostic count.",
             "Production, Hostinger, Cloudflare, providers, data copy, and external mutations remain forbidden."
           ],
           "assertions": [
@@ -162,6 +163,7 @@
             "http-generic-api/migrations/273_sprint68_activation_catalog_authorized_surfaces.sql",
             "http-generic-api/migrations/909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
             "http-generic-api/migrations/1002_sprint68_platform_admin_email_default.sql",
+            "http-generic-api/migrations/067_sprint69_binding_id_width_compatibility.sql",
             "http-generic-api/migrations/1013_sprint69_approval_hold_identity_collation_alignment.sql",
             "http-generic-api/migrations/1023_sprint69_github_rest_endpoint_dispatch_foundation.sql",
             "http-generic-api/migrations/1026_sprint69_github_actions_runs_read_dispatch.sql",
