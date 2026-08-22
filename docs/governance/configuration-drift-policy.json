@@ -2073,6 +2073,9 @@
     "scripts/test-repository-evaluation.mjs|environmentProbe|literal_declaration|environmentprobe",
     "scripts/validate-staging-openapi-governance.mjs|policyPath|literal_declaration|policypath",
     "http-generic-api/governedMigrationExecutionTool.js|DEFAULT_RUNNER_TIMEOUT_MS|literal_declaration|runner.timeout.ms",
+    "http-generic-api/governedMigrationExecutionTool.js|DEFAULT_DRY_RUN_RUNNER_TIMEOUT_MS|literal_declaration|dry.run.runner.timeout.ms",
+    "http-generic-api/governedMigrationExecutionTool.js|GOVERNED_MIGRATION_RUNNER_TIMEOUT_MS|environment_reference|governed.migration.runner.timeout.ms",
+    "http-generic-api/scripts/governed-migration-runner.mjs|GOVERNED_MIGRATION_PREFLIGHT_QUERY_TIMEOUT_MS|environment_reference|governed.migration.preflight.query.timeout.ms",
     "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker"
   ],
   "max_existing_secret_candidates": 341,

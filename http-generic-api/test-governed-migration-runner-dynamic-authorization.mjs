@@ -19,6 +19,12 @@ assert(runner.includes("exact_apply_ledger_found"), "runner must emit an exact a
 assert(runner.includes("already_applied: true"), "dry-run must return an already_applied envelope for exact applied checksum");
 assert(runner.includes("live_schema_preflight_skipped: true"), "already-applied dry-run must skip expensive live schema preflight");
 assert(runner.includes("governed_migration_already_applied"), "apply must fail closed for an exact already-applied checksum");
+assert(runner.includes("schema_readback_required: true"), "already-applied dry-run must require independent schema readback");
+assert(runner.includes("metadata_json"), "authorization lookup must read checksum metadata");
+assert(runner.includes("governed_migration_authorization_checksum_mismatch"), "authorization checksum mismatch must fail closed");
+assert(runner.includes("governed_migration_authorization_checksum_binding_required"), "unbound authorization must fail closed");
+assert(runner.includes("PREFLIGHT_QUERY_TIMEOUT_MS"), "read-only preflight queries must be bounded");
+assert(runner.includes("preflightQuery"), "runner must centralize bounded read-only query execution");
 assert(
   runner.indexOf("existing_apply_ledger_lookup_started") < runner.indexOf("schema_preflight_started"),
   "exact apply ledger lookup must precede schema preflight",

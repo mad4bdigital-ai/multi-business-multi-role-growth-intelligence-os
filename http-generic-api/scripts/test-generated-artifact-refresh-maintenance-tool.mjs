@@ -115,7 +115,13 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /http-generic-api\/openapi\/support-tickets\.yaml/u);
   const authSyncIndex = toolSource.indexOf("sync_openapi_runtime_auth");
   const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
+  const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
+  const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
   assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
+  assert.ok(detailGapIndex > dispatchIndex, "detail-gap classification must follow frontend dispatch generation");
+  assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
+  assert.match(toolSource, /openapi:detail-gaps:check/u);
+  assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
 runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /work_map_self_hosting_bootstrap/u);

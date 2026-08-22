@@ -194,6 +194,10 @@ assert.match(recoveryWorkflow, /grep -Fq "\$\{AUTHORIZATION_MARKER\}"/u);
 assert.match(recoveryWorkflow, /compare\/main\.\.\.\$\{REQUESTED_HEAD_SHA\}/u);
 assert.match(recoveryWorkflow, /test "\$\{behind_by\}" = "0"/u);
 assert.match(recoveryWorkflow, /Consume one-time authorization marker/u);
+assert.match(recoveryWorkflow, /Restore consumed authorization after proven exact-head writer failure/u);
+assert.match(recoveryWorkflow, /No proven exact-head delegated writer failure can restore consumed authorization/u);
+assert.match(recoveryWorkflow, /retry-authorization-restore\.json/u);
+assert.match(recoveryWorkflow, /state=revoked recovery_outcome=writer_failed/u);
 assert.match(recoveryWorkflow, /Restore authorization marker after blocked dispatch/u);
 assert.match(recoveryWorkflow, /failure\(\) && steps\.target\.outcome == 'success' && steps\.authorization\.outcome == 'success' && steps\.dispatch\.outcome != 'success'/u);
 assert.match(recoveryWorkflow, /current_head_sha="\$\(jq -er '\.head\.sha'/u);
@@ -234,8 +238,9 @@ assert.match(writerWorkflow, /contents: write/u);
 assert.match(writerWorkflow, /pr_number:\s*\n\s*description: Pull request number bound to the Recovery-issued delegation/u);
 assert.match(writerWorkflow, /recovery_run_id/u);
 assert.match(writerWorkflow, /recovery_head_branch="\$\(jq -r '\.head_branch'/u);
-assert.match(writerWorkflow, /test "\$\{recovery_head_branch\}" = "\$\{TARGET_BRANCH\}"/u);
-assert.doesNotMatch(writerWorkflow, /test "\$\(jq -r '\.head_branch' "\$\{recovery_file\}"\)" = "main"/u);
+assert.match(writerWorkflow, /recovery_repository="\$\(jq -r '\.repository\.full_name'/u);
+assert.match(writerWorkflow, /test "\$\{recovery_repository\}" = "\$\{GITHUB_REPOSITORY\}"/u);
+assert.match(writerWorkflow, /"\$\{recovery_head_branch\}" != "main" && "\$\{recovery_head_branch\}" != "\$\{TARGET_BRANCH\}"/u);
 assert.match(writerWorkflow, /recovery_run_id:\s*\n\s*description: Recovery workflow run that issued this one-time writer delegation/u);
 assert.match(writerWorkflow, /delegation_comment_id:\s*\n\s*description: Bot-authored one-time delegation grant comment bound to this exact target/u);
 assert.match(writerWorkflow, /group: work-map-writer-delegation-\$\{\{ github\.repository \}\}-pr-\$\{\{ inputs\.pr_number \}\}/u);
@@ -251,20 +256,20 @@ assert.match(writerWorkflow, /Verify and consume Recovery-issued writer delegati
 assert.match(writerWorkflow, /actions\/runs\/\$\{RECOVERY_RUN_ID\}/u);
 assert.match(writerWorkflow, /spec-kit-work-map-autofix-recovery-dispatch\.yml/u);
 assert.match(writerWorkflow, /test "\$\(jq -r '\.event' "\$\{recovery_file\}"\)" = "workflow_dispatch"/u);
-assert.match(writerWorkflow, /test "\$\{recovery_head_branch\}" = "\$\{TARGET_BRANCH\}"/u);
+assert.match(writerWorkflow, /trusted main or the exact authorized target branch/u);
 assert.match(writerWorkflow, /test "\$\(jq -r '\.status' "\$\{recovery_file\}" \| normalize_scalar\)" = "completed"/u);
 assert.match(writerWorkflow, /test "\$\(jq -r '\.conclusion' "\$\{recovery_file\}" \| normalize_scalar\)" = "success"/u);
 assert.match(writerWorkflow, /test "\$\(jq -r '\.user\.login' "\$\{delegation_file\}" \| normalize_scalar\)" = "github-actions\[bot\]"/u);
-assert.match(writerWorkflow, /WORK_MAP_WRITER_DELEGATION contract=mad4b\.work-map-writer-delegation\.v1 state=issued/u);
-assert.match(writerWorkflow, /target_branch=\$\{TARGET_BRANCH\} expected_head_sha=\$\{EXPECTED_HEAD_SHA\} authorization_consumed=true/u);
-assert.match(writerWorkflow, /normalize_scalar\(\) \{/u);
 assert.match(writerWorkflow, /recovery_run_attempt="\$\(jq -r '\.run_attempt' "\$\{recovery_file\}" \| normalize_scalar\)"/u);
 assert.match(writerWorkflow, /actual_grant="\$\(jq -r '\.body' "\$\{delegation_file\}" \| normalize_scalar\)"/u);
-assert.match(writerWorkflow, /readback_grant="\$\(gh api "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/comments\/\$\{DELEGATION_COMMENT_ID\}" --jq '\.body' \| normalize_scalar\)"/u);
+assert.match(writerWorkflow, /readback_nonce=\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}-\$\{attempt\}/u);
+assert.match(writerWorkflow, /WORK_MAP_WRITER_DELEGATION contract=mad4b\.work-map-writer-delegation\.v1 state=issued/u);
+assert.match(writerWorkflow, /target_branch=\$\{TARGET_BRANCH\} expected_head_sha=\$\{EXPECTED_HEAD_SHA\} authorization_consumed=true/u);
 assert.match(writerWorkflow, /state=consumed recovery_run_id=\$\{RECOVERY_RUN_ID\}/u);
 assert.match(writerWorkflow, /writer_run_id=\$\{GITHUB_RUN_ID\}/u);
 assert.match(writerWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/comments\/\$\{DELEGATION_COMMENT_ID\}"/u);
 assert.match(writerWorkflow, /echo "consumed=true" >> "\$GITHUB_OUTPUT"/u);
+assert.doesNotMatch(writerWorkflow, /work-map-autofix:authorized/u);
 assert.ok(
   writerWorkflow.indexOf("Verify and consume Recovery-issued writer delegation") < writerWorkflow.indexOf("Regenerate and prove idempotency"),
   "The writer must consume a valid Recovery delegation before generator execution.",

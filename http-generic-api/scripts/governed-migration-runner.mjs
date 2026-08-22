@@ -289,6 +289,16 @@ const RUNNER_VERSION = "governed-migration-runner-v3";
 const RUNNER_DIAGNOSTIC_ENABLED = true;
 let currentDiagnosticStage = "module_loaded";
 const diagnosticStartedAt = Date.now();
+export function resolveGovernedMigrationPreflightQueryTimeout(value = process.env.GOVERNED_MIGRATION_PREFLIGHT_QUERY_TIMEOUT_MS) {
+  const requestedTimeout = Number(value || 10_000);
+  return Math.min(Math.max(Number.isFinite(requestedTimeout) ? requestedTimeout : 10_000, 1_000), 30_000);
+}
+
+const PREFLIGHT_QUERY_TIMEOUT_MS = resolveGovernedMigrationPreflightQueryTimeout();
+
+function preflightQuery(sql, params = []) {
+  return getPool().query({ sql, timeout: PREFLIGHT_QUERY_TIMEOUT_MS }, params);
+}
 
 function emitRunnerDiagnostic(stage, details = {}) {
   currentDiagnosticStage = String(stage || "unknown");
@@ -340,10 +350,10 @@ function artifactNames(requirements = {}) {
 async function existingSchemaObjects(names = []) {
   const wanted = [...new Set((names || []).filter(Boolean))];
   if (!wanted.length) return [];
-  const [rows] = await getPool().query(
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (?) ORDER BY table_name",
-    [wanted]
-  );
+const [rows] = await preflightQuery(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (?) ORDER BY table_name",
+      [wanted],
+    );
   return rows.map((row) => row.table_name);
 }
 
@@ -376,8 +386,8 @@ function normalizeCapabilityEnvelopeId(value = "") {
 
 async function governedMigrationLedgerSupportsCapabilityEnvelopeColumn() {
   try {
-    const [rows] = await getPool().query(
-      "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'governed_migration_ledger' AND column_name = 'capability_envelope_id'"
+    const [rows] = await preflightQuery(
+      "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'governed_migration_ledger' AND column_name = 'capability_envelope_id'",
     );
     return Number(rows?.[0]?.count || 0) > 0;
   } catch (error) {
@@ -388,9 +398,9 @@ async function governedMigrationLedgerSupportsCapabilityEnvelopeColumn() {
 
 async function findLedgerEntry(migration, checksum, mode = "record_only") {
   try {
-    const [rows] = await getPool().query(
+    const [rows] = await preflightQuery(
       "SELECT run_id, migration_file, migration_checksum_sha256, mode, applied_at FROM governed_migration_ledger WHERE migration_file = ? AND migration_checksum_sha256 = ? AND mode = ? ORDER BY applied_at DESC LIMIT 1",
-      [migration, checksum, mode]
+      [migration, checksum, mode],
     );
     return rows?.[0] || null;
   } catch (error) {
@@ -399,15 +409,54 @@ async function findLedgerEntry(migration, checksum, mode = "record_only") {
   }
 }
 
+function parseMetadataJson(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function enforceAuthorizationArtifactBinding({ authorization, checksum, statementCount, exactApplyLedger }) {
+  const row = authorization?.row || {};
+  const metadata = parseMetadataJson(row.metadata_json);
+  const recordedChecksum = String(metadata.migration_checksum_sha256 || "").trim().toLowerCase();
+  const recordedStatementCount = Number(metadata.expected_statement_count);
+
+  if (recordedChecksum) {
+    if (recordedChecksum !== checksum) {
+      const error = new Error("Migration authorization checksum mismatch.");
+      error.code = "governed_migration_authorization_checksum_mismatch";
+      throw error;
+    }
+    if (!Number.isFinite(recordedStatementCount) || recordedStatementCount !== statementCount) {
+      const error = new Error("Migration authorization statement count mismatch.");
+      error.code = "governed_migration_authorization_statement_count_mismatch";
+      throw error;
+    }
+    return;
+  }
+
+  if (row.authorization_source === "ledger_backfill_from_governed_runner_history" && exactApplyLedger) return;
+
+  const error = new Error("Migration authorization is not checksum-bound.");
+  error.code = "governed_migration_authorization_checksum_binding_required";
+  throw error;
+}
+
 async function getMigrationAuthorization(migration, { mode = "dry_run" } = {}) {
   try {
-    const [rows] = await getPool().query(
+    const [rows] = await preflightQuery(
       `SELECT migration_file, authorization_status, authorization_source, policy_key,
-              risk_tier, requires_preflight, requires_confirmation, allow_record_only, allow_apply
+              risk_tier, requires_preflight, requires_confirmation, allow_record_only, allow_apply,
+              metadata_json
          FROM governed_migration_authorization_registry
         WHERE migration_file = ?
         LIMIT 1`,
-      [migration]
+      [migration],
     );
     const row = rows?.[0] || null;
     if (!row) {
@@ -502,13 +551,6 @@ async function main(argv = process.argv.slice(2)) {
   if (args.capabilityEnvelopeId && !capabilityEnvelopeId) {
     throw new Error("--capability-envelope-id must be a UUID when provided.");
   }
-  emitRunnerDiagnostic("authorization_preflight_started", { migration, mode: args.mode });
-  const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
-  if (!authorization.authorized) {
-    throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
-  }
-  emitRunnerDiagnostic("authorization_preflight_passed", { migration, mode: args.mode });
-
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
   emitRunnerDiagnostic("migration_artifact_read_started", { migration, migration_path: migrationPath });
   const sql = await fs.readFile(migrationPath, "utf8");
@@ -518,6 +560,13 @@ async function main(argv = process.argv.slice(2)) {
   const requirements = extractMigrationReadinessRequirementsFromSql(sql);
   const statements = splitSqlStatements(sql);
   const statement_count = statements.length;
+
+  emitRunnerDiagnostic("authorization_preflight_started", { migration, mode: args.mode });
+  const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
+  if (!authorization.authorized) {
+    throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
+  }
+  emitRunnerDiagnostic("authorization_preflight_passed", { migration, mode: args.mode });
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
   emitRunnerDiagnostic("existing_apply_ledger_lookup_started", { migration, mode: args.mode });
   const existingApplyLedger = !args.recordOnly
@@ -527,6 +576,12 @@ async function main(argv = process.argv.slice(2)) {
     migration,
     mode: args.mode,
     found: Boolean(existingApplyLedger),
+  });
+  enforceAuthorizationArtifactBinding({
+    authorization,
+    checksum: migration_checksum_sha256,
+    statementCount: statement_count,
+    exactApplyLedger: existingApplyLedger,
   });
 
   if (existingApplyLedger && args.mode === "apply" && !args.recordOnly) {
@@ -560,6 +615,8 @@ async function main(argv = process.argv.slice(2)) {
       requirements: artifactNames(requirements),
       before_schema_objects: [],
       live_schema_preflight_skipped: true,
+      schema_readback_required: true,
+      required_readback_tool: "governed_migration_schema_readback",
       required_confirmation: confirmationFor(migration),
       capability_envelope_id: capabilityEnvelopeId || null,
       secrets_included: false,
@@ -572,10 +629,14 @@ async function main(argv = process.argv.slice(2)) {
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
   emitRunnerDiagnostic("existing_schema_objects_completed", { migration, mode: args.mode });
   emitRunnerDiagnostic("identifier_contract_preflight_started", { migration, mode: args.mode });
-  const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
+  const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql, { query: preflightQuery });
   emitRunnerDiagnostic("identifier_contract_preflight_completed", { migration, mode: args.mode });
   emitRunnerDiagnostic("collation_preflight_started", { migration, mode: args.mode });
-  const collation_preflight = await runDatabaseCollationPreflight({ pool: getPool(), sql, migration });
+  const collation_preflight = await runDatabaseCollationPreflight({
+    pool: { query: preflightQuery },
+    sql,
+    migration,
+  });
   emitRunnerDiagnostic("collation_preflight_completed", { migration, mode: args.mode });
 
   if (!collation_preflight.ready) {

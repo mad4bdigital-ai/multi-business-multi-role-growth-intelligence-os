@@ -99,6 +99,7 @@ const staticDiscoveryCommands = [
   "node test-governed-migration-authorization-bootstrap.mjs",
   "node test-tenant-platform-plugin-1052-governed-readiness.mjs",
   "node test-governed-migration-dependency-gate.mjs",
+  "node test-governed-migration-runner-integrity.mjs",
   "node test-hostinger-apply-policy-safe-field-names.mjs",
   "node test-hostinger-deploy-restart-tool-exports.mjs",
   "node test-hostinger-ssh-probe-mode-choice-boundary.mjs",

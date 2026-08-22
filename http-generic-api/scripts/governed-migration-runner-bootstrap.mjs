@@ -20,7 +20,9 @@ function failurePayload(error, stage, runnerExists = null) {
   return {
     ok: false,
     error: {
-      code: "governed_migration_runner_bootstrap_failed",
+      code: stage === "runner_execution" && error?.code
+        ? String(error.code)
+        : "governed_migration_runner_bootstrap_failed",
       name: error?.name || "Error",
       message: safeMessage(error),
       stage,
