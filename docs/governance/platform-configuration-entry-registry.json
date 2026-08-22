@@ -877,6 +877,24 @@
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
+    },
+    {
+      "config_key": "runner.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
     }
   ],
   "ignored_changed_path_prefixes": [
@@ -897,5 +915,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 50
+  "entry_count": 51
 }
