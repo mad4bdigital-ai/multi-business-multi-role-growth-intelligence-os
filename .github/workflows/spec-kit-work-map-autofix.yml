@@ -358,8 +358,13 @@ jobs:
 
           expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
           actual_grant="$(jq -r '.body' "${delegation_file}" | tr -d '\r\n')"
+          printf '%s' "${actual_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-actual.txt"
+          printf '%s' "${expected_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-expected.txt"
           printf 'delegation_grant_issue_lengths actual=%s expected=%s\n' "${#actual_grant}" "${#expected_grant}"
-          test "${actual_grant}" = "${expected_grant}"
+          if ! cmp -s "${DIAGNOSTIC_ROOT}/delegation-grant-actual.txt" "${DIAGNOSTIC_ROOT}/delegation-grant-expected.txt"; then
+            echo 'delegation_grant_issue=content_mismatch'
+            exit 1
+          fi
 
           consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
           patch_response="${DIAGNOSTIC_ROOT}/writer-delegation-consume-response.json"
@@ -367,8 +372,13 @@ jobs:
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
             --input "${delegation_payload}" > "${patch_response}"
           patched_grant="$(jq -r '.body' "${patch_response}" | tr -d '\r\n')"
+          printf '%s' "${patched_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-patched.txt"
+          printf '%s' "${consumed_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-consumed.txt"
           printf 'delegation_grant_patch_lengths patched=%s consumed=%s\n' "${#patched_grant}" "${#consumed_grant}"
-          test "${patched_grant}" = "${consumed_grant}"
+          if ! cmp -s "${DIAGNOSTIC_ROOT}/delegation-grant-patched.txt" "${DIAGNOSTIC_ROOT}/delegation-grant-consumed.txt"; then
+            echo 'delegation_grant_patch=content_mismatch'
+            exit 1
+          fi
           readback_grant=""
           for attempt in 1 2 3 4 5; do
             readback_url="repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}?readback_nonce=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
@@ -380,7 +390,11 @@ jobs:
             [[ "${readback_grant}" = "${consumed_grant}" ]] && break
             sleep "${attempt}"
           done
-          test "${readback_grant}" = "${consumed_grant}"
+          printf '%s' "${readback_grant}" > "${DIAGNOSTIC_ROOT}/delegation-grant-readback.txt"
+          if ! cmp -s "${DIAGNOSTIC_ROOT}/delegation-grant-readback.txt" "${DIAGNOSTIC_ROOT}/delegation-grant-consumed.txt"; then
+            echo 'delegation_grant_readback=content_mismatch'
+            exit 1
+          fi
           echo "consumed=true" >> "$GITHUB_OUTPUT"
 
       - name: Validate generator and governance contracts
