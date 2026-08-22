@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7264,
-    "bytes": 70761440,
-    "lines": 1658546,
+    "files": 7265,
+    "bytes": 70769403,
+    "lines": 1658701,
     "directories": 266,
     "categories": 13
   },
@@ -15,7 +15,7 @@
       "documentation": 1909,
       "api-runtime": 1465,
       "database-migrations": 783,
-      "root-and-other": 318,
+      "root-and-other": 319,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 124,
@@ -29,7 +29,7 @@
       ".md": 2510,
       ".mjs": 1726,
       ".js": 995,
-      ".json": 844,
+      ".json": 845,
       ".sql": 798,
       ".yml": 173,
       ".yaml": 119,
@@ -65,7 +65,7 @@
       "docs": 1813,
       "specs": 880,
       ".github": 294,
-      ".changes": 286,
+      ".changes": 287,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -6999,6 +6999,17 @@
       "generated": false
     },
     {
+      "path": ".changes/e2e/governed-migration-runner-lifecycle-diagnostics-20260822.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 7963,
+      "lines": 155,
+      "sha256": "e4d63f16dcb0da3078e0f468b2db9e3195c62595b315ca1215411ede19d34f1f",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".changes/e2e/governed-production-full-promotion-bridge.json",
       "category": "root-and-other",
       "extension": ".json",
@@ -13329,7 +13340,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "8073b9dbf3c951700d53d026ae81cf71932dc8fb6e80faae4f841b7b1d90a443",
+      "sha256": "b99f8b80fecd67ca574e2a43fc66577b717c2734e4dfa98638cec146efeb3af2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32425,7 +32436,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "c667a66c0d6d3538e474bf33f8311809479079c0aba84fba7b32cf6a50dac650",
+      "sha256": "2f301f7b5618d493f08c2d0ae2db0672dc4d5f78ff0b933ff998caa42d8f2af6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52269,7 +52280,7 @@
       "extension": ".json",
       "bytes": 1936189,
       "lines": 58553,
-      "sha256": "0a0613715e899266d2b8661ef5669b50cfa2b83264a82941c562c02a48cea5a3",
+      "sha256": "674514e8fa866696ba1151d84b77cdd8f2f2fcbea2dbfe6280e9fbae84a594a7",
       "mode": "644",
       "executable": false,
       "generated": false
