@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const registry = JSON.parse(read(".github/derived-state-governance.json"));
 const verifierRegistry = JSON.parse(read(".github/governance/verifier-registry.json"));
+const constitution = JSON.parse(read("http-generic-api/config/repository-governance-constitution.json"));
 const workflow = read(".github/workflows/derived-state-closure.yml");
 const finalReadbackWorkflow = read(".github/workflows/hostinger-storage-final-work-map-readback-guard.yml");
 const fixedPoint = read("scripts/repository-governance-fixed-point.mjs");
@@ -19,6 +20,8 @@ assert.equal(registry.repository_governance.verifier_registry, ".github/governan
 assert.equal(registry.repository_governance.verifier_execution_registry_only, true);
 assert.equal(registry.repository_governance.derived_dependency_execution_topological, true);
 assert.equal(registry.repository_governance.inverse_deletion_dependency_required, true);
+assert.ok(constitution.control_plane_paths.includes(".github/workflows/hostinger-storage-final-work-map-readback-guard.yml"));
+assert.ok(registry.convergence.automation_control_paths.includes(".github/workflows/hostinger-storage-final-work-map-readback-guard.yml"));
 assert.equal(registry.convergence.automation_control_surface_changes_require_manual_merge, true);
 assert.equal(verifierRegistry.contract, "mad4b.repository-verifier-registry.v1");
 assert.equal(verifierRegistry.shell_execution_forbidden, true);
