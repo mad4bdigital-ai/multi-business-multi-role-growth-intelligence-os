@@ -4,6 +4,7 @@
   "feature_key": "governed-migration-runner-lifecycle-diagnostics-20260822",
   "title": "Governed migration runner lifecycle and readback diagnostics",
   "delivery_mode": "single_pr",
+  "secrets_included": false,
   "merge_contract": {
     "minimum_phase": "mvp"
   },
