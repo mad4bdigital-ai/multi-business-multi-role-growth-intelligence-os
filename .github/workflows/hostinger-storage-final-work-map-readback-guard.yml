@@ -62,7 +62,7 @@ jobs:
           node - "$report_dir" <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
-          const dir = process.argv[2];
+          const dir = process.argv[1];
           const report = JSON.parse(fs.readFileSync(path.join(dir, 'summary.json'), 'utf8'));
           const rows = [
             '# Spec 014 Final Work Map Readback',
@@ -107,6 +107,6 @@ jobs:
         run: |
           node - "${RUNNER_TEMP}/spec014-final-work-map-readback/summary.json" <<'NODE'
           const fs = require('node:fs');
-          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const report = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
           if (!report.ok) process.exit(1);
           NODE

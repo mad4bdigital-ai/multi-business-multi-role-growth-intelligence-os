@@ -96,10 +96,13 @@ assert(reconciliationItem, "manual registry should include the repository reconc
 const reconciliationSource = readFileSync(`migrations/${reconciliationItem.migration_file}`, "utf8");
 const reconciliationValidation = validateManualAttestation({ item: reconciliationItem, source: reconciliationSource });
 assert.equal(reconciliationValidation.valid, true, `repository reconciliation attestation should validate: ${reconciliationValidation.reasons.join(", ")}`);
-assert.equal(reconciliationValidation.actual.migration_sha256, "6111029cd9dd026da815f2a4816cadb2e37d9a8a39fc2a51806034a31778e667");
-assert.equal(reconciliationValidation.actual.statement_count, 14);
-assert.equal(reconciliationValidation.actual.preflight_status, "pass");
-assert.equal(reconciliationValidation.actual.preflight_risk_count, 0);
+assert.equal(reconciliationValidation.actual.migration_sha256, "0791c588721a948c0e0e935073d795e0f9880d90d6c5132b0688f6e0f7cedc8a");
+assert.equal(reconciliationValidation.actual.statement_count, 15);
+assert.equal(reconciliationValidation.actual.preflight_status, "warn");
+assert.equal(reconciliationValidation.actual.preflight_risk_count, 1);
+assert.deepEqual(reconciliationValidation.actual.preflight_risks, {
+  alter_table_requires_manual_idempotency_review: 1,
+});
 assert.deepEqual(reconciliationValidation.actual.forbidden_patterns, [
   "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b",
   "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",

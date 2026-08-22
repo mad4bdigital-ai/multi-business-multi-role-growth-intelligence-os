@@ -88,6 +88,10 @@ ON DUPLICATE KEY UPDATE
   `policy_json`=VALUES(`policy_json`),`input_schema_json`=VALUES(`input_schema_json`),
   `output_schema_json`=VALUES(`output_schema_json`),`status`='planned',`notes`=VALUES(`notes`),`updated_at`=CURRENT_TIMESTAMP;
 
+-- The recipe executor owns engine_internal steps; widen the legacy enum before seeding them.
+ALTER TABLE `platform_resource_recipe_steps`
+  MODIFY COLUMN `step_kind` ENUM('endpoint_call','installed_tool_call','db_read','graph_read','classify','project_graph','emit_evidence','engine_internal') NOT NULL;
+
 INSERT INTO `platform_resource_recipe_steps`
   (`recipe_key`,`step_order`,`step_key`,`step_kind`,`parent_action_key`,`tool_key`,`source_table`,
    `body_template_json`,`response_projection_json`,`required`,`on_error_policy`,`status`)
