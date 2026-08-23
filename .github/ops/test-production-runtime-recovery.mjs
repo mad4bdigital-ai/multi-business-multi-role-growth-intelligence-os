@@ -27,7 +27,7 @@ import {
 import { buildVersionPayload } from '../../http-generic-api/deploymentManifest.js';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
-const workflow = readFileSync(new URL('../workflows/production-runtime-recovery.yml', import.meta.url), 'utf8');
+const workflow = readFileSync(new URL('../workflows/production-runtime-parity-evidence.yml', import.meta.url), 'utf8');
 const operator = readFileSync(new URL('./production-runtime-recovery-autodeploy.mjs', import.meta.url), 'utf8');
 const routeContract = JSON.parse(readFileSync(new URL('./production-runtime-recovery-routes.json', import.meta.url), 'utf8'));
 const deploymentPolicy = JSON.parse(readFileSync(new URL('../../http-generic-api/config/deployment-branch-policy.json', import.meta.url), 'utf8'));
@@ -216,7 +216,7 @@ test('mutation confirmation is bound to strategy and exact SHA', () => {
 test('migration paths remain confined to canonical repository migrations', () => {
   const safe = resolveMigrationPath('http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql');
   assert.match(safe.repoPath, /^http-generic-api\/migrations\//u);
-  assert.throws(() => resolveMigrationPath('../../.github/workflows/production-runtime-recovery.yml'), (error) => error.code === 'unsafe_migration_path');
+  assert.throws(() => resolveMigrationPath('../../.github/workflows/production-runtime-parity-evidence.yml'), (error) => error.code === 'unsafe_migration_path');
 });
 
 test('fallback target plan is explicit and identifier-safe', () => {

@@ -79,7 +79,7 @@
       ".github/ops/production-runtime-recovery-autodeploy.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
       "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
-      ".github/workflows/production-runtime-recovery.yml",
+      ".github/workflows/production-runtime-parity-evidence.yml",
       "http-generic-api/runtimeRecoverySnapshot.js",
       "http-generic-api/config/runtime-recovery-repository-snapshot.json",
       ".github/ops/production-runtime-recovery-routes.json",

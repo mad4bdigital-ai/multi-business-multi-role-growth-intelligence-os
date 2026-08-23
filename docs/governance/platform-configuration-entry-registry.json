@@ -12,7 +12,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -30,7 +30,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -48,7 +48,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -66,7 +66,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -84,7 +84,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -102,7 +102,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -120,7 +120,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -138,7 +138,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -156,7 +156,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -174,7 +174,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
@@ -192,7 +192,7 @@
         "production",
         "staging"
       ],
-      "binding_ref": ".github/workflows/production-runtime-recovery.yml",
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
       "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
       "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",

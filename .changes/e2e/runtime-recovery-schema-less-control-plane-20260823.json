@@ -77,7 +77,7 @@
             ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
             ".github/ops/production-runtime-recovery-autodeploy.mjs",
             ".github/ops/production-runtime-recovery-routes.json",
-            ".github/workflows/production-runtime-recovery.yml",
+            ".github/workflows/production-runtime-parity-evidence.yml",
             "http-generic-api/runtimeRecoverySnapshot.js",
             "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
             ".github/ops/test-production-runtime-recovery.mjs"

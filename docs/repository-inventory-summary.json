@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7283,
-    "bytes": 71018570,
-    "lines": 1663467,
+    "files": 7282,
+    "bytes": 71018334,
+    "lines": 1663452,
     "directories": 266,
     "categories": 13
   },
@@ -17,7 +17,7 @@
       "database-migrations": 784,
       "root-and-other": 321,
       "api-contracts": 191,
-      "ci-workflows": 171,
+      "ci-workflows": 170,
       "ci-config": 129,
       "schemas-and-data": 75,
       "connectors-and-edge": 29,
@@ -31,7 +31,7 @@
       ".js": 996,
       ".json": 851,
       ".sql": 799,
-      ".yml": 174,
+      ".yml": 173,
       ".yaml": 119,
       ".ps1": 20,
       ".ts": 16,
@@ -64,7 +64,7 @@
       "http-generic-api": 3744,
       "docs": 1814,
       "specs": 880,
-      ".github": 300,
+      ".github": 299,
       ".changes": 290,
       "canonicals": 70,
       "local-connector": 23,
@@ -248,7 +248,7 @@
     }
   ],
   "surfaces": {
-    "workflows": 171,
+    "workflows": 170,
     "migrations": 784,
     "apiContracts": 191,
     "testSpecFiles": 2261
@@ -335,7 +335,7 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 264327,
+      "bytes": 264404,
       "lines": 2314
     },
     {
