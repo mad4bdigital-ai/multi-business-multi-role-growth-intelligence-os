@@ -25,6 +25,7 @@
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-closure.yml",
       ".github/tests/derived-state-closure.test.mjs",
+      "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"

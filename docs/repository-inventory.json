@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7285,
-    "bytes": 71035886,
-    "lines": 1664019,
+    "bytes": 71037273,
+    "lines": 1664058,
     "directories": 266,
     "categories": 13
   },
@@ -7906,9 +7906,9 @@
       "path": ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
       "category": "schemas-and-data",
       "extension": ".json",
-      "bytes": 5701,
-      "lines": 104,
-      "sha256": "afb20999edf3395a306639faf38aa2a80ccfd9ff7da3ac284f911c7cdfefacca",
+      "bytes": 5773,
+      "lines": 105,
+      "sha256": "a70a5cd25bf4534d928d212fabd35774007220ed475a4cb43e7a87d4da1662ec",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -72971,9 +72971,9 @@
       "path": "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 14375,
-      "lines": 345,
-      "sha256": "b227835c04444758369ae3d7e881d8e382ed74d92f39a0646a6bc248a70159f0",
+      "bytes": 15690,
+      "lines": 383,
+      "sha256": "db3a01ab96fa3c75d2afc3197bd8182c562dcb7b50803b78a270ec08a58dd264",
       "mode": "644",
       "executable": false,
       "generated": false
