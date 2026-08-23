@@ -360,6 +360,7 @@
     "http-generic-api/config/staging-database-role-migration-manifest.json",
     "autopilot-portable-staging/autopilot-one-click-policy.json",
     "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+    "http-generic-api/scripts/migration-order.mjs",
     "http-generic-api/scripts/build-staging-schema-bundle.mjs",
     "http-generic-api/test-staging-schema-bundle-builder.mjs",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
