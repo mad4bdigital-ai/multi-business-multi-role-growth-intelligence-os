@@ -10,6 +10,15 @@ SET @platform_brand_id := '13';
 SET @platform_brand_key := 'growth_intelligence_platform';
 SET @prod_system_id := '98d6a18b-5578-11f1-9baf-8e76a7e1749f';
 SET @prod_system_key := 'hostinger_ssh_prod_platform';
+SET @resolved_prod_system_id := (
+  SELECT cs.system_id
+    FROM `connected_systems` cs
+   WHERE cs.tenant_id = @platform_tenant_id
+     AND cs.system_key = @prod_system_key
+   ORDER BY cs.id
+   LIMIT 1
+);
+SET @effective_prod_system_id := COALESCE(@resolved_prod_system_id, @prod_system_id);
 
 INSERT INTO `platform_secrets`
   (`secret_key`, `secret_type`, `storage_backend`, `secret_ref`, `value_sha256`, `value_ciphertext`, `metadata_json`, `status`, `created_by`)
@@ -29,7 +38,7 @@ ON DUPLICATE KEY UPDATE
 UPDATE `secret_references`
    SET owner_type = 'platform',
        owner_id = @platform_brand_key,
-       system_id = @prod_system_id,
+       system_id = @effective_prod_system_id,
        provider_family = 'hostinger',
        connector_family = 'hostinger_ssh',
        store_type = 'db_encrypted',
@@ -38,12 +47,11 @@ UPDATE `secret_references`
        validation_status = 'pending_secret_value',
        status = 'active'
  WHERE tenant_id = @platform_tenant_id
-   AND system_id = @prod_system_id
    AND secret_key IN ('hostinger_ssh_prod_host','hostinger_ssh_prod_port','hostinger_ssh_prod_user','hostinger_ssh_prod_private_key');
 
 INSERT INTO `secret_references`
   (`ref_id`, `tenant_id`, `owner_type`, `owner_id`, `system_id`, `provider_family`, `connector_family`, `credential_type`, `scope_json`, `consent_status`, `validation_status`, `status`, `secret_key`, `store_type`, `env_var_name`, `vault_path`, `description`)
-SELECT UUID(), @platform_tenant_id, 'platform', @platform_brand_key, @prod_system_id, 'hostinger', 'hostinger_ssh', role_name,
+SELECT UUID(), @platform_tenant_id, 'platform', @platform_brand_key, @effective_prod_system_id, 'hostinger', 'hostinger_ssh', role_name,
        JSON_OBJECT('brand_id',@platform_brand_id,'brand_target_key',@platform_brand_key,'system_key',@prod_system_key,'environment','production'),
        'not_required', 'pending_secret_value', 'active', secret_key, 'db_encrypted', NULL, NULL,
        CONCAT('Platform brand DB-encrypted Hostinger production SSH ', role_name)
@@ -56,13 +64,12 @@ FROM (
 WHERE NOT EXISTS (
   SELECT 1 FROM `secret_references` sr
    WHERE sr.tenant_id = @platform_tenant_id
-     AND sr.system_id = @prod_system_id
      AND sr.secret_key = refs.secret_key
 );
 
 INSERT INTO `credential_bindings`
   (`binding_id`, `tenant_id`, `owner_type`, `owner_id`, `system_id`, `target_key`, `credential_role`, `credential_ref`, `provider_family`, `connector_family`, `resolution_priority`, `status`, `created_by`)
-SELECT UUID(), @platform_tenant_id, 'platform', @platform_brand_key, @prod_system_id, @prod_system_key,
+SELECT UUID(), @platform_tenant_id, 'platform', @platform_brand_key, @effective_prod_system_id, @prod_system_key,
        role_name, CONCAT('platform_secret:', secret_key), 'hostinger', 'hostinger_ssh', 20, 'active', 'migration_182'
 FROM (
   SELECT 'ssh_host' AS role_name, 'hostinger_ssh_prod_host' AS secret_key UNION ALL
@@ -73,7 +80,10 @@ FROM (
 WHERE NOT EXISTS (
   SELECT 1 FROM `credential_bindings` cb
    WHERE cb.tenant_id = @platform_tenant_id
-     AND cb.system_id = @prod_system_id
+     AND cb.owner_type = 'platform'
+     AND cb.owner_id = @platform_brand_key
+     AND cb.system_id = @effective_prod_system_id
+     AND cb.target_key = @prod_system_key
      AND cb.credential_role = refs.role_name
      AND cb.status = 'active'
 );
@@ -90,4 +100,5 @@ UPDATE `connected_systems`
        '$.required_credential_roles', JSON_ARRAY('ssh_host','ssh_port','ssh_user','ssh_private_key')
      ),
        updated_at = CURRENT_TIMESTAMP
- WHERE system_id = @prod_system_id;
+ WHERE tenant_id = @platform_tenant_id
+   AND system_key = @prod_system_key;

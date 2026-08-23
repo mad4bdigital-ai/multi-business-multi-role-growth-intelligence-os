@@ -309,6 +309,40 @@ test("all local connector file access rule writers satisfy the required identifi
   assert.match(generator, /local_connector_file_access_rules SELECT writer must provide a non-null rule_id/iu);
 });
 
+test("all secret_references writers honor the canonical tenant/key uniqueness contract", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const writerFiles = [
+    "057_sprint53_credential_binding_bridge.sql",
+    "1012_sprint69_sql_only_runtime_auth_schema.sql",
+    "108_hostinger_ssh_governed_connectors.sql",
+    "182_sprint66_platform_hostinger_ssh_db_credentials.sql",
+    "20260717_github_repository_main_moved_webhook_ingress.sql",
+  ];
+  for (const file of writerFiles) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    const writers = splitStatements(sql).filter((statement) => /^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+`?secret_references`?/iu.test(statement));
+    assert.ok(writers.length > 0, `${file} must contain a secret_references writer`);
+    for (const statement of writers) {
+      if (/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/iu.test(statement)) continue;
+      const guard = statement.match(/\b(?:WHERE|AND|OR)\s+NOT\s+EXISTS\s*\(([\s\S]*)\)\s*$/iu)?.[1] || "";
+      assert.ok(guard, `${file} secret_references writer must have an idempotent guard`);
+      assert.match(guard, /\bsecret_key\b/iu, `${file} secret_references guard must compare secret_key`);
+      assert.doesNotMatch(guard, /\b(?:sr\s*\.\s*)?system_id\b/iu, `${file} secret_references guard must not narrow uq_tenant_key by system_id`);
+    }
+  }
+  const migration012 = fs.readFileSync(path.join(migrationsDir, "012_sprint16_security.sql"), "utf8");
+  const migration108 = fs.readFileSync(path.join(migrationsDir, "108_hostinger_ssh_governed_connectors.sql"), "utf8");
+  const migration182 = fs.readFileSync(path.join(migrationsDir, "182_sprint66_platform_hostinger_ssh_db_credentials.sql"), "utf8");
+  assert.match(migration012, /UNIQUE KEY `uq_tenant_key` \(`tenant_id`, `secret_key`\)/iu);
+  assert.match(migration108, /sr\.tenant_id\s*=\s*@platform_tenant_id[\s\S]*?sr\.secret_key\s*=\s*refs\.secret_key/iu);
+  assert.match(migration182, /@effective_prod_system_id/iu);
+  assert.match(migration182, /WHERE tenant_id = @platform_tenant_id\s+AND secret_key IN/iu);
+  assert.match(migration182, /WHERE tenant_id = @platform_tenant_id\s+AND system_key = @prod_system_key/iu);
+  const generator = fs.readFileSync(generatorPath, "utf8");
+  assert.match(generator, /function validateSecretReferenceIdempotencyStatement/iu);
+  assert.match(generator, /secret_references NOT EXISTS guard must not narrow canonical uq_tenant_key uniqueness by system_id/iu);
+});
+
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
   const runtimeExcluded = new Set(manifest.roles.runtime.excluded_tables);
   for (const table of manifest.roles.governance.required_tables) assert.equal(runtimeExcluded.has(table), true, `runtime must exclude governance table ${table}`);
