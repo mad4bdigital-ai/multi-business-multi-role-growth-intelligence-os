@@ -12,6 +12,9 @@ on:
       - '.github/ops/production-runtime-recovery-routes.json'
       - '.github/ops/test-production-runtime-recovery.mjs'
       - '.github/ops/test-production-runtime-recovery-policy.mjs'
+      - 'http-generic-api/governedMigrationExecutionTool.js'
+      - 'http-generic-api/scripts/governed-migration-runner.mjs'
+      - 'http-generic-api/scripts/governed-migration-runner-bootstrap.mjs'
       - 'http-generic-api/runtimeRecoverySnapshot.js'
       - 'http-generic-api/test-runtime-recovery-snapshot-routes.mjs'
       - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
@@ -102,7 +105,7 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-production-runtime-parity-evidence.mjs
 
-      - name: Validate recovery operator and centralized policy
+      - name: Validate recovery operator, centralized policy, and runner ancestry
         run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
 
   live:
@@ -272,7 +275,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify recovery route, operator, and centralized policy contracts
+      - name: Verify recovery route, operator, centralized policy, and runner ancestry contracts
         run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
 
       - name: Validate configured recovery plan against reviewed policy
@@ -292,14 +295,14 @@ jobs:
           echo "RUNTIME_RECOVERY_RESULT_PATH=${evidence_dir}/result.json" >> "${GITHUB_ENV}"
           echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
 
-      - name: Execute selected recovery strategy
+      - name: Execute selected recovery strategy through centralized policy
         env:
           PRODUCTION_PROBE_AUTH_VALUE: ${{ inputs.strategy != 'snapshot' && secrets.PRODUCTION_PROBE_AUTH_VALUE || '' }}
           MYSQL_BOOTSTRAP_HOST: ${{ inputs.strategy == 'fallback' && vars.MYSQL_BOOTSTRAP_HOST || '' }}
           MYSQL_BOOTSTRAP_PORT: ${{ inputs.strategy == 'fallback' && (vars.MYSQL_BOOTSTRAP_PORT || '3306') || '' }}
           MYSQL_BOOTSTRAP_USER: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_USER || '' }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_PASSWORD || '' }}
-        run: node .github/ops/production-runtime-recovery-autodeploy.mjs
+        run: node .github/ops/production-runtime-recovery-policy.mjs execute
 
       - name: Verify fallback least-privilege grants in same cycle
         if: inputs.strategy == 'fallback' && inputs.apply_execution

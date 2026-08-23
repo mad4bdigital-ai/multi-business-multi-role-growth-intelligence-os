@@ -163,6 +163,8 @@ test('fallback grants are exactly six tables with SELECT INSERT UPDATE only', ()
   ];
   const env = {
     RECOVERY_STRATEGY: 'fallback',
+    PRODUCTION_BASE_URL: 'https://auth.mad4b.com',
+    PRODUCTION_SOURCE_BRANCH: 'Production',
     RUNTIME_RECOVERY_SOURCE_MODE: 'sql',
     RECOVERY_TARGET_KEY: 'runtime',
     RUNTIME_RECOVERY_TARGETS_JSON: JSON.stringify([{

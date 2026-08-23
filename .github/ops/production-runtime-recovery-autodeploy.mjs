@@ -458,36 +458,6 @@ async function doneWhenReady(connection, database, doneWhen = []) {
   return true;
 }
 
-async function readLedger(connection, database, ledger) {
-  if (!ledger?.migration_id || !(await tableExists(connection, database, 'schema_migrations'))) return { available: false, row: null };
-  const required = ['migration_id', 'filename', 'checksum_sha256', 'status', 'error_message', 'applied_at', 'applied_by', 'execution_id'];
-  if (!(await columnsExist(connection, database, 'schema_migrations', required))) {
-    throw typedError('ledger_contract_incomplete', 'schema_migrations exists but governed ledger columns are incomplete');
-  }
-  const [rows] = await connection.execute(
-    'SELECT migration_id, filename, checksum_sha256, status, error_message, applied_at, applied_by, execution_id FROM schema_migrations WHERE migration_id = ? LIMIT 1',
-    [String(ledger.migration_id)],
-  );
-  return { available: true, row: rows[0] || null };
-}
-
-async function writeLedger(connection, database, entry, checksum, env) {
-  if (!entry?.ledger?.migration_id) return { recorded: false };
-  const state = await readLedger(connection, database, entry.ledger);
-  if (!state.available) {
-    if (entry.ledger.required !== false) throw typedError('ledger_missing', 'Canonical governed ledger is required before this migration can be recorded', { migration_id: entry.ledger.migration_id });
-    return { recorded: false, reason: 'ledger_missing' };
-  }
-  const executionId = `github:${env.GITHUB_RUN_ID || 'manual'}:${env.GITHUB_RUN_ATTEMPT || '1'}`;
-  await connection.execute(
-    `INSERT INTO schema_migrations (migration_id, filename, checksum_sha256, status, error_message, applied_at, applied_by, execution_id)
-     VALUES (?, ?, ?, 'applied', NULL, CURRENT_TIMESTAMP, ?, ?)
-     ON DUPLICATE KEY UPDATE filename = VALUES(filename), checksum_sha256 = VALUES(checksum_sha256), status = 'applied', error_message = NULL, applied_at = VALUES(applied_at), applied_by = VALUES(applied_by), execution_id = VALUES(execution_id)`,
-    [String(entry.ledger.migration_id), String(entry.ledger.filename || path.basename(entry.file)), checksum, 'github-actions', executionId],
-  );
-  return { recorded: true, migration_id: String(entry.ledger.migration_id) };
-}
-
 function resolveBaselineSchemaPath(file) {
   const normalized = String(file || '').trim().replaceAll('\\', '/');
   if (normalized !== 'http-generic-api/schema.sql' && normalized !== 'schema.sql') {
@@ -557,24 +527,13 @@ async function applyMigration(connection, database, rawEntry, env) {
     }
   }
   const readyBefore = await doneWhenReady(connection, database, entry.done_when);
-  const ledger = await readLedger(connection, database, entry.ledger);
-  if (ledger.row) {
-    const ledgerChecksum = String(ledger.row.checksum_sha256 || '').toLowerCase();
-    if (ledgerChecksum && ledgerChecksum !== checksum) throw typedError('ledger_checksum_mismatch', 'Ledger checksum differs from repository migration', { migration_id: entry.ledger.migration_id });
-    if (String(ledger.row.status || '').toLowerCase() === 'applied') {
-      if (readyBefore === false) throw typedError('ledger_schema_divergence', 'Ledger says applied but declared schema postconditions are missing', { migration_id: entry.ledger.migration_id, file: repoPath });
-      return { file: repoPath, checksum_sha256: checksum, status: 'already_applied', ledger_found: true };
-    }
-  }
   if (readyBefore === true) {
-    const ledgerWrite = entry.ledger?.record_if_schema_ready ? await writeLedger(connection, database, entry, checksum, env) : { recorded: false };
-    return { file: repoPath, checksum_sha256: checksum, status: 'schema_already_ready', ledger: ledgerWrite };
+    return { file: repoPath, checksum_sha256: checksum, status: 'schema_already_ready' };
   }
   await connection.query(fs.readFileSync(absolute, 'utf8'));
   const readyAfter = await doneWhenReady(connection, database, entry.done_when);
   if (readyAfter === false) throw typedError('migration_postcondition_failed', 'Migration SQL completed but declared schema postconditions are not ready', { file: repoPath });
-  const ledgerWrite = await writeLedger(connection, database, entry, checksum, env);
-  return { file: repoPath, checksum_sha256: checksum, status: 'applied', ledger: ledgerWrite };
+  return { file: repoPath, checksum_sha256: checksum, status: 'applied' };
 }
 
 function normalizeGrants(target) {

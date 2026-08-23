@@ -42,6 +42,9 @@ const activationRoutes = readFileSync(new URL('../../http-generic-api/routes/act
 const deploymentRoutes = readFileSync(new URL('../../http-generic-api/routes/deploymentInfoRoutes.js', import.meta.url), 'utf8');
 const healthRoutes = readFileSync(new URL('../../http-generic-api/routes/healthRoutes.js', import.meta.url), 'utf8');
 const snapshotModule = readFileSync(new URL('../../http-generic-api/runtimeRecoverySnapshot.js', import.meta.url), 'utf8');
+const migrationExecutionTool = readFileSync(new URL('../../http-generic-api/governedMigrationExecutionTool.js', import.meta.url), 'utf8');
+const migrationRunnerBootstrap = readFileSync(new URL('../../http-generic-api/scripts/governed-migration-runner-bootstrap.mjs', import.meta.url), 'utf8');
+const migrationRunner = readFileSync(new URL('../../http-generic-api/scripts/governed-migration-runner.mjs', import.meta.url), 'utf8');
 
 test('canonical route contract is bound to repository runtime routes and deployment policy', () => {
   assert.equal(routeContract.schema_version, 'production-runtime-recovery-routes.v1');
@@ -139,7 +142,7 @@ test('Hostinger Auto Deploy provenance requires exact structured full commit and
 
 test('workflow observes Hostinger Auto Deploy and contains no provider deployment credential path', () => {
   assert.match(workflow, /Recover Production after Hostinger Auto Deploy/u);
-  assert.match(workflow, /production-runtime-recovery-autodeploy\.mjs/u);
+  assert.match(workflow, /production-runtime-recovery-policy\.mjs execute/u);
   assert.doesNotMatch(workflow, /PRODUCTION_DEPLOY_URL/u);
   assert.doesNotMatch(workflow, /PRODUCTION_DEPLOY_AUTH_VALUE/u);
   assert.doesNotMatch(workflow, /HOSTINGER_DEPLOYMENT_TARGET_ID/u);
@@ -201,11 +204,29 @@ test('reviewed route contract narrows recovery tools, migrations and grant scope
   assert.equal(routeContract.grant_policy.allow_global_write_privileges, false);
   assert.equal(routeContract.grant_policy.allow_grant_option, false);
   assert.equal(routeContract.grant_policy.same_cycle_readback_required, true);
+  assert.equal(routeContract.fallback_sql_policy, undefined);
+  assert.equal(routeContract.fallback_migration_policy.canonical_governed_ledger, 'governed_migration_ledger');
+  assert.equal(routeContract.fallback_migration_policy.canonical_governed_ledger_required, true);
+  assert.deepEqual(Object.keys(routeContract.fallback_migration_policy.incident_postconditions['20260815_custom_gpt_mcp_catalog_levels.sql']), ['0', '1', '2', '3', '4']);
+});
+
+test('runner ancestry preserves bounded diagnostics and canonical ledger evidence', () => {
+  assert.match(migrationExecutionTool, /governed_migration_runner_timeout/u);
+  assert.match(migrationExecutionTool, /governed_migration_runner_output_limit_exceeded/u);
+  assert.match(migrationRunnerBootstrap, /runner_artifact_readability/u);
+  assert.match(migrationRunnerBootstrap, /runner_module_import/u);
+  assert.match(migrationRunnerBootstrap, /runner_execution/u);
+  assert.match(migrationRunner, /governed_migration_ledger/u);
+  assert.match(migrationRunner, /record_only/u);
 });
 
 test('workflow enforces tool policy and performs same-cycle privilege and live persistence readbacks', () => {
   assert.match(workflow, /Validate configured recovery plan against reviewed policy/u);
   assert.match(recoveryPolicy, /RECOVERY_DEDICATED_TOOL_GENERIC_DISPATCH_DENIED/u);
+  assert.match(recoveryPolicy, /export async function executeRecovery/u);
+  assert.match(recoveryPolicy, /prepareFallbackCanonicalLedger/u);
+  assert.match(recoveryPolicy, /finalizeFallbackCanonicalLedger/u);
+  assert.match(recoveryPolicy, /governed_migration_ledger/u);
   assert.match(recoveryPolicy, /RECOVERY_DRY_RUN_REQUIRED/u);
   assert.match(recoveryPolicy, /RECOVERY_APPLY_MIGRATION_DENIED/u);
   assert.match(recoveryPolicy, /RECOVERY_GRANT_TABLE_SET_DENIED/u);
