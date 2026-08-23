@@ -110,6 +110,136 @@ jobs:
       - name: Verify recovery route and operator contracts
         run: node --test .github/ops/test-production-runtime-recovery.mjs
 
+      - name: Validate configured recovery plan against reviewed tool policy
+        if: inputs.strategy != 'snapshot'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const contract = JSON.parse(fs.readFileSync('.github/ops/production-runtime-recovery-routes.json', 'utf8'));
+          const toolRoute = contract.routes.gpt_tool_call;
+          const toolPolicy = toolRoute.tool_policy;
+          const migrations = contract.recovery_migrations || {};
+          const grantPolicy = contract.grant_policy || {};
+          const strategy = String(process.env.RECOVERY_STRATEGY || 'verify');
+
+          const fail = (code, details = {}) => {
+            const error = new Error(code);
+            error.details = details;
+            throw error;
+          };
+          const arrayFromEnv = (name) => {
+            const raw = String(process.env[name] || '').trim();
+            if (!raw) return [];
+            const value = JSON.parse(raw);
+            if (!Array.isArray(value)) fail('RECOVERY_POLICY_ARRAY_REQUIRED', { variable: name });
+            return value;
+          };
+          const exactSet = (actual, expected) => {
+            const left = [...new Set(actual.map(String))].sort();
+            const right = [...new Set(expected.map(String))].sort();
+            return JSON.stringify(left) === JSON.stringify(right);
+          };
+          const assertMigration = (args, mode) => {
+            const migration = String(args?.migration || '');
+            const spec = migrations[migration];
+            if (!spec || !spec.allowed_modes.includes(mode)) fail('RECOVERY_MIGRATION_MODE_DENIED', { migration, mode });
+            if (String(args.expected_checksum_sha256 || '').toLowerCase() !== String(spec.sha256).toLowerCase()) {
+              fail('RECOVERY_MIGRATION_CHECKSUM_REQUIRED', { migration });
+            }
+            if (Number(args.expected_statement_count) !== Number(spec.statement_count)) {
+              fail('RECOVERY_MIGRATION_STATEMENT_COUNT_REQUIRED', { migration });
+            }
+            return spec;
+          };
+          const assertStep = (step, phase) => {
+            if (!step || typeof step !== 'object' || Array.isArray(step)) fail('RECOVERY_STEP_INVALID', { phase });
+            if (Object.hasOwn(step, 'path') || Object.hasOwn(step, 'url')) fail('RECOVERY_ARBITRARY_ROUTE_DENIED', { phase });
+            const route = contract.routes?.[String(step.route_key || '')];
+            if (!route || !contract.allowed_configured_steps.includes(String(step.route_key || ''))) fail('RECOVERY_ROUTE_KEY_DENIED', { phase, route_key: step.route_key });
+            if (String(step.route_key) !== 'gpt_tool_call') {
+              if (step.mutation === true) fail('RECOVERY_NON_TOOL_MUTATION_FLAG_DENIED', { phase, route_key: step.route_key });
+              return;
+            }
+            const body = step.body;
+            if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.name !== 'string' || !body.tool_args || typeof body.tool_args !== 'object' || Array.isArray(body.tool_args)) {
+              fail('RECOVERY_TOOL_ENVELOPE_INVALID', { phase });
+            }
+            const name = body.name;
+            const args = body.tool_args;
+            if (toolPolicy.dedicated_post_apply_tools?.[name]) fail('RECOVERY_DEDICATED_TOOL_GENERIC_DISPATCH_DENIED', { phase, tool: name });
+
+            if (phase === 'probe' || phase === 'final') {
+              if (step.mutation === true) fail('RECOVERY_READ_PHASE_MUTATION_DENIED', { phase, tool: name });
+              if (toolPolicy.read_only_tools.includes(name)) {
+                if (args.migration) {
+                  const migration = String(args.migration);
+                  if (!migrations[migration]) fail('RECOVERY_SCHEMA_READBACK_MIGRATION_DENIED', { migration });
+                }
+                return;
+              }
+              if (name === 'governed_migration_execute') {
+                if (String(args.mode || '') !== 'dry_run') fail('RECOVERY_DRY_RUN_REQUIRED', { phase });
+                assertMigration(args, 'dry_run');
+                return;
+              }
+              fail('RECOVERY_READ_PHASE_TOOL_DENIED', { phase, tool: name });
+            }
+
+            if (phase === 'mutation') {
+              if (step.mutation !== true) fail('RECOVERY_MUTATION_FLAG_REQUIRED', { tool: name });
+              if (name === 'governed_migration_execute') {
+                if (String(args.mode || '') !== 'apply') fail('RECOVERY_APPLY_MODE_REQUIRED');
+                const spec = assertMigration(args, 'apply');
+                if (spec.incident_role !== 'only_current_apply_candidate') fail('RECOVERY_APPLY_MIGRATION_DENIED', { migration: args.migration });
+                return;
+              }
+              if (!toolPolicy.mutation_tools.includes(name)) fail('RECOVERY_MUTATION_TOOL_DENIED', { tool: name });
+              if (name === 'governed_migration_authorization_bootstrap') {
+                const migration = String(args.migration || '');
+                const spec = migrations[migration];
+                if (!spec || spec.incident_role !== 'only_current_apply_candidate') fail('RECOVERY_AUTHORIZATION_MIGRATION_DENIED', { migration });
+              }
+              return;
+            }
+            fail('RECOVERY_PHASE_INVALID', { phase });
+          };
+
+          for (const step of arrayFromEnv('RUNTIME_RECOVERY_PROBES_JSON')) assertStep(step, 'probe');
+          for (const step of arrayFromEnv('RUNTIME_RECOVERY_FINAL_PROBES_JSON')) assertStep(step, 'final');
+          if (strategy === 'primary') {
+            for (const step of arrayFromEnv('PRIMARY_GOVERNED_STEPS_JSON')) assertStep(step, 'mutation');
+          }
+
+          if (strategy === 'fallback') {
+            const targets = arrayFromEnv('RUNTIME_RECOVERY_TARGETS_JSON');
+            const target = targets.find((item) => String(item?.key || '') === String(process.env.RECOVERY_TARGET_KEY || 'runtime'));
+            if (!target) fail('RECOVERY_TARGET_NOT_FOUND');
+            const expectedTables = grantPolicy.required_tables || [];
+            const expectedOps = grantPolicy.required_operations || [];
+            const grants = Array.isArray(target.grants) && target.grants.length
+              ? target.grants
+              : expectedTables.map((table) => ({ table, privileges: expectedOps }));
+            if (!exactSet(grants.map((entry) => entry.table), expectedTables)) fail('RECOVERY_GRANT_TABLE_SET_DENIED');
+            for (const grant of grants) {
+              if (!exactSet(Array.isArray(grant.privileges) ? grant.privileges.map((item) => String(item).toUpperCase()) : [], expectedOps)) {
+                fail('RECOVERY_GRANT_OPERATION_SET_DENIED', { table: grant.table });
+              }
+            }
+          }
+
+          console.log(JSON.stringify({
+            ok: true,
+            contract: 'production-runtime-recovery-config-policy.v1',
+            strategy,
+            unknown_tool_policy: toolPolicy.unknown_tool_policy,
+            grant_table_count: grantPolicy.required_tables?.length || 0,
+            secrets_included: false,
+          }));
+          NODE
+
       - name: Install MariaDB client dependency for database fallback only
         if: inputs.strategy == 'fallback' && inputs.apply_execution
         working-directory: http-generic-api
@@ -134,6 +264,153 @@ jobs:
           MYSQL_BOOTSTRAP_USER: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_USER || '' }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_PASSWORD || '' }}
         run: node .github/ops/production-runtime-recovery-autodeploy.mjs
+
+      - name: Verify fallback least-privilege grants in same cycle
+        if: inputs.strategy == 'fallback' && inputs.apply_execution
+        working-directory: http-generic-api
+        env:
+          MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+          MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+          MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+          MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import mysql from 'mysql2/promise';
+
+          const contract = JSON.parse(fs.readFileSync('../.github/ops/production-runtime-recovery-routes.json', 'utf8'));
+          const policy = contract.grant_policy;
+          const targets = JSON.parse(process.env.RUNTIME_RECOVERY_TARGETS_JSON || '[]');
+          const target = targets.find((item) => String(item?.key || '') === String(process.env.RECOVERY_TARGET_KEY || 'runtime'));
+          if (!target?.database || !target?.principal || !target?.principal_host) throw new Error('RECOVERY_GRANT_READBACK_TARGET_INCOMPLETE');
+          const connection = await mysql.createConnection({
+            host: process.env.MYSQL_BOOTSTRAP_HOST,
+            port: Number(process.env.MYSQL_BOOTSTRAP_PORT || 3306),
+            user: process.env.MYSQL_BOOTSTRAP_USER,
+            password: process.env.MYSQL_BOOTSTRAP_PASSWORD,
+            connectTimeout: 15000,
+          });
+          try {
+            const grantee = `'${target.principal}'@'${target.principal_host}'`;
+            const [userRows] = await connection.execute(
+              'SELECT PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = ?',
+              [grantee],
+            );
+            const [schemaRows] = await connection.execute(
+              'SELECT TABLE_SCHEMA, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = ? AND TABLE_SCHEMA = ?',
+              [grantee, target.database],
+            );
+            const [tableRows] = await connection.execute(
+              'SELECT TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = ? AND TABLE_SCHEMA = ?',
+              [grantee, target.database],
+            );
+            const broadWrite = new Set(['INSERT','UPDATE','DELETE','CREATE','DROP','ALTER','INDEX','TRIGGER','REFERENCES','EXECUTE','EVENT','CREATE ROUTINE','ALTER ROUTINE','CREATE VIEW','CREATE TEMPORARY TABLES','LOCK TABLES']);
+            const requiredTables = new Set(policy.required_tables);
+            const requiredOps = new Set(policy.required_operations);
+            const broadGlobal = userRows.filter((row) => broadWrite.has(String(row.PRIVILEGE_TYPE).toUpperCase()));
+            const broadSchema = schemaRows.filter((row) => broadWrite.has(String(row.PRIVILEGE_TYPE).toUpperCase()));
+            const grantOptions = [...userRows, ...schemaRows, ...tableRows].filter((row) => String(row.IS_GRANTABLE || 'NO').toUpperCase() === 'YES');
+            const outsideTableWrites = tableRows.filter((row) => !requiredTables.has(String(row.TABLE_NAME)) && broadWrite.has(String(row.PRIVILEGE_TYPE).toUpperCase()));
+            const tableEvidence = [...requiredTables].map((table) => {
+              const rows = tableRows.filter((row) => String(row.TABLE_NAME) === table);
+              const observed = new Set(rows.map((row) => String(row.PRIVILEGE_TYPE).toUpperCase()));
+              const missing = [...requiredOps].filter((op) => !observed.has(op));
+              const forbidden = [...observed].filter((op) => !requiredOps.has(op));
+              return { table, missing, forbidden, grant_option: rows.some((row) => String(row.IS_GRANTABLE || 'NO').toUpperCase() === 'YES') };
+            });
+            const ready = broadGlobal.length === 0 && broadSchema.length === 0 && grantOptions.length === 0 && outsideTableWrites.length === 0
+              && tableEvidence.every((item) => item.missing.length === 0 && item.forbidden.length === 0 && !item.grant_option);
+            const evidence = {
+              contract: 'production-runtime-recovery-grant-readback.v1',
+              ready,
+              database: target.database,
+              table_evidence: tableEvidence,
+              broad_global_write_privilege_count: broadGlobal.length,
+              broad_schema_write_privilege_count: broadSchema.length,
+              outside_allowlist_table_write_count: outsideTableWrites.length,
+              grant_option_count: grantOptions.length,
+              secrets_included: false,
+            };
+            fs.writeFileSync(`${process.env.EVIDENCE_DIR}/grant-readback.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+            if (!ready) throw new Error('RECOVERY_GRANT_SAME_CYCLE_READBACK_FAILED');
+            console.log(JSON.stringify(evidence));
+          } finally {
+            await connection.end();
+          }
+          NODE
+
+      - name: Verify live response-chunk persistence binding
+        if: inputs.apply_execution && (inputs.strategy == 'primary' || inputs.strategy == 'fallback')
+        env:
+          PRODUCTION_PROBE_AUTH_VALUE: ${{ secrets.PRODUCTION_PROBE_AUTH_VALUE }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const contract = JSON.parse(fs.readFileSync('.github/ops/production-runtime-recovery-routes.json', 'utf8'));
+          const route = contract.routes.gpt_tool_call;
+          const smokePolicy = route.tool_policy.dedicated_post_apply_tools.response_chunk_durable_recovery_smoke;
+          const base = String(process.env.PRODUCTION_BASE_URL || 'https://auth.mad4b.com').replace(/\/$/, '');
+          const token = String(process.env.PRODUCTION_PROBE_AUTH_VALUE || '');
+          if (!token) throw new Error('RECOVERY_DURABLE_SMOKE_AUTH_MISSING');
+          const response = await fetch(`${base}${route.path}`, {
+            method: route.method,
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              [String(process.env.PRODUCTION_PROBE_AUTH_HEADER || 'Authorization')]: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: 'response_chunk_durable_recovery_smoke',
+              tool_args: { [smokePolicy.confirmation_field]: smokePolicy.confirmation_value },
+            }),
+            signal: AbortSignal.timeout(60000),
+          });
+          const body = await response.json().catch(() => null);
+          const locate = (value, predicate, seen = new Set()) => {
+            if (!value || typeof value !== 'object' || seen.has(value)) return null;
+            seen.add(value);
+            if (predicate(value)) return value;
+            for (const child of Object.values(value)) {
+              const found = locate(child, predicate, seen);
+              if (found) return found;
+            }
+            return null;
+          };
+          const smoke = locate(body, (value) => value.smoke_contract === 'response_chunk_durable_recovery_smoke_v1');
+          const ready = response.ok && smoke?.ok === true
+            && smoke?.persistence?.durable_row_present_immediately_after_chunk_id_return === true
+            && smoke?.persistence?.memory_cache_evicted === true
+            && smoke?.persistence?.recovery_source === 'governed_tool_response_chunk_store'
+            && smoke?.integrity?.persisted_sha256_match === true
+            && smoke?.integrity?.persisted_utf8_byte_length_match === true
+            && smoke?.integrity?.exact_unicode_reconstruction === true
+            && smoke?.integrity?.reconstructed_sha256_match === true
+            && smoke?.integrity?.reconstructed_utf8_byte_length_match === true
+            && smoke?.integrity?.no_secret_policy_passed === true
+            && smoke?.expiry?.sliding_extension_verified === true;
+          const evidence = {
+            contract: 'production-runtime-recovery-live-persistence-readback.v1',
+            ready,
+            http_status: response.status,
+            smoke_contract: smoke?.smoke_contract || null,
+            durable_row_present: smoke?.persistence?.durable_row_present_immediately_after_chunk_id_return === true,
+            memory_cache_evicted: smoke?.persistence?.memory_cache_evicted === true,
+            recovery_source: smoke?.persistence?.recovery_source || null,
+            exact_unicode_reconstruction: smoke?.integrity?.exact_unicode_reconstruction === true,
+            sliding_extension_verified: smoke?.expiry?.sliding_extension_verified === true,
+            provider_calls: smoke?.provider_calls ?? null,
+            external_writes: smoke?.external_writes ?? null,
+            secrets_included: false,
+          };
+          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/response-chunk-live-binding.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+          if (!ready) throw new Error(`RECOVERY_LIVE_PERSISTENCE_READBACK_FAILED:${response.status}`);
+          console.log(JSON.stringify(evidence));
+          NODE
 
       - name: Reverify immutable Production head
         if: always()

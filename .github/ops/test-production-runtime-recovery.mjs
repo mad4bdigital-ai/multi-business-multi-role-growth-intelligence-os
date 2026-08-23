@@ -133,6 +133,60 @@ test('workflow observes Hostinger Auto Deploy and contains no provider deploymen
   assert.doesNotMatch(operator, /provider_deploy_credential_required:\s*true/u);
 });
 
+test('reviewed route contract narrows recovery tools, migrations and grant scope', () => {
+  const policy = routeContract.routes.gpt_tool_call.tool_policy;
+  assert.equal(policy.unknown_tool_policy, 'deny');
+  assert.deepEqual(policy.read_only_tools, ['governed_migration_schema_readback']);
+  assert.deepEqual(policy.mode_scoped_tools.governed_migration_execute.read_only_modes, ['dry_run']);
+  assert.deepEqual(policy.mode_scoped_tools.governed_migration_execute.mutation_modes, ['apply']);
+  assert.deepEqual([...policy.mutation_tools].sort(), [
+    'governed_migration_apply_policy_bootstrap',
+    'governed_migration_authorization_bootstrap',
+  ]);
+  assert.equal(policy.dedicated_post_apply_tools.response_chunk_durable_recovery_smoke.generic_configured_step_allowed, false);
+  assert.equal(policy.dedicated_post_apply_tools.response_chunk_durable_recovery_smoke.confirmation_value, 'RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE');
+
+  assert.deepEqual(routeContract.recovery_migrations['225_sprint67_capability_resolution_envelope_ledger.sql'].allowed_modes, ['dry_run']);
+  assert.deepEqual(routeContract.recovery_migrations['1048_transport_response_chunk_schema_recovery.sql'].allowed_modes, ['dry_run']);
+  assert.deepEqual(routeContract.recovery_migrations['20260815_custom_gpt_mcp_catalog_levels.sql'].allowed_modes, ['dry_run', 'apply']);
+  assert.equal(routeContract.recovery_migrations['20260815_custom_gpt_mcp_catalog_levels.sql'].incident_role, 'only_current_apply_candidate');
+
+  assert.deepEqual(routeContract.grant_policy.required_tables, [
+    'customer_sessions',
+    'gpt_session_turns',
+    'actions',
+    'dynamic_audit_scheduler_runs',
+    'execution_log',
+    'json_assets',
+  ]);
+  assert.deepEqual(routeContract.grant_policy.required_operations, ['SELECT', 'INSERT', 'UPDATE']);
+  assert.equal(routeContract.grant_policy.allow_additional_tables, false);
+  assert.equal(routeContract.grant_policy.allow_schema_write_privileges, false);
+  assert.equal(routeContract.grant_policy.allow_global_write_privileges, false);
+  assert.equal(routeContract.grant_policy.allow_grant_option, false);
+  assert.equal(routeContract.grant_policy.same_cycle_readback_required, true);
+});
+
+test('workflow enforces tool policy and performs same-cycle privilege and live persistence readbacks', () => {
+  assert.match(workflow, /Validate configured recovery plan against reviewed tool policy/u);
+  assert.match(workflow, /RECOVERY_DEDICATED_TOOL_GENERIC_DISPATCH_DENIED/u);
+  assert.match(workflow, /RECOVERY_DRY_RUN_REQUIRED/u);
+  assert.match(workflow, /RECOVERY_APPLY_MIGRATION_DENIED/u);
+  assert.match(workflow, /RECOVERY_GRANT_TABLE_SET_DENIED/u);
+  assert.match(workflow, /Verify fallback least-privilege grants in same cycle/u);
+  assert.match(workflow, /information_schema\.USER_PRIVILEGES/u);
+  assert.match(workflow, /information_schema\.SCHEMA_PRIVILEGES/u);
+  assert.match(workflow, /information_schema\.TABLE_PRIVILEGES/u);
+  assert.match(workflow, /outside_allowlist_table_write_count/u);
+  assert.match(workflow, /Verify live response-chunk persistence binding/u);
+  assert.match(workflow, /response_chunk_durable_recovery_smoke/u);
+  assert.match(workflow, /RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE/u);
+  assert.match(workflow, /durable_row_present_immediately_after_chunk_id_return/u);
+  assert.match(workflow, /recovery_source === 'governed_tool_response_chunk_store'/u);
+  assert.match(workflow, /exact_unicode_reconstruction/u);
+  assert.match(workflow, /sliding_extension_verified/u);
+});
+
 test('renderTemplate replaces only known placeholders recursively', () => {
   const rendered = renderTemplate({ ref: '{{sha}}', nested: ['{{branch}}', '{{unknown}}'] }, { sha: SHA, branch: 'Production' });
   assert.deepEqual(rendered, { ref: SHA, nested: ['Production', '{{unknown}}'] });
