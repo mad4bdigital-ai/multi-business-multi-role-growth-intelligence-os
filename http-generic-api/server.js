@@ -317,6 +317,7 @@ import {
 } from "./domainAdapters/wordpressAdapter.js";
 import { getRuntimePersistencePool, testConnection } from "./db.js";
 import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js";
+import { getRuntimeBootstrapStatus } from "./runtimeBootstrapStatus.js";
 import {
   toJobSummary,
   inferLocalDispatchHttpStatus,
@@ -3249,6 +3250,10 @@ if (!isBackendApiKeyEnabled(process.env)) {
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
+  console.log(JSON.stringify({
+    event: "runtime_bootstrap_status",
+    ...getRuntimeBootstrapStatus(process.env),
+  }));
   runMcpCatalogSchemaStartupPreflight()
     .catch((error) => {
       console.error(JSON.stringify({
