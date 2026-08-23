@@ -24,18 +24,20 @@ import {
   loadRuntimeRecoverySnapshot,
   resolveRuntimeRecoverySourceMode,
 } from '../../http-generic-api/runtimeRecoverySnapshot.js';
+import { buildVersionPayload } from '../../http-generic-api/deploymentManifest.js';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 const workflow = readFileSync(new URL('../workflows/production-runtime-recovery.yml', import.meta.url), 'utf8');
 const operator = readFileSync(new URL('./production-runtime-recovery-autodeploy.mjs', import.meta.url), 'utf8');
 const routeContract = JSON.parse(readFileSync(new URL('./production-runtime-recovery-routes.json', import.meta.url), 'utf8'));
+const deploymentPolicy = JSON.parse(readFileSync(new URL('../../http-generic-api/config/deployment-branch-policy.json', import.meta.url), 'utf8'));
 const gptRoutes = readFileSync(new URL('../../http-generic-api/routes/gptToolsRoutes.js', import.meta.url), 'utf8');
 const activationRoutes = readFileSync(new URL('../../http-generic-api/routes/activationRoutes.js', import.meta.url), 'utf8');
 const deploymentRoutes = readFileSync(new URL('../../http-generic-api/routes/deploymentInfoRoutes.js', import.meta.url), 'utf8');
 const healthRoutes = readFileSync(new URL('../../http-generic-api/routes/healthRoutes.js', import.meta.url), 'utf8');
 const snapshotModule = readFileSync(new URL('../../http-generic-api/runtimeRecoverySnapshot.js', import.meta.url), 'utf8');
 
-test('canonical route contract is bound to repository runtime routes', () => {
+test('canonical route contract is bound to repository runtime routes and deployment policy', () => {
   assert.equal(routeContract.schema_version, 'production-runtime-recovery-routes.v1');
   assert.equal(resolveRoute('health').path, '/health');
   assert.equal(resolveRoute('version').path, '/version');
@@ -50,6 +52,14 @@ test('canonical route contract is bound to repository runtime routes', () => {
   assert.match(gptRoutes, /["']\/gpt\/tools["']/u);
   assert.match(gptRoutes, /["']\/gpt\/tools\/call["']/u);
   assert.match(activationRoutes, /["']\/activation\/session-context\/read-only["']/u);
+
+  assert.equal(deploymentPolicy.production.deployment_mode, 'hostinger_auto_deploy');
+  assert.equal(deploymentPolicy.production.auto_deploy_on_push, true);
+  assert.equal(deploymentPolicy.production.source_branch, 'Production');
+  assert.deepEqual(
+    [...deploymentPolicy.production.required_readbacks].sort(),
+    [resolveRoute('health').path, resolveRoute('version').path, resolveRoute('deployment_info').path].sort(),
+  );
 });
 
 test('configured steps cannot redirect recovery to arbitrary paths', () => {
@@ -79,11 +89,38 @@ test('gpt tool call envelope is fixed to name plus tool_args object', () => {
   );
 });
 
-test('Hostinger Auto Deploy provenance requires exact structured commit and branch on each manifest response', () => {
+test('version payload exposes canonical full SHA and branch from deployment manifest', () => {
+  const payload = buildVersionPayload({
+    serviceVersion: 'test',
+    env: {
+      DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
+        repository: 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os',
+        branch: 'Production',
+        commit_sha: SHA,
+        source: 'test',
+        secrets_included: false,
+      }),
+      DEPLOYMENT_EXPECTED_COMMIT_SHA: SHA,
+    },
+  });
+  assert.equal(payload.gitCommitFull, SHA);
+  assert.equal(payload.gitBranch, 'Production');
+  assert.equal(payload.deployment.deployed_commit_sha, SHA);
+});
+
+test('deployment-info source exposes canonical manifest identity fields rather than relying on git fallback', () => {
+  assert.match(deploymentRoutes, /gitCommitFull:\s*canonicalCommitFull/u);
+  assert.match(deploymentRoutes, /gitBranch:\s*canonicalBranch/u);
+  assert.match(deploymentRoutes, /provenanceSource:\s*canonicalDeployment\?\.source/u);
+  assert.match(deploymentRoutes, /canonical_manifest_detected:\s*Boolean\(canonicalDeployment\)/u);
+});
+
+test('Hostinger Auto Deploy provenance requires exact structured full commit and branch on each response', () => {
   const response = { ok: true, json: { gitCommitFull: SHA, gitBranch: 'Production', extra: true } };
   assert.equal(manifestMatches({ response, sha: SHA, branch: 'Production' }), true);
   assert.equal(manifestMatches({ response, sha: SHA, branch: 'main' }), false);
-  assert.equal(manifestMatches({ response: { ok: true, json: { gitCommit: SHA.slice(0, 12), gitBranch: 'Production' } }, sha: SHA, branch: 'Production' }), false);
+  assert.equal(manifestMatches({ response: { ok: true, json: { gitCommitFull: SHA.slice(0, 12), gitBranch: 'Production' } }, sha: SHA, branch: 'Production' }), false);
+  assert.equal(manifestMatches({ response: { ok: true, json: { gitCommitFull: SHA, gitBranch: null } }, sha: SHA, branch: 'Production' }), false);
 });
 
 test('workflow observes Hostinger Auto Deploy and contains no provider deployment credential path', () => {
