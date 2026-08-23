@@ -266,6 +266,28 @@ test("local connector migration reconciles legacy table shape before tunnel seed
   assert.ok(["017_sprint21_output_sink_router.sql", "030_sprint33_local_connector_tables.sql", "032_sprint35_local_connector_seed.sql"].every((file, index, files) => index === 0 || files[index - 1] < file));
 });
 
+test("all local connector allowlist writers satisfy the required identifier contract", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const writerFiles = [
+    "032_sprint35_local_connector_seed.sql",
+    "036_sprint40_connect_page.sql",
+    "156_sprint65_remote_runtime_diff_name_status.sql",
+    "159_sprint65_db_driven_connector_shell_policy.sql",
+  ];
+  for (const file of writerFiles) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    const writers = splitStatements(sql).filter((statement) => /^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+`?local_connector_shell_allowlists`?/iu.test(statement));
+    assert.ok(writers.length > 0, `${file} must contain a local connector allowlist writer`);
+    for (const statement of writers) {
+      const columns = statement.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+`?local_connector_shell_allowlists`?\s*\(([^)]*)\)/iu)?.[1] || "";
+      assert.match(columns, /(?:^|,)\s*`?allowlist_id`?\s*(?:,|$)/iu, `${file} local connector allowlist writer must include allowlist_id`);
+    }
+  }
+  const generator = fs.readFileSync(generatorPath, "utf8");
+  assert.match(generator, /function validateLocalConnectorAllowlistStatement/iu);
+  assert.match(generator, /local_connector_shell_allowlists INSERT must include allowlist_id/iu);
+});
+
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
   const runtimeExcluded = new Set(manifest.roles.runtime.excluded_tables);
   for (const table of manifest.roles.governance.required_tables) assert.equal(runtimeExcluded.has(table), true, `runtime must exclude governance table ${table}`);
@@ -380,6 +402,8 @@ test("catalog path parameter metadata is valid JSON before disposable replay", (
   assert.match(generator, /function validatePathParamKeysStatement/iu);
   assert.match(generator, /path_param_keys must be NULL, JSON_ARRAY/iu);
   assert.match(generator, /path_param_keys JSON value must be an array of strings/iu);
+  assert.match(generator, /function validateLocalConnectorAllowlistStatement/iu);
+  assert.match(generator, /local_connector_shell_allowlists INSERT must include allowlist_id/iu);
 });
 
 test("generator plan-only mode inventories the exact migration chain", () => {

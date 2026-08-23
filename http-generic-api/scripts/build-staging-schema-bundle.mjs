@@ -332,10 +332,40 @@ function validatePathParamKeysStatement(file, statement) {
   }
 }
 
+function validateLocalConnectorAllowlistStatement(file, statement) {
+  const insert = statement.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`local_connector_shell_allowlists`|local_connector_shell_allowlists)\s*/iu);
+  if (!insert) return;
+  const columns = parenthesizedSql(statement, insert[0].length);
+  if (!columns) return;
+  const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll("`", "").replace(/\s/gu, "").toLowerCase());
+  const allowlistIdIndex = columnNames.indexOf("allowlist_id");
+  if (allowlistIdIndex === -1) fail(`migration ${file} local_connector_shell_allowlists INSERT must include allowlist_id`);
+  const afterColumns = statement.slice(columns.end);
+  const valuesKeyword = afterColumns.match(/^\s*VALUES\b/iu);
+  if (!valuesKeyword) return;
+  let cursor = columns.end + valuesKeyword[0].length;
+  while (cursor < statement.length) {
+    while (/\s/u.test(statement[cursor] ?? "")) cursor += 1;
+    if (statement[cursor] !== "(") break;
+    const row = parenthesizedSql(statement, cursor);
+    if (!row) fail(`migration ${file} contains an unterminated local_connector_shell_allowlists VALUES row`);
+    const values = splitTopLevelSql(row.content);
+    if (values.length !== columnNames.length) fail(`migration ${file} has ${values.length} VALUES expressions for ${columnNames.length} local_connector_shell_allowlists INSERT columns`);
+    if (/^NULL$/iu.test(values[allowlistIdIndex].trim())) fail(`migration ${file} local_connector_shell_allowlists allowlist_id cannot be NULL`);
+    cursor = row.end;
+    while (/\s/u.test(statement[cursor] ?? "")) cursor += 1;
+    if (statement[cursor] !== ",") break;
+    cursor += 1;
+  }
+}
+
 function migrationSafetyCheck(file, sql) {
   const statements = splitStatements(sql);
   const normalizedSql = statements.join("\n");
-  for (const statement of statements) validatePathParamKeysStatement(file, statement);
+  for (const statement of statements) {
+    validatePathParamKeysStatement(file, statement);
+    validateLocalConnectorAllowlistStatement(file, statement);
+  }
   const forbidden = [
     /^\s*GRANT\b/imu,
     /^\s*REVOKE\b/imu,

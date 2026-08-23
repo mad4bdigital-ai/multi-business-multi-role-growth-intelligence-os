@@ -46,10 +46,10 @@ VALUES
 
 -- ── Shell allowlist for new admin config ─────────────────────────────────────
 INSERT IGNORE INTO `local_connector_shell_allowlists`
-  (config_id, alias, command_template, allow_extra_args, description)
+  (allowlist_id, config_id, alias, command_template, allow_extra_args, description)
 VALUES
-  ('00000000-0000-4000-b000-000000000002', 'node_ver',       'node --version',              0, 'Node.js version'),
-  ('00000000-0000-4000-b000-000000000002', 'git_status',     'git status',                  0, 'Git status'),
-  ('00000000-0000-4000-b000-000000000002', 'n8n_health',     'curl -s --max-time 10 http://127.0.0.1:5678/', 0, 'n8n health'),
-  ('00000000-0000-4000-b000-000000000002', 'list_processes',  'tasklist /FO CSV /NH',       0, 'Running processes'),
-  ('00000000-0000-4000-b000-000000000002', 'nslookup_test',  'nslookup n8n.mad4b.com',      0, 'DNS lookup n8n');
+  ('00000000-0000-4000-c000-000000000006', '00000000-0000-4000-b000-000000000002', 'node_ver',       'node --version',              0, 'Node.js version'),
+  ('00000000-0000-4000-c000-000000000007', '00000000-0000-4000-b000-000000000002', 'git_status',     'git status',                  0, 'Git status'),
+  ('00000000-0000-4000-c000-000000000008', '00000000-0000-4000-b000-000000000002', 'n8n_health',     'curl -s --max-time 10 http://127.0.0.1:5678/', 0, 'n8n health'),
+  ('00000000-0000-4000-c000-000000000009', '00000000-0000-4000-b000-000000000002', 'list_processes',  'tasklist /FO CSV /NH',       0, 'Running processes'),
+  ('00000000-0000-4000-c000-000000000010', '00000000-0000-4000-b000-000000000002', 'nslookup_test',  'nslookup n8n.mad4b.com',      0, 'nslookup n8n');

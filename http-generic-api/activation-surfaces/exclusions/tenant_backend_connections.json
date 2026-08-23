@@ -1,0 +1,7 @@
+{
+  "surface_key": "tenant_backend_connections",
+  "source_table": "tenant_backend_connections",
+  "reason": "Excluded because migration 036 creates backend connection-mode persistence only; tenant-facing activation surfaces, runtime resolution, and readback journeys are intentionally deferred to a separately governed feature.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

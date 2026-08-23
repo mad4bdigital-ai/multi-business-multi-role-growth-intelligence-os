@@ -24,10 +24,10 @@ UPDATE `local_connector_shell_allowlists`
  WHERE `status` IS NULL OR `status` = '' OR `risk_class` IS NULL OR `risk_class` = '';
 
 INSERT INTO `local_connector_shell_allowlists`
-  (`config_id`, `alias`, `command_template`, `allow_extra_args`, `description`, `status`, `risk_class`, `source`, `policy_version`)
+  (`allowlist_id`, `config_id`, `alias`, `command_template`, `allow_extra_args`, `description`, `status`, `risk_class`, `source`, `policy_version`)
 VALUES
-  ('8db63b00-4fce-11f1-b256-614c56cd019b', 'repo_status_growth_os', '"C:\\Program Files\\Git\\cmd\\git.exe" -C "D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS" status --short', 0, 'Read-only git status for Growth Intelligence OS local repo', 'active', 'read_only', 'db_seed', 2),
-  ('8db63b00-4fce-11f1-b256-614c56cd019b', 'repo_diff_name_status_growth_os', '"C:\\Program Files\\Git\\cmd\\git.exe" -C "D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS" diff --name-status', 0, 'Read-only git diff --name-status for Growth Intelligence OS local repo', 'active', 'read_only', 'db_seed', 2)
+  ('00000000-0000-4000-c000-000000000012', '8db63b00-4fce-11f1-b256-614c56cd019b', 'repo_status_growth_os', '"C:\\Program Files\\Git\\cmd\\git.exe" -C "D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS" status --short', 0, 'Read-only git status for Growth Intelligence OS local repo', 'active', 'read_only', 'db_seed', 2),
+  ('00000000-0000-4000-c000-000000000011', '8db63b00-4fce-11f1-b256-614c56cd019b', 'repo_diff_name_status_growth_os', '"C:\\Program Files\\Git\\cmd\\git.exe" -C "D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS" diff --name-status', 0, 'Read-only git diff --name-status for Growth Intelligence OS local repo', 'active', 'read_only', 'db_seed', 2)
 ON DUPLICATE KEY UPDATE
   `command_template` = VALUES(`command_template`),
   `allow_extra_args` = VALUES(`allow_extra_args`),

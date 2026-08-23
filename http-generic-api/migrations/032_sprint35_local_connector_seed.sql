@@ -23,13 +23,13 @@ VALUES (
 -- ── Seed: shell allowlist for mohammedlap ─────────────────────────────────────────
 
 INSERT IGNORE INTO `local_connector_shell_allowlists`
-  (config_id, alias, command_template, allow_extra_args, description)
+  (allowlist_id, config_id, alias, command_template, allow_extra_args, description)
 VALUES
-  ('00000000-0000-4000-b000-000000000001', 'node_ver',       'node --version',                       0, 'Node.js version on local machine'),
-  ('00000000-0000-4000-b000-000000000001', 'nslookup_test',  'nslookup n8n.mad4b.com',               0, 'DNS lookup for n8n.mad4b.com'),
-  ('00000000-0000-4000-b000-000000000001', 'n8n_health',     'curl -s --max-time 10 http://127.0.0.1:5678/', 0, 'n8n local health check'),
-  ('00000000-0000-4000-b000-000000000001', 'git_status',     'git status',                           0, 'Git status of working directory'),
-  ('00000000-0000-4000-b000-000000000001', 'list_processes',  'tasklist /FO CSV /NH',                0, 'Running processes (CSV)');
+  ('00000000-0000-4000-c000-000000000001', '00000000-0000-4000-b000-000000000001', 'node_ver',       'node --version',                       0, 'Node.js version on local machine'),
+  ('00000000-0000-4000-c000-000000000002', '00000000-0000-4000-b000-000000000001', 'nslookup_test',  'nslookup n8n.mad4b.com',               0, 'DNS lookup for n8n.mad4b.com'),
+  ('00000000-0000-4000-c000-000000000003', '00000000-0000-4000-b000-000000000001', 'n8n_health',     'curl -s --max-time 10 http://127.0.0.1:5678/', 0, 'n8n local health check'),
+  ('00000000-0000-4000-c000-000000000004', '00000000-0000-4000-b000-000000000001', 'git_status',     'git status',                           0, 'Git status of working directory'),
+  ('00000000-0000-4000-c000-000000000005', '00000000-0000-4000-b000-000000000001', 'list_processes',  'tasklist /FO CSV /NH',                0, 'Running processes (CSV)');
 
 -- ── Seed: file access rules for mohammedlap ───────────────────────────────────────
 
