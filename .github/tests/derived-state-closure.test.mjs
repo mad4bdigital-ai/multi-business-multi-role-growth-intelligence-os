@@ -8,6 +8,7 @@ const registry = JSON.parse(read(".github/derived-state-governance.json"));
 const verifierRegistry = JSON.parse(read(".github/governance/verifier-registry.json"));
 const constitution = JSON.parse(read("http-generic-api/config/repository-governance-constitution.json"));
 const workflow = read(".github/workflows/derived-state-closure.yml");
+const policyObjectionWorkflow = read(".github/workflows/policy-objection-ci.yml");
 const finalReadbackWorkflow = read(".github/workflows/hostinger-storage-final-work-map-readback-guard.yml");
 const fixedPoint = read("scripts/repository-governance-fixed-point.mjs");
 const repair = read(".github/workflows/derived-state-repair-dispatch.yml");
@@ -64,6 +65,9 @@ assert.match(fixedPoint, /blocking_failure_policy_ids:\s*report\.blocking_failur
 assert.match(workflow, /merge_candidate_sha/u);
 assert.match(workflow, /executed_sha/u);
 assert.match(workflow, /repository-governance-evidence-finalizer\.mjs/u);
+assert.match(workflow, /select\(\.status=="completed" and \(\.conclusion=="success" or \.conclusion=="failure"\)\)/u);
+assert.match(policyObjectionWorkflow, /producer-evidence\.json[\s\S]*?NODE[\s\S]*?node scripts\/repository-governance-objection-gate\.mjs/u);
+assert.match(policyObjectionWorkflow, /if: always\(\)[\s\S]*?name: repository-governance-producer-evidence-\$\{\{ github\.run_id \}\}/u);
 assert.doesNotMatch(workflow, /\n\s*paths:/u);
 assert.match(finalizer, /Trusted GitHub App exact-candidate attestation/u);
 assert.match(finalizer, /ATTEST_DERIVED_STATE_CLOSURE/u);

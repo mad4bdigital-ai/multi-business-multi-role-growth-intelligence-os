@@ -193,6 +193,10 @@ export function buildDeploymentInfoRoutes({
     const canonicalDeployment = manifestResult.ok ? manifestResult.manifest : null;
     const deployment = canonicalDeployment || legacyDeployment;
     const deploymentSource = canonicalDeployment?.source || (legacyDeployment ? "DEPLOYMENT_COMMIT.json" : "unavailable");
+    const canonicalCommitFull = looksLikeSha(canonicalDeployment?.commit_sha)
+      ? String(canonicalDeployment.commit_sha).trim().toLowerCase()
+      : null;
+    const canonicalBranch = firstString(canonicalDeployment?.branch);
     const git = await readGitCheckoutInfo();
     const host = String(req.headers.host || "").toLowerCase();
     const isDevHostname = host.startsWith("dev.mad4b.com");
@@ -258,6 +262,9 @@ export function buildDeploymentInfoRoutes({
       ok: true,
       service: "growth-intelligence-platform",
       hostname: req.headers.host || null,
+      gitCommitFull: canonicalCommitFull,
+      gitBranch: canonicalBranch,
+      provenanceSource: canonicalDeployment?.source || null,
       branch,
       branch_source: sourceFor(branch, [
         [deploymentSource, deployment?.branch],
@@ -311,6 +318,8 @@ export function buildDeploymentInfoRoutes({
       evidence: {
         commit_sha_available: Boolean(commitSha),
         branch_available: Boolean(branch),
+        canonical_commit_sha_available: Boolean(canonicalCommitFull),
+        canonical_branch_available: Boolean(canonicalBranch),
         deployed_at_available: Boolean(deployedAt),
         git_detected: Boolean(git?.git_dir_detected),
         manifest_detected: Boolean(deployment),

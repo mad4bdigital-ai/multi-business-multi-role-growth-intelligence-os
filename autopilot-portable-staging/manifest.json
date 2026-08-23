@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "82a718c653acbeb635cd0fa3e8300b9fd57f7a829715d4befd23fa47430f6915"
+      "sha256": "8977b2ed135912b09733b8af6c091dc651be0554842dcaa61bb9f04e66380fdd"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "baf7b9c0e75cd87ac9cb21ab74c4e6b21697df5c2391f7ec2338d05c26505e62"
+      "sha256": "35be5ee6291ef583079abba60c014c576bf1e490b77629e94efecab375060acf"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -282,7 +282,7 @@
     },
     {
       "path": "http-generic-api/deploymentManifest.js",
-      "sha256": "fe6fd465a5f7a5457dd079edbf601a972bee78ede878fd146a9cee148344c2e9"
+      "sha256": "bab3370717d07d44f28d0e7869440c45529afd0d33fe186cb6eef6b5b92dfddd"
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",

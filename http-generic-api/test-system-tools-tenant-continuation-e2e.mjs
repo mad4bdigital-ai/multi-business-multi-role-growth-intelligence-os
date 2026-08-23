@@ -4,7 +4,16 @@ import mysql from "mysql2/promise";
 import { buildSystemLayerRoutes } from "./routes/systemLayerRoutes.js";
 import { GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS } from "./governedToolResponseChunkStore.js";
 
-const DB_ENV_KEYS = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
+const DB_ENV_KEYS = [
+  "DB_HOST",
+  "DB_NAME",
+  "DB_USER",
+  "DB_PASSWORD",
+  "RUNTIME_PERSISTENCE_DB_HOST",
+  "RUNTIME_PERSISTENCE_DB_NAME",
+  "RUNTIME_PERSISTENCE_DB_USER",
+  "RUNTIME_PERSISTENCE_DB_PASSWORD",
+];
 const originalDbEnv = new Map(DB_ENV_KEYS.map((key) => [key, process.env[key]]));
 for (const key of DB_ENV_KEYS) process.env[key] = `system-tools-continuation-${key.toLowerCase()}`;
 
@@ -72,6 +81,10 @@ const fakePool = {
     if (/information_schema\.columns/i.test(statement) && params[0] === "governed_tool_response_chunks") {
       return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
     }
+    if (/information_schema\.columns/i.test(statement)
+      && ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools"].includes(String(params[0] || ""))) {
+      return [[{ column_count: 1 }]];
+    }
     if (/INSERT INTO governed_tool_response_chunks/i.test(statement)) {
       const [
         chunkId,
@@ -134,6 +147,31 @@ const fakePool = {
     }
     if (/FROM platform_endpoint_tool_exports\s+x/i.test(statement)) {
       return [selectTenantExportRows(statement, params)];
+    }
+    if (/SELECT CURRENT_USER\(\).*DATABASE\(\)/i.test(statement)) {
+      return [[{
+        current_account: `${process.env.RUNTIME_PERSISTENCE_DB_USER}@localhost`,
+        current_database: process.env.RUNTIME_PERSISTENCE_DB_NAME,
+      }]];
+    }
+    if (/FROM information_schema\.USER_PRIVILEGES/i.test(statement)
+      || /FROM information_schema\.SCHEMA_PRIVILEGES/i.test(statement)
+      || /FROM information_schema\.COLUMN_PRIVILEGES/i.test(statement)
+      || /FROM information_schema\.APPLICABLE_ROLES/i.test(statement)) {
+      return [[]];
+    }
+    if (/FROM information_schema\.TABLE_PRIVILEGES/i.test(statement)) {
+      return [[
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+      ].map((privilege_type) => ({
+        TABLE_SCHEMA: process.env.RUNTIME_PERSISTENCE_DB_NAME,
+        TABLE_NAME: "governed_tool_response_chunks",
+        PRIVILEGE_TYPE: privilege_type,
+        IS_GRANTABLE: "NO",
+      }))];
     }
     if (/^\s*SELECT\b/i.test(statement)) return [[]];
     throw new Error(`Unexpected SQL in system tools continuation regression: ${statement.slice(0, 180)}`);
