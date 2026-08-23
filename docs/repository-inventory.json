@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7285,
-    "bytes": 71033134,
-    "lines": 1663825,
+    "bytes": 71034669,
+    "lines": 1664001,
     "directories": 266,
     "categories": 13
   },
@@ -10029,9 +10029,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 17924,
-      "lines": 239,
-      "sha256": "8f752e7763f2de8160549e372bb595dfc42a3b41d8adf80227d79ebdad39d149",
+      "bytes": 19459,
+      "lines": 415,
+      "sha256": "d0425a7950f08ff7a57a2f53688b8802e9268980597c8e26325439e43ada3be8",
       "mode": "644",
       "executable": false,
       "generated": false
