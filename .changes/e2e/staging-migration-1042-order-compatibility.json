@@ -58,35 +58,35 @@
             "The manifest ordering contract matches the comparator implementation.",
             "The builder remains fail-closed on wrong SHA, dirty tree, non-local Docker, missing confirmation, SQL failure, or missing outputs.",
             "Production, providers, Cloudflare, credentials, data export, and runtime mutations remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-migration-1042-order-compatibility.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-order.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
           ]
         }
-      ],
-      "tests": [
-        {
-          "id": "staging-schema-bundle-builder-regression",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-staging-schema-bundle-builder.mjs",
-          "args": []
-        },
-        {
-          "id": "staging-ordered-preuse-audit",
-          "runner": "node",
-          "working_directory": ".",
-          "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
-          "args": ["."]
-        }
-      ],
-      "evidence_paths": [
-        ".changes/e2e/staging-migration-1042-order-compatibility.json",
-        ".github/derived-state-governance.json",
-        "http-generic-api/config/repository-governance-constitution.json",
-        "http-generic-api/config/staging-database-role-migration-manifest.json",
-        "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
-        "http-generic-api/scripts/build-staging-schema-bundle.mjs",
-        "http-generic-api/scripts/migration-order.mjs",
-        "http-generic-api/test-staging-schema-bundle-builder.mjs"
       ]
     }
-  ]
+  ],
+  "secrets_included": false
 }
