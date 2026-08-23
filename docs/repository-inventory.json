@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7271,
-    "bytes": 70867288,
+    "bytes": 70867539,
     "lines": 1660344,
     "directories": 266,
     "categories": 13
@@ -9979,9 +9979,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 16992,
+      "bytes": 17087,
       "lines": 226,
-      "sha256": "a6fc3abfc2fbe681124ec41a5fd0d1df6cc24d84a1d82847e585e1cb1fa1e477",
+      "sha256": "e0893ff9ffa63253135cd4eeca59180bba740b115f6549e87ebff0d73272c886",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10067,9 +10067,9 @@
       "path": ".github/governance/verifier-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 3717,
+      "bytes": 3795,
       "lines": 36,
-      "sha256": "bb4e851c3860cca2afaefbc761b7f5f59819e52b331f39afdb1c685cb6498f03",
+      "sha256": "f2ec4881f7b0a37e02c0ba696a9356578465529c424236d4d1b87686761d5d16",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85516,9 +85516,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 24143,
+      "bytes": 24221,
       "lines": 411,
-      "sha256": "3d5078994358be96bfc6743f65863fee0b621ce0f28d47683827ce31aeca3b53",
+      "sha256": "bcd73b21e2c763e2ea0fd63d810c04ae741ab796fe9e6c28516d8a16120cdbbc",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85551,7 +85551,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "3c6c6c1a8ca03473959fba9ca0e1e71806c9abcc3581f3a0b74433e749fd4cd8",
+      "sha256": "3e0c79338c71bd5c9d7c6d98d4633beb79b6d4a58152fce478f94c9106b5432d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85562,7 +85562,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "0797441b62b7c75a262ee2f4e045fc4a5bd8d494b2683600da7f81cd46cdd0d7",
+      "sha256": "7f7a8a45e5792e7df7bece682d181276c45489848d8dc9b4447c5a6a00e26ab7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85573,7 +85573,7 @@
       "extension": ".json",
       "bytes": 269236,
       "lines": 6392,
-      "sha256": "e813b5c710d9aff5b43533eb487deac352bbde682c26c1349371fcd9636de402",
+      "sha256": "86211f05c30e464eeb296be933f72b003fa4c7f88487126e258b51d487df9a30",
       "mode": "644",
       "executable": false,
       "generated": false
