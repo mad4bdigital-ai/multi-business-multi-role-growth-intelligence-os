@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 8
+- Total queue items: 9
 - Critical review: 4
 - High review: 0
 - Medium review: 4
-- Low review: 0
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -125,4 +125,17 @@
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_ownership_readiness`
+
+### 9. `1030_sprint69_default_blocker_recovery_governance_seed.sql`
+
+- Queue class: low_review
+- Score: 77
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_external_send`
+- Surface counts: plugins=0, tools=0, views=0, policies=1, routes=0
+- Remediation actions:
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `gpt_tool_default_declared_mutation_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_external_send`
 

@@ -128,6 +128,8 @@ export function evaluatePrivilegeSnapshot({ database, profile, tablePrivileges =
   const allowed = new Set(ALLOWED_TABLE_OPERATIONS);
   const broadGlobal = userPrivileges.filter((row) => BROAD_WRITE_PRIVILEGES.has(String(row.PRIVILEGE_TYPE || "").toUpperCase()));
   const broadSchema = schemaPrivileges.filter((row) => String(row.TABLE_SCHEMA || "") === database && BROAD_WRITE_PRIVILEGES.has(String(row.PRIVILEGE_TYPE || "").toUpperCase()));
+  const broadGrantOptions = [...userPrivileges, ...schemaPrivileges.filter((row) => String(row.TABLE_SCHEMA || "") === database)]
+    .filter((row) => String(row.IS_GRANTABLE || "NO").toUpperCase() === "YES");
   const tables = selected.tables.map((table) => {
     const rows = tablePrivileges.filter((row) => row.TABLE_SCHEMA === database && row.TABLE_NAME === table);
     const observed = [...new Set(rows.map((row) => String(row.PRIVILEGE_TYPE || "").toUpperCase()))].sort();
@@ -142,9 +144,33 @@ export function evaluatePrivilegeSnapshot({ database, profile, tablePrivileges =
     tables,
     broad_global_write_privilege_count: broadGlobal.length,
     broad_schema_write_privilege_count: broadSchema.length,
-    ready: broadGlobal.length === 0 && broadSchema.length === 0 && tables.every((table) => table.ready),
+    broad_grant_option_count: broadGrantOptions.length,
+    ready: broadGlobal.length === 0 && broadSchema.length === 0 && broadGrantOptions.length === 0 && tables.every((table) => table.ready),
     secrets_included: false,
   };
+}
+
+export function assertCatalogAuthorizationReadback(payload) {
+  const result = locate(payload, (candidate) => candidate.candidate?.migration === CATALOG_MIGRATION && candidate.authorization) || {};
+  const candidate = result.candidate || {};
+  const authorization = result.authorization || {};
+  const metadata = authorization.metadata_json || {};
+  const recordedChecksum = String(authorization.recorded_checksum_sha256 || metadata.migration_checksum_sha256 || "").toLowerCase();
+  const recordedStatementCount = Number(metadata.expected_statement_count ?? metadata.statement_count ?? 0);
+  if (
+    String(candidate.migration || "") !== CATALOG_MIGRATION
+    || String(candidate.migration_checksum_sha256 || "").toLowerCase() !== CATALOG_MIGRATION_SHA256
+    || Number(candidate.statement_count || 0) !== CATALOG_STATEMENT_COUNT
+    || recordedChecksum !== CATALOG_MIGRATION_SHA256
+    || recordedStatementCount !== CATALOG_STATEMENT_COUNT
+    || String(authorization.authorization_status || "") !== "authorized"
+    || Number(authorization.allow_apply || 0) !== 1
+    || result.migration_sql_executed !== false
+    || result.applies_migration !== false
+  ) {
+    throw fail("RUNTIME_RECOVERY_MIGRATION_AUTHORIZATION_READBACK_INVALID", "Authorization must prove the exact migration, checksum, statement count and no-SQL authorization readback.");
+  }
+  return { migration: CATALOG_MIGRATION, checksum: recordedChecksum, statement_count: recordedStatementCount, authorization_status: "authorized", migration_sql_executed: false };
 }
 
 function context(env = process.env) {
@@ -389,7 +415,7 @@ async function migrationReadiness(state) {
     capability_envelope_id: requiredEnvelope(state),
     decision_note: "Authorize the exact checksum-bound seven-statement MCP catalog migration; SQL Apply remains separately confirmed.",
   });
-  successful(authorization, "RUNTIME_RECOVERY_MIGRATION_AUTHORIZATION_FAILED");
+  assertCatalogAuthorizationReadback(successful(authorization, "RUNTIME_RECOVERY_MIGRATION_AUTHORIZATION_FAILED"));
   const dryRun = await executeMigration(state, { migration: CATALOG_MIGRATION, checksum: CATALOG_MIGRATION_SHA256, statement_count: CATALOG_STATEMENT_COUNT }, "dry_run");
   const payload = successful(dryRun, "RUNTIME_RECOVERY_MIGRATION_DRY_RUN_FAILED");
   const result = locate(payload, (candidate) => candidate.mode === "dry_run") || payload;
@@ -458,8 +484,8 @@ async function operatorConnection(state) {
 
 async function privilegeSnapshot(connection, database, principal, accountHost, profile) {
   const grantee = `'${principal}'@'${accountHost}'`;
-  const [userPrivileges] = await connection.query("SELECT PRIVILEGE_TYPE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = ?", [grantee]);
-  const [schemaPrivileges] = await connection.query("SELECT TABLE_SCHEMA, PRIVILEGE_TYPE FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = ?", [grantee]);
+  const [userPrivileges] = await connection.query("SELECT PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = ?", [grantee]);
+  const [schemaPrivileges] = await connection.query("SELECT TABLE_SCHEMA, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = ?", [grantee]);
   const [tablePrivileges] = await connection.query("SELECT TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = ?", [grantee]);
   const selected = resolveProfile(profile);
   const [presentTables] = await connection.query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (?)", [database, selected.tables]);
@@ -475,7 +501,7 @@ async function grants(state, apply) {
   try {
     const before = await privilegeSnapshot(connection, database, principal, accountHost, selected.profile);
     await evidence(state, "write-authority-before", { principal, account_host: accountHost, ...before });
-    if (before.broad_global_write_privilege_count || before.broad_schema_write_privilege_count || before.tables.some((table) => table.grant_option || table.forbidden_operations.length)) {
+    if (before.broad_global_write_privilege_count || before.broad_schema_write_privilege_count || before.broad_grant_option_count || before.tables.some((table) => table.grant_option || table.forbidden_operations.length)) {
       throw fail("RUNTIME_RECOVERY_EXISTING_PRIVILEGES_TOO_BROAD", "Existing writer grants violate the least-privilege contract; no grants were executed.", { profile: selected.profile });
     }
     if (!apply) return { result: before.ready ? "ready" : "grant_required", grant_mutation_performed: false, profile: selected.profile };

@@ -80,14 +80,7 @@ jobs:
       RUNTIME_WRITER_PRINCIPAL: ${{ inputs.writer_principal }}
       RUNTIME_WRITER_ACCOUNT_HOST: ${{ inputs.writer_account_host }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
-      GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      RUNTIME_DB_OPERATOR_HOST: ${{ secrets.RUNTIME_DB_OPERATOR_HOST }}
-      RUNTIME_DB_OPERATOR_PORT: ${{ secrets.RUNTIME_DB_OPERATOR_PORT }}
-      RUNTIME_DB_OPERATOR_NAME: ${{ secrets.RUNTIME_DB_OPERATOR_NAME }}
-      RUNTIME_DB_OPERATOR_USER: ${{ secrets.RUNTIME_DB_OPERATOR_USER }}
-      RUNTIME_DB_OPERATOR_PASSWORD: ${{ secrets.RUNTIME_DB_OPERATOR_PASSWORD }}
     steps:
       - name: Validate exact protected Production reference
         env:
@@ -130,7 +123,23 @@ jobs:
           node test-runtime-remediation-batch-plan.mjs
           node test-runtime-recovery-governed-operations.mjs
 
-      - name: Execute exactly one operator-confirmed phase
+      - name: Execute one non-database operator-confirmed phase
+        if: inputs.phase != 'grant_readiness' && inputs.phase != 'grant_apply'
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node .github/ops/runtime-recovery-governed-operations.mjs
+
+      - name: Execute one database-operator-authorized grant phase
+        if: inputs.phase == 'grant_readiness' || inputs.phase == 'grant_apply'
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          GH_READ_TOKEN: ${{ github.token }}
+          RUNTIME_DB_OPERATOR_HOST: ${{ secrets.RUNTIME_DB_OPERATOR_HOST }}
+          RUNTIME_DB_OPERATOR_PORT: ${{ secrets.RUNTIME_DB_OPERATOR_PORT }}
+          RUNTIME_DB_OPERATOR_NAME: ${{ secrets.RUNTIME_DB_OPERATOR_NAME }}
+          RUNTIME_DB_OPERATOR_USER: ${{ secrets.RUNTIME_DB_OPERATOR_USER }}
+          RUNTIME_DB_OPERATOR_PASSWORD: ${{ secrets.RUNTIME_DB_OPERATOR_PASSWORD }}
         run: node .github/ops/runtime-recovery-governed-operations.mjs
 
       - name: Reverify exact protected Production reference
