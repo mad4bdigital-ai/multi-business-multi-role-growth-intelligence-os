@@ -8,7 +8,9 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-migration-1039-status-compatibility.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/1039_sprint69_disable_temporary_hostinger_deploy_gates.sql",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
