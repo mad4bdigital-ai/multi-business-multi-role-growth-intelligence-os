@@ -93,7 +93,50 @@
       "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
       "statement_count": 7,
       "allowed_modes": ["dry_run", "apply"],
-      "incident_role": "only_current_apply_candidate"
+      "incident_role": "only_current_apply_candidate",
+      "direct_fallback_idempotent": true
+    }
+  },
+  "fallback_sql_policy": {
+    "unknown_migration_policy": "deny",
+    "require_explicit_recovery_role": false,
+    "incident_apply_migrations": [
+      "20260815_custom_gpt_mcp_catalog_levels.sql"
+    ],
+    "baseline_bootstrap_migrations": {},
+    "canonical_governed_ledger": "governed_migration_ledger",
+    "canonical_governed_ledger_required": true,
+    "incident_postconditions": {
+      "20260815_custom_gpt_mcp_catalog_levels.sql": [
+        {
+          "type": "column",
+          "table": "admin_platform_endpoint_tools",
+          "column": "mcp_catalog_level"
+        },
+        {
+          "type": "column",
+          "table": "tenant_platform_endpoint_tools",
+          "column": "mcp_catalog_level"
+        },
+        {
+          "type": "index",
+          "table": "admin_platform_endpoint_tools",
+          "index": "idx_enabled_mcp_level_sort"
+        },
+        {
+          "type": "index",
+          "table": "tenant_platform_endpoint_tools",
+          "index": "idx_enabled_mcp_level_sort"
+        },
+        {
+          "type": "row",
+          "table": "tenant_platform_endpoint_tools",
+          "key_column": "tool_key",
+          "key_value": "tenant_growth_recommendation_feedback",
+          "value_column": "mcp_catalog_level",
+          "expected_value": "growth_feedback"
+        }
+      ]
     }
   },
   "grant_policy": {
@@ -126,6 +169,9 @@
     "Hostinger Auto Deploy is triggered only by a merge or push to Production; this contract never triggers a deployment.",
     "A configured GitHub recovery step selects a route_key from this contract instead of supplying an arbitrary URL path.",
     "The gpt_tool_call route is not a generic admin executor: unknown tools are denied, mutation semantics are phase-scoped, and 225/1048 are verification-only.",
+    "Direct SQL fallback is incident-scoped: only explicitly role-tagged or uniquely incident-allowlisted, checksum- and statement-count-pinned migrations in fallback_sql_policy can execute; unknown or baseline migrations are denied until separately reviewed.",
+    "The direct fallback consults the canonical governed_migration_ledger, verifies full schema/index/row postconditions, skips exact already-applied work, fails on ledger/schema divergence, and records same-cycle apply or record-only evidence.",
+    "Production bearer requests are allowed only to the canonical HTTPS origin in deployment-branch-policy.json production.hostname and branch Production.",
     "404 or 405 means route_contract_missing; 401 or 403 means route_present_auth_not_ready; 5xx means route_present_runtime_dependency_failed.",
     "A successful read-only Session Context response proves route/read topology only, not customer_sessions INSERT authority.",
     "A migration ledger row for 1048 is not sufficient to prove the live runtime-persistence binding; durable response-chunk recovery must succeed against the live binding.",
