@@ -29,6 +29,7 @@ import { buildVersionPayload } from '../../http-generic-api/deploymentManifest.j
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 const workflow = readFileSync(new URL('../workflows/production-runtime-parity-evidence.yml', import.meta.url), 'utf8');
 const operator = readFileSync(new URL('./production-runtime-recovery-autodeploy.mjs', import.meta.url), 'utf8');
+const recoveryPolicy = readFileSync(new URL('./production-runtime-recovery-policy.mjs', import.meta.url), 'utf8');
 const routeContract = JSON.parse(readFileSync(new URL('./production-runtime-recovery-routes.json', import.meta.url), 'utf8'));
 const deploymentPolicy = JSON.parse(readFileSync(new URL('../../http-generic-api/config/deployment-branch-policy.json', import.meta.url), 'utf8'));
 const gptRoutes = readFileSync(new URL('../../http-generic-api/routes/gptToolsRoutes.js', import.meta.url), 'utf8');
@@ -168,23 +169,23 @@ test('reviewed route contract narrows recovery tools, migrations and grant scope
 });
 
 test('workflow enforces tool policy and performs same-cycle privilege and live persistence readbacks', () => {
-  assert.match(workflow, /Validate configured recovery plan against reviewed tool policy/u);
-  assert.match(workflow, /RECOVERY_DEDICATED_TOOL_GENERIC_DISPATCH_DENIED/u);
-  assert.match(workflow, /RECOVERY_DRY_RUN_REQUIRED/u);
-  assert.match(workflow, /RECOVERY_APPLY_MIGRATION_DENIED/u);
-  assert.match(workflow, /RECOVERY_GRANT_TABLE_SET_DENIED/u);
+  assert.match(workflow, /Validate configured recovery plan against reviewed policy/u);
+  assert.match(recoveryPolicy, /RECOVERY_DEDICATED_TOOL_GENERIC_DISPATCH_DENIED/u);
+  assert.match(recoveryPolicy, /RECOVERY_DRY_RUN_REQUIRED/u);
+  assert.match(recoveryPolicy, /RECOVERY_APPLY_MIGRATION_DENIED/u);
+  assert.match(recoveryPolicy, /RECOVERY_GRANT_TABLE_SET_DENIED/u);
   assert.match(workflow, /Verify fallback least-privilege grants in same cycle/u);
-  assert.match(workflow, /information_schema\.USER_PRIVILEGES/u);
-  assert.match(workflow, /information_schema\.SCHEMA_PRIVILEGES/u);
-  assert.match(workflow, /information_schema\.TABLE_PRIVILEGES/u);
-  assert.match(workflow, /outside_allowlist_table_write_count/u);
+  assert.match(recoveryPolicy, /information_schema\.USER_PRIVILEGES/u);
+  assert.match(recoveryPolicy, /information_schema\.SCHEMA_PRIVILEGES/u);
+  assert.match(recoveryPolicy, /information_schema\.TABLE_PRIVILEGES/u);
+  assert.match(recoveryPolicy, /outside_allowlist_table_write_count/u);
   assert.match(workflow, /Verify live response-chunk persistence binding/u);
-  assert.match(workflow, /response_chunk_durable_recovery_smoke/u);
-  assert.match(workflow, /smokePolicy\.confirmation_value/u);
-  assert.match(workflow, /durable_row_present_immediately_after_chunk_id_return/u);
-  assert.match(workflow, /recovery_source === 'governed_tool_response_chunk_store'/u);
-  assert.match(workflow, /exact_unicode_reconstruction/u);
-  assert.match(workflow, /sliding_extension_verified/u);
+  assert.match(recoveryPolicy, /response_chunk_durable_recovery_smoke/u);
+  assert.match(recoveryPolicy, /smokePolicy\.confirmation_value/u);
+  assert.match(recoveryPolicy, /durable_row_present_immediately_after_chunk_id_return/u);
+  assert.match(recoveryPolicy, /recovery_source === 'governed_tool_response_chunk_store'/u);
+  assert.match(recoveryPolicy, /exact_unicode_reconstruction/u);
+  assert.match(recoveryPolicy, /sliding_extension_verified/u);
 });
 
 test('renderTemplate replaces only known placeholders recursively', () => {
