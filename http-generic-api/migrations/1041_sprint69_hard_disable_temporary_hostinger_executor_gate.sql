@@ -1,5 +1,10 @@
 -- Hard-disable the temporary Hostinger SSH executor gate after parity cleanup readback.
 -- Safety contract: no_provider_call, no_credential_payload_read, no_raw_secrets, no_external_send, no_external_write, no_deploy_execution, secrets_included=false.
+-- The runtime-config note contract starts as VARCHAR(255), while this migration
+-- records a complete audit-only parity note. Widen the existing column before the
+-- writer so the ordered replay remains lossless and schema-only.
+ALTER TABLE platform_runtime_config
+  MODIFY COLUMN note TEXT NULL;
 UPDATE platform_runtime_config
 SET
   config_json = JSON_MERGE_PATCH(

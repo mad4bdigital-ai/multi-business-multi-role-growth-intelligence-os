@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-migration-1041-note-compatibility",
+  "title": "Staging MariaDB compatibility for the migration 1041 runtime audit note",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-migration-1041-note-compatibility.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/data-model-domain-map.md",
+      "docs/work-maps/platform-resource-graph-map.md",
+      "docs/work-maps/work-map-coverage-matrix.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/migrations/1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make ordered Staging schema replay compatible with MariaDB 11.4 when migration 1041 records its complete audit-only runtime gate note after hard-disabling the temporary Hostinger executor gate.",
+      "e2e_journeys": [
+        {
+          "id": "ordered-migration-1041-note-compatibility-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator and disposable MariaDB 11.4",
+          "entrypoint": "The exact Staging checkout applies the ordered baseline and migrations through migration 1041 in a disposable local MariaDB 11.4 schema.",
+          "terminal_outcome": "platform_runtime_config accepts the complete audit-only note after its note column is widened before the writer, the builder regression and ordered pre-use plan pass, and no provider or Production operation is performed.",
+          "steps": [
+            "Load the canonical baseline and ordered migration chain in the isolated schema-bundle builder.",
+            "Widen platform_runtime_config.note from the baseline VARCHAR(255) contract to TEXT immediately before migration 1041 writes its complete audit note.",
+            "Apply migration 1041, run the builder regression and plan-only audit, then require confirmed disposable replay before producing role bundles.",
+            "Keep Production mutation, provider mutation, deployment, credential payload reads, and data export forbidden."
+          ],
+          "assertions": [
+            "Migration 1041 widens platform_runtime_config.note before its UPDATE writer.",
+            "The complete audit note is preserved without truncation and the runtime gate remains disabled.",
+            "The Staging builder regression and ordered pre-use plan remain successful before confirmed replay.",
+            "Production mutation remains explicitly forbidden and provider access remains forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-migration-1041-note-compatibility.json",
+            "http-generic-api/migrations/1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
