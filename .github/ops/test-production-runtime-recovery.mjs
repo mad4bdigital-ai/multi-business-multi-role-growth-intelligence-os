@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  assertBaselineSchemaSafety,
   isSubset,
   manifestMatches,
   run,
@@ -24,6 +25,10 @@ import {
   loadRuntimeRecoverySnapshot,
   resolveRuntimeRecoverySourceMode,
 } from '../../http-generic-api/runtimeRecoverySnapshot.js';
+import {
+  validateFallbackTargetPlan,
+  validateProductionBaseUrl,
+} from './production-runtime-recovery-policy.mjs';
 import { buildVersionPayload } from '../../http-generic-api/deploymentManifest.js';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
@@ -61,6 +66,14 @@ test('canonical route contract is bound to repository runtime routes and deploym
     [...deploymentPolicy.production.required_readbacks].sort(),
     [resolveRoute('health').path, resolveRoute('version').path, resolveRoute('deployment_info').path].sort(),
   );
+  assert.equal(routeContract.production_origin_binding.source_policy, 'http-generic-api/config/deployment-branch-policy.json');
+  assert.equal(routeContract.production_origin_binding.require_exact_hostname, true);
+  assert.equal(routeContract.production_origin_binding.require_https, true);
+  assert.deepEqual(routeContract.fallback_migration_policy.incident_recovery_allowlist, ['20260815_custom_gpt_mcp_catalog_levels.sql']);
+  assert.deepEqual([...routeContract.fallback_migration_policy.verification_only_allowlist].sort(), [
+    '225_sprint67_capability_resolution_envelope_ledger.sql',
+    '1048_transport_response_chunk_schema_recovery.sql',
+  ].sort());
 });
 
 test('configured steps cannot redirect recovery to arbitrary paths', () => {
@@ -132,6 +145,28 @@ test('workflow observes Hostinger Auto Deploy and contains no provider deploymen
   assert.doesNotMatch(workflow, /HOSTINGER_DEPLOYMENT_TARGET_ID/u);
   assert.doesNotMatch(operator, /deployRelease\(/u);
   assert.doesNotMatch(operator, /provider_deploy_credential_required:\s*true/u);
+});
+
+test('primary and fallback recovery share one Production mutation lock', () => {
+  const recoveryConcurrency = workflow.match(/\n  recovery:[\s\S]*?\n    env:/u)?.[0] || '';
+  assert.match(recoveryConcurrency, /concurrency:\n\s+group: production-runtime-recovery-production\n\s+cancel-in-progress: false/u);
+  assert.doesNotMatch(recoveryConcurrency, /production-runtime-recovery-\$\{\{ inputs\.strategy/u);
+  assert.doesNotMatch(recoveryConcurrency, /production-runtime-recovery-\$\{\{ inputs\.target_key/u);
+});
+
+test('Production bearer destination is bound to the canonical origin', () => {
+  assert.equal(validateProductionBaseUrl('https://auth.mad4b.com'), 'https://auth.mad4b.com');
+  assert.equal(validateProductionBaseUrl('https://AUTH.MAD4B.COM/'), 'https://auth.mad4b.com');
+  assert.throws(() => validateProductionBaseUrl('https://mcp.mad4b.com'), /RECOVERY_PRODUCTION_ORIGIN_HOST_DENIED/);
+  assert.throws(() => validateProductionBaseUrl('https://auth.mad4b.com:8443'), /RECOVERY_PRODUCTION_ORIGIN_PORT_DENIED/);
+  assert.throws(() => validateProductionBaseUrl('https://user:pass@auth.mad4b.com'), /RECOVERY_PRODUCTION_ORIGIN_USERINFO_DENIED/);
+  assert.throws(() => validateProductionBaseUrl('https://auth.mad4b.com/recovery'), /RECOVERY_PRODUCTION_ORIGIN_PATH_DENIED/);
+});
+
+test('operator self-enforces the centralized policy before every strategy', () => {
+  assert.match(operator, /validateRecoveryPlan\(env, ROUTE_CONTRACT\)/u);
+  assert.match(operator, /validateProductionBaseUrl\(env\.PRODUCTION_BASE_URL, ROUTE_CONTRACT\)/u);
+  assert.match(operator, /validateFallbackTargetPlan\(target, ROUTE_CONTRACT\)/u);
 });
 
 test('reviewed route contract narrows recovery tools, migrations and grant scope', () => {
@@ -214,6 +249,18 @@ test('mutation confirmation is bound to strategy and exact SHA', () => {
   assert.equal(parseBoolean('TRUE'), true);
 });
 
+test('canonical baseline schema is checksum-bound, statement-bound, and data-free', () => {
+  const schema = readFileSync(new URL('../../http-generic-api/schema.sql', import.meta.url), 'utf8');
+  assert.doesNotThrow(() => assertBaselineSchemaSafety('http-generic-api/schema.sql', schema, {
+    sha256: 'ccec29be9d88e8c8eb9355169467270d03a72b8887d48a510634cfe797fd5169',
+    statement_count: 27,
+  }));
+  assert.throws(() => assertBaselineSchemaSafety('http-generic-api/schema.sql', 'CREATE TABLE x (id INT); INSERT INTO x VALUES (1);', {
+    sha256: '0'.repeat(64),
+    statement_count: 2,
+  }), (error) => error.code === 'baseline_migration_checksum_mismatch');
+});
+
 test('migration paths remain confined to canonical repository migrations', () => {
   const safe = resolveMigrationPath('http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql');
   assert.match(safe.repoPath, /^http-generic-api\/migrations\//u);
@@ -226,12 +273,27 @@ test('fallback target plan is explicit and identifier-safe', () => {
     database: 'u338416126_growthOS',
     principal: 'u338416126_growthOS',
     principal_host: '%',
-    migrations: [{
+    incident_recovery_migrations: [{
       file: 'http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql',
       expected_checksum: '528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681',
+      expected_statement_count: 7,
     }],
   }));
-  assert.throws(() => validateTargetPlan({ key: 'runtime', database: 'growthOS;DROP DATABASE x', migrations: [] }), (error) => error.code === 'target_invalid');
+  assert.throws(() => validateTargetPlan({
+    key: 'runtime',
+    database: 'growthOS',
+    migrations: [],
+  }), (error) => error.code === 'ambiguous_migrations_field');
+  assert.throws(() => validateFallbackTargetPlan({
+    key: 'runtime',
+    database: 'growthOS',
+    incident_recovery_migrations: [{
+      file: 'http-generic-api/migrations/225_sprint67_capability_resolution_envelope_ledger.sql',
+      expected_checksum: '35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419',
+      expected_statement_count: 3,
+    }],
+  }), /RECOVERY_INCIDENT_MIGRATION_DENIED|RECOVERY_INCIDENT_MIGRATION_ROLE_DENIED/);
+  assert.throws(() => validateTargetPlan({ key: 'runtime', database: 'growthOS;DROP DATABASE x', incident_recovery_migrations: [] }), (error) => error.code === 'target_invalid');
 });
 
 test('repository snapshot stays DB-independent, read-only, and non-persistent', () => {

@@ -6,6 +6,8 @@ import {
   assertMigration,
   exactSet,
   validateConfiguredRecoveryStep,
+  validateFallbackTargetPlan,
+  validateProductionBaseUrl,
   validateRecoveryPlan,
 } from './production-runtime-recovery-policy.mjs';
 
@@ -111,6 +113,43 @@ test('snapshot requires an explicit DB-independent source and cannot mutate', ()
     RUNTIME_RECOVERY_SOURCE_MODE: 'repository_snapshot',
     APPLY_EXECUTION: 'true',
   }), /RECOVERY_SNAPSHOT_MUTATION_DENIED/);
+});
+
+test('Production origin binding rejects non-canonical bearer destinations', () => {
+  assert.equal(validateProductionBaseUrl('https://auth.mad4b.com'), 'https://auth.mad4b.com');
+  assert.throws(() => validateProductionBaseUrl('https://mcp.mad4b.com'), /RECOVERY_PRODUCTION_ORIGIN_HOST_DENIED/);
+  assert.throws(() => validateProductionBaseUrl('http://auth.mad4b.com'), /RECOVERY_PRODUCTION_ORIGIN_HTTPS_REQUIRED/);
+  assert.throws(() => validateProductionBaseUrl('https://auth.mad4b.com/path'), /RECOVERY_PRODUCTION_ORIGIN_PATH_DENIED/);
+});
+
+test('fallback separates canonical baseline bootstrap from incident recovery', () => {
+  assert.deepEqual(validateFallbackTargetPlan({
+    key: 'runtime',
+    database: 'growthOS',
+    baseline_bootstrap_migrations: [{
+      kind: 'schema',
+      file: 'http-generic-api/schema.sql',
+      expected_checksum: 'ccec29be9d88e8c8eb9355169467270d03a72b8887d48a510634cfe797fd5169',
+      expected_statement_count: 27,
+      data_statements_allowed: false,
+    }],
+    incident_recovery_migrations: [{
+      kind: 'migration',
+      file: 'http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql',
+      expected_checksum: CHECKSUM_20260815,
+      expected_statement_count: 7,
+    }],
+  }).incidentEntries.length, 1);
+  assert.throws(() => validateFallbackTargetPlan({ key: 'runtime', database: 'growthOS', migrations: [] }), /RECOVERY_AMBIGUOUS_MIGRATIONS_FIELD/);
+  assert.throws(() => validateFallbackTargetPlan({
+    key: 'runtime',
+    database: 'growthOS',
+    incident_recovery_migrations: [{
+      file: 'http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql',
+      expected_checksum: CHECKSUM_1048,
+      expected_statement_count: 34,
+    }],
+  }), /RECOVERY_INCIDENT_MIGRATION_DENIED|RECOVERY_INCIDENT_MIGRATION_ROLE_DENIED/);
 });
 
 test('fallback grants are exactly six tables with SELECT INSERT UPDATE only', () => {

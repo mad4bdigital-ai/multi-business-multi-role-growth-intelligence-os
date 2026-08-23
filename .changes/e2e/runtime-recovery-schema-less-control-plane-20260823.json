@@ -21,7 +21,13 @@
       "http-generic-api/runtimeRecoverySnapshot.js",
       "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
       ".github/ops/production-runtime-recovery-policy.mjs",
+      ".github/ops/production-runtime-recovery-autodeploy.mjs",
+      ".github/ops/production-runtime-recovery-routes.json",
+      ".github/ops/production-runtime-recovery.md",
+      ".github/ops/test-production-runtime-recovery.mjs",
       ".github/ops/test-production-runtime-recovery-policy.mjs",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/config/deployment-branch-policy.json",
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/derived-state-closure.yml",
       ".github/tests/derived-state-closure.test.mjs",
@@ -60,6 +66,9 @@
             "Expose only canonical read-only recovery routes and the approved read-only runtime status descriptor.",
             "Return explicit database_required=false, persistence=unavailable, and runtime_authority=false evidence.",
             "Keep the SQL/runtime-mediated path separate and fail closed when its schema or table prerequisites are unavailable.",
+            "Require one shared Production mutation lock so primary and fallback cannot execute concurrently.",
+            "Separate canonical baseline bootstrap sources from incident recovery migrations and reject verification-only migrations from fallback apply.",
+            "Bind bearer readback destinations to the exact canonical Production origin and repeat centralized policy preflight inside the operator.",
             "Run the route regression without connecting to or mutating a live database."
           ],
           "assertions": [
@@ -68,6 +77,10 @@
             "Snapshot session context has no durable session_id and no persistence write path.",
             "Snapshot tool dispatch blocks unapproved or mutating tools with a bounded read-only error.",
             "Hostinger Auto Deploy provenance uses canonical route_key values and structured full SHA/branch evidence rather than arbitrary provider deployment credentials.",
+            "Primary and fallback concurrency is keyed to the shared Production mutation lock.",
+            "Fallback target configuration has no ambiguous migrations field; baseline and incident entries are independently allowlisted, checksum-bound, and role-bound.",
+            "Production bearer requests cannot target a non-canonical hostname, port, userinfo, path prefix, query, or fragment.",
+            "The operator invokes centralized recovery policy before strategy execution, including when run directly outside the workflow.",
             "No Migration Apply, grant, database/provider mutation, deployment, restart, Policy Apply, Production activation, force push, or secret evidence occurs during validation."
           ],
           "tests": [
@@ -92,7 +105,9 @@
             ".github/ops/production-runtime-recovery-policy.mjs",
             ".github/ops/test-production-runtime-recovery-policy.mjs",
             ".github/ops/production-runtime-recovery-routes.json",
+            ".github/ops/production-runtime-recovery.md",
             ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/runtimeRecoverySnapshot.js",
             "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
             ".github/ops/test-production-runtime-recovery.mjs"

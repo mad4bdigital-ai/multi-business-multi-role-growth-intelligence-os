@@ -12,6 +12,8 @@ const requireFromApi = createRequire(path.join(REPO_ROOT, 'http-generic-api', 'p
 const ROUTE_CONTRACT = JSON.parse(
   fs.readFileSync(path.join(HERE, 'production-runtime-recovery-routes.json'), 'utf8'),
 );
+const DEPLOYMENT_POLICY_PATH = path.join(REPO_ROOT, 'http-generic-api', 'config', 'deployment-branch-policy.json');
+const DEPLOYMENT_POLICY = JSON.parse(fs.readFileSync(DEPLOYMENT_POLICY_PATH, 'utf8'));
 
 function fail(code, details = {}) {
   const error = new Error(code);
@@ -39,6 +41,33 @@ export function exactSet(actual, expected) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+export function validateProductionBaseUrl(raw = '', contract = ROUTE_CONTRACT, deploymentPolicy = DEPLOYMENT_POLICY) {
+  const binding = contract.production_origin_binding;
+  const canonical = String(deploymentPolicy.production?.hostname || '').trim().toLowerCase();
+  if (!binding || binding.source_policy !== 'http-generic-api/config/deployment-branch-policy.json'
+      || binding.hostname_field !== 'production.hostname'
+      || binding.require_exact_hostname !== true || binding.require_https !== true
+      || !canonical) {
+    fail('RECOVERY_PRODUCTION_ORIGIN_POLICY_MISSING');
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(String(raw || 'https://auth.mad4b.com').trim());
+  } catch {
+    fail('RECOVERY_PRODUCTION_ORIGIN_INVALID');
+  }
+  if (parsed.protocol !== 'https:') fail('RECOVERY_PRODUCTION_ORIGIN_HTTPS_REQUIRED');
+  if (parsed.hostname.toLowerCase() !== canonical) {
+    fail('RECOVERY_PRODUCTION_ORIGIN_HOST_DENIED', { expected_host: canonical });
+  }
+  if (parsed.username || parsed.password) fail('RECOVERY_PRODUCTION_ORIGIN_USERINFO_DENIED');
+  if (parsed.port) fail('RECOVERY_PRODUCTION_ORIGIN_PORT_DENIED');
+  if (binding.allow_path_prefix === false && parsed.pathname !== '/') fail('RECOVERY_PRODUCTION_ORIGIN_PATH_DENIED');
+  if (parsed.search || parsed.hash) fail('RECOVERY_PRODUCTION_ORIGIN_QUERY_DENIED');
+  return parsed.origin;
+}
+
 export function assertMigration(args, mode, contract = ROUTE_CONTRACT) {
   const migration = String(args?.migration || '');
   const spec = contract.recovery_migrations?.[migration];
@@ -55,6 +84,70 @@ export function assertMigration(args, mode, contract = ROUTE_CONTRACT) {
     fail('RECOVERY_APPLY_MIGRATION_DENIED', { migration });
   }
   return spec;
+}
+
+export function validateFallbackTargetPlan(target, contract = ROUTE_CONTRACT) {
+  if (!target || typeof target !== 'object' || Array.isArray(target)) fail('RECOVERY_TARGET_INVALID');
+  if (Object.hasOwn(target, 'migrations')) fail('RECOVERY_AMBIGUOUS_MIGRATIONS_FIELD');
+
+  const migrationPolicy = contract.fallback_migration_policy;
+  if (!migrationPolicy || !Array.isArray(migrationPolicy.baseline_bootstrap_migrations)
+      || !Array.isArray(migrationPolicy.incident_recovery_allowlist)
+      || !Array.isArray(migrationPolicy.verification_only_allowlist)) {
+    fail('RECOVERY_FALLBACK_MIGRATION_POLICY_MISSING');
+  }
+
+  if (Object.hasOwn(target, 'baseline_bootstrap_migrations') && !Array.isArray(target.baseline_bootstrap_migrations)) {
+    fail('RECOVERY_BASELINE_MIGRATIONS_ARRAY_REQUIRED');
+  }
+  if (Object.hasOwn(target, 'incident_recovery_migrations') && !Array.isArray(target.incident_recovery_migrations)) {
+    fail('RECOVERY_INCIDENT_MIGRATIONS_ARRAY_REQUIRED');
+  }
+  const baselineEntries = Array.isArray(target.baseline_bootstrap_migrations)
+    ? target.baseline_bootstrap_migrations : [];
+  const incidentEntries = Array.isArray(target.incident_recovery_migrations)
+    ? target.incident_recovery_migrations : [];
+
+  for (const rawEntry of baselineEntries) {
+    const entry = typeof rawEntry === 'string' ? { file: rawEntry } : rawEntry;
+    const file = String(entry?.file || '');
+    const spec = migrationPolicy.baseline_bootstrap_migrations.find((item) => String(item?.file || '') === file);
+    if (!spec) fail('RECOVERY_BASELINE_MIGRATION_DENIED', { file });
+    if (entry.kind && String(entry.kind) !== String(spec.kind)) fail('RECOVERY_BASELINE_MIGRATION_KIND_DENIED', { file });
+    if (String(entry.expected_checksum || entry.expected_checksum_sha256 || '').toLowerCase() !== String(spec.sha256).toLowerCase()) {
+      fail('RECOVERY_BASELINE_MIGRATION_CHECKSUM_REQUIRED', { file });
+    }
+    if (Number(entry.expected_statement_count) !== Number(spec.statement_count)) {
+      fail('RECOVERY_BASELINE_MIGRATION_STATEMENT_COUNT_REQUIRED', { file });
+    }
+    if (entry.data_statements_allowed === true || spec.data_statements_allowed !== false) {
+      fail('RECOVERY_BASELINE_DATA_STATEMENTS_DENIED', { file });
+    }
+  }
+
+  for (const rawEntry of incidentEntries) {
+    const entry = typeof rawEntry === 'string' ? { file: rawEntry } : rawEntry;
+    const normalized = String(entry?.file || '').trim().replaceAll('\\', '/');
+    const migration = path.basename(normalized);
+    if (normalized !== migration && normalized !== `http-generic-api/migrations/${migration}`) {
+      fail('RECOVERY_INCIDENT_MIGRATION_PATH_DENIED', { migration });
+    }
+    if (!migrationPolicy.incident_recovery_allowlist.includes(migration)) {
+      fail('RECOVERY_INCIDENT_MIGRATION_DENIED', { migration });
+    }
+    const migrationSpec = contract.recovery_migrations?.[migration];
+    if (!migrationSpec || migrationSpec.incident_role !== 'only_current_apply_candidate') {
+      fail('RECOVERY_INCIDENT_MIGRATION_ROLE_DENIED', { migration });
+    }
+    if (entry.kind && String(entry.kind) !== 'migration') fail('RECOVERY_INCIDENT_MIGRATION_KIND_DENIED', { migration });
+    assertMigration({
+      migration,
+      expected_checksum_sha256: entry.expected_checksum_sha256 || entry.expected_checksum,
+      expected_statement_count: entry.expected_statement_count,
+    }, 'apply', contract);
+  }
+
+  return { baselineEntries, incidentEntries };
 }
 
 export function validateConfiguredRecoveryStep(step, phase, contract = ROUTE_CONTRACT) {
@@ -128,6 +221,13 @@ export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRAC
   const strategy = String(env.RECOVERY_STRATEGY || 'verify');
   if (!['verify', 'snapshot', 'primary', 'fallback'].includes(strategy)) fail('RECOVERY_STRATEGY_INVALID', { strategy });
 
+  if (strategy !== 'snapshot') {
+    validateProductionBaseUrl(env.PRODUCTION_BASE_URL, contract);
+    const configuredBranch = String(env.PRODUCTION_SOURCE_BRANCH || '').trim();
+    const canonicalBranch = String(DEPLOYMENT_POLICY.production?.source_branch || 'Production');
+    if (configuredBranch && configuredBranch !== canonicalBranch) fail('RECOVERY_PRODUCTION_BRANCH_DENIED', { expected_branch: canonicalBranch });
+  }
+
   if (strategy === 'snapshot') {
     if (!['github_snapshot', 'repository_snapshot'].includes(String(env.RUNTIME_RECOVERY_SOURCE_MODE || ''))) {
       fail('RECOVERY_SNAPSHOT_SOURCE_REQUIRED');
@@ -151,6 +251,7 @@ export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRAC
     const targets = arrayFromEnv(env, 'RUNTIME_RECOVERY_TARGETS_JSON');
     fallbackTarget = targets.find((item) => String(item?.key || '') === String(env.RECOVERY_TARGET_KEY || 'runtime'));
     if (!fallbackTarget) fail('RECOVERY_TARGET_NOT_FOUND');
+    validateFallbackTargetPlan(fallbackTarget, contract);
 
     const grantPolicy = contract.grant_policy || {};
     const expectedTables = grantPolicy.required_tables || [];
@@ -181,6 +282,8 @@ export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRAC
       .map(([name]) => name),
     grant_table_count: contract.grant_policy?.required_tables?.length || 0,
     fallback_target: fallbackTarget?.key || null,
+    baseline_bootstrap_count: fallbackTarget?.baseline_bootstrap_migrations?.length || 0,
+    incident_recovery_count: fallbackTarget?.incident_recovery_migrations?.length || 0,
     secrets_included: false,
   };
 }
@@ -287,7 +390,7 @@ export async function verifyPersistenceReadback(env = process.env, contract = RO
   if (!route || !smokePolicy) fail('RECOVERY_DURABLE_SMOKE_POLICY_MISSING');
   const token = String(env.PRODUCTION_PROBE_AUTH_VALUE || '');
   if (!token) fail('RECOVERY_DURABLE_SMOKE_AUTH_MISSING');
-  const base = String(env.PRODUCTION_BASE_URL || 'https://auth.mad4b.com').replace(/\/$/, '');
+  const base = validateProductionBaseUrl(env.PRODUCTION_BASE_URL, contract).replace(/\/$/, '');
   const response = await fetch(`${base}${route.path}`, {
     method: route.method,
     headers: {

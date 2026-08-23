@@ -294,8 +294,10 @@ Example for the current runtime DB:
     "principal": "u338416126_growthOS",
     "principal_host": "%",
     "allow_create_database": false,
-    "migrations": [
+    "baseline_bootstrap_migrations": [],
+    "incident_recovery_migrations": [
       {
+        "kind": "migration",
         "file": "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
         "expected_checksum": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
         "requires_tables": [
@@ -327,7 +329,11 @@ admin_platform_endpoint_tools
 tenant_platform_endpoint_tools
 ```
 
-For a completely empty DB, the target must list canonical baseline migrations from `http-generic-api/migrations` first. The operator will not copy Production schema, infer DDL from another environment, or synthesize missing tables.
+For a completely empty DB, the target must list the reviewed canonical baseline bootstrap artifact in `baseline_bootstrap_migrations` first. The current allowlist contains `http-generic-api/schema.sql` with its reviewed SHA-256 and statement count; the operator applies it only when the database is missing or has zero tables, and rejects it for a non-empty database. The operator will not copy Production schema, infer DDL from another environment, or synthesize missing tables.
+
+`incident_recovery_migrations` is a separate field and is restricted to the reviewed incident allowlist. At present only `20260815_custom_gpt_mcp_catalog_levels.sql` can be applied, with its checksum, statement count, dependency checks, and postconditions. Migrations `225_sprint67_capability_resolution_envelope_ledger.sql` and `1048_transport_response_chunk_schema_recovery.sql` remain verification-only and are rejected from fallback apply. The legacy ambiguous `migrations` field is forbidden; this prevents a canonical directory path from being treated as an execution allowlist.
+
+Primary and fallback recovery executions use one shared `production-runtime-recovery-production` concurrency group, so they cannot mutate the same Production runtime/database concurrently. Any non-snapshot route request also validates `PRODUCTION_BASE_URL` against the canonical `production.hostname` in `http-generic-api/config/deployment-branch-policy.json`: HTTPS, exact hostname, no userinfo, no explicit port, no path prefix, query, or fragment. The operator repeats the centralized policy preflight itself before strategy execution, even when invoked outside the workflow.
 
 Database creation requires both:
 

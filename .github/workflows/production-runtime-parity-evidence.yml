@@ -225,7 +225,7 @@ jobs:
     timeout-minutes: 30
     environment: Production
     concurrency:
-      group: production-runtime-recovery-${{ inputs.strategy }}-${{ inputs.target_key || 'none' }}
+      group: production-runtime-recovery-production
       cancel-in-progress: false
     env:
       RECOVERY_STRATEGY: ${{ inputs.strategy }}

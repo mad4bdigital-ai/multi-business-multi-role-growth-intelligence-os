@@ -11,6 +11,12 @@ import {
   loadRuntimeRecoverySnapshot,
   resolveRuntimeRecoverySourceMode,
 } from '../../http-generic-api/runtimeRecoverySnapshot.js';
+import {
+  validateFallbackTargetPlan,
+  validateProductionBaseUrl,
+  validateRecoveryPlan,
+} from './production-runtime-recovery-policy.mjs';
+import { splitStatements } from '../../http-generic-api/scripts/staging-sql-parser.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -122,9 +128,16 @@ export function validateTargetPlan(target) {
       throw typedError('target_invalid', `Target ${field} is missing or unsafe`, { field });
     }
   }
+  if (Object.hasOwn(target, 'migrations')) throw typedError('ambiguous_migrations_field', 'Fallback target must separate baseline_bootstrap_migrations from incident_recovery_migrations');
   if (target.principal && !IDENTIFIER_RE.test(String(target.principal))) throw typedError('target_invalid', 'Target principal is unsafe');
   if (target.principal_host && !ACCOUNT_HOST_RE.test(String(target.principal_host))) throw typedError('target_invalid', 'Target principal_host is unsafe');
-  for (const entry of Array.isArray(target.migrations) ? target.migrations : []) {
+  for (const entry of Array.isArray(target.baseline_bootstrap_migrations) ? target.baseline_bootstrap_migrations : []) {
+    const file = typeof entry === 'string' ? entry : entry?.file;
+    if (String(file || '').replaceAll('\\', '/') !== 'http-generic-api/schema.sql') {
+      throw typedError('baseline_migration_path_denied', 'Baseline bootstrap must use the canonical schema artifact', { file });
+    }
+  }
+  for (const entry of Array.isArray(target.incident_recovery_migrations) ? target.incident_recovery_migrations : []) {
     resolveMigrationPath(typeof entry === 'string' ? entry : entry?.file);
   }
   return target;
@@ -227,7 +240,7 @@ function validateHttps(urlString, env, label) {
 }
 
 function routeUrl(env, route) {
-  const base = String(env.PRODUCTION_BASE_URL || 'https://auth.mad4b.com').replace(/\/$/, '');
+  const base = validateProductionBaseUrl(env.PRODUCTION_BASE_URL, ROUTE_CONTRACT).replace(/\/$/, '');
   return validateHttps(`${base}${route.path}`, env, route.key);
 }
 
@@ -393,6 +406,7 @@ function selectTarget(env) {
   const key = String(env.RECOVERY_TARGET_KEY || '').trim();
   const target = getTargets(env).find((item) => String(item.key) === key);
   if (!target) throw typedError('target_not_found', 'RECOVERY_TARGET_KEY not found in RUNTIME_RECOVERY_TARGETS_JSON', { key });
+  validateFallbackTargetPlan(target, ROUTE_CONTRACT);
   return target;
 }
 
@@ -415,6 +429,11 @@ async function databaseExists(connection, database) {
 async function tableExists(connection, database, table) {
   const [rows] = await connection.execute('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? LIMIT 1', [database, table]);
   return rows.length > 0;
+}
+
+async function tableCount(connection, database) {
+  const [rows] = await connection.execute('SELECT COUNT(*) AS table_count FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?', [database]);
+  return Number(rows[0]?.table_count || 0);
 }
 
 async function columnsExist(connection, database, table, columns) {
@@ -467,6 +486,61 @@ async function writeLedger(connection, database, entry, checksum, env) {
     [String(entry.ledger.migration_id), String(entry.ledger.filename || path.basename(entry.file)), checksum, 'github-actions', executionId],
   );
   return { recorded: true, migration_id: String(entry.ledger.migration_id) };
+}
+
+function resolveBaselineSchemaPath(file) {
+  const normalized = String(file || '').trim().replaceAll('\\', '/');
+  if (normalized !== 'http-generic-api/schema.sql' && normalized !== 'schema.sql') {
+    throw typedError('baseline_migration_path_denied', 'Baseline bootstrap must use the canonical schema artifact', { file: normalized });
+  }
+  return path.join(REPO_ROOT, 'http-generic-api', 'schema.sql');
+}
+
+export function assertBaselineSchemaSafety(file, sql, spec) {
+  const statements = splitStatements(sql);
+  const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+  if (checksum !== String(spec.sha256).toLowerCase()) throw typedError('baseline_migration_checksum_mismatch', 'Canonical baseline checksum differs from reviewed policy', { file });
+  if (statements.length !== Number(spec.statement_count)) throw typedError('baseline_migration_statement_count_mismatch', 'Canonical baseline statement count differs from reviewed policy', { file });
+  const forbidden = [
+    /^\s*(?:GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER|DROP\s+DATABASE|CREATE\s+DATABASE|INSERT|UPDATE|DELETE|LOAD\s+DATA)\b/imu,
+    /^\s*SELECT[\s\S]*\bINTO\s+(?:OUTFILE|DUMPFILE)\b/imu,
+  ];
+  if (forbidden.some((pattern) => pattern.test(statements.join('\n')))) {
+    throw typedError('baseline_migration_safety_denied', 'Baseline schema contains forbidden authority or data SQL', { file });
+  }
+  return statements;
+}
+
+async function applyBaselineBootstrap(connection, database, rawEntry) {
+  const entry = typeof rawEntry === 'string' ? { file: rawEntry } : { ...rawEntry };
+  const policy = ROUTE_CONTRACT.fallback_migration_policy?.baseline_bootstrap_migrations || [];
+  const file = String(entry.file || '').replaceAll('\\', '/');
+  const spec = policy.find((candidate) => String(candidate?.file || '') === file);
+  if (!spec) throw typedError('baseline_migration_denied', 'Baseline bootstrap is outside the reviewed allowlist', { file });
+  const absolute = resolveBaselineSchemaPath(file);
+  if (!fs.existsSync(absolute)) throw typedError('baseline_migration_file_not_found', 'Canonical baseline schema artifact is missing', { file });
+  const sql = fs.readFileSync(absolute, 'utf8');
+  const statements = assertBaselineSchemaSafety(file, sql, spec);
+  if (entry.expected_checksum && String(entry.expected_checksum).toLowerCase() !== String(spec.sha256).toLowerCase()) {
+    throw typedError('baseline_migration_checksum_required', 'Configured baseline checksum does not match reviewed policy', { file });
+  }
+  if (entry.expected_statement_count !== undefined && Number(entry.expected_statement_count) !== Number(spec.statement_count)) {
+    throw typedError('baseline_migration_statement_count_required', 'Configured baseline statement count does not match reviewed policy', { file });
+  }
+  const immediate = [];
+  const deferredForeignKeys = [];
+  for (const statement of statements) {
+    if (/^\\s*CREATE\\s+TABLE[\\s\\S]*\\bFOREIGN\\s+KEY\\b/imu.test(statement)) deferredForeignKeys.push(statement);
+    else immediate.push(statement);
+  }
+  const orderedSql = [...immediate, ...deferredForeignKeys].join(';\\n');
+  await connection.query(`${orderedSql};\\n`);
+  return {
+    file,
+    checksum_sha256: String(spec.sha256).toLowerCase(),
+    statement_count: Number(spec.statement_count),
+    status: 'baseline_applied',
+  };
 }
 
 async function applyMigration(connection, database, rawEntry, env) {
@@ -562,10 +636,17 @@ async function fallbackDatabaseRecovery(env, target) {
       await connection.query(sql);
     }
     await connection.query(`USE ${quoteIdentifier(target.database, 'database')}`);
+    const baselineEntries = Array.isArray(target.baseline_bootstrap_migrations) ? target.baseline_bootstrap_migrations : [];
+    const incidentEntries = Array.isArray(target.incident_recovery_migrations) ? target.incident_recovery_migrations : [];
+    const beforeTableCount = await tableCount(connection, target.database);
     const migrations = [];
-    for (const entry of target.migrations || []) migrations.push(await applyMigration(connection, target.database, entry, env));
+    if (baselineEntries.length) {
+      if (beforeTableCount !== 0) throw typedError('baseline_database_not_empty', 'Baseline bootstrap is permitted only for a missing or empty database', { database: target.database, table_count: beforeTableCount });
+      for (const entry of baselineEntries) migrations.push(await applyBaselineBootstrap(connection, target.database, entry));
+    }
+    for (const entry of incidentEntries) migrations.push(await applyMigration(connection, target.database, entry, env));
     const grants = await applyGrants(connection, target);
-    return { target_key: target.key, database: target.database, migrations, grants };
+    return { target_key: target.key, database: target.database, baseline_table_count_before: beforeTableCount, migrations, grants };
   } finally {
     await connection.end();
   }
@@ -599,7 +680,8 @@ function fallbackPlan(env, sha, target) {
     database: target.database,
     create_database_requested: target.allow_create_database === true,
     create_database_globally_allowed: parseBoolean(env.RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE, false),
-    migrations: (target.migrations || []).map((entry) => typeof entry === 'string' ? entry : entry.file),
+    baseline_bootstrap_migrations: (target.baseline_bootstrap_migrations || []).map((entry) => typeof entry === 'string' ? entry : entry.file),
+    incident_recovery_migrations: (target.incident_recovery_migrations || []).map((entry) => typeof entry === 'string' ? entry : entry.file),
     grants: normalizeGrants(target),
     confirmation: requiredConfirmation('fallback', sha),
   };
@@ -612,6 +694,7 @@ async function run(env = process.env) {
   const applyExecution = parseBoolean(env.APPLY_EXECUTION, false);
   if (strategy === 'snapshot' && applyExecution) throw typedError('snapshot_mutation_forbidden', 'Snapshot strategy is always read-only');
   validateApplyGate({ strategy, sha, applyExecution, confirmation: env.RECOVERY_CONFIRMATION });
+  validateRecoveryPlan(env, ROUTE_CONTRACT);
 
   if (strategy === 'snapshot') {
     const sourceMode = resolveRuntimeRecoverySourceMode(env);

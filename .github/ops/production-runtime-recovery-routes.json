@@ -1,6 +1,15 @@
 {
   "schema_version": "production-runtime-recovery-routes.v1",
   "base_url_variable": "PRODUCTION_BASE_URL",
+  "production_origin_binding": {
+    "source_policy": "http-generic-api/config/deployment-branch-policy.json",
+    "hostname_field": "production.hostname",
+    "require_exact_hostname": true,
+    "require_https": true,
+    "allow_non_default_port": false,
+    "allow_userinfo": false,
+    "allow_path_prefix": false
+  },
   "routes": {
     "health": {
       "method": "GET",
@@ -96,6 +105,27 @@
       "incident_role": "only_current_apply_candidate"
     }
   },
+  "fallback_migration_policy": {
+    "baseline_bootstrap_migrations": [
+      {
+        "kind": "schema",
+        "file": "http-generic-api/schema.sql",
+        "sha256": "ccec29be9d88e8c8eb9355169467270d03a72b8887d48a510634cfe797fd5169",
+        "statement_count": 27,
+        "when": "database_missing_or_empty",
+        "data_statements_allowed": false
+      }
+    ],
+    "incident_recovery_allowlist": [
+      "20260815_custom_gpt_mcp_catalog_levels.sql"
+    ],
+    "verification_only_allowlist": [
+      "225_sprint67_capability_resolution_envelope_ledger.sql",
+      "1048_transport_response_chunk_schema_recovery.sql"
+    ],
+    "legacy_ambiguous_migrations_field": "forbidden",
+    "baseline_bootstrap_required_for_empty_database": true
+  },
   "grant_policy": {
     "required_tables": [
       "customer_sessions",
@@ -129,6 +159,9 @@
     "404 or 405 means route_contract_missing; 401 or 403 means route_present_auth_not_ready; 5xx means route_present_runtime_dependency_failed.",
     "A successful read-only Session Context response proves route/read topology only, not customer_sessions INSERT authority.",
     "A migration ledger row for 1048 is not sufficient to prove the live runtime-persistence binding; durable response-chunk recovery must succeed against the live binding.",
-    "Functional success still requires the configured expected status and response contract."
+    "Functional success still requires the configured expected status and response contract.",
+    "Primary and fallback mutation runs share the Production concurrency lock in the parity workflow.",
+    "Fallback baseline bootstrap and incident recovery migrations are separate reviewed allowlists; the legacy migrations field is forbidden.",
+    "Bearer readback requests are restricted to the exact canonical production.hostname from deployment-branch-policy.json."
   ]
 }
