@@ -8,9 +8,31 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-migration-1041-note-compatibility.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/data-model-domain-map.md",
+      "docs/work-maps/platform-resource-graph-map.md",
+      "docs/work-maps/work-map-coverage-matrix.md",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json"
     ]
   },
   "merge_contract": {
