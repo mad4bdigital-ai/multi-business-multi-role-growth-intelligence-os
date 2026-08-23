@@ -13,12 +13,16 @@
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/runtime-recovery-repository-snapshot.json",
       "http-generic-api/deploymentManifest.js",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/activationRoutes.js",
       "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/runtimeRecoverySnapshot.js",
-      "http-generic-api/test-runtime-recovery-snapshot-routes.mjs"
+      "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
     ]
   },
   "merge_contract": {
