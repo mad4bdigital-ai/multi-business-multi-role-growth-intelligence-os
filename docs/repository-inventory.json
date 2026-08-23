@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7283,
-    "bytes": 70985778,
-    "lines": 1662848,
+    "bytes": 70986142,
+    "lines": 1662852,
     "directories": 266,
     "categories": 13
   },
@@ -7905,9 +7905,9 @@
       "path": ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
       "category": "schemas-and-data",
       "extension": ".json",
-      "bytes": 4618,
-      "lines": 86,
-      "sha256": "ccf049050176e8d87a0d9f671d0a54b4212e6f54039821119f81f9e6030e22ec",
+      "bytes": 4982,
+      "lines": 90,
+      "sha256": "1a3a3a4e8bf197fa0fb811a383030811151d234ff0ada54da424fedd55e265a4",
       "mode": "644",
       "executable": false,
       "generated": false
