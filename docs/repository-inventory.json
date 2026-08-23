@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7271,
-    "bytes": 70867539,
+    "bytes": 70867524,
     "lines": 1660344,
     "directories": 266,
     "categories": 13
@@ -10067,9 +10067,9 @@
       "path": ".github/governance/verifier-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 3795,
+      "bytes": 3780,
       "lines": 36,
-      "sha256": "f2ec4881f7b0a37e02c0ba696a9356578465529c424236d4d1b87686761d5d16",
+      "sha256": "a21285df73f3ddc28740ed1c437bef107f0b36d0c10dfe76170c61a7920c3555",
       "mode": "644",
       "executable": false,
       "generated": false
