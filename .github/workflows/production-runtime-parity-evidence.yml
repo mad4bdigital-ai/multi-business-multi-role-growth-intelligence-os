@@ -51,6 +51,11 @@ on:
         required: true
         default: https://auth.mad4b.com/version
         type: string
+      deployment_info_url:
+        description: Hostinger Production auth runtime /deployment-info endpoint
+        required: false
+        default: https://auth.mad4b.com/deployment-info
+        type: string
       strategy:
         description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
         required: false
@@ -155,6 +160,18 @@ jobs:
       - name: Validate recovery operator, centralized policy, and runner ancestry
         run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
 
+      - name: Install contract test dependencies without lifecycle scripts
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Validate explicit bootstrap contract and source-only parity tests
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node --test test-runtime-bootstrap-contract.mjs
+          node --test test-runtime-gate-deployment-info-parity.mjs
+          node scripts/hostinger-runtime-bootstrap.mjs --plan
+
   bootstrap:
     name: Execute Explicit Runtime Bootstrap Contract
     if: github.event_name == 'workflow_dispatch' && inputs.bootstrap_mode != 'disabled'
@@ -197,6 +214,43 @@ jobs:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
           persist-credentials: false
+      - name: Require live Hostinger runtime parity before bootstrap
+        if: inputs.bootstrap_mode != 'plan'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          VERSION_URL: ${{ inputs.auth_url }}
+          DEPLOYMENT_INFO_URL: ${{ inputs.deployment_info_url }}
+          PARITY_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/hostinger-parity.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "${EXPECTED_BRANCH}" == "Production" ]]
+          [[ "${VERSION_URL}" == "https://auth.mad4b.com/version" ]]
+          [[ "${DEPLOYMENT_INFO_URL}" == "https://auth.mad4b.com/deployment-info" ]]
+          mkdir -p "$(dirname "${PARITY_RESULT_PATH}")"
+          version_file="${PARITY_RESULT_PATH}.version.json"
+          deployment_file="${PARITY_RESULT_PATH}.deployment-info.json"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --connect-timeout 10 --max-time 30 "${VERSION_URL}" --output "${version_file}"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --connect-timeout 10 --max-time 30 "${DEPLOYMENT_INFO_URL}" --output "${deployment_file}"
+          [[ "$(wc -c < "${version_file}")" -le 65536 ]]
+          [[ "$(wc -c < "${deployment_file}")" -le 65536 ]]
+          version_sha="$(jq -er '.gitCommitFull // .git_commit_full // .deployment.deployed_commit_sha // empty' "${version_file}")"
+          deployment_sha="$(jq -er '.gitCommitFull // .git_commit_full // .commit_sha // .deployment.deployed_commit_sha // empty' "${deployment_file}")"
+          deployment_branch="$(jq -er '.gitBranch // .git_branch // .branch // .deployment.branch // empty' "${deployment_file}")"
+          [[ "${version_sha,,}" == "${EXPECTED_SHA,,}" ]]
+          [[ "${deployment_sha,,}" == "${EXPECTED_SHA,,}" ]]
+          [[ "${deployment_branch}" == "${EXPECTED_BRANCH}" ]]
+          jq -n \
+            --arg expected_sha "${EXPECTED_SHA,,}" \
+            --arg expected_branch "${EXPECTED_BRANCH}" \
+            --arg version_sha "${version_sha,,}" \
+            --arg deployment_sha "${deployment_sha,,}" \
+            --arg deployment_branch "${deployment_branch}" \
+            '{contract:"mad4b.hostinger.bootstrap-runtime-parity.v1",read_only:true,mutation_performed:false,provider_mutation_performed:false,expected_sha:$expected_sha,expected_branch:$expected_branch,version_sha:$version_sha,deployment_info_sha:$deployment_sha,deployment_info_branch:$deployment_branch,version_url:"https://auth.mad4b.com/version",deployment_info_url:"https://auth.mad4b.com/deployment-info",secrets_included:false}' \
+            > "${PARITY_RESULT_PATH}"
+          rm -f "${version_file}" "${deployment_file}"
       - name: Set up Node.js 22
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -212,7 +266,7 @@ jobs:
           MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
-          BOOTSTRAP_RESULT_PATH: ${{ runner.temp }}/production-runtime-bootstrap/result.json
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
         run: |
           set -Eeuo pipefail
           mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
@@ -222,7 +276,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-runtime-bootstrap-${{ inputs.bootstrap_mode }}-${{ inputs.expected_sha }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/production-runtime-bootstrap/result.json
+          path: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/
           if-no-files-found: warn
           retention-days: 30
 

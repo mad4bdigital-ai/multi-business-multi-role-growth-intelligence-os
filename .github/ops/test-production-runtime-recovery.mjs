@@ -383,3 +383,22 @@ test('workflow exposes snapshot variables only as non-secret descriptors', () =>
   assert.match(operator, /snapshot_mutation_forbidden/u);
   assert.match(snapshotModule, /snapshot_read_only/u);
 });
+
+test('explicit bootstrap requires live Hostinger parity and runs the parity contract test', () => {
+  const parityGate = workflow.indexOf('Require live Hostinger runtime parity before bootstrap');
+  const bootstrapRun = workflow.indexOf('Run selected bootstrap contract mode');
+  assert.ok(parityGate >= 0 && parityGate < bootstrapRun, 'runtime parity gate must precede bootstrap execution');
+  assert.match(workflow, /if: inputs\.bootstrap_mode != 'plan'/u);
+  assert.match(workflow, /curl --proto '=https' --tlsv1\.2 --fail --silent --show-error/u);
+  assert.match(workflow, /https:\/\/auth\.mad4b\.com\/version/u);
+  assert.match(workflow, /https:\/\/auth\.mad4b\.com\/deployment-info/u);
+  assert.match(workflow, /version_sha,,.*EXPECTED_SHA/u);
+  assert.match(workflow, /deployment_sha,,.*EXPECTED_SHA/u);
+  assert.match(workflow, /deployment_branch.*EXPECTED_BRANCH/u);
+  assert.match(workflow, /BOOTSTRAP_RESULT_PATH: \$\{\{ github\.workspace \}\}/u);
+  assert.match(workflow, /node --test test-runtime-gate-deployment-info-parity\.mjs/u);
+  assert.doesNotMatch(workflow, /^\s{6}(?:BOOTSTRAP_RESULT_PATH|MYSQL_BOOTSTRAP_(?:HOST|PORT|USER|PASSWORD)):.*runner\.temp/mu);
+  assert.match(workflow, /mutation_performed:false/iu);
+  assert.match(workflow, /provider_mutation_performed:false/iu);
+  assert.match(workflow, /secrets_included:false/iu);
+});
