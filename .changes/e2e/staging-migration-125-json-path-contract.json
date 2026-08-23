@@ -8,7 +8,9 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-migration-125-json-path-contract.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/125_sprint64_platform_plugin_contributions.sql",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
