@@ -1,0 +1,150 @@
+name: Production Runtime Recovery Control Plane
+
+on:
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: Recovery strategy; primary uses governed runtime operations, fallback bootstraps schema/grants directly from GitHub
+        required: true
+        type: choice
+        options:
+          - verify
+          - primary
+          - fallback
+      expected_production_sha:
+        description: Exact immutable 40-character Production branch SHA
+        required: true
+        type: string
+      apply_execution:
+        description: Perform mutations. False produces a bounded plan only for primary/fallback.
+        required: true
+        default: false
+        type: boolean
+      confirmation:
+        description: For mutations use RECOVER:<strategy>:<exact-sha>
+        required: false
+        type: string
+      target_key:
+        description: Fallback target key from RUNTIME_RECOVERY_TARGETS_JSON
+        required: false
+        default: runtime
+        type: string
+      hostinger_target_id:
+        description: Optional run-scoped override for HOSTINGER_DEPLOYMENT_TARGET_ID
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    name: Recover Production from GitHub control plane
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: Production
+    concurrency:
+      group: production-runtime-recovery-${{ inputs.strategy }}-${{ inputs.target_key || 'none' }}
+      cancel-in-progress: false
+    env:
+      RECOVERY_STRATEGY: ${{ inputs.strategy }}
+      EXPECTED_SHA: ${{ inputs.expected_production_sha }}
+      APPLY_EXECUTION: ${{ inputs.apply_execution }}
+      RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+      RECOVERY_TARGET_KEY: ${{ inputs.target_key }}
+
+      # Release identity is GitHub-controlled. Production remains the default release branch.
+      PRODUCTION_SOURCE_BRANCH: ${{ vars.PRODUCTION_SOURCE_BRANCH || 'Production' }}
+      GITHUB_TOKEN: ${{ github.token }}
+
+      # Primary and fallback rollout are direct GitHub -> provider calls. They never call the stale runtime to deploy itself.
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://auth.mad4b.com' }}
+      PRODUCTION_DEPLOY_URL: ${{ vars.PRODUCTION_DEPLOY_URL }}
+      PRODUCTION_DEPLOY_METHOD: ${{ vars.PRODUCTION_DEPLOY_METHOD || 'POST' }}
+      PRODUCTION_DEPLOY_BODY_JSON: ${{ vars.PRODUCTION_DEPLOY_BODY_JSON }}
+      PRODUCTION_DEPLOY_AUTH_HEADER: ${{ vars.PRODUCTION_DEPLOY_AUTH_HEADER || 'Authorization' }}
+      PRODUCTION_DEPLOY_AUTH_VALUE: ${{ secrets.PRODUCTION_DEPLOY_AUTH_VALUE }}
+      HOSTINGER_DEPLOYMENT_TARGET_ID: ${{ inputs.hostinger_target_id || vars.HOSTINGER_DEPLOYMENT_TARGET_ID }}
+
+      # Exact deployed-SHA proof. Both surfaces must contain EXPECTED_SHA.
+      PRODUCTION_VERSION_PATH: ${{ vars.PRODUCTION_VERSION_PATH || '/version' }}
+      PRODUCTION_DEPLOYMENT_INFO_PATH: ${{ vars.PRODUCTION_DEPLOYMENT_INFO_PATH || '/deployment-info' }}
+      PRODUCTION_VERIFY_ATTEMPTS: ${{ vars.PRODUCTION_VERIFY_ATTEMPTS || '24' }}
+      PRODUCTION_VERIFY_INTERVAL_SECONDS: ${{ vars.PRODUCTION_VERIFY_INTERVAL_SECONDS || '10' }}
+
+      # Runtime requests use one protected credential; JSON variables never need to contain a secret.
+      PRODUCTION_PROBE_AUTH_HEADER: ${{ vars.PRODUCTION_PROBE_AUTH_HEADER || 'Authorization' }}
+      PRODUCTION_PROBE_AUTH_VALUE: ${{ secrets.PRODUCTION_PROBE_AUTH_VALUE }}
+      RUNTIME_RECOVERY_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_PROBES_JSON }}
+      PRIMARY_GOVERNED_STEPS_JSON: ${{ vars.PRIMARY_GOVERNED_STEPS_JSON }}
+      RUNTIME_RECOVERY_FINAL_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_FINAL_PROBES_JSON }}
+
+      # Fallback source of truth: explicit GitHub plan, never SQL registry discovery.
+      RUNTIME_RECOVERY_TARGETS_JSON: ${{ vars.RUNTIME_RECOVERY_TARGETS_JSON }}
+      RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE: ${{ vars.RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE || 'false' }}
+      MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+      MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+      MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+      MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+
+    steps:
+      - name: Validate exact Production head before checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          actual_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${PRODUCTION_SOURCE_BRANCH}" --jq '.object.sha')"
+          test "${actual_sha,,}" = "${EXPECTED_SHA,,}"
+
+      - name: Checkout exact Production source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_production_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Verify recovery operator contracts
+        run: node --test .github/ops/test-production-runtime-recovery.mjs
+
+      - name: Install MariaDB client dependency for fallback only
+        if: inputs.strategy == 'fallback' && inputs.apply_execution
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Initialize bounded evidence path
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="${RUNNER_TEMP}/production-runtime-recovery"
+          mkdir -p "${evidence_dir}"
+          echo "RUNTIME_RECOVERY_RESULT_PATH=${evidence_dir}/result.json" >> "${GITHUB_ENV}"
+          echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
+
+      - name: Execute selected recovery strategy
+        run: node .github/ops/production-runtime-recovery.mjs
+
+      - name: Reverify immutable Production head
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          actual_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${PRODUCTION_SOURCE_BRANCH}" --jq '.object.sha')"
+          test "${actual_sha,,}" = "${EXPECTED_SHA,,}"
+
+      - name: Upload bounded no-secret recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-runtime-recovery-${{ inputs.strategy }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: warn
+          retention-days: 30
