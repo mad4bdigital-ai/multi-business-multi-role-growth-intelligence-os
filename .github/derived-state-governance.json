@@ -105,6 +105,7 @@
       ".changes/e2e/readiness-transport-diagnostics-20260820.json",
       ".changes/e2e/runtime-remediation-batch-20260820.json",
       "http-generic-api/config/repository-governance-constitution.json",
+      ".github/workflows/e2e-phase-governance.yml",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",
