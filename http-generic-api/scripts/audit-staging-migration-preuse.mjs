@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { splitStatements } from "./staging-sql-parser.mjs";
+import { compareMigrationFiles, isMigrationFilename } from "./migration-order.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = process.argv[2] ?? path.resolve(scriptRoot, "../..");
@@ -9,7 +10,8 @@ const schemaPath = path.join(repoRoot, "http-generic-api", "schema.sql");
 const migrationsDir = path.join(repoRoot, "http-generic-api", "migrations");
 const migrations = fs.readdirSync(migrationsDir)
   .filter((name) => name.endsWith(".sql"))
-  .sort((a, b) => a.localeCompare(b));
+  .sort(compareMigrationFiles);
+if (migrations.some((name) => !isMigrationFilename(name))) throw new Error("every SQL migration filename must begin with a numeric version prefix");
 const bootstrapFlagIndex = process.argv.indexOf("--canonical-bootstrap");
 const canonicalBootstrap = bootstrapFlagIndex === -1 ? [] : JSON.parse(Buffer.from(process.argv[bootstrapFlagIndex + 1], "base64").toString("utf8"));
 const bootstrapByFile = new Map();

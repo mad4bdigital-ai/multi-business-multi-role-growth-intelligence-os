@@ -134,10 +134,10 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Staging schema bundle generator",
-          "entrypoint": "The exact local checkout runs the repository ordered pre-use audit, validates manifest-declared canonical CREATE contracts, then applies schema.sql and all 784 lexicographically ordered migrations in disposable MariaDB.",
+          "entrypoint": "The exact local checkout runs the repository ordered pre-use audit, validates manifest-declared canonical CREATE contracts, then applies schema.sql and all 784 migrations ordered by numeric prefix with filename tie-breaker in disposable MariaDB.",
           "terminal_outcome": "All audited missing-column pre-use gaps are zero; the generator can proceed to canonical seed lifecycle and role-aware schema bundle construction without successive unknown-column failures.",
           "steps": [
-            "The ordered audit tracks CREATE, DROP, ALTER, INSERT, UPDATE, DELETE, and FROM/JOIN state in baseline-then-lexicographic order.",
+            "The ordered audit tracks CREATE, DROP, ALTER, INSERT, UPDATE, DELETE, and FROM/JOIN state in baseline then numeric migration prefix with filename tie-breaker order.",
             "Same-statement ALTER predecessors are excluded from the blocking missing-column result, while string literals are removed from DML column and FROM/JOIN detection.",
             "Canonical DDL is widened for brand_core, endpoints, task_routes, workflows, admin/tenant endpoint tools, tickets, logic_definitions, tenant_resolution_cases, memory_scope_type_registry, and platform_outbox_event_types.",
             "The manifest declares full baseline column contracts and the exact source file for each canonical CREATE, including separate admin and tenant endpoint-tool DDL.",

@@ -2,6 +2,20 @@ name: E2E Phase Governance
 
 on:
   workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base branch ref for an exact manual verification dispatch
+        required: false
+        default: main
+        type: string
+      target_pr:
+        description: Exact target pull request number for manual verification dispatch
+        required: true
+        type: string
+      target_sha:
+        description: Exact target pull request head SHA for manual verification dispatch
+        required: true
+        type: string
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, edited]
   merge_group:
@@ -17,8 +31,10 @@ concurrency:
 
 env:
   CI_CANDIDATE_KIND: ${{ github.event_name == 'merge_group' && 'merge_candidate' || 'head' }}
-  CI_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-  CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+  CI_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || inputs.target_sha || github.sha }}
+  CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || inputs.target_sha || github.sha }}
+  TARGET_PR: ${{ github.event.pull_request.number || inputs.target_pr || '' }}
+  EXPECTED_CHECKED_OUT_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || inputs.target_sha || github.sha }}
 
 jobs:
   evaluate:
@@ -66,6 +82,12 @@ jobs:
           assert.equal(workflow.includes(`name: e2e-phase-evaluation-${runIdExpression}`), true, 'Evaluation evidence must retain the governed artifact name.');
           assert.equal(workflow.includes(`name: e2e-phase-execution-${runIdExpression}`), true, 'Execution evidence must retain the governed artifact name.');
           assert.equal(workflow.includes(`name: e2e-phase-summary-${runIdExpression}`), true, 'Canonical summaries must remain a separate output artifact.');
+          assert.match(workflow, /base_ref:\n\s+description: Base branch ref for an exact manual verification dispatch\n\s+required: false\n\s+default: main\n\s+type: string/u, 'Manual dispatch must expose a safe main base-ref default.');
+          assert.match(workflow, /target_pr:\n\s+description: Exact target pull request number for manual verification dispatch\n\s+required: true\n\s+type: string/u, 'Manual dispatch must require an exact target pull request number.');
+          assert.match(workflow, /target_sha:\n\s+description: Exact target pull request head SHA for manual verification dispatch\n\s+required: true\n\s+type: string/u, 'Manual dispatch must require an exact target pull request SHA.');
+          assert.equal(workflow.includes("inputs.base_ref || 'main'"), true, 'Manual dispatch must provide a non-empty base ref to the evidence router and parallel gate.');
+          assert.equal(workflow.includes('TARGET_PR: $' + '{{ github.event.pull_request.number || inputs.target_pr || \'\' }}'), true, 'Manual dispatch must expose the exact target PR number to Work Map governance journeys.');
+          assert.equal(workflow.includes('EXPECTED_CHECKED_OUT_SHA: $' + '{{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || inputs.target_sha || github.sha }}'), true, 'Manual dispatch must expose the exact checked-out SHA to Work Map governance journeys.');
           assert.equal(workflow.includes('phase_evaluation_base: $' + '{{ steps.parallel.outputs.phase_evaluation_base }}'), true, 'The evaluate job must expose the governed promotion source baseline.');
           assert.equal((workflow.match(/^\s+PROMOTION_PHASE_BASE:\s+\$\{\{\s*(?:steps\.parallel|needs\.evaluate)\.outputs\.phase_evaluation_base\s*\}\}\s*$/gm) || []).length, 2, 'Evaluation and execution must both consume the governed promotion source baseline.');
           assert.equal((workflow.match(/^\s*EVALUATION_BASE_SHA="\$\{PROMOTION_PHASE_BASE:-\$\{PR_BASE_SHA:-\}\}"\s*$/gm) || []).length, 2, 'Both phase operations must fail closed onto the promotion baseline before the PR base.');
@@ -81,7 +103,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
           HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
           HEAD_REF: ${{ github.head_ref || github.ref_name }}
-          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
+          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || inputs.base_ref || 'main' }}
         run: |
           set -euo pipefail
           args=(check
@@ -243,7 +265,7 @@ jobs:
           EVALUATE_JOB_RESULT: ${{ needs.evaluate.result }}
           EXECUTE_JOB_RESULT: ${{ needs.execute.result }}
           CANDIDATE_HEAD_REF: ${{ github.head_ref || github.ref_name }}
-          CANDIDATE_BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
+          CANDIDATE_BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || inputs.base_ref || 'main' }}
         run: >-
           node http-generic-api/scripts/ci-evidence-router.mjs
           --input-dir "${{ runner.temp }}/e2e-phase-reports"

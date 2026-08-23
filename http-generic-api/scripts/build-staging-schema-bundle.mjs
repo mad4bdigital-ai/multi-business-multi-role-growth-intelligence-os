@@ -5,6 +5,7 @@ import zlib from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { splitStatements } from "./staging-sql-parser.mjs";
+import { compareMigrationFiles, isMigrationFilename } from "./migration-order.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -80,8 +81,9 @@ function readManifest() {
 }
 
 function migrationFiles() {
-  const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith(".sql")).sort();
+  const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith(".sql")).sort(compareMigrationFiles);
   if (!files.length) fail("no SQL migrations found");
+  if (files.some((name) => !isMigrationFilename(name))) fail("every SQL migration filename must begin with a numeric version prefix");
   return files;
 }
 
