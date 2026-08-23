@@ -177,7 +177,6 @@ jobs:
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
       BOOTSTRAP_GOVERNANCE_DATABASE: ${{ vars.BOOTSTRAP_GOVERNANCE_DATABASE }}
-      BOOTSTRAP_RESULT_PATH: ${{ runner.temp }}/production-runtime-bootstrap/result.json
     steps:
       - name: Validate trusted dispatch ref and exact Production head
         env:
@@ -213,6 +212,7 @@ jobs:
           MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+          BOOTSTRAP_RESULT_PATH: ${{ runner.temp }}/production-runtime-bootstrap/result.json
         run: |
           set -Eeuo pipefail
           mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
