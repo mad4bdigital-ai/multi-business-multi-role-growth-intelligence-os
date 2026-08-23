@@ -16,6 +16,8 @@
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       "http-generic-api/.env.example",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/Dockerfile",
       "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/server.js",
