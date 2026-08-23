@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7285,
-    "bytes": 71037605,
-    "lines": 1664060,
+    "bytes": 71037901,
+    "lines": 1664062,
     "directories": 266,
     "categories": 13
   },
@@ -31083,9 +31083,9 @@
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 264404,
-      "lines": 2314,
-      "sha256": "2cb1300f1c6dd8e022a4f6d96ee1289e4104095b3e9052313ccf8b831fe05926",
+      "bytes": 264700,
+      "lines": 2316,
+      "sha256": "ea1ee29d651979d7c7a20d588ca909e936c44764158a52b3e3094814df4e0411",
       "mode": "644",
       "executable": false,
       "generated": false

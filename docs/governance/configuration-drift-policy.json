@@ -1923,6 +1923,8 @@
     "http-generic-api/test-system-layer-github-validation.mjs|OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID|environment_reference|oversized.artifacts.drive.folder.id",
     "http-generic-api/test-system-layer-repository-intelligence-v3-v4-dispatch.mjs|reportDescriptorCount|literal_declaration|reportdescriptorcount",
     "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs|OTHER_TENANT_EXPORT_TOOL_NAME|literal_declaration|other.tenant.export.tool.name",
+    "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs|RUNTIME_PERSISTENCE_DB_NAME|environment_reference|runtime.persistence.db.name",
+    "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs|RUNTIME_PERSISTENCE_DB_USER|environment_reference|runtime.persistence.db.user",
     "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs|TENANT_EXPORT_TOOL_NAME|literal_declaration|tenant.export.tool.name",
     "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs|baseUrl|literal_declaration|baseurl",
     "http-generic-api/test-tenant-connection-self-repair-service.mjs|bindingWithoutApproval|literal_declaration|bindingwithoutapproval",
