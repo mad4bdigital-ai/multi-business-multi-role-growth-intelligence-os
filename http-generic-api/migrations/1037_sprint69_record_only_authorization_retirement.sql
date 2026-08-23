@@ -35,13 +35,13 @@ UPDATE governed_migration_authorization_registry a
    AND EXISTS (
        SELECT 1
          FROM governed_migration_ledger l
-        WHERE l.migration_file = a.migration_file
+        WHERE l.migration_file = a.migration_file COLLATE utf8mb4_unicode_ci
           AND l.mode = 'record_only'
    )
    AND NOT EXISTS (
        SELECT 1
          FROM governed_migration_ledger applied
-        WHERE applied.migration_file = a.migration_file
+        WHERE applied.migration_file = a.migration_file COLLATE utf8mb4_unicode_ci
           AND applied.mode = 'apply'
    );
 
