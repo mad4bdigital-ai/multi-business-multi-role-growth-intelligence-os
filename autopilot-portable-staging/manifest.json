@@ -282,7 +282,7 @@
     },
     {
       "path": "http-generic-api/deploymentManifest.js",
-      "sha256": "fe6fd465a5f7a5457dd079edbf601a972bee78ede878fd146a9cee148344c2e9"
+      "sha256": "bab3370717d07d44f28d0e7869440c45529afd0d33fe186cb6eef6b5b92dfddd"
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
