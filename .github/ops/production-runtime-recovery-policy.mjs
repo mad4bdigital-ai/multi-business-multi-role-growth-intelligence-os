@@ -42,6 +42,14 @@ export function exactSet(actual, expected) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+export function parseBoolean(value, fallback = false) {
+  if (value === undefined || value === null || String(value).trim() === '') return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  fail('RECOVERY_INVALID_BOOLEAN', { value: String(value).slice(0, 80) });
+}
+
 export function validateProductionBaseUrl(raw = '', contract = ROUTE_CONTRACT, deploymentPolicy = DEPLOYMENT_POLICY) {
   const binding = contract.production_origin_binding;
   const canonical = String(deploymentPolicy.production?.hostname || '').trim().toLowerCase();
@@ -142,6 +150,9 @@ export function validateFallbackTargetPlan(target, contract = ROUTE_CONTRACT) {
     if (!migrationSpec || migrationSpec.incident_role !== 'only_current_apply_candidate') {
       fail('RECOVERY_INCIDENT_MIGRATION_ROLE_DENIED', { migration });
     }
+    if (migrationSpec.direct_fallback_authorized !== true || migrationSpec.direct_fallback_idempotent !== true) {
+      fail('RECOVERY_INCIDENT_DIRECT_FALLBACK_AUTHORIZATION_REQUIRED', { migration });
+    }
     if (entry.kind && String(entry.kind) !== 'migration') fail('RECOVERY_INCIDENT_MIGRATION_KIND_DENIED', { migration });
     assertMigration({
       migration,
@@ -223,6 +234,7 @@ export function validateConfiguredRecoveryStep(step, phase, contract = ROUTE_CON
 export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRACT) {
   const strategy = String(env.RECOVERY_STRATEGY || 'verify');
   if (!['verify', 'snapshot', 'primary', 'fallback'].includes(strategy)) fail('RECOVERY_STRATEGY_INVALID', { strategy });
+  const applyExecution = parseBoolean(env.APPLY_EXECUTION, false);
 
   if (strategy !== 'snapshot') {
     validateProductionBaseUrl(env.PRODUCTION_BASE_URL, contract);
@@ -235,7 +247,7 @@ export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRAC
     if (!['github_snapshot', 'repository_snapshot'].includes(String(env.RUNTIME_RECOVERY_SOURCE_MODE || ''))) {
       fail('RECOVERY_SNAPSHOT_SOURCE_REQUIRED');
     }
-    if (String(env.APPLY_EXECUTION || '').toLowerCase() === 'true') fail('RECOVERY_SNAPSHOT_MUTATION_DENIED');
+    if (applyExecution) fail('RECOVERY_SNAPSHOT_MUTATION_DENIED');
   }
 
   const probes = arrayFromEnv(env, 'RUNTIME_RECOVERY_PROBES_JSON');
@@ -455,7 +467,10 @@ function fallbackMysqlConfig(env, target) {
 function fallbackMigrationPolicy(contract) {
   const policy = contract.fallback_migration_policy;
   if (!policy || policy.canonical_governed_ledger !== 'governed_migration_ledger'
-      || policy.canonical_governed_ledger_required !== true) {
+      || policy.canonical_governed_ledger_required !== true
+      || policy.conflicting_apply_checksum_fails_even_with_matching_record !== true
+      || policy.schema_ready_without_apply_ledger_requires_authorized_idempotent_flow !== true
+      || policy.record_only_reconciliation_allowed !== false) {
     fail('RECOVERY_GOVERNED_MIGRATION_LEDGER_POLICY_MISSING');
   }
   return policy;
@@ -507,6 +522,31 @@ export async function assertIncidentPostconditions(connection, database, migrati
   return { ready: evidence.every((item) => item.ready), checks: evidence };
 }
 
+function normalizeLedgerChecksum(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function selectCanonicalLedgerApplyRecord(rows, migration, checksum) {
+  const expected = normalizeLedgerChecksum(checksum);
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const conflicting = safeRows.filter(
+    (row) => normalizeLedgerChecksum(row?.migration_checksum_sha256 ?? row?.checksum_sha256) !== expected,
+  );
+  if (conflicting.length > 0) {
+    fail('RECOVERY_GOVERNED_LEDGER_CHECKSUM_DIVERGENCE', {
+      migration,
+      expected_checksum_sha256: expected,
+      observed_checksum_sha256: normalizeLedgerChecksum(
+        conflicting[0]?.migration_checksum_sha256 ?? conflicting[0]?.checksum_sha256,
+      ),
+      conflicting_record_count: conflicting.length,
+    });
+  }
+  return safeRows.find(
+    (row) => normalizeLedgerChecksum(row?.migration_checksum_sha256 ?? row?.checksum_sha256) === expected,
+  ) || null;
+}
+
 async function readCanonicalGovernedLedger(connection, database, migration, checksum) {
   const required = [
     'run_id', 'migration_file', 'migration_checksum_sha256', 'applied_at', 'applied_by', 'runner_version',
@@ -526,42 +566,41 @@ async function readCanonicalGovernedLedger(connection, database, migration, chec
   const missing = required.filter((column) => !present.has(column));
   if (missing.length) fail('RECOVERY_GOVERNED_MIGRATION_LEDGER_CONTRACT_INCOMPLETE', { migration, missing });
   const [rows] = await connection.execute(
-    "SELECT run_id, migration_checksum_sha256, mode, applied_at FROM governed_migration_ledger WHERE migration_file = ? AND mode = 'apply' ORDER BY applied_at DESC LIMIT 10",
+    "SELECT run_id, migration_checksum_sha256, mode, applied_at FROM governed_migration_ledger WHERE migration_file = ? AND mode = 'apply' ORDER BY applied_at DESC",
     [migration],
   );
-  const expected = String(checksum).toLowerCase();
-  const exact = rows.find((row) => String(row.migration_checksum_sha256 || '').toLowerCase() === expected) || null;
-  const conflict = rows.find((row) => String(row.migration_checksum_sha256 || '').toLowerCase() !== expected) || null;
-  if (!exact && conflict) {
-    fail('RECOVERY_GOVERNED_LEDGER_CHECKSUM_DIVERGENCE', {
-      migration,
-      observed_checksum_sha256: String(conflict.migration_checksum_sha256 || '').toLowerCase(),
-      expected_checksum_sha256: expected,
-    });
-  }
-  return exact;
+  return selectCanonicalLedgerApplyRecord(rows, migration, checksum);
 }
 
 async function insertCanonicalGovernedLedger(connection, {
   migration,
   checksum,
   statementCount,
-  mode,
   result,
   expectedSha,
 }) {
   const runId = crypto.randomUUID();
+  const executionResultStatus = String(result?.status || '');
+  if (!['applied', 'schema_already_ready'].includes(executionResultStatus)) {
+    fail('RECOVERY_FALLBACK_INCIDENT_APPLY_READBACK_REQUIRED', {
+      migration,
+      observed_status: executionResultStatus || null,
+    });
+  }
   const metadata = {
     source: 'github_production_runtime_recovery_fallback',
     exact_production_sha: expectedSha,
-    sql_applied_by_this_run: mode === 'apply',
+    authorized_apply_execution: true,
+    sql_applied_by_this_run: executionResultStatus === 'applied',
+    execution_result_status: executionResultStatus,
     provider_mutation_performed: false,
     secrets_included: false,
   };
   const results = {
     recovery_strategy: 'fallback',
     canonical_postconditions_ready: true,
-    fallback_result_status: result?.status || null,
+    fallback_result_status: executionResultStatus,
+    canonical_evidence_mode: 'apply',
     secrets_included: false,
   };
   await connection.execute(
@@ -569,14 +608,13 @@ async function insertCanonicalGovernedLedger(connection, {
       (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
        statement_count, preflight_status, preflight_risk_count, requirements_json, results_json,
        before_schema_objects_json, after_schema_objects_json, metadata_json, secrets_included)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pass', 0, ?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, 'apply', ?, 'pass', 0, ?, ?, ?, ?, ?, 0)`,
     [
       runId,
       migration,
       checksum,
       'github_runtime_recovery_fallback',
-      'github-runtime-recovery-fallback-v1',
-      mode,
+      'github-runtime-recovery-fallback-v2',
       statementCount,
       JSON.stringify({ source: 'reviewed_recovery_contract', secrets_included: false }),
       JSON.stringify(results),
@@ -585,7 +623,7 @@ async function insertCanonicalGovernedLedger(connection, {
       JSON.stringify(metadata),
     ],
   );
-  return { run_id: runId, mode, recorded: true };
+  return { run_id: runId, mode: 'apply', recorded: true, execution_result_status: executionResultStatus };
 }
 
 export async function prepareFallbackCanonicalLedger(env, contract = ROUTE_CONTRACT) {
@@ -607,6 +645,9 @@ export async function prepareFallbackCanonicalLedger(env, contract = ROUTE_CONTR
       if (!spec || spec.incident_role !== 'only_current_apply_candidate') {
         fail('RECOVERY_INCIDENT_MIGRATION_ROLE_DENIED', { migration });
       }
+      if (spec.direct_fallback_authorized !== true || spec.direct_fallback_idempotent !== true) {
+        fail('RECOVERY_INCIDENT_DIRECT_FALLBACK_AUTHORIZATION_REQUIRED', { migration });
+      }
       const checksum = String(spec.sha256).toLowerCase();
       const ledger = await readCanonicalGovernedLedger(connection, target.database, migration, checksum);
       const postconditions = await assertIncidentPostconditions(connection, target.database, migration, contract);
@@ -615,20 +656,20 @@ export async function prepareFallbackCanonicalLedger(env, contract = ROUTE_CONTR
       }
       if (ledger) {
         incident.push({ migration, state: 'already_applied', ledger_run_id: ledger.run_id || null, postconditions });
-      } else if (postconditions.ready) {
-        const recorded = await insertCanonicalGovernedLedger(connection, {
-          migration,
-          checksum,
-          statementCount: spec.statement_count,
-          mode: 'record_only',
-          result: { status: 'schema_already_ready' },
-          expectedSha: String(env.EXPECTED_SHA || ''),
-        });
-        incident.push({ migration, state: 'schema_already_ready', ledger_run_id: recorded.run_id, postconditions });
-      } else {
-        retained.push(entry);
-        incident.push({ migration, state: 'apply_required', ledger_run_id: null, postconditions });
+        continue;
       }
+
+      retained.push(entry);
+      incident.push({
+        migration,
+        state: 'apply_required',
+        ledger_run_id: null,
+        schema_ready_before: postconditions.ready,
+        authorization_reason: postconditions.ready
+          ? 'canonical_apply_ledger_missing_idempotent_reexecution_required'
+          : 'canonical_apply_ledger_missing_schema_not_ready',
+        postconditions,
+      });
     }
     targets[targetIndex] = { ...target, incident_recovery_migrations: retained };
     return {
@@ -651,24 +692,39 @@ export async function finalizeFallbackCanonicalLedger(prepared, recoveryResult, 
     for (const state of prepared.incident.filter((item) => item.state === 'apply_required')) {
       const spec = contract.recovery_migrations?.[state.migration];
       const result = migrationResults.find((item) => String(item.file || '').endsWith(`/${state.migration}`));
-      if (!result || result.status !== 'applied') {
-        fail('RECOVERY_FALLBACK_INCIDENT_APPLY_READBACK_REQUIRED', { migration: state.migration, observed_status: result?.status || null });
+      const observedStatus = String(result?.status || '');
+      if (!result || !['applied', 'schema_already_ready'].includes(observedStatus)) {
+        fail('RECOVERY_FALLBACK_INCIDENT_APPLY_READBACK_REQUIRED', {
+          migration: state.migration,
+          observed_status: observedStatus || null,
+        });
       }
       const postconditions = await assertIncidentPostconditions(prepared.connection, prepared.target.database, state.migration, contract);
       if (!postconditions.ready) fail('RECOVERY_FALLBACK_INCIDENT_POSTCONDITION_FAILED', { migration: state.migration, postconditions });
       const ledger = await readCanonicalGovernedLedger(prepared.connection, prepared.target.database, state.migration, spec.sha256);
       if (ledger) {
-        recorded.push({ migration: state.migration, run_id: ledger.run_id || null, mode: 'apply', preexisting: true });
+        recorded.push({
+          migration: state.migration,
+          run_id: ledger.run_id || null,
+          mode: 'apply',
+          preexisting: true,
+          execution_result_status: observedStatus,
+        });
       } else {
         const entry = await insertCanonicalGovernedLedger(prepared.connection, {
           migration: state.migration,
           checksum: spec.sha256,
           statementCount: spec.statement_count,
-          mode: 'apply',
           result,
           expectedSha: String(env.EXPECTED_SHA || ''),
         });
-        recorded.push({ migration: state.migration, run_id: entry.run_id, mode: 'apply', preexisting: false });
+        recorded.push({
+          migration: state.migration,
+          run_id: entry.run_id,
+          mode: 'apply',
+          preexisting: false,
+          execution_result_status: observedStatus,
+        });
       }
     }
     return { incident: prepared.incident, ledger_recorded: recorded };
@@ -700,7 +756,9 @@ export async function executeRecovery(env = process.env, contract = ROUTE_CONTRA
     centralized_policy: {
       contract: plan.contract,
       strategy: plan.strategy,
-      production_origin: validateProductionBaseUrl(env.PRODUCTION_BASE_URL, contract),
+      production_origin: plan.strategy === 'snapshot'
+        ? null
+        : validateProductionBaseUrl(env.PRODUCTION_BASE_URL, contract),
       fallback_target: plan.fallback_target,
       secrets_included: false,
     },

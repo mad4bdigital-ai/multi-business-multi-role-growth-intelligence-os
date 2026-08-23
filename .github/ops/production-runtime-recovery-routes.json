@@ -103,6 +103,7 @@
       "statement_count": 7,
       "allowed_modes": ["dry_run", "apply"],
       "incident_role": "only_current_apply_candidate",
+      "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true
     }
   },
@@ -129,6 +130,10 @@
     "unknown_migration_policy": "deny",
     "canonical_governed_ledger": "governed_migration_ledger",
     "canonical_governed_ledger_required": true,
+    "conflicting_apply_checksum_fails_even_with_matching_record": true,
+    "schema_ready_without_apply_ledger_requires_authorized_idempotent_flow": true,
+    "record_only_reconciliation_allowed": false,
+    "canonical_incident_evidence_mode": "apply",
     "incident_postconditions": {
       "20260815_custom_gpt_mcp_catalog_levels.sql": [
         {
@@ -193,7 +198,8 @@
     "A configured GitHub recovery step selects a route_key from this contract instead of supplying an arbitrary URL path.",
     "The gpt_tool_call route is not a generic admin executor: unknown tools are denied, mutation semantics are phase-scoped, and 225/1048 are verification-only.",
     "Direct SQL fallback is incident-scoped: only the uniquely incident-allowlisted, checksum- and statement-count-pinned migration in fallback_migration_policy can execute; unknown, verification-only, or baseline migrations are denied outside their separate reviewed class.",
-    "The direct fallback consults the canonical governed_migration_ledger, verifies full schema/index/row postconditions, skips exact already-applied work, fails on ledger/schema divergence, and records same-cycle apply or record-only evidence.",
+    "The direct fallback consults every canonical apply record for the migration in governed_migration_ledger and fails closed on any checksum conflict, even if a matching record also exists.",
+    "Schema-ready state without canonical apply-ledger evidence does not create record-only reconciliation evidence; it remains in the explicitly authorized idempotent 20260815 execution flow, receives same-cycle postcondition readback, and is recorded canonically with mode=apply while preserving whether SQL actually ran.",
     "Production bearer requests are allowed only to the canonical HTTPS origin in deployment-branch-policy.json production.hostname and branch Production.",
     "404 or 405 means route_contract_missing; 401 or 403 means route_present_auth_not_ready; 5xx means route_present_runtime_dependency_failed.",
     "A successful read-only Session Context response proves route/read topology only, not customer_sessions INSERT authority.",

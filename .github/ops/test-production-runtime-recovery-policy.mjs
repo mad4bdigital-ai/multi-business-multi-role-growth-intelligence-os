@@ -5,6 +5,8 @@ import test from 'node:test';
 import {
   assertMigration,
   exactSet,
+  parseBoolean,
+  selectCanonicalLedgerApplyRecord,
   validateConfiguredRecoveryStep,
   validateFallbackTargetPlan,
   validateProductionBaseUrl,
@@ -34,6 +36,36 @@ function migrationStep(migration, checksum, count, mode, mutation = false) {
 test('exactSet ignores ordering but not membership', () => {
   assert.equal(exactSet(['B', 'A'], ['A', 'B']), true);
   assert.equal(exactSet(['A'], ['A', 'B']), false);
+});
+
+test('recovery booleans are parsed explicitly and fail closed on unknown values', () => {
+  assert.equal(parseBoolean(undefined, false), false);
+  assert.equal(parseBoolean('', true), true);
+  assert.equal(parseBoolean('true'), true);
+  assert.equal(parseBoolean('YES'), true);
+  assert.equal(parseBoolean('0', true), false);
+  assert.equal(parseBoolean('off', true), false);
+  assert.throws(() => parseBoolean('sometimes'), /RECOVERY_INVALID_BOOLEAN/);
+});
+
+test('canonical apply-ledger selection fails on any checksum conflict even with an exact record', () => {
+  const exact = {
+    run_id: 'exact-run',
+    migration_checksum_sha256: CHECKSUM_20260815,
+    mode: 'apply',
+  };
+  assert.equal(
+    selectCanonicalLedgerApplyRecord([exact], '20260815_custom_gpt_mcp_catalog_levels.sql', CHECKSUM_20260815),
+    exact,
+  );
+  assert.equal(
+    selectCanonicalLedgerApplyRecord([], '20260815_custom_gpt_mcp_catalog_levels.sql', CHECKSUM_20260815),
+    null,
+  );
+  assert.throws(() => selectCanonicalLedgerApplyRecord([
+    exact,
+    { run_id: 'conflict-run', migration_checksum_sha256: '0'.repeat(64), mode: 'apply' },
+  ], '20260815_custom_gpt_mcp_catalog_levels.sql', CHECKSUM_20260815), /RECOVERY_GOVERNED_LEDGER_CHECKSUM_DIVERGENCE/);
 });
 
 test('225 and 1048 are dry-run only', () => {
@@ -113,6 +145,11 @@ test('snapshot requires an explicit DB-independent source and cannot mutate', ()
     RUNTIME_RECOVERY_SOURCE_MODE: 'repository_snapshot',
     APPLY_EXECUTION: 'true',
   }), /RECOVERY_SNAPSHOT_MUTATION_DENIED/);
+  assert.throws(() => validateRecoveryPlan({
+    RECOVERY_STRATEGY: 'snapshot',
+    RUNTIME_RECOVERY_SOURCE_MODE: 'repository_snapshot',
+    APPLY_EXECUTION: 'maybe',
+  }), /RECOVERY_INVALID_BOOLEAN/);
 });
 
 test('Production origin binding rejects non-canonical bearer destinations', () => {
