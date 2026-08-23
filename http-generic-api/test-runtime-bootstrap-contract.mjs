@@ -161,6 +161,16 @@ test("Hostinger and GitHub recovery contracts share migration and grant pins", (
   assert.deepEqual(contract.grant_policy.required_operations, recoveryContract.grant_policy.required_operations);
 });
 
+test("every non-plan bootstrap mode requires exact SHA metadata", () => {
+  const allowedModes = new Set(contract.execution_policy.allowed_modes);
+  const exactShaModes = new Set(contract.source_binding.exact_sha_required_for);
+  assert.deepEqual([...exactShaModes].sort(), ["apply_grants", "apply_migration", "dry_run"]);
+  for (const mode of allowedModes) {
+    if (mode !== "plan") assert.equal(exactShaModes.has(mode), true, `missing exact SHA requirement for ${mode}`);
+  }
+  assert.equal(exactShaModes.has("apply"), false);
+});
+
 test("plan mode is the default and performs no DB connection or mutation", () => {
   const result = buildPlan({ BOOTSTRAP_MODE: "plan" }, contract);
   assert.equal(result.status, "bootstrap_not_executed");

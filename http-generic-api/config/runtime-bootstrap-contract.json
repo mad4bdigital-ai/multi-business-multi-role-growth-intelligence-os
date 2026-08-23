@@ -28,7 +28,7 @@
     "expected_repository_env": "BOOTSTRAP_EXPECTED_REPOSITORY",
     "deployment_manifest_candidates": ["DEPLOYMENT_COMMIT.json", "http-generic-api/DEPLOYMENT_COMMIT.json"],
     "local_checkout_sha_must_match_when_available": true,
-    "exact_sha_required_for": ["dry_run", "apply"]
+    "exact_sha_required_for": ["dry_run", "apply_migration", "apply_grants"]
   },
   "target_binding": {
     "targets_json_env": "RUNTIME_BOOTSTRAP_TARGETS_JSON",

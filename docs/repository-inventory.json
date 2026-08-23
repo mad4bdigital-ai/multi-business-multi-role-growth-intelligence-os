@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7299,
-    "bytes": 71251602,
-    "lines": 1667719,
+    "bytes": 71252163,
+    "lines": 1667729,
     "directories": 266,
     "categories": 13
   },
@@ -38140,9 +38140,9 @@
       "path": "http-generic-api/config/runtime-bootstrap-contract.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 12197,
+      "bytes": 12223,
       "lines": 206,
-      "sha256": "4948c5756b6cd659b82909930a5ee6bda3e5c2132ef9650c21dc1444ee7b912e",
+      "sha256": "1124321e79234362f818274c3d076d0e547736b366b40c33c147b5ba72e475ff",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -71129,9 +71129,9 @@
       "path": "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 23361,
-      "lines": 433,
-      "sha256": "426c9c85ce5648156ed3a4b299a11e3b35c2c1bff421cc0b57aa4fdeff6c079e",
+      "bytes": 23896,
+      "lines": 443,
+      "sha256": "ec6a96066bcfbbac03204d45d6c64ad666beececbcd2379133daa551ef7c983b",
       "mode": "644",
       "executable": false,
       "generated": false
