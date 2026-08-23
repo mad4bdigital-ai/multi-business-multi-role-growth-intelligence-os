@@ -10,6 +10,11 @@
 -- This migration registers metadata only. It never calls GitHub, reads credentials,
 -- reruns a workflow, dispatches a workflow, or accepts caller-supplied raw methods
 -- or URLs. Runtime use remains admin-only and governed by endpoint authority.
+-- The table is created earlier with binding_id VARCHAR(64), while this migration
+-- introduces identifiers longer than 64 characters. Widen the existing column
+-- before the first workflow-control binding writer; this remains schema-only.
+ALTER TABLE platform_tool_dispatch_bindings
+  MODIFY COLUMN binding_id VARCHAR(128) NOT NULL;
 
 INSERT INTO endpoints (
   endpoint_id, parent_action_key, endpoint_key, endpoint_operation, endpoint_title,

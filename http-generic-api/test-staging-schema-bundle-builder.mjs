@@ -326,6 +326,15 @@ test("migration 1037 record-only retirement normalizes mixed migration-file coll
   assert.doesNotMatch(migration1037, /\\b(?:l|applied)\\.migration_file\\s+COLLATE\\b/i, "indexed ledger migration_file must not be wrapped in COLLATE");
 });
 
+test("migration 1038 widens dispatch binding ids before workflow-control inserts", () => {
+  const migration1038 = fs.readFileSync(path.join(apiRoot, "migrations", "1038_sprint69_github_actions_workflow_control_dispatch.sql"), "utf8");
+  const alter = /ALTER TABLE\s+platform_tool_dispatch_bindings\s+MODIFY COLUMN\s+binding_id\s+VARCHAR\(128\)\s+NOT NULL/i;
+  const firstBindingInsert = migration1038.search(/INSERT INTO\s+platform_tool_dispatch_bindings/i);
+  assert.notEqual(firstBindingInsert, -1, "migration 1038 must retain the workflow-control binding writer");
+  assert.notEqual(alter.exec(migration1038), null, "dispatch binding compatibility width must be declared");
+  assert.ok(migration1038.search(alter) < firstBindingInsert, "binding_id widening must precede workflow-control binding inserts");
+});
+
 test("generator plan-only mode inventories the exact migration chain", () => {
   const result = runPlan();
   assert.equal(result.status, 0, result.stderr || result.stdout);
