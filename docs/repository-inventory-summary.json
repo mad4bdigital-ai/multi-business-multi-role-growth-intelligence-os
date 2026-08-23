@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7288,
-    "bytes": 71097755,
-    "lines": 1665187,
+    "files": 7296,
+    "bytes": 71199297,
+    "lines": 1667020,
     "directories": 266,
     "categories": 13
   },
@@ -15,7 +15,7 @@
       "documentation": 1911,
       "api-runtime": 1473,
       "database-migrations": 784,
-      "root-and-other": 324,
+      "root-and-other": 325,
       "api-contracts": 191,
       "ci-workflows": 171,
       "ci-config": 131,
@@ -26,10 +26,10 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2512,
-      ".mjs": 1736,
-      ".js": 996,
-      ".json": 854,
+      ".md": 2513,
+      ".mjs": 1738,
+      ".js": 998,
+      ".json": 856,
       ".sql": 799,
       ".yml": 174,
       ".yaml": 119,
@@ -64,8 +64,8 @@
       "http-generic-api": 3750,
       "docs": 1815,
       "specs": 880,
-      ".github": 301,
-      ".changes": 293,
+      ".github": 302,
+      ".changes": 294,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -266,7 +266,7 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3474185,
+      "bytes": 3474187,
       "lines": 97972
     },
     {

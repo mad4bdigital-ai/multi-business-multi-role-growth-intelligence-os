@@ -7,7 +7,7 @@
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
     "dispatch_source_digest": "db2571ea22344f5dcfa4aa0ffa1bfda7deaa4356eb750ab40f2b33debde5ab49",
-    "dispatch_artifact_sha256": "3087bfa89edc29c21e38ee7b754433d6c7799dbb5c57c0b235a57a7a662a3f1d"
+    "dispatch_artifact_sha256": "0e696c37459569a38a89bd4e1450cc99e107f60c5b23ed397fc8080a8c88068c"
   },
   "coverage": {
     "operation_count": 1041,

@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,288 |
-| Total bytes | 71,097,755 |
-| Counted text lines | 1,665,187 |
+| Tracked files | 7,296 |
+| Total bytes | 71,199,297 |
+| Counted text lines | 1,667,020 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -21,7 +21,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `documentation` | 1,911 |
 | `api-runtime` | 1,473 |
 | `database-migrations` | 784 |
-| `root-and-other` | 324 |
+| `root-and-other` | 325 |
 | `api-contracts` | 191 |
 | `ci-workflows` | 171 |
 | `ci-config` | 131 |
@@ -35,10 +35,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,512 |
-| `.mjs` | 1,736 |
-| `.js` | 996 |
-| `.json` | 854 |
+| `.md` | 2,513 |
+| `.mjs` | 1,738 |
+| `.js` | 998 |
+| `.json` | 856 |
 | `.sql` | 799 |
 | `.yml` | 174 |
 | `.yaml` | 119 |
@@ -92,7 +92,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,185 | 97972 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,187 | 97972 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,395 | 58560 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 991,977 | 23027 |
