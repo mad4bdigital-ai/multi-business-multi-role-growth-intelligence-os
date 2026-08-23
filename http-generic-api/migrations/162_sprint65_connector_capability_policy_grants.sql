@@ -53,8 +53,8 @@ ON DUPLICATE KEY UPDATE
   `policy_version` = GREATEST(`policy_version`, VALUES(`policy_version`));
 
 INSERT INTO `local_connector_file_access_rules`
-  (`config_id`, `path_pattern`, `access_mode`, `description`)
-SELECT '8db63b00-4fce-11f1-b256-614c56cd019b', 'D:\\n8n-data', 'read_write', 'Admin-approved n8n data root for local connector runtime operations'
+  (`rule_id`, `config_id`, `path_pattern`, `access_mode`, `description`)
+SELECT '00000000-0000-4000-e162-000000000001', '8db63b00-4fce-11f1-b256-614c56cd019b', 'D:\\n8n-data', 'read_write', 'Admin-approved n8n data root for local connector runtime operations'
 WHERE NOT EXISTS (
   SELECT 1 FROM `local_connector_file_access_rules`
    WHERE `config_id` = '8db63b00-4fce-11f1-b256-614c56cd019b'
@@ -62,8 +62,8 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO `local_connector_file_access_rules`
-  (`config_id`, `path_pattern`, `access_mode`, `description`)
-SELECT '8db63b00-4fce-11f1-b256-614c56cd019b', 'D:\\n8n-data\\browser-runtime-artifacts', 'read_write', 'Browser runtime artifacts directory for Browser4 and governed browser diagnostics'
+  (`rule_id`, `config_id`, `path_pattern`, `access_mode`, `description`)
+SELECT '00000000-0000-4000-e162-000000000002', '8db63b00-4fce-11f1-b256-614c56cd019b', 'D:\\n8n-data\\browser-runtime-artifacts', 'read_write', 'Browser runtime artifacts directory for Browser4 and governed browser diagnostics'
 WHERE NOT EXISTS (
   SELECT 1 FROM `local_connector_file_access_rules`
    WHERE `config_id` = '8db63b00-4fce-11f1-b256-614c56cd019b'
@@ -71,8 +71,8 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO `local_connector_file_access_rules`
-  (`config_id`, `path_pattern`, `access_mode`, `description`)
-SELECT '8db63b00-4fce-11f1-b256-614c56cd019b', 'D:\\n8n-data\\auto-browser', 'read_write', 'Auto Browser local runtime working directory'
+  (`rule_id`, `config_id`, `path_pattern`, `access_mode`, `description`)
+SELECT '00000000-0000-4000-e162-000000000003', '8db63b00-4fce-11f1-b256-614c56cd019b', 'D:\\n8n-data\\auto-browser', 'read_write', 'Auto Browser local runtime working directory'
 WHERE NOT EXISTS (
   SELECT 1 FROM `local_connector_file_access_rules`
    WHERE `config_id` = '8db63b00-4fce-11f1-b256-614c56cd019b'

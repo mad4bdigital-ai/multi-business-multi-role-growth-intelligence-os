@@ -359,12 +359,51 @@ function validateLocalConnectorAllowlistStatement(file, statement) {
   }
 }
 
+function validateLocalConnectorFileAccessRuleStatement(file, statement) {
+  const insert = statement.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`local_connector_file_access_rules`|local_connector_file_access_rules)\s*/iu);
+  if (!insert) return;
+  const columns = parenthesizedSql(statement, insert[0].length);
+  if (!columns) return;
+  const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll("`", "").replace(/\s/gu, "").toLowerCase());
+  const ruleIdIndex = columnNames.indexOf("rule_id");
+  if (ruleIdIndex === -1) fail(`migration ${file} local_connector_file_access_rules INSERT must include rule_id`);
+  const afterColumns = statement.slice(columns.end);
+  const valuesKeyword = afterColumns.match(/^\s*VALUES\b/iu);
+  if (valuesKeyword) {
+    let cursor = columns.end + valuesKeyword[0].length;
+    while (cursor < statement.length) {
+      while (/\s/u.test(statement[cursor] ?? "")) cursor += 1;
+      if (statement[cursor] !== "(") break;
+      const row = parenthesizedSql(statement, cursor);
+      if (!row) fail(`migration ${file} contains an unterminated local_connector_file_access_rules VALUES row`);
+      const values = splitTopLevelSql(row.content);
+      if (values.length !== columnNames.length) fail(`migration ${file} has ${values.length} VALUES expressions for ${columnNames.length} local_connector_file_access_rules INSERT columns`);
+      if (/^NULL$/iu.test(values[ruleIdIndex].trim())) fail(`migration ${file} local_connector_file_access_rules rule_id cannot be NULL`);
+      cursor = row.end;
+      while (/\s/u.test(statement[cursor] ?? "")) cursor += 1;
+      if (statement[cursor] !== ",") break;
+      cursor += 1;
+    }
+    return;
+  }
+  const selectKeyword = afterColumns.match(/^\s*SELECT\b/iu);
+  if (!selectKeyword) fail(`migration ${file} local_connector_file_access_rules INSERT must use VALUES or SELECT with rule_id`);
+  const selectBody = afterColumns.slice(selectKeyword[0].length);
+  const boundary = selectBody.search(/\s+(?:FROM|WHERE)\b/iu);
+  const projection = (boundary === -1 ? selectBody : selectBody.slice(0, boundary)).trim();
+  const expressions = splitTopLevelSql(projection);
+  if (expressions.length <= ruleIdIndex || /^NULL$/iu.test(expressions[ruleIdIndex].trim())) {
+    fail(`migration ${file} local_connector_file_access_rules SELECT writer must provide a non-null rule_id`);
+  }
+}
+
 function migrationSafetyCheck(file, sql) {
   const statements = splitStatements(sql);
   const normalizedSql = statements.join("\n");
   for (const statement of statements) {
     validatePathParamKeysStatement(file, statement);
     validateLocalConnectorAllowlistStatement(file, statement);
+    validateLocalConnectorFileAccessRuleStatement(file, statement);
   }
   const forbidden = [
     /^\s*GRANT\b/imu,
