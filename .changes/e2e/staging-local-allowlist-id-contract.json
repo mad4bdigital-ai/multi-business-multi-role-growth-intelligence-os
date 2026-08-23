@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-local-allowlist-id-contract",
-  "title": "Staging local connector allowlist identifier replay contract",
+  "title": "Staging local connector identifier contracts replay",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -16,11 +16,14 @@
       "docs/work-maps/data-model-domain-map.md",
       "docs/work-maps/work-map-coverage-matrix.md",
       "http-generic-api/activation-surfaces/exclusions/tenant_backend_connections.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_capability_grants.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_app_allowlists.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/032_sprint35_local_connector_seed.sql",
       "http-generic-api/migrations/036_sprint40_connect_page.sql",
       "http-generic-api/migrations/156_sprint65_remote_runtime_diff_name_status.sql",
       "http-generic-api/migrations/159_sprint65_db_driven_connector_shell_policy.sql",
+      "http-generic-api/migrations/162_sprint65_connector_capability_policy_grants.sql",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
@@ -54,7 +57,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make every direct local_connector_shell_allowlists writer provide its required allowlist_id so the ordered Staging schema replay is valid under MariaDB 11.4 strict mode, while adding a fail-closed builder guard against future omissions.",
+      "objective": "Make every direct local connector shell and file-access writer provide its required identifier so the ordered Staging schema replay is valid under MariaDB 11.4 strict mode, while adding fail-closed builder guards against future omissions.",
       "e2e_journeys": [
         {
           "id": "staging-local-allowlist-id-replay",
@@ -62,18 +65,19 @@
           "level": "synthetic_runtime",
           "actor": "Staging schema bundle generator and disposable MariaDB 11.4",
           "entrypoint": "The exact merged Staging checkout validates local connector allowlist writers and applies the complete baseline-plus-migration chain in disposable local MariaDB.",
-          "terminal_outcome": "Migrations 032, 036, 156, and 159 satisfy the allowlist_id contract, the static builder guard passes, and the schema-only bundle route remains forbidden from Production, providers, credentials, and data export.",
+          "terminal_outcome": "Migrations 032, 036, 156, 159, and 162 satisfy the allowlist_id and rule_id contracts, the static builder guards pass, and the schema-only bundle route remains forbidden from Production, providers, credentials, and data export.",
           "steps": [
             "Inventory the canonical baseline and numerically ordered migration chain in plan-only mode.",
-            "Validate every direct local_connector_shell_allowlists INSERT includes a non-null allowlist_id column and values where applicable.",
-            "Apply all migrations through migration 159 in disposable local MariaDB 11.4 and require the schema-only bundle contract.",
+            "Validate every direct local_connector_shell_allowlists and local_connector_file_access_rules INSERT includes its required identifier column and non-null values where applicable.",
+            "Apply all migrations through migration 162 in disposable local MariaDB 11.4 and require the schema-only bundle contract.",
             "Keep Production mutation, provider mutation, deployment, credential payload reads, and data export forbidden."
           ],
           "assertions": [
             "Historical local connector seed writers use deterministic allowlist identifiers rather than implicit missing defaults.",
             "Migration 156 inserts the diff_name_status allowlist row with an explicit identifier.",
             "Migration 159 remains idempotent through its config-and-alias duplicate key while carrying explicit identifiers.",
-            "The builder fails closed when a future direct local_connector_shell_allowlists INSERT omits allowlist_id.",
+            "Migration 032 file-access seed rows and migration 162 SELECT writers provide deterministic rule_id values.",
+            "The builder fails closed when a future direct local connector shell or file-access INSERT omits its required identifier.",
             "The local replay uses only disposable MariaDB 11.4 and preserves schema_only=true with Production/provider/data/secrets safety flags false."
           ],
           "tests": [

@@ -288,6 +288,27 @@ test("all local connector allowlist writers satisfy the required identifier cont
   assert.match(generator, /local_connector_shell_allowlists INSERT must include allowlist_id/iu);
 });
 
+test("all local connector file access rule writers satisfy the required identifier contract", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const writerFiles = [
+    "032_sprint35_local_connector_seed.sql",
+    "162_sprint65_connector_capability_policy_grants.sql",
+  ];
+  for (const file of writerFiles) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+    const writers = splitStatements(sql).filter((statement) => /^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+`?local_connector_file_access_rules`?/iu.test(statement));
+    assert.ok(writers.length > 0, `${file} must contain a local connector file access rule writer`);
+    for (const statement of writers) {
+      const columns = statement.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+`?local_connector_file_access_rules`?\s*\(([^)]*)\)/iu)?.[1] || "";
+      assert.match(columns, /(?:^|,)\s*`?rule_id`?\s*(?:,|$)/iu, `${file} local connector file access rule writer must include rule_id`);
+    }
+  }
+  const generator = fs.readFileSync(generatorPath, "utf8");
+  assert.match(generator, /function validateLocalConnectorFileAccessRuleStatement/iu);
+  assert.match(generator, /local_connector_file_access_rules INSERT must include rule_id/iu);
+  assert.match(generator, /local_connector_file_access_rules SELECT writer must provide a non-null rule_id/iu);
+});
+
 test("role manifest prevents runtime ownership of governance and persistence tables", () => {
   const runtimeExcluded = new Set(manifest.roles.runtime.excluded_tables);
   for (const table of manifest.roles.governance.required_tables) assert.equal(runtimeExcluded.has(table), true, `runtime must exclude governance table ${table}`);
