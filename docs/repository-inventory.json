@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7285,
-    "bytes": 71077844,
-    "lines": 1664813,
+    "files": 7287,
+    "bytes": 71088316,
+    "lines": 1664986,
     "directories": 266,
     "categories": 13
   },
@@ -13,9 +13,9 @@
     "byCategory": {
       "tests-and-specs": 2172,
       "documentation": 1910,
-      "api-runtime": 1468,
+      "api-runtime": 1469,
       "database-migrations": 784,
-      "root-and-other": 322,
+      "root-and-other": 323,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 131,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2512,
-      ".mjs": 1735,
+      ".mjs": 1736,
       ".js": 996,
-      ".json": 852,
+      ".json": 853,
       ".sql": 799,
       ".yml": 173,
       ".yaml": 119,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3744,
+      "http-generic-api": 3745,
       "docs": 1814,
       "specs": 880,
       ".github": 301,
-      ".changes": 291,
+      ".changes": 292,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -8731,9 +8731,9 @@
       "path": ".changes/e2e/staging-batch-baseline-column-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 19329,
+      "bytes": 19392,
       "lines": 298,
-      "sha256": "79d5e3a2dc55226aa457082a947307db318572711dcb29ea053952848e3de2b7",
+      "sha256": "eb7287b222f1d1b9f6079f427de547ee22ecf8e6d705dfff0027f76691c3ba8b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8753,9 +8753,9 @@
       "path": ".changes/e2e/staging-endpoints-column-baseline-contract.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5818,
+      "bytes": 5844,
       "lines": 98,
-      "sha256": "a1abfeab2bc8709e202a0f50e5fa551533d222bae21a31445bc64ab2acab5cbc",
+      "sha256": "2fa5a45f9068c9e145b95e679351f84f5635b803dcdb606e758976eac3180e00",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8805,6 +8805,17 @@
       "generated": false
     },
     {
+      "path": ".changes/e2e/staging-migration-1042-order-compatibility.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 5471,
+      "lines": 102,
+      "sha256": "71a88bf526adc5a7c5261c62fdf7e1fb2f10765d8db2b728d3b37d9ec58ea130",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".changes/e2e/staging-oauth-act-as-user-maintenance-20260816.json",
       "category": "root-and-other",
       "extension": ".json",
@@ -8819,9 +8830,9 @@
       "path": ".changes/e2e/staging-platform-contract-surfaces-baseline-contract.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4640,
+      "bytes": 4666,
       "lines": 86,
-      "sha256": "27dfb6bc86da3049365bfc65eeb5a8380b23810c6ab28bd6720ccf830a6dc8c5",
+      "sha256": "0c10abab3d56b981ced1768b8bf1ad9d870b9d57c4631bae2450cdf6a0f90d7d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8863,9 +8874,9 @@
       "path": ".changes/e2e/staging-tenant-secrets-baseline-contract.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4977,
+      "bytes": 5003,
       "lines": 91,
-      "sha256": "e9133b319fbf9b6ae0b677b25d6201a82d2bf4f4967b4788839973424719f236",
+      "sha256": "21e5204685f8fb91b76a3dfcb13e32a0688a0426b1da65bd08fea6bcee05bd65",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8874,9 +8885,9 @@
       "path": ".changes/e2e/staging-validation-repair-baseline-contract.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4086,
+      "bytes": 4117,
       "lines": 82,
-      "sha256": "5ecd2b7c4a3f044867c14ee357348687b177b2193f0c720fc3f2b3f81e3382b2",
+      "sha256": "f331542c44541206698ba27efd1282da0ef081be350af041d8514bfae1c7ad45",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11096,9 +11107,9 @@
       "path": ".github/workflows/e2e-phase-governance.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 13552,
-      "lines": 273,
-      "sha256": "e1f5c30aa9e9eb2e5a792617f71acc17d250cf2ad33732c3d06f01e5775b6f4e",
+      "bytes": 15734,
+      "lines": 295,
+      "sha256": "f458143e08567708aa2bab20ab6256582fdac66a596a47aafb5324dbe1a2fe77",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13474,7 +13485,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "02ed0494f618b39a54c12589d9830af7872fe7ada69b23f957e8a8cb68b7c69c",
+      "sha256": "ef3ac8cb43428b2cb9bcc1c863c182898705230376246f8e8904305ffcbff69c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32581,7 +32592,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "be4085683baca09c2e3b0c7229cf56559d4809b38640886db3835f1807a7c613",
+      "sha256": "d532196fc02d0d44584d3dc77b39f8a4a46afbe2739bc412d1086f03b7407ea2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34044,7 +34055,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "7542f071981f807e9abcda439a64a122c9002ab1a1940a77c574adcbeed558ea",
+      "sha256": "e761970e758ec7a854165b618bff7a3814471bf3295cacafb124e5443167502a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34209,7 +34220,7 @@
       "extension": ".md",
       "bytes": 49853,
       "lines": 541,
-      "sha256": "3ff0c8ea7973752bbc898545f7aaefdc61e24c9395bae3bafe2b05c4dc91c408",
+      "sha256": "9496f66496dd708589f2b7d50cf52affa379fd4d995cf4d6672066665da1b92b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37936,9 +37947,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 8918,
-      "lines": 225,
-      "sha256": "2fbf9317ada6a3b2e46393b95875664eeccad0fe430ad5d2e737935fac157e2a",
+      "bytes": 8976,
+      "lines": 226,
+      "sha256": "2307d838c4a7631d8bd9f0e1589129f6c9185a86c7cfb196e0499186b0d8fbfe",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38068,9 +38079,9 @@
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 14092,
+      "bytes": 14124,
       "lines": 442,
-      "sha256": "a190e0f72d6490b1df8fe5a6f1d11e65e52405f7698c75ebb39715a8334142b4",
+      "sha256": "5d55f94c3dde640a083fc70fe8cc161bc7bf0f03394b17ab580bbcba0d42a2a0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52458,7 +52469,7 @@
       "extension": ".json",
       "bytes": 1936395,
       "lines": 58560,
-      "sha256": "964a4b3858dbe93d68f3e16ecf0d3be7294c49770d6c4df5acb0971e029681b5",
+      "sha256": "35be5ee6291ef583079abba60c014c576bf1e490b77629e94efecab375060acf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -55470,9 +55481,9 @@
       "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 15748,
-      "lines": 299,
-      "sha256": "180da6b00b443e55477e3386090bb627243dd27b8ba9d6ab1c0dd297d286642f",
+      "bytes": 15974,
+      "lines": 301,
+      "sha256": "3c98c684f1aba6c86de0b4482d36cb6ca2629b6f2306a84bde36ea42d2fc0d83",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -55745,9 +55756,9 @@
       "path": "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "category": "schemas-and-data",
       "extension": ".mjs",
-      "bytes": 34174,
-      "lines": 531,
-      "sha256": "76c0386be1d097bf2b47fb9697c987cb5bc9d03f036e334e919d10c7d7e11d7a",
+      "bytes": 34414,
+      "lines": 533,
+      "sha256": "27e5fb700eefb176e676a1e9506797624068fc43532bcda0db85d01f3a4111b9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -57255,6 +57266,17 @@
       "bytes": 3652,
       "lines": 57,
       "sha256": "4383c4477b44dffa3ada9a6bf726b12acad179d961a9e2b542a53f08622abf51",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/migration-order.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 771,
+      "lines": 22,
+      "sha256": "4169f5bee8affe011b97fff0d2bc1cb96606729c22c9439af0ec93d70d3b03b8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64930,9 +64952,9 @@
       "path": "http-generic-api/test-environment-impact-closure.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8618,
-      "lines": 134,
-      "sha256": "1ca175f0bd8177cdebc7f21197cc45d00ea6f065906e80d6e97fcbaca3e6dc46",
+      "bytes": 8759,
+      "lines": 135,
+      "sha256": "f7aad372008999192ea8c904c3265f9d6c71440c4cbcdb076ffa23e0b9c7b0c1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -72498,9 +72520,9 @@
       "path": "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 34638,
-      "lines": 507,
-      "sha256": "b92be9629415896c12fa69af907ae59b79f50575bc06111f2f8870d5ce6cbde6",
+      "bytes": 35817,
+      "lines": 528,
+      "sha256": "43c113dbb3f0a9c1bc010aaa7f04a66ade82b547839590d571598d2f8c694828",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77868,7 +77890,7 @@
       "extension": ".json",
       "bytes": 13566,
       "lines": 327,
-      "sha256": "1d660a182e8431612bb31d8616687868aa25b2e21c6add36679a6fe6782e2157",
+      "sha256": "161fa99ed4c78374ef80811136a00067c89d1c306281634d73a33cc01f3fb1fd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79199,7 +79221,7 @@
       "extension": ".json",
       "bytes": 9813,
       "lines": 308,
-      "sha256": "f24416a62d0bbd742c3d3fd17bfaef43f394dfef2a40daf0ee173932242c190e",
+      "sha256": "1ad0273b1e96bfb00422729d30effd952f5faaa327fdaf33a44d3d294c2c66c0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79529,7 +79551,7 @@
       "extension": ".json",
       "bytes": 9816,
       "lines": 308,
-      "sha256": "8502beb5c44dddd3451911c3e4525391cbed234498977581629cab1e89e4f512",
+      "sha256": "c101e9e9b661180ecf52cdfadb72bd899172ae5528c2fde0811fa55ba66a9acf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81091,7 +81113,7 @@
       "extension": ".json",
       "bytes": 9819,
       "lines": 308,
-      "sha256": "fa0137160a32744f1e76852469802be315f34d50762e4386fd56fe61f7c3d6cb",
+      "sha256": "f5e4cf68e7512d65a107a0360983aeb236df9db6d1564076916de9c4f922acfc",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83159,7 +83181,7 @@
       "extension": ".json",
       "bytes": 10256,
       "lines": 310,
-      "sha256": "2f9dc10dc486d1ea667efe2a41e0dbcb22a1517c4bc34fa8430454cb2b1ba86e",
+      "sha256": "c34ce6bb3dd8eb7b442fc0322a4f02a060826d60683142e829ca07f950ed05d6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83544,7 +83566,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "1dc478c3adc33f8cd82cd8335dc1450499c59e3cd16401d3d2418e601a9827e7",
+      "sha256": "aa100d2dd794f5b2f552b3e817e3bf0100fe4545e2bb7195e8a8b66649d21305",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84105,7 +84127,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "514ef6f19fbb8e98cede8678aef95808d502031f8bb0d5c924d96a836f5896d2",
+      "sha256": "5f07c106e058009ed65e21f6af0f43385a30f9519ff0e82e3379c6c01aab8aff",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84501,7 +84523,7 @@
       "extension": ".json",
       "bytes": 31379,
       "lines": 1252,
-      "sha256": "74e69eaf440f840fb48f964103eb2ea8bef082d20fe3ec59d4aef7309685f219",
+      "sha256": "10031176c7498f34eafff91bf31f525cec18d4e8a59951ca4c88bd20405f6380",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84776,7 +84798,7 @@
       "extension": ".json",
       "bytes": 43504,
       "lines": 1512,
-      "sha256": "2bd1a41996718c0f9593f163af18e18a24246ba9e23f48c4c8ee1a22b50583b3",
+      "sha256": "fe2fcd4b2e5e87975c1545581ba1ee26162b6bb93461cc2325ac24214ad87bb1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84941,7 +84963,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "ecbda986a31eb6aa786b212afc278858e28f24f11e9f63a64db768ded51d135d",
+      "sha256": "2d7bbc09b5379ec39980ba1ba5958e375ea81466b5ad175867fbaf3d881c935c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85183,7 +85205,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "5bca6a2bf63cc358bf954bc7041d5f39e5b5d20732992db4974f47f03e82a56a",
+      "sha256": "5ad112eeaaeea3c2df888e22b46c65365e62d942a193ff3b3635faaf14cfcc9f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85502,7 +85524,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "175c9e400570e4e69eb5feb060f60db4c0d5898112b8f5663fd75d5f3c0e8451",
+      "sha256": "98504913e943ece7954d02452891c3cf90089fa1bfda506972320def90189ae5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85788,7 +85810,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "eeb55cb51e45082f13be2f8a612841eabe20e376d230a9d4241763271742dd21",
+      "sha256": "445bbe2e9026c6bf8cb5e044c7312bd8e8274c3b789ceecda533fd2121de502a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85865,7 +85887,7 @@
       "extension": ".json",
       "bytes": 49481,
       "lines": 1334,
-      "sha256": "17618ff2086a43a4e766e526434be12b2fe4c0b9ca5f4a34aa097b2656900691",
+      "sha256": "0937acba76bca9474ce511fb59e11ce1a3369784b056c86f69c22b3f242ab1c1",
       "mode": "644",
       "executable": false,
       "generated": false
