@@ -3,6 +3,9 @@
   "schema_version": 1,
   "inventory_path": "docs/repository-inventory.json",
   "baseline_fingerprints": [
+    ".github/ops/production-runtime-recovery-autodeploy.mjs|RUNTIME_RECOVERY_RESULT_PATH|environment_reference|runtime.recovery.result.path",
+    "http-generic-api/runtimeRecoverySnapshot.js|DEFAULT_REPOSITORY_SNAPSHOT_PATH|literal_declaration|repository.snapshot.path",
+    "http-generic-api/test-runtime-recovery-snapshot-routes.mjs|RUNTIME_RECOVERY_SOURCE_MODE|environment_reference|runtime.recovery.source.mode",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|BASE|environment_reference|runtime.base.url",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|DIR|environment_reference|evidence.dir",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|GH|environment_reference|gh.read.token",

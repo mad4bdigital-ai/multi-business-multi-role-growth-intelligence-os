@@ -3,6 +3,60 @@
   "schema_version": 1,
   "entries": [
     {
+      "config_key": "repository.snapshot.path",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/runtimeRecoverySnapshot.js",
+      "resolver_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "readback_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "shadow_evidence_ref": "docs/governance/runtime-recovery-schema-less-modes.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "runtime.recovery.result.path",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": ".github/ops/production-runtime-recovery-autodeploy.mjs",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "runtime.recovery.source.mode",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/runtimeRecoverySnapshot.js",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "shadow_evidence_ref": "docs/governance/runtime-recovery-schema-less-modes.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "activation.host.gateway.host",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
