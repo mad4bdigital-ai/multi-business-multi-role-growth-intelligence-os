@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7282,
-    "bytes": 70978323,
-    "lines": 1662710,
+    "bytes": 70981160,
+    "lines": 1662762,
     "directories": 266,
     "categories": 13
   },
@@ -10479,9 +10479,9 @@
       "path": ".github/ops/test-production-runtime-recovery.mjs",
       "category": "ci-config",
       "extension": ".mjs",
-      "bytes": 11703,
-      "lines": 211,
-      "sha256": "e2176ed48d49d68cb3cd0351e2e5c4150e3ec596f5fcbfc397e7283c456835e3",
+      "bytes": 13635,
+      "lines": 248,
+      "sha256": "86029ab130120a4969a6a7746877d89174b9a36d267eb46ea05b2f18f1284dc5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13440,7 +13440,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "90d7fd4a24f7af21bcc6739b3b8c668c28c0c40f934e6453f415f7c5728cefaf",
+      "sha256": "a3725ff50bc1667977a0a76be03fb009bcd4dc04a97430a943ebe1eb81f9e788",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -39189,9 +39189,9 @@
       "path": "http-generic-api/deploymentManifest.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 4974,
-      "lines": 156,
-      "sha256": "fe6fd465a5f7a5457dd079edbf601a972bee78ede878fd146a9cee148344c2e9",
+      "bytes": 5380,
+      "lines": 162,
+      "sha256": "bab3370717d07d44f28d0e7869440c45529afd0d33fe186cb6eef6b5b92dfddd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53467,9 +53467,9 @@
       "path": "http-generic-api/routes/deploymentInfoRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 12362,
-      "lines": 334,
-      "sha256": "0e9ea378add60d398a04b83c277e8f59ceb647e921917710dd245c350a984f08",
+      "bytes": 12861,
+      "lines": 343,
+      "sha256": "27d6df972584b45d67ef7b8cac43da831cf07edc890a5e7e229d76ffeeb2910f",
       "mode": "644",
       "executable": false,
       "generated": false
