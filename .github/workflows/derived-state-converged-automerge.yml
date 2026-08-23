@@ -30,7 +30,10 @@ jobs:
   attest:
     name: Trusted GitHub App exact-candidate attestation
     if: >-
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       ((github.event.workflow_run.name == 'Derived State Closure' && github.event.workflow_run.event == 'pull_request') ||
+        (github.event.workflow_run.name == 'Governed Production Promotion Request Launcher' && github.event.workflow_run.event == 'workflow_dispatch'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'FINALIZE_GOVERNANCE_ATTESTATION')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -58,9 +61,18 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$run"
           test "$(jq -r '.conclusion' "$run")" = "success"
           source_path="$(jq -r '.path' "$run")"
+          source_event="$(jq -r '.event' "$run")"
           case "$source_path" in
-            .github/workflows/derived-state-closure.yml) branch="main"; prefix="derived-state-closure-" ;;
-            .github/workflows/governed-production-promotion-request-launcher.yml) branch="Production"; prefix="governed-production-promotion-convergence-" ;;
+            .github/workflows/derived-state-closure.yml)
+              test "$source_event" = "pull_request"
+              branch="main"
+              prefix="derived-state-closure-"
+              ;;
+            .github/workflows/governed-production-promotion-request-launcher.yml)
+              test "$source_event" = "workflow_dispatch"
+              branch="Production"
+              prefix="governed-production-promotion-convergence-"
+              ;;
             *) echo "Untrusted finalizer source path: $source_path" >&2; exit 1 ;;
           esac
           artifacts="$RUNNER_TEMP/artifacts.json"
@@ -156,7 +168,8 @@ jobs:
     steps:
       - name: Register guarded auto-merge only for unchanged Ready PR
         env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
           PR_NUMBER: ${{ needs.attest.outputs.pr_number }}
           EXPECTED_HEAD_SHA: ${{ needs.attest.outputs.source_head_sha }}
           BASE_SHA: ${{ needs.attest.outputs.base_sha }}
@@ -164,6 +177,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" || -z "$GH_TOKEN" ]]; then
+            echo "REPO_AUTOSYNC_TOKEN is required so an auto-merge produces a normal push event and full post-merge CI." >&2
+            exit 1
+          fi
           pr="$RUNNER_TEMP/pr.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "$pr"
           test "$(jq -r '.state' "$pr")" = "open"

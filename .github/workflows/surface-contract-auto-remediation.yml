@@ -55,6 +55,7 @@ jobs:
             exit 0
           fi
           gh workflow run surface-contract-auto-remediation.yml \
+            --repo "${GITHUB_REPOSITORY}" \
             --ref main \
             -f expected_head_sha="${expected_head_sha}"
           echo "Dispatched Surface Contract Auto Remediation writer for exact main ${expected_head_sha}."

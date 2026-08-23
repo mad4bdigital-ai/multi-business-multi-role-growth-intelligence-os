@@ -267,12 +267,17 @@ jobs:
       - name: Enable guarded auto-merge for safe docs-only sync PRs
         if: steps.diff.outputs.auto_merge == 'true' && steps.freshness.outputs.current == 'true' && steps.cpr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
           EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" || -z "$GH_TOKEN" ]]; then
+            echo "REPO_AUTOSYNC_TOKEN is required for guarded auto-merge so GitHub emits the full post-merge push CI cycle. Leaving PR ${PR_NUMBER} open."
+            exit 0
+          fi
           latest_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           if [[ "${latest_main_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
             gh pr close "${PR_NUMBER}" --comment "Closing stale docs-only auto-sync PR: main moved from ${EXPECTED_HEAD_SHA} to ${latest_main_sha} before auto-merge registration. A newer run owns regeneration."
