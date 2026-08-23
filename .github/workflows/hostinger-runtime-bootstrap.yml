@@ -2,7 +2,6 @@ name: Hostinger Runtime Bootstrap Contract
 
 on:
   push:
-    branches: ["**"]
     paths:
       - '.github/workflows/hostinger-runtime-bootstrap.yml'
       - 'http-generic-api/config/runtime-bootstrap-contract.json'
