@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/staging-migration-1038-binding-width.json",
       "http-generic-api/migrations/1038_sprint69_github_actions_workflow_control_dispatch.sql",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
