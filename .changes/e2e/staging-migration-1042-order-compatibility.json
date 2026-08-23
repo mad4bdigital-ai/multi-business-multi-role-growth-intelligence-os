@@ -8,6 +8,11 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-migration-1042-order-compatibility.json",
+      ".changes/e2e/staging-batch-baseline-column-contracts.json",
+      ".changes/e2e/staging-endpoints-column-baseline-contract.json",
+      ".changes/e2e/staging-platform-contract-surfaces-baseline-contract.json",
+      ".changes/e2e/staging-tenant-secrets-baseline-contract.json",
+      ".changes/e2e/staging-validation-repair-baseline-contract.json",
       ".github/derived-state-governance.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",

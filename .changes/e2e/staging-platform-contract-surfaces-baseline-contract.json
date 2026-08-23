@@ -39,7 +39,7 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Staging schema bundle generator",
-          "entrypoint": "The exact local Git checkout applies schema.sql and the lexicographically ordered migration chain in disposable MariaDB.",
+          "entrypoint": "The exact local Git checkout applies schema.sql and the migration chain ordered by numeric prefix with filename tie-breaker in disposable MariaDB.",
           "terminal_outcome": "Migration 041 can add business_type_scope and execute its updates without an unknown platform_contract_surfaces table, while the generator remains schema-only and fail-closed.",
           "steps": [
             "The canonical baseline declares platform_contract_surfaces with the runtime-facing identity, scope, lifecycle, authority, adapter, file, and folder columns.",

@@ -44,7 +44,7 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Staging schema bundle generator",
-          "entrypoint": "The exact local checkout applies schema.sql and the lexicographically ordered migration chain in disposable MariaDB.",
+          "entrypoint": "The exact local checkout applies schema.sql and the migration chain ordered by numeric prefix with filename tie-breaker in disposable MariaDB.",
           "terminal_outcome": "Endpoint seed/upsert migrations can write endpoint_title and the full runtime governance/schema contract without unknown-column failures, and endpoint registry consumers can read the same fields.",
           "steps": [
             "The canonical endpoints baseline defines identity, title/provider, execution/dependency/logging metadata, category/review/legacy flags, request/schema capability flags, runtime binding profile, access flags, and writeback scope.",
