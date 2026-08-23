@@ -83,7 +83,7 @@
             "Hostinger Auto Deploy provenance uses canonical route_key values and structured full SHA/branch evidence rather than arbitrary provider deployment credentials.",
             "Primary and fallback concurrency is keyed to the shared Production mutation lock.",
             "Fallback target configuration has no ambiguous migrations field; baseline and incident entries are independently allowlisted, checksum-bound, and role-bound.",
-            "Canonical governed_migration_ledger readback and postconditions classify already-applied, record-only, and apply-required incident states fail-closed.",
+            "Canonical governed_migration_ledger readback fails closed on any checksum conflict; already-applied states are skipped, while schema-ready without apply-ledger evidence requires the explicitly authorized idempotent 20260815 apply flow and is not reconciled as record-only.",
             "Production bearer requests cannot target a non-canonical hostname, port, userinfo, path prefix, query, or fragment.",
             "The operator invokes centralized recovery policy before strategy execution, including when run directly outside the workflow.",
             "No Migration Apply, grant, database/provider mutation, deployment, restart, Policy Apply, Production activation, force push, or secret evidence occurs during validation."
