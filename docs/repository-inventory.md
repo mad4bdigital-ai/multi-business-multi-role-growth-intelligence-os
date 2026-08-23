@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,287 |
-| Total bytes | 71,092,532 |
-| Counted text lines | 1,665,054 |
+| Tracked files | 7,295 |
+| Total bytes | 71,189,413 |
+| Counted text lines | 1,666,813 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -17,13 +17,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,172 |
-| `documentation` | 1,910 |
-| `api-runtime` | 1,469 |
+| `tests-and-specs` | 2,173 |
+| `documentation` | 1,911 |
+| `api-runtime` | 1,473 |
 | `database-migrations` | 784 |
-| `root-and-other` | 323 |
+| `root-and-other` | 324 |
 | `api-contracts` | 191 |
-| `ci-workflows` | 170 |
+| `ci-workflows` | 171 |
 | `ci-config` | 131 |
 | `schemas-and-data` | 75 |
 | `connectors-and-edge` | 29 |
@@ -35,12 +35,12 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,512 |
-| `.mjs` | 1,736 |
-| `.js` | 996 |
-| `.json` | 853 |
+| `.md` | 2,513 |
+| `.mjs` | 1,738 |
+| `.js` | 998 |
+| `.json` | 855 |
 | `.sql` | 799 |
-| `.yml` | 173 |
+| `.yml` | 174 |
 | `.yaml` | 119 |
 | `.ps1` | 20 |
 | `.ts` | 16 |
@@ -73,10 +73,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 170 |
+| GitHub Actions workflows | 171 |
 | Database migrations | 784 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,262 |
+| Test/spec files (paths) | 2,263 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -92,7 +92,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,187 | 97972 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,474,185 | 97972 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,936,395 | 58560 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 991,977 | 23027 |

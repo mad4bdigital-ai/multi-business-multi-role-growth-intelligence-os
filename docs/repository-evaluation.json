@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "4a615b5894c65f7422ff374cba15de123ae6d962c3b2ad7c712fd082f26c759e",
+  "inputFingerprint": "b34a7c85a77cdf041449baf44a0a9e57cc28617a39605f81fd1416ff72caa6a1",
   "inventory": {
-    "files": 7287,
-    "bytes": 71092532,
+    "files": 7295,
+    "bytes": 71189413,
     "directories": 266,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 170,
-      "explicitPermissions": 170,
+      "workflowCount": 171,
+      "explicitPermissions": 171,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -25,7 +25,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7250,
+      "trackedTextFilesScanned": 7258,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-sequential-test-progress-report.mjs",
@@ -178,7 +178,7 @@
       "status": "open",
       "blocking": false,
       "evidence": {
-        "workflowCount": 170,
+        "workflowCount": 171,
         "maxWorkflowCount": 160,
         "workflowBudgetSource": "targetMaxWorkflowFiles",
         "overlapCheck": "passed"
@@ -202,7 +202,7 @@
           },
           {
             "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-            "bytes": 3474187
+            "bytes": 3474185
           }
         ],
         "unapproved": [

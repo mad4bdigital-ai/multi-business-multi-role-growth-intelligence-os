@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7287,
-    "bytes": 71092532,
-    "lines": 1665054,
+    "files": 7295,
+    "bytes": 71189413,
+    "lines": 1666813,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2172,
-      "documentation": 1910,
-      "api-runtime": 1469,
+      "tests-and-specs": 2173,
+      "documentation": 1911,
+      "api-runtime": 1473,
       "database-migrations": 784,
-      "root-and-other": 323,
+      "root-and-other": 324,
       "api-contracts": 191,
-      "ci-workflows": 170,
+      "ci-workflows": 171,
       "ci-config": 131,
       "schemas-and-data": 75,
       "connectors-and-edge": 29,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2512,
-      ".mjs": 1736,
-      ".js": 996,
-      ".json": 853,
+      ".md": 2513,
+      ".mjs": 1738,
+      ".js": 998,
+      ".json": 855,
       ".sql": 799,
-      ".yml": 173,
+      ".yml": 174,
       ".yaml": 119,
       ".ps1": 20,
       ".ts": 16,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3745,
-      "docs": 1814,
+      "http-generic-api": 3750,
+      "docs": 1815,
       "specs": 880,
-      ".github": 301,
-      ".changes": 292,
+      ".github": 302,
+      ".changes": 293,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -580,6 +580,7 @@
       ".github/workflows/hostinger-production-release-evidence-r5.yml",
       ".github/workflows/hostinger-production-release-evidence-r6.yml",
       ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      ".github/workflows/hostinger-runtime-bootstrap.yml",
       ".github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml",
       ".github/workflows/hostinger-storage-authorized-mount-executor-guard.yml",
       ".github/workflows/hostinger-storage-authorized-route-resolution-guard.yml",
@@ -2661,6 +2662,7 @@
       "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
       "http-generic-api/test-routes.mjs",
       "http-generic-api/test-run-test-manifest-sharding.mjs",
+      "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "http-generic-api/test-runtime-break-glass-authority-producers.mjs",
       "http-generic-api/test-runtime-break-glass-lifecycle.mjs",
       "http-generic-api/test-runtime-break-glass-reconciliation-closure.mjs",
@@ -4925,6 +4927,7 @@
       "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
       "http-generic-api/test-routes.mjs",
       "http-generic-api/test-run-test-manifest-sharding.mjs",
+      "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "http-generic-api/test-runtime-break-glass-authority-producers.mjs",
       "http-generic-api/test-runtime-break-glass-lifecycle.mjs",
       "http-generic-api/test-runtime-break-glass-reconciliation-closure.mjs",
@@ -7230,6 +7233,17 @@
       "bytes": 6542,
       "lines": 115,
       "sha256": "80f81bed7761db42ae9531a84351e6d24e32ffe66e8838ec8db209dce4df0452",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 5913,
+      "lines": 110,
+      "sha256": "76186940240705577e7971824ddfdd0a9de129a9e83d2665b588e02df9c01100",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11536,6 +11550,17 @@
       "generated": false
     },
     {
+      "path": ".github/workflows/hostinger-runtime-bootstrap.yml",
+      "category": "ci-workflows",
+      "extension": ".yml",
+      "bytes": 6333,
+      "lines": 152,
+      "sha256": "ef4a2a707d6fd992a4399e5ac5aa36e8a948e4dc71639964d102128c95dd1cef",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml",
       "category": "ci-workflows",
       "extension": ".yml",
@@ -13488,7 +13513,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "2e33b5d378a64390d04c4661d469ae347541134959c5a48d1b20cd23ee5f317d",
+      "sha256": "8a0a88c7656eeb4b14dac19f197604a0c9134c31178bd929adb6a4a1ba8ec313",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31138,6 +31163,17 @@
       "generated": false
     },
     {
+      "path": "docs/governance/hostinger-runtime-bootstrap.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 8093,
+      "lines": 78,
+      "sha256": "24f665fc27fc2d6e4ca0a24e381f1065f5c07f61a259fa9fef1043dbc63c2cc0",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/governance/platform-configuration-entry-registry.json",
       "category": "documentation",
       "extension": ".json",
@@ -32595,7 +32631,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "d532196fc02d0d44584d3dc77b39f8a4a46afbe2739bc412d1086f03b7407ea2",
+      "sha256": "26d2916baa92ee6d7c6c81c89a74912bd3fbc8d70ddd726e6ac35b25250950f8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38057,6 +38093,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/config/runtime-bootstrap-contract.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 6795,
+      "lines": 154,
+      "sha256": "4881bfec9d849d666a03865398b40b7944303f13fc6e4ee60d493fe6c320430c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/config/runtime-recovery-repository-snapshot.json",
       "category": "api-runtime",
       "extension": ".json",
@@ -40029,9 +40076,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3474187,
+      "bytes": 3474185,
       "lines": 97972,
-      "sha256": "8977b2ed135912b09733b8af6c091dc651be0554842dcaa61bb9f04e66380fdd",
+      "sha256": "3087bfa89edc29c21e38ee7b754433d6c7799dbb5c57c0b235a57a7a662a3f1d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52472,7 +52519,7 @@
       "extension": ".json",
       "bytes": 1936395,
       "lines": 58560,
-      "sha256": "ed9d3c871f357af4612fd7c9d70e9b9e7771710bd708db6255a8508f15757eb8",
+      "sha256": "d93e35e9784d64b8d169b3838e3e51167c1a142d7ace8d152149de350d4043b0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54755,6 +54802,28 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/runtimeBootstrapContract.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 45962,
+      "lines": 743,
+      "sha256": "9a171021b440591138fc4e4fd4129eb705f3f8f2f8cc6c6a8cf5969b883b4ef9",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/runtimeBootstrapStatus.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 3462,
+      "lines": 87,
+      "sha256": "847df564cb8670a0a63f9d000d4542924eee59ed96796f3e3cc1e1279af52c79",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/runtimeBreakGlassLifecycle.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -56917,6 +56986,17 @@
       "bytes": 16568,
       "lines": 361,
       "sha256": "91dd667dd23a6e5b80f12a383a5fb85527df4fa96e793b8ab245c500207426aa",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 3919,
+      "lines": 122,
+      "sha256": "c1499ae45b29885ea96c6b0e8b9697a8d367e7c47ac617ee80b9a69179b451a2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70997,6 +71077,17 @@
       "bytes": 3045,
       "lines": 87,
       "sha256": "c14bad3aeb89b1ab907c2a3af480e6882bfab4e6064e107418550c55cc8146cd",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 16406,
+      "lines": 313,
+      "sha256": "b18aa14cacefa3283db892f1591c0932b6373fb1481122313ef1132fc783afec",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85736,7 +85827,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "eaea098e7bede41e01b1c2c1e95b4456c2263a28545932e4b7512189fc27a282",
+      "sha256": "ebad0bcacf0fcd4fa0f5ffb7d85ac7735ad37ea1e692dc476dea526b184a8466",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85747,7 +85838,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "3eb622f0a7047c5ab6f5d9884ae290997932992a9cf61cf5cd2c3ae6b8436556",
+      "sha256": "cdf7b962a014a82fe7fc2f6bd567d465071808405512b40a7bc88a45ec2742a2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85758,7 +85849,7 @@
       "extension": ".json",
       "bytes": 269236,
       "lines": 6392,
-      "sha256": "6964d500c97bfe014c03211fc94b8481fa97fd2784a77607cc756f9c4039ee96",
+      "sha256": "b526086472d1151b855bf3386dcce550abcd19272cac4a23bb6f56fbf4a8c0f7",
       "mode": "644",
       "executable": false,
       "generated": false
