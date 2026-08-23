@@ -1,0 +1,128 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-recovery-schema-less-control-plane-20260823",
+  "title": "Schema-less runtime recovery control plane and Work Map binding maintenance",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
+      "http-generic-api/.env.example",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/runtime-recovery-repository-snapshot.json",
+      "http-generic-api/deploymentManifest.js",
+      "http-generic-api/governedMigrationExecutionTool.js",
+      "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
+      "http-generic-api/scripts/governed-migration-runner.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/activationRoutes.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/runtimeRecoverySnapshot.js",
+      "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      ".github/ops/production-runtime-recovery-policy.mjs",
+      ".github/ops/production-runtime-recovery-autodeploy.mjs",
+      ".github/ops/production-runtime-recovery-routes.json",
+      ".github/ops/production-runtime-recovery.md",
+      ".github/ops/test-production-runtime-recovery.mjs",
+      ".github/ops/test-production-runtime-recovery-policy.mjs",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "docs/governance/configuration-drift-policy.json",
+      ".github/workflows/policy-objection-ci.yml",
+      ".github/workflows/derived-state-closure.yml",
+      ".github/tests/derived-state-closure.test.mjs",
+      "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide two bounded GitHub-controlled read-only recovery snapshot sources for runtimes that do not yet have the canonical schema or tables, while retaining SQL/runtime recovery as a separate authority path.",
+      "e2e_journeys": [
+        {
+          "id": "schema-less-snapshot-recovery-is-read-only",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance operator",
+          "entrypoint": "GitHub-controlled runtime recovery snapshot strategy",
+          "terminal_outcome": "github_snapshot and repository_snapshot expose bounded read-only evidence without opening a database connection, fabricating a durable session, claiming runtime authority, or dispatching mutating tools.",
+          "steps": [
+            "Load a repository snapshot or bounded GitHub snapshot descriptor under the runtime-recovery snapshot contract.",
+            "Reject sensitive fields, durable session identifiers, runtime-authority claims, mutation flags, and write-like tool descriptors.",
+            "Expose only canonical read-only recovery routes and the approved read-only runtime status descriptor.",
+            "Return explicit database_required=false, persistence=unavailable, and runtime_authority=false evidence.",
+            "Keep the SQL/runtime-mediated path separate and fail closed when its schema or table prerequisites are unavailable.",
+            "Require one shared Production mutation lock so primary and fallback cannot execute concurrently.",
+            "Separate canonical baseline bootstrap sources from incident recovery migrations and reject verification-only migrations from fallback apply.",
+            "Bind bearer readback destinations to the exact canonical Production origin and repeat centralized policy preflight inside the operator.",
+            "Run the route regression without connecting to or mutating a live database."
+          ],
+          "assertions": [
+            "Snapshot source values are non-secret and bounded; snapshot JSON is never read from GitHub Secrets.",
+            "Snapshot strategy rejects sql source mode and any apply_execution request.",
+            "Snapshot session context has no durable session_id and no persistence write path.",
+            "Snapshot tool dispatch blocks unapproved or mutating tools with a bounded read-only error.",
+            "Hostinger Auto Deploy provenance uses canonical route_key values and structured full SHA/branch evidence rather than arbitrary provider deployment credentials.",
+            "Primary and fallback concurrency is keyed to the shared Production mutation lock.",
+            "Fallback target configuration has no ambiguous migrations field; baseline and incident entries are independently allowlisted, checksum-bound, and role-bound.",
+            "Canonical governed_migration_ledger readback fails closed on any checksum conflict; already-applied states are skipped, while schema-ready without apply-ledger evidence requires the explicitly authorized idempotent 20260815 apply flow and is not reconciled as record-only.",
+            "Production bearer requests cannot target a non-canonical hostname, port, userinfo, path prefix, query, or fragment.",
+            "The operator invokes centralized recovery policy before strategy execution, including when run directly outside the workflow.",
+            "No Migration Apply, grant, database/provider mutation, deployment, restart, Policy Apply, Production activation, force push, or secret evidence occurs during validation."
+          ],
+          "tests": [
+            {
+              "id": "runtime-recovery-snapshot-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-recovery-snapshot-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "production-runtime-recovery-control-plane",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/ops/test-production-runtime-recovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
+            ".github/ops/production-runtime-recovery-autodeploy.mjs",
+            ".github/ops/production-runtime-recovery-policy.mjs",
+            "http-generic-api/governedMigrationExecutionTool.js",
+            "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
+            "http-generic-api/scripts/governed-migration-runner.mjs",
+            ".github/ops/test-production-runtime-recovery-policy.mjs",
+            ".github/ops/production-runtime-recovery-routes.json",
+            ".github/ops/production-runtime-recovery.md",
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "docs/governance/configuration-drift-policy.json",
+            "http-generic-api/runtimeRecoverySnapshot.js",
+            "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+            ".github/ops/test-production-runtime-recovery.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

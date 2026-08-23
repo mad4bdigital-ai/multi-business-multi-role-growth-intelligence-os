@@ -145,10 +145,16 @@ export function classifyDeploymentProvenance({
 export function buildVersionPayload({ serviceVersion = "", env = process.env } = {}) {
   const manifestResult = readDeploymentManifest(env);
   const deployment = classifyDeploymentProvenance({ manifestResult, env });
+  const canonicalManifest = deployment.manifest || null;
+  const canonicalCommit = String(canonicalManifest?.commit_sha || "").trim();
+  const canonicalBranch = String(canonicalManifest?.branch || "").trim();
   return {
     ok: deployment.deployment_status !== "deployed_stale",
     service: "http_generic_api_connector",
     version: serviceVersion,
+    gitCommitFull: /^[0-9a-f]{40}$/iu.test(canonicalCommit) ? canonicalCommit.toLowerCase() : null,
+    gitBranch: canonicalBranch || null,
+    provenanceSource: canonicalManifest?.source || null,
     deployment,
     timestamp: new Date().toISOString(),
   };

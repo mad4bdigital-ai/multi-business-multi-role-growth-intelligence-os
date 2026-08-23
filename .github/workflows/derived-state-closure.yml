@@ -202,7 +202,7 @@ jobs:
                   break
                 fi
               fi
-            done < <(jq -r '[.workflow_runs[] | select(.status=="completed" and .conclusion=="success")] | sort_by(.created_at) | reverse | .[].id' "$runs")
+            done < <(jq -r '[.workflow_runs[] | select(.status=="completed" and (.conclusion=="success" or .conclusion=="failure"))] | sort_by(.created_at) | reverse | .[].id' "$runs")
             [[ -n "$matched" ]] || sleep 10
           done
           [[ -n "$matched" ]]

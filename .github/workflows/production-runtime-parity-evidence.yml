@@ -5,7 +5,18 @@ on:
     branches: [main]
     paths:
       - '.changes/e2e/production-runtime-parity-evidence.json'
+      - '.changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json'
       - '.github/workflows/production-runtime-parity-evidence.yml'
+      - '.github/ops/production-runtime-recovery-autodeploy.mjs'
+      - '.github/ops/production-runtime-recovery-policy.mjs'
+      - '.github/ops/production-runtime-recovery-routes.json'
+      - '.github/ops/test-production-runtime-recovery.mjs'
+      - '.github/ops/test-production-runtime-recovery-policy.mjs'
+      - 'http-generic-api/governedMigrationExecutionTool.js'
+      - 'http-generic-api/scripts/governed-migration-runner.mjs'
+      - 'http-generic-api/scripts/governed-migration-runner-bootstrap.mjs'
+      - 'http-generic-api/runtimeRecoverySnapshot.js'
+      - 'http-generic-api/test-runtime-recovery-snapshot-routes.mjs'
       - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
       - 'http-generic-api/config/deployment-branch-policy.json'
@@ -17,13 +28,47 @@ on:
         type: string
       expected_branch:
         description: Exact deployment branch reported by /version
-        required: true
+        required: false
         default: Production
         type: string
       auth_url:
         description: Hostinger Production auth runtime /version endpoint
         required: true
         default: https://auth.mad4b.com/version
+        type: string
+      strategy:
+        description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
+        required: false
+        default: disabled
+        type: choice
+        options:
+          - disabled
+          - verify
+          - snapshot
+          - primary
+          - fallback
+      source_mode:
+        description: Snapshot source; used only by snapshot strategy.
+        required: false
+        default: sql
+        type: choice
+        options:
+          - sql
+          - github_snapshot
+          - repository_snapshot
+      apply_execution:
+        description: Perform governed recovery mutations. Snapshot is always read-only.
+        required: false
+        default: false
+        type: boolean
+      confirmation:
+        description: For mutations use RECOVER:<strategy>:<exact-sha>.
+        required: false
+        type: string
+      target_key:
+        description: Fallback target key from RUNTIME_RECOVERY_TARGETS_JSON.
+        required: false
+        default: runtime
         type: string
 
 permissions:
@@ -60,9 +105,12 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-production-runtime-parity-evidence.mjs
 
+      - name: Validate recovery operator, centralized policy, and runner ancestry
+        run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
+
   live:
     name: Live Production Runtime Parity
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.strategy == 'disabled'
     needs: contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -171,3 +219,121 @@ jobs:
               secrets_included: false
             }));
           '
+
+  recovery:
+    name: Recover Production after Hostinger Auto Deploy
+    if: github.event_name == 'workflow_dispatch' && inputs.strategy != 'disabled'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: Production
+    concurrency:
+      group: production-runtime-recovery-production
+      cancel-in-progress: false
+    env:
+      RECOVERY_STRATEGY: ${{ inputs.strategy }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      APPLY_EXECUTION: ${{ inputs.strategy == 'snapshot' && 'false' || inputs.apply_execution }}
+      RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+      RECOVERY_TARGET_KEY: ${{ inputs.target_key }}
+      RUNTIME_RECOVERY_SOURCE_MODE: ${{ inputs.source_mode }}
+      PRODUCTION_SOURCE_BRANCH: ${{ vars.PRODUCTION_SOURCE_BRANCH || 'Production' }}
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://auth.mad4b.com' }}
+      GITHUB_TOKEN: ${{ github.token }}
+      PRODUCTION_VERIFY_ATTEMPTS: ${{ vars.PRODUCTION_VERIFY_ATTEMPTS || '36' }}
+      PRODUCTION_VERIFY_INTERVAL_SECONDS: ${{ vars.PRODUCTION_VERIFY_INTERVAL_SECONDS || '10' }}
+      PRODUCTION_PROBE_AUTH_HEADER: ${{ vars.PRODUCTION_PROBE_AUTH_HEADER || 'Authorization' }}
+      RUNTIME_RECOVERY_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_PROBES_JSON }}
+      PRIMARY_GOVERNED_STEPS_JSON: ${{ vars.PRIMARY_GOVERNED_STEPS_JSON }}
+      RUNTIME_RECOVERY_FINAL_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_FINAL_PROBES_JSON }}
+      RUNTIME_RECOVERY_SNAPSHOT_JSON: ${{ vars.RUNTIME_RECOVERY_SNAPSHOT_JSON }}
+      RUNTIME_RECOVERY_CATALOG_JSON: ${{ vars.RUNTIME_RECOVERY_CATALOG_JSON }}
+      RUNTIME_RECOVERY_SESSION_CONTEXT_JSON: ${{ vars.RUNTIME_RECOVERY_SESSION_CONTEXT_JSON }}
+      RUNTIME_RECOVERY_SNAPSHOT_PATH: ${{ vars.RUNTIME_RECOVERY_SNAPSHOT_PATH || 'http-generic-api/config/runtime-recovery-repository-snapshot.json' }}
+      RUNTIME_RECOVERY_TARGETS_JSON: ${{ vars.RUNTIME_RECOVERY_TARGETS_JSON }}
+      RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE: ${{ vars.RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE || 'false' }}
+    steps:
+      - name: Validate exact Production head before checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          actual_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${PRODUCTION_SOURCE_BRANCH}" --jq '.object.sha')"
+          test "${actual_sha,,}" = "${EXPECTED_SHA,,}"
+
+      - name: Checkout exact Production source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Verify recovery route, operator, centralized policy, and runner ancestry contracts
+        run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
+
+      - name: Validate configured recovery plan against reviewed policy
+        run: node .github/ops/production-runtime-recovery-policy.mjs preflight
+
+      - name: Install MariaDB dependency for explicit fallback apply only
+        if: inputs.strategy == 'fallback' && inputs.apply_execution
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Initialize bounded evidence path
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="${RUNNER_TEMP}/production-runtime-recovery"
+          mkdir -p "${evidence_dir}"
+          echo "RUNTIME_RECOVERY_RESULT_PATH=${evidence_dir}/result.json" >> "${GITHUB_ENV}"
+          echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
+
+      - name: Execute selected recovery strategy through centralized policy
+        env:
+          PRODUCTION_PROBE_AUTH_VALUE: ${{ inputs.strategy != 'snapshot' && secrets.PRODUCTION_PROBE_AUTH_VALUE || '' }}
+          MYSQL_BOOTSTRAP_HOST: ${{ inputs.strategy == 'fallback' && vars.MYSQL_BOOTSTRAP_HOST || '' }}
+          MYSQL_BOOTSTRAP_PORT: ${{ inputs.strategy == 'fallback' && (vars.MYSQL_BOOTSTRAP_PORT || '3306') || '' }}
+          MYSQL_BOOTSTRAP_USER: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_USER || '' }}
+          MYSQL_BOOTSTRAP_PASSWORD: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_PASSWORD || '' }}
+        run: node .github/ops/production-runtime-recovery-policy.mjs execute
+
+      - name: Verify fallback least-privilege grants in same cycle
+        if: inputs.strategy == 'fallback' && inputs.apply_execution
+        env:
+          MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+          MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+          MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+          MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+        run: node .github/ops/production-runtime-recovery-policy.mjs grant-readback
+
+      - name: Verify live response-chunk persistence binding
+        if: inputs.apply_execution && (inputs.strategy == 'primary' || inputs.strategy == 'fallback')
+        env:
+          PRODUCTION_PROBE_AUTH_VALUE: ${{ secrets.PRODUCTION_PROBE_AUTH_VALUE }}
+        run: node .github/ops/production-runtime-recovery-policy.mjs persistence-readback
+
+      - name: Reverify immutable Production head
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          actual_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${PRODUCTION_SOURCE_BRANCH}" --jq '.object.sha')"
+          test "${actual_sha,,}" = "${EXPECTED_SHA,,}"
+
+      - name: Upload bounded no-secret recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-runtime-recovery-${{ inputs.strategy }}-${{ inputs.source_mode }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: warn
+          retention-days: 30

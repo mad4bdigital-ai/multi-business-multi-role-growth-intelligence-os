@@ -1,0 +1,212 @@
+{
+  "schema_version": "production-runtime-recovery-routes.v1",
+  "base_url_variable": "PRODUCTION_BASE_URL",
+  "production_origin_binding": {
+    "source_policy": "http-generic-api/config/deployment-branch-policy.json",
+    "hostname_field": "production.hostname",
+    "require_exact_hostname": true,
+    "require_https": true,
+    "allow_non_default_port": false,
+    "allow_userinfo": false,
+    "allow_path_prefix": false
+  },
+  "routes": {
+    "health": {
+      "method": "GET",
+      "path": "/health",
+      "auth": "public",
+      "purpose": "Hostinger process health before and after recovery"
+    },
+    "version": {
+      "method": "GET",
+      "path": "/version",
+      "auth": "public",
+      "purpose": "Exact deployed commit and branch provenance"
+    },
+    "deployment_info": {
+      "method": "GET",
+      "path": "/deployment-info",
+      "auth": "public",
+      "purpose": "Independent exact deployed commit and branch provenance"
+    },
+    "gpt_tools": {
+      "method": "GET",
+      "path": "/gpt/tools",
+      "auth": "bearer",
+      "purpose": "Admin/System tool catalog functional readiness"
+    },
+    "gpt_tool_call": {
+      "method": "POST",
+      "path": "/gpt/tools/call",
+      "auth": "bearer",
+      "purpose": "Canonical governed tool execution envelope",
+      "body_contract": {
+        "name": "string",
+        "tool_args": "object"
+      },
+      "tool_policy": {
+        "read_only_tools": [
+          "governed_migration_schema_readback"
+        ],
+        "mode_scoped_tools": {
+          "governed_migration_execute": {
+            "read_only_modes": ["dry_run"],
+            "mutation_modes": ["apply"]
+          }
+        },
+        "mutation_tools": [
+          "governed_migration_authorization_bootstrap",
+          "governed_migration_apply_policy_bootstrap"
+        ],
+        "dedicated_post_apply_tools": {
+          "response_chunk_durable_recovery_smoke": {
+            "confirmation_field": "confirm",
+            "confirmation_value": "RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE",
+            "generic_configured_step_allowed": false,
+            "purpose": "Prove the live RUNTIME_PERSISTENCE_DB binding can persist, evict, recover, checksum, reconstruct UTF-8, and extend TTL."
+          }
+        },
+        "unknown_tool_policy": "deny"
+      }
+    },
+    "session_context": {
+      "method": "GET",
+      "path": "/activation/session-context/read-only",
+      "auth": "bearer",
+      "purpose": "Session Context read-only topology/readback; this route does not prove INSERT authority"
+    }
+  },
+  "allowed_configured_steps": [
+    "health",
+    "version",
+    "deployment_info",
+    "gpt_tools",
+    "gpt_tool_call",
+    "session_context"
+  ],
+  "recovery_migrations": {
+    "225_sprint67_capability_resolution_envelope_ledger.sql": {
+      "sha256": "35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419",
+      "statement_count": 3,
+      "allowed_modes": ["dry_run"],
+      "incident_role": "verification_only"
+    },
+    "1048_transport_response_chunk_schema_recovery.sql": {
+      "sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
+      "statement_count": 34,
+      "allowed_modes": ["dry_run"],
+      "incident_role": "verification_only",
+      "note": "Ledger/schema presence alone is not live persistence proof; dedicated durable recovery smoke is required after apply recovery."
+    },
+    "20260815_custom_gpt_mcp_catalog_levels.sql": {
+      "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+      "statement_count": 7,
+      "allowed_modes": ["dry_run", "apply"],
+      "incident_role": "only_current_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true
+    }
+  },
+  "fallback_migration_policy": {
+    "baseline_bootstrap_migrations": [
+      {
+        "kind": "schema",
+        "file": "http-generic-api/schema.sql",
+        "sha256": "ccec29be9d88e8c8eb9355169467270d03a72b8887d48a510634cfe797fd5169",
+        "statement_count": 27,
+        "when": "database_missing_or_empty",
+        "data_statements_allowed": false
+      }
+    ],
+    "incident_recovery_allowlist": [
+      "20260815_custom_gpt_mcp_catalog_levels.sql"
+    ],
+    "verification_only_allowlist": [
+      "225_sprint67_capability_resolution_envelope_ledger.sql",
+      "1048_transport_response_chunk_schema_recovery.sql"
+    ],
+    "legacy_ambiguous_migrations_field": "forbidden",
+    "baseline_bootstrap_required_for_empty_database": true,
+    "unknown_migration_policy": "deny",
+    "canonical_governed_ledger": "governed_migration_ledger",
+    "canonical_governed_ledger_required": true,
+    "conflicting_apply_checksum_fails_even_with_matching_record": true,
+    "schema_ready_without_apply_ledger_requires_authorized_idempotent_flow": true,
+    "record_only_reconciliation_allowed": false,
+    "canonical_incident_evidence_mode": "apply",
+    "incident_postconditions": {
+      "20260815_custom_gpt_mcp_catalog_levels.sql": [
+        {
+          "type": "column",
+          "table": "admin_platform_endpoint_tools",
+          "column": "mcp_catalog_level"
+        },
+        {
+          "type": "column",
+          "table": "tenant_platform_endpoint_tools",
+          "column": "mcp_catalog_level"
+        },
+        {
+          "type": "index",
+          "table": "admin_platform_endpoint_tools",
+          "index": "idx_enabled_mcp_level_sort"
+        },
+        {
+          "type": "index",
+          "table": "tenant_platform_endpoint_tools",
+          "index": "idx_enabled_mcp_level_sort"
+        },
+        {
+          "type": "row",
+          "table": "tenant_platform_endpoint_tools",
+          "key_column": "tool_key",
+          "key_value": "tenant_growth_recommendation_feedback",
+          "value_column": "mcp_catalog_level",
+          "expected_value": "growth_feedback"
+        }
+      ]
+    }
+  },
+  "grant_policy": {
+    "required_tables": [
+      "customer_sessions",
+      "gpt_session_turns",
+      "actions",
+      "dynamic_audit_scheduler_runs",
+      "execution_log",
+      "json_assets"
+    ],
+    "required_operations": ["SELECT", "INSERT", "UPDATE"],
+    "allow_additional_tables": false,
+    "allow_additional_operations": false,
+    "allow_schema_write_privileges": false,
+    "allow_global_write_privileges": false,
+    "allow_grant_option": false,
+    "same_cycle_readback_required": true
+  },
+  "readiness_dimensions": [
+    "deployment_identity_ready",
+    "route_topology_ready",
+    "verification_migrations_ready",
+    "catalog_schema_ready",
+    "writer_privileges_ready",
+    "response_chunk_live_binding_ready",
+    "session_persistence_ready"
+  ],
+  "notes": [
+    "Hostinger Auto Deploy is triggered only by a merge or push to Production; this contract never triggers a deployment.",
+    "A configured GitHub recovery step selects a route_key from this contract instead of supplying an arbitrary URL path.",
+    "The gpt_tool_call route is not a generic admin executor: unknown tools are denied, mutation semantics are phase-scoped, and 225/1048 are verification-only.",
+    "Direct SQL fallback is incident-scoped: only the uniquely incident-allowlisted, checksum- and statement-count-pinned migration in fallback_migration_policy can execute; unknown, verification-only, or baseline migrations are denied outside their separate reviewed class.",
+    "The direct fallback consults every canonical apply record for the migration in governed_migration_ledger and fails closed on any checksum conflict, even if a matching record also exists.",
+    "Schema-ready state without canonical apply-ledger evidence does not create record-only reconciliation evidence; it remains in the explicitly authorized idempotent 20260815 execution flow, receives same-cycle postcondition readback, and is recorded canonically with mode=apply while preserving whether SQL actually ran.",
+    "Production bearer requests are allowed only to the canonical HTTPS origin in deployment-branch-policy.json production.hostname and branch Production.",
+    "404 or 405 means route_contract_missing; 401 or 403 means route_present_auth_not_ready; 5xx means route_present_runtime_dependency_failed.",
+    "A successful read-only Session Context response proves route/read topology only, not customer_sessions INSERT authority.",
+    "A migration ledger row for 1048 is not sufficient to prove the live runtime-persistence binding; durable response-chunk recovery must succeed against the live binding.",
+    "Functional success still requires the configured expected status and response contract.",
+    "Primary and fallback mutation runs share the Production concurrency lock in the parity workflow.",
+    "Fallback baseline bootstrap and incident recovery migrations are separate reviewed allowlists; the legacy migrations field is forbidden.",
+    "Bearer readback requests are restricted to the exact canonical production.hostname from deployment-branch-policy.json."
+  ]
+}
