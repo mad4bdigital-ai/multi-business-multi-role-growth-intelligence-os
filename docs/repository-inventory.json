@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7282,
-    "bytes": 70976923,
-    "lines": 1662669,
+    "bytes": 70975731,
+    "lines": 1662653,
     "directories": 266,
     "categories": 13
   },
@@ -10006,9 +10006,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 17712,
+      "bytes": 17723,
       "lines": 236,
-      "sha256": "62000ac2bdebc6a29a7daa145d920af783657943c231269037782d2a39e7b6b1",
+      "sha256": "2d37dcc02344cc82e3ed3b696b7cc6498908d4df8fc7b459ce1f5ed17a5b618f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10083,9 +10083,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 9710,
+      "bytes": 9721,
       "lines": 103,
-      "sha256": "b050a3799997f8a6c4555ee993a8b891cc3dc52e05271738ab4b44304542e739",
+      "sha256": "f2af82ffdd5287c382ddd17ab4c3f7e2dea93ecbe8a6587e8e8606b83de29e6b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10256,6 +10256,17 @@
       "generated": false
     },
     {
+      "path": ".github/ops/production-runtime-recovery-autodeploy.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 33024,
+      "lines": 702,
+      "sha256": "9db9f6963d3355ebbbec127ca537cdb99b8b41286ceb8e50c3d927289840b89a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/ops/production-runtime-recovery-routes.json",
       "category": "ci-config",
       "extension": ".json",
@@ -10270,20 +10281,9 @@
       "path": ".github/ops/production-runtime-recovery.md",
       "category": "ci-config",
       "extension": ".md",
-      "bytes": 13287,
-      "lines": 327,
-      "sha256": "1a871fa295c895428ee275eee67e7e1869759dd5e285a58366b0c3d94f4fb161",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
-      "path": ".github/ops/production-runtime-recovery.mjs",
-      "category": "ci-config",
-      "extension": ".mjs",
-      "bytes": 35757,
-      "lines": 796,
-      "sha256": "1cfc83f9ed5b2f2c655ad67a832070f6c6e3e7741ff5b53619aebf4b486bc413",
+      "bytes": 14334,
+      "lines": 411,
+      "sha256": "48f868081c0d8ae8d527a071290bb49ded5eced7ef28632c73fc24e7e129f7f4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10479,9 +10479,9 @@
       "path": ".github/ops/test-production-runtime-recovery.mjs",
       "category": "ci-config",
       "extension": ".mjs",
-      "bytes": 10282,
-      "lines": 203,
-      "sha256": "67f71853c8d2c4198c01c1bb1444e45307e011a0c7bee11303c1aadcf3b0d88f",
+      "bytes": 11703,
+      "lines": 211,
+      "sha256": "e2176ed48d49d68cb3cd0351e2e5c4150e3ec596f5fcbfc397e7283c456835e3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12107,9 +12107,9 @@
       "path": ".github/workflows/production-runtime-recovery.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 7949,
-      "lines": 170,
-      "sha256": "59379e8f4319b797903962cf16cf2880b40f5f6fe65db30507441c98d4ea11f5",
+      "bytes": 6989,
+      "lines": 156,
+      "sha256": "bde5a28485a9d2a016d9f88e412fcf6b4b0541d60d1fa4588f43fac0bc2fc6a3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34010,7 +34010,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "cc2af4d51b66edb26be5f299984aca94d64397cba76daa25080616df9b86de8e",
+      "sha256": "45107e36fb7557f5354fbed2c546abc591e1493ad34bac889b3910ae2a25c895",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34175,7 +34175,7 @@
       "extension": ".md",
       "bytes": 50123,
       "lines": 544,
-      "sha256": "5a006ac54e79906ba22e654fd1c9ae641aa8fb10b0d5e242c2c296e664aaab46",
+      "sha256": "dc92c8323c1470de5fbca6bed0994ac648ca04d4aedcdb7b29869b9b1908e5e9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38001,9 +38001,9 @@
       "path": "http-generic-api/config/repository-governance-constitution.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 19120,
+      "bytes": 19131,
       "lines": 472,
-      "sha256": "e4e7d83f6285b0705822f9f1b734c340f0618afc9b511d3712df0586018c4e85",
+      "sha256": "2231cbfb66c16dad838e7251baa12886d2aa507ed8174e313329789e603d72e3",
       "mode": "644",
       "executable": false,
       "generated": false
