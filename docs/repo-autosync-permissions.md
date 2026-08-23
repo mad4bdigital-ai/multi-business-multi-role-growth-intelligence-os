@@ -22,15 +22,17 @@ GitHub Actions is not permitted to create or approve pull requests.
 
 The workflow uses `continue-on-error: true` on the PR creation step so this permission gap does not break `main`, but no automated PR will be opened until the setting is fixed.
 
-## Optional secret fallback
+## Dedicated auto-merge credential
 
-If repository settings cannot allow the default token, add a repository secret:
+Add this repository secret when generated docs-only PRs may be merged automatically:
 
 ```text
 REPO_AUTOSYNC_TOKEN
 ```
 
-The token should have the minimum repository permissions needed to create branches and pull requests:
+The token is required for automated merge. A merge performed with the workflow's default `GITHUB_TOKEN` does not start the normal `push` workflows, which can leave the new `main` head without its full post-merge CI cycle. Without this secret, synchronization may still open a review PR, but the workflow leaves it open for a human or governed external actor to merge.
+
+The token should have the minimum repository permissions needed to create branches, pull requests, and register the merge:
 
 - contents: write
 - pull requests: write
@@ -64,7 +66,7 @@ node scripts/repo-maintenance-sync.mjs --write --write-split-schemas
 
 ## Verification
 
-After enabling permissions or adding `REPO_AUTOSYNC_TOKEN`, run **OpenAPI Auto Sync** manually from GitHub Actions or wait for the next push to `main`.
+After enabling PR creation permissions and adding `REPO_AUTOSYNC_TOKEN` when automated merge is desired, run **OpenAPI Auto Sync** manually from GitHub Actions or wait for the next push to `main`.
 
 A healthy no-diff run should complete successfully.
 A run with generated changes should create a PR titled:

@@ -334,6 +334,9 @@ jobs:
           PR_NUMBER: ${{ steps.pin.outputs.pr_number }}
         run: |
           set -euo pipefail
+          normalize_scalar() {
+            tr -d '\r\n'
+          }
           [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
           [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]

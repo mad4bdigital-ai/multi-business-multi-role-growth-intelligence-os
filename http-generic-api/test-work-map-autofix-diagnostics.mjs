@@ -253,6 +253,11 @@ assert.match(writerWorkflow, /test "\$\{GITHUB_ACTOR\}" = "github-actions\[bot\]
 assert.match(writerWorkflow, /actual_pr_number="\$\(jq -r '\.\[0\]\.number'/u);
 assert.match(writerWorkflow, /test "\$\{actual_pr_number\}" = "\$\{REQUESTED_PR_NUMBER\}"/u);
 assert.match(writerWorkflow, /Verify and consume Recovery-issued writer delegation/u);
+assert.match(
+  writerWorkflow,
+  /- name: Verify and consume Recovery-issued writer delegation[\s\S]*?run:\s*\|\s*\n\s*set -euo pipefail\s*\n\s*normalize_scalar\(\)\s*\{\s*\n\s*tr -d '\\r\\n'\s*\n\s*\}/u,
+  "writer delegation must define normalize_scalar in the same isolated Bash step before using it",
+);
 assert.match(writerWorkflow, /actions\/runs\/\$\{RECOVERY_RUN_ID\}/u);
 assert.match(writerWorkflow, /spec-kit-work-map-autofix-recovery-dispatch\.yml/u);
 assert.match(writerWorkflow, /test "\$\(jq -r '\.event' "\$\{recovery_file\}"\)" = "workflow_dispatch"/u);

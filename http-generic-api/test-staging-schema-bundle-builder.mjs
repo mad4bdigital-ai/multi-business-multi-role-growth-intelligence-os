@@ -303,6 +303,29 @@ test("migration 1030 widens catalog tags before append-only governance updates",
   assert.doesNotMatch(migration1030, /\b(?:LEFT|SUBSTRING|TRUNCATE)\s*\(/i, "migration 1030 must not truncate governance tags");
 });
 
+test("migration 1037 uses only the canonical brand_core column contract", () => {
+  const migration1037 = fs.readFileSync(path.join(apiRoot, "migrations", "1037_sprint69_dona_brand_core_readiness_data_repair.sql"), "utf8");
+  const sql = migration1037.slice(migration1037.indexOf("UPDATE `brand_core`"));
+  assert.match(sql, /WHERE `brand_key` = 'donatours_wp'/i);
+  assert.match(sql, /AND `id` BETWEEN 76 AND 86/i);
+  for (const column of ["brand_key", "id", "doc_id", "file_id", "active_status", "updated_at"]) {
+    assert.match(baselineSchema, new RegExp("CREATE TABLE IF NOT EXISTS `brand_core`[\\s\\S]*`" + column + "`", "i"), `brand_core baseline must declare ${column}`);
+  }
+  assert.doesNotMatch(sql, /`brand_name`|`google_drive_link`/i, "migration 1037 must not query columns absent from brand_core");
+});
+
+test("migration 1037 record-only retirement normalizes mixed migration-file collations", () => {
+  const migration1037 = fs.readFileSync(path.join(apiRoot, "migrations", "1037_sprint69_record_only_authorization_retirement.sql"), "utf8");
+  for (const alias of ["l", "applied"]) {
+    assert.match(
+      migration1037,
+      new RegExp(`\\b${alias}\\.migration_file\\s*=\\s*a\\.migration_file\\s+COLLATE\\s+utf8mb4_unicode_ci\\b`, "i"),
+      `${alias}.migration_file must retain its index while the authorization-side comparison uses the ledger collation`,
+    );
+  }
+  assert.doesNotMatch(migration1037, /\\b(?:l|applied)\\.migration_file\\s+COLLATE\\b/i, "indexed ledger migration_file must not be wrapped in COLLATE");
+});
+
 test("generator plan-only mode inventories the exact migration chain", () => {
   const result = runPlan();
   assert.equal(result.status, 0, result.stderr || result.stdout);
