@@ -32,9 +32,10 @@
     "minimum_phase": "mvp"
   },
   "environment_impact": {
-    "source_of_truth": "http-generic-api/config/runtime-bootstrap-contract.json",
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
     "production_mutation_allowed": false,
     "hostinger_release_hook_configured": false,
     "live_migration_executed": false,
