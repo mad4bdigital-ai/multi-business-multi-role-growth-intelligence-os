@@ -1,149 +1,290 @@
 # Production Runtime Recovery Control Plane
 
-## Purpose
+## Deployment model
 
-This recovery path moves the orchestration source of truth to GitHub Environment variables and secrets. It does **not** require the application runtime SQL registry, migration ledger, or target tables to be readable before GitHub can select the recovery plan.
-
-The workflow supports three modes:
-
-- `verify`: prove the exact protected Production SHA is live and execute read-only probes.
-- `primary`: deploy the exact protected Production SHA directly from GitHub to the hosting provider, prove `/version` and `/deployment-info`, then execute the already-governed runtime recovery operations.
-- `fallback`: deploy and prove the exact SHA, then use a protected bootstrap database principal to apply an explicit repository migration sequence and least-privilege grants from GitHub configuration.
-
-No mutation occurs unless `apply_execution=true` **and** the operator supplies the exact confirmation string:
+Production already uses Hostinger Auto Deploy. The repository contract is:
 
 ```text
-RECOVER:<strategy>:<40-character-production-sha>
+merge/push to Production
+  -> Hostinger Auto Deploy
+  -> GET /health
+  -> GET /version
+  -> GET /deployment-info
+  -> exact Production branch + exact 40-character SHA proof
+  -> governed recovery only after parity is proven
 ```
 
-## Why the control plane is outside SQL
+This workflow **does not trigger deployment** and does not need a Hostinger deployment API credential. It observes the deployment that Hostinger starts from the `Production` branch and refuses every recovery mutation until both provenance endpoints report the exact expected branch and full SHA.
 
-A recovery system cannot depend on the same SQL schema it is expected to recover. `RUNTIME_RECOVERY_TARGETS_JSON` therefore describes database targets and migration order in GitHub. SQL is a recovery **target**, not the orchestration registry.
+This matches `docs/hostinger-node-deploy.md`: `Production` is the deployment trigger, while SQL migration and grants remain separate governed states.
 
-The fallback operator can work with:
+## Canonical route contract
 
-- an existing database whose application tables are incomplete;
-- an existing empty database;
-- a missing database only when database creation is explicitly enabled in **both** the GitHub environment variable and the selected target plan.
+Machine-readable source of truth:
 
-The operator never invents schema. For an empty database, the target plan must list the canonical repository bootstrap migrations in dependency order. A migration such as `20260815_custom_gpt_mcp_catalog_levels.sql` is intentionally blocked until its base tables exist.
+```text
+.github/ops/production-runtime-recovery-routes.json
+```
 
-## GitHub Environment
+The routes are intentionally not supplied as GitHub Variables. GitHub Variables can configure request bodies and expected response contracts, but cannot redirect the recovery operator to another URL path.
 
-Use the protected GitHub Environment named `Production` so normal environment approvals and secret isolation remain in effect.
+| route_key | Method | Path | Purpose |
+| --- | --- | --- | --- |
+| `health` | GET | `/health` | Hostinger process health |
+| `version` | GET | `/version` | exact deployment provenance |
+| `deployment_info` | GET | `/deployment-info` | second independent provenance surface |
+| `gpt_tools` | GET | `/gpt/tools` | Admin/System tool catalog readiness |
+| `gpt_tool_call` | POST | `/gpt/tools/call` | canonical governed tool execution envelope |
+| `session_context` | GET | `/activation/session-context/read-only` | Session Context persistence/readback |
 
-### Release and deployment variables
+The CI test reads the actual repository route modules and the recovery route contract together. A path rename in application code without updating this contract must fail CI.
+
+### Route failure classification
+
+The operator distinguishes routing from dependencies:
+
+```text
+404 / 405 -> route_contract_missing
+401 / 403 -> route_present_auth_not_ready
+5xx       -> route_present_runtime_dependency_failed
+2xx / 3xx -> route_present
+```
+
+That distinction matters for the current incident. A `502` on a known route should not be described as “route missing”; it proves the edge was reached but the live origin/runtime did not complete the request. A final functional probe still requires the expected success status and response contract.
+
+## Exact Hostinger parity gate
+
+The workflow no longer searches response text for a SHA. `/version` and `/deployment-info` must both return structured JSON with:
+
+```json
+{
+  "gitCommitFull": "<exact 40-character Production SHA>",
+  "gitBranch": "Production"
+}
+```
+
+Both endpoints must match. A short commit, a matching substring, a matching build artifact with the wrong branch, or only one matching endpoint is insufficient.
+
+Default observation window:
+
+```text
+PRODUCTION_VERIFY_ATTEMPTS=36
+PRODUCTION_VERIFY_INTERVAL_SECONDS=10
+```
+
+This gives Hostinger Auto Deploy up to six minutes to become runtime-current before the recovery run fails closed. These variables change waiting behavior only; they do not trigger a deployment.
+
+## GitHub Environment configuration
+
+Use the protected GitHub Environment `Production`.
+
+### Required/normal variables
 
 | Variable | Purpose |
 | --- | --- |
-| `PRODUCTION_SOURCE_BRANCH` | Protected release branch. Recommended: `Production`. |
-| `PRODUCTION_BASE_URL` | Live application base URL. Current expected value: `https://auth.mad4b.com`. |
-| `PRODUCTION_DEPLOY_URL` | Direct hosting-provider deployment endpoint. This must be GitHub -> provider, not GitHub -> stale application runtime. |
-| `PRODUCTION_DEPLOY_METHOD` | Provider method, normally `POST`. |
-| `PRODUCTION_DEPLOY_BODY_JSON` | Provider request body template. Supports `{{repository}}`, `{{branch}}`, `{{sha}}`, `{{target_id}}`, `{{run_id}}`, `{{run_attempt}}`. |
-| `PRODUCTION_DEPLOY_AUTH_HEADER` | Header used by the provider credential, normally `Authorization`. |
-| `HOSTINGER_DEPLOYMENT_TARGET_ID` | Provider target/site/deployment identifier if the provider API requires one. |
-| `PRODUCTION_VERSION_PATH` | Default `/version`. |
-| `PRODUCTION_DEPLOYMENT_INFO_PATH` | Default `/deployment-info`. |
-| `PRODUCTION_VERIFY_ATTEMPTS` | Maximum deployment parity probes. Default `24`. |
-| `PRODUCTION_VERIFY_INTERVAL_SECONDS` | Delay between parity probes. Default `10`. |
+| `PRODUCTION_SOURCE_BRANCH` | expected release branch; default `Production` |
+| `PRODUCTION_BASE_URL` | default `https://auth.mad4b.com` |
+| `PRODUCTION_VERIFY_ATTEMPTS` | Auto Deploy parity attempts; default `36` |
+| `PRODUCTION_VERIFY_INTERVAL_SECONDS` | delay between parity attempts; default `10` |
+| `PRODUCTION_PROBE_AUTH_HEADER` | default `Authorization` |
+| `RUNTIME_RECOVERY_PROBES_JSON` | read-only functional probes using `route_key` |
+| `PRIMARY_GOVERNED_STEPS_JSON` | governed mutation sequence using `route_key` |
+| `RUNTIME_RECOVERY_FINAL_PROBES_JSON` | final functional exit probes |
+| `RUNTIME_RECOVERY_TARGETS_JSON` | explicit fallback DB/bootstrap plans |
+| `RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE` | global missing-DB creation gate; default `false` |
+| `MYSQL_BOOTSTRAP_HOST` | direct MySQL/MariaDB hostname for fallback |
+| `MYSQL_BOOTSTRAP_PORT` | default `3306` |
 
-### Protected deployment secrets
+### Secrets
 
 | Secret | Purpose |
 | --- | --- |
-| `PRODUCTION_DEPLOY_AUTH_VALUE` | Hosting-provider API credential. |
-| `PRODUCTION_PROBE_AUTH_VALUE` | Runtime credential used only for protected operational probes/steps. |
+| `PRODUCTION_PROBE_AUTH_VALUE` | protected bearer credential for runtime operational routes |
+| `MYSQL_BOOTSTRAP_USER` | fallback bootstrap DB principal |
+| `MYSQL_BOOTSTRAP_PASSWORD` | fallback bootstrap DB password |
 
-`PRODUCTION_DEPLOY_AUTH_VALUE` and `PRODUCTION_PROBE_AUTH_VALUE` must never be placed in JSON variables.
+There is deliberately no `PRODUCTION_DEPLOY_URL`, `PRODUCTION_DEPLOY_AUTH_VALUE`, or Hostinger target secret in this recovery workflow.
 
-## Primary strategy
+## Primary strategy: exact runtime route path
 
-The primary strategy is preferred when the merged runtime recovery endpoints are live after rollout.
+The canonical governed execution route is:
 
-Order is fixed:
+```text
+POST /gpt/tools/call
+```
 
-1. prove `expected_production_sha` is the current protected `Production` branch head;
-2. deploy that exact SHA directly through `PRODUCTION_DEPLOY_URL`;
-3. require both `/version` and `/deployment-info` to contain the exact SHA;
-4. execute read-only `RUNTIME_RECOVERY_PROBES_JSON`;
-5. execute `PRIMARY_GOVERNED_STEPS_JSON`;
-6. execute `RUNTIME_RECOVERY_FINAL_PROBES_JSON`;
-7. prove the protected Production branch head did not move during the run.
+The HTTP body envelope is:
 
-### Read-only probe example
+```json
+{
+  "name": "<tool-name>",
+  "tool_args": {}
+}
+```
 
-Store the following shape in `RUNTIME_RECOVERY_PROBES_JSON`. Paths and request envelopes must match the deployed runtime contract.
+The GitHub variables never contain a raw `path` or `url`. Every step supplies a `route_key`; the operator resolves that key through the reviewed route contract. A configured step containing `path` or `url` is rejected.
+
+### 225 and 1048 read-only probes
+
+`RUNTIME_RECOVERY_PROBES_JSON` should use the exact canonical tool-call route:
 
 ```json
 [
   {
-    "name": "225 dry run",
-    "method": "POST",
-    "path": "/<governed-migration-route>",
+    "name": "225 already-applied dry-run",
+    "route_key": "gpt_tool_call",
     "body": {
-      "migration": "225_sprint67_capability_resolution_envelope_ledger.sql",
-      "mode": "dry_run"
+      "name": "governed_migration_execute",
+      "tool_args": {
+        "migration": "225_sprint67_capability_resolution_envelope_ledger.sql",
+        "mode": "dry_run",
+        "expected_checksum_sha256": "35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419",
+        "expected_statement_count": 3
+      }
     },
     "expected_status": 200,
     "expected_json": {
-      "already_applied": true,
-      "applies_sql": false
+      "result": {
+        "already_applied": true,
+        "applies_sql": false
+      }
     }
   },
   {
-    "name": "1048 dry run",
-    "method": "POST",
-    "path": "/<governed-migration-route>",
+    "name": "1048 already-applied dry-run",
+    "route_key": "gpt_tool_call",
     "body": {
-      "migration": "1048_transport_response_chunk_schema_recovery.sql",
-      "mode": "dry_run"
+      "name": "governed_migration_execute",
+      "tool_args": {
+        "migration": "1048_transport_response_chunk_schema_recovery.sql",
+        "mode": "dry_run",
+        "expected_checksum_sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
+        "expected_statement_count": 34
+      }
     },
     "expected_status": 200,
     "expected_json": {
-      "already_applied": true,
-      "applies_sql": false
+      "result": {
+        "already_applied": true,
+        "applies_sql": false
+      }
     }
   }
 ]
 ```
 
-Do not copy placeholder paths into Production. Set them to the actual route exposed by the deployed recovery contract.
+These two migrations are verification-only in the current incident. They are never placed in a Primary `apply` step.
 
-### Governed mutation steps
+## 20260815 exact migration path
 
-`PRIMARY_GOVERNED_STEPS_JSON` is a JSON array. Mutation entries must include `"mutation": true` so the phase cannot be confused with read-only probes. A safe sequence for the current incident is:
+Current contract:
 
-1. authorize `20260815_custom_gpt_mcp_catalog_levels.sql`;
-2. dry-run it;
-3. typed apply it;
-4. read back ledger and schema;
-5. dry-run least-privilege grant profile;
-6. apply that grant profile;
-7. re-read Session Context, MCP Catalog, response chunk persistence, Admin/System Tools, and operational tasks.
+```text
+file: 20260815_custom_gpt_mcp_catalog_levels.sql
+sha256: 528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681
+statement_count: 7
+```
 
-The exact request body stays in GitHub configuration so it can be changed without making SQL registry availability a prerequisite for orchestration.
+Primary uses the same `/gpt/tools/call` route and `governed_migration_execute` tool. A representative dry-run step is:
 
-## Fallback strategy
+```json
+{
+  "name": "20260815 dry-run",
+  "route_key": "gpt_tool_call",
+  "body": {
+    "name": "governed_migration_execute",
+    "tool_args": {
+      "migration": "20260815_custom_gpt_mcp_catalog_levels.sql",
+      "mode": "dry_run",
+      "expected_checksum_sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+      "expected_statement_count": 7
+    }
+  },
+  "expected_status": 200
+}
+```
 
-Use fallback only when the exact release is proven live but the runtime-mediated recovery path is unavailable, or when the database is too incomplete to supply its own recovery registry.
+The corresponding apply entry must be explicitly marked:
 
-### Bootstrap connection variables and secrets
+```json
+{
+  "name": "20260815 typed apply",
+  "route_key": "gpt_tool_call",
+  "mutation": true,
+  "body": {
+    "name": "governed_migration_execute",
+    "tool_args": {
+      "migration": "20260815_custom_gpt_mcp_catalog_levels.sql",
+      "mode": "apply",
+      "expected_checksum_sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+      "expected_statement_count": 7,
+      "typed_confirmation_phrase": "execute migration 20260815_custom_gpt_mcp_catalog_levels.sql"
+    }
+  },
+  "expected_status": 200
+}
+```
 
-| Name | Type | Purpose |
-| --- | --- | --- |
-| `MYSQL_BOOTSTRAP_HOST` | variable | Direct MariaDB/MySQL hostname reachable from GitHub Actions. |
-| `MYSQL_BOOTSTRAP_PORT` | variable | Default `3306`. |
-| `MYSQL_BOOTSTRAP_USER` | secret | Temporary bootstrap principal with only the authority required to create the configured schema/grants. |
-| `MYSQL_BOOTSTRAP_PASSWORD` | secret | Bootstrap password. |
-| `RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE` | variable | Global database-creation gate. Keep `false` unless an explicit empty/missing database bootstrap is intended. |
-| `RUNTIME_RECOVERY_TARGETS_JSON` | variable | Explicit target, migration, postcondition, and least-privilege grant plan. |
+Authorization/readiness must still precede apply according to the existing governed migration contract from PR #7564. The recovery workflow does not turn deployment parity into migration authorization.
 
-The application `DB_USER` password is not required by the fallback operator. The target application principal is named in the plan only so the bootstrap principal can grant it the minimum privileges.
+## Session Context and catalog routes
 
-### Existing runtime database target
+Final Session Context verification uses:
 
-The current `20260815` migration checksum is pinned below. It must not be applied unless the two base endpoint-tool tables already exist.
+```json
+{
+  "name": "Session Context final readback",
+  "route_key": "session_context",
+  "expected_status": 200
+}
+```
+
+Final Admin/System tool-catalog verification uses:
+
+```json
+{
+  "name": "Admin/System tools final readback",
+  "route_key": "gpt_tools",
+  "expected_status": 200
+}
+```
+
+For the current incident, the latter is an important response-chunk test: a final `500/502` with `response_chunk_schema_incomplete` is a dependency/readiness failure, not a route-discovery failure.
+
+## Grant boundary
+
+The GitHub fallback is intentionally narrower than a broad runtime writer profile. Its built-in default table set is exactly:
+
+```text
+customer_sessions
+gpt_session_turns
+actions
+dynamic_audit_scheduler_runs
+execution_log
+json_assets
+```
+
+Allowed privileges are exactly:
+
+```text
+SELECT, INSERT, UPDATE
+```
+
+No `database.*` grant is generated. The fallback cannot grant DELETE, CREATE, DROP, ALTER, INDEX, EXECUTE, GRANT OPTION, or other privileges.
+
+The existing PR #7564 `runtime_inventory_writer` profile also covers `endpoints` and `openapi_endpoint_inventory_sync_runs`. Do not silently use that broader profile when the recovery authorization is only for the six tables above. Either explicitly authorize the broader profile in a separate operation or keep the six-table fallback plan.
+
+## Fallback for incomplete or empty databases
+
+Fallback is used only after the exact Hostinger Auto Deploy SHA is already proven live. It does not ask SQL which migrations should run. GitHub supplies the explicit target plan.
+
+A target can represent:
+
+- an existing populated DB with one missing feature migration;
+- an existing empty DB that needs canonical baseline migrations;
+- a missing DB, but only with two independent creation gates.
+
+Example for the current runtime DB:
 
 ```json
 [
@@ -162,14 +303,8 @@ The current `20260815` migration checksum is pinned below. It must not be applie
           "tenant_platform_endpoint_tools"
         ],
         "done_when": [
-          {
-            "table": "admin_platform_endpoint_tools",
-            "columns": ["mcp_catalog_level"]
-          },
-          {
-            "table": "tenant_platform_endpoint_tools",
-            "columns": ["mcp_catalog_level"]
-          }
+          {"table": "admin_platform_endpoint_tools", "columns": ["mcp_catalog_level"]},
+          {"table": "tenant_platform_endpoint_tools", "columns": ["mcp_catalog_level"]}
         ]
       }
     ],
@@ -185,142 +320,91 @@ The current `20260815` migration checksum is pinned below. It must not be applie
 ]
 ```
 
-For Hostinger accounts where the authenticated database principal is represented with a narrower host pattern than `%`, set `principal_host` to the actual account host. The workflow does not discover or widen the account automatically.
+`20260815` cannot bootstrap an empty database by itself. It is blocked until these canonical base tables exist:
 
-### Completely empty database target
-
-For a new/empty database, `migrations` must start with the canonical baseline schema migrations from the repository. The final part can then contain feature migrations such as `20260815`.
-
-Conceptually:
-
-```json
-{
-  "key": "new-runtime",
-  "database": "<database-name>",
-  "principal": "<application-principal>",
-  "principal_host": "<actual-account-host>",
-  "allow_create_database": true,
-  "character_set": "utf8mb4",
-  "collation": "<approved-repository-collation>",
-  "migrations": [
-    "<canonical-baseline-migration-1.sql>",
-    "<canonical-baseline-migration-2.sql>",
-    "...",
-    {
-      "file": "http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql",
-      "expected_checksum": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
-      "requires_tables": ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools"],
-      "done_when": [
-        {"table": "admin_platform_endpoint_tools", "columns": ["mcp_catalog_level"]},
-        {"table": "tenant_platform_endpoint_tools", "columns": ["mcp_catalog_level"]}
-      ]
-    }
-  ]
-}
+```text
+admin_platform_endpoint_tools
+tenant_platform_endpoint_tools
 ```
 
-Replace every placeholder with an existing canonical migration or real database/account value before storing the JSON. The recovery operator deliberately rejects migration paths outside `http-generic-api/migrations` and will not copy a Production schema or synthesize DDL to fill gaps.
+For a completely empty DB, the target must list canonical baseline migrations from `http-generic-api/migrations` first. The operator will not copy Production schema, infer DDL from another environment, or synthesize missing tables.
 
-Database creation additionally requires:
+Database creation requires both:
 
 ```text
 RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE=true
 ```
 
-and the selected target must contain:
+and:
 
 ```json
 "allow_create_database": true
 ```
 
-Both gates are required.
+## Snapshot mode
 
-## Migration safety
+`strategy=snapshot` remains a separate DB-independent, read-only mode for situations where SQL is empty or unavailable and we need a bounded catalog/session descriptor from GitHub or a reviewed repository snapshot.
 
-The fallback operator enforces:
-
-- migration path confinement to `http-generic-api/migrations`;
-- optional exact SHA-256 checksum pinning;
-- explicit required-table checks;
-- explicit post-migration table/column checks;
-- governed ledger checksum conflict detection when a ledger contract is configured;
-- no reapplication when a configured ledger proves a migration is already applied;
-- no silent acceptance when the ledger says applied but declared schema postconditions are missing.
-
-For an empty database, bootstrap migrations may initially run without ledger metadata. If a later migration is configured as ledger-required, the canonical `schema_migrations` table must already exist before that step. The operator does not create an ad-hoc replacement ledger.
-
-## Grant safety
-
-Fallback grants are restricted in code to:
+Allowed sources:
 
 ```text
-SELECT, INSERT, UPDATE
+github_snapshot
+repository_snapshot
 ```
 
-The operator:
+Snapshot mode cannot create a durable session, cannot claim runtime authority, cannot mutate a database, and cannot perform provider mutation.
 
-- grants only named tables from the selected target plan;
-- never issues `GRANT ... ON database.*`;
-- never grants DDL privileges to the application principal;
-- refuses privileges outside the three-value allow-list;
-- stops when a required grant table is absent instead of treating absence as success.
+## Execution gates
 
-## Recommended current incident sequence
-
-### Phase A — no mutation
-
-Run:
+Mutation requires all of the following at the same time:
 
 ```text
-strategy=primary
-apply_execution=false
-expected_production_sha=<exact current Production SHA>
+1. expected_production_sha is a full SHA
+2. it is still the exact Production branch head
+3. Hostinger /version reports gitCommitFull=<SHA> and gitBranch=Production
+4. Hostinger /deployment-info reports the same
+5. route topology has no 404/405 for canonical required routes
+6. apply_execution=true
+7. confirmation=RECOVER:<strategy>:<exact-sha>
 ```
 
-Review the emitted plan and confirm all GitHub Environment variables point at Production.
+Primary and fallback must not run concurrently. The workflow concurrency key is strategy/target-bound and Production Environment approval remains in force.
 
-### Phase B — rollout and governed recovery
-
-After approval, run:
+## Recommended current incident order
 
 ```text
-strategy=primary
-apply_execution=true
-confirmation=RECOVER:primary:<exact current Production SHA>
+A. promote the intended reviewed snapshot to Production
+B. let Hostinger Auto Deploy run normally
+C. strategy=verify
+   -> exact /version + /deployment-info parity
+   -> canonical route topology
+   -> 225/1048 dry-run
+D. strategy=primary plan mode
+E. if governed runtime path is healthy:
+   -> authorize 20260815
+   -> dry-run
+   -> typed apply
+   -> ledger/schema readback
+   -> six-table least-privilege grants only if explicitly authorized
+F. if runtime-mediated recovery is unavailable because SQL/schema is incomplete:
+   -> strategy=fallback plan mode
+   -> review exact target/migration/grant list
+   -> fallback apply with exact SHA-bound confirmation
+G. final functional probes
 ```
-
-Success requires the exact SHA on both deployment identity endpoints before the workflow is allowed to execute the configured governed mutation steps.
-
-### Phase C — fallback only if Primary remains unavailable
-
-First run fallback in plan mode:
-
-```text
-strategy=fallback
-apply_execution=false
-target_key=runtime
-```
-
-After reviewing the explicit migration/grant plan and confirming the bootstrap credential scope, run:
-
-```text
-strategy=fallback
-apply_execution=true
-confirmation=RECOVER:fallback:<exact current Production SHA>
-```
-
-Do not run Primary and Fallback concurrently.
 
 ## Exit criteria
 
-The incident is not closed by an `applied` ledger row alone. Final probes must prove:
+The incident is closed only when the same cycle proves:
 
-- exact Production SHA matches `/version` and `/deployment-info`;
-- 225 and 1048 are no-op dry-runs with `already_applied=true` and `applies_sql=false`;
-- `20260815` is represented in the governed ledger when that ledger is part of the target schema;
+- `/health` is healthy;
+- `/version.gitCommitFull` equals exact Production SHA and `gitBranch=Production`;
+- `/deployment-info` proves the same exact identity;
+- 225 dry-run returns already applied/no SQL;
+- 1048 dry-run returns already applied/no SQL;
+- `20260815` is applied/read back when required;
 - `mcp_catalog_level` exists on both endpoint-tool tables;
-- Session Context can persist;
-- `actions` and `dynamic_audit_scheduler_runs` have the required write authority;
-- `execution_log` and `json_assets` can persist;
-- `gpt_session_turns` can persist;
-- response chunk persistence is schema-ready and large Admin/System Tool responses no longer fall back to the inline limit failure.
+- `/activation/session-context/read-only` succeeds and Session Context can persist;
+- `/gpt/tools` succeeds without response chunk inline-limit failure;
+- `customer_sessions`, `gpt_session_turns`, `actions`, `dynamic_audit_scheduler_runs`, `execution_log`, and `json_assets` have the explicitly authorized least privileges;
+- response chunk persistence is schema-ready in the live DB binding used by the deployed runtime.
