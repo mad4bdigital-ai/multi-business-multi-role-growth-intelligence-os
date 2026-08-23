@@ -106,6 +106,18 @@ try {
       provenance_source: null,
     });
     },
+    runtimeBootstrapStatusReader: async () => ({
+      contract: "mad4b.hostinger.runtime-bootstrap-status.v1",
+      status: "bootstrap_required",
+      hook: { required: true, configured: false, auto_apply: false, startup_apply: false, prestart_apply: false, docker_start_apply: false, values_exposed: false },
+      database_connection_performed: false,
+      database_mutation_performed: false,
+      migration_apply_performed: false,
+      grant_mutation_performed: false,
+      normal_route_bypass: false,
+      reasons: ["explicit_release_hook_not_configured"],
+      secrets_included: false,
+    }),
     productionActivationReadinessReader: async () => ({
       contract: "mad4b.production-activation-readiness.v1",
       status: "blocked",
@@ -153,7 +165,12 @@ try {
   assert.deepEqual(deploymentInfo.runtime_integrity.reason_codes, ["unapproved_dirty_runtime"]);
   assert.equal(deploymentInfo.evidence.runtime_integrity_state, "degraded");
   assert.equal(deploymentInfo.evidence.runtime_integrity_verified, false);
-  assert.equal(deploymentInfo.evidence.runtime_integrity_read_only, true);
+  assert.equal(deploymentInfo.runtime_integrity.read_only_check, true);
+  assert.equal(deploymentInfo.runtime_bootstrap_status.contract, "mad4b.hostinger.runtime-bootstrap-status.v1");
+  assert.equal(deploymentInfo.runtime_bootstrap_status.status, "bootstrap_required");
+  assert.equal(deploymentInfo.runtime_bootstrap_status.database_mutation_performed, false);
+  assert.equal(deploymentInfo.runtime_bootstrap_status.migration_apply_performed, false);
+  assert.equal(deploymentInfo.runtime_bootstrap_status.hook.auto_apply, false);
   assert.equal(version.deployment.deployed_commit_sha, commitSha);
   assert.equal(
     deploymentInfo.commit_sha,

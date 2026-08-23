@@ -9,6 +9,7 @@ import {
 } from "../mcpCatalogSchemaGuard.js";
 import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
 import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
+import { getRuntimeBootstrapStatus } from "../runtimeBootstrapStatus.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -184,6 +185,7 @@ export function buildDeploymentInfoRoutes({
   governanceDbReadinessReader = getGovernanceDbPrivilegeReadinessSnapshot,
   mcpCatalogSchemaReadinessReader = readMcpCatalogSchemaReadinessSafe,
   productionActivationReadinessReader = runProductionActivationReadiness,
+  runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
 } = {}) {
   const router = Router();
 
@@ -257,6 +259,23 @@ export function buildDeploymentInfoRoutes({
       ? await productionActivationReadinessReader()
       : undefined;
     const mcpCatalogSchemaStartupPreflight = getMcpCatalogSchemaStartupPreflight();
+    let runtimeBootstrapStatus;
+    try {
+      runtimeBootstrapStatus = await Promise.resolve(runtimeBootstrapStatusReader(process.env));
+    } catch {
+      runtimeBootstrapStatus = {
+        contract: "mad4b.hostinger.runtime-bootstrap-status.v1",
+        status: "bootstrap_required",
+        hook: { required: true, configured: false, auto_apply: false, startup_apply: false, prestart_apply: false, docker_start_apply: false, values_exposed: false },
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        normal_route_bypass: false,
+        reasons: ["bootstrap_status_read_failed"],
+        secrets_included: false,
+      };
+    }
 
     res.status(200).json({
       ok: true,
@@ -305,6 +324,7 @@ export function buildDeploymentInfoRoutes({
         ref_mtime: git.ref_mtime || null,
       } : { detected: false },
       runtime_integrity: runtimeIntegrity,
+      runtime_bootstrap_status: runtimeBootstrapStatus,
       ...(includeGovernanceDbReadiness ? {
         governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
       } : {}),

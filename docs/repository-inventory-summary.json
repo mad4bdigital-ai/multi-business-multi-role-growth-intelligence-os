@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7288,
-    "bytes": 71097755,
-    "lines": 1665187,
+    "files": 7300,
+    "bytes": 71264214,
+    "lines": 1667916,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2172,
-      "documentation": 1910,
-      "api-runtime": 1469,
+      "tests-and-specs": 2173,
+      "documentation": 1911,
+      "api-runtime": 1476,
       "database-migrations": 784,
-      "root-and-other": 324,
+      "root-and-other": 327,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 131,
@@ -26,10 +26,10 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2512,
-      ".mjs": 1736,
-      ".js": 996,
-      ".json": 854,
+      ".md": 2513,
+      ".mjs": 1738,
+      ".js": 998,
+      ".json": 861,
       ".sql": 799,
       ".yml": 173,
       ".yaml": 119,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3745,
-      "docs": 1814,
+      "http-generic-api": 3753,
+      "docs": 1815,
       "specs": 880,
       ".github": 301,
-      ".changes": 293,
+      ".changes": 296,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -175,6 +175,10 @@
         "readiness:verify-plan",
         "manifest:deployment",
         "manifest:portable-staging",
+        "runtime-bootstrap:plan",
+        "runtime-bootstrap:dry-run",
+        "runtime-bootstrap:apply-migration",
+        "runtime-bootstrap:apply-grants",
         "remote-mcp:client:provision",
         "remote-mcp:client:profiles",
         "remote-mcp:client:status",
@@ -251,7 +255,7 @@
     "workflows": 170,
     "migrations": 784,
     "apiContracts": 191,
-    "testSpecFiles": 2262
+    "testSpecFiles": 2263
   },
   "largestFiles": [
     {
@@ -335,8 +339,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 264838,
-      "lines": 2317
+      "bytes": 265373,
+      "lines": 2323
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",

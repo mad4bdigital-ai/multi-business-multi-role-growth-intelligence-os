@@ -2303,6 +2303,12 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7452: defaultReportDirectory selects RUNNER_TEMP or the OS temp directory solely for report-only environment-impact evidence, preventing worktree contamination; it is not a runtime setting, secret, database mutation, provider mutation, or Production activation authority.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs|BOOTSTRAP_MODE|environment_reference|bootstrap.mode",
+      "owner": "platform-team",
+      "reason": "Reviewed in the schema-less runtime bootstrap control-plane PR: BOOTSTRAP_MODE selects plan, dry-run, or an independently confirmed allowlisted apply mode; plan is the default, no runtime credential fallback is allowed, and the selector contains no secret or automatic deployment authority.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {
