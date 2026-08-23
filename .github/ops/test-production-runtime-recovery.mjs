@@ -13,6 +13,8 @@ import {
   validateApplyGate,
   validateSha,
   validateTargetPlan,
+  loadRecoveryRouteContract,
+  resolveRecoveryRoute,
 } from './production-runtime-recovery.mjs';
 import {
   buildRuntimeRecoverySnapshotWriteBlockedError,
@@ -20,7 +22,6 @@ import {
   loadRuntimeRecoverySnapshot,
   resolveRuntimeRecoverySourceMode,
 } from '../../http-generic-api/runtimeRecoverySnapshot.js';
-
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 const workflow = readFileSync(new URL('../workflows/production-runtime-recovery.yml', import.meta.url), 'utf8');
 const operator = readFileSync(new URL('./production-runtime-recovery.mjs', import.meta.url), 'utf8');
@@ -163,6 +164,21 @@ test('sql mode remains the only mode that requires database-backed runtime state
   assert.equal(isRuntimeRecoverySnapshotEnabled({ RUNTIME_RECOVERY_SOURCE_MODE: 'sql' }), false);
 });
 
+test('recovery route contract allowlists route_key and canonical path/method pairs', () => {
+  const contract = loadRecoveryRouteContract();
+  const byKey = resolveRecoveryRoute({ route_key: 'session_context' }, contract);
+  assert.deepEqual({ route_key: byKey.route_key, method: byKey.method, path: byKey.path }, {
+    route_key: 'session_context',
+    method: 'GET',
+    path: '/activation/session-context/read-only',
+  });
+  const byPath = resolveRecoveryRoute({ method: 'GET', path: '/gpt/tools' }, contract);
+  assert.equal(byPath.route_key, 'gpt_tools');
+  assert.throws(() => resolveRecoveryRoute({ method: 'POST', path: '/gpt/tools' }, contract), (error) => error.code === 'route_not_allowlisted');
+  assert.throws(() => resolveRecoveryRoute({ route_key: 'unknown_route' }, contract), (error) => error.code === 'route_not_allowlisted');
+  assert.throws(() => resolveRecoveryRoute({ method: 'GET', path: '/arbitrary/provider/path' }, contract), (error) => error.code === 'route_not_allowlisted');
+});
+
 test('workflow exposes typed snapshot mode and non-secret variables', () => {
   assert.match(workflow, /- snapshot/u);
   assert.match(workflow, /source_mode:/u);
@@ -174,6 +190,8 @@ test('workflow exposes typed snapshot mode and non-secret variables', () => {
   assert.match(workflow, /RUNTIME_RECOVERY_SESSION_CONTEXT_JSON: \$\{\{ vars\.RUNTIME_RECOVERY_SESSION_CONTEXT_JSON \}\}/u);
   assert.match(workflow, /RUNTIME_RECOVERY_SNAPSHOT_PATH: \$\{\{ vars\.RUNTIME_RECOVERY_SNAPSHOT_PATH/gu);
   assert.doesNotMatch(workflow, /RUNTIME_RECOVERY_(?:SNAPSHOT|CATALOG|SESSION_CONTEXT)_JSON: \$\{\{ secrets\./u);
+  assert.doesNotMatch(workflow, /^\s{6}MYSQL_BOOTSTRAP_(?:USER|PASSWORD):/mu);
+  assert.match(workflow, /inputs\.strategy == 'fallback' && secrets\.MYSQL_BOOTSTRAP_(?:USER|PASSWORD)/u);
   assert.match(operator, /snapshot_mutation_forbidden/u);
   assert.match(gptRoutes, /isRuntimeRecoverySnapshotEnabled\(\)/u);
   assert.match(gptRoutes, /buildRuntimeRecoverySnapshotWriteBlockedError/u);

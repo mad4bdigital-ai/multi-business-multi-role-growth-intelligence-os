@@ -99,11 +99,6 @@ jobs:
       # Fallback source of truth: explicit GitHub plan, never SQL registry discovery.
       RUNTIME_RECOVERY_TARGETS_JSON: ${{ vars.RUNTIME_RECOVERY_TARGETS_JSON }}
       RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE: ${{ vars.RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE || 'false' }}
-      MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
-      MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-      MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
-      MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
-
     steps:
       - name: Validate exact Production head before checkout
         env:
@@ -146,8 +141,12 @@ jobs:
 
       - name: Execute selected recovery strategy
         env:
-          # Snapshot mode is intentionally non-mutating even if a caller supplied a malformed boolean input.
+          # Snapshot mode is intentionally non-mutating and receives no DB credentials.
           APPLY_EXECUTION: ${{ inputs.strategy == 'snapshot' && 'false' || inputs.apply_execution }}
+          MYSQL_BOOTSTRAP_HOST: ${{ inputs.strategy == 'fallback' && vars.MYSQL_BOOTSTRAP_HOST || '' }}
+          MYSQL_BOOTSTRAP_PORT: ${{ inputs.strategy == 'fallback' && (vars.MYSQL_BOOTSTRAP_PORT || '3306') || '' }}
+          MYSQL_BOOTSTRAP_USER: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_USER || '' }}
+          MYSQL_BOOTSTRAP_PASSWORD: ${{ inputs.strategy == 'fallback' && secrets.MYSQL_BOOTSTRAP_PASSWORD || '' }}
         run: node .github/ops/production-runtime-recovery.mjs
 
       - name: Reverify immutable Production head

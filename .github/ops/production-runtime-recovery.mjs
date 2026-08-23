@@ -16,6 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const MIGRATIONS_ROOT = path.join(REPO_ROOT, 'http-generic-api', 'migrations');
+const ROUTE_CONTRACT_PATH = path.join(REPO_ROOT, '.github', 'ops', 'production-runtime-recovery-routes.json');
 const SHA_RE = /^[0-9a-f]{40}$/;
 const IDENTIFIER_RE = /^[A-Za-z0-9_$.-]+$/;
 const ACCOUNT_HOST_RE = /^[A-Za-z0-9_$%.:-]+$/;
@@ -213,6 +214,57 @@ function validateHttps(urlString, env, label) {
   return parsed.toString();
 }
 
+export function loadRecoveryRouteContract() {
+  if (!fs.existsSync(ROUTE_CONTRACT_PATH)) {
+    throw typedError('route_contract_missing', 'Production recovery route contract is missing from the checked-out source.');
+  }
+  let contract;
+  try {
+    contract = JSON.parse(fs.readFileSync(ROUTE_CONTRACT_PATH, 'utf8'));
+  } catch (error) {
+    throw typedError('route_contract_invalid', 'Production recovery route contract is not valid JSON.', { cause: error.message });
+  }
+  if (!contract || typeof contract !== 'object' || !contract.routes || typeof contract.routes !== 'object') {
+    throw typedError('route_contract_invalid', 'Production recovery route contract must expose a routes object.');
+  }
+  return contract;
+}
+
+export function resolveRecoveryRoute(step, contract = loadRecoveryRouteContract()) {
+  if (!step || typeof step !== 'object') throw typedError('route_step_invalid', 'Recovery route step must be an object.');
+  const requestedKey = String(step.route_key || '').trim();
+  const requestedMethod = String(step.method || '').trim().toUpperCase();
+  const requestedPath = String(step.path || '').trim();
+  let routeKey = requestedKey;
+  let route = routeKey ? contract.routes[routeKey] : null;
+  if (!route && !routeKey && requestedPath) {
+    const match = Object.entries(contract.routes).find(([, candidate]) =>
+      String(candidate?.path || '') === requestedPath
+      && (!requestedMethod || String(candidate?.method || '').toUpperCase() === requestedMethod),
+    );
+    if (match) [routeKey, route] = match;
+  }
+  if (!route || typeof route !== 'object') {
+    throw typedError('route_not_allowlisted', 'Recovery step must select a route_key from the canonical route contract.', {
+      route_key: requestedKey || null,
+      method: requestedMethod || null,
+      path: requestedPath || null,
+    });
+  }
+  const method = String(route.method || '').toUpperCase();
+  const pathValue = String(route.path || '');
+  if (!['GET', 'HEAD', 'POST'].includes(method) || !pathValue.startsWith('/')) {
+    throw typedError('route_contract_invalid', 'Canonical recovery route has an unsafe method or path.', { route_key: routeKey });
+  }
+  if (requestedMethod && requestedMethod !== method) {
+    throw typedError('route_method_mismatch', 'Configured method does not match the canonical route contract.', { route_key: routeKey, expected_method: method, observed_method: requestedMethod });
+  }
+  if (requestedPath && requestedPath !== pathValue) {
+    throw typedError('route_path_mismatch', 'Configured path does not match the canonical route contract.', { route_key: routeKey, expected_path: pathValue, observed_path: requestedPath });
+  }
+  return { ...step, route_key: routeKey, method, path: pathValue };
+}
+
 async function requestJsonish(url, options = {}) {
   const response = await fetch(url, {
     method: options.method || 'GET',
@@ -298,6 +350,7 @@ async function verifyRuntimeParity(env, sha) {
 
 async function runHttpSteps(env, sha, variableName, { allowMutation = false } = {}) {
   const steps = parseJson(env[variableName], [], variableName);
+  const routeContract = loadRecoveryRouteContract();
   if (!Array.isArray(steps)) throw typedError('steps_invalid', `${variableName} must be a JSON array`);
   if (!steps.length) return [];
   const baseUrl = String(env.PRODUCTION_BASE_URL || '').trim();
@@ -305,11 +358,12 @@ async function runHttpSteps(env, sha, variableName, { allowMutation = false } = 
   const authValue = String(env.PRODUCTION_PROBE_AUTH_VALUE || '');
   const authHeader = String(env.PRODUCTION_PROBE_AUTH_HEADER || 'Authorization');
   const results = [];
-  for (const step of steps) {
+  for (const rawStep of steps) {
+    const step = resolveRecoveryRoute(renderTemplate(rawStep, context), routeContract);
     if (step?.mutation === true && !allowMutation) {
       throw typedError('mutation_step_blocked', `Mutation step ${step?.name || '<unnamed>'} is not allowed in this phase`);
     }
-    const url = joinRuntimeUrl(baseUrl, renderTemplate(step.path || '/', context), env, `${variableName}.path`);
+    const url = joinRuntimeUrl(baseUrl, step.path, env, `${variableName}.path`);
     const headers = { Accept: 'application/json', ...(renderTemplate(step.headers || {}, context)) };
     if (authValue) headers[authHeader] = authValue;
     let body;
@@ -336,7 +390,7 @@ async function runHttpSteps(env, sha, variableName, { allowMutation = false } = 
         step: step.name || step.path,
       });
     }
-    results.push({ name: step.name || step.path, status: response.status, contract_match: true });
+    results.push({ name: step.name || step.path, route_key: step.route_key, status: response.status, contract_match: true });
   }
   return results;
 }
