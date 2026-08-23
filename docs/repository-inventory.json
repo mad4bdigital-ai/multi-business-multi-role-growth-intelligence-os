@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7296,
-    "bytes": 71199297,
-    "lines": 1667020,
+    "bytes": 71199633,
+    "lines": 1667024,
     "directories": 266,
     "categories": 13
   },
@@ -7241,9 +7241,9 @@
       "path": ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5913,
-      "lines": 110,
-      "sha256": "76186940240705577e7971824ddfdd0a9de129a9e83d2665b588e02df9c01100",
+      "bytes": 6054,
+      "lines": 112,
+      "sha256": "19751cbc5b0bd84fc43c589e696da5ca691401b02ca7983c54f3a1ce8fdd11c7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85803,9 +85803,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 24465,
-      "lines": 412,
-      "sha256": "01960356eae25a22b75bb0ee36c4a15523a6d2b4ea457fc72fb8e67de295c042",
+      "bytes": 24660,
+      "lines": 414,
+      "sha256": "e4bfcbbd6f11fd89e117e7758af2d203490d109988a01fbacd8d037ed43c81f0",
       "mode": "644",
       "executable": false,
       "generated": false
