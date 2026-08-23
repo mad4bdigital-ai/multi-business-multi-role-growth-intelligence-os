@@ -6,13 +6,14 @@
 
 ## الأوضاع
 
-الأمر الافتراضي هو `plan`، وهو لا يفتح اتصالًا بقاعدة البيانات. وضع `dry_run` يقرأ هوية الهدف وعدد الجداول والـschema prerequisites والـledger والـgrant evidence فقط. وضع `apply` هو المسار الوحيد الذي يمكنه تنفيذ SQL، ولا يعمل إلا بعد كل الحواجز المستقلة والتأكيد النصي المرتبط بالـSHA والهدف.
+الأمر الافتراضي هو `plan`، وهو لا يفتح اتصالًا بقاعدة البيانات. وضع `dry_run` يقرأ هوية الهدف وعدد الجداول والـschema prerequisites والـledger والـpostconditions والـgrant evidence فقط. لا يوجد وضع combined باسم `apply`: `apply_migration` و`apply_grants` مرحلتان مستقلتان، ولكل منهما confirmation مستقل مرتبط بالـSHA والهدف والهوية. أي فشل بعد بدء DDL أو GRANT يعلن `mutation_state=partial_possible` ولا يدّعي أن قاعدة البيانات لم تتغير.
 
 | الوضع | اتصال DB | SQL mutation | الاستخدام |
 |---|---:|---:|---|
 | `plan` | لا | لا | عرض العقد وعدم التنفيذ |
 | `dry_run` | نعم | لا | قراءة parity وschema/ledger/grant evidence |
-| `apply` | نعم | نعم، allowlist فقط | تنفيذ recovery بعد التفويض والتأكيد الدقيق |
+| `apply_migration` | نعم | migration مرشح فقط، دون grants | تطبيق 20260815 بعد confirmation مستقل وpostcondition/ledger readback |
+| `apply_grants` | نعم | GRANT محدود فقط، دون migration | تطبيق SELECT/INSERT/UPDATE للجداول الستة بعد migration readiness وconfirmation مستقل |
 
 ## المتغيرات الحاكمة
 
@@ -22,9 +23,10 @@
 |---|---|---|
 | المصدر | `BOOTSTRAP_EXPECTED_SHA`, `BOOTSTRAP_EXPECTED_BRANCH`, `BOOTSTRAP_EXPECTED_REPOSITORY` | SHA كامل بطول 40، والفرع `Production` والمستودع canonical |
 | الهدف | `RUNTIME_BOOTSTRAP_TARGETS_JSON`, `BOOTSTRAP_TARGET_KEY`, `BOOTSTRAP_TARGET_DATABASE` | الهدف يجب أن يكون allowlisted مع `database_sha256` و`target_fingerprint` المطابقين |
-| الحساب | `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, `MYSQL_BOOTSTRAP_PASSWORD`, `MYSQL_BOOTSTRAP_DATABASE` | حساب مستقل عن `DB_*`؛ لا يوجد fallback إلى runtime credentials |
-| migration | `BOOTSTRAP_MIGRATION` | `20260815` فقط قابلة لـapply؛ `225` و`1048` dry-run فقط |
-| التأكيد | `BOOTSTRAP_CONFIRMATION` | في apply يجب أن تساوي حرفيًا `APPLY_HOSTINGER_RUNTIME_BOOTSTRAP:<exact-sha>:<target-key>` |
+| الحساب | `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, `MYSQL_BOOTSTRAP_PASSWORD`, `MYSQL_BOOTSTRAP_DATABASE` | حساب مستقل عن `DB_*` وعن `target.principal`؛ لا يوجد fallback إلى runtime credentials |
+| migration | `BOOTSTRAP_MIGRATION` | `20260815` فقط قابلة لـ`apply_migration`؛ `225` و`1048` verification-only مع readiness readback |
+| تأكيد migration | `BOOTSTRAP_MIGRATION_CONFIRMATION` | `APPLY_HOSTINGER_RUNTIME_MIGRATION:<exact-sha>:<target-key>:<migration-file>` |
+| تأكيد grants | `BOOTSTRAP_GRANTS_CONFIRMATION` | `APPLY_HOSTINGER_RUNTIME_GRANTS:<exact-sha>:<target-key>:<principal>:<principal-host>` |
 | bundle | `BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST` | مطلوب فقط لمسار zero-table بعد توليد bundle canonical ومثبت المصدر والـchecksum |
 
 لا تعرض قيمة `RUNTIME_BOOTSTRAP_TARGETS_JSON` أو credentials في التقرير النهائي. يكتب البرنامج evidence محدودًا ويعلن دائمًا `secrets_included=false`.
@@ -38,21 +40,22 @@ cd http-generic-api
 npm run runtime-bootstrap:plan
 ```
 
-لا يطبق هذا الأمر شيئًا ولا يحتاج أي credential. أما dry-run وapply فيحتاجان injection للمتغيرات من secret manager، ثم:
+لا يطبق هذا الأمر شيئًا ولا يحتاج أي credential. أما dry-run ومرحلتا apply فتحتاج injection للمتغيرات من secret manager، ثم:
 
 ```bash
 cd http-generic-api
 npm run runtime-bootstrap:dry-run
-npm run runtime-bootstrap:apply
+npm run runtime-bootstrap:apply-migration
+npm run runtime-bootstrap:apply-grants
 ```
 
-لا تُشغّل الأمر الأخير إلا بعد مراجعة نتيجة dry-run وتثبيت exact deployment SHA وقراءة target identity. لا يفترض هذا المستودع وجود Hostinger release hook فعّال؛ يجب أن تكون دعوة الأمر جزءًا من إعداد تشغيلي منفصل ومراجع.
+يجب تشغيل `apply-migration` ثم مراجعة evidence وpostconditions/ledger، وبعد موافقة مستقلة فقط تشغيل `apply-grants`. لا تُشغّل أيًا منهما بconfirmation مجمعة؛ alias `runtime-bootstrap:apply` وflag `--apply` مرفوضان عمدًا. لا يفترض هذا المستودع وجود Hostinger release hook فعّال؛ يجب أن تكون دعوة كل مرحلة جزءًا من إعداد تشغيلي منفصل ومراجع.
 
 ## قواعد قاعدة البيانات
 
 ### قاعدة nonempty الحالية
 
-إذا كان عدد الجداول أكبر من صفر، يُمنع baseline schema bundle. بالنسبة إلى الحادثة الحالية، المسار الصحيح هو قراءة prerequisites ثم تنفيذ `20260815_custom_gpt_mcp_catalog_levels.sql` فقط بعد التأكد من وجود `admin_platform_endpoint_tools` و`tenant_platform_endpoint_tools`. بعدها تُقرأ postconditions الخاصة بـ`mcp_catalog_level` وindexes وfeedback row، ثم تُقرأ/تُسجل canonical ledger evidence. صلاحيات runtime المطلوبة محصورة في `SELECT, INSERT, UPDATE` للجداول الستة التالية فقط:
+إذا كان عدد الجداول أكبر من صفر، يُمنع baseline schema bundle. بالنسبة إلى الحادثة الحالية، المسار الصحيح هو قراءة prerequisites ثم تنفيذ `20260815_custom_gpt_mcp_catalog_levels.sql` فقط بعد التأكد من وجود `admin_platform_endpoint_tools` و`tenant_platform_endpoint_tools`. بعدها تُقرأ postconditions الخاصة بـ`mcp_catalog_level` وindexes وfeedback row، ثم تُقرأ/تُسجل canonical ledger evidence. لا تُطبق grants في دورة migration؛ grants لها preflight مستقل يتحقق من وجود الجداول الستة كلها قبل أول GRANT، ثم readback في الدورة نفسها. صلاحيات runtime المطلوبة محصورة في `SELECT, INSERT, UPDATE` للجداول الستة التالية فقط:
 
 `customer_sessions`, `gpt_session_turns`, `actions`, `dynamic_audit_scheduler_runs`, `execution_log`, و`json_assets`.
 
@@ -64,11 +67,11 @@ npm run runtime-bootstrap:apply
 
 ## GitHub workflow
 
-يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` و`bootstrap_target_key` و`bootstrap_target_database` و`bootstrap_migration` و`bootstrap_confirmation`. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، و`apply` مشروط بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
+يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` (`disabled|plan|dry_run|apply_migration|apply_grants`) و`bootstrap_target_key` و`bootstrap_target_database` و`bootstrap_migration` وconfirmation الخاصة بالمرحلة. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، و`apply_migration` و`apply_grants` مشروطان كلٌ على حدة بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
 
-يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يشغّل contract tests، ثم ينفذ `plan` أو `dry_run` أو `apply` فقط عند اختيار `bootstrap_mode` صريح غير `disabled`. قبل `dry_run` أو `apply` ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح bootstrap database connection أو تنفيذ migration/grant. لا يصنف أي 502 من Hostinger أو غياب route كنجاح migration؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
+يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يشغّل contract tests، ثم ينفذ `plan` أو `dry_run` أو `apply_migration` أو `apply_grants` فقط عند اختيار `bootstrap_mode` صريح غير `disabled`. قبل `dry_run` أو أي apply ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح bootstrap database connection أو تنفيذ migration/grant. لا يصنف أي 502 من Hostinger أو غياب route كنجاح migration؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
 
-يشغّل job العقد مباشرةً `test-runtime-bootstrap-contract.mjs` و`test-runtime-gate-deployment-info-parity.mjs` و`hostinger-runtime-bootstrap.mjs --plan`، حتى لا يبقى اختبار parity مجرد ملف موثق غير منفذ. تُحفظ نتيجة parity التشغيلية في evidence محدود، مع `read_only=true` و`mutation_performed=false` و`provider_mutation_performed=false` و`secrets_included=false`.
+يشغّل job العقد مباشرةً `test-runtime-bootstrap-contract.mjs` و`test-runtime-gate-deployment-info-parity.mjs` و`hostinger-runtime-bootstrap.mjs --plan`، حتى لا يبقى اختبار parity مجرد ملف موثق غير منفذ. تُحفظ نتيجة parity التشغيلية في evidence محدود، مع `read_only=true` و`mutation_performed=false` و`provider_mutation_performed=false` و`secrets_included=false`. في حالات الفشل بعد بدء العملية، يتضمن evidence `mutation_evidence` بعدّاد statements/tables المكتملة وحالة `partial_possible`، ولا يُعاد إنشاء ledger بعد migration إلا بعملية separate, explicit write.
 
 ## القراءة من startup و/deployment-info
 
@@ -76,4 +79,4 @@ npm run runtime-bootstrap:apply
 
 ## Verification checklist بعد التشغيل
 
-بعد أي apply مصرح به يجب حفظ evidence للـexact SHA والهدف، وعدد الجداول قبل التنفيذ، ونتيجة migration، وpostconditions، وcanonical ledger، وgrant readback. ثم تعاد اختبارات session-context وMCP catalog وAdmin/System Tools وresponse-chunk persistence. لا تعتبر schema/ledger presence وحدها دليلًا على أن التطبيق يملك `INSERT` أو أن persistence live binding يعمل.
+بعد كل مرحلة مصرح بها يجب حفظ evidence للـexact SHA والهدف والـprincipal/host، وعدد الجداول قبل التنفيذ، ونتيجة العملية، وpostconditions، وcanonical ledger، وgrant preflight/readback، و`mutation_evidence`. ثم تعاد اختبارات session-context وMCP catalog وAdmin/System Tools وresponse-chunk persistence. ويجب أن يثبت dry-run لـ225 بنية ledger والسياسة والأداة، وأن يثبت dry-run لـ1048 الأعمدة والفهارس وreadiness view؛ schema/ledger presence وحدها لا تكفي لإثبات أن التطبيق يملك `INSERT` أو أن persistence live binding يعمل.

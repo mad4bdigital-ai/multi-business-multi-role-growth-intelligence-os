@@ -8,6 +8,7 @@ import {
   buildPlan,
   classifyMysqlError,
   runBootstrap,
+  normalizeMode,
   sanitizeBootstrapError,
   selectMigration,
   validateSchemaBundleManifest,
@@ -24,7 +25,7 @@ const TARGET = {
   key: TARGET_KEY,
   database: TARGET_DATABASE,
   database_sha256: sha256Hex(TARGET_DATABASE),
-  target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}`),
+  target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}:${TARGET_DATABASE}:runtime_user:localhost`),
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   branch: "Production",
   environment: "production",
@@ -62,18 +63,41 @@ function grantRows() {
   ] : [];
 }
 
-function fakeConnection({ tableCount = 7, missingTables = [] } = {}) {
+function fakeConnection({ tableCount = 7, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null } = {}) {
   const queryCalls = [];
   const executeCalls = [];
+  let mutationQueries = 0;
+  let grantsIssued = 0;
+  let recordedLedger = ledgerFound;
   const requiredTables = new Set([
     "admin_platform_endpoint_tools",
     "tenant_platform_endpoint_tools",
     "governed_migration_ledger",
+    "capability_resolution_envelope_ledger",
+    "governed_tool_response_chunks",
+    "platform_runtime_config",
     ...contract.grant_policy.required_tables,
   ]);
+  const currentGrantRows = grantRows();
   const connection = {
     query: async (sql) => {
-      queryCalls.push(String(sql));
+      const text = String(sql).trim();
+      queryCalls.push(text);
+      if (/^GRANT /i.test(text)) {
+        grantsIssued += 1;
+        if (failGrantAt === grantsIssued) {
+          const error = new Error("simulated grant failure");
+          error.code = "ER_TABLEACCESS_DENIED_ERROR";
+          throw error;
+        }
+      } else if (/^(?:CREATE|ALTER|UPDATE|INSERT|DELETE|REPLACE|SET|PREPARE|EXECUTE|DEALLOCATE)\b/i.test(text)) {
+        mutationQueries += 1;
+        if (failMutationAt === mutationQueries) {
+          const error = new Error("simulated mutation failure");
+          error.code = "ER_UNKNOWN_ERROR";
+          throw error;
+        }
+      }
       return [[]];
     },
     execute: async (sql, params = []) => {
@@ -91,16 +115,23 @@ function fakeConnection({ tableCount = 7, missingTables = [] } = {}) {
       if (text.includes("TABLE_NAME = 'governed_migration_ledger'") && text.includes("information_schema.COLUMNS")) {
         return [["run_id", "migration_file", "migration_checksum_sha256", "applied_at", "applied_by", "runner_version", "mode", "statement_count", "preflight_status", "preflight_risk_count", "requirements_json", "results_json", "before_schema_objects_json", "after_schema_objects_json", "metadata_json", "secrets_included"].map((COLUMN_NAME) => ({ COLUMN_NAME }))];
       }
-      if (text.includes("information_schema.COLUMNS") && text.includes("COLUMN_NAME IN")) {
-        return [contract.postconditions["20260815_custom_gpt_mcp_catalog_levels.sql"].map((check) => ({ COLUMN_NAME: check.column || check.key_column || check.value_column })).filter((row) => row.COLUMN_NAME)];
-      }
       if (text.includes("information_schema.COLUMNS")) return [[{ COLUMN_NAME: String(params[2] || "mcp_catalog_level") }]];
       if (text.includes("information_schema.STATISTICS")) return [[{ INDEX_NAME: String(params[2] || "idx_enabled_mcp_level_sort") }]];
-      if (text.includes("FROM governed_migration_ledger")) return [[]];
+      if (text.includes("INSERT INTO governed_migration_ledger")) {
+        recordedLedger = true;
+        return [{ affectedRows: 1 }];
+      }
+      if (text.includes("FROM governed_migration_ledger")) {
+        const requestedMigration = String(params[0] || "20260815_custom_gpt_mcp_catalog_levels.sql");
+        return recordedLedger ? [[{ run_id: "existing-run", migration_checksum_sha256: contract.migrations[requestedMigration].sha256, mode: "apply", applied_at: "2026-08-15T00:00:00.000Z" }]] : [[]];
+      }
+      if (text.includes("v_governed_response_chunk_transport_schema_readiness")) return [[{ observed_value: "ready" }]];
+      if (text.includes("FROM `platform_runtime_config`")) return [[{ observed_value: String(params[0] || "capability_resolution_envelope_ledger_policy_v1") }]];
+      if (text.includes("FROM `admin_platform_endpoint_tools`")) return [[{ observed_value: "capability_resolution_envelope_create" }]];
       if (text.includes("SELECT `mcp_catalog_level` AS observed_value")) return [[{ observed_value: "growth_feedback" }]];
       if (text.includes("USER_PRIVILEGES")) return [[]];
       if (text.includes("SCHEMA_PRIVILEGES")) return [[]];
-      if (text.includes("TABLE_PRIVILEGES")) return [grantRows()];
+      if (text.includes("TABLE_PRIVILEGES")) return [currentGrantRows];
       return [[]];
     },
     escape(value) { return `'${String(value).replaceAll("'", "\\'")}'`; },
@@ -117,7 +148,13 @@ test("Hostinger and GitHub recovery contracts share migration and grant pins", (
     const github = recoveryContract.recovery_migrations[migration];
     assert.equal(hostinger.sha256, github.sha256);
     assert.equal(hostinger.statement_count, github.statement_count);
-    assert.deepEqual(hostinger.allowed_modes, github.allowed_modes);
+    if (hostinger.role === "verification_only") {
+      assert.deepEqual(hostinger.allowed_modes, ["dry_run"]);
+      assert.deepEqual(github.allowed_modes, ["dry_run"]);
+    } else {
+      assert.deepEqual([...hostinger.allowed_modes].sort(), ["dry_run", "apply_grants", "apply_migration"].sort());
+      assert.deepEqual([...github.allowed_modes].sort(), ["dry_run", "apply"].sort());
+    }
     assert.equal(hostinger.role, github.incident_role);
   }
   assert.deepEqual(contract.grant_policy.required_tables, recoveryContract.grant_policy.required_tables);
@@ -148,15 +185,33 @@ test("runtime credentials cannot substitute for dedicated bootstrap credentials"
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_credential_reuse_denied");
 });
 
+test("bootstrap principal separation is enforced without DB_USER and target tampering breaks fingerprint", () => {
+  const collision = envFor();
+  delete collision.DB_USER;
+  collision.MYSQL_BOOTSTRAP_USER = TARGET.principal;
+  assert.throws(() => buildPlan(collision, contract), (error) => error.code === "bootstrap_principal_collision_denied");
+
+  const tampered = envFor();
+  const target = { ...TARGET, principal: "other_runtime_user" };
+  tampered.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([target]);
+  assert.throws(() => buildPlan(tampered, contract), (error) => error.code === "bootstrap_target_fingerprint_mismatch");
+});
+
+test("combined apply mode is denied", () => {
+  assert.throws(() => normalizeMode("apply"), (error) => error.code === "bootstrap_mode_invalid");
+});
+
 test("verification-only migrations cannot be applied", () => {
-  assert.throws(
-    () => selectMigration(contract, "225_sprint67_capability_resolution_envelope_ledger.sql", "apply"),
-    (error) => error.code === "bootstrap_migration_mode_denied",
-  );
-  assert.throws(
-    () => selectMigration(contract, "1048_transport_response_chunk_schema_recovery.sql", "apply"),
-    (error) => error.code === "bootstrap_migration_mode_denied",
-  );
+  for (const mode of ["apply_migration", "apply_grants"]) {
+    assert.throws(
+      () => selectMigration(contract, "225_sprint67_capability_resolution_envelope_ledger.sql", mode),
+      (error) => error.code === "bootstrap_migration_mode_denied",
+    );
+    assert.throws(
+      () => selectMigration(contract, "1048_transport_response_chunk_schema_recovery.sql", mode),
+      (error) => error.code === "bootstrap_migration_mode_denied",
+    );
+  }
 });
 
 test("baseline eligibility is zero-table-only", () => {
@@ -195,6 +250,7 @@ test("dry-run supports an explicitly allowlisted separate governance database", 
     ...TARGET,
     governance_database: "growth_governance",
     governance_database_sha256: sha256Hex("growth_governance"),
+    target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}:growth_governance:runtime_user:localhost`),
   };
   env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
   env.BOOTSTRAP_GOVERNANCE_DATABASE = "growth_governance";
@@ -207,6 +263,20 @@ test("dry-run supports an explicitly allowlisted separate governance database", 
   assert.equal(result.database_mutation_performed, false);
 });
 
+test("dry-run verifies 225 envelope schema/policy/tool and 1048 response-chunk readiness", async () => {
+  for (const migration of [
+    "225_sprint67_capability_resolution_envelope_ledger.sql",
+    "1048_transport_response_chunk_schema_recovery.sql",
+  ]) {
+    const env = envFor(migration, "dry_run");
+    const result = await runBootstrap({ env, contract, connectionFactory: async () => fakeConnection({ tableCount: 7, ledgerFound: true }) });
+    assert.equal(result.status, "dry_run_complete");
+    assert.equal(result.ledger.found, true);
+    assert.equal(result.postconditions.ready, true);
+    assert.equal(result.postconditions.checks.length, contract.postconditions[migration].length);
+  }
+});
+
 test("schema-ready without ledger remains apply-required and is never record-only reconciled", async () => {
   const env = envFor();
   const connection = fakeConnection();
@@ -217,29 +287,79 @@ test("schema-ready without ledger remains apply-required and is never record-onl
   assert.equal(result.status, "dry_run_complete");
 });
 
-test("explicit apply executes only 20260815 and six-table least-privilege grants with postcondition readback", async () => {
-  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply");
-  env.BOOTSTRAP_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_BOOTSTRAP:${EXPECTED_SHA}:${TARGET_KEY}`;
+test("migration apply is independently confirmed and never applies grants", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
   const connection = fakeConnection({ tableCount: 7 });
   const result = await runBootstrap({ env, contract, connectionFactory: async () => connection });
-  assert.equal(result.status, "apply_complete");
+  assert.equal(result.status, "apply_migration_complete");
   assert.equal(result.database_mutation_performed, true);
   assert.equal(result.migration_apply_performed, true);
-  assert.equal(result.grant_mutation_performed, true);
+  assert.equal(result.grant_mutation_performed, false);
   assert.equal(result.postconditions.ready, true);
+  assert.deepEqual(connection.queryCalls.filter((sql) => /^GRANT /i.test(sql)), []);
+  assert.equal(result.mutation_evidence.grants.attempted, false);
+});
+
+test("grants apply requires independent confirmation and migration readiness", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_grants");
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:runtime_user:localhost`;
+  const connection = fakeConnection({ tableCount: 7, ledgerFound: true });
+  const result = await runBootstrap({ env, contract, connectionFactory: async () => connection });
+  assert.equal(result.status, "apply_grants_complete");
+  assert.equal(result.migration_apply_performed, false);
+  assert.equal(result.grant_mutation_performed, true);
   assert.equal(result.grants.grant_readback.ready, true);
+  assert.equal(result.mutation_evidence.migration.attempted, false);
   const grants = connection.queryCalls.filter((sql) => /^GRANT /i.test(sql));
   assert.equal(grants.length, contract.grant_policy.required_tables.length);
-  for (const table of contract.grant_policy.required_tables) {
-    const quotedTable = "`" + table + "`";
-    assert.equal(grants.filter((sql) => sql.includes(quotedTable)).length, 1);
-  }
   assert.equal(grants.every((sql) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(sql)), true);
 });
 
-test("apply confirmation is exact and blocks before opening a connection", async () => {
-  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply");
-  env.BOOTSTRAP_CONFIRMATION = "APPLY_HOSTINGER_RUNTIME_BOOTSTRAP:wrong:production-runtime";
+test("grant preflight checks every table before the first GRANT", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_grants");
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:runtime_user:localhost`;
+  const connection = fakeConnection({ tableCount: 7, ledgerFound: true, missingTables: ["execution_log"] });
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async () => connection }),
+    (error) => error.code === "bootstrap_grant_table_missing",
+  );
+  assert.equal(connection.queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+});
+
+test("partial migration and grant failures report unknown/partial mutation evidence", async () => {
+  const migrationEnv = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  migrationEnv.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  const migrationConnection = fakeConnection({ tableCount: 7, failMutationAt: 2 });
+  await assert.rejects(
+    () => runBootstrap({ env: migrationEnv, contract, connectionFactory: async () => migrationConnection }),
+    (error) => {
+      assert.equal(error.code, "bootstrap_migration_mutation_failed");
+      assert.equal(error.details.database_mutation_performed, "unknown");
+      assert.equal(error.details.mutation_evidence.mutation_state, "partial_possible");
+      assert.equal(error.details.mutation_evidence.migration.statements_completed, 1);
+      return true;
+    },
+  );
+
+  const grantsEnv = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_grants");
+  grantsEnv.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:runtime_user:localhost`;
+  const grantsConnection = fakeConnection({ tableCount: 7, ledgerFound: true, failGrantAt: 3 });
+  await assert.rejects(
+    () => runBootstrap({ env: grantsEnv, contract, connectionFactory: async () => grantsConnection }),
+    (error) => {
+      assert.equal(error.code, "bootstrap_grant_mutation_failed");
+      assert.equal(error.details.database_mutation_performed, "unknown");
+      assert.equal(error.details.mutation_evidence.mutation_state, "partial_possible");
+      assert.deepEqual(error.details.mutation_evidence.grants.tables_completed, contract.grant_policy.required_tables.slice(0, 2));
+      return true;
+    },
+  );
+});
+
+test("migration confirmation is exact and blocks before opening a connection", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = "APPLY_HOSTINGER_RUNTIME_MIGRATION:wrong:production-runtime:20260815_custom_gpt_mcp_catalog_levels.sql";
   let connectionOpened = false;
   await assert.rejects(
     () => runBootstrap({ env, contract, connectionFactory: async () => { connectionOpened = true; return fakeConnection(); } }),
@@ -248,9 +368,9 @@ test("apply confirmation is exact and blocks before opening a connection", async
   assert.equal(connectionOpened, false);
 });
 
-test("zero-table apply stops before mutation when canonical bundle is absent", async () => {
-  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply");
-  env.BOOTSTRAP_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_BOOTSTRAP:${EXPECTED_SHA}:${TARGET_KEY}`;
+test("zero-table migration apply stops before mutation when canonical bundle is absent", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
   const connection = fakeConnection({ tableCount: 0 });
   await assert.rejects(
     () => runBootstrap({ env, contract, connectionFactory: async () => connection }),

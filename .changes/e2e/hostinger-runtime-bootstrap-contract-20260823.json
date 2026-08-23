@@ -17,6 +17,7 @@
       "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      ".github/ops/test-production-runtime-recovery.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/.env.example",
       "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -49,7 +50,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an explicit plan/dry-run/apply contract for GitHub or a separately configured Hostinger release hook, while preserving normal DB-backed authorization and preventing startup auto-apply.",
+      "objective": "Provide an explicit plan/dry-run/operation-scoped recovery contract for GitHub or a separately configured Hostinger release hook, while preserving normal DB-backed authorization and preventing startup auto-apply.",
       "e2e_journeys": [
         {
           "id": "schema-less-runtime-bootstrap-fails-closed",
@@ -57,16 +58,16 @@
           "level": "synthetic_runtime",
           "actor": "Repository or GitHub Environment operator",
           "entrypoint": "hostinger-runtime-bootstrap CLI or manual GitHub workflow",
-          "terminal_outcome": "Plan mode is read-only by default; dry-run classifies target schema, ledger, postconditions, and grants; apply is limited to the canonical zero-table bundle or incident 20260815 path and requires dedicated credentials plus exact SHA/target confirmation.",
+          "terminal_outcome": "Plan mode is read-only by default; dry-run classifies target schema, ledger, postconditions, and grants; apply_migration and apply_grants are separate operations with independent exact SHA/target/identity confirmations, while combined apply is denied.",
           "steps": [
             "Validate exact Production source repository, branch, and 40-character SHA.",
-            "Validate a repository-owned target entry with database SHA-256 and target fingerprint.",
+            "Validate a repository-owned target entry with database SHA-256 and target fingerprint bound to repository, branch, key, runtime/governance databases, principal, and principal host.",
             "Reject runtime DB credentials as bootstrap credentials and never fall back to DB_*.",
             "Classify zero-table and nonempty databases before any baseline decision.",
-            "Allow 225 and 1048 only in dry-run/verification mode.",
-            "Allow 20260815 apply only after catalog prerequisite tables, checksum, statement count, ledger conflict checks, and declared postconditions pass.",
+            "Allow 225 and 1048 only in dry-run/verification mode and read back their canonical schema/readiness postconditions.",
+            "Allow 20260815 only in apply_migration/apply_grants operation scopes; migration apply requires catalog prerequisite tables, checksum, statement count, ledger conflict checks, and declared postconditions, while grants require migration readiness and a separate confirmation.",
             "For zero-table apply, require a same-SHA schema-only bundle manifest and runtime table-count/checksum pins; do not execute a generic migration directory.",
-            "Apply only six-table SELECT/INSERT/UPDATE grants and require same-cycle readback without GRANT OPTION or schema/global write privileges.",
+            "Preflight all six grant tables before the first GRANT, apply only SELECT/INSERT/UPDATE, record completed tables, and require same-cycle readback without GRANT OPTION or schema/global write privileges.",
             "Expose typed bootstrap_not_configured/bootstrap_required status from startup and /deployment-info without opening a database connection.",
             "Keep the normal GPT tool and session-context routes DB-backed and protected."
           ],
@@ -76,8 +77,8 @@
             "Missing bundle, source mismatch, table-count mismatch, or checksum mismatch blocks zero-table mutation before SQL.",
             "A nonempty database cannot use the baseline bundle.",
             "A schema-ready database without apply-ledger evidence remains apply-required and is never record-only reconciled.",
-            "Credential values, SQL text, and passwords are absent from bounded evidence.",
-            "The repository does not claim that Hostinger release-hook configuration exists; live operational execution remains a separate step."
+            "Credential values, SQL text, and passwords are absent from bounded evidence; failed DDL/GRANT attempts report unknown/partial mutation state and completed counts.",
+            "Combined apply is denied; migration and grants approvals are independent, and the repository does not claim that Hostinger release-hook configuration exists; live operational execution remains a separate step."
           ],
           "tests": [
             {
@@ -93,6 +94,13 @@
               "working_directory": "http-generic-api",
               "path": "test-runtime-gate-deployment-info-parity.mjs",
               "args": []
+            },
+            {
+              "id": "production-runtime-bootstrap-workflow-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/ops/test-production-runtime-recovery.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -103,8 +111,9 @@
             "http-generic-api/runtimeBootstrapContract.js",
             "http-generic-api/runtimeBootstrapStatus.js",
             "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
-            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
-            "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      ".github/ops/test-production-runtime-recovery.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
             "http-generic-api/.env.example",
             "http-generic-api/Dockerfile",
             "http-generic-api/routes/deploymentInfoRoutes.js",

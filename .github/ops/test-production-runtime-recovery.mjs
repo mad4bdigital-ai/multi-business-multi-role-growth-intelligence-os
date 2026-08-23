@@ -397,6 +397,14 @@ test('explicit bootstrap requires live Hostinger parity and runs the parity cont
   assert.match(workflow, /deployment_branch.*EXPECTED_BRANCH/u);
   assert.match(workflow, /BOOTSTRAP_RESULT_PATH: \$\{\{ github\.workspace \}\}/u);
   assert.match(workflow, /node --test test-runtime-gate-deployment-info-parity\.mjs/u);
+  assert.match(workflow, /apply_migration/u);
+  assert.match(workflow, /apply_grants/u);
+  assert.match(workflow, /BOOTSTRAP_MIGRATION_CONFIRMATION/u);
+  assert.match(workflow, /BOOTSTRAP_GRANTS_CONFIRMATION/u);
+  assert.match(workflow, /group: production-runtime-bootstrap-production/u);
+  assert.doesNotMatch(workflow, /group: production-runtime-bootstrap-\$\{\{.*expected_sha/u);
+  const bootstrapJob = workflow.slice(workflow.indexOf('  bootstrap:'), workflow.indexOf('  live:'));
+  assert.doesNotMatch(bootstrapJob, /^\s{6}.*runner\./mu);
   assert.doesNotMatch(workflow, /^\s{6}(?:BOOTSTRAP_RESULT_PATH|MYSQL_BOOTSTRAP_(?:HOST|PORT|USER|PASSWORD)):.*runner\.temp/mu);
   assert.match(workflow, /mutation_performed:false/iu);
   assert.match(workflow, /provider_mutation_performed:false/iu);

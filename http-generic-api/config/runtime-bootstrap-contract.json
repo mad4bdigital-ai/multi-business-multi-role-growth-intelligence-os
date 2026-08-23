@@ -5,8 +5,13 @@
   "purpose": "Explicit GitHub or Hostinger release-hook bootstrap/recovery without weakening normal DB-backed authorization or tool catalog routes.",
   "execution_policy": {
     "default_mode": "plan",
-    "allowed_modes": ["plan", "dry_run", "apply"],
-    "apply_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_BOOTSTRAP",
+    "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
+    "combined_apply_mode": "deny",
+    "apply_migration_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_MIGRATION",
+    "apply_grants_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_GRANTS",
+    "migration_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>",
+    "grants_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>",
+    "apply_grants_requires_migration_ready": true,
     "auto_apply": false,
     "startup_apply": false,
     "prestart_apply": false,
@@ -37,7 +42,9 @@
     "required_repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     "require_database_sha256": true,
     "require_target_fingerprint": true,
-    "target_fingerprint_formula": "sha256(repository:branch:key:database)",
+    "target_fingerprint_formula": "sha256(repository:branch:key:database:governance_database:principal:principal_host)",
+    "require_principal_binding": true,
+    "require_principal_host_binding": true,
     "runtime_database_credentials_are_never_accepted": true,
     "runtime_database_env_names": ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD", "DATABASE_URL"]
   },
@@ -107,7 +114,7 @@
     "20260815_custom_gpt_mcp_catalog_levels.sql": {
       "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
       "statement_count": 7,
-      "allowed_modes": ["dry_run", "apply"],
+      "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
       "role": "only_current_apply_candidate",
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true,
@@ -129,9 +136,54 @@
     "allow_schema_write_privileges": false,
     "allow_global_write_privileges": false,
     "allow_grant_option": false,
-    "same_cycle_readback_required": true
+    "same_cycle_readback_required": true,
+    "preflight_all_tables_before_first_grant": true,
+    "apply_grants_requires_postconditions_ready": true
   },
   "postconditions": {
+    "225_sprint67_capability_resolution_envelope_ledger.sql": [
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_id"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_sha256"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_json"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_status"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "dispatch_allowed"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "apply_allowed"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "approval_required"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "quota_required"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "audit_required"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "readback_required"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "blocking_gap_count"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "execution_status"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "expires_at"},
+      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "secrets_included"},
+      {"type": "index", "table": "capability_resolution_envelope_ledger", "index": "uq_capability_resolution_envelope_id"},
+      {"type": "index", "table": "capability_resolution_envelope_ledger", "index": "idx_capability_resolution_envelope_status"},
+      {"type": "index", "table": "capability_resolution_envelope_ledger", "index": "idx_capability_resolution_envelope_decision"},
+      {"type": "row", "table": "platform_runtime_config", "key_column": "config_key", "key_value": "capability_resolution_envelope_ledger_policy_v1", "value_column": "config_key", "expected_value": "capability_resolution_envelope_ledger_policy_v1"},
+      {"type": "row", "table": "admin_platform_endpoint_tools", "key_column": "tool_key", "key_value": "capability_resolution_envelope_create", "value_column": "tool_key", "expected_value": "capability_resolution_envelope_create"}
+    ],
+    "1048_transport_response_chunk_schema_recovery.sql": [
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "chunk_id"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "source_tool_key"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "response_sha256"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "response_bytes"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "response_json"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "cursor_policy"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "redaction_status"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "secrets_included"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_tenant_id"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_user_id"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_workspace_id"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_principal_type"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_principal_id"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "source_surface"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "created_at"},
+      {"type": "column", "table": "governed_tool_response_chunks", "column": "expires_at"},
+      {"type": "index", "table": "governed_tool_response_chunks", "index": "idx_governed_tool_response_chunks_expires_at"},
+      {"type": "index", "table": "governed_tool_response_chunks", "index": "idx_governed_chunk_owner_user_expiry"},
+      {"type": "index", "table": "governed_tool_response_chunks", "index": "idx_governed_chunk_principal_expiry"},
+      {"type": "view_row", "view": "v_governed_response_chunk_transport_schema_readiness", "key_column": "contract_key", "key_value": "governed_response_chunk_transport_schema_v1", "value_column": "readiness_status", "expected_value": "ready"}
+    ],
     "20260815_custom_gpt_mcp_catalog_levels.sql": [
       {"type": "column", "table": "admin_platform_endpoint_tools", "column": "mcp_catalog_level"},
       {"type": "column", "table": "tenant_platform_endpoint_tools", "column": "mcp_catalog_level"},
@@ -147,7 +199,7 @@
     "credential_values_included": false,
     "sql_text_included": false,
     "database_password_included": false,
-    "mutation_fields": ["database_mutation_performed", "migration_apply_performed", "grant_mutation_performed"],
-    "required_classifications": ["missing_schema", "privilege_denied", "target_not_bound", "bootstrap_not_configured", "verification_only"]
+    "mutation_fields": ["database_mutation_performed", "migration_apply_performed", "grant_mutation_performed", "mutation_evidence"],
+    "required_classifications": ["missing_schema", "privilege_denied", "target_not_bound", "bootstrap_not_configured", "verification_only", "mutation_partial_possible", "migration_approval_required", "grants_approval_required"]
   }
 }

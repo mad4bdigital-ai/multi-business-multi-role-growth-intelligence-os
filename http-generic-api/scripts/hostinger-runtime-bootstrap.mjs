@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  bootstrapError,
   buildPlan,
   normalizeMode,
   readRuntimeBootstrapContract,
@@ -28,20 +29,26 @@ function has(flag) {
 
 function usage() {
   process.stdout.write([
-    "Usage: node scripts/hostinger-runtime-bootstrap.mjs [--plan|--dry-run|--apply]",
+    "Usage: node scripts/hostinger-runtime-bootstrap.mjs [--plan|--dry-run|--apply-migration|--apply-grants]",
     "",
     "Default mode is --plan and never opens a database connection.",
-    "--dry-run and --apply require repository-owned target JSON and dedicated MYSQL_BOOTSTRAP_* credentials.",
-    "--apply additionally requires --confirm APPLY_HOSTINGER_RUNTIME_BOOTSTRAP:<sha>:<target-key>.",
+    "--dry-run requires repository-owned target JSON and dedicated MYSQL_BOOTSTRAP_* credentials.",
+    "--apply-migration requires --migration-confirm APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>.",
+    "--apply-grants requires --grants-confirm APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>.",
+    "--apply is rejected because migration and grants approvals are independent.",
     "No mode invokes the normal application routes or falls back to DB_* runtime credentials.",
     "",
   ].join("\n"));
 }
 
 function modeFromArgs() {
-  if (has("--plan")) return "plan";
-  if (has("--dry-run")) return "dry_run";
-  if (has("--apply")) return "apply";
+  const selected = ["--plan", "--dry-run", "--apply-migration", "--apply-grants", "--apply"].filter(has);
+  if (selected.length > 1) throw bootstrapError("bootstrap_mode_conflict", "Select exactly one bootstrap mode; combined apply is denied");
+  if (selected[0] === "--apply") throw bootstrapError("bootstrap_combined_apply_denied", "--apply is intentionally rejected; use --apply-migration or --apply-grants");
+  if (selected[0] === "--plan") return "plan";
+  if (selected[0] === "--dry-run") return "dry_run";
+  if (selected[0] === "--apply-migration") return "apply_migration";
+  if (selected[0] === "--apply-grants") return "apply_grants";
   return normalizeMode(process.env.BOOTSTRAP_MODE || "plan");
 }
 
@@ -55,7 +62,8 @@ function buildEnvironment() {
     ["--expected-sha", "BOOTSTRAP_EXPECTED_SHA"],
     ["--expected-branch", "BOOTSTRAP_EXPECTED_BRANCH"],
     ["--expected-repository", "BOOTSTRAP_EXPECTED_REPOSITORY"],
-    ["--confirm", "BOOTSTRAP_CONFIRMATION"],
+    ["--migration-confirm", "BOOTSTRAP_MIGRATION_CONFIRMATION"],
+    ["--grants-confirm", "BOOTSTRAP_GRANTS_CONFIRMATION"],
     ["--bundle-manifest", "BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST"],
   ];
   for (const [flag, variable] of mappings) {
@@ -95,23 +103,26 @@ async function main() {
     usage();
     return 0;
   }
-  const env = buildEnvironment();
+  let env = { ...process.env, BOOTSTRAP_MODE: "plan" };
   try {
+    env = buildEnvironment();
     const result = env.BOOTSTRAP_MODE === "plan"
       ? buildPlan(env, contract)
       : await runBootstrap({ env, contract, repoRoot: REPO_ROOT });
     writeEvidence(env, { ...result, secrets_included: false });
     return result.ok === false ? 1 : 0;
   } catch (error) {
+    const details = error?.details && typeof error.details === "object" ? error.details : {};
     writeEvidence(env, {
       ok: false,
       contract: "mad4b.hostinger.runtime-bootstrap-evidence.v1",
       mode: env.BOOTSTRAP_MODE || "plan",
       error: sanitizeBootstrapError(error),
-      database_connection_performed: false,
-      database_mutation_performed: false,
-      migration_apply_performed: false,
-      grant_mutation_performed: false,
+      database_connection_performed: details.database_connection_performed ?? false,
+      database_mutation_performed: details.database_mutation_performed ?? false,
+      migration_apply_performed: details.migration_apply_performed ?? false,
+      grant_mutation_performed: details.grant_mutation_performed ?? false,
+      mutation_evidence: details.mutation_evidence || { mutation_attempted: false, mutation_state: "none", secrets_included: false },
       secrets_included: false,
     });
     return 1;
