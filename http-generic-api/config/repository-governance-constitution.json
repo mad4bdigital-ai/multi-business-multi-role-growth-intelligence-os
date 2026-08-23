@@ -327,6 +327,7 @@
     ".changes/e2e/github-server-policy-convergence-20260818.json",
     ".changes/e2e/spec018-runtime-readiness-evidence-closeout.json",
     ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
+    ".changes/e2e/staging-migration-125-json-path-contract.json",
     ".github/ops/production-runtime-recovery-autodeploy.mjs",
     ".github/ops/production-runtime-recovery.md",
     ".github/ops/production-runtime-recovery-policy.mjs",

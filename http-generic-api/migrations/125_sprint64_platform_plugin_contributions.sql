@@ -69,7 +69,7 @@ INSERT INTO `admin_platform_endpoint_tools` (
   'Read one Platform Plugin contribution by contribution_id without secrets.',
   'GET',
   '/platform/plugins/contributions/{contribution_id}',
-  'contribution_id',
+  JSON_ARRAY('contribution_id'),
   '{"type":"object","required":["contribution_id"],"properties":{"contribution_id":{"type":"string"}}}',
   NULL,
   'admin,platform-plugin,contribution,read_only,diagnostics,no_secrets',

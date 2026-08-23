@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-migration-125-json-path-contract",
+  "title": "Staging MariaDB JSON path parameter contract for migration 125",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-migration-125-json-path-contract.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/migrations/125_sprint64_platform_plugin_contributions.sql",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the exact Staging schema replay reject invalid path_param_keys metadata during plan-only validation and apply migration 125 with a valid JSON array for the contribution_id route parameter in disposable MariaDB 11.4.",
+      "e2e_journeys": [
+        {
+          "id": "ordered-migration-125-json-path-contract-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator and disposable MariaDB 11.4",
+          "entrypoint": "The exact merged Staging checkout inventories the baseline and ordered migrations, validates catalog path parameter metadata, and applies migration 125 only inside a disposable local MariaDB 11.4 schema.",
+          "terminal_outcome": "The migration chain passes static path_param_keys validation, migration 125 writes JSON_ARRAY('contribution_id') without ERROR 4025, and the schema-only bundle contract remains protected from Production, provider, credential, and data-export access.",
+          "steps": [
+            "Load the canonical baseline and numerically ordered migration chain in plan-only mode.",
+            "Validate every direct path_param_keys INSERT writer as NULL, JSON_ARRAY(...), or a JSON array string before starting MariaDB.",
+            "Apply migration 125 in disposable MariaDB 11.4 and require the three non-empty schema-only role bundles plus manifest checks before considering replay successful.",
+            "Keep Production mutation, provider mutation, deployment, credential payload reads, and data export forbidden."
+          ],
+          "assertions": [
+            "Migration 125 encodes contribution_id as a JSON array rather than a bare scalar string.",
+            "The builder static validator covers direct path_param_keys INSERT statements and fails closed on invalid JSON array metadata.",
+            "The builder regression and ordered pre-use plan pass across the complete migration chain before confirmed replay.",
+            "The confirmed replay uses only disposable local MariaDB 11.4 and preserves schema_only=true with all Production/provider/data/secrets safety flags false."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-migration-125-json-path-contract.json",
+            "http-generic-api/migrations/125_sprint64_platform_plugin_contributions.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
