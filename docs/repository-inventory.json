@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7275,
-    "bytes": 70927753,
-    "lines": 1661636,
+    "files": 7280,
+    "bytes": 70964343,
+    "lines": 1662433,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2171,
-      "documentation": 1909,
-      "api-runtime": 1466,
+      "tests-and-specs": 2172,
+      "documentation": 1910,
+      "api-runtime": 1468,
       "database-migrations": 784,
       "root-and-other": 320,
       "api-contracts": 191,
       "ci-workflows": 171,
-      "ci-config": 127,
+      "ci-config": 128,
       "schemas-and-data": 74,
       "connectors-and-edge": 29,
       "applications": 19,
@@ -26,10 +26,10 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2510,
-      ".mjs": 1732,
-      ".js": 995,
-      ".json": 847,
+      ".md": 2512,
+      ".mjs": 1733,
+      ".js": 996,
+      ".json": 848,
       ".sql": 799,
       ".yml": 174,
       ".yaml": 119,
@@ -61,10 +61,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3741,
-      "docs": 1813,
+      "http-generic-api": 3744,
+      "docs": 1814,
       "specs": 880,
-      ".github": 298,
+      ".github": 299,
       ".changes": 288,
       "canonicals": 70,
       "local-connector": 23,
@@ -2681,6 +2681,7 @@
       "http-generic-api/test-runtime-profile-contract.mjs",
       "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
       "http-generic-api/test-runtime-recovery-governed-operations.mjs",
+      "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
       "http-generic-api/test-runtime-registry-authority.mjs",
       "http-generic-api/test-runtime-remediation-batch-plan.mjs",
       "http-generic-api/test-runtime-verification-contract.mjs",
@@ -4943,6 +4944,7 @@
       "http-generic-api/test-runtime-profile-contract.mjs",
       "http-generic-api/test-runtime-readiness-evidence-closeout.mjs",
       "http-generic-api/test-runtime-recovery-governed-operations.mjs",
+      "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
       "http-generic-api/test-runtime-registry-authority.mjs",
       "http-generic-api/test-runtime-remediation-batch-plan.mjs",
       "http-generic-api/test-runtime-verification-contract.mjs",
@@ -10243,6 +10245,17 @@
       "generated": false
     },
     {
+      "path": ".github/ops/production-runtime-recovery.md",
+      "category": "ci-config",
+      "extension": ".md",
+      "bytes": 13287,
+      "lines": 327,
+      "sha256": "1a871fa295c895428ee275eee67e7e1869759dd5e285a58366b0c3d94f4fb161",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/ops/production-runtime-recovery.mjs",
       "category": "ci-config",
       "extension": ".mjs",
@@ -13405,7 +13418,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "aa3b99549fd55659973e7da0458defa9af582692debc665ba44c00f9e0266544",
+      "sha256": "a8aa1ae406992290b1e43767c0cfb5701df9a138de88e383d0ebd063e6ea6f6a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31121,6 +31134,17 @@
       "generated": false
     },
     {
+      "path": "docs/governance/runtime-recovery-schema-less-modes.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 5292,
+      "lines": 56,
+      "sha256": "4947579aff518f3f794a0f64156495c705d3e68f4c6e241635890dbff47e617c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
       "category": "documentation",
       "extension": ".md",
@@ -32501,7 +32525,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "063b7eff1c90dae605356b2a2c74e25d62c29ad71a512d6d3b25ba35bc1d7b8e",
+      "sha256": "8920506c7d63eb1f21166854e6ad6548f12d8984d07e14d14429907a0940ce8a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37958,6 +37982,17 @@
       "bytes": 18992,
       "lines": 470,
       "sha256": "53b24ff4f663dc6d4784a669750e806c963538c54dd52d0f5dd1ef8d5ea22f9b",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/config/runtime-recovery-repository-snapshot.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 1097,
+      "lines": 35,
+      "sha256": "42206a68ea7a3467741f0503b51376e8fd1cccf7915f19fc712a920b080e01fa",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52367,7 +52402,7 @@
       "extension": ".json",
       "bytes": 1936347,
       "lines": 58559,
-      "sha256": "b2e55911e92557116412a027bbb41ad354387b05bcd48bf8e44a638cd87d084c",
+      "sha256": "91e937c425eabb6488d0076ba4d2bbb1795e52afc1fbc77446978a0b83b3231e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54799,6 +54834,17 @@
       "bytes": 7094,
       "lines": 179,
       "sha256": "b49255f9a1a92636d80287e1d584ec86265c63bbcd5cc4b5efbe12da0896f62b",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/runtimeRecoverySnapshot.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 13464,
+      "lines": 300,
+      "sha256": "7ed354037d221589ddfdca0ef8fb1e2aa90e828b5375b19313ba785f35ad667b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -71123,6 +71169,17 @@
       "bytes": 11482,
       "lines": 149,
       "sha256": "c9316800ed596fd175fc33ffbe88d59e70bfaa18dd76315b2eb90994f66cf5d1",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 3450,
+      "lines": 79,
+      "sha256": "30da5058f086e2d5b27b7e62682f5ae1ebd0a5e67c64194f88596d0044c57446",
       "mode": "644",
       "executable": false,
       "generated": false
