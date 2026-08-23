@@ -55,6 +55,7 @@
     ".github/ops/github-repository-policy-readback.mjs|repository|environment_reference|repository",
     ".github/ops/github-repository-policy-readback.mjs|token|environment_reference|gh.read.token",
     ".github/ops/production-runtime-recovery-autodeploy.mjs|RUNTIME_RECOVERY_RESULT_PATH|environment_reference|runtime.recovery.result.path",
+    ".github/ops/production-runtime-recovery-policy.mjs|RUNTIME_RECOVERY_RESULT_PATH|environment_reference|runtime.recovery.result.path",
     ".github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs|BASE|environment_reference|runtime.base.url",
     ".github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs|DIR|environment_reference|evidence.dir",
     ".github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs|GH|environment_reference|gh.read.token",
