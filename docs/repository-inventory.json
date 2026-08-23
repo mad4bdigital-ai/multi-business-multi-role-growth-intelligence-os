@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7283,
-    "bytes": 71009290,
-    "lines": 1663257,
+    "bytes": 71018326,
+    "lines": 1663466,
     "directories": 266,
     "categories": 13
   },
@@ -31060,9 +31060,9 @@
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 263047,
-      "lines": 2303,
-      "sha256": "1d030324ac373f924829e4ea3eea97faf079991f4f3682a53d5c50e82b1a9db9",
+      "bytes": 264327,
+      "lines": 2314,
+      "sha256": "be0cdb62cecfda19560c668b0fd48583ab8d899459f1f2007ebd87001a7ed059",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31104,9 +31104,9 @@
       "path": "docs/governance/platform-configuration-entry-registry.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 41354,
-      "lines": 1028,
-      "sha256": "79f4d8ac3f76bd0057dd51e4ca143509c92712ef28fb58f21d8995f6bb3d03b6",
+      "bytes": 49110,
+      "lines": 1226,
+      "sha256": "7b1d9c4c34f5be1377db43000c47e369ef8d8129979ac5e05481110231380301",
       "mode": "644",
       "executable": false,
       "generated": false
