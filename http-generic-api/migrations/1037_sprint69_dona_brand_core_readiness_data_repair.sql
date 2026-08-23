@@ -4,6 +4,8 @@
 --   exposed incomplete resource IDs and inactive readiness flags.
 -- Safety:
 --   - Scoped to brand_key = 'donatours_wp' and the known legacy row IDs only.
+--   - Uses only columns in the canonical brand_core baseline; brand_name and
+--     google_drive_link belong to other surfaces and are not brand_core columns.
 --   - No schema change.
 --   - No destructive update.
 --   - No provider call, no external send, no secret read or return.
@@ -33,9 +35,7 @@ UPDATE `brand_core`
        `active_status` = 'TRUE',
        `updated_at` = CURRENT_TIMESTAMP
  WHERE `brand_key` = 'donatours_wp'
-   AND `brand_name` = 'DONA Tours'
    AND `id` BETWEEN 76 AND 86
-   AND `google_drive_link` IS NOT NULL
    AND (
      `active_status` IS NULL
      OR TRIM(`active_status`) = ''

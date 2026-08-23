@@ -58,6 +58,7 @@
       "http-generic-api/migrations/20260722_skip_ineligible_auth_email_outbox_smoke_notifications.sql",
       "http-generic-api/migrations/223_sprint67_gpt_session_conversation_refs.sql",
       "http-generic-api/migrations/1030_sprint69_default_blocker_recovery_governance_seed.sql",
+      "http-generic-api/migrations/1037_sprint69_dona_brand_core_readiness_data_repair.sql",
       "http-generic-api/schema.sql",
       "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
@@ -100,7 +101,15 @@
       "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
       "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
       "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
-      "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
+      "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+      "http-generic-api/test-repo-maintenance-sync.mjs",
+      "http-generic-api/test-surface-contract-auto-remediation.mjs"
     ]
   },
   "environment_impact": {
@@ -225,6 +234,7 @@
             "http-generic-api/migrations/20260722_skip_ineligible_auth_email_outbox_smoke_notifications.sql",
             "http-generic-api/migrations/223_sprint67_gpt_session_conversation_refs.sql",
             "http-generic-api/migrations/1030_sprint69_default_blocker_recovery_governance_seed.sql",
+            "http-generic-api/migrations/1037_sprint69_dona_brand_core_readiness_data_repair.sql",
             "http-generic-api/schema.sql",
             "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
@@ -267,7 +277,15 @@
             "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
             "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
             "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
-            "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
+            "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+            "http-generic-api/test-repo-maintenance-sync.mjs",
+            "http-generic-api/test-surface-contract-auto-remediation.mjs"
           ]
         }
       ]
