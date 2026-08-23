@@ -40,10 +40,19 @@ assert.deepEqual(catalog.required_objects, [
   "tenant_platform_endpoint_tools.mcp_catalog_level",
 ]);
 
-const envelope = plan.source_schema_migrations.find((entry) => entry.migration === "225_sprint67_capability_resolution_envelope_ledger.sql");
-assert.ok(envelope);
-assert.equal(envelope.database_role, "governance");
-assert.ok(envelope.required_objects.includes("capability_resolution_envelope_ledger"));
+assert.equal(plan.source_schema_migrations.length, 1, "only the unapplied MCP catalog migration may be applied");
+const verificationOnly = new Map(plan.verification_only_migrations.map((entry) => [entry.migration, entry]));
+for (const migration of [
+  "225_sprint67_capability_resolution_envelope_ledger.sql",
+  "1048_transport_response_chunk_schema_recovery.sql",
+]) {
+  const entry = verificationOnly.get(migration);
+  assert.ok(entry, `${migration} must remain verification-only`);
+  assert.equal(entry.apply_allowed, false);
+  assert.equal(entry.required_result, "already_applied");
+  const sql = fs.readFileSync(path.join(apiRoot, "migrations", migration), "utf8");
+  assert.equal(sha256(sql), entry.checksum_sha256, `${migration} verification checksum drift`);
+}
 
 const inventory = plan.write_authority_profiles.find((entry) => entry.profile_key === "runtime_inventory_writer");
 assert.ok(inventory);
@@ -57,9 +66,30 @@ assert.deepEqual(inventory.tables.map((entry) => entry.table), [
   "openapi_endpoint_inventory_sync_runs",
 ]);
 
+const session = plan.write_authority_profiles.find((entry) => entry.profile_key === "session_continuity_writer");
+assert.ok(session);
+assert.deepEqual(session.tables.map((entry) => entry.table), ["customer_sessions", "gpt_session_turns"]);
+
+const observability = plan.write_authority_profiles.find((entry) => entry.profile_key === "observability_sink_writer");
+assert.ok(observability);
+assert.deepEqual(observability.tables.map((entry) => entry.table), ["execution_log", "json_assets"]);
+
+for (const profile of plan.write_authority_profiles) {
+  assert.equal(profile.same_cycle_readback_required, true);
+  assert.equal(profile.global_privileges_forbidden, true);
+  assert.equal(profile.grant_option_forbidden, true);
+  for (const table of profile.tables) {
+    assert.deepEqual(table.allowed_operations, ["SELECT", "INSERT", "UPDATE"]);
+  }
+}
+
 assert.equal(plan.queue_policy.status, "decision_required");
 assert.equal(plan.queue_policy.sql_fallback_path.allowed, true);
 assert.ok(plan.execution_order.includes("runtime_deployment_exact_head_readback"));
+assert.ok(plan.execution_order.indexOf("runner_integrity_acceptance_readback") < plan.execution_order.indexOf("mcp_catalog_levels_apply_operator_only"));
+assert.ok(plan.execution_order.indexOf("migration_225_applied_ledger_dry_run_readback_only") < plan.execution_order.indexOf("mcp_catalog_levels_apply_operator_only"));
+assert.ok(plan.execution_order.indexOf("migration_1048_applied_ledger_dry_run_readback_only") < plan.execution_order.indexOf("mcp_catalog_levels_apply_operator_only"));
+assert.ok(!plan.execution_order.includes("capability_envelope_ledger_apply_operator_only"));
 assert.ok(plan.execution_order.includes("migration_1051_readiness"));
 assert.ok(plan.readiness_evidence.required_fields.includes("privilege_readback"));
 assert.ok(plan.readiness_evidence.required_fields.includes("queue_policy_state"));
@@ -70,6 +100,8 @@ console.log(JSON.stringify({
   contract: plan.contract,
   status: plan.status,
   migration_count: plan.source_schema_migrations.length,
+  verification_only_migration_count: plan.verification_only_migrations.length,
+  write_authority_profile_count: plan.write_authority_profiles.length,
   inventory_table_count: inventory.tables.length,
   queue_policy: plan.queue_policy.status,
   runtime_mutation_executed: false,

@@ -3,11 +3,182 @@ name: Governed Migration 1049 GitHub Repository Policy Rollout
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: One separately authorized Production runtime recovery phase
+        required: true
+        type: choice
+        options:
+          - deploy_readiness
+          - deploy_apply
+          - runner_verify
+          - migration_readiness
+          - migration_apply
+          - grant_readiness
+          - grant_apply
+          - final_verify
+      expected_production_sha:
+        description: Exact immutable 40-character protected Production SHA
+        required: true
+        type: string
+      confirm:
+        description: Exact phase-specific typed confirmation; never reused across phases
+        required: true
+        type: string
+      hostinger_target_id:
+        description: Existing governed Hostinger target; deployment phases only
+        required: false
+        type: string
+      capability_envelope_id:
+        description: Existing capability envelope; deployment or migration mutations only
+        required: false
+        type: string
+      source_pull_request:
+        description: Merged source pull request; migration authorization phase only
+        required: false
+        type: string
+      expected_source_pr_merge_sha:
+        description: Exact merge commit SHA for the source pull request; migration phases only
+        required: false
+        type: string
+      writer_profile:
+        description: Exact table-scoped writer profile; grant phases only
+        required: false
+        type: choice
+        options:
+          - session_continuity_writer
+          - runtime_inventory_writer
+          - observability_sink_writer
+      writer_principal:
+        description: Existing non-operator MariaDB account receiving table-scoped grants
+        required: false
+        type: string
+      writer_account_host:
+        description: Exact MariaDB account host; defaults to percent
+        required: false
+        default: "%"
+        type: string
+      operator_account_host:
+        description: Exact MariaDB operator account host; grant phases only
+        required: false
+        type: string
+      operator_tls_mode:
+        description: Strict MariaDB operator TLS mode; grant phases only
+        required: false
+        default: required
+        type: choice
+        options:
+          - required
 
 permissions:
   contents: read
 
 jobs:
+  runtime_recovery:
+    name: Execute one protected exact-head runtime recovery phase
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: Production
+    concurrency:
+      group: governed-production-runtime-recovery-${{ inputs.phase }}-${{ inputs.writer_profile || 'none' }}
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: ${{ inputs.phase }}
+      EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+      OPERATOR_CONFIRMATION: ${{ inputs.confirm }}
+      HOSTINGER_TARGET_ID: ${{ inputs.hostinger_target_id }}
+      CAPABILITY_ENVELOPE_ID: ${{ inputs.capability_envelope_id }}
+      SOURCE_PULL_REQUEST: ${{ inputs.source_pull_request }}
+      EXPECTED_SOURCE_PR_MERGE_SHA: ${{ inputs.expected_source_pr_merge_sha }}
+      WRITER_PROFILE: ${{ inputs.writer_profile }}
+      RUNTIME_WRITER_PRINCIPAL: ${{ inputs.writer_principal }}
+      RUNTIME_WRITER_ACCOUNT_HOST: ${{ inputs.writer_account_host }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Validate exact protected Production reference
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EXPECTED_PRODUCTION_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          actual_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          test "${actual_sha,,}" = "${EXPECTED_PRODUCTION_SHA,,}"
+
+      - name: Checkout exact protected Production source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_production_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Install database client for operator-authorized grant phases
+        if: inputs.phase == 'grant_readiness' || inputs.phase == 'grant_apply'
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Initialize bounded no-secret evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="${RUNNER_TEMP}/runtime-recovery-governed-operations"
+          mkdir -p "${evidence_dir}"
+          echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
+
+      - name: Verify governed operation contracts without credentials
+        working-directory: http-generic-api
+        run: |
+          node test-runtime-remediation-batch-plan.mjs
+          node test-runtime-recovery-governed-operations.mjs
+
+      - name: Execute one non-database operator-confirmed phase
+        if: inputs.phase != 'grant_readiness' && inputs.phase != 'grant_apply'
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node .github/ops/runtime-recovery-governed-operations.mjs
+
+      - name: Execute one database-operator-authorized grant phase
+        if: inputs.phase == 'grant_readiness' || inputs.phase == 'grant_apply'
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          GH_READ_TOKEN: ${{ github.token }}
+          RUNTIME_DB_OPERATOR_HOST: ${{ secrets.RUNTIME_DB_OPERATOR_HOST }}
+          RUNTIME_DB_OPERATOR_PORT: ${{ secrets.RUNTIME_DB_OPERATOR_PORT }}
+          RUNTIME_DB_OPERATOR_NAME: ${{ secrets.RUNTIME_DB_OPERATOR_NAME }}
+          RUNTIME_DB_OPERATOR_USER: ${{ secrets.RUNTIME_DB_OPERATOR_USER }}
+          RUNTIME_DB_OPERATOR_ACCOUNT_HOST: ${{ inputs.operator_account_host }}
+          RUNTIME_DB_OPERATOR_TLS_MODE: ${{ inputs.operator_tls_mode }}
+          RUNTIME_DB_OPERATOR_PASSWORD: ${{ secrets.RUNTIME_DB_OPERATOR_PASSWORD }}
+        run: node .github/ops/runtime-recovery-governed-operations.mjs
+
+      - name: Reverify exact protected Production reference
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          actual_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          test "${actual_sha,,}" = "${EXPECTED_PRODUCTION_SHA,,}"
+
+      - name: Upload bounded no-secret recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: runtime-recovery-${{ inputs.phase }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: warn
+          retention-days: 30
+
   readiness:
     name: Authorize and dry-run Migration 1049
     if: >-

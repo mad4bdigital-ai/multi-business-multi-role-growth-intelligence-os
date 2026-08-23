@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,267 |
-| Total bytes | 70,760,800 |
-| Counted text lines | 1,658,331 |
+| Tracked files | 7,271 |
+| Total bytes | 70,867,524 |
+| Counted text lines | 1,660,344 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -17,14 +17,14 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,168 |
+| `tests-and-specs` | 2,171 |
 | `documentation` | 1,909 |
 | `api-runtime` | 1,466 |
 | `database-migrations` | 784 |
 | `root-and-other` | 319 |
 | `api-contracts` | 191 |
 | `ci-workflows` | 170 |
-| `ci-config` | 124 |
+| `ci-config` | 125 |
 | `schemas-and-data` | 74 |
 | `connectors-and-edge` | 29 |
 | `applications` | 19 |
@@ -36,7 +36,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,510 |
-| `.mjs` | 1,726 |
+| `.mjs` | 1,730 |
 | `.js` | 995 |
 | `.json` | 846 |
 | `.sql` | 799 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 170 |
 | Database migrations | 784 |
 | API/OpenAPI contracts | 191 |
-| Test/spec files (paths) | 2,256 |
+| Test/spec files (paths) | 2,259 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -104,7 +104,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 269,236 | 6392 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 266,975 | 7996 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 262,162 | 2297 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 262,630 | 2300 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 221,663 | 4707 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
