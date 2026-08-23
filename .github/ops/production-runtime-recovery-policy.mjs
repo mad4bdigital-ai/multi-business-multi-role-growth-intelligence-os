@@ -3,9 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(HERE, '../..');
+const requireFromApi = createRequire(path.join(REPO_ROOT, 'http-generic-api', 'package.json'));
 const ROUTE_CONTRACT = JSON.parse(
   fs.readFileSync(path.join(HERE, 'production-runtime-recovery-routes.json'), 'utf8'),
 );
@@ -55,12 +58,8 @@ export function assertMigration(args, mode, contract = ROUTE_CONTRACT) {
 }
 
 export function validateConfiguredRecoveryStep(step, phase, contract = ROUTE_CONTRACT) {
-  if (!step || typeof step !== 'object' || Array.isArray(step)) {
-    fail('RECOVERY_STEP_INVALID', { phase });
-  }
-  if (Object.hasOwn(step, 'path') || Object.hasOwn(step, 'url')) {
-    fail('RECOVERY_ARBITRARY_ROUTE_DENIED', { phase });
-  }
+  if (!step || typeof step !== 'object' || Array.isArray(step)) fail('RECOVERY_STEP_INVALID', { phase });
+  if (Object.hasOwn(step, 'path') || Object.hasOwn(step, 'url')) fail('RECOVERY_ARBITRARY_ROUTE_DENIED', { phase });
 
   const routeKey = String(step.route_key || '');
   const route = contract.routes?.[routeKey];
@@ -72,18 +71,13 @@ export function validateConfiguredRecoveryStep(step, phase, contract = ROUTE_CON
   }
 
   if (routeKey !== 'gpt_tool_call') {
-    if (step.mutation === true) {
-      fail('RECOVERY_NON_TOOL_MUTATION_FLAG_DENIED', { phase, route_key: routeKey });
-    }
+    if (step.mutation === true) fail('RECOVERY_NON_TOOL_MUTATION_FLAG_DENIED', { phase, route_key: routeKey });
     return { route_key: routeKey, tool: null, mode: 'route' };
   }
 
   const body = step.body;
-  if (
-    !body || typeof body !== 'object' || Array.isArray(body) ||
-    typeof body.name !== 'string' ||
-    !body.tool_args || typeof body.tool_args !== 'object' || Array.isArray(body.tool_args)
-  ) {
+  if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.name !== 'string'
+      || !body.tool_args || typeof body.tool_args !== 'object' || Array.isArray(body.tool_args)) {
     fail('RECOVERY_TOOL_ENVELOPE_INVALID', { phase });
   }
 
@@ -117,9 +111,7 @@ export function validateConfiguredRecoveryStep(step, phase, contract = ROUTE_CON
       assertMigration(args, 'apply', contract);
       return { route_key: routeKey, tool: name, mode: 'apply' };
     }
-    if (!policy.mutation_tools?.includes(name)) {
-      fail('RECOVERY_MUTATION_TOOL_DENIED', { tool: name });
-    }
+    if (!policy.mutation_tools?.includes(name)) fail('RECOVERY_MUTATION_TOOL_DENIED', { tool: name });
     if (name === 'governed_migration_authorization_bootstrap') {
       const migration = String(args.migration || '');
       if (contract.recovery_migrations?.[migration]?.incident_role !== 'only_current_apply_candidate') {
@@ -134,17 +126,13 @@ export function validateConfiguredRecoveryStep(step, phase, contract = ROUTE_CON
 
 export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRACT) {
   const strategy = String(env.RECOVERY_STRATEGY || 'verify');
-  if (!['verify', 'snapshot', 'primary', 'fallback'].includes(strategy)) {
-    fail('RECOVERY_STRATEGY_INVALID', { strategy });
-  }
+  if (!['verify', 'snapshot', 'primary', 'fallback'].includes(strategy)) fail('RECOVERY_STRATEGY_INVALID', { strategy });
 
   if (strategy === 'snapshot') {
     if (!['github_snapshot', 'repository_snapshot'].includes(String(env.RUNTIME_RECOVERY_SOURCE_MODE || ''))) {
       fail('RECOVERY_SNAPSHOT_SOURCE_REQUIRED');
     }
-    if (String(env.APPLY_EXECUTION || '').toLowerCase() === 'true') {
-      fail('RECOVERY_SNAPSHOT_MUTATION_DENIED');
-    }
+    if (String(env.APPLY_EXECUTION || '').toLowerCase() === 'true') fail('RECOVERY_SNAPSHOT_MUTATION_DENIED');
   }
 
   const probes = arrayFromEnv(env, 'RUNTIME_RECOVERY_PROBES_JSON');
@@ -161,9 +149,7 @@ export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRAC
   let fallbackTarget = null;
   if (strategy === 'fallback') {
     const targets = arrayFromEnv(env, 'RUNTIME_RECOVERY_TARGETS_JSON');
-    fallbackTarget = targets.find(
-      (item) => String(item?.key || '') === String(env.RECOVERY_TARGET_KEY || 'runtime'),
-    );
+    fallbackTarget = targets.find((item) => String(item?.key || '') === String(env.RECOVERY_TARGET_KEY || 'runtime'));
     if (!fallbackTarget) fail('RECOVERY_TARGET_NOT_FOUND');
 
     const grantPolicy = contract.grant_policy || {};
@@ -172,16 +158,12 @@ export function validateRecoveryPlan(env = process.env, contract = ROUTE_CONTRAC
     const grants = Array.isArray(fallbackTarget.grants) && fallbackTarget.grants.length
       ? fallbackTarget.grants
       : expectedTables.map((table) => ({ table, privileges: expectedOps }));
-    if (!exactSet(grants.map((entry) => entry.table), expectedTables)) {
-      fail('RECOVERY_GRANT_TABLE_SET_DENIED');
-    }
+    if (!exactSet(grants.map((entry) => entry.table), expectedTables)) fail('RECOVERY_GRANT_TABLE_SET_DENIED');
     for (const grant of grants) {
       const observed = Array.isArray(grant.privileges)
         ? grant.privileges.map((item) => String(item).toUpperCase())
         : [];
-      if (!exactSet(observed, expectedOps)) {
-        fail('RECOVERY_GRANT_OPERATION_SET_DENIED', { table: grant.table });
-      }
+      if (!exactSet(observed, expectedOps)) fail('RECOVERY_GRANT_OPERATION_SET_DENIED', { table: grant.table });
     }
   }
 
@@ -212,18 +194,14 @@ function requireEvidenceDir(env) {
 
 export async function verifyGrantReadback(env = process.env, contract = ROUTE_CONTRACT) {
   const targets = arrayFromEnv(env, 'RUNTIME_RECOVERY_TARGETS_JSON');
-  const target = targets.find(
-    (item) => String(item?.key || '') === String(env.RECOVERY_TARGET_KEY || 'runtime'),
-  );
-  if (!target?.database || !target?.principal || !target?.principal_host) {
-    fail('RECOVERY_GRANT_READBACK_TARGET_INCOMPLETE');
-  }
+  const target = targets.find((item) => String(item?.key || '') === String(env.RECOVERY_TARGET_KEY || 'runtime'));
+  if (!target?.database || !target?.principal || !target?.principal_host) fail('RECOVERY_GRANT_READBACK_TARGET_INCOMPLETE');
   for (const key of ['MYSQL_BOOTSTRAP_HOST', 'MYSQL_BOOTSTRAP_USER', 'MYSQL_BOOTSTRAP_PASSWORD']) {
     if (!String(env[key] || '').trim()) fail('RECOVERY_GRANT_READBACK_CREDENTIAL_MISSING', { key });
   }
 
-  const mysql = await import('mysql2/promise');
-  const connection = await mysql.default.createConnection({
+  const mysql = requireFromApi('mysql2/promise');
+  const connection = await mysql.createConnection({
     host: env.MYSQL_BOOTSTRAP_HOST,
     port: Number(env.MYSQL_BOOTSTRAP_PORT || 3306),
     user: env.MYSQL_BOOTSTRAP_USER,
@@ -250,9 +228,8 @@ export async function verifyGrantReadback(env = process.env, contract = ROUTE_CO
     const requiredTables = new Set(policy.required_tables || []);
     const requiredOps = new Set((policy.required_operations || []).map((item) => String(item).toUpperCase()));
     const broadWrite = new Set([
-      'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'INDEX', 'TRIGGER',
-      'REFERENCES', 'EXECUTE', 'EVENT', 'CREATE ROUTINE', 'ALTER ROUTINE', 'CREATE VIEW',
-      'CREATE TEMPORARY TABLES', 'LOCK TABLES',
+      'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'INDEX', 'TRIGGER', 'REFERENCES',
+      'EXECUTE', 'EVENT', 'CREATE ROUTINE', 'ALTER ROUTINE', 'CREATE VIEW', 'CREATE TEMPORARY TABLES', 'LOCK TABLES',
     ]);
     const broadGlobal = userRows.filter((row) => broadWrite.has(String(row.PRIVILEGE_TYPE).toUpperCase()));
     const broadSchema = schemaRows.filter((row) => broadWrite.has(String(row.PRIVILEGE_TYPE).toUpperCase()));
