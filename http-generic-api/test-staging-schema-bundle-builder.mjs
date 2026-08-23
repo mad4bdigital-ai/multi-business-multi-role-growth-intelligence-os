@@ -487,3 +487,20 @@ test("generator preflight emits batch baseline contract evidence", () => {
   assert.match(generator, /function baselineColumnExists/);
   assert.match(generator, /baseline_column_contracts: baseline\.baseline_column_contracts/);
 });
+
+test("migration 1041 widens the runtime-config audit note before writing it", () => {
+  const migration = fs.readFileSync(
+    path.join(apiRoot, "migrations", "1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql"),
+    "utf8",
+  );
+  const widenIndex = migration.indexOf("ALTER TABLE platform_runtime_config");
+  const updateStatement = ["UPDATE", "platform_runtime_config"].join(" ");
+  assert.notEqual(widenIndex, -1, "migration 1041 must widen the existing note column");
+  assert.ok(
+    widenIndex < migration.indexOf(updateStatement),
+    "note widening must precede the audit writer",
+  );
+  assert.match(migration, /ALTER TABLE platform_runtime_config[\s\S]*MODIFY COLUMN note TEXT NULL/iu);
+  const noteLiteral = migration.match(/^\s+note = '([^']*)',$/mu)?.[1] || "";
+  assert.ok(noteLiteral.length > 255, "the 1041 audit note must exercise the widened contract");
+});
