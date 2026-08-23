@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7296,
-    "bytes": 71199633,
-    "lines": 1667024,
+    "files": 7295,
+    "bytes": 71199719,
+    "lines": 1666996,
     "directories": 266,
     "categories": 13
   },
@@ -17,7 +17,7 @@
       "database-migrations": 784,
       "root-and-other": 325,
       "api-contracts": 191,
-      "ci-workflows": 171,
+      "ci-workflows": 170,
       "ci-config": 131,
       "schemas-and-data": 75,
       "connectors-and-edge": 29,
@@ -31,7 +31,7 @@
       ".js": 998,
       ".json": 856,
       ".sql": 799,
-      ".yml": 174,
+      ".yml": 173,
       ".yaml": 119,
       ".ps1": 20,
       ".ts": 16,
@@ -64,7 +64,7 @@
       "http-generic-api": 3750,
       "docs": 1815,
       "specs": 880,
-      ".github": 302,
+      ".github": 301,
       ".changes": 294,
       "canonicals": 70,
       "local-connector": 23,
@@ -580,7 +580,6 @@
       ".github/workflows/hostinger-production-release-evidence-r5.yml",
       ".github/workflows/hostinger-production-release-evidence-r6.yml",
       ".github/workflows/hostinger-production-runtime-readback-r7.yml",
-      ".github/workflows/hostinger-runtime-bootstrap.yml",
       ".github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml",
       ".github/workflows/hostinger-storage-authorized-mount-executor-guard.yml",
       ".github/workflows/hostinger-storage-authorized-route-resolution-guard.yml",
@@ -7241,9 +7240,9 @@
       "path": ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 6054,
-      "lines": 112,
-      "sha256": "19751cbc5b0bd84fc43c589e696da5ca691401b02ca7983c54f3a1ce8fdd11c7",
+      "bytes": 6256,
+      "lines": 115,
+      "sha256": "46b6fa6cb348044569e92cebcf6a91e2d88be6bad0cf4e7dff127cd4b5da2f89",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10145,9 +10144,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 10774,
+      "bytes": 10781,
       "lines": 107,
-      "sha256": "7b01e677058ec92bc550f57ad9b9e8b955ecf5b5f144c548e3f4d3f68f75c3c0",
+      "sha256": "8c897908227089b64dc65e722de03ccd3d921ea73b4371c86197b2af4062d232",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11561,17 +11560,6 @@
       "generated": false
     },
     {
-      "path": ".github/workflows/hostinger-runtime-bootstrap.yml",
-      "category": "ci-workflows",
-      "extension": ".yml",
-      "bytes": 6333,
-      "lines": 152,
-      "sha256": "ef4a2a707d6fd992a4399e5ac5aa36e8a948e4dc71639964d102128c95dd1cef",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
       "path": ".github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml",
       "category": "ci-workflows",
       "extension": ".yml",
@@ -12191,9 +12179,9 @@
       "path": ".github/workflows/production-runtime-parity-evidence.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 15066,
-      "lines": 340,
-      "sha256": "ab7fb507ed1a3455ef4dacd773ac5382c0f858af08e990cca12676e25d1d9b0f",
+      "bytes": 20619,
+      "lines": 458,
+      "sha256": "89b6e5955cdb8ea33ce913e69f574a6baa0f41db44e449e4e6956b597fc60ba4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13524,7 +13512,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "21e65cfc9a6d6a402f77916ac9a35fe94242085b75f2f3b2b495371e8456e14b",
+      "sha256": "6e34d02b616bfe75122f5835e4a060c6e80a31860d8c3308d2afddfe58ed3019",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31133,9 +31121,9 @@
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 264838,
-      "lines": 2317,
-      "sha256": "6c37c3e9600c210b9a0659e74d998fdca3d412df61421e01a5980a5504915eff",
+      "bytes": 265373,
+      "lines": 2323,
+      "sha256": "29beb358d966b7e3b885bb9bc1795d30c6fa16ec9a62e252f27b19abf65b56d4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31177,9 +31165,9 @@
       "path": "docs/governance/hostinger-runtime-bootstrap.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 8093,
+      "bytes": 8481,
       "lines": 78,
-      "sha256": "24f665fc27fc2d6e4ca0a24e381f1065f5c07f61a259fa9fef1043dbc63c2cc0",
+      "sha256": "8588b6abb164c9ccb1e583106b57630094442e6f13fa895f0cd6bd10a83b9fcf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32642,7 +32630,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "8c29e572eb8ffcd99fe1abaa059dd0e9b2168bb935ec44040dd3027bfaf1fb72",
+      "sha256": "26d2916baa92ee6d7c6c81c89a74912bd3fbc8d70ddd726e6ac35b25250950f8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34105,7 +34093,7 @@
       "extension": ".md",
       "bytes": 4307,
       "lines": 43,
-      "sha256": "6f26d88ecd5234b5b7910cd43eae9dbb30015c2fccafc5b371b59af8e96cfe44",
+      "sha256": "c97f2ebc24f69e6c8055da1d9d734404436153ad1389576b60168c86b54616d1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34268,9 +34256,9 @@
       "path": "docs/work-maps/repository-automation-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 50119,
-      "lines": 544,
-      "sha256": "6d5c95c4b67ab3bf2c9bf6124cf51876cdc6d5c998f2c992b965bed08ebfe59a",
+      "bytes": 49853,
+      "lines": 541,
+      "sha256": "0fdd8814340c32e2a72a595eb4bf44090b650ce445e503d0c9a3d6683b0f99a1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52530,7 +52518,7 @@
       "extension": ".json",
       "bytes": 1936395,
       "lines": 58560,
-      "sha256": "10a13890bc8e906f2e0fbff52b44bc6df608f7a398a84158f74c8b882fd93431",
+      "sha256": "d93e35e9784d64b8d169b3838e3e51167c1a142d7ace8d152149de350d4043b0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77995,7 +77983,7 @@
       "extension": ".json",
       "bytes": 13566,
       "lines": 327,
-      "sha256": "4265782ac2736d938fa4dc9d0e946e4fe369dedc03f3887c9eb16471315f14f7",
+      "sha256": "d6ed436be9cd1bfabcec220ab154528f23583caf5e45ced9056e77908fae9c09",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79326,7 +79314,7 @@
       "extension": ".json",
       "bytes": 9813,
       "lines": 308,
-      "sha256": "1ea677590976d56cedc3a713162367811cdf4328f8f1a3aed6a4d2d9c0997171",
+      "sha256": "fcd869a4ebf914baddd68cde9844102b256686433c46617a1ab637260be09662",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79656,7 +79644,7 @@
       "extension": ".json",
       "bytes": 9816,
       "lines": 308,
-      "sha256": "a1f5db7c161131845d1ba80e3b461d111b5cf7ca91a8d5711b70e088ac413443",
+      "sha256": "964afc57bab0a047d29f30c5b95cf983641088c7ad5bf068e699337f45420f2c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -81218,7 +81206,7 @@
       "extension": ".json",
       "bytes": 9819,
       "lines": 308,
-      "sha256": "80f61b7e0fddf2429906753c73be9890158b2cc292b58a81870f6b0c71fea3f5",
+      "sha256": "3e9fe80787c7e79e5685e86a37cd49c4a32d8fbc6e7b5db5fc4542acd1471829",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83286,7 +83274,7 @@
       "extension": ".json",
       "bytes": 10256,
       "lines": 310,
-      "sha256": "b87f8b696eccc924c4ee8914de05d4ad35d8ce4772879680e3582cf23fef0e4a",
+      "sha256": "2dcc34cdcda7b2ef832cc8507c25da1c68786bbfd1e846751338b9780eb25f2b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -83671,7 +83659,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "e653f08e100a0db406644df6a04f1651586539569acf825a5e5a20fb06679464",
+      "sha256": "381a99e812e6301bc8a1bec2a3b76c6176c41761b30cc7c78a03bf28c0047e7e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84232,7 +84220,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "7c7aa9604571b51540284dc2da6a5ffbef9a69de449dbd5e60f667099836a483",
+      "sha256": "12a38ea0e279c0d8d456da53200fff880889cd336ee7333957c94cd0e74a74ff",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84628,7 +84616,7 @@
       "extension": ".json",
       "bytes": 31379,
       "lines": 1252,
-      "sha256": "8ae1dc20511471e20bf5ec76ea4658f01d1ac8be306c2dbc21c3fe766ad1ceb2",
+      "sha256": "038e7db3e2d5b3ff87fc4b8cb032871fde9b454f6e8b360690d5fb04ec469959",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -84903,7 +84891,7 @@
       "extension": ".json",
       "bytes": 43504,
       "lines": 1512,
-      "sha256": "06857237add4955f83fb9f7057dd08156f6b5acac6818d6574b0fdb6ac6f4b48",
+      "sha256": "44508e71591335350657f78be3cee99348e5c7c874b02ab8879f2d8d35c92ecd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85068,7 +85056,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "144a11b3edad011d22425b52450a4feabea25b6254ac3826f88ca2438f5c9f35",
+      "sha256": "c91d00076033684d0656acae2f5df26cc01095faf21cb1707809af6a21170e98",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85310,7 +85298,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "03e75c013032d09cbd9e94cdbdeee9037037273f4b3ade4b2151fcab0c2c782b",
+      "sha256": "f185ffc5fcda257094b8988f1cc134b5971918523a1af83da8df6e35a5ac8e11",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85629,7 +85617,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "16069ceb14971c024fedc21d63eac6d0aa42570fe0b9e7d3a882697305191cef",
+      "sha256": "a3a8ad4431a4b050c1f38554822c0f86c21c76ccfeb8f1bba583bb16ba3c79a0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85915,7 +85903,7 @@
       "extension": ".json",
       "bytes": 60459,
       "lines": 1597,
-      "sha256": "ac53b71379f50676e6dab1d655052dcd01fec22c7361b9b17ac6c3da042b4cb7",
+      "sha256": "cb57eb6f10bdc255b72fa70e48a8baf845b02b71109c591b9b91af51b4dd1b9c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85992,7 +85980,7 @@
       "extension": ".json",
       "bytes": 49481,
       "lines": 1334,
-      "sha256": "db921f2ee065a0c18cd16aa29722544ba1af820e1ae35478695b98b1edef1129",
+      "sha256": "0f7662820eb3b92dc66d9be6114393b1f0f32d18ee3dd92a986e4695cb82421a",
       "mode": "644",
       "executable": false,
       "generated": false

@@ -64,9 +64,9 @@ npm run runtime-bootstrap:apply
 
 ## GitHub workflow
 
-يوفر المستودع workflow يدويًا مستقلًا باسم `hostinger-runtime-bootstrap.yml`. هذا workflow لا يعمل على push ولا merge ولا Auto Deploy، ولا يملك صلاحيات contents write. هو بديل محكوم لمسار runtime recovery الحالي، ويحتاج GitHub Environment approval عندما يكون `mode=apply`. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
+يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` و`bootstrap_target_key` و`bootstrap_target_database` و`bootstrap_migration` و`bootstrap_confirmation`. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، و`apply` مشروط بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
 
-يجب أن يمر workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يشغل contract test، ثم ينفذ `plan` أو `dry_run` أو `apply`. أي 502 من Hostinger أو غياب route لا يتم تصنيفه كنجاح migration؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
+يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يشغّل contract test من job العقد، ثم ينفذ `plan` أو `dry_run` أو `apply` فقط عند اختيار `bootstrap_mode` صريح غير `disabled`. أي 502 من Hostinger أو غياب route لا يتم تصنيفه كنجاح migration؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
 
 ## القراءة من startup و/deployment-info
 

@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "b60bd1cd5a76687d6f8c72293bd7187d8c90302b94b6b7bf4ebb00bb25aae943",
+  "inputFingerprint": "9e350cb24356ec8d03f17d29b9329102c83d32b72ea8bcf9aa19fc2fb835689e",
   "inventory": {
-    "files": 7296,
-    "bytes": 71199633,
+    "files": 7295,
+    "bytes": 71199719,
     "directories": 266,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 171,
-      "explicitPermissions": 171,
+      "workflowCount": 170,
+      "explicitPermissions": 170,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -25,7 +25,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7259,
+      "trackedTextFilesScanned": 7258,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-sequential-test-progress-report.mjs",
@@ -178,7 +178,7 @@
       "status": "open",
       "blocking": false,
       "evidence": {
-        "workflowCount": 171,
+        "workflowCount": 170,
         "maxWorkflowCount": 160,
         "workflowBudgetSource": "targetMaxWorkflowFiles",
         "overlapCheck": "passed"

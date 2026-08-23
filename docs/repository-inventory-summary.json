@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7296,
-    "bytes": 71199633,
-    "lines": 1667024,
+    "files": 7295,
+    "bytes": 71199719,
+    "lines": 1666996,
     "directories": 266,
     "categories": 13
   },
@@ -17,7 +17,7 @@
       "database-migrations": 784,
       "root-and-other": 325,
       "api-contracts": 191,
-      "ci-workflows": 171,
+      "ci-workflows": 170,
       "ci-config": 131,
       "schemas-and-data": 75,
       "connectors-and-edge": 29,
@@ -31,7 +31,7 @@
       ".js": 998,
       ".json": 856,
       ".sql": 799,
-      ".yml": 174,
+      ".yml": 173,
       ".yaml": 119,
       ".ps1": 20,
       ".ts": 16,
@@ -64,7 +64,7 @@
       "http-generic-api": 3750,
       "docs": 1815,
       "specs": 880,
-      ".github": 302,
+      ".github": 301,
       ".changes": 294,
       "canonicals": 70,
       "local-connector": 23,
@@ -251,7 +251,7 @@
     }
   ],
   "surfaces": {
-    "workflows": 171,
+    "workflows": 170,
     "migrations": 784,
     "apiContracts": 191,
     "testSpecFiles": 2263
@@ -338,8 +338,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 264838,
-      "lines": 2317
+      "bytes": 265373,
+      "lines": 2323
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",

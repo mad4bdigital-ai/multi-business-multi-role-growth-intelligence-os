@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,296 |
-| Total bytes | 71,199,633 |
-| Counted text lines | 1,667,024 |
+| Tracked files | 7,295 |
+| Total bytes | 71,199,719 |
+| Counted text lines | 1,666,996 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -23,7 +23,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `database-migrations` | 784 |
 | `root-and-other` | 325 |
 | `api-contracts` | 191 |
-| `ci-workflows` | 171 |
+| `ci-workflows` | 170 |
 | `ci-config` | 131 |
 | `schemas-and-data` | 75 |
 | `connectors-and-edge` | 29 |
@@ -40,7 +40,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.js` | 998 |
 | `.json` | 856 |
 | `.sql` | 799 |
-| `.yml` | 174 |
+| `.yml` | 173 |
 | `.yaml` | 119 |
 | `.ps1` | 20 |
 | `.ts` | 16 |
@@ -73,7 +73,7 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 171 |
+| GitHub Actions workflows | 170 |
 | Database migrations | 784 |
 | API/OpenAPI contracts | 191 |
 | Test/spec files (paths) | 2,263 |
@@ -104,7 +104,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json` | api-contracts | 269,236 | 6392 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 266,975 | 7996 |
-| `docs/governance/configuration-drift-policy.json` | documentation | 264,838 | 2317 |
+| `docs/governance/configuration-drift-policy.json` | documentation | 265,373 | 2323 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 223,593 | 4751 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
