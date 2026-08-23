@@ -1,6 +1,18 @@
 -- Default blocker recovery governance seed
 -- Purpose: keep mutation-policy and blocker-recovery handoffs durable across deploys.
 -- Safety: no provider calls, no external writes, no secret values.
+-- Compatibility: tags are an append-only governance label set. Widen all
+-- affected catalog columns before CONCAT_WS updates so MariaDB strict mode
+-- cannot truncate existing labels or fail the migration.
+
+ALTER TABLE `admin_platform_endpoint_tools`
+  MODIFY COLUMN `tags` TEXT NULL;
+
+ALTER TABLE `tenant_platform_endpoint_tools`
+  MODIFY COLUMN `tags` TEXT NULL;
+
+ALTER TABLE `local_gateway_tools`
+  MODIFY COLUMN `tags` TEXT NULL;
 
 UPDATE admin_platform_endpoint_tools
    SET tags = CONCAT_WS(',', NULLIF(TRIM(BOTH ',' FROM tags), ''),
