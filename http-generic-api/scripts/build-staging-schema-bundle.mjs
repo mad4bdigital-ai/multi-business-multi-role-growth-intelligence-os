@@ -231,8 +231,111 @@ function baselineMetadata(baseline) {
   };
 }
 
+function splitTopLevelSql(value) {
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const current = value[index];
+    const next = value[index + 1] ?? "";
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === quote) {
+        if (next === quote) index += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (current === "'" || current === '"' || current === "`") quote = current;
+    else if (current === "(") depth += 1;
+    else if (current === ")") depth -= 1;
+    else if (current === "," && depth === 0) {
+      parts.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start).trim());
+  return parts;
+}
+
+function parenthesizedSql(value, offset) {
+  let index = offset;
+  while (/\s/u.test(value[index] ?? "")) index += 1;
+  if (value[index] !== "(") return null;
+  const start = index + 1;
+  let depth = 1;
+  let quote = null;
+  let escaped = false;
+  for (index = start; index < value.length; index += 1) {
+    const current = value[index];
+    const next = value[index + 1] ?? "";
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === quote) {
+        if (next === quote) index += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (current === "'" || current === '"' || current === "`") quote = current;
+    else if (current === "(") depth += 1;
+    else if (current === ")") {
+      depth -= 1;
+      if (depth === 0) return { content: value.slice(start, index), end: index + 1 };
+    }
+  }
+  return null;
+}
+
+function sqlStringValue(token) {
+  const value = token.trim();
+  if (!value.startsWith("'") || !value.endsWith("'")) return null;
+  return value.slice(1, -1).replaceAll("''", "'").replaceAll("\\\\", "\\");
+}
+
+function validatePathParamKeysStatement(file, statement) {
+  const insert = statement.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`[^`]+`|[A-Za-z0-9_$]+)\s*/iu);
+  if (!insert) return;
+  const columns = parenthesizedSql(statement, insert[0].length);
+  if (!columns) return;
+  const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll("`", "").replace(/\s/gu, "").toLowerCase());
+  const pathParamIndex = columnNames.indexOf("path_param_keys");
+  if (pathParamIndex === -1) return;
+  const afterColumns = statement.slice(columns.end);
+  const valuesKeyword = afterColumns.match(/^\s*VALUES\b/iu);
+  if (!valuesKeyword) return;
+  let cursor = columns.end + valuesKeyword[0].length;
+  while (cursor < statement.length) {
+    while (/\s/u.test(statement[cursor] ?? "")) cursor += 1;
+    if (statement[cursor] !== "(") break;
+    const row = parenthesizedSql(statement, cursor);
+    if (!row) fail(`migration ${file} contains an unterminated VALUES row while validating path_param_keys`);
+    const values = splitTopLevelSql(row.content);
+    if (values.length !== columnNames.length) fail(`migration ${file} has ${values.length} VALUES expressions for ${columnNames.length} INSERT columns while validating path_param_keys`);
+    const token = values[pathParamIndex].trim();
+    if (!/^NULL$/iu.test(token) && !/^JSON_ARRAY\s*\(/iu.test(token)) {
+      const literal = sqlStringValue(token);
+      if (literal === null) fail(`migration ${file} path_param_keys must be NULL, JSON_ARRAY(...), or a JSON array string; received ${token.slice(0, 160)}`);
+      let parsed;
+      try { parsed = JSON.parse(literal); }
+      catch { fail(`migration ${file} path_param_keys string is not valid JSON: ${token.slice(0, 160)}`); }
+      if (!Array.isArray(parsed) || parsed.some((entry) => typeof entry !== "string")) fail(`migration ${file} path_param_keys JSON value must be an array of strings: ${token.slice(0, 160)}`);
+    }
+    cursor = row.end;
+    while (/\s/u.test(statement[cursor] ?? "")) cursor += 1;
+    if (statement[cursor] !== ",") break;
+    cursor += 1;
+  }
+}
+
 function migrationSafetyCheck(file, sql) {
-  const normalizedSql = splitStatements(sql).join("\n");
+  const statements = splitStatements(sql);
+  const normalizedSql = statements.join("\n");
+  for (const statement of statements) validatePathParamKeysStatement(file, statement);
   const forbidden = [
     /^\s*GRANT\b/imu,
     /^\s*REVOKE\b/imu,

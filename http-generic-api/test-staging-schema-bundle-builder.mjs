@@ -365,6 +365,23 @@ test("migration 1039 uses legal runtime and authority binding status enums", () 
   assert.match(migration1039, /resource_uri\s*=\s*'hostinger:\/\/auth\.mad4b\.com\/production'/i);
 });
 
+test("catalog path parameter metadata is valid JSON before disposable replay", () => {
+  const migration125 = fs.readFileSync(path.join(apiRoot, "migrations", "125_sprint64_platform_plugin_contributions.sql"), "utf8");
+  assert.match(
+    migration125,
+    /'platform_plugin_contribution_get'[\s\S]*?\/platform\/plugins\/contributions\/\{contribution_id\}'[\s\S]*?JSON_ARRAY\('contribution_id'\)/iu,
+    "migration 125 must encode the contribution_id path parameter as a JSON array",
+  );
+  assert.doesNotMatch(
+    migration125,
+    /\/platform\/plugins\/contributions\/\{contribution_id\}'[\s\S]*?\n\s*'contribution_id'\s*,/iu,
+    "migration 125 must not write a bare scalar path parameter",
+  );
+  assert.match(generator, /function validatePathParamKeysStatement/iu);
+  assert.match(generator, /path_param_keys must be NULL, JSON_ARRAY/iu);
+  assert.match(generator, /path_param_keys JSON value must be an array of strings/iu);
+});
+
 test("generator plan-only mode inventories the exact migration chain", () => {
   const result = runPlan();
   assert.equal(result.status, 0, result.stderr || result.stdout);
