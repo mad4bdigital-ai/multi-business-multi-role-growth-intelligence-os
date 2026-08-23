@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7297,
-    "bytes": 71219097,
-    "lines": 1667282,
+    "bytes": 71246200,
+    "lines": 1667639,
     "directories": 266,
     "categories": 13
   },
@@ -177,7 +177,8 @@
         "manifest:portable-staging",
         "runtime-bootstrap:plan",
         "runtime-bootstrap:dry-run",
-        "runtime-bootstrap:apply",
+        "runtime-bootstrap:apply-migration",
+        "runtime-bootstrap:apply-grants",
         "remote-mcp:client:provision",
         "remote-mcp:client:profiles",
         "remote-mcp:client:status",
