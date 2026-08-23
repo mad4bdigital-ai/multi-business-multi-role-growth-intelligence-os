@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       strategy:
-        description: Recovery strategy; snapshot is DB-independent read-only evidence, primary is direct provider control, fallback bootstraps DB schema/grants
+        description: verify routes/parity, snapshot DB-independent evidence, primary governed runtime recovery, or fallback direct canonical DB bootstrap
         required: true
         type: choice
         options:
@@ -13,7 +13,7 @@ on:
           - primary
           - fallback
       source_mode:
-        description: Snapshot source; github_snapshot uses GitHub Variables, repository_snapshot uses the reviewed repository JSON
+        description: Snapshot source; used only by snapshot strategy
         required: true
         default: sql
         type: choice
@@ -26,7 +26,7 @@ on:
         required: true
         type: string
       apply_execution:
-        description: Perform mutations. Must be false for snapshot; false produces a bounded plan for primary/fallback.
+        description: Perform governed recovery mutations. Snapshot is always read-only.
         required: true
         default: false
         type: boolean
@@ -39,17 +39,13 @@ on:
         required: false
         default: runtime
         type: string
-      hostinger_target_id:
-        description: Optional run-scoped override for HOSTINGER_DEPLOYMENT_TARGET_ID
-        required: false
-        type: string
 
 permissions:
   contents: read
 
 jobs:
   recover:
-    name: Recover Production from GitHub control plane
+    name: Recover Production after Hostinger Auto Deploy
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: Production
@@ -64,39 +60,29 @@ jobs:
       RECOVERY_TARGET_KEY: ${{ inputs.target_key }}
       RUNTIME_RECOVERY_SOURCE_MODE: ${{ inputs.source_mode }}
 
-      # Release identity is GitHub-controlled. Production remains the default release branch.
+      # Production branch merge is the only normal deployment trigger. This workflow never triggers Hostinger deployment.
       PRODUCTION_SOURCE_BRANCH: ${{ vars.PRODUCTION_SOURCE_BRANCH || 'Production' }}
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://auth.mad4b.com' }}
       GITHUB_TOKEN: ${{ github.token }}
 
-      # Primary and fallback rollout are direct GitHub -> provider calls. They never call the stale runtime to deploy itself.
-      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://auth.mad4b.com' }}
-      PRODUCTION_DEPLOY_URL: ${{ vars.PRODUCTION_DEPLOY_URL }}
-      PRODUCTION_DEPLOY_METHOD: ${{ vars.PRODUCTION_DEPLOY_METHOD || 'POST' }}
-      PRODUCTION_DEPLOY_BODY_JSON: ${{ vars.PRODUCTION_DEPLOY_BODY_JSON }}
-      PRODUCTION_DEPLOY_AUTH_HEADER: ${{ vars.PRODUCTION_DEPLOY_AUTH_HEADER || 'Authorization' }}
-      PRODUCTION_DEPLOY_AUTH_VALUE: ${{ secrets.PRODUCTION_DEPLOY_AUTH_VALUE }}
-      HOSTINGER_DEPLOYMENT_TARGET_ID: ${{ inputs.hostinger_target_id || vars.HOSTINGER_DEPLOYMENT_TARGET_ID }}
-
-      # Exact deployed-SHA proof. Both surfaces must contain EXPECTED_SHA.
-      PRODUCTION_VERSION_PATH: ${{ vars.PRODUCTION_VERSION_PATH || '/version' }}
-      PRODUCTION_DEPLOYMENT_INFO_PATH: ${{ vars.PRODUCTION_DEPLOYMENT_INFO_PATH || '/deployment-info' }}
-      PRODUCTION_VERIFY_ATTEMPTS: ${{ vars.PRODUCTION_VERIFY_ATTEMPTS || '24' }}
+      # Wait for Hostinger Auto Deploy to expose exact structured branch/SHA provenance on /version and /deployment-info.
+      PRODUCTION_VERIFY_ATTEMPTS: ${{ vars.PRODUCTION_VERIFY_ATTEMPTS || '36' }}
       PRODUCTION_VERIFY_INTERVAL_SECONDS: ${{ vars.PRODUCTION_VERIFY_INTERVAL_SECONDS || '10' }}
 
-      # Runtime requests use one protected credential; JSON variables never need to contain a secret.
+      # Protected runtime bearer credential. Paths are not variables; route_key values resolve through the reviewed route contract.
       PRODUCTION_PROBE_AUTH_HEADER: ${{ vars.PRODUCTION_PROBE_AUTH_HEADER || 'Authorization' }}
       PRODUCTION_PROBE_AUTH_VALUE: ${{ secrets.PRODUCTION_PROBE_AUTH_VALUE }}
       RUNTIME_RECOVERY_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_PROBES_JSON }}
       PRIMARY_GOVERNED_STEPS_JSON: ${{ vars.PRIMARY_GOVERNED_STEPS_JSON }}
       RUNTIME_RECOVERY_FINAL_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_FINAL_PROBES_JSON }}
 
-      # DB-independent snapshot source. These variables contain only bounded, non-secret descriptors.
+      # DB-independent read-only snapshot source.
       RUNTIME_RECOVERY_SNAPSHOT_JSON: ${{ vars.RUNTIME_RECOVERY_SNAPSHOT_JSON }}
       RUNTIME_RECOVERY_CATALOG_JSON: ${{ vars.RUNTIME_RECOVERY_CATALOG_JSON }}
       RUNTIME_RECOVERY_SESSION_CONTEXT_JSON: ${{ vars.RUNTIME_RECOVERY_SESSION_CONTEXT_JSON }}
       RUNTIME_RECOVERY_SNAPSHOT_PATH: ${{ vars.RUNTIME_RECOVERY_SNAPSHOT_PATH || 'http-generic-api/config/runtime-recovery-repository-snapshot.json' }}
 
-      # Fallback source of truth: explicit GitHub plan, never SQL registry discovery.
+      # Fallback orchestration source of truth. No SQL registry discovery is required.
       RUNTIME_RECOVERY_TARGETS_JSON: ${{ vars.RUNTIME_RECOVERY_TARGETS_JSON }}
       RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE: ${{ vars.RUNTIME_RECOVERY_ALLOW_CREATE_DATABASE || 'false' }}
       MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
@@ -127,7 +113,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify recovery operator contracts
+      - name: Verify recovery route and operator contracts
         run: node --test .github/ops/test-production-runtime-recovery.mjs
 
       - name: Install MariaDB client dependency for database fallback only
@@ -146,9 +132,8 @@ jobs:
 
       - name: Execute selected recovery strategy
         env:
-          # Snapshot mode is intentionally non-mutating even if a caller supplied a malformed boolean input.
           APPLY_EXECUTION: ${{ inputs.strategy == 'snapshot' && 'false' || inputs.apply_execution }}
-        run: node .github/ops/production-runtime-recovery.mjs
+        run: node .github/ops/production-runtime-recovery-autodeploy.mjs
 
       - name: Reverify immutable Production head
         if: always()
