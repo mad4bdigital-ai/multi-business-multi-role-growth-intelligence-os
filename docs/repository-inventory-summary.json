@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7267,
-    "bytes": 70760800,
-    "lines": 1658331,
+    "files": 7270,
+    "bytes": 70842906,
+    "lines": 1659954,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2168,
+      "tests-and-specs": 2170,
       "documentation": 1909,
       "api-runtime": 1466,
       "database-migrations": 784,
       "root-and-other": 319,
       "api-contracts": 191,
       "ci-workflows": 170,
-      "ci-config": 124,
+      "ci-config": 125,
       "schemas-and-data": 74,
       "connectors-and-edge": 29,
       "applications": 19,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1726,
+      ".mjs": 1729,
       ".js": 995,
       ".json": 846,
       ".sql": 799,
@@ -61,10 +61,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3738,
+      "http-generic-api": 3740,
       "docs": 1813,
       "specs": 880,
-      ".github": 294,
+      ".github": 295,
       ".changes": 287,
       "canonicals": 70,
       "local-connector": 23,
@@ -251,7 +251,7 @@
     "workflows": 170,
     "migrations": 784,
     "apiContracts": 191,
-    "testSpecFiles": 2256
+    "testSpecFiles": 2258
   },
   "largestFiles": [
     {
@@ -335,8 +335,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 262162,
-      "lines": 2297
+      "bytes": 262630,
+      "lines": 2300
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",

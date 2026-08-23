@@ -17,8 +17,11 @@
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "docs/remote-mcp-write-scope-inventory.md",
       ".github/governance/test-authority-registry.json",
+      ".github/ops/runtime-recovery-governed-operations.mjs",
+      ".github/workflows/github-repository-policy-1049-governed-rollout.yml",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+      "http-generic-api/test-runtime-recovery-governed-operations.mjs",
       "http-generic-api/test-governed-migration-execution-tool.mjs",
       "http-generic-api/scripts/governed-migration-runner.mjs",
       "http-generic-api/governedMigrationExecutionTool.js",
@@ -46,7 +49,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prepare a no-secret, prepared-only remediation plan and contract guard for runtime schema, write-authority, and queue readiness without applying migrations, grants, or production activation.",
+      "objective": "Prepare a no-secret remediation plan and separately operator-confirmed protected execution paths for exact-SHA deployment, runner verification, the sole missing catalog migration, table-scoped write authority, and final readback without performing live changes during pull-request validation.",
       "e2e_journeys": [
         {
           "id": "runtime-remediation-batch-contract",
@@ -54,20 +57,23 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance CI",
           "entrypoint": "The remediation batch contract test runs on the exact PR candidate.",
-          "terminal_outcome": "The plan validates exact migration checksums, direct-table authority profiles, queue decision paths, and all prepared-only boundaries without connecting to runtime or executing SQL.",
+          "terminal_outcome": "Repository-only checks validate exact migration checksums, verification-only applied migrations, protected one-phase execution, direct-table authority profiles, queue decision paths, and prepared-only PR boundaries without connecting to runtime or executing SQL.",
           "steps": [
             "Read the runtime database readiness and write-authority contracts.",
-            "Validate the mcp catalog migration and capability envelope ledger migration checksums.",
-            "Validate runtime inventory writer table bindings and allowed operations.",
+            "Validate the sole missing MCP catalog migration checksum and statement count while proving migrations 225 and 1048 are verification-only and cannot be applied.",
+            "Validate session continuity, runtime inventory, and observability writer table bindings and exact SELECT/INSERT/UPDATE operations.",
+            "Require protected Production environment approval, immutable Production SHA parity, distinct phase-specific confirmations, and an existing capability envelope before governed mutations.",
+            "Prove catalog Apply cannot be retried and table grants cannot widen to schema/global authority, grant option, destructive privileges, or an operator principal.",
             "Validate Redis and SQL fallback decision requirements.",
             "Run the contract test and include it in the canonical test manifest.",
-            "Keep migration, grant, database, provider, production activation, and GitHub policy effects disabled."
+            "Keep migration, grant, database, provider, production activation, and GitHub policy effects disabled during pull-request validation; later dispatches each require separate protected-environment approval."
           ],
           "assertions": [
             "The remediation plan remains status prepared-only and authority shadow-library-only.",
             "runtime_mutation_allowed, grant_mutation_allowed, migration_apply_allowed, and production_activation_allowed remain false.",
-            "The mcp catalog and envelope ledger checksums match the repository files.",
-            "The runtime inventory writer uses direct-table bindings with SELECT/INSERT/UPDATE only and no grant option.",
+            "The MCP catalog checksum matches the exact repository artifact; already-applied migrations 225 and 1048 can only be dry-run verified.",
+            "All three runtime writer profiles use direct-table bindings with SELECT/INSERT/UPDATE only and no grant option, global write, or schema-wide write.",
+            "Each privileged runtime operation runs in one explicitly confirmed protected-environment phase against the exact current Production SHA.",
             "Redis is a decision path and SQL fallback is explicitly safe-degradation only.",
             "No migration, grant, SQL/DB mutation, provider mutation, credential read, force-push, Branch Protection/Rulesets Apply, or Production activation occurs."
           ],
@@ -77,6 +83,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-recovery-governed-operations",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-runtime-recovery-governed-operations.mjs",
               "args": []
             },
             {
@@ -102,8 +115,11 @@
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "docs/remote-mcp-write-scope-inventory.md",
             ".github/governance/test-authority-registry.json",
+            ".github/ops/runtime-recovery-governed-operations.mjs",
+            ".github/workflows/github-repository-policy-1049-governed-rollout.yml",
             "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/test-runtime-remediation-batch-plan.mjs",
+            "http-generic-api/test-runtime-recovery-governed-operations.mjs",
             "http-generic-api/test-governed-migration-execution-tool.mjs",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/scripts/governed-migration-runner.mjs",
