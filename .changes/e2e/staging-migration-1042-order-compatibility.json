@@ -20,7 +20,9 @@
       "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/scripts/migration-order.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
+      ".github/workflows/e2e-phase-governance.yml",
       "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
@@ -83,7 +85,9 @@
             "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-order.mjs",
+            "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
             "http-generic-api/test-environment-impact-closure.mjs",
+            ".github/workflows/e2e-phase-governance.yml",
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
           ]
