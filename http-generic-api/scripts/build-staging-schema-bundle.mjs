@@ -397,6 +397,15 @@ function validateLocalConnectorFileAccessRuleStatement(file, statement) {
   }
 }
 
+function validateSecretReferenceIdempotencyStatement(file, statement) {
+  const insert = statement.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`secret_references`|secret_references)\s*/iu);
+  if (!insert || /\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/iu.test(statement)) return;
+  const guard = statement.match(/\b(?:WHERE|AND|OR)\s+NOT\s+EXISTS\s*\(([\s\S]*)\)\s*$/iu)?.[1] || "";
+  if (!guard) fail(`migration ${file} secret_references INSERT must be idempotent with ON DUPLICATE KEY UPDATE or a NOT EXISTS guard`);
+  if (!/\bsecret_key\b/iu.test(guard)) fail(`migration ${file} secret_references NOT EXISTS guard must compare secret_key`);
+  if (/\b(?:sr\s*\.\s*)?system_id\b/iu.test(guard)) fail(`migration ${file} secret_references NOT EXISTS guard must not narrow canonical uq_tenant_key uniqueness by system_id`);
+}
+
 function migrationSafetyCheck(file, sql) {
   const statements = splitStatements(sql);
   const normalizedSql = statements.join("\n");
@@ -404,6 +413,7 @@ function migrationSafetyCheck(file, sql) {
     validatePathParamKeysStatement(file, statement);
     validateLocalConnectorAllowlistStatement(file, statement);
     validateLocalConnectorFileAccessRuleStatement(file, statement);
+    validateSecretReferenceIdempotencyStatement(file, statement);
   }
   const forbidden = [
     /^\s*GRANT\b/imu,

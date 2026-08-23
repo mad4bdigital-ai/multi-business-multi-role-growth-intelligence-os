@@ -86,7 +86,6 @@ WHERE cs.tenant_id = @platform_tenant_id
   AND NOT EXISTS (
     SELECT 1 FROM secret_references sr
     WHERE sr.tenant_id = @platform_tenant_id
-      AND sr.system_id = cs.system_id
       AND sr.secret_key = refs.secret_key
   );
 
