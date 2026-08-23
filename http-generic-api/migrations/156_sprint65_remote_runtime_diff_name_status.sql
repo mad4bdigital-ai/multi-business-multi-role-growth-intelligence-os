@@ -20,9 +20,10 @@ ON DUPLICATE KEY UPDATE
   updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO local_connector_shell_allowlists (
-  config_id, alias, command_template, allow_extra_args, description
+  allowlist_id, config_id, alias, command_template, allow_extra_args, description
 )
 SELECT
+  '00000000-0000-4000-c000-000000000011',
   '8db63b00-4fce-11f1-b256-614c56cd019b',
   'repo_diff_name_status_growth_os',
   '"C:\\Program Files\\Git\\cmd\\git.exe" -C "D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS" diff --name-status',
