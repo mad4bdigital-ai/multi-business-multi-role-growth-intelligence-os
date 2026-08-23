@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7295,
-    "bytes": 71200053,
-    "lines": 1666999,
+    "bytes": 71200315,
+    "lines": 1667003,
     "directories": 266,
     "categories": 13
   },
@@ -7240,9 +7240,9 @@
       "path": ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 6303,
-      "lines": 116,
-      "sha256": "60d7a383a4aa0568d07d3d48a0842d0d0a6bb1ee6ded8ee88a93ffbbd38bca75",
+      "bytes": 6565,
+      "lines": 120,
+      "sha256": "e0fe9d63ea8c39e29de52406c6a4c88a2df1f3e7e1eede683bf392c984e288f0",
       "mode": "644",
       "executable": false,
       "generated": false
