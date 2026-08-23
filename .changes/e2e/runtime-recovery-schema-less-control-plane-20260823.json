@@ -4,6 +4,7 @@
   "feature_key": "runtime-recovery-schema-less-control-plane-20260823",
   "title": "Schema-less runtime recovery control plane and Work Map binding maintenance",
   "delivery_mode": "single_pr",
+  "secrets_included": false,
   "current_phase": "mvp",
   "scope": {
     "include": [
