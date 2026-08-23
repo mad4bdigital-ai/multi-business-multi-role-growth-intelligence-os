@@ -183,6 +183,7 @@
           "http-generic-api/test-environment-impact-closure.mjs",
           "docs/repository-*.json",
           "docs/repository-*.md",
+          "docs/repo-autosync-permissions.md",
           "docs/work-maps/**",
           "docs/remote-mcp-write-scope-inventory.md",
           "http-generic-api/docs/remote-mcp-*.md",

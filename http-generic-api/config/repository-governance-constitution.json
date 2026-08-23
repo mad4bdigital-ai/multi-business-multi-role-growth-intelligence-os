@@ -402,6 +402,8 @@
     ".github/workflows/policy-objection-ci.yml",
     ".github/workflows/derived-state-repair-dispatch.yml",
     ".github/workflows/derived-state-converged-automerge.yml",
+    ".github/workflows/openapi-auto-sync.yml",
+    ".github/workflows/surface-contract-auto-remediation.yml",
     ".github/workflows/derived-state-main-convergence-publisher.yml",
     ".github/workflows/github-repository-policy-readback.yml",
     ".github/workflows/github-main-review-policy-live-activation.yml",
