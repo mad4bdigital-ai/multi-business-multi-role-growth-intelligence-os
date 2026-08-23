@@ -6,7 +6,7 @@
     "baseline_schema": "http-generic-api/schema.sql",
     "baseline_foreign_key_policy": "defer_baseline_fk_create_statements_until_after_migrations",
     "migration_directory": "http-generic-api/migrations",
-    "ordering": "baseline_schema_then_lexicographic_filename",
+    "ordering": "baseline_schema_then_numeric_migration_prefix_then_lexicographic_tiebreaker",
     "source_kind": "exact_local_git_checkout",
     "disposable_database_required": true,
     "production_access_forbidden": true,

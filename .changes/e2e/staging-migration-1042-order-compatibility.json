@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-migration-1042-order-compatibility",
+  "title": "Numeric migration ordering for complete Staging MariaDB replay",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-migration-1042-order-compatibility.json",
+      ".changes/e2e/staging-batch-baseline-column-contracts.json",
+      ".changes/e2e/staging-endpoints-column-baseline-contract.json",
+      ".changes/e2e/staging-platform-contract-surfaces-baseline-contract.json",
+      ".changes/e2e/staging-tenant-secrets-baseline-contract.json",
+      ".changes/e2e/staging-validation-repair-baseline-contract.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/migration-order.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      ".github/workflows/e2e-phase-governance.yml",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the local exact-main Staging schema bundle replay apply migrations by numeric version prefix before filename tie-breaker, so migration 310 creates activation_runs before migration 1042 creates its session-context index.",
+      "e2e_journeys": [
+        {
+          "id": "numeric-ordered-disposable-mariadb-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator and disposable local MariaDB 11.4",
+          "entrypoint": "The exact local checkout validates the role manifest and ordered pre-use audit, then applies the baseline and numeric-prefix ordered migration chain in a disposable MariaDB schema.",
+          "terminal_outcome": "activation_runs is created by migration 310 before migration 1042 indexes it, the three schema-only bundles can be emitted, and no Production/provider/Cloudflare/credential/data operation occurs.",
+          "steps": [
+            "Load the canonical baseline schema without external data or authority statements.",
+            "Order every SQL migration by its numeric filename prefix and use the complete filename as a deterministic tie-breaker.",
+            "Run the ordered pre-use audit using the same comparator as the builder.",
+            "Apply the migration chain only in disposable local MariaDB 11.4 after explicit confirmation and exact-SHA checks.",
+            "Emit runtime, governance, and runtime-persistence schema-only bundles with a safety manifest."
+          ],
+          "assertions": [
+            "Migration 310 precedes migration 1042 in the builder and pre-use audit order.",
+            "Every migration filename has a numeric version prefix.",
+            "The manifest ordering contract matches the comparator implementation.",
+            "The builder remains fail-closed on wrong SHA, dirty tree, non-local Docker, missing confirmation, SQL failure, or missing outputs.",
+            "Production, providers, Cloudflare, credentials, data export, and runtime mutations remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-migration-1042-order-compatibility.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-order.mjs",
+            "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
+            ".github/workflows/e2e-phase-governance.yml",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

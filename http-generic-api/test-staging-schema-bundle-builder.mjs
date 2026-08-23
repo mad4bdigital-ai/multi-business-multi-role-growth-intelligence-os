@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { splitStatements } from "./scripts/staging-sql-parser.mjs";
+import { compareMigrationFiles, isMigrationFilename } from "./scripts/migration-order.mjs";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
@@ -43,7 +44,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.safety.schema_only, true);
   assert.equal(manifest.safety.data_copy_forbidden, true);
   assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
-  assert.equal(manifest.source.ordering, "baseline_schema_then_lexicographic_filename");
+  assert.equal(manifest.source.ordering, "baseline_schema_then_numeric_migration_prefix_then_lexicographic_tiebreaker");
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
   assert.deepEqual(manifest.validation.required_endpoints_baseline_columns, [
@@ -151,9 +152,25 @@ test("MariaDB migrations do not use unsupported CAST AS JSON syntax", () => {
   }
 });
 
+test("numeric migration ordering runs dependencies before later indexes", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  assert.ok(orderedMigrations.every(isMigrationFilename), "every migration filename must carry a numeric version prefix");
+  assert.ok(
+    orderedMigrations.indexOf("310_sprint69_activation_awareness_completeness_control_plane.sql")
+      < orderedMigrations.indexOf("1042_sprint69_activation_session_context_indexes.sql"),
+    "activation_runs must be created before migration 1042 indexes it",
+  );
+  assert.ok(
+    orderedMigrations.indexOf("018_sprint22_customer_session_registry.sql")
+      < orderedMigrations.indexOf("1042_sprint69_activation_session_context_indexes.sql"),
+    "customer_sessions must be created before migration 1042 indexes it",
+  );
+});
+
 test("binding identifier width is widened before every descriptive binding writer", () => {
   const migrationsDir = path.join(apiRoot, "migrations");
-  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
   const compatibilityFile = "067_sprint69_binding_id_width_compatibility.sql";
   const compatibilityIndex = orderedMigrations.indexOf(compatibilityFile);
   assert.notEqual(compatibilityIndex, -1, "binding_id compatibility migration must exist");
@@ -385,18 +402,22 @@ test("canonical table bootstrap resolves ordered migration pre-use inside dispos
   assert.equal(bootstrap.production_access_forbidden, true);
   assert.equal(bootstrap.provider_access_forbidden, true);
   assert.equal(bootstrap.secrets_included, false);
-  assert.ok(bootstrap.table_count >= 70);
-  assert.ok(bootstrap.view_count >= 6);
+  assert.equal(bootstrap.unresolved_missing_table_gaps, 0);
+  assert.ok(bootstrap.resolved_missing_table_gaps >= 18);
+  assert.ok(bootstrap.table_count >= 19);
+  assert.ok(bootstrap.view_count >= 0);
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
   assert.match(generator, /canonical table bootstrap leaves/iu);
   const authorizationRegistry = bootstrap.entries.find((entry) => entry.table === "capability_apply_authorization_policy_registry");
-  assert.equal(authorizationRegistry.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
+  assert.equal(authorizationRegistry.file, "307_sprint69_hostinger_deploy_restart_option_support.sql");
   assert.equal(authorizationRegistry.source_file, "902_sprint68_dynamic_capability_apply_authorization_policy.sql");
   assert.equal(authorizationRegistry.sha256.length, 64);
-  const dispatch = bootstrap.entries.find((entry) => entry.table === "runtime_dispatch_certification_registry");
-  assert.equal(dispatch.file, "1004_sprint68_hostinger_ssh_executor_db_gate.sql");
-  assert.match(dispatch.source_file, /^178_/);
+  assert.equal(
+    bootstrap.entries.some((entry) => entry.table === "runtime_dispatch_certification_registry"),
+    false,
+    "runtime dispatch certification is no longer a pre-use gap under numeric ordering",
+  );
   assert.equal(bootstrap.entries.some((entry) => entry.table.startsWith("tmp_")), false);
   assert.equal(bootstrap.entries.some((entry) => Object.hasOwn(entry, "statement")), false);
 });
