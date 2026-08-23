@@ -1,0 +1,60 @@
+{
+  "schema_version": "production-runtime-recovery-routes.v1",
+  "base_url_variable": "PRODUCTION_BASE_URL",
+  "routes": {
+    "health": {
+      "method": "GET",
+      "path": "/health",
+      "auth": "public",
+      "purpose": "Hostinger process health before and after recovery"
+    },
+    "version": {
+      "method": "GET",
+      "path": "/version",
+      "auth": "public",
+      "purpose": "Exact deployed commit and branch provenance"
+    },
+    "deployment_info": {
+      "method": "GET",
+      "path": "/deployment-info",
+      "auth": "public",
+      "purpose": "Independent exact deployed commit and branch provenance"
+    },
+    "gpt_tools": {
+      "method": "GET",
+      "path": "/gpt/tools",
+      "auth": "bearer",
+      "purpose": "Admin/System tool catalog functional readiness"
+    },
+    "gpt_tool_call": {
+      "method": "POST",
+      "path": "/gpt/tools/call",
+      "auth": "bearer",
+      "purpose": "Canonical governed tool execution envelope",
+      "body_contract": {
+        "name": "string",
+        "tool_args": "object"
+      }
+    },
+    "session_context": {
+      "method": "GET",
+      "path": "/activation/session-context/read-only",
+      "auth": "bearer",
+      "purpose": "Session Context persistence/readiness readback"
+    }
+  },
+  "allowed_configured_steps": [
+    "health",
+    "version",
+    "deployment_info",
+    "gpt_tools",
+    "gpt_tool_call",
+    "session_context"
+  ],
+  "notes": [
+    "Hostinger Auto Deploy is triggered only by a merge or push to Production; this contract never triggers a deployment.",
+    "A configured GitHub recovery step selects a route_key from this contract instead of supplying an arbitrary URL path.",
+    "404 or 405 means route_contract_missing; 401 or 403 means route_present_auth_not_ready; 5xx means route_present_runtime_dependency_failed.",
+    "Functional success still requires the configured expected status and response contract."
+  ]
+}
