@@ -22,18 +22,22 @@
       ],
       "operator_path": "migration_apply_guarded_dry_run_then_migration_apply_guarded_apply",
       "same_cycle_readback_required": true
-    },
+    }
+  ],
+  "verification_only_migrations": [
     {
       "migration": "225_sprint67_capability_resolution_envelope_ledger.sql",
       "checksum_sha256": "35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419",
-      "database_role": "governance",
-      "required_objects": [
-        "capability_resolution_envelope_ledger",
-        "platform_runtime_config.capability_resolution_envelope_ledger_policy_v1",
-        "admin_platform_endpoint_tools.capability_resolution_envelope_create"
-      ],
-      "operator_path": "migration_apply_guarded_dry_run_then_migration_apply_guarded_apply",
-      "same_cycle_readback_required": true
+      "expected_statement_count": 3,
+      "apply_allowed": false,
+      "required_result": "already_applied"
+    },
+    {
+      "migration": "1048_transport_response_chunk_schema_recovery.sql",
+      "checksum_sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
+      "expected_statement_count": 34,
+      "apply_allowed": false,
+      "required_result": "already_applied"
     }
   ],
   "write_authority_profiles": [
@@ -66,6 +70,46 @@
       "same_cycle_readback_required": true,
       "global_privileges_forbidden": true,
       "grant_option_forbidden": true
+    },
+    {
+      "profile_key": "session_continuity_writer",
+      "identity_env_prefix": "RUNTIME_SESSION_DB_",
+      "database_role": "runtime",
+      "tables": [
+        {
+          "table": "customer_sessions",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "activation_session_context_continuity"
+        },
+        {
+          "table": "gpt_session_turns",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "bounded_gpt_session_turn_archive"
+        }
+      ],
+      "same_cycle_readback_required": true,
+      "global_privileges_forbidden": true,
+      "grant_option_forbidden": true
+    },
+    {
+      "profile_key": "observability_sink_writer",
+      "identity_env_prefix": "RUNTIME_OBSERVABILITY_DB_",
+      "database_role": "runtime",
+      "tables": [
+        {
+          "table": "execution_log",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "bounded_execution_evidence"
+        },
+        {
+          "table": "json_assets",
+          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "reason": "bounded_json_asset_evidence"
+        }
+      ],
+      "same_cycle_readback_required": true,
+      "global_privileges_forbidden": true,
+      "grant_option_forbidden": true
     }
   ],
   "queue_policy": {
@@ -82,17 +126,27 @@
     }
   },
   "execution_order": [
+    "production_branch_exact_head_readback",
+    "hostinger_deploy_dry_run_operator_only",
+    "hostinger_deploy_apply_operator_only",
     "runtime_deployment_exact_head_readback",
+    "migration_225_applied_ledger_dry_run_readback_only",
+    "migration_1048_applied_ledger_dry_run_readback_only",
+    "runner_integrity_acceptance_readback",
+    "mcp_catalog_levels_authorization_operator_only",
     "mcp_catalog_levels_dry_run",
     "mcp_catalog_levels_apply_operator_only",
     "mcp_catalog_levels_schema_readback",
+    "session_continuity_privilege_readonly_preflight",
+    "session_continuity_grant_operator_only",
+    "session_continuity_same_cycle_readback",
     "runtime_inventory_privilege_readonly_preflight",
     "runtime_inventory_grant_operator_only",
     "runtime_inventory_same_cycle_readback",
+    "observability_sink_privilege_readonly_preflight",
+    "observability_sink_grant_operator_only",
+    "observability_sink_same_cycle_readback",
     "runtime_restart_and_startup_reconciliation_readback",
-    "capability_envelope_ledger_dry_run",
-    "capability_envelope_ledger_apply_operator_only",
-    "capability_envelope_ledger_readback",
     "migration_1051_readiness",
     "main_policy_readiness",
     "production_policy_readiness"
