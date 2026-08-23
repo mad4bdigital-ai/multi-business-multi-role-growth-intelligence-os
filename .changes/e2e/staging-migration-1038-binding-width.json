@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-migration-1038-binding-width",
+  "title": "Staging MariaDB compatibility for workflow-control dispatch binding identifiers",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-migration-1038-binding-width.json",
+      "http-generic-api/migrations/1038_sprint69_github_actions_workflow_control_dispatch.sql",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the ordered Staging schema replay compatible with MariaDB 11.4 when workflow-control dispatch bindings use identifiers longer than the earlier 64-character column contract.",
+      "e2e_journeys": [
+        {
+          "id": "ordered-migration-1038-binding-width-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator and disposable MariaDB 11.4",
+          "entrypoint": "The exact Staging checkout applies the ordered baseline and migrations through migration 1038 in a disposable local MariaDB 11.4 schema.",
+          "terminal_outcome": "platform_tool_dispatch_bindings accepts all migration-1038 workflow-control binding identifiers, the builder regression and ordered pre-use plan pass, and no provider or Production operation is performed.",
+          "steps": [
+            "Load the canonical baseline and ordered migration chain in the isolated schema-bundle builder.",
+            "Create platform_tool_dispatch_bindings with the earlier contract, then widen binding_id to VARCHAR(128) before migration 1038 writes workflow-control bindings.",
+            "Apply migration 1038 metadata-only registry writers without calling GitHub or reading credential payloads.",
+            "Run the builder regression and plan-only audit, then require confirmed disposable replay before producing role bundles.",
+            "Keep Production mutation, provider mutation, deployment, credential payload reads, and data export forbidden."
+          ],
+          "assertions": [
+            "The migration-1038 compatibility ALTER precedes the first platform_tool_dispatch_bindings writer.",
+            "The binding_id contract is VARCHAR(128) and preserves the existing relationship and endpoint scopes.",
+            "The patch introduces no provider call, external write, deployment, credential payload read, or data export.",
+            "The Staging builder regression and ordered pre-use plan remain successful before confirmed replay.",
+            "Production mutation remains explicitly forbidden even though the migration is classified as shared runtime."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-migration-1038-binding-width.json",
+            "http-generic-api/migrations/1038_sprint69_github_actions_workflow_control_dispatch.sql",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
