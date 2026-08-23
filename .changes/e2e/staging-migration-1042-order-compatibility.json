@@ -17,6 +17,7 @@
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/scripts/migration-order.mjs",
@@ -82,6 +83,7 @@
           "evidence_paths": [
             ".changes/e2e/staging-migration-1042-order-compatibility.json",
             "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-order.mjs",
