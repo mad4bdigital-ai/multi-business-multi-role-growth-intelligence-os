@@ -1,16 +1,6 @@
 name: Hostinger Runtime Bootstrap Contract
 
 on:
-  push:
-    paths:
-      - '.github/workflows/hostinger-runtime-bootstrap.yml'
-      - 'http-generic-api/config/runtime-bootstrap-contract.json'
-      - 'http-generic-api/runtimeBootstrapContract.js'
-      - 'http-generic-api/runtimeBootstrapStatus.js'
-      - 'http-generic-api/scripts/hostinger-runtime-bootstrap.mjs'
-      - 'http-generic-api/test-runtime-bootstrap-contract.mjs'
-      - 'docs/governance/hostinger-runtime-bootstrap.md'
-      - '.changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json'
   pull_request:
     branches: [main]
     paths:
