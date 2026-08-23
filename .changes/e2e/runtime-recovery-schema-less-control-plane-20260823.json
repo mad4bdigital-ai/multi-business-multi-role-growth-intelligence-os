@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-recovery-schema-less-control-plane-20260823",
+  "title": "Schema-less runtime recovery control plane and Work Map binding maintenance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
+      "http-generic-api/.env.example",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/runtime-recovery-repository-snapshot.json",
+      "http-generic-api/deploymentManifest.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/activationRoutes.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/runtimeRecoverySnapshot.js",
+      "http-generic-api/test-runtime-recovery-snapshot-routes.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide two bounded GitHub-controlled read-only recovery snapshot sources for runtimes that do not yet have the canonical schema or tables, while retaining SQL/runtime recovery as a separate authority path.",
+      "e2e_journeys": [
+        {
+          "id": "schema-less-snapshot-recovery-is-read-only",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance operator",
+          "entrypoint": "GitHub-controlled runtime recovery snapshot strategy",
+          "terminal_outcome": "github_snapshot and repository_snapshot expose bounded read-only evidence without opening a database connection, fabricating a durable session, claiming runtime authority, or dispatching mutating tools.",
+          "steps": [
+            "Load a repository snapshot or bounded GitHub snapshot descriptor under the runtime-recovery snapshot contract.",
+            "Reject sensitive fields, durable session identifiers, runtime-authority claims, mutation flags, and write-like tool descriptors.",
+            "Expose only canonical read-only recovery routes and the approved read-only runtime status descriptor.",
+            "Return explicit database_required=false, persistence=unavailable, and runtime_authority=false evidence.",
+            "Keep the SQL/runtime-mediated path separate and fail closed when its schema or table prerequisites are unavailable.",
+            "Run the route regression without connecting to or mutating a live database."
+          ],
+          "assertions": [
+            "Snapshot source values are non-secret and bounded; snapshot JSON is never read from GitHub Secrets.",
+            "Snapshot strategy rejects sql source mode and any apply_execution request.",
+            "Snapshot session context has no durable session_id and no persistence write path.",
+            "Snapshot tool dispatch blocks unapproved or mutating tools with a bounded read-only error.",
+            "Hostinger Auto Deploy provenance uses canonical route_key values and structured full SHA/branch evidence rather than arbitrary provider deployment credentials.",
+            "No Migration Apply, grant, database/provider mutation, deployment, restart, Policy Apply, Production activation, force push, or secret evidence occurs during validation."
+          ],
+          "tests": [
+            {
+              "id": "runtime-recovery-snapshot-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-recovery-snapshot-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "production-runtime-recovery-control-plane",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/ops/test-production-runtime-recovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
+            ".github/ops/production-runtime-recovery-autodeploy.mjs",
+            ".github/ops/production-runtime-recovery-routes.json",
+            ".github/workflows/production-runtime-recovery.yml",
+            "http-generic-api/runtimeRecoverySnapshot.js",
+            "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+            ".github/ops/test-production-runtime-recovery.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
