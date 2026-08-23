@@ -368,7 +368,7 @@ jobs:
 
           consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
           patch_response="${DIAGNOSTIC_ROOT}/writer-delegation-consume-response.json"
-          printf '{"body":"%s"}\\n' "${consumed_grant}" > "${delegation_payload}"
+          jq -n --arg body "${consumed_grant}" '{body:$body}' > "${delegation_payload}"
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
             --input "${delegation_payload}" > "${patch_response}"
           patched_grant="$(jq -r '.body' "${patch_response}" | tr -d '\r\n')"
