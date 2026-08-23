@@ -22,7 +22,7 @@
   },
   "session_context": {
     "subject": {
-      "tenant_id": "00000000-0000-0000-0000-000000000000"
+      "workspace_key": "repository-snapshot"
     }
   },
   "runtime_authority": false,
