@@ -16,6 +16,8 @@
       "docs/work-maps/data-model-domain-map.md",
       "docs/work-maps/work-map-coverage-matrix.md",
       "http-generic-api/activation-surfaces/exclusions/tenant_backend_connections.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_capability_grants.json",
+      "http-generic-api/activation-surfaces/exclusions/local_connector_app_allowlists.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/032_sprint35_local_connector_seed.sql",
       "http-generic-api/migrations/036_sprint40_connect_page.sql",
