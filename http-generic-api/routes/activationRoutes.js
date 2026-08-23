@@ -31,6 +31,12 @@ import { MCP_CATALOG_LEVEL_MIGRATION } from "../mcpCatalogSchemaGuard.js";
 import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 import { loadTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import {
+  buildRuntimeRecoverySnapshotUnavailableResponse,
+  buildRuntimeRecoverySnapshotWriteBlockedError,
+  isRuntimeRecoverySnapshotEnabled,
+  loadRuntimeRecoverySnapshot,
+} from "../runtimeRecoverySnapshot.js";
+import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
   ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
@@ -1459,6 +1465,16 @@ async function readOnlyGptSessionContext(pool, subject) {
 }
 
 export async function buildActivationSessionContext(req) {
+  if (isRuntimeRecoverySnapshotEnabled()) {
+    try {
+      if (shouldOpenActivationSession(req.query)) {
+        throw buildRuntimeRecoverySnapshotWriteBlockedError("activation_session_context_open");
+      }
+      return loadRuntimeRecoverySnapshot().sessionContext;
+    } catch (error) {
+      throw Object.assign(buildRuntimeRecoverySnapshotUnavailableResponse(error), { status: error?.status || 503 });
+    }
+  }
   const pool = getPool();
   const subject = resolveSessionContextSubject(req);
 

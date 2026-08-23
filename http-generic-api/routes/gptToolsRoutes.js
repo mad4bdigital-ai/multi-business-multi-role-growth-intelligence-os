@@ -12,6 +12,12 @@ import {
   buildMcpCatalogSchemaNotReadyResponse,
   isMcpCatalogSchemaNotReadyError,
 } from "../mcpCatalogSchemaGuard.js";
+import {
+  buildRuntimeRecoverySnapshotUnavailableResponse,
+  buildRuntimeRecoverySnapshotWriteBlockedError,
+  isRuntimeRecoverySnapshotEnabled,
+  loadRuntimeRecoverySnapshot,
+} from "../runtimeRecoverySnapshot.js";
 import { getGovernancePool } from "../governanceDb.js";
 import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
 import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
@@ -2556,6 +2562,11 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
 }
 
 async function fetchTools(callerType, executionCapsule = null) {
+  if (isRuntimeRecoverySnapshotEnabled()) {
+    // Snapshot mode deliberately excludes VIRTUAL_ADMIN_TOOLS: the snapshot is a
+    // read-only catalog and must never advertise a mutation-capable virtual tool.
+    return loadRuntimeRecoverySnapshot().catalog.tools;
+  }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   await assertMcpCatalogLevelColumn({ pool: getPool(), table });
   const rows = await cachedSqlRead(
@@ -2753,6 +2764,26 @@ export async function authorizeActAsUserDispatchIfPresent({ callerType, toolKey,
 }
 
 async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
+  if (isRuntimeRecoverySnapshotEnabled()) {
+    const snapshot = loadRuntimeRecoverySnapshot();
+    const advertised = snapshot.catalog.tools.some((tool) => tool.name === toolKey);
+    if (toolKey !== "runtime_recovery_status_read_only" || !advertised) {
+      throw buildRuntimeRecoverySnapshotWriteBlockedError(toolKey);
+    }
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        name: toolKey,
+        result: {
+          ...snapshot.sessionContext.runtime_recovery_source,
+          catalog_tool_count: snapshot.catalog.tools.length,
+          session_context: snapshot.sessionContext,
+          secrets_included: false,
+        },
+      },
+    };
+  }
   const executionCapsule = runtimeDeps.executionCapsule || null;
   if (callerType === "tenant") {
     const [blockedTenantManifests, blockedTenantSchemas] = await loadTenantExecutionGuards(executionCapsule);
@@ -2793,23 +2824,27 @@ async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
     });
   }
   const responseOptions = args && typeof args === "object" ? args : {};
-  const resultForClient = {
-    ...result,
-    body: shouldChunkDispatchedToolResponse(toolKey)
-      ? await maybeChunkToolResponseBody(result?.body, {
-          ...responseOptions,
-          auth: req?.auth || null,
-          source_tool_key: toolKey,
-          source_surface: "gpt_tools_dispatch",
-          request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, runtimeDeps)
-      : result?.body,
-  };
+  const resultForClient = isRuntimeRecoverySnapshotEnabled()
+    ? result
+    : {
+        ...result,
+        body: shouldChunkDispatchedToolResponse(toolKey)
+          ? await maybeChunkToolResponseBody(result?.body, {
+              ...responseOptions,
+              auth: req?.auth || null,
+              source_tool_key: toolKey,
+              source_surface: "gpt_tools_dispatch",
+              request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+            }, runtimeDeps)
+          : result?.body,
+      };
   // Best-effort: archive the dispatch as a tool turn only after the exchange has
   // user/assistant capture. Missing capture is surfaced as a pre-final gate so
   // the GPT can call gpt_session_turns_write_batch before the final response.
-  const archiveResult = await recordToolDispatchTurn(req, toolKey, args, resultForClient);
-  attachSessionArchiveCaptureGate(resultForClient, archiveResult);
+  if (!isRuntimeRecoverySnapshotEnabled()) {
+    const archiveResult = await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+    attachSessionArchiveCaptureGate(resultForClient, archiveResult);
+  }
   return resultForClient;
 }
 
@@ -4620,6 +4655,7 @@ export function buildGptToolsRoutes(deps) {
         page,
         tools: items,
       };
+      if (isRuntimeRecoverySnapshotEnabled()) return res.status(200).json(body);
       return res.status(200).json(await maybeChunkToolResponseBody(body, {
         response_options: req.query || {},
         auth: req?.auth || null,
@@ -4629,6 +4665,9 @@ export function buildGptToolsRoutes(deps) {
         }, requestRuntimeDeps));
 
     } catch (err) {
+      if (String(err?.code || "").startsWith("RUNTIME_RECOVERY_SNAPSHOT_")) {
+        return res.status(err?.status || 503).json({ ok: false, error: buildRuntimeRecoverySnapshotUnavailableResponse(err), secrets_included: false });
+      }
       if (isMcpCatalogSchemaNotReadyError(err)) {
         return res.status(503).json({
           ok: false,
@@ -4667,7 +4706,9 @@ export function buildGptToolsRoutes(deps) {
       // instead of a downstream HTTP error when its schema cache forgot to
       // attach tool_args/arguments. Skips for virtual tools (their schemas
       // are exposed via VIRTUAL_ADMIN_TOOLS and enforced inline).
-      const missingArgs = await detectMissingRequiredArgs(callerType, name, args, requestRuntimeDeps.executionCapsule);
+      const missingArgs = isRuntimeRecoverySnapshotEnabled()
+        ? null
+        : await detectMissingRequiredArgs(callerType, name, args, requestRuntimeDeps.executionCapsule);
       if (missingArgs) {
         return res.status(400).json({
           ok: false,
@@ -4682,6 +4723,9 @@ export function buildGptToolsRoutes(deps) {
       const result = await dispatchTool(callerType, name, args, req, requestRuntimeDeps);
       return res.status(result.status).json(result.body);
     } catch (err) {
+      if (String(err?.code || "").startsWith("RUNTIME_RECOVERY_SNAPSHOT_")) {
+        return res.status(err?.status || 503).json({ ok: false, error: buildRuntimeRecoverySnapshotUnavailableResponse(err), secrets_included: false });
+      }
       if (isMcpCatalogSchemaNotReadyError(err)) {
         return res.status(503).json({
           ok: false,

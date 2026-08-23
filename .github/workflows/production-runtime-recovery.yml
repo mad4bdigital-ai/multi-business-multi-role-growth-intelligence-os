@@ -4,19 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       strategy:
-        description: Recovery strategy; primary uses governed runtime operations, fallback bootstraps schema/grants directly from GitHub
+        description: Recovery strategy; snapshot is DB-independent read-only evidence, primary is direct provider control, fallback bootstraps DB schema/grants
         required: true
         type: choice
         options:
           - verify
+          - snapshot
           - primary
           - fallback
+      source_mode:
+        description: Snapshot source; github_snapshot uses GitHub Variables, repository_snapshot uses the reviewed repository JSON
+        required: true
+        default: sql
+        type: choice
+        options:
+          - sql
+          - github_snapshot
+          - repository_snapshot
       expected_production_sha:
         description: Exact immutable 40-character Production branch SHA
         required: true
         type: string
       apply_execution:
-        description: Perform mutations. False produces a bounded plan only for primary/fallback.
+        description: Perform mutations. Must be false for snapshot; false produces a bounded plan for primary/fallback.
         required: true
         default: false
         type: boolean
@@ -52,6 +62,7 @@ jobs:
       APPLY_EXECUTION: ${{ inputs.apply_execution }}
       RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
       RECOVERY_TARGET_KEY: ${{ inputs.target_key }}
+      RUNTIME_RECOVERY_SOURCE_MODE: ${{ inputs.source_mode }}
 
       # Release identity is GitHub-controlled. Production remains the default release branch.
       PRODUCTION_SOURCE_BRANCH: ${{ vars.PRODUCTION_SOURCE_BRANCH || 'Production' }}
@@ -78,6 +89,12 @@ jobs:
       RUNTIME_RECOVERY_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_PROBES_JSON }}
       PRIMARY_GOVERNED_STEPS_JSON: ${{ vars.PRIMARY_GOVERNED_STEPS_JSON }}
       RUNTIME_RECOVERY_FINAL_PROBES_JSON: ${{ vars.RUNTIME_RECOVERY_FINAL_PROBES_JSON }}
+
+      # DB-independent snapshot source. These variables contain only bounded, non-secret descriptors.
+      RUNTIME_RECOVERY_SNAPSHOT_JSON: ${{ vars.RUNTIME_RECOVERY_SNAPSHOT_JSON }}
+      RUNTIME_RECOVERY_CATALOG_JSON: ${{ vars.RUNTIME_RECOVERY_CATALOG_JSON }}
+      RUNTIME_RECOVERY_SESSION_CONTEXT_JSON: ${{ vars.RUNTIME_RECOVERY_SESSION_CONTEXT_JSON }}
+      RUNTIME_RECOVERY_SNAPSHOT_PATH: ${{ vars.RUNTIME_RECOVERY_SNAPSHOT_PATH || 'http-generic-api/config/runtime-recovery-repository-snapshot.json' }}
 
       # Fallback source of truth: explicit GitHub plan, never SQL registry discovery.
       RUNTIME_RECOVERY_TARGETS_JSON: ${{ vars.RUNTIME_RECOVERY_TARGETS_JSON }}
@@ -113,7 +130,7 @@ jobs:
       - name: Verify recovery operator contracts
         run: node --test .github/ops/test-production-runtime-recovery.mjs
 
-      - name: Install MariaDB client dependency for fallback only
+      - name: Install MariaDB client dependency for database fallback only
         if: inputs.strategy == 'fallback' && inputs.apply_execution
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
@@ -128,6 +145,9 @@ jobs:
           echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
 
       - name: Execute selected recovery strategy
+        env:
+          # Snapshot mode is intentionally non-mutating even if a caller supplied a malformed boolean input.
+          APPLY_EXECUTION: ${{ inputs.strategy == 'snapshot' && 'false' || inputs.apply_execution }}
         run: node .github/ops/production-runtime-recovery.mjs
 
       - name: Reverify immutable Production head
@@ -144,7 +164,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: production-runtime-recovery-${{ inputs.strategy }}-${{ github.run_id }}
+          name: production-runtime-recovery-${{ inputs.strategy }}-${{ inputs.source_mode }}-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: warn
           retention-days: 30

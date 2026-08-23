@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7271,
-    "bytes": 70867524,
-    "lines": 1660344,
+    "files": 7275,
+    "bytes": 70927753,
+    "lines": 1661636,
     "directories": 266,
     "categories": 13
   },
@@ -15,10 +15,10 @@
       "documentation": 1909,
       "api-runtime": 1466,
       "database-migrations": 784,
-      "root-and-other": 319,
+      "root-and-other": 320,
       "api-contracts": 191,
-      "ci-workflows": 170,
-      "ci-config": 125,
+      "ci-workflows": 171,
+      "ci-config": 127,
       "schemas-and-data": 74,
       "connectors-and-edge": 29,
       "applications": 19,
@@ -27,11 +27,11 @@
     },
     "byExtension": {
       ".md": 2510,
-      ".mjs": 1730,
+      ".mjs": 1732,
       ".js": 995,
-      ".json": 846,
+      ".json": 847,
       ".sql": 799,
-      ".yml": 173,
+      ".yml": 174,
       ".yaml": 119,
       ".ps1": 20,
       ".ts": 16,
@@ -64,8 +64,8 @@
       "http-generic-api": 3741,
       "docs": 1813,
       "specs": 880,
-      ".github": 295,
-      ".changes": 287,
+      ".github": 298,
+      ".changes": 288,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -248,10 +248,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 170,
+    "workflows": 171,
     "migrations": 784,
     "apiContracts": 191,
-    "testSpecFiles": 2259
+    "testSpecFiles": 2260
   },
   "largestFiles": [
     {
@@ -269,8 +269,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936189,
-      "lines": 58553
+      "bytes": 1936347,
+      "lines": 58559
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -347,8 +347,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 221663,
-      "lines": 4707
+      "bytes": 223593,
+      "lines": 4751
     },
     {
       "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",

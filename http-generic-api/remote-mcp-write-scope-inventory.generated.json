@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7278,
+  "file_count": 7281,
   "route_count": 1076,
   "write_route_count": 654,
   "classified_write_surface_count": 38,
@@ -337,8 +337,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/env-bootstrap:0",
-      "source_line": 1760,
-      "source_offset": 68827,
+      "source_line": 1776,
+      "source_offset": 69461,
       "method": "GET",
       "path": "/activation/env-bootstrap",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -346,8 +346,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/bootstrap-config:1",
-      "source_line": 1814,
-      "source_offset": 72068,
+      "source_line": 1830,
+      "source_offset": 72702,
       "method": "GET",
       "path": "/activation/bootstrap-config",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -355,8 +355,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#POST:/activation/hard-run/legacy-full:2",
-      "source_line": 1896,
-      "source_offset": 76222,
+      "source_line": 1912,
+      "source_offset": 76856,
       "method": "POST",
       "path": "/activation/hard-run/legacy-full",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -364,8 +364,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context/read-only:3",
-      "source_line": 1976,
-      "source_offset": 80340,
+      "source_line": 1992,
+      "source_offset": 80974,
       "method": "GET",
       "path": "/activation/session-context/read-only",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -373,8 +373,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/session-context:4",
-      "source_line": 2002,
-      "source_offset": 81013,
+      "source_line": 2018,
+      "source_offset": 81647,
       "method": "GET",
       "path": "/activation/session-context",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -382,8 +382,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/platform-access:5",
-      "source_line": 2031,
-      "source_offset": 81984,
+      "source_line": 2047,
+      "source_offset": 82618,
       "method": "GET",
       "path": "/activation/platform-access",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -3622,8 +3622,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions:0",
-      "source_line": 4576,
-      "source_offset": 215208,
+      "source_line": 4611,
+      "source_offset": 216519,
       "method": "POST",
       "path": "/admin/act-as-user/sessions",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3631,8 +3631,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions/:sessionId/revoke:1",
-      "source_line": 4592,
-      "source_offset": 216402,
+      "source_line": 4627,
+      "source_offset": 217713,
       "method": "POST",
       "path": "/admin/act-as-user/sessions/:sessionId/revoke",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3640,8 +3640,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:2",
-      "source_line": 4606,
-      "source_offset": 217388,
+      "source_line": 4641,
+      "source_offset": 218699,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3649,8 +3649,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:3",
-      "source_line": 4645,
-      "source_offset": 218953,
+      "source_line": 4684,
+      "source_offset": 220584,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -10959,10 +10959,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/activationRoutes.js",
-        "source_line": 1896,
+        "source_line": 1912,
         "handler_window_lines": [
-          1896,
-          1974
+          1912,
+          1990
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25671,10 +25671,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4576,
+        "source_line": 4611,
         "handler_window_lines": [
-          4576,
-          4591
+          4611,
+          4626
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25741,10 +25741,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4592,
+        "source_line": 4627,
         "handler_window_lines": [
-          4592,
-          4605
+          4627,
+          4640
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -25801,10 +25801,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4645,
+        "source_line": 4684,
         "handler_window_lines": [
-          4645,
-          4707
+          4684,
+          4751
         ],
         "evidence_flags": {
           "handler_window_present": true,

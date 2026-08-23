@@ -7,6 +7,10 @@ import process from 'node:process';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  loadRuntimeRecoverySnapshot,
+  resolveRuntimeRecoverySourceMode,
+} from '../../http-generic-api/runtimeRecoverySnapshot.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -608,6 +612,29 @@ function primaryPlan(env, sha) {
   };
 }
 
+function snapshotPlan(env, sha) {
+  const snapshot = loadRuntimeRecoverySnapshot(env);
+  return {
+    strategy: 'snapshot',
+    mutation_performed: false,
+    expected_sha: sha,
+    source_branch: env.PRODUCTION_SOURCE_BRANCH || 'main',
+    source_mode: snapshot.mode,
+    database_registry_required_for_orchestration: false,
+    database_required: false,
+    runtime_authority: false,
+    persistence: snapshot.persistence,
+    catalog_tool_count: snapshot.catalog.tools.length,
+    session_context_read_only: snapshot.sessionContext.read_only === true,
+    session_id: snapshot.sessionContext.session_id,
+    provider_mutation_performed: false,
+    database_mutation_performed: false,
+    required_variables: snapshot.mode === 'github_snapshot'
+      ? ['RUNTIME_RECOVERY_SOURCE_MODE', 'RUNTIME_RECOVERY_CATALOG_JSON', 'RUNTIME_RECOVERY_SESSION_CONTEXT_JSON']
+      : ['RUNTIME_RECOVERY_SOURCE_MODE', 'RUNTIME_RECOVERY_SNAPSHOT_PATH'],
+  };
+}
+
 function fallbackPlan(env, sha, target) {
   return {
     strategy: 'fallback',
@@ -627,13 +654,20 @@ function fallbackPlan(env, sha, target) {
 
 async function run(env = process.env) {
   const strategy = String(env.RECOVERY_STRATEGY || 'verify').trim().toLowerCase();
-  if (!['primary', 'fallback', 'verify'].includes(strategy)) {
-    throw typedError('strategy_invalid', 'RECOVERY_STRATEGY must be primary, fallback, or verify');
+  if (!['primary', 'fallback', 'snapshot', 'verify'].includes(strategy)) {
+    throw typedError('strategy_invalid', 'RECOVERY_STRATEGY must be primary, fallback, snapshot, or verify');
   }
   const sha = validateSha(env.EXPECTED_SHA || gitHead());
   const applyExecution = parseBoolean(env.APPLY_EXECUTION, false);
+  if (strategy === 'snapshot' && applyExecution) {
+    throw typedError('snapshot_mutation_forbidden', 'Snapshot strategy is repository/GitHub-variable-only and cannot execute mutations.');
+  }
   validateApplyGate({ strategy, sha, applyExecution, confirmation: env.RECOVERY_CONFIRMATION });
+  if (strategy === 'snapshot' && resolveRuntimeRecoverySourceMode(env) === 'sql') {
+    throw typedError('snapshot_source_required', 'Snapshot strategy requires github_snapshot or repository_snapshot source mode.');
+  }
 
+  if (strategy === 'snapshot') return snapshotPlan(env, sha);
   if (strategy === 'primary' && !applyExecution) return primaryPlan(env, sha);
   if (strategy === 'fallback' && !applyExecution) return fallbackPlan(env, sha, selectTarget(env));
 
@@ -666,6 +700,9 @@ async function run(env = process.env) {
   }
 
   const target = selectTarget(env);
+  if (resolveRuntimeRecoverySourceMode(env) !== 'sql') {
+    throw typedError('snapshot_mutation_forbidden', 'A non-SQL runtime recovery source cannot enter database fallback execution.');
+  }
   const database = await fallbackDatabaseRecovery(env, target);
   const finalParity = await verifyRuntimeParity(env, sha);
   const finalProbes = await runHttpSteps(env, sha, 'RUNTIME_RECOVERY_FINAL_PROBES_JSON', { allowMutation: false });
