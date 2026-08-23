@@ -335,6 +335,19 @@ test("migration 1038 widens dispatch binding ids before workflow-control inserts
   assert.ok(migration1038.search(alter) < firstBindingInsert, "binding_id widening must precede workflow-control binding inserts");
 });
 
+test("migration 1039 uses legal runtime and authority binding status enums", () => {
+  const migration1039 = fs.readFileSync(path.join(apiRoot, "migrations", "1039_sprint69_disable_temporary_hostinger_deploy_gates.sql"), "utf8");
+  const runtimeConfigMigration = fs.readFileSync(path.join(apiRoot, "migrations", "038_sprint42_platform_runtime_config.sql"), "utf8");
+  const authorityBindingMigration = fs.readFileSync(path.join(apiRoot, "migrations", "950_sprint68_platform_resource_authority_bindings.sql"), "utf8");
+  assert.match(runtimeConfigMigration, /`status`\s+ENUM\('active','disabled'\)/i);
+  assert.match(authorityBindingMigration, /status\s+ENUM\('active','suspended','revoked','expired'\)/i);
+  assert.match(migration1039, /UPDATE\s+platform_runtime_config[\s\S]*?status\s*=\s*'disabled'/i);
+  assert.match(migration1039, /UPDATE\s+platform_resource_authority_bindings[\s\S]*?status\s*=\s*'revoked'/i);
+  assert.doesNotMatch(migration1039, /status\s*=\s*'inactive'/i, "migration 1039 must not write an unsupported inactive status");
+  assert.match(migration1039, /WHERE\s+binding_id\s*=\s*'a8ec8ed2-5ba7-4b33-98ac-f6f51076ce38'/i);
+  assert.match(migration1039, /resource_uri\s*=\s*'hostinger:\/\/auth\.mad4b\.com\/production'/i);
+});
+
 test("generator plan-only mode inventories the exact migration chain", () => {
   const result = runPlan();
   assert.equal(result.status, 0, result.stderr || result.stdout);

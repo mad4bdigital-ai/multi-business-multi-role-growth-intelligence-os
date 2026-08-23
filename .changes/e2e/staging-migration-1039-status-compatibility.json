@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-migration-1039-status-compatibility",
+  "title": "Staging MariaDB compatibility for temporary Hostinger gate cleanup statuses",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-migration-1039-status-compatibility.json",
+      "http-generic-api/migrations/1039_sprint69_disable_temporary_hostinger_deploy_gates.sql",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the ordered Staging schema replay compatible with MariaDB 11.4 when migration 1039 disables temporary Hostinger gate records using the legal status values defined by their source tables.",
+      "e2e_journeys": [
+        {
+          "id": "ordered-migration-1039-status-compatibility-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator and disposable MariaDB 11.4",
+          "entrypoint": "The exact Staging checkout applies the ordered baseline and migrations through migration 1039 in a disposable local MariaDB 11.4 schema.",
+          "terminal_outcome": "platform_runtime_config accepts the disabled runtime-gate status, platform_resource_authority_bindings accepts the revoked cleanup status, the builder regression and ordered pre-use plan pass, and no provider or Production operation is performed.",
+          "steps": [
+            "Load the canonical baseline and ordered migration chain in the isolated schema-bundle builder.",
+            "Apply migration 1039 using disabled for platform_runtime_config and revoked for platform_resource_authority_bindings, matching the legal ENUM contracts established by migrations 038 and 950.",
+            "Run the builder regression and plan-only audit, then require confirmed disposable replay before producing role bundles.",
+            "Keep Production mutation, provider mutation, deployment, credential payload reads, and data export forbidden."
+          ],
+          "assertions": [
+            "The platform_runtime_config cleanup writes only the declared active/disabled status contract.",
+            "The platform_resource_authority_bindings cleanup writes only the declared active/suspended/revoked/expired status contract.",
+            "The migration retains the exact temporary Hostinger binding identity and audit-only expiry semantics.",
+            "The Staging builder regression and ordered pre-use plan remain successful before confirmed replay.",
+            "Production mutation remains explicitly forbidden and provider access remains forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-ordered-preuse-audit",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+              "args": ["."]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-migration-1039-status-compatibility.json",
+            "http-generic-api/migrations/1039_sprint69_disable_temporary_hostinger_deploy_gates.sql",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
