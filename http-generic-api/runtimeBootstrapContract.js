@@ -289,12 +289,13 @@ async function queryOne(connection, sql, params = []) {
 }
 
 export async function databaseExists(connection, database) {
-  return (await queryOne(connection, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ? LIMIT 1", [database])).length > 0;
+  return (await queryOne(connection, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?", [database])).length > 0;
 }
 
 export async function tableCount(connection, database) {
   const rows = await queryOne(connection, "SELECT COUNT(*) AS table_count FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [database]);
-  return Number(rows[0]?.table_count || 0);
+  const countRow = rows.find((row) => Object.prototype.hasOwnProperty.call(row, "table_count"));
+  return Number(countRow?.table_count || 0);
 }
 
 export function classifyDatabaseTableCount(value) {
@@ -312,7 +313,7 @@ export function assertBaselineDatabaseEligible(value) {
 }
 
 export async function tableExists(connection, database, table) {
-  const rows = await queryOne(connection, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? LIMIT 1", [database, table]);
+  const rows = await queryOne(connection, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", [database, table]);
   return rows.length > 0;
 }
 
@@ -326,12 +327,12 @@ export async function requiredTableEvidence(connection, database, tables) {
 }
 
 export async function columnExists(connection, database, table, column) {
-  const rows = await queryOne(connection, "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1", [database, table, column]);
+  const rows = await queryOne(connection, "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?", [database, table, column]);
   return rows.length > 0;
 }
 
 export async function indexExists(connection, database, table, index) {
-  const rows = await queryOne(connection, "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1", [database, table, index]);
+  const rows = await queryOne(connection, "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?", [database, table, index]);
   return rows.length > 0;
 }
 
@@ -350,8 +351,9 @@ export async function readIncidentPostconditions(connection, database, contract,
     } else if (check.type === "row") {
       const keyColumn = assertIdentifier(check.key_column, "postcondition.key_column");
       const valueColumn = assertIdentifier(check.value_column, "postcondition.value_column");
-      const rows = await queryOne(connection, `SELECT \`${valueColumn}\` AS observed_value FROM \`${table}\` WHERE \`${keyColumn}\` = ? LIMIT 1`, [check.key_value]);
-      evidence.push({ ...check, ready: rows.length === 1 && String(rows[0].observed_value) === String(check.expected_value) });
+      const rows = await queryOne(connection, `SELECT \`${valueColumn}\` AS observed_value FROM \`${table}\` WHERE \`${keyColumn}\` = ?`, [check.key_value]);
+      const observedRow = rows.find((row) => Object.prototype.hasOwnProperty.call(row, "observed_value"));
+      evidence.push({ ...check, ready: rows.length === 1 && String(observedRow?.observed_value) === String(check.expected_value) });
     } else {
       throw bootstrapError("bootstrap_postcondition_type_denied", "Unknown postcondition type", { migration, type: check.type || null });
     }
@@ -360,7 +362,7 @@ export async function readIncidentPostconditions(connection, database, contract,
 }
 
 export async function readLedgerApplyRecord(connection, database, migration, checksum) {
-  const tableRows = await queryOne(connection, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'governed_migration_ledger' LIMIT 1", [database]);
+  const tableRows = await queryOne(connection, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'governed_migration_ledger'", [database]);
   if (tableRows.length !== 1) throw bootstrapError("bootstrap_ledger_missing", "Canonical governed_migration_ledger is required before recovery apply", { migration });
   const columnRows = await queryOne(connection, `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'governed_migration_ledger' AND COLUMN_NAME IN (${LEDGER_COLUMNS.map(() => "?").join(",")})`, [database, ...LEDGER_COLUMNS]);
   const present = new Set(columnRows.map((row) => String(row.COLUMN_NAME)));
