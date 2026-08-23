@@ -180,7 +180,7 @@ test('workflow enforces tool policy and performs same-cycle privilege and live p
   assert.match(workflow, /outside_allowlist_table_write_count/u);
   assert.match(workflow, /Verify live response-chunk persistence binding/u);
   assert.match(workflow, /response_chunk_durable_recovery_smoke/u);
-  assert.match(workflow, /RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE/u);
+  assert.match(workflow, /smokePolicy\.confirmation_value/u);
   assert.match(workflow, /durable_row_present_immediately_after_chunk_id_return/u);
   assert.match(workflow, /recovery_source === 'governed_tool_response_chunk_store'/u);
   assert.match(workflow, /exact_unicode_reconstruction/u);
