@@ -101,7 +101,15 @@
       "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
       "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
       "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
-      "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
+      "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+      "http-generic-api/test-repo-maintenance-sync.mjs",
+      "http-generic-api/test-surface-contract-auto-remediation.mjs"
     ]
   },
   "environment_impact": {
@@ -269,7 +277,15 @@
             "http-generic-api/activation-surfaces/exclusions/adaptation_records.json",
             "http-generic-api/activation-surfaces/exclusions/gpt_session_turns.json",
             "http-generic-api/activation-surfaces/exclusions/gpt_session_conversation_refs.json",
-            "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json"
+            "http-generic-api/activation-surfaces/exclusions/external_delivery_recipient_allowlist_registry.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+            "http-generic-api/test-repo-maintenance-sync.mjs",
+            "http-generic-api/test-surface-contract-auto-remediation.mjs"
           ]
         }
       ]
