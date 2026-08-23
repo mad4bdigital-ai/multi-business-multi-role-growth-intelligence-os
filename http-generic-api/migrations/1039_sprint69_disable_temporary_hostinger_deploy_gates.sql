@@ -18,14 +18,14 @@ SET
       'secrets_included', false
     )
   ),
-  status = 'inactive',
+  status = 'disabled',
   note = 'Temporary Hostinger SSH executor gate disabled after production parity verification run 1b619912-fc20-46f8-a000-37d80e115a8b matched 308146d11050ebb473b4f85f1ff54feab7e41aac.',
   updated_at = CURRENT_TIMESTAMP
 WHERE config_key = 'remote_runtime_hostinger_ssh_executor_enabled';
 
 UPDATE platform_resource_authority_bindings
 SET
-  status = 'inactive',
+  status = 'revoked',
   expires_at = UTC_TIMESTAMP(),
   notes = CONCAT(
     'Disabled after production parity verification run 1b619912-fc20-46f8-a000-37d80e115a8b matched commit 308146d11050ebb473b4f85f1ff54feab7e41aac. ',
