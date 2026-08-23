@@ -327,6 +327,8 @@
     ".changes/e2e/github-server-policy-convergence-20260818.json",
     ".changes/e2e/spec018-runtime-readiness-evidence-closeout.json",
     ".github/ops/production-runtime-recovery-autodeploy.mjs",
+    ".github/ops/production-runtime-recovery-policy.mjs",
+    ".github/ops/test-production-runtime-recovery-policy.mjs",
     ".github/ops/test-production-runtime-recovery.mjs",
     "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
     ".github/workflows/production-runtime-parity-evidence.yml",

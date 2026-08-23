@@ -20,6 +20,8 @@
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/runtimeRecoverySnapshot.js",
       "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      ".github/ops/production-runtime-recovery-policy.mjs",
+      ".github/ops/test-production-runtime-recovery-policy.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
@@ -76,6 +78,8 @@
           "evidence_paths": [
             ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
             ".github/ops/production-runtime-recovery-autodeploy.mjs",
+            ".github/ops/production-runtime-recovery-policy.mjs",
+            ".github/ops/test-production-runtime-recovery-policy.mjs",
             ".github/ops/production-runtime-recovery-routes.json",
             ".github/workflows/production-runtime-parity-evidence.yml",
             "http-generic-api/runtimeRecoverySnapshot.js",
