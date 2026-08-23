@@ -68,15 +68,45 @@ function locate(value, predicate, seen = new Set()) {
   return null;
 }
 
-function collectShas(value, found = new Set()) {
-  if (typeof value === "string") {
+function collectBoundShas(value, key = "", found = new Set()) {
+  if (typeof value === "string" && /(sha|commit|revision|ref)/iu.test(key)) {
     for (const match of value.matchAll(/\b[0-9a-f]{40}\b/giu)) found.add(match[0].toLowerCase());
   } else if (Array.isArray(value)) {
-    for (const child of value) collectShas(child, found);
+    for (const child of value) collectBoundShas(child, key, found);
   } else if (value && typeof value === "object") {
-    for (const child of Object.values(value)) collectShas(child, found);
+    for (const [childKey, child] of Object.entries(value)) collectBoundShas(child, childKey, found);
   }
   return found;
+}
+
+export function assertOperatorAccountIdentity({ currentAccount, expectedUser, expectedHost } = {}) {
+  const user = required(expectedUser, "operator_user", /^[A-Za-z0-9_.-]{1,80}$/u);
+  const host = required(expectedHost, "operator_account_host", /^[A-Za-z0-9_.:%-]{1,255}$/u);
+  const raw = String(currentAccount || "").trim();
+  const match = raw.match(/^'?([^'@]+)'?@'?([^']+)'?$/u);
+  if (!match || match[1] !== user || match[2] !== host) {
+    throw fail("RUNTIME_RECOVERY_OPERATOR_IDENTITY_MISMATCH", "CURRENT_USER() did not match the exact configured operator account.", { expected_operator_user: user, expected_operator_account_host: host });
+  }
+  return { operator_identity_verified: true, operator_user: user, operator_account_host: host };
+}
+
+export function assertFinalReadbackPayloads({ catalogPayload, sessionPayload } = {}) {
+  const catalog = locate(catalogPayload, (candidate) => Array.isArray(candidate.tools) && candidate.tools.length > 0) || {};
+  const tools = Array.isArray(catalog.tools) ? catalog.tools : [];
+  const session = locate(sessionPayload, (candidate) => (
+    candidate?.ok === true
+    && candidate?.activation_layer === "session_context"
+    && typeof candidate?.session_id === "string"
+    && candidate.session_id.trim().length > 0
+    && candidate?.session_management && typeof candidate.session_management === "object"
+    && candidate?.platform_access && typeof candidate.platform_access === "object"
+    && candidate?.conversation_memory && typeof candidate.conversation_memory === "object"
+    && typeof candidate.conversation_memory.status === "string"
+    && candidate.conversation_memory.status.trim().length > 0
+  ));
+  if (tools.length === 0) throw fail("RUNTIME_RECOVERY_MCP_CATALOG_PAYLOAD_INVALID", "Catalog readback did not contain a non-empty tools array.");
+  if (!session) throw fail("RUNTIME_RECOVERY_SESSION_CONTEXT_PAYLOAD_INVALID", "Session-context readback did not contain the required same-cycle fields.");
+  return { catalog_tool_count: tools.length, session_context_required_fields: true };
 }
 
 export function expectedConfirmation(phase, { productionSha = "", profile = "" } = {}) {
@@ -188,6 +218,9 @@ function context(env = process.env) {
     profile,
     baseUrl: String(env.RUNTIME_BASE_URL || "https://auth.mad4b.com").replace(/\/+$/u, ""),
     apiKey: required(env.BACKEND_API_KEY, "BACKEND_API_KEY"),
+    expectedSourceMergeSha: ["migration_readiness", "migration_apply"].includes(phase)
+      ? required(env.EXPECTED_SOURCE_PR_MERGE_SHA, "expected_source_pr_merge_sha", /^[0-9a-f]{40}$/iu).toLowerCase()
+      : String(env.EXPECTED_SOURCE_PR_MERGE_SHA || "").trim().toLowerCase(),
     githubToken: required(env.GH_READ_TOKEN, "GH_READ_TOKEN"),
     repository: required(env.REPOSITORY, "repository", /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u),
     evidenceDir: String(env.EVIDENCE_DIR || `${env.RUNNER_TEMP || "/tmp"}/runtime-recovery-governed-operations`),
@@ -281,8 +314,8 @@ async function verifyRuntimeParity(state, { attempts = 1 } = {}) {
       version_status: version.status,
       deployment_status: deployment.status,
       health_ready: health.payload?.ok === true,
-      version_matches: collectShas(version.payload).has(state.productionSha),
-      deployment_matches: collectShas(deployment.payload).has(state.productionSha),
+      version_matches: collectBoundShas(version.payload).has(state.productionSha),
+      deployment_matches: collectBoundShas(deployment.payload).has(state.productionSha),
       deployment_branch: branch || null,
       secrets_included: false,
     };
@@ -366,11 +399,14 @@ async function verifySourcePullRequest(state) {
   if (!pull.merged_at || !/^[0-9a-f]{40}$/u.test(mergeSha)) {
     throw fail("RUNTIME_RECOVERY_SOURCE_PR_NOT_MERGED", "The source pull request must already be merged.", { pull_request: state.sourcePr });
   }
+  if (state.expectedSourceMergeSha && mergeSha !== state.expectedSourceMergeSha) {
+    throw fail("RUNTIME_RECOVERY_SOURCE_PR_MERGE_SHA_MISMATCH", "The source pull request merge SHA did not match the exact authorized value.", { pull_request: state.sourcePr, expected_merge_sha: state.expectedSourceMergeSha, observed_merge_sha: mergeSha });
+  }
   const comparison = await github(state, `/repos/${state.repository}/compare/${mergeSha}...${state.productionSha}`);
   if (!["ahead", "identical"].includes(String(comparison.status || ""))) {
     throw fail("RUNTIME_RECOVERY_SOURCE_PR_NOT_IN_PRODUCTION", "The merged source pull request is not an ancestor of exact Production.", { pull_request: state.sourcePr, merge_sha: mergeSha });
   }
-  return { pull_request: state.sourcePr, merge_sha: mergeSha };
+  return { pull_request: state.sourcePr, merge_sha: mergeSha, source_merge_sha_verified: Boolean(state.expectedSourceMergeSha) };
 }
 
 async function deploy(state, apply) {
@@ -425,6 +461,7 @@ async function migrationReadiness(state) {
 }
 
 async function migrationApply(state) {
+  await verifySourcePullRequest(state);
   const existing = await catalogReadback(state);
   if (existing.applied) return { result: "already_applied", migration_apply_performed: false, apply_retried: false };
   const candidate = { migration: CATALOG_MIGRATION, checksum: CATALOG_MIGRATION_SHA256, statement_count: CATALOG_STATEMENT_COUNT };
@@ -460,14 +497,19 @@ async function migrationApply(state) {
 
 async function operatorConnection(state) {
   const env = state.env;
+  const operatorAccountHost = required(env.RUNTIME_DB_OPERATOR_ACCOUNT_HOST, "RUNTIME_DB_OPERATOR_ACCOUNT_HOST", /^[A-Za-z0-9_.:%-]{1,255}$/u);
+  const tlsMode = required(env.RUNTIME_DB_OPERATOR_TLS_MODE, "RUNTIME_DB_OPERATOR_TLS_MODE", /^required$/u);
+  const port = Number(env.RUNTIME_DB_OPERATOR_PORT || 3306);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw fail("RUNTIME_RECOVERY_OPERATOR_PORT_INVALID", "Operator database port is invalid.");
   const config = {
-    host: required(env.RUNTIME_DB_OPERATOR_HOST, "RUNTIME_DB_OPERATOR_HOST"),
+    host: required(env.RUNTIME_DB_OPERATOR_HOST, "RUNTIME_DB_OPERATOR_HOST", /^[A-Za-z0-9_.:-]{1,255}$/u),
     database: required(env.RUNTIME_DB_OPERATOR_NAME, "RUNTIME_DB_OPERATOR_NAME", /^[A-Za-z0-9_]{1,64}$/u),
     user: required(env.RUNTIME_DB_OPERATOR_USER, "RUNTIME_DB_OPERATOR_USER", /^[A-Za-z0-9_.-]{1,80}$/u),
     password: required(env.RUNTIME_DB_OPERATOR_PASSWORD, "RUNTIME_DB_OPERATOR_PASSWORD"),
-    port: Number(env.RUNTIME_DB_OPERATOR_PORT || 3306),
+    port,
     connectTimeout: 10_000,
     multipleStatements: false,
+    ssl: { rejectUnauthorized: tlsMode === "required" },
   };
   const principal = required(state.principal, "runtime_writer_principal", /^[A-Za-z0-9_.-]{1,80}$/u);
   if (config.user === principal) throw fail("RUNTIME_RECOVERY_OPERATOR_IDENTITY_NOT_SEPARATED", "The privileged operator identity must be different from the target runtime writer.");
@@ -475,11 +517,16 @@ async function operatorConnection(state) {
   const mysql = require("mysql2/promise");
   const connection = await mysql.createConnection(config);
   const [rows] = await connection.query("SELECT CURRENT_USER() AS current_account, DATABASE() AS current_database");
-  if (String(rows?.[0]?.current_database || "") !== config.database) {
-    await connection.end();
-    throw fail("RUNTIME_RECOVERY_OPERATOR_DATABASE_MISMATCH", "Operator connection did not resolve the exact configured runtime database.");
+  try {
+    const operatorIdentity = assertOperatorAccountIdentity({ currentAccount: rows?.[0]?.current_account, expectedUser: config.user, expectedHost: operatorAccountHost });
+    if (String(rows?.[0]?.current_database || "") !== config.database) {
+      throw fail("RUNTIME_RECOVERY_OPERATOR_DATABASE_MISMATCH", "Operator connection did not resolve the exact configured runtime database.");
+    }
+    return { connection, database: config.database, principal, accountHost: required(state.accountHost, "account_host", /^[A-Za-z0-9_.:%-]{1,255}$/u), operatorIdentity };
+  } catch (error) {
+    await connection.end().catch(() => {});
+    throw error;
   }
-  return { connection, database: config.database, principal, accountHost: required(state.accountHost, "account_host", /^[A-Za-z0-9_.:%-]{1,255}$/u) };
 }
 
 async function privilegeSnapshot(connection, database, principal, accountHost, profile) {
@@ -528,7 +575,8 @@ async function finalVerify(state) {
   ]);
   successful(catalog, "RUNTIME_RECOVERY_MCP_CATALOG_READBACK_FAILED");
   successful(session, "RUNTIME_RECOVERY_SESSION_CONTEXT_READBACK_FAILED");
-  const result = { result: "verified", mcp_catalog_http_status: catalog.status, session_context_http_status: session.status, session_context_read_only: true, migration_apply_performed: false, grant_mutation_performed: false, secrets_included: false };
+  const readback = assertFinalReadbackPayloads({ catalogPayload: catalog.payload, sessionPayload: session.payload });
+  const result = { result: "verified", mcp_catalog_http_status: catalog.status, session_context_http_status: session.status, ...readback, session_context_read_only: true, migration_apply_performed: false, grant_mutation_performed: false, secrets_included: false };
   await evidence(state, "final-readback", result);
   return result;
 }
@@ -590,6 +638,8 @@ export async function runRuntimeRecovery(env = process.env) {
     throw error;
   }
 }
+
+export { collectBoundShas };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runRuntimeRecovery().catch((error) => {

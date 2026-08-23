@@ -9,7 +9,9 @@ import {
   VERIFICATION_ONLY_MIGRATIONS,
   WRITE_AUTHORITY_PROFILES,
   assertCatalogAuthorizationReadback,
+  assertFinalReadbackPayloads,
   assertMigrationModeAllowed,
+  assertOperatorAccountIdentity,
   buildTableScopedGrant,
   evaluatePrivilegeSnapshot,
   expectedConfirmation,
@@ -82,6 +84,23 @@ const validAuthorization = {
   applies_migration: false,
 };
 assert.equal(assertCatalogAuthorizationReadback({ result: validAuthorization }).checksum, CATALOG_MIGRATION_SHA256);
+assert.deepEqual(assertOperatorAccountIdentity({ currentAccount: "'db_operator'@'db.example.com'", expectedUser: "db_operator", expectedHost: "db.example.com" }), { operator_identity_verified: true, operator_user: "db_operator", operator_account_host: "db.example.com" });
+assert.throws(() => assertOperatorAccountIdentity({ currentAccount: "'db_operator'@'other.example.com'", expectedUser: "db_operator", expectedHost: "db.example.com" }), (error) => error.code === "RUNTIME_RECOVERY_OPERATOR_IDENTITY_MISMATCH");
+assert.deepEqual(assertFinalReadbackPayloads({
+  catalogPayload: { ok: true, tools: [{ tool_key: "catalog_readback" }] },
+  sessionPayload: {
+    ok: true,
+    activation_layer: "session_context",
+    session_id: "session-1",
+    session_management: { status_written: "active" },
+    platform_access: { access_scope: "platform_admin_all" },
+    conversation_memory: { status: "available" },
+  },
+}), { catalog_tool_count: 1, session_context_required_fields: true });
+assert.throws(() => assertFinalReadbackPayloads({
+  catalogPayload: { ok: true, tools: [] },
+  sessionPayload: { ok: true, activation_layer: "session_context", session_id: "session-1" },
+}), (error) => error.code === "RUNTIME_RECOVERY_MCP_CATALOG_PAYLOAD_INVALID");
 for (const invalid of [
   { ...validAuthorization, authorization: { ...validAuthorization.authorization, recorded_checksum_sha256: "0".repeat(64) } },
   { ...validAuthorization, authorization: { ...validAuthorization.authorization, metadata_json: { expected_statement_count: 8 } } },
@@ -110,6 +129,20 @@ assert.match(operator, /migration_apply_retried: false/u);
 assert.match(operator, /verification_only_migrations_never_applied: true/u);
 assert.match(operator, /live_schema_preflight_skipped !== true/u);
 assert.match(operator, /multipleStatements: false/u);
+assert.match(operator, /EXPECTED_SOURCE_PR_MERGE_SHA/u);
+assert.match(operator, /RUNTIME_DB_OPERATOR_ACCOUNT_HOST/u);
+assert.match(operator, /RUNTIME_DB_OPERATOR_TLS_MODE/u);
+assert.match(operator, /ssl: \{ rejectUnauthorized: tlsMode === "required" \}/u);
+assert.match(operator, /source_merge_sha_verified/u);
+assert.match(operator, /collectBoundShas/u);
 assert.doesNotMatch(operator, /GRANT\s+ALL|WITH\s+GRANT\s+OPTION|REVOKE\s+/u);
+assert.match(workflow, /expected_source_pr_merge_sha:/u);
+assert.match(workflow, /EXPECTED_SOURCE_PR_MERGE_SHA: \$\{\{ inputs\.expected_source_pr_merge_sha \}\}/u);
+assert.match(workflow, /operator_account_host:/u);
+assert.match(workflow, /operator_tls_mode:/u);
+assert.match(workflow, /RUNTIME_DB_OPERATOR_ACCOUNT_HOST: \$\{\{ inputs\.operator_account_host \}\}/u);
+assert.match(workflow, /RUNTIME_DB_OPERATOR_TLS_MODE: \$\{\{ inputs\.operator_tls_mode \}\}/u);
+assert.doesNotMatch(workflow, /RUNTIME_DB_OPERATOR_ACCOUNT_HOST: \$\{\{ secrets\./u);
+assert.doesNotMatch(workflow, /RUNTIME_DB_OPERATOR_TLS_MODE: \$\{\{ secrets\./u);
 
 console.log("runtime recovery governed operations contract tests passed");

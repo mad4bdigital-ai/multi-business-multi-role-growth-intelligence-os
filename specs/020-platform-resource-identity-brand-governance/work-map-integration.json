@@ -3,8 +3,8 @@
   "feature_key": "020-platform-resource-identity-brand-governance",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "db5f12eb7a3d28e96b66d2b8da2546610cf11bbcfff7122e1941aeb220d41210",
-    "index_source_hash": "377e40cab881632c4324c43b80bc9631b79dd92609d07a30b781addf504efe82",
+    "fingerprint": "913f1f87315622e8311c8f4f65aa50fe19760fe953f6ea8b66146e41e8cce99b",
+    "index_source_hash": "69470bd842a73c65b71748d79d1571b9f436c4d05d905118a64c62fa47ca11b1",
     "coverage_source_hash": "4ceb301434a8e12d5d97b41470732144fefdbe9f8343882a7c14543d13f07b08",
     "map_count": 19,
     "domain_count": 16,

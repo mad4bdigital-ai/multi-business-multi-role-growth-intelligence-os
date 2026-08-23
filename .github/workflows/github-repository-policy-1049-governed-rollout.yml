@@ -38,6 +38,10 @@ on:
         description: Merged source pull request; migration authorization phase only
         required: false
         type: string
+      expected_source_pr_merge_sha:
+        description: Exact merge commit SHA for the source pull request; migration phases only
+        required: false
+        type: string
       writer_profile:
         description: Exact table-scoped writer profile; grant phases only
         required: false
@@ -55,6 +59,17 @@ on:
         required: false
         default: "%"
         type: string
+      operator_account_host:
+        description: Exact MariaDB operator account host; grant phases only
+        required: false
+        type: string
+      operator_tls_mode:
+        description: Strict MariaDB operator TLS mode; grant phases only
+        required: false
+        default: required
+        type: choice
+        options:
+          - required
 
 permissions:
   contents: read
@@ -76,6 +91,7 @@ jobs:
       HOSTINGER_TARGET_ID: ${{ inputs.hostinger_target_id }}
       CAPABILITY_ENVELOPE_ID: ${{ inputs.capability_envelope_id }}
       SOURCE_PULL_REQUEST: ${{ inputs.source_pull_request }}
+      EXPECTED_SOURCE_PR_MERGE_SHA: ${{ inputs.expected_source_pr_merge_sha }}
       WRITER_PROFILE: ${{ inputs.writer_profile }}
       RUNTIME_WRITER_PRINCIPAL: ${{ inputs.writer_principal }}
       RUNTIME_WRITER_ACCOUNT_HOST: ${{ inputs.writer_account_host }}
@@ -139,6 +155,8 @@ jobs:
           RUNTIME_DB_OPERATOR_PORT: ${{ secrets.RUNTIME_DB_OPERATOR_PORT }}
           RUNTIME_DB_OPERATOR_NAME: ${{ secrets.RUNTIME_DB_OPERATOR_NAME }}
           RUNTIME_DB_OPERATOR_USER: ${{ secrets.RUNTIME_DB_OPERATOR_USER }}
+          RUNTIME_DB_OPERATOR_ACCOUNT_HOST: ${{ inputs.operator_account_host }}
+          RUNTIME_DB_OPERATOR_TLS_MODE: ${{ inputs.operator_tls_mode }}
           RUNTIME_DB_OPERATOR_PASSWORD: ${{ secrets.RUNTIME_DB_OPERATOR_PASSWORD }}
         run: node .github/ops/runtime-recovery-governed-operations.mjs
 
