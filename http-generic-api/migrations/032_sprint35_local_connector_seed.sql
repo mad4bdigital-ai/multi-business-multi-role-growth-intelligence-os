@@ -34,7 +34,7 @@ VALUES
 -- ── Seed: file access rules for mohammedlap ───────────────────────────────────────
 
 INSERT IGNORE INTO `local_connector_file_access_rules`
-  (config_id, path_pattern, access_mode, description)
+  (rule_id, config_id, path_pattern, access_mode, description)
 VALUES
-  ('00000000-0000-4000-b000-000000000001', 'D:\\n8n-data\\n8n.log',        'read', 'n8n runtime log'),
-  ('00000000-0000-4000-b000-000000000001', 'D:\\n8n-data\\connector.log',  'read', 'Connector runtime log');
+  ('00000000-0000-4000-e032-000000000001', '00000000-0000-4000-b000-000000000001', 'D:\\n8n-data\\n8n.log',        'read', 'n8n runtime log'),
+  ('00000000-0000-4000-e032-000000000002', '00000000-0000-4000-b000-000000000001', 'D:\\n8n-data\\connector.log',  'read', 'Connector runtime log');
