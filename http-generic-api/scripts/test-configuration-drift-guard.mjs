@@ -141,9 +141,9 @@ try {
   policy.suppressions = [];
   policy.baseline_fingerprints = [...baseline, retryFingerprint];
   await writeFile(join(root, policyPath), `${JSON.stringify(policy, null, 2)}\n`);
-  const scopeResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/scope" });
-  assert.equal(scopeResult.ok, false);
-  assert.ok(scopeResult.findings.some((item) => item.code === "E2E_SCOPE_DRIFT" && item.path === baselineExtensionPath));
+  const finalResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/scope" });
+  assert.equal(finalResult.ok, false);
+  assert.ok(finalResult.findings.some((item) => item.code === "E2E_SCOPE_DRIFT" && item.path === baselineExtensionPath));
 
   console.log(JSON.stringify({ ok: true, contract: "mad4b.configuration-drift-guard-regression.v1", cases: 7, repository_mutation_executed: false, database_mutation_executed: false, secrets_included: false }));
 } finally {
