@@ -21,8 +21,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 - Migrations with detected surfaces: 477
 - Migrations reported here: 80
-- OpenAPI operations detected: 1047
-- OpenAPI paths detected: 1032
+- OpenAPI operations detected: 1058
+- OpenAPI paths detected: 1043
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -64,11 +64,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 471 |
-| no_credential_payload_read | 469 |
-| no_raw_secrets | 470 |
-| no_external_send | 469 |
-| no_external_write | 471 |
+| no_provider_call | 470 |
+| no_credential_payload_read | 468 |
+| no_raw_secrets | 469 |
+| no_external_send | 468 |
+| no_external_write | 470 |
 | secrets_included_false | 474 |
 
 ### Route Classification Coverage
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 9
+- Total queue items: 10
 - Critical review: 4
 - High review: 0
 - Medium review: 4
-- Low review: 1
+- Low review: 2
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -104,6 +104,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 358 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 334 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260728_governed_response_chunk_ownership.sql` | medium_review | 317 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
+| `1038_sprint69_github_actions_workflow_control_dispatch.sql` | low_review | 115 | none | 0 | 0 | 5 | verify_policy_seed_readiness, add_explicit_safety_markers |
 | `1030_sprint69_default_blocker_recovery_governance_seed.sql` | low_review | 77 | none | 0 | 0 | 2 | verify_policy_seed_readiness, add_explicit_safety_markers |
 
 
