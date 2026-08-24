@@ -1,9 +1,9 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.32,
-  "docs_complete_count": 469,
-  "docs_gap_count": 8,
+  "docs_completion_percent": 97.9,
+  "docs_complete_count": 467,
+  "docs_gap_count": 10,
   "queue_items": 10,
   "blocking_new_item_count": 7,
   "gate_ok": false,
@@ -30,6 +30,18 @@
       "migration_file": "20260815_custom_gpt_mcp_catalog_levels.sql",
       "queue_class": "critical_review",
       "score": 850,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "1038_sprint69_github_actions_workflow_control_dispatch.sql",
+      "queue_class": "high_review",
+      "score": 655,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "1030_sprint69_default_blocker_recovery_governance_seed.sql",
+      "queue_class": "high_review",
+      "score": 477,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
