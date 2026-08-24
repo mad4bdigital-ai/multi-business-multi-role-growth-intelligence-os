@@ -113,7 +113,8 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/compare/${main_sha}...${head_sha}" > "$compare_json"
           normalize_github_json "$compare_json"
           jq -e 'type == "object" and (.behind_by | type == "number")' "$compare_json" >/dev/null
-          compare_behind="$(jq -er '.behind_by' "$compare_json")"
+          compare_behind="$(jq -r '.behind_by // empty' "$compare_json")"
+          [[ "$compare_behind" =~ ^[0-9]+$ ]]
           printf 'validated_main_sha=%s\nvalidated_report_base_sha=%s\nvalidated_source_head_sha=%s\nvalidated_compare_behind=%s\n' "$main_sha" "$base_sha" "$head_sha" "$compare_behind"
           test "$main_sha" = "$base_sha"
           test "$compare_behind" = "0"
