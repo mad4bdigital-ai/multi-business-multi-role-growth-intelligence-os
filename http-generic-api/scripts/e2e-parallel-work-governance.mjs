@@ -17,6 +17,14 @@ function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+const PARALLEL_SHARED_GENERATED_ARTIFACTS = new Set([
+  "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+]);
+
+function isParallelSharedGeneratedArtifact(file) {
+  return PARALLEL_SHARED_GENERATED_ARTIFACTS.has(normalize(file));
+}
+
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
@@ -259,7 +267,10 @@ function validateParallelContract(contract, contractPath, context) {
   if (headRef && activeWorkstreams.length > 1) addFinding(findings, "parallel_work_branch_matches_multiple_workstreams", { feature_key: featureKey, head_ref: headRef, workstreams: activeWorkstreams.map((row) => row.id) });
   if (headRef && integrationActive && activeWorkstreams.length) addFinding(findings, "parallel_work_branch_matches_workstream_and_integration", { feature_key: featureKey, head_ref: headRef });
 
-  const runtimeFiles = changedFiles.filter((file) => policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern)));
+  const runtimeFiles = changedFiles.filter((file) =>
+    policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
+    && !isParallelSharedGeneratedArtifact(file)
+  );
   if (activeWorkstreams.length === 1) {
     const active = activeWorkstreams[0];
     for (const file of runtimeFiles) {
