@@ -9,6 +9,12 @@ import {
 } from "./runtimeBreakglassBroker.js";
 import { _testingRuntimeBreakglassRoutes } from "./routes/runtimeBreakglassRoutes.js";
 
+// frontend-surface-operation: get /admin/runtime-breakglass/status
+// frontend-surface-operation: post /admin/runtime-breakglass/runs
+// frontend-surface-operation: get /admin/runtime-breakglass/runs/{run_id}
+// frontend-surface-operation: get /deployment-info/runtime-breakglass-status
+// frontend-surface-operation: post /deployment-info/runtime-breakglass-plan
+
 const SHA = "a".repeat(40);
 
 function throwsCode(fn, code) {

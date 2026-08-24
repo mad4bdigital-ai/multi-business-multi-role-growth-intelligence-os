@@ -162,6 +162,21 @@
       ]
     },
     {
+      "rule_id": "runtime-breakglass-internal-service-key",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "scope": "developer",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "Environment-scoped Breakglass status, planning, dispatch, and bounded readback are internal service-key operational contracts. They are not browser navigation surfaces, do not expose credentials or database names, and remain subject to exact-SHA, plan, confirmation, and readback controls.",
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "openapi.yaml",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md"
+      ]
+    },
+    {
       "rule_id": "generated-gap-backup-artifact-routes-backupartifactroutes-js",
       "family_key": "backup-artifact",
       "source_file": "routes/backupArtifactRoutes.js",
@@ -11584,6 +11599,62 @@
         "routes/deploymentInfoRoutes.js",
         "runtimeBootstrapContract.js",
         "test-runtime-gate-deployment-info-parity.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-plan-read-action",
+      "operation": "POST /deployment-info/runtime-breakglass-plan",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The environment-scoped Breakglass plan endpoint only resolves the repository-owned contract matrix and safe deployment metadata. It does not dispatch GitHub, connect to a database, mutate state, or expose target identifiers.",
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "http-generic-api/config/runtime-breakglass-catalog.json",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-workflow-dispatch-external-effect",
+      "operation": "POST /admin/runtime-breakglass/runs",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "This protected service-key route may dispatch only the fixed repository-owned Production workflow after environment, contract, exact-SHA, idempotency, and server-controlled target checks. The broker never accepts database names, credentials, arbitrary refs, or workflow paths; runtime_env remains dry-run-only and all mutation modes remain separately gated by the workflow contract.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The catalog dispatches a bounded workflow execution record rather than applying a database or provider mutation in this route; failed or mismatched runs are retained as evidence and cannot be silently replayed because idempotency and exact-run binding are required."
+      },
+      "parameter_bindings": {
+        "environment": "request.body.environment",
+        "contract_key": "request.body.contract_key",
+        "mode": "request.body.mode",
+        "expected_sha": "request.body.expected_sha",
+        "idempotency_key": "request.body.idempotency_key",
+        "correlation_id": "response.correlation_id",
+        "workflow_run_id": "response.workflow_run_id"
+      },
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "http-generic-api/config/runtime-breakglass-catalog.json",
+        ".github/workflows/production-runtime-parity-evidence.yml",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
         "openapi.yaml"
       ]
     }

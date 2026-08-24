@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "925152b2c0988ab332fa7dbae07af270dd530c73736e09e898c65f26e9e115d5",
+    "source_digest": "d5a37c87f227aa5a3253b40b7f6ec6709d99c20ae4fb5798e3c181a60fa38ba0",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "a4b6a414be08a11eec54fe8c942f7d4a55f3f05fca80af8c862bef44bf1ed510",
+        "sha256": "166758de1729be563df7424c2afdc3b53167d793954679750428ee795d49e8f6",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "3602f3e2ab9ee3ae5b270f9216e1a24264decc171bbe1007a027c8d69b02a58a",
+        "sha256": "ebc7506aac74e0784abef56df958aa077eb1bddcbdbd2a39f3d81fa903a51cb0",
         "present": true
       },
       {
@@ -1066,7 +1066,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "d8414681941c395d86db3674a48083f438f01241b63575f42af8044647c7a759",
+        "sha256": "77c7e183123f38676ac15832d95b737a11208c149ae984036c52d076bc8bd36c",
         "present": true
       },
       {
@@ -1087,6 +1087,11 @@
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
         "sha256": "6ce06b89da09d363e22584593098276604c994c38ec5b98b0fb546df4f0b79a7",
+        "present": true
+      },
+      {
+        "file": "test-runtime-breakglass-broker.mjs",
+        "sha256": "efcff65617f4501bb55cae0db26b2108353b51f5bdd51167dd6a996e48372f55",
         "present": true
       },
       {
@@ -1144,18 +1149,18 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 635,
-    "unresolved_operation_class_count": 2,
-    "classified_mutation_count": 13,
-    "governed_mutation_operation_count": 13,
+    "unresolved_operation_class_count": 0,
+    "classified_mutation_count": 14,
+    "governed_mutation_operation_count": 14,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 1,
-    "test_owned_family_count": 169,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1043,
-    "untested_operation_count": 5,
-    "ready_task_count": 169,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "test_owned_family_count": 170,
+    "untested_family_count": 0,
+    "test_owned_operation_count": 1048,
+    "untested_operation_count": 0,
+    "ready_task_count": 170,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -2210,7 +2215,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-breakglass-broker.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -2277,20 +2284,55 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-breakglass-broker.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "The catalog dispatches a bounded workflow execution record rather than applying a database or provider mutation in this route; failed or mismatched runs are retained as evidence and cannot be silently replayed because idempotency and exact-run binding are required."
+              }
+            },
+            "parameter_bindings": {
+              "environment": "request.body.environment",
+              "contract_key": "request.body.contract_key",
+              "mode": "request.body.mode",
+              "expected_sha": "request.body.expected_sha",
+              "idempotency_key": "request.body.idempotency_key",
+              "correlation_id": "response.correlation_id",
+              "workflow_run_id": "response.workflow_run_id"
+            },
+            "blockers": [],
+            "rule_id": "runtime-breakglass-workflow-dispatch-external-effect",
+            "owner": "runtime-operations",
+            "rationale": "This protected service-key route may dispatch only the fixed repository-owned Production workflow after environment, contract, exact-SHA, idempotency, and server-controlled target checks. The broker never accepts database names, credentials, arbitrary refs, or workflow paths; runtime_env remains dry-run-only and all mutation modes remain separately gated by the workflow contract.",
+            "evidence_refs": [
+              ".github/workflows/production-runtime-parity-evidence.yml",
+              "docs/governance/runtime-breakglass-environments.md",
+              "http-generic-api/config/runtime-breakglass-catalog.json",
+              "openapi.yaml",
+              "routes/runtimeBreakglassRoutes.js",
+              "runtimeBreakglassBroker.js",
+              "test-runtime-breakglass-broker.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "GET",
@@ -2346,7 +2388,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-breakglass-broker.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -2413,7 +2457,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-breakglass-broker.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -2480,17 +2526,28 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-breakglass-broker.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "runtime-breakglass-plan-read-action",
+            "owner": "runtime-operations",
+            "rationale": "The environment-scoped Breakglass plan endpoint only resolves the repository-owned contract matrix and safe deployment metadata. It does not dispatch GitHub, connect to a database, mutate state, or expose target identifiers.",
+            "evidence_refs": [
+              "docs/governance/runtime-breakglass-environments.md",
+              "http-generic-api/config/runtime-breakglass-catalog.json",
+              "openapi.yaml",
+              "routes/runtimeBreakglassRoutes.js",
+              "runtimeBreakglassBroker.js",
+              "test-runtime-breakglass-broker.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -2504,14 +2561,10 @@
         "GET /admin/runtime-breakglass/status",
         "GET /deployment-info/runtime-breakglass-status"
       ],
-      "tests": [],
-      "untested_operations": [
-        "GET /admin/runtime-breakglass/status",
-        "POST /admin/runtime-breakglass/runs",
-        "GET /admin/runtime-breakglass/runs/{run_id}",
-        "GET /deployment-info/runtime-breakglass-status",
-        "POST /deployment-info/runtime-breakglass-plan"
+      "tests": [
+        "test-runtime-breakglass-broker.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -2535,30 +2588,26 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/runtimeBreakglassRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-runtime-breakglass-broker.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "internal_only",
+        "rationale": "Environment-scoped Breakglass status, planning, dispatch, and bounded readback are internal service-key operational contracts. They are not browser navigation surfaces, do not expose credentials or database names, and remain subject to exact-SHA, plan, confirmation, and readback controls.",
+        "owner": "runtime-operations",
+        "rule_id": "runtime-breakglass-internal-service-key",
+        "evidence_refs": [
+          "docs/governance/runtime-breakglass-environments.md",
+          "openapi.yaml",
+          "routes/runtimeBreakglassRoutes.js",
+          "runtimeBreakglassBroker.js",
+          "test-runtime-breakglass-broker.mjs"
+        ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /admin/runtime-breakglass/runs",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /deployment-info/runtime-breakglass-plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 6,
-        "class": "high"
+        "score": 4,
+        "class": "medium"
       },
       "wave": "F5-developer-evidence"
     },
@@ -98297,6 +98346,57 @@
       ]
     },
     {
+      "task_key": "frontend.runtime-breakglass",
+      "title": "Resolve and deliver runtime breakglass",
+      "wave": "F5-developer-evidence",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/runtimeBreakglassRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-runtime-breakglass-broker.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-runtime-breakglass-broker.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.security",
       "title": "Resolve and deliver security",
       "wave": "F5-developer-evidence",
@@ -98638,56 +98738,6 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.runtime-breakglass",
-      "title": "Resolve and deliver runtime breakglass",
-      "wave": "F5-developer-evidence",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/runtimeBreakglassRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     }
   ],
