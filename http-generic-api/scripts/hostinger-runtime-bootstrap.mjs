@@ -34,11 +34,12 @@ function usage() {
     "Default mode is --plan and never opens a database connection.",
     "--dry-run defaults to repository-owned target JSON and dedicated MYSQL_BOOTSTRAP_* credentials.",
     "--target-source runtime_env derives DB_NAME/DB_USER from the Hostinger runtime environment and is allowed only for --dry-run.",
-    "--env-file <path> explicitly loads a local Hostinger .env file for runtime_env dry_run only; it is never loaded implicitly.",
+    "--env-file <path> explicitly loads a local Hostinger .env file for runtime_env dry_run or explicitly authorized host-local role recovery; it is never loaded implicitly.",
+    "--host-local-role-credentials --operation database.repair|database.rebuild_empty binds existing DB_*, GOVERNANCE_DB_*, and RUNTIME_PERSISTENCE_DB_* users to their own databases only.",
     "--apply-migration requires --migration-confirm APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>.",
     "--apply-grants requires --grants-confirm APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>.",
     "--apply is rejected because migration and grants approvals are independent.",
-    "No mode invokes the normal application routes or falls back to DB_* runtime credentials.",
+    "Only explicit host-local role recovery may reuse existing role-bound credentials; grants require their own typed confirmation and GitHub Actions, shell, and SQL capsules remain denied.",
     "",
   ].join("\n"));
 }
@@ -58,9 +59,15 @@ function loadExplicitEnvFile() {
   const envFile = valueAfter("--env-file");
   if (envFile === undefined) return;
   const mode = modeFromArgs();
-  const source = String(valueAfter("--target-source") || process.env.BOOTSTRAP_TARGET_SOURCE || "repository_allowlist").trim().toLowerCase();
-  if (mode !== "dry_run" || source !== "runtime_env") {
-    throw bootstrapError("bootstrap_env_file_mode_denied", "--env-file is allowed only with --dry-run and --target-source runtime_env");
+  const hostLocal = has("--host-local-role-credentials");
+  const source = String(valueAfter("--target-source") || (hostLocal ? "host_local_role_env" : process.env.BOOTSTRAP_TARGET_SOURCE || "repository_allowlist")).trim().toLowerCase();
+  const readOnlyRuntime = mode === "dry_run" && source === "runtime_env";
+  const operation = String(valueAfter("--operation") || "").trim();
+  const authorizedHostLocal = hostLocal && ["dry_run", "apply_migration", "apply_grants"].includes(mode) && source === "host_local_role_env"
+    && ["database.repair", "database.rebuild_empty"].includes(operation)
+    && (mode !== "apply_grants" || operation === "database.repair");
+  if (!readOnlyRuntime && !authorizedHostLocal) {
+    throw bootstrapError("bootstrap_env_file_mode_denied", "--env-file requires runtime_env dry_run or an explicitly scoped host-local database repair/rebuild");
   }
   const resolved = path.resolve(String(envFile || "").trim());
   if (!resolved || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
@@ -86,6 +93,7 @@ function buildEnvironment() {
     ["--migration", "BOOTSTRAP_MIGRATION"],
     ["--target-key", "BOOTSTRAP_TARGET_KEY"],
     ["--target-source", "BOOTSTRAP_TARGET_SOURCE"],
+    ["--operation", "HOST_BREAKGLASS_OPERATION"],
     ["--target-database", "BOOTSTRAP_TARGET_DATABASE"],
     ["--expected-sha", "BOOTSTRAP_EXPECTED_SHA"],
     ["--expected-branch", "BOOTSTRAP_EXPECTED_BRANCH"],
@@ -97,6 +105,10 @@ function buildEnvironment() {
   for (const [flag, variable] of mappings) {
     const value = valueAfter(flag);
     if (value !== undefined) env[variable] = String(value);
+  }
+  if (has("--host-local-role-credentials")) {
+    env.BOOTSTRAP_TARGET_SOURCE = env.BOOTSTRAP_TARGET_SOURCE || "host_local_role_env";
+    env.HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS = "true";
   }
   return env;
 }

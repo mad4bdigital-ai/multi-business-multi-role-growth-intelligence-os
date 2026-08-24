@@ -162,20 +162,50 @@ function assertAccountHost(value, field) {
 
 const RUNTIME_ENV_TARGET_SOURCE = "runtime_env";
 const REPOSITORY_TARGET_SOURCE = "repository_allowlist";
+const HOST_LOCAL_ROLE_TARGET_SOURCE = "host_local_role_env";
+const HOST_LOCAL_ROLE_OPERATIONS = new Set(["database.repair", "database.rebuild_empty"]);
 
 function normalizeTargetSource(value) {
   const source = String(value || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
-  if (![REPOSITORY_TARGET_SOURCE, RUNTIME_ENV_TARGET_SOURCE].includes(source)) {
-    throw bootstrapError("bootstrap_target_source_invalid", "Bootstrap target source must be repository_allowlist or runtime_env", { source });
+  if (![REPOSITORY_TARGET_SOURCE, RUNTIME_ENV_TARGET_SOURCE, HOST_LOCAL_ROLE_TARGET_SOURCE].includes(source)) {
+    throw bootstrapError("bootstrap_target_source_invalid", "Bootstrap target source must be repository_allowlist, runtime_env, or explicitly authorized host_local_role_env", { source });
   }
   return source;
+}
+
+function assertHostLocalRoleAuthorization(env, mode) {
+  if (String(env.HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS || "") !== "true") {
+    throw bootstrapError("bootstrap_host_local_role_authorization_missing", "Host-local role credentials require an explicit Host Breakglass authorization");
+  }
+  if (String(env.GITHUB_ACTIONS || "").trim().toLowerCase() === "true") {
+    throw bootstrapError("bootstrap_host_local_role_transport_denied", "Host-local role credentials cannot be consumed inside GitHub Actions");
+  }
+  if (!["dry_run", "apply_migration", "apply_grants"].includes(mode)) {
+    throw bootstrapError("bootstrap_host_local_role_mode_denied", "Host-local role credentials never authorize shell or SQL capsules", { mode });
+  }
+  const operation = String(env.HOST_BREAKGLASS_OPERATION || "").trim();
+  if (mode === "apply_grants" && operation !== "database.repair") {
+    throw bootstrapError("bootstrap_host_local_grant_operation_denied", "Host-local grants require the separately confirmed database.repair access runbook", { operation });
+  }
+  if (!HOST_LOCAL_ROLE_OPERATIONS.has(operation)) {
+    throw bootstrapError("bootstrap_host_local_role_operation_denied", "Host-local role credentials require a bounded database repair or empty-rebuild runbook", { operation });
+  }
+  return operation;
 }
 
 function normalizeRuntimeEnvironmentInputs(env = {}) {
   const normalized = { ...env };
   const source = String(normalized.BOOTSTRAP_TARGET_SOURCE || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
   const mode = String(normalized.BOOTSTRAP_MODE || "plan").trim().toLowerCase();
-  if (source === RUNTIME_ENV_TARGET_SOURCE && mode === "dry_run") {
+  if (source === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+    assertHostLocalRoleAuthorization(normalized, mode);
+    normalized.MYSQL_BOOTSTRAP_HOST = String(normalized.DB_HOST || "").trim();
+    normalized.MYSQL_BOOTSTRAP_PORT = String(normalized.DB_PORT || "3306").trim();
+    normalized.MYSQL_BOOTSTRAP_USER = String(normalized.DB_USER || "").trim();
+    normalized.MYSQL_BOOTSTRAP_PASSWORD = String(normalized.DB_PASSWORD || "");
+    normalized.MYSQL_BOOTSTRAP_DATABASE = String(normalized.DB_NAME || "").trim();
+    normalized.BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY = "true";
+  } else if (source === RUNTIME_ENV_TARGET_SOURCE && mode === "dry_run") {
     if (!String(normalized.MYSQL_BOOTSTRAP_HOST || "").trim() && String(normalized.DB_HOST || "").trim()) {
       normalized.MYSQL_BOOTSTRAP_HOST = String(normalized.DB_HOST).trim();
     }
@@ -194,8 +224,10 @@ function normalizeRuntimeEnvironmentInputs(env = {}) {
   return normalized;
 }
 
-function buildRuntimeEnvironmentTarget(env, contract, mode) {
-  if (mode !== "dry_run") {
+function buildRuntimeEnvironmentTarget(env, contract, mode, source = RUNTIME_ENV_TARGET_SOURCE) {
+  if (source === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+    assertHostLocalRoleAuthorization(env, mode);
+  } else if (mode !== "dry_run") {
     throw bootstrapError("bootstrap_runtime_target_source_mode_denied", "runtime_env target discovery is restricted to dry_run", { mode });
   }
   const repository = contract.source_binding.required_repository || contract.source_binding.repository;
@@ -234,8 +266,9 @@ function buildRuntimeEnvironmentTarget(env, contract, mode) {
     governance_database_sha256: governanceDatabase === database ? null : governanceDatabaseSha,
     runtime_persistence_database_sha256: persistenceDatabase === database ? null : sha256Hex(persistenceDatabase),
     target_fingerprint: targetFingerprint,
-    target_source: RUNTIME_ENV_TARGET_SOURCE,
-    target_source_runtime_env: true,
+    target_source: source,
+    target_source_runtime_env: source === RUNTIME_ENV_TARGET_SOURCE,
+    target_source_host_local_role_env: source === HOST_LOCAL_ROLE_TARGET_SOURCE,
   };
 }
 
@@ -310,7 +343,9 @@ export function parseTargetAllowlist(env, contract) {
 export function resolveBootstrapTarget(env, contract) {
   const mode = normalizeMode(env.BOOTSTRAP_MODE || "plan");
   const source = normalizeTargetSource(env.BOOTSTRAP_TARGET_SOURCE);
-  if (source === RUNTIME_ENV_TARGET_SOURCE) return buildRuntimeEnvironmentTarget(env, contract, mode);
+  if (source === RUNTIME_ENV_TARGET_SOURCE || source === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+    return buildRuntimeEnvironmentTarget(env, contract, mode, source);
+  }
   const key = requireString(env.BOOTSTRAP_TARGET_KEY, "bootstrap_target_key_missing", "BOOTSTRAP_TARGET_KEY");
   const targets = parseTargetAllowlist(env, contract);
   const target = targets.find((candidate) => candidate.key === key);
@@ -384,18 +419,73 @@ export function validateBootstrapCredentials(env, { requirePassword = true, targ
   const runtimeReadOnlyIdentity = env.BOOTSTRAP_RUNTIME_READ_ONLY_IDENTITY === "true"
     && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === RUNTIME_ENV_TARGET_SOURCE
     && String(env.BOOTSTRAP_MODE || "").trim().toLowerCase() === "dry_run";
-  if (runtimeUser && bootstrapUser === runtimeUser && !runtimeReadOnlyIdentity) {
+  const hostLocalRoleIdentity = env.BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY === "true"
+    && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === HOST_LOCAL_ROLE_TARGET_SOURCE;
+  if (hostLocalRoleIdentity) assertHostLocalRoleAuthorization(env, normalizeMode(env.BOOTSTRAP_MODE || "plan"));
+  const authorizedRuntimeIdentity = runtimeReadOnlyIdentity || hostLocalRoleIdentity;
+  if (runtimeUser && bootstrapUser === runtimeUser && !authorizedRuntimeIdentity) {
     throw bootstrapError("bootstrap_credential_reuse_denied", "MYSQL_BOOTSTRAP_USER must be separate from DB_USER");
   }
-  if (target?.principal && bootstrapUser === String(target.principal).trim() && !runtimeReadOnlyIdentity) {
+  if (target?.principal && bootstrapUser === String(target.principal).trim() && !authorizedRuntimeIdentity) {
     throw bootstrapError("bootstrap_principal_collision_denied", "MYSQL_BOOTSTRAP_USER must be separate from the target runtime principal");
   }
-  if (runtimePassword && String(env.MYSQL_BOOTSTRAP_PASSWORD) === runtimePassword && !runtimeReadOnlyIdentity) {
+  if (runtimePassword && String(env.MYSQL_BOOTSTRAP_PASSWORD) === runtimePassword && !authorizedRuntimeIdentity) {
     throw bootstrapError("bootstrap_credential_reuse_denied", "MYSQL_BOOTSTRAP_PASSWORD must be separate from DB_PASSWORD");
   }
   const port = Number(env.MYSQL_BOOTSTRAP_PORT || 3306);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw bootstrapError("bootstrap_port_invalid", "MYSQL_BOOTSTRAP_PORT is invalid");
-  return { host_configured: true, user_configured: true, password_configured: requirePassword, port, separate_from_runtime: !runtimeReadOnlyIdentity, credential_source: runtimeReadOnlyIdentity ? "runtime_read_only" : "dedicated_bootstrap", separate_from_target_principal: target?.principal ? bootstrapUser !== String(target.principal).trim() : null };
+  return { host_configured: true, user_configured: true, password_configured: requirePassword, port, separate_from_runtime: !authorizedRuntimeIdentity, credential_source: hostLocalRoleIdentity ? "host_local_role_scoped" : runtimeReadOnlyIdentity ? "runtime_read_only" : "dedicated_bootstrap", separate_from_target_principal: target?.principal ? bootstrapUser !== String(target.principal).trim() : null };
+}
+
+export function resolveRoleBootstrapCredentials(env, role, target, { requirePassword = true } = {}) {
+  const roleBindings = {
+    runtime: { prefix: "DB", database: target.database },
+    governance: { prefix: "GOVERNANCE_DB", database: target.governance_database || target.database },
+    runtime_persistence: { prefix: "RUNTIME_PERSISTENCE_DB", database: target.runtime_persistence_database || target.database },
+  };
+  const binding = roleBindings[role];
+  if (!binding) throw bootstrapError("bootstrap_role_invalid", "Unknown database role", { role });
+  const hostLocal = String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === HOST_LOCAL_ROLE_TARGET_SOURCE;
+  if (!hostLocal) {
+    return { host: env.MYSQL_BOOTSTRAP_HOST, port: Number(env.MYSQL_BOOTSTRAP_PORT || 3306), user: env.MYSQL_BOOTSTRAP_USER, password: env.MYSQL_BOOTSTRAP_PASSWORD, database: binding.database, role, credential_source: "dedicated_bootstrap" };
+  }
+  assertHostLocalRoleAuthorization(env, normalizeMode(env.BOOTSTRAP_MODE || "plan"));
+  const prefix = binding.database === target.database ? "DB" : binding.prefix;
+  const configuredDatabase = String(env[prefix + "_NAME"] || "").trim();
+  if (configuredDatabase !== binding.database) {
+    throw bootstrapError("bootstrap_role_database_mismatch", "Host-local role database does not match its bound environment identity", { role });
+  }
+  const host = String(env[prefix + "_HOST"] || env.DB_HOST || "").trim();
+  const user = String(env[prefix + "_USER"] || "").trim();
+  const password = String(env[prefix + "_PASSWORD"] || "");
+  const missing = [];
+  if (!host) missing.push(prefix + "_HOST_or_DB_HOST");
+  if (!user) missing.push(prefix + "_USER");
+  if (requirePassword && !password.trim()) missing.push(prefix + "_PASSWORD");
+  if (missing.length) throw bootstrapError("bootstrap_role_credentials_missing", "Host-local database role credentials are incomplete", { role, missing });
+  const port = Number(env[prefix + "_PORT"] || env.DB_PORT || 3306);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw bootstrapError("bootstrap_role_port_invalid", "Host-local database role port is invalid", { role });
+  }
+  return { host, port, user, password, database: binding.database, role, credential_source: "host_local_role_scoped" };
+}
+
+function preflightRoleBootstrapCredentials(env, target, { requirePassword = true } = {}) {
+  const roles = ["runtime"];
+  if ((target.governance_database || target.database) !== target.database) roles.push("governance");
+  const persistenceDatabase = target.runtime_persistence_database || target.database;
+  if (persistenceDatabase !== target.database && persistenceDatabase !== (target.governance_database || target.database)) roles.push("runtime_persistence");
+  const resolved = new Map(roles.map((role) => [role, resolveRoleBootstrapCredentials(env, role, target, { requirePassword })]));
+  if (String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+    const identities = new Map();
+    for (const [role, credentials] of resolved) {
+      if (identities.has(credentials.user)) {
+        throw bootstrapError("bootstrap_role_identity_reuse_denied", "Distinct Hostinger databases require distinct role-bound users", { role, other_role: identities.get(credentials.user) });
+      }
+      identities.set(credentials.user, role);
+    }
+  }
+  return resolved;
 }
 
 export function selectMigration(contract, migration, mode) {
@@ -843,9 +933,10 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   const target = resolveBootstrapTarget(env, contract);
   const migration = selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
   const credentials = validateBootstrapCredentials(env, { requirePassword: false, target });
+  const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: false });
   if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration: migration.file }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
 }
 
 export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory } = {}) {
@@ -858,16 +949,18 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   const localDeployment = validateLocalDeploymentEvidence(repoRoot, source, contract);
   const { file: migration, spec } = selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
   validateBootstrapCredentials(env, { requirePassword: true, target });
+  const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: true });
   if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
   const mutationEvidence = mutationEvidenceTemplate(migration, spec.statement_count, contract.grant_policy.required_tables.length);
-  const createConnection = connectionFactory || (async () => {
+  const createConnection = connectionFactory || (async ({ credentials }) => {
     const { createConnection: connect } = await import("mysql2/promise");
     return connect({
-      host: env.MYSQL_BOOTSTRAP_HOST,
-      port: Number(env.MYSQL_BOOTSTRAP_PORT || 3306),
-      user: env.MYSQL_BOOTSTRAP_USER,
-      password: env.MYSQL_BOOTSTRAP_PASSWORD,
+      host: credentials.host,
+      port: credentials.port,
+      user: credentials.user,
+      password: credentials.password,
+      database: credentials.database,
       multipleStatements: true,
       connectTimeout: 15000,
     });
@@ -877,7 +970,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   let persistenceConnection;
   let ledgerConnection;
   try {
-    connection = await createConnection({ target, env, mode, role: "runtime", database: target.database });
+    connection = await createConnection({ target, env, mode, role: "runtime", database: target.database, credentials: roleCredentials.get("runtime") });
     const exists = await databaseExists(connection, target.database);
     if (!exists) throw bootstrapError("bootstrap_database_missing", "Target database does not exist; database creation is intentionally outside this contract", { target_key: target.key, role: "runtime" });
     await connection.query(`USE \`${target.database}\``);
@@ -885,7 +978,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     if (governanceDatabase === target.database) {
       ledgerConnection = connection;
     } else {
-      governanceConnection = await createConnection({ target, env, mode, role: "governance", database: governanceDatabase });
+      governanceConnection = await createConnection({ target, env, mode, role: "governance", database: governanceDatabase, credentials: roleCredentials.get("governance") });
       const governanceExists = await databaseExists(governanceConnection, governanceDatabase);
       if (!governanceExists) throw bootstrapError("bootstrap_database_missing", "Governance database does not exist; database creation is intentionally outside this contract", { target_key: target.key, role: "governance" });
       await governanceConnection.query(`USE \`${governanceDatabase}\``);
@@ -896,10 +989,11 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     if (persistenceDatabase === governanceDatabase) {
       persistenceExecutor = ledgerConnection;
     } else if (persistenceDatabase !== target.database) {
-      persistenceConnection = await createConnection({ target, env, mode, role: "runtime_persistence", database: persistenceDatabase });
+      persistenceConnection = await createConnection({ target, env, mode, role: "runtime_persistence", database: persistenceDatabase, credentials: roleCredentials.get("runtime_persistence") });
       const persistenceExists = await databaseExists(persistenceConnection, persistenceDatabase);
       if (!persistenceExists) throw bootstrapError("bootstrap_database_missing", "Runtime persistence database does not exist; database creation is intentionally outside this contract", { target_key: target.key, role: "runtime_persistence" });
       await persistenceConnection.query(`USE \`${persistenceDatabase}\``);
+      persistenceExecutor = persistenceConnection;
       if (mode === "apply_migration" && await tableCount(connection, target.database) === 0 && await tableCount(persistenceConnection, persistenceDatabase) !== 0) {
         throw bootstrapError("bootstrap_persistence_rebuild_nonempty_denied", "Runtime persistence replacement must be empty before any role bundle is applied", { role: "runtime_persistence" });
       }

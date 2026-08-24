@@ -55,6 +55,28 @@
         "default_principal_host": "localhost",
         "raw_values_exposed": false,
         "apply_allowed": false
+      },
+      "host_local_role_env": {
+        "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
+        "requires_explicit_host_breakglass_authorization": true,
+        "allowed_operations": ["database.repair", "database.rebuild_empty"],
+        "requires_exact_source_sha": true,
+        "requires_typed_migration_confirmation_for_apply": true,
+        "requires_separate_typed_grants_confirmation": true,
+        "grant_operation": "database.repair",
+        "grant_scope": "existing_repository_owned_least_privilege_table_allowlist_only",
+        "grant_option_delegation_allowed": false,
+        "github_actions_allowed": false,
+        "grants_allowed": true,
+        "shell_allowed": false,
+        "sql_capsule_allowed": false,
+        "role_environment_prefixes": {
+          "runtime": "DB",
+          "governance": "GOVERNANCE_DB",
+          "runtime_persistence": "RUNTIME_PERSISTENCE_DB"
+        },
+        "cross_role_credential_reuse": false,
+        "raw_values_exposed": false
       }
     },
     "target_role": "runtime",
@@ -77,6 +99,8 @@
     "password_env": "MYSQL_BOOTSTRAP_PASSWORD",
     "database_env": "MYSQL_BOOTSTRAP_DATABASE",
     "must_be_separate_from_runtime_credentials": true,
+    "host_local_role_scoped_exception_requires_explicit_breakglass": true,
+    "host_local_role_scoped_grants_require_separate_confirmation": true,
     "password_never_logged": true,
     "normal_runtime_user_cannot_escalate": true
   },

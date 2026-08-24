@@ -90,6 +90,44 @@ test("runtime_env mutation and uncataloged migration fail closed", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", action: "apply_migration", expected_sha: SHA, target_source: "runtime_env", migration: MIGRATION }), /Target source is not allowed/u);
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", action: "dry_run", expected_sha: SHA, migration: "arbitrary.sql" }), /not present/u);
 });
+
+test("host-local role recovery plans retain independent migration and grant capability boundaries", async () => {
+  const migrationPlan = buildHostBreakglassPlan({
+    operation_key: "database.repair",
+    runbook_key: "database.schema_repair",
+    action: "apply_migration",
+    expected_sha: SHA,
+    target_source: "host_local_role_env",
+    migration: MIGRATION,
+    confirmation: `APPLY_HOSTINGER_RUNTIME_MIGRATION:${SHA}:production-runtime:${MIGRATION}`,
+  });
+  assert.equal(migrationPlan.capability_grants.includes("migration_contract.apply"), true);
+  assert.equal(migrationPlan.capability_grants.includes("grant_contract.apply"), false);
+  const migrationReceipt = await dispatchHostBreakglassPlan(migrationPlan, {
+    fetchImpl: async () => { throw new Error("host-local recovery must never call GitHub"); },
+    tokenResolver: async () => { throw new Error("host-local recovery must not require a GitHub token"); },
+  });
+  assert.equal(migrationReceipt.status, "host_local_execution_required");
+  assert.equal(migrationReceipt.github_secrets_required, false);
+  assert.equal(migrationReceipt.workflow_dispatch_performed, false);
+
+  const grantPlan = buildHostBreakglassPlan({
+    operation_key: "database.repair",
+    runbook_key: "database.access_repair",
+    action: "apply_grants",
+    expected_sha: SHA,
+    target_source: "host_local_role_env",
+    migration: MIGRATION,
+    confirmation: `APPLY_HOSTINGER_RUNTIME_GRANTS:${SHA}:production-runtime:user:localhost`,
+  });
+  assert.equal(grantPlan.capability_grants.includes("grant_contract.apply"), true);
+  assert.equal(grantPlan.capability_grants.includes("migration_contract.apply"), false);
+  const grantReceipt = await dispatchHostBreakglassPlan(grantPlan);
+  assert.equal(grantReceipt.separate_typed_confirmation_required, true);
+  assert.equal(grantReceipt.workflow_dispatch_performed, false);
+  assert.doesNotMatch(JSON.stringify(grantReceipt), /PASSWORD|secret-for-test/i);
+});
+
 test("empty rebuild and access repair remain separately approved lifecycles", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_grants", expected_sha: SHA, confirmation: `APPLY_HOSTINGER_RUNTIME_GRANTS:${SHA}:production-runtime:user:localhost` }), /not allowed/u);
 });
