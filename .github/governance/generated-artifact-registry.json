@@ -96,18 +96,6 @@
         "requires_protected_main": true,
         "required_check": "Derived State Closure"
       }
-    },
-    {
-      "id": "canonical-markdown-generated-candidates",
-      "patterns": ["canonicals/**/*.md"],
-      "owners": ["openapi_auto_sync"],
-      "surface_class": "governance_control_plane",
-      "environment_class": "repository_governance",
-      "environment_targets": ["repository"],
-      "auto_merge": {
-        "allowed": false,
-        "manual_review_when": ["always"]
-      }
     }
   ]
 }
