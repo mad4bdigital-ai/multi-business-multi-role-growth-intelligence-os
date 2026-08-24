@@ -1,0 +1,79 @@
+{
+  "contract": "mad4b.configuration-drift-baseline-extension.v1",
+  "schema_version": 1,
+  "purpose": "Permanent, explicitly reviewed code-owned CI governance inputs that extend the legacy monolithic configuration fingerprint baseline without suppressing drift.",
+  "entries": [
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|REQUIRED_CHECK_CONTEXT|environment_reference|required.check.context",
+      "owner": "repository-governance",
+      "reason": "Required status-check context is an exact, read-only server-policy readiness input; it does not grant merge, runtime, provider, database, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|branch|environment_reference|target.branch",
+      "owner": "repository-governance",
+      "reason": "Target branch is a read-only identity binding used to reject cross-branch auto-merge registration and is constrained by the verifier to the governed main target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedHead|environment_reference|expected.head.sha",
+      "owner": "repository-governance",
+      "reason": "Expected head SHA is a read-only exact-head freshness binding; mismatches fail closed before auto-merge registration.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|prNumber|environment_reference|pr.number",
+      "owner": "repository-governance",
+      "reason": "PR number is a read-only identity selector used to bind readiness to one open pull request and inspect blocking labels before registration.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|repository|environment_reference|github.repository",
+      "owner": "repository-governance",
+      "reason": "Repository identity is a read-only GitHub API scope binding that prevents readiness evidence from being evaluated against an unintended repository.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|token|environment_reference|gh.token",
+      "owner": "repository-governance",
+      "reason": "GH_TOKEN is a credential reference consumed only for GitHub server-side readback; no credential value is tracked or emitted and the verifier itself performs no merge or protected-ref mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    }
+  ],
+  "safety": {
+    "report_only": true,
+    "runtime_mutation_allowed": false,
+    "production_activation_allowed": false,
+    "secrets_included": false
+  }
+}
