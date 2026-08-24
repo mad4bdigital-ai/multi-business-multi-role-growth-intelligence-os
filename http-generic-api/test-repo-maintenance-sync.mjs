@@ -37,14 +37,31 @@ assert(workflow.includes("Refuse Work Map mutation outside the governed writer")
 assert(workflow.includes("git diff --quiet -- docs/work-maps"), "OpenAPI auto-sync must inspect the Work Map root directly");
 assert(!workflow.includes("platform-work-map-generator.mjs --write"), "OpenAPI auto-sync must not invoke the Work Map writer directly");
 assert(workflow.includes("docs/**/*.md"), "workflow must react to docs markdown maintenance files");
+assert(workflow.includes("git status --porcelain=v1 -z --untracked-files=all"), "auto-sync eligibility must classify the complete tracked and untracked mutation set");
+assert(workflow.includes('changed_files+=("${entry:3}")'), "auto-sync classification must preserve generated paths containing spaces");
+for (const generatedEvidence of [
+  "docs/surface-contract-discovery-status.json",
+  "docs/surface-contract-gap-queue.json",
+  "docs/surface-contract-gap-trends.json",
+  "docs/surface-contract-gap-triage.json",
+  "docs/surface-contract-governance-compact.json",
+  "docs/surface-contract-governance-dashboard.json",
+]) {
+  assert(workflow.includes(generatedEvidence), `safe generated evidence must be explicitly classified: ${generatedEvidence}`);
+}
+assert(!workflow.includes("docs/surface-contract-*.json)"), "auto-merge must not accept an unbounded generated JSON wildcard");
 assert(workflow.includes("REPO_AUTOSYNC_TOKEN"), "workflow must support an optional stronger PR creation token");
 assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "docs-only auto-merge must not fall back to GITHUB_TOKEN");
 assert(workflow.includes("REPO_AUTOSYNC_TOKEN is required for guarded auto-merge"), "docs-only auto-merge must preserve the post-merge push CI trigger");
 assert(workflow.includes("Auto-sync PR credential mode"), "workflow must report token-vs-default credential mode without exposing secrets");
+assert(workflow.includes("--jq '.allow_auto_merge'"), "auto-sync must read back the repository auto-merge capability before registration");
+assert(workflow.includes("--match-head-commit"), "auto-sync merge registration must remain bound to the exact reviewed head");
 assert(workflow.includes("continue-on-error: true"), "workflow must not fail when repository settings block Actions-created PRs");
 assert(permissionRunbook.includes("Allow GitHub Actions to create and approve pull requests"), "permission runbook must document the required GitHub setting");
 assert(permissionRunbook.includes("REPO_AUTOSYNC_TOKEN"), "permission runbook must document the dedicated auto-merge credential");
 assert(permissionRunbook.includes("required for automated merge"), "permission runbook must explain why GITHUB_TOKEN cannot perform auto-merge");
+assert(permissionRunbook.includes("Allow auto-merge"), "permission runbook must document the independent repository auto-merge setting");
+assert(permissionRunbook.includes("action_required"), "permission runbook must classify blocked follow-up checks separately from test failures");
 assert(permissionRunbook.includes("contents: write") && permissionRunbook.includes("pull requests: write"), "permission runbook must document minimum token permissions");
 assert(workflow.includes("create-pull-request"), "workflow must open reviewable PRs instead of pushing directly to main");
 assert(workflow.includes("Do not merge this PR as-is"), "workflow must preserve review warning for generated stubs");

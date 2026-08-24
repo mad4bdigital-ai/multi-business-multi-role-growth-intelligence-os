@@ -22,6 +22,16 @@ GitHub Actions is not permitted to create or approve pull requests.
 
 The workflow uses `continue-on-error: true` on the PR creation step so this permission gap does not break `main`, but no automated PR will be opened until the setting is fixed.
 
+## Independent repository auto-merge setting
+
+Pull-request creation and automatic merging are separate GitHub capabilities. Enable both:
+
+1. Open **Settings** → **General** → **Pull Requests**.
+2. Enable **Allow auto-merge**.
+3. Keep the required review rules, required status checks, and branch protections enabled.
+
+The automation reads `allow_auto_merge` from the repository API before it registers an exact-head merge. If the setting is disabled, the PR remains open with an actionable diagnostic; automation never substitutes a direct, administrative, or protection-bypassing merge.
+
 ## Dedicated auto-merge credential
 
 Add this repository secret when generated docs-only PRs may be merged automatically:
@@ -38,6 +48,10 @@ The token should have the minimum repository permissions needed to create branch
 - pull requests: write
 
 Prefer a fine-grained GitHub token or GitHub App installation token over a broad personal access token.
+
+Store `REPO_AUTOSYNC_TOKEN` as a **repository Actions secret**, not a Production environment secret. Repository-maintenance workflows operate on `main` without entering the Production deployment environment. Prefer a dedicated fine-grained service identity restricted to this repository; grant no administrator, ruleset-bypass, Production, provider, SSH, or database permissions.
+
+The trusted identity must create both the follow-up branch and pull request. Reusing the default `GITHUB_TOKEN` can otherwise create a `github-actions[bot]` PR whose validation runs end as `action_required` with zero jobs. That status is an authorization/approval problem, not a failed test, and it prevents required checks from ever becoming green. Do not weaken repository-wide approval rules to work around it.
 
 ## Workflow behavior
 
@@ -57,6 +71,17 @@ Default automation may update:
 - generated machine-readable remediation queue evidence such as `docs/surface-contract-gap-queue.json`
 
 The surface discovery report scans migrations for routes, tools, views, policies, plugins, and safety markers. The deep coverage contract also scores documentation completion, high/medium/low documentation gaps, SQL route/OpenAPI coverage, per-target documentation gaps, route classification coverage, and safety marker coverage across all discovered migration surfaces. The actionable queue ranks gaps by severity, surface type, OpenAPI route coverage, missing docs, missing safety markers, and recency, then emits owner hints and remediation actions. Route classification distinguishes OpenAPI-required `http_route` literals from registry-governed `admin_tool_registry_route`, `tenant_tool_registry_route`, `system_tool_dispatch_route`, and `registry_only_surface` exemptions. The Surface Governance Loop adds triage, baseline, a new-gaps-only gate, dashboard, compact dashboard, and trends. Current backlog is baselined so legacy gaps remain visible but non-blocking; only future high/critical gaps absent from the baseline are blocking. It is documentation evidence only: it does not execute providers, read credentials, mutate runtime, write database rows, send externally, deploy, or include secrets.
+
+Auto-merge eligibility classifies the complete tracked and untracked Git mutation set. It allows Markdown plus only these generated documentation-evidence JSON files:
+
+- `docs/surface-contract-discovery-status.json`
+- `docs/surface-contract-gap-queue.json`
+- `docs/surface-contract-gap-trends.json`
+- `docs/surface-contract-gap-triage.json`
+- `docs/surface-contract-governance-compact.json`
+- `docs/surface-contract-governance-dashboard.json`
+
+OpenAPI schemas, runtime code, authentication changes, migrations, Work Maps, arbitrary JSON, unknown paths, unresolved manual-review items, and blocking new gaps are never auto-merge eligible. Every eligible registration remains bound to the exact PR head; if `main` advances, the stale generated PR is closed and the next exact-head writer regenerates it.
 
 Default automation does **not** commit split OpenAPI schemas. Split schema artifact writes require an explicit reviewed run:
 
