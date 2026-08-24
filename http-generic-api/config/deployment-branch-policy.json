@@ -181,6 +181,7 @@
           "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
           "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
           "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
+          "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/migration-contract-governance.mjs",
           "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
           "http-generic-api/scripts/migration-order.mjs",
