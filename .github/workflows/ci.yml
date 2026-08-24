@@ -57,6 +57,22 @@ jobs:
             .plan.ordered_preuse_audit.missing_table_gaps == 0 and
             .plan.ordered_preuse_audit.missing_column_gaps == 0 and
             .plan.canonical_table_bootstrap.unresolved_missing_table_gaps == 0 and
+            .plan.ordered_collation_chain.ok == true and
+            .plan.ordered_collation_chain.finding_count == 0 and
+            (.plan.ordered_collation_chain.files_checked == (.plan.migration_count + 1)) and
+            (.plan.ordered_collation_chain.statements_checked > .plan.statement_count) and
+            .plan.ordered_collation_chain.database_connection_performed == false and
+            .plan.ordered_collation_chain.sql_mutation_performed == false and
+            .plan.ordered_collation_chain.provider_mutation_performed == false and
+            .plan.ordered_collation_chain.secrets_included == false and
+            .collation_chain.ok == true and
+            (.collation_chain.findings | length) == 0 and
+            (.collation_chain.files_checked > 0) and
+            (.collation_chain.statements_checked > 0) and
+            .collation_chain.database_connection_performed == false and
+            .collation_chain.sql_mutation_performed == false and
+            .collation_chain.provider_mutation_performed == false and
+            .collation_chain.secrets_included == false and
             .preuse_contract.check_create_index_table_and_columns == true and
             .preuse_contract.check_alter_add_index_table_and_columns == true and
             .preuse_contract.check_foreign_key_parent_tables == true and
@@ -98,13 +114,23 @@ jobs:
           COLLATION_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          args=(--head-sha "$COLLATION_HEAD_SHA")
+          args=(--head-sha "$COLLATION_HEAD_SHA" --ordered-chain)
           if [[ "$COLLATION_BASE_SHA" =~ ^[0-9a-fA-F]{40}$ && ! "$COLLATION_BASE_SHA" =~ ^0{40}$ ]]; then
             args+=(--base-sha "$COLLATION_BASE_SHA")
           fi
           report="$RUNNER_TEMP/mariadb-collation-ci-guard.json"
           node scripts/mariadb-collation-ci-guard.mjs "${args[@]}" | tee "$report"
-          jq -r '"MariaDB collation CI guard: " + ((.ok // false) | tostring) + " | files_checked=" + ((.files_checked // 0) | tostring) + " | policy=" + (.policy_key // "unknown")' "$report" >> "$GITHUB_STEP_SUMMARY"
+          jq -e '
+            (.ok == true)
+            and (.ordered_chain.ok == true)
+            and ((.ordered_chain.files_checked // 0) > 0)
+            and ((.ordered_chain.statements_checked // 0) > 0)
+            and (.ordered_chain.database_connection_performed == false)
+            and (.ordered_chain.sql_mutation_performed == false)
+            and (.ordered_chain.provider_mutation_performed == false)
+            and (.ordered_chain.secrets_included == false)
+          ' "$report" >/dev/null
+          jq -r '"MariaDB collation CI guard: " + ((.ok // false) | tostring) + " | changed_files_checked=" + ((.files_checked // 0) | tostring) + " | ordered_chain_ok=" + ((.ordered_chain.ok // false) | tostring) + " | ordered_chain_files=" + ((.ordered_chain.files_checked // 0) | tostring) + " | ordered_chain_statements=" + ((.ordered_chain.statements_checked // 0) | tostring) + " | policy=" + (.policy_key // "unknown")' "$report" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify dynamic repository inventory
         shell: bash

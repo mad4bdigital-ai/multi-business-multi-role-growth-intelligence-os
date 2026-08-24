@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { splitStatements } from "./staging-sql-parser.mjs";
 import { compareMigrationFiles, isMigrationFilename } from "./migration-order.mjs";
+import { inspectOrderedMigrationChainCollations } from "../databaseCollationPolicyGuard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -14,6 +15,7 @@ const manifestPath = path.join(apiRoot, "config", "staging-database-role-migrati
 const migrationsDir = path.join(apiRoot, "migrations");
 const baselineSchemaPath = path.join(apiRoot, "schema.sql");
 const orderedPreuseAuditPath = path.join(apiRoot, "scripts", "audit-staging-migration-preuse.mjs");
+const collationPolicyPath = path.join(apiRoot, "config", "database-engine-collation-policy.json");
 
 const args = process.argv.slice(2);
 const arg = (name, fallback = null) => {
@@ -471,6 +473,29 @@ function migrationPlan(files) {
   });
 }
 
+function orderedCollationAudit(files) {
+  if (!fs.existsSync(collationPolicyPath)) fail(`database collation policy is missing: ${collationPolicyPath}`);
+  let policy;
+  try { policy = JSON.parse(fs.readFileSync(collationPolicyPath, "utf8")); }
+  catch (error) { fail(`database collation policy is invalid: ${error.message}`); }
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const audit = inspectOrderedMigrationChainCollations({
+    files: orderedFiles,
+    baselineFile: "http-generic-api/schema.sql",
+    engine: "mariadb",
+    policy,
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  if (audit.findings.length > 0) {
+    const sample = audit.findings.slice(0, 8).map((finding) => `${path.basename(finding.file)}#${finding.statement_index ?? "?"}:${finding.code}`).join(", ");
+    fail(`ordered MariaDB collation-chain audit found ${audit.findings.length} implicit/unregistered JOIN mismatches (${sample})`);
+  }
+  if (audit.database_connection_performed !== false || audit.sql_mutation_performed !== false || audit.provider_mutation_performed !== false || audit.secrets_included !== false) {
+    fail("ordered MariaDB collation-chain audit violated static-only safety boundary");
+  }
+  return audit;
+}
+
 function orderedPreuseAudit(bootstrapEntries = []) {
   if (!fs.existsSync(orderedPreuseAuditPath)) fail(`ordered pre-use audit script is missing: ${orderedPreuseAuditPath}`);
   const auditArgs = [orderedPreuseAuditPath, repoRoot];
@@ -652,7 +677,31 @@ function makeDump(role, tables, manifest) {
   return { file: roleConfig.bundle_file, sha256: sha256(gz), compressed_bytes: gz.length, table_count: tables.length, tables: names };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, bootstrap, tableSets, bundles) {
+function collationAuditMetadata(audit) {
+  return {
+    contract: audit.contract,
+    engine: audit.engine,
+    engine_profile: audit.engine_profile,
+    policy_key: audit.policy_key,
+    baseline_file: audit.baseline_file,
+    files_checked: audit.files_checked,
+    migration_files_checked: audit.migration_files_checked,
+    statements_checked: audit.statements_checked,
+    projected_tables: audit.projected_tables,
+    ok: audit.ok,
+    ready: audit.ready,
+    finding_count: audit.findings.length,
+    warning_count: audit.warnings.length,
+    findings: audit.findings.slice(0, 8),
+    warning_samples: audit.warnings.slice(0, 8),
+    database_connection_performed: audit.database_connection_performed,
+    sql_mutation_performed: audit.sql_mutation_performed,
+    provider_mutation_performed: audit.provider_mutation_performed,
+    secrets_included: audit.secrets_included,
+  };
+}
+
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, bootstrap, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -669,6 +718,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     migration_sha256_manifest: migrationPlanRows,
     canonical_seed_lifecycle: canonicalSeeds,
     ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
+    ordered_collation_chain: collationAuditMetadata(collationAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     roles: bundles,
     validation: {
@@ -680,6 +730,11 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       ordered_preuse_audit_checked: true,
       missing_column_gaps_checked: true,
       canonical_table_bootstrap_checked: true,
+      ordered_collation_chain_checked: true,
+      ordered_collation_chain_findings: collationAudit.findings.length,
+      ordered_collation_chain_warnings: collationAudit.warnings.length,
+      ordered_collation_chain_files_checked: collationAudit.files_checked,
+      ordered_collation_chain_statements_checked: collationAudit.statements_checked,
     },
   };
   const outputPath = path.join(outputDir, "staging-schema-bundle-manifest.json");
@@ -687,7 +742,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
   return outputPath;
 }
 
-function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, bootstrap) {
+function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, bootstrap) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
@@ -697,6 +752,7 @@ function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit
     statement_count: rows.reduce((sum, row) => sum + row.statement_count, 0),
     canonical_seed_lifecycle: canonicalSeeds,
     ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
+    ordered_collation_chain: collationAuditMetadata(collationAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     required_bundle_files: manifest.validation.required_bundle_files,
     confirmation_required: manifest.safety.confirmation,
@@ -710,6 +766,7 @@ const manifest = readManifest();
 const baseline = baselineSchema(manifest);
 const files = migrationFiles();
 const rows = migrationPlan(files);
+const collationAudit = orderedCollationAudit(files);
 const initialAudit = orderedPreuseAudit();
 if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
 const tableBootstrap = canonicalTableBootstrap(files, initialAudit);
@@ -724,7 +781,7 @@ if (orderedAudit.missing_column_gaps > 0) {
 }
 const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
-  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, tableBootstrap);
+  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, tableBootstrap);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -741,7 +798,7 @@ try {
       governance: makeDump("governance", sets.governance, manifest),
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, tableBootstrap, sets, bundles);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, tableBootstrap, sets, bundles);
 
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {

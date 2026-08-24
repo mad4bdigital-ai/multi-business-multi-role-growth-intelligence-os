@@ -73,6 +73,19 @@
     "check_rename_and_drop_targets": true,
     "fail_on_unresolved_gaps": true
   },
+  "collation_chain_contract": {
+    "enabled": true,
+    "engine": "mariadb",
+    "baseline_file": "http-generic-api/schema.sql",
+    "ordered_numeric_filename_and_lexicographic_tie_break": true,
+    "fail_on_implicit_mismatch": true,
+    "allow_registered_explicit_boundary_warning": true,
+    "static_only": true,
+    "database_connection_allowed": false,
+    "sql_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "secrets_included": false
+  },
   "canonical_unique_guard_contracts": [
     {
       "table": "secret_references",

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS agent_skill_grant_requests (
     GENERATED ALWAYS AS (COALESCE(brand_key, '__all_brands__')) STORED,
   request_status ENUM('pending','approved','rejected','deferred','expired','not_required') NOT NULL DEFAULT 'pending',
   approval_policy_key VARCHAR(128) NOT NULL,
-  approval_hold_id VARCHAR(36) NULL,
+  approval_hold_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   requested_by VARCHAR(128) NOT NULL,
   requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   decision_by VARCHAR(128) NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS agent_skill_grant_requests (
   INDEX idx_agent_skill_grant_requests_subject (tenant_id, brand_key, request_status, requested_at),
   INDEX idx_agent_skill_grant_requests_agent (agent_id, skill_id, request_status),
   INDEX idx_agent_skill_grant_requests_hold (approval_hold_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 ALTER TABLE agent_skill_grants
   ADD COLUMN IF NOT EXISTS grant_request_id VARCHAR(36) NULL AFTER status;
