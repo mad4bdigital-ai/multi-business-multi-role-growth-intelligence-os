@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+      ".github/governance/test-authority-registry.json",
       ".github/workflows/docs-agent.yml",
       ".github/workflows/docs-agent-main-followup.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
