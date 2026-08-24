@@ -168,7 +168,7 @@
           "Updating Registry Patch Index.md",
           "deployment_parity_checklist.md",
           "docs/ai-docs-agent-governance.md",
-          "docs/auto-docs-agent/README.md",
+          "docs/auto-docs-agent/**",
           "docs/change-documentation-governance.md",
           "scripts/**",
           "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
