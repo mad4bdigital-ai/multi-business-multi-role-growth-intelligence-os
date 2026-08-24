@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7325,
-    "bytes": 71828786,
-    "lines": 1677994,
+    "bytes": 71828978,
+    "lines": 1677997,
     "directories": 266,
     "categories": 13
   },
@@ -7532,9 +7532,9 @@
       "path": ".changes/e2e/production-long-term-remediation-20260824.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 15579,
-      "lines": 304,
-      "sha256": "5061f4d29d6d5ec2b6f6eaece6ac0160ad04e85538b49918bed0da1729af33ba",
+      "bytes": 15715,
+      "lines": 306,
+      "sha256": "b97dd42c85fc6650c289ab9e7cbcce18dccd47e7e08ef8d40960e4bf6aa676ad",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38079,9 +38079,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 10225,
-      "lines": 244,
-      "sha256": "f6bf32b5766eed8e86ca0f1bcd21e74c77fcd807108a0fc81e4fd8df8440be8f",
+      "bytes": 10281,
+      "lines": 245,
+      "sha256": "d7535befff27bbdce6d131fb7375868ea3973eddb06a13fded2624406930f62a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50874,7 +50874,7 @@
       "extension": ".json",
       "bytes": 27118,
       "lines": 653,
-      "sha256": "4447ae4b5146ff7306bdb1f744df09baed2519d1a18c807c8baa5e7c3c5ee8ec",
+      "sha256": "b6daba01f0f4886e1ba6197eeaad9b6286e826415698282ade5cc3554a78826c",
       "mode": "644",
       "executable": false,
       "generated": false
