@@ -104,15 +104,40 @@ test("Production host-local full inspection allows omitted migration but remains
   assert.equal(plan.migration_selected, false);
   assert.equal(plan.migration_selection, "full_inspection_catalog");
   assert.equal(plan.database_mutation_performed, false);
+  let executorInput;
   const receipt = await dispatchHostBreakglassPlan(plan, {
     fetchImpl: async () => { throw new Error("host-local inspection must never call GitHub"); },
     tokenResolver: async () => { throw new Error("host-local inspection must not require a GitHub token"); },
+    hostLocalExecutor: async (input) => {
+      executorInput = input;
+      return {
+        ok: true,
+        status: "host_local_inspection_complete",
+        mode: "dry_run",
+        operation: "read_only",
+        target_source: "host_local_role_env",
+        migration: null,
+        migration_selected: false,
+        migration_selection: "full_inspection_catalog",
+        database_connection_performed: true,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        workflow_dispatch_performed: false,
+        secrets_included: false,
+      };
+    },
   });
-  assert.equal(receipt.status, "host_local_execution_required");
-  assert.equal(receipt.separate_typed_confirmation_required, false);
-  assert.equal(receipt.github_secrets_required, false);
+  assert.equal(receipt.status, "host_local_inspection_complete");
+  assert.equal(receipt.separate_typed_confirmation_required, undefined);
   assert.equal(receipt.workflow_dispatch_performed, false);
+  assert.equal(receipt.database_connection_performed, true);
   assert.equal(receipt.database_mutation_performed, false);
+  assert.equal(receipt.migration_apply_performed, false);
+  assert.equal(receipt.grant_mutation_performed, false);
+  assert.equal(executorInput.target_source, "host_local_role_env");
+  assert.equal(executorInput.operation_key, "database.inspect");
+  assert.equal(executorInput.runbook_key, "database.full_inspection");
 });
 
 test("host-local role recovery plans retain independent migration and grant capability boundaries", async () => {

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
+import { executeHostLocalRoleInspection } from "./hostLocalRuntimeInspection.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = path.join(HERE, "config", "host-breakglass-catalog.json");
@@ -318,11 +319,31 @@ function matchingHostBreakglassRuns(payload, plan) {
   );
 }
 
-export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
+export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken, hostLocalExecutor = executeHostLocalRoleInspection } = {}) {
   if (plan.target_source === "host_local_role_env") {
     if (plan.environment_key !== "production_hostinger_autodeploy") fail(403, "host_breakglass_host_local_environment_denied", "Host-local role credentials are restricted to the Hostinger Production environment.");
     if (!["database.inspect", "database.repair", "database.rebuild_empty"].includes(plan.operation_key)) fail(403, "host_breakglass_host_local_operation_denied", "Host-local role credentials require a bounded database inspection or recovery runbook.");
     if (plan.action === "apply_grants" && plan.operation_key !== "database.repair") fail(403, "host_breakglass_host_local_grants_denied", "Host-local grants require the separately approved database access repair runbook.");
+    if (plan.operation_key === "database.inspect" && plan.runbook_key === "database.full_inspection" && plan.action === "dry_run") {
+      if (typeof hostLocalExecutor !== "function") fail(500, "host_breakglass_host_local_executor_unconfigured", "The Hostinger host-local inspection executor is unavailable.");
+      const inspection = await hostLocalExecutor(plan, { env });
+      return {
+        ...inspection,
+        ok: inspection?.ok !== false,
+        contract: "mad4b.host-breakglass-host-local-inspection-receipt.v1",
+        correlation_id: plan.correlation_id,
+        plan_sha256: plan.plan_sha256,
+        status: inspection?.status || "host_local_inspection_complete",
+        environment_key: plan.environment_key,
+        target_source: plan.target_source,
+        role_credential_source: "existing_hostinger_environment",
+        workflow_dispatch_performed: false,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        secrets_included: false,
+      };
+    }
     return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {

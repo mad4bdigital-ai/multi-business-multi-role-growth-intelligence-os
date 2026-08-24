@@ -22,3 +22,65 @@ test("admin catalog and plan remain reachable without database dependencies", as
     assert.equal(body.database_mutation_performed, false);
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });
+
+
+test("admin host-local inspection run reaches the host-side executor without GitHub dispatch", async () => {
+  let receivedPlan;
+  const app = express();
+  app.use(express.json());
+  app.use(buildAdminHostBreakglassRoutes({
+    requireBackendApiKey: guard,
+    requireAdminPrincipal: admin,
+    broker: {
+      hostLocalExecutor: async (plan) => {
+        receivedPlan = plan;
+        return {
+          ok: true,
+          status: "host_local_inspection_complete",
+          mode: "dry_run",
+          operation: "read_only",
+          target_source: "host_local_role_env",
+          migration: null,
+          migration_selected: false,
+          migration_selection: "full_inspection_catalog",
+          database_connection_performed: true,
+          database_mutation_performed: false,
+          migration_apply_performed: false,
+          grant_mutation_performed: false,
+          workflow_dispatch_performed: false,
+          secrets_included: false,
+        };
+      },
+    },
+  }));
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/admin/runtime-bootstrap/runs`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": "key" },
+      body: JSON.stringify({
+        environment_key: "production_hostinger_autodeploy",
+        operation_key: "database.inspect",
+        runbook_key: "database.full_inspection",
+        action: "dry_run",
+        expected_sha: SHA,
+        target_source: "host_local_role_env",
+        target_key: "production-runtime",
+      }),
+    });
+    assert.equal(response.status, 202);
+    const body = await response.json();
+    assert.equal(body.status, "host_local_inspection_complete");
+    assert.equal(body.target_source, "host_local_role_env");
+    assert.equal(body.database_connection_performed, true);
+    assert.equal(body.database_mutation_performed, false);
+    assert.equal(body.workflow_dispatch_performed, false);
+    assert.equal(receivedPlan.operation_key, "database.inspect");
+    assert.equal(receivedPlan.runbook_key, "database.full_inspection");
+    assert.equal(receivedPlan.action, "dry_run");
+    assert.equal(receivedPlan.migration, null);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7331,
-    "bytes": 71858432,
-    "lines": 1678604,
+    "bytes": 71883200,
+    "lines": 1679134,
     "directories": 266,
     "categories": 13
   },
@@ -270,14 +270,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3518081,
-      "lines": 99201
+      "bytes": 3521488,
+      "lines": 99287
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1951665,
-      "lines": 59016
+      "bytes": 1954531,
+      "lines": 59104
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -288,14 +288,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 1010645,
-      "lines": 23336
+      "bytes": 1013838,
+      "lines": 23385
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 619325,
-      "lines": 11720
+      "bytes": 621132,
+      "lines": 11760
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",

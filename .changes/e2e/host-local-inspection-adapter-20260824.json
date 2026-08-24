@@ -1,0 +1,131 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "host-local-inspection-adapter-20260824",
+  "title": "Hostinger host-local role full-inspection adapter",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/host-local-inspection-adapter-20260824.json",
+      "docs/governance/hostinger-runtime-bootstrap.md",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/hostLocalRuntimeInspection.js",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/test-admin-host-breakglass-routes.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-host-local-runtime-inspection.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "edge/activation-gateway/generated/route-policy.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "docs/repository-inventory-summary.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a Production-only, service-key-protected host-side bridge for exact-SHA full database inspection using existing independent Hostinger role identities, without accepting credentials or migration selection from the request and without authorizing mutation.",
+      "e2e_journeys": [
+        {
+          "id": "host-local-admin-full-inspection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Hostinger Admin Host Breakglass",
+          "entrypoint": "POST /admin/runtime-bootstrap/runs with database.inspect/database.full_inspection dry_run",
+          "terminal_outcome": "Admin Host Breakglass executes the host-local role inspection adapter only after exact repository, Production branch, and SHA validation, returning bounded evidence with migration omitted and all mutation flags false.",
+          "steps": [
+            "Submit a synthetic service-key-admin request with expected_sha and target_key only.",
+            "Resolve the repository-owned host-local plan and invoke the internal Hostinger adapter without GitHub dispatch.",
+            "Validate the deployed repository, branch, and exact SHA before the bootstrap runner is called.",
+            "Return role-local inspection evidence while rejecting credentials, migration, SQL, shell, workflow, and mutation controls."
+          ],
+          "assertions": [
+            "host_local_role_env is Production-only and staging_local_role_env cannot cross the boundary",
+            "database.inspect/database.full_inspection is dry_run-only and migration_selected=false",
+            "the request accepts only expected_sha and target_key and contains no credential fields",
+            "database_mutation_performed, migration_apply_performed, grant_mutation_performed, and workflow_dispatch_performed are false",
+            "identity mismatch fails closed before bootstrap or database connection and error output is secret-free"
+          ],
+          "tests": [
+            {
+              "id": "host-local-runtime-inspection-unit-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-local-runtime-inspection.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-dispatcher-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "admin-host-breakglass-route-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-admin-host-breakglass-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "deployment-info-host-local-route-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostLocalRuntimeInspection.js",
+            "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/openapi.yaml",
+            "docs/governance/hostinger-runtime-bootstrap.md",
+            ".changes/e2e/host-local-inspection-adapter-20260824.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

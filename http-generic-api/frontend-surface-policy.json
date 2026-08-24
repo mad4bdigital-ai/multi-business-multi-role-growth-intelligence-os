@@ -2930,7 +2930,8 @@
       "rule_id": "hostinger-runtime-bootstrap-backend-api-key-auth",
       "operations": [
         "GET /deployment-info/runtime-binding",
-        "POST /deployment-info/runtime-bootstrap-dry-run"
+        "POST /deployment-info/runtime-bootstrap-dry-run",
+        "POST /deployment-info/runtime-bootstrap-role-dry-run"
       ],
       "source_file": "routes/deploymentInfoRoutes.js",
       "profile": "backend_api_key_surface",
@@ -2940,8 +2941,10 @@
       "evidence_refs": [
         "runtimeGuards.js",
         "routes/deploymentInfoRoutes.js",
+        "hostLocalRuntimeInspection.js",
         "openapi.yaml",
-        "test-runtime-gate-deployment-info-parity.mjs"
+        "test-runtime-gate-deployment-info-parity.mjs",
+        "test-host-local-runtime-inspection.mjs"
       ]
     }
   ],
@@ -11656,6 +11659,43 @@
         "runtimeBootstrapContract.js",
         "test-runtime-gate-deployment-info-parity.mjs",
         "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-role-inspection-read-action",
+      "operation": "POST /deployment-info/runtime-bootstrap-role-dry-run",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The Hostinger role-local bridge performs only exact-SHA Production full inspection in dry_run mode. It derives existing per-role identities on the host, omits migration selection, and fails closed before connection on identity or credential preflight failure.",
+      "preflight": {
+        "mode": "exact_deployment_identity_and_host_local_role_binding"
+      },
+      "approval": {
+        "mode": "backend_api_key_and_admin_principal"
+      },
+      "readback": {
+        "mode": "inline_sanitized_inspection_receipt",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_applicable",
+        "rationale": "The operation is read-only and the adapter rejects migration, grant, SQL, shell, workflow, and other mutation controls."
+      },
+      "parameter_bindings": {
+        "expected_sha": "request.body.expected_sha",
+        "target_key": "request.body.target_key",
+        "target_source": "server.host_local_role_env",
+        "migration": "server.null"
+      },
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "hostLocalRuntimeInspection.js",
+        "runtimeBootstrapContract.js",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        "test-host-local-runtime-inspection.mjs",
+        "openapi.yaml",
+        "docs/governance/hostinger-runtime-bootstrap.md"
       ]
     },
     {
