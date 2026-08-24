@@ -125,16 +125,7 @@ jobs:
               ])
               .write();
 
-      - name: Checkout exact pull-request event head
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-
-      - name: Checkout exact validated dispatch candidate
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ steps.candidate.outputs.candidate_sha }}
           fetch-depth: 0
@@ -230,16 +221,7 @@ jobs:
             else if (pr.base.ref !== process.env.VERIFIED_BASE_REF) core.setFailed(`Pull request #${prNumber} base ref changed after syntax verification.`);
             else if (pr.base.sha !== process.env.VERIFIED_BASE_SHA) core.setFailed(`Pull request #${prNumber} base SHA changed after syntax verification.`);
 
-      - name: Checkout exact pull-request event head
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-
-      - name: Checkout exact validated dispatch candidate
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ needs.syntax.outputs.candidate_sha }}
           fetch-depth: 0
@@ -262,29 +244,14 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Verify pull-request event ref binding
-        if: github.event_name == 'pull_request'
-        shell: bash
-        env:
-          PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}
-        run: |
-          set -euo pipefail
-          test -n "$PULL_REQUEST_HEAD_REF"
-          test -n "$PULL_REQUEST_BASE_REF"
-
       - name: Determine context-kernel hardcoding ratchet scope
         shell: bash
         env:
           PULL_REQUEST_BASE_SHA: ${{ needs.syntax.outputs.base_sha }}
           PULL_REQUEST_HEAD_REF: ${{ needs.syntax.outputs.head_ref }}
           PULL_REQUEST_BASE_REF: ${{ needs.syntax.outputs.base_ref }}
-          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          if [[ -n "$EVENT_HEAD_REF" ]]; then PULL_REQUEST_HEAD_REF="$EVENT_HEAD_REF"; fi
-          if [[ -n "$EVENT_BASE_REF" ]]; then PULL_REQUEST_BASE_REF="$EVENT_BASE_REF"; fi
           CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
           if [[ "$PULL_REQUEST_BASE_REF" == "Production" ]]; then
             PROMOTION_REPORT="$RUNNER_TEMP/context-kernel-production-promotion.json"
