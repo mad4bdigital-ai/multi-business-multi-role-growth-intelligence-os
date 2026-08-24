@@ -12,6 +12,7 @@
       ".github/workflows/docs-agent-main-followup.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
       ".github/workflows/openapi-auto-sync.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
       ".github/workflows/surface-contract-auto-remediation.yml",
       "docs/automation-overlap-governance.md",
       "docs/repo-autosync-permissions.md",
@@ -20,6 +21,7 @@
       "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
       "http-generic-api/test-repo-maintenance-sync.mjs",
       "http-generic-api/test-surface-contract-auto-remediation.mjs",
+      "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs",
       "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
     ]
   },
@@ -106,6 +108,7 @@
             "Assert Docs Agent pull-request preview remains read-only and branch-name-independent.",
             "Assert every repository writer uses workflow_dispatch, expected_head_sha, exact checkout/readback, and protected-target rejection.",
             "Classify every tracked and untracked follow-up mutation, permit only explicit documentation evidence, prefer a trusted scoped repository identity, and verify repository auto-merge capability before exact-head registration.",
+            "Require the Recovery-delegated Work Map sole writer to publish its bounded exact-head commit with the same trusted repository identity so all required pull-request checks actually execute.",
             "Run the real-repository automation overlap analysis and lifecycle guard against the candidate tree."
           ],
           "assertions": [
@@ -115,6 +118,7 @@
             "Pull-request preview and repository mutation remain separated.",
             "Generated JSON evidence is auto-merge eligible only through an explicit filename allowlist; schemas, runtime changes, arbitrary JSON, manual-review findings, blocking gaps, stale heads, and missing trusted identity remain fail-closed.",
             "Disabled repository auto-merge and approval-blocked action_required runs are diagnosed without direct merge, protection bypass, Production access, SSH, provider calls, database mutation, or credential disclosure.",
+            "The Work Map writer fails before checkout when its trusted credential is absent and preserves bot-authored one-time delegation, exact target binding, sole-writer authority, bounded files, and post-push readback.",
             "Evidence contains no secrets."
           ],
           "tests": [
@@ -151,6 +155,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-derived-state-converged-automerge-source-event.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-followup-work-map-trusted-writer-identity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-validation-diagnostics.mjs",
               "args": []
             }
           ],

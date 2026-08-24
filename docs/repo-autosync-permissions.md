@@ -53,6 +53,8 @@ Store `REPO_AUTOSYNC_TOKEN` as a **repository Actions secret**, not a Production
 
 The trusted identity must create both the follow-up branch and pull request. Reusing the default `GITHUB_TOKEN` can otherwise create a `github-actions[bot]` PR whose validation runs end as `action_required` with zero jobs. That status is an authorization/approval problem, not a failed test, and it prevents required checks from ever becoming green. Do not weaken repository-wide approval rules to work around it.
 
+The governed Spec Kit Work Map sole writer also checks out its exact authorized target with `REPO_AUTOSYNC_TOKEN`. Its Recovery-issued one-time delegation, bot-authored grant, protected-branch rejection, bounded generated-file scope, exact-head checks, and post-push readback remain unchanged. Only the credential used to publish the authorized branch commit changes, so the resulting pull-request CI event is attributable to the trusted repository identity rather than being stopped as `action_required`. Missing credentials fail before checkout or repository mutation.
+
 ## Workflow behavior
 
 The workflow runs:
