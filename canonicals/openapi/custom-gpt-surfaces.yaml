@@ -41,6 +41,18 @@ surfaces:
           reason: Host-internal Breakglass planning is an internal service-key route and must not be exposed as an Admin GPT operation.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: getAdminRuntimeBreakglassStatus
+          reason: Admin Breakglass status is an internal service-key route and must not be exposed as a public Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: createAdminRuntimeBreakglassRun
+          reason: Admin Breakglass dispatch is an internal service-key route and must not be exposed as a public Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminRuntimeBreakglassRun
+          reason: Admin Breakglass readback is an internal service-key route and must not be exposed as a public Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
         - operation_id: sessionInsightTargetWriteReadbackCreate
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance

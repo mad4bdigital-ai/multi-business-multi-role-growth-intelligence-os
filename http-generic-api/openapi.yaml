@@ -4047,7 +4047,7 @@ paths:
     get:
       operationId: getAdminRuntimeBreakglassStatus
       tags: [admin-operations]
-      x-custom-gpt-surfaces: [admin_core]
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: false
       summary: Read the database-independent Runtime Breakglass catalog status
       description: Returns the repository-owned environment-scoped Breakglass catalog, workflow identity, and safe readiness metadata without opening a database or exposing credentials. Staging is local Windows/Docker only; Production is Hostinger Auto Deploy through the fixed GitHub workflow.
@@ -4066,7 +4066,7 @@ paths:
     post:
       operationId: createAdminRuntimeBreakglassRun
       tags: [admin-operations]
-      x-custom-gpt-surfaces: [admin_core]
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: true
       summary: Plan or dispatch a bounded Runtime Breakglass operation
       description: Dispatches only the fixed Production GitHub workflow after exact Production SHA validation. Staging requests remain local Windows/Docker operator plans and are never sent to the Production workflow. Database names, credentials, arbitrary workflow paths, and arbitrary refs are server-controlled and rejected.
@@ -4112,7 +4112,7 @@ paths:
     get:
       operationId: getAdminRuntimeBreakglassRun
       tags: [admin-operations]
-      x-custom-gpt-surfaces: [admin_core]
+      x-custom-gpt-exclude: true
       x-openai-isConsequential: false
       summary: Read bounded Breakglass workflow status and evidence metadata
       description: Reads only the fixed workflow run identity, status, conclusion, exact run-name binding, and bounded artifact metadata. It does not read raw logs or secrets.
