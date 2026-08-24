@@ -58,5 +58,5 @@
     {"id": "external_file_export", "pattern": "\\bSELECT\\b[\\s\\S]*\\bINTO\\s+(?:OUTFILE|DUMPFILE)\\b"},
     {"id": "load_data", "pattern": "^\\s*LOAD\\s+DATA\\b"},
     {"id": "mariadb_unsupported_cast_json", "pattern": "\\bCAST\\s*\\([^)]*\\bAS\\s+JSON\\s*\\)"}
-  }
+  ]
 }
