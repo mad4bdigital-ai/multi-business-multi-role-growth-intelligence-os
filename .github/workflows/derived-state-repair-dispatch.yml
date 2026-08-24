@@ -84,6 +84,7 @@ jobs:
           base_ref="$(jq -er '.base.ref' "$pr" | tr -d '\r')"
           head_repo_full_name="$(jq -er '.head.repo.full_name' "$pr" | tr -d '\r')"
           head_repo_id="$(jq -er '.head.repo.id' "$pr" | tr -d '\r')"
+          base_repo_id="$(jq -er '.base.repo.id' "$pr" | tr -d '\r')"
           pr_head_sha="$(jq -er '.head.sha' "$pr" | tr -d '\r')"
           expected_repo="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
           normalized_head_repo="$(printf '%s' "$head_repo_full_name" | tr '[:upper:]' '[:lower:]')"
@@ -95,10 +96,12 @@ jobs:
           [[ "$normalized_head_repo" =~ ^[a-z0-9_.-]+/[a-z0-9_.-]+$ ]]
           [[ "$head_repo_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$expected_repo_id" =~ ^[1-9][0-9]*$ ]]
-          printf 'validated_pr_state=%s\nvalidated_base_ref=%s\nvalidated_head_repo=%s\nvalidated_expected_repo=%s\nvalidated_head_repo_id=%s\nvalidated_expected_repo_id=%s\nvalidated_pr_head_sha=%s\nvalidated_report_head_sha=%s\n' "$pr_state" "$base_ref" "$normalized_head_repo" "$expected_repo" "$head_repo_id" "$expected_repo_id" "$pr_head_sha" "$head_sha"
+          [[ "$base_repo_id" =~ ^[1-9][0-9]*$ ]]
+          printf 'validated_pr_state=%s\nvalidated_base_ref=%s\nvalidated_head_repo=%s\nvalidated_expected_repo=%s\nvalidated_head_repo_id=%s\nvalidated_base_repo_id=%s\nvalidated_expected_repo_id=%s\nvalidated_pr_head_sha=%s\nvalidated_report_head_sha=%s\n' "$pr_state" "$base_ref" "$normalized_head_repo" "$expected_repo" "$head_repo_id" "$base_repo_id" "$expected_repo_id" "$pr_head_sha" "$head_sha"
           test "$pr_state" = "open"
           test "$base_ref" = "main"
-          test "$head_repo_id" = "$expected_repo_id"
+          test "$head_repo_id" = "$base_repo_id"
+          test "$base_repo_id" = "$expected_repo_id"
           test "$pr_head_sha" = "$head_sha"
           target_ref="$(jq -er '.head.ref' "$pr" | tr -d '\r')"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
