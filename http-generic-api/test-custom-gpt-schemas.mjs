@@ -406,8 +406,8 @@ section("dispatcher contracts");
       !adminOps.some((op) => op.operation.operationId === operationId));
   }
   const adminMutatingOps = adminOps.filter((op) => ["post", "put", "patch", "delete"].includes(op.method));
-  const adminAllowedConsequentialOps = new Set(["executeAdminOperation"]);
-  assert("admin dispatcher mutating operations are non-consequential except bounded execute",
+  const adminAllowedConsequentialOps = new Set(["executeAdminOperation", "createAdminRuntimeBootstrapRun"]);
+  assert("admin dispatcher mutations are non-consequential except bounded execute and Host Breakglass dispatch",
     adminMutatingOps.every((op) => op.operation["x-openai-isConsequential"] === false || adminAllowedConsequentialOps.has(op.operation.operationId)),
     adminMutatingOps
       .filter((op) => op.operation["x-openai-isConsequential"] !== false && !adminAllowedConsequentialOps.has(op.operation.operationId))

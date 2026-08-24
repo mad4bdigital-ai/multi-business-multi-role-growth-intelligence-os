@@ -1,5 +1,25 @@
 # Hostinger Runtime Bootstrap Contract
 
+## Repository-owned Host Breakglass catalog
+
+`http-generic-api/config/host-breakglass-catalog.json` هو كتالوج الاستعادة المستقل عن قاعدة البيانات، و`host-breakglass-tool-contracts.json` هو عقد الأدوات المنفصل. يعرضان قدرات قابلة للاكتشاف بدل تكرار قائمة migrations ثابتة: فحص وإعادة بناء schema bundle لقاعدة فارغة، فحص وتطبيق migrations المملوكة للريبو، إصلاح grants، وقراءة postconditions والـledger. تبقى أسماء migrations والـchecksums من `runtime-bootstrap-contract.json` عند الـSHA المستهدف فقط.
+
+توفر Admin surface عمليات catalog وplan وdispatch وstatus دون استخدام operation orchestrator أو MCP catalog أو session tables. الـdispatch ثابت على هذا المستودع وworkflow `production-runtime-parity-evidence.yml` و`ref=main`، بينما يثبت الـworkflow بشكل مستقل رأس Production والـSHA المنشورة حيًا.
+
+إعادة البناء الفارغ مسموحة فقط لقاعدة موجودة ذات صفر جداول، وتستخدم schema bundle وseeds وmigrations وsame-cycle readback؛ إنشاء قاعدة مفقودة خارج هذا العقد. grants تنفذ لاحقًا بعقد `database.access_repair` وموافقة مستقلة. هذا المسار لا يسقط جداول قاعدة غير فارغة؛ الاستبدال يتطلب target جديدًا أو lifecycle منفصلة مع backup proof.
+
+يعرض `reconstruction_plan` graph متعدد الخطوات والأدوار (`runtime`, `governance`, `runtime_persistence`). يملك `runtime_persistence`، الذي يضم `governed_tool_response_chunks`، executor داخل `hostinger-runtime-bootstrap` فقط عندما يثبت target allowlist اسم قاعدة persistence وبصمتها ويفتح لها connection منفصلًا باستخدام هوية bootstrap المخصصة؛ أما غياب الربط أو عدم تطابقه أو كون الهدف غير صالح فيوقف المسار قبل mutation. لذلك يعني `complete=true` أن العقدة المملوكة للريبو مكتملة وقابلة لـexplicit apply على قاعدة zero-table موجودة، وليس أن هناك auto-apply أو إعادة بناء مدمرة لقاعدة nonempty أو إنشاء قاعدة مفقودة.
+
+### استثناء Raw SQL وShell
+
+يسمح Host Breakglass بـRaw SQL وshell عبر `host.command_capsule` فقط. لا تقبل Admin API نص SQL أو shell inline. يجب حفظ الأمر في `.github/breakglass/sql/*.sql` أو `.github/breakglass/shell/*.sh` وربطه بمسار وSHA-256 وexact source SHA وconfirmation من الصيغة `EXECUTE_HOST_BREAKGLASS_CAPSULE:<environment-key>:<sha>:<capsule-sha256>`.
+
+Production SQL ينفذ من GitHub Environment بحساب `MYSQL_BOOTSTRAP_*` المنفصل، ويحتاج evidence داخل `.github/breakglass/evidence/*.json` يثبت backup صالحًا وrestore test ناجحًا لنفس target والـSHA ولم تنته صلاحيته. يمنع executor أوامر إنشاء/حذف قاعدة، وإدارة المستخدمين، وGRANT/REVOKE، وقراءة/كتابة ملفات الخادم. يحتفظ SQL بحرية DDL/DML داخل قاعدة الهدف حسب صلاحيات حساب bootstrap.
+
+Shell يعمل في Staging داخل خدمة Docker Compose المحددة في عقد Staging، ويعمل في Production عبر SSH adapter مستقل عن DB يستخدم نفس credential roles الحاكمة الموجودة في المنصة. Production يحتاج private key وknown-hosts مثبتًا وbackup/restore evidence. لا يعاد stdout أو stderr إلى API؛ تعاد بصماتهما وأحجامهما وحالة الخروج فقط. التنفيذ يستخدم argv مع `shell:false` و`BatchMode=yes` و`StrictHostKeyChecking=yes` وtimeout محدود، ولا يستخدم `ssh-keyscan` وقت التنفيذ.
+
+الكتالوج يفصل بيئتين: `staging_local_windows_docker` يعمل من Windows checkout محلي عبر Docker وlocal CLI ولا يملك Hostinger أو GitHub workflow authority، بينما `production_hostinger_autodeploy` يستخدم GitHub dispatch على `main` ثم يثبت رأس `Production` وHostinger Auto Deploy parity. أسماء credentials ووسيلة التنفيذ وbranch bindings منفصلة، وأي cross-environment dispatch مرفوض.
+
 هذا العقد يضيف مسارًا مستقلًا ومحدودًا لمعالجة قواعد runtime التي تكون ناقصة schema أو غير جاهزة للصلاحيات. وهو لا يضعف `/gpt/tools` أو `/gpt/tools/call` أو مسارات session-context؛ هذه المسارات تظل DB-backed ومحمية بطبقات authorization المعتادة.
 
 > **قاعدة أساسية:** تشغيل `npm start` أو `prestart` أو Docker لا يطبق migrations أو grants. حالة التطبيق التشخيصية لا تعني أن bootstrap حدث، ونجاح Auto Deploy لا يساوي نجاح SQL apply.
@@ -14,6 +34,8 @@
 | `dry_run` | نعم | لا | قراءة parity وschema/ledger/grant evidence |
 | `apply_migration` | نعم | migration مرشح فقط، دون grants | تطبيق 20260815 بعد confirmation مستقل وpostcondition/ledger readback |
 | `apply_grants` | نعم | GRANT محدود فقط، دون migration | تطبيق SELECT/INSERT/UPDATE للجداول الستة بعد migration readiness وconfirmation مستقل |
+| `execute_sql_capsule` | نعم | Raw SQL داخل قاعدة الهدف | استثناء Production/Staging مثبت بالريبو؛ Production يحتاج backup وrestore evidence |
+| `execute_shell_capsule` | Docker Staging أو Hostinger SSH | shell مثبت بالريبو | Staging داخل container؛ Production عبر key وknown-hosts وbackup evidence وموافقة GitHub Environment |
 
 ## المتغيرات الحاكمة
 
@@ -22,14 +44,20 @@
 | المجموعة | المتغيرات | القاعدة |
 |---|---|---|
 | المصدر | `BOOTSTRAP_EXPECTED_SHA`, `BOOTSTRAP_EXPECTED_BRANCH`, `BOOTSTRAP_EXPECTED_REPOSITORY` | SHA كامل بطول 40، والفرع `Production` والمستودع canonical |
-| الهدف | `RUNTIME_BOOTSTRAP_TARGETS_JSON`, `BOOTSTRAP_TARGET_KEY`, `BOOTSTRAP_TARGET_DATABASE` | الهدف يجب أن يكون allowlisted مع `database_sha256` و`target_fingerprint` المطابقين |
-| الحساب | `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, `MYSQL_BOOTSTRAP_PASSWORD`, `MYSQL_BOOTSTRAP_DATABASE` | حساب مستقل عن `DB_*` وعن `target.principal`؛ لا يوجد fallback إلى runtime credentials |
+| الهدف | `RUNTIME_BOOTSTRAP_TARGETS_JSON`, `BOOTSTRAP_TARGET_KEY` | اسم القاعدة والـgovernance database مشتقان من entry الموقعة المطابقة للمفتاح؛ أي database input caller اختياري للتوافق ويُرفض عند mismatch |
+| الحساب | `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, `MYSQL_BOOTSTRAP_PASSWORD` | حساب مستقل عن `DB_*` وعن `target.principal`؛ اسم قاعدة الاتصال مشتق من target entry ولا يحتاج متغيرًا مستقلًا |
 | migration | `BOOTSTRAP_MIGRATION` | `20260815` فقط قابلة لـ`apply_migration`؛ `225` و`1048` verification-only مع readiness readback |
 | تأكيد migration | `BOOTSTRAP_MIGRATION_CONFIRMATION` | `APPLY_HOSTINGER_RUNTIME_MIGRATION:<exact-sha>:<target-key>:<migration-file>` |
 | تأكيد grants | `BOOTSTRAP_GRANTS_CONFIRMATION` | `APPLY_HOSTINGER_RUNTIME_GRANTS:<exact-sha>:<target-key>:<principal>:<principal-host>` |
 | bundle | `BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST` | مطلوب فقط لمسار zero-table بعد توليد bundle canonical ومثبت المصدر والـchecksum |
+| Production SSH variables | `HOSTINGER_PROD_SSH_HOST`, `HOSTINGER_PROD_SSH_PORT`, `HOSTINGER_PROD_SSH_USER` | تحفظ كـGitHub Environment Variables؛ لا حاجة لوضعها في Hostinger `.env` |
+| Production SSH secrets | `HOSTINGER_PROD_SSH_PRIVATE_KEY`, `HOSTINGER_PROD_SSH_KNOWN_HOSTS` | تحفظ كـGitHub Environment Secrets؛ public key المقابل يضاف إلى Hostinger، ولا يستخدم password أو `ssh-keyscan` وقت التنفيذ |
 
 لا تعرض قيمة `RUNTIME_BOOTSTRAP_TARGETS_JSON` أو credentials في التقرير النهائي. يكتب البرنامج evidence محدودًا ويعلن دائمًا `secrets_included=false`.
+
+**الحد الأدنى العملي لمسار Admin Host Breakglass** هو `BACKEND_API_KEY` الموجود أصلًا لحماية HTTP route، إضافةً إلى اعتماد GitHub server-side واحد: يفضّل `RUNTIME_BREAKGLASS_GITHUB_TOKEN` المقيّد بالمستودع والـworkflow، أو يمكن إعادة استخدام GitHub App installation credential القائم عبر مرجع secret server-side. لا يُستخدم `BACKEND_API_KEY` للمصادقة مع GitHub، ولا يعود broker إلى generic `GITHUB_TOKEN`. إذا كان اعتماد GitHub App القائم مضبوطًا، فلا يلزم secret جديد؛ وإلا فالمطلوب secret مخصص واحد فقط، مع إبقاء `RUNTIME_BOOTSTRAP_TARGETS_JSON` كـGitHub Environment Variable غير سري ومملوكًا للريبو.
+
+لإنشاء known-hosts من جهاز موثوق استخدم المنفذ المعروض في hPanel، ثم قارن بصمة المفتاح مع مصدر مستقل قبل حفظ السطر في GitHub. لا تنسخ private key أو password إلى المحادثات أو ملفات المستودع. Hostinger `.env` يخص عملية التطبيق على الخادم، بينما SSH Breakglass يبدأ من GitHub runner، لذلك وضع private key في `.env` يزيد نطاق التسريب ولا يضيف وظيفة.
 
 ## المسار الحالي غير المتصل بقاعدة البيانات
 
@@ -67,9 +95,9 @@ npm run runtime-bootstrap:apply-grants
 
 ## GitHub workflow
 
-يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` (`disabled|plan|dry_run|apply_migration|apply_grants`) و`bootstrap_target_key` و`bootstrap_target_database` و`bootstrap_migration` وconfirmation الخاصة بالمرحلة. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، و`apply_migration` و`apply_grants` مشروطان كلٌ على حدة بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
+يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` (`disabled|plan|dry_run|apply_migration|apply_grants|execute_sql_capsule|execute_shell_capsule`) و`bootstrap_target_key` و`bootstrap_migration` وconfirmation الخاصة بالمرحلة. يقرأ workflow target database من `RUNTIME_BOOTSTRAP_TARGETS_JSON` الموجود في GitHub Environment ولا يقبل اسم قاعدة من caller. تحمل عمليتا capsule مدخل JSON واحدًا محدودًا باسم `host_breakglass_capsule` يحوي المسار والبصمة وbackup evidence؛ ولا يوجد مدخل SQL أو shell inline. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، وكل mutation مشروطة بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
 
-يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يشغّل contract tests، ثم ينفذ `plan` أو `dry_run` أو `apply_migration` أو `apply_grants` فقط عند اختيار `bootstrap_mode` صريح غير `disabled`. قبل `dry_run` أو أي apply ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح bootstrap database connection أو تنفيذ migration/grant. لا يصنف أي 502 من Hostinger أو غياب route كنجاح migration؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
+يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يتحقق من بصمة عقد الأدوات والـcapsule من ذلك checkout، ويشغّل contract tests، ثم ينفذ الوضع الصريح فقط. قبل `dry_run` أو أي mutation ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. بعد SQL أو SSH capsule يعاد فحص Hostinger للتأكد من بقاء النشر على الـSHA نفسها. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح اتصال bootstrap أو SSH. لا يصنف أي 502 من Hostinger أو غياب route كنجاح؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
 
 يشغّل job العقد مباشرةً `test-runtime-bootstrap-contract.mjs` و`test-runtime-gate-deployment-info-parity.mjs` و`hostinger-runtime-bootstrap.mjs --plan`، حتى لا يبقى اختبار parity مجرد ملف موثق غير منفذ. تُحفظ نتيجة parity التشغيلية في evidence محدود، مع `read_only=true` و`mutation_performed=false` و`provider_mutation_performed=false` و`secrets_included=false`. في حالات الفشل بعد بدء العملية، يتضمن evidence `mutation_evidence` بعدّاد statements/tables المكتملة وحالة `partial_possible`، ولا يُعاد إنشاء ledger بعد migration إلا بعملية separate, explicit write.
 
@@ -80,3 +108,60 @@ npm run runtime-bootstrap:apply-grants
 ## Verification checklist بعد التشغيل
 
 بعد كل مرحلة مصرح بها يجب حفظ evidence للـexact SHA والهدف والـprincipal/host، وعدد الجداول قبل التنفيذ، ونتيجة العملية، وpostconditions، وcanonical ledger، وgrant preflight/readback، و`mutation_evidence`. ثم تعاد اختبارات session-context وMCP catalog وAdmin/System Tools وresponse-chunk persistence. ويجب أن يثبت dry-run لـ225 بنية ledger والسياسة والأداة، وأن يثبت dry-run لـ1048 الأعمدة والفهارس وreadiness view؛ schema/ledger presence وحدها لا تكفي لإثبات أن التطبيق يملك `INSERT` أو أن persistence live binding يعمل.
+
+## اكتشاف الهدف من بيئة Hostinger نفسها
+
+عندما لا يعرف المشغّل اسم قاعدة البيانات، لا ينبغي تخمينها من اسم القاعدة أو حجمها في hPanel، ولا نسخ ملف `.env` إلى GitHub. أضيف مسار `runtime_env` مخصص لـ`dry_run` فقط؛ يقرأ `DB_NAME` و`DB_USER` و`GOVERNANCE_DB_NAME` من بيئة التطبيق المحلية، ويشتق `MYSQL_BOOTSTRAP_DATABASE` من `DB_NAME` إذا لم يكن محددًا. يمكن لهذا المسار استخدام `DB_USER` و`DB_PASSWORD` كهوية قراءة فقط عند غياب حساب Bootstrap مخصص، ولا يسمح بأي `apply`.
+
+التحميل من ملف Hostinger ليس ضمن `npm start` ولا `prestart`، بل يجب أن يكون صريحًا عبر أمر الـCLI:
+
+```bash
+cd http-generic-api
+npm run runtime-bootstrap:host-env-dry-run
+```
+
+وهذا يعادل:
+
+```bash
+node scripts/hostinger-runtime-bootstrap.mjs --dry-run --target-source runtime_env --env-file=.env
+```
+
+يقوم البرنامج بالتحقق من source SHA والفرع والـmigration allowlist وحساب bootstrap المخصص قبل أي اتصال. evidence تعرض `target_key` وhashes وconfigured flags فقط، وتضع `raw_values_exposed=false` و`secrets_included=false`. يجب أن يبقى `.env` خارج GitHub وخارج logs، وأن تُحفظ كلمات المرور في Hostinger Environment variables/secret store وفق إعدادات الاستضافة الرسمية.
+
+هذا المسار مناسب للتشخيص والـreadback فقط. أما `apply_migration` و`apply_grants` فيستمران باستخدام `repository_allowlist` و`RUNTIME_BOOTSTRAP_TARGETS_JSON` الموقّع/المثبت، مع approvals المستقلة الحالية. لا يعتبر نجاح `runtime_env` dry_run تفويضًا للتطبيق.
+
+### ملاحظة Hostinger
+
+يستطيع Hostinger استيراد `.env` أثناء إعداد Node.js أو تعديل Environment variables بعد النشر، لكن تغييرات المتغيرات تحتاج rebuild/redeploy لتأخذ أثرًا في التطبيق. لذلك يكون Hostinger Environment variables هو المصدر التشغيلي المفضل، بينما Server Files `.env` لا يصبح فعالًا إلا إذا استُخدم صراحةً عبر `--env-file` أو إعداد تشغيل مكافئ. لا يستطيع GitHub Actions قراءة Server Files مباشرةً.
+
+## Centralized per-environment configuration and minimum setup
+
+Keep one centrally managed application `.env` for each environment. Staging reads its Windows/Docker application configuration; Production reads its existing Hostinger application configuration. Do not duplicate `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, or `DB_PASSWORD` into SSH or bootstrap variables merely to inspect the runtime. Explicit mutation still requires the separately governed `MYSQL_BOOTSTRAP_*` identity.
+
+The existing protected `/deployment-info/runtime-bootstrap-dry-run` route authenticates using the existing `BACKEND_API_KEY`, validates exact Production SHA, branch, and repository, and executes in `runtime_env` mode on the Hostinger host itself. For this read-only mode only, host, port, database, username, and password can be derived from the existing `DB_*` runtime configuration. Evidence identifies this identity as `runtime_read_only`; it never grants migration, grant, shell, SQL-capsule, or mutation authority. The same credentials remain denied for every apply mode and for repository-allowlist mutation.
+
+The broker authenticates to GitHub with the existing server-side GitHub App identity when available, or with one dedicated `RUNTIME_BREAKGLASS_GITHUB_TOKEN`; it never treats `BACKEND_API_KEY` as a GitHub credential and never falls back to a generic `GITHUB_TOKEN`. `BACKEND_API_KEY` remains HTTP route authentication only. No new GitHub credential is needed when the existing App identity is already configured; otherwise use the one dedicated token under the repository/environment policy.
+
+Repository target binding is selected by `RUNTIME_BOOTSTRAP_TARGETS_JSON` together with `BOOTSTRAP_TARGET_KEY`. The caller does not supply the database name as a source of truth; legacy `BOOTSTRAP_TARGET_DATABASE` or `MYSQL_BOOTSTRAP_DATABASE` values are optional compatibility assertions only, and any mismatch fails closed. No new `MYSQL_BOOTSTRAP_DATABASE` GitHub Variable is required.
+
+A privileged mutation cannot acquire permissions that the existing runtime database identity does not possess. Explicit `apply_migration` or `apply_grants` requires the dedicated `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, and `MYSQL_BOOTSTRAP_PASSWORD` identity, separate from `DB_*` and from the allowlisted runtime principal. The executor uses the allowlisted target database and, when configured, the allowlisted `runtime_persistence_database` through a separate role connection; it does not consume `RUNTIME_PERSISTENCE_DB_USER`, `RUNTIME_PERSISTENCE_DB_PASSWORD`, `RUNTIME_PERSISTENCE_DB_HOST`, or `RUNTIME_PERSISTENCE_DB_PORT` as role-specific bootstrap credentials. Only the bounded `runtime_env` `dry_run` may reuse existing `DB_*` read-only configuration. Never reuse the runtime identity for privileged mutation.
+
+Production SSH is optional and required only for the separate `execute_shell_capsule` transport. Do not configure `HOSTINGER_PROD_SSH_*` when only catalog inspection, runtime binding, or backend-key-authenticated `runtime_env` dry-run is needed. SSH key and pinned-host setup becomes necessary only if a remote SSH shell capability is explicitly activated later.
+
+## Three-role reconstruction and restart-safe dispatch
+
+A zero-table Host Breakglass rebuild uses one exact-commit, schema-only bundle with separate `runtime`, `governance`, and `runtime_persistence` role artifacts. The persistence role consumes the repository-owned `persistence.schema.sql.gz` bundle, validates its pinned checksum and required `governed_tool_response_chunks` table, and verifies the existing 1048 column/index postconditions in the same execution cycle.
+
+When `RUNTIME_PERSISTENCE_DB_NAME` already identifies a database separate from `DB_NAME`, the target allowlist must bind that exact persistence database and its SHA-256 before a dedicated role connection is opened. A missing database, mismatched database hash, cross-target substitution, or nonempty replacement target fails closed before mutation. This reuses the existing per-environment `.env`; it does not require a new persistence variable when the role is already configured.
+
+The reconstruction plan exposes a hashed, role-by-role `apply_runbook` execution graph while continuing to execute through the existing separately confirmed `apply_migration` workflow mode. Grants remain a distinct approval and never become part of the rebuild graph. Inline SQL, inline shell, nonempty destructive rebuild, runtime-credential mutation, and automatic Production apply remain denied.
+
+Before issuing a Production workflow dispatch, the broker searches the repository-owned workflow for the exact correlation display title on its trusted dispatch branch. One existing run is returned as a durable replay after a process restart; multiple matches fail closed, and neither case issues a second dispatch. Process-local receipts remain a cache, not the sole replay authority.
+
+For runtime binding, catalog inspection, and backend-key-authenticated `runtime_env` dry-run, the required new environment-variable count remains **zero** when the existing application `.env` already contains `BACKEND_API_KEY` and `DB_*`. SSH and privileged database credentials remain necessary only for their separately authorized mutation transports.
+
+### Existing environment bindings and reconstruction boundaries
+
+Keep one centrally managed `.env` for each environment. The application runtime uses its existing `DB_*` settings; `GOVERNANCE_DB_NAME` and optional `RUNTIME_PERSISTENCE_DB_NAME` may describe separate topology for read-only runtime discovery. For explicit bootstrap apply, the repository-owned target entry is authoritative for the runtime, governance, and optional persistence database names and SHA-256 bindings, while the dedicated `MYSQL_BOOTSTRAP_*` identity is used for each opened role connection. The current executor does not support separate persistence user/password/host/port variables; it must not silently collapse an allowlisted isolated persistence database into the runtime database.
+
+`BACKEND_API_KEY` authorizes the existing internal read-only runtime binding and `runtime_env` dry-run transport. It is not a database privilege, SSH credential, Production approval, or substitute for the repository-owned target allowlist. If a privileged role identity, target binding, or separate persistence database is absent, report the missing prerequisite and fail closed rather than falling back to another role or inventing a new environment variable.

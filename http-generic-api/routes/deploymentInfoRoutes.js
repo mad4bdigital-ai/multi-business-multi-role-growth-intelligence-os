@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { readDeploymentManifest } from "../deploymentManifest.js";
@@ -10,6 +11,11 @@ import {
 import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
 import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 import { getRuntimeBootstrapStatus } from "../runtimeBootstrapStatus.js";
+import {
+  readRuntimeBootstrapContract,
+  runBootstrap,
+  sanitizeBootstrapError,
+} from "../runtimeBootstrapContract.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -74,6 +80,54 @@ function firstIso(...values) {
     if (iso) return iso;
   }
   return null;
+}
+
+function hashRuntimeValue(value) {
+  const normalized = String(value || "").trim();
+  return normalized ? crypto.createHash("sha256").update(normalized, "utf8").digest("hex") : null;
+}
+
+function buildRuntimeBindingEvidence(env = {}) {
+  const database = String(env.DB_NAME || "").trim();
+  const governanceDatabase = String(env.GOVERNANCE_DB_NAME || database).trim();
+  const principal = String(env.DB_USER || "").trim();
+  const principalHost = String(env.DB_PRINCIPAL_HOST || "localhost").trim();
+  return {
+    contract: "mad4b.hostinger.runtime-binding-evidence.v1",
+    configured: Boolean(database && principal),
+    database_sha256: hashRuntimeValue(database),
+    governance_database_sha256: hashRuntimeValue(governanceDatabase),
+    principal_sha256: hashRuntimeValue(principal),
+    principal_host_sha256: hashRuntimeValue(principalHost),
+    source: "runtime_process_env",
+    raw_values_exposed: false,
+    secrets_included: false,
+    database_connection_performed: false,
+    database_mutation_performed: false,
+  };
+}
+
+function readRuntimeSourceIdentity() {
+  const manifestResult = readDeploymentManifest();
+  const manifest = manifestResult.ok ? manifestResult.manifest : null;
+  const commit = firstString(
+    manifest?.commit_sha,
+    process.env.GITHUB_SHA,
+    process.env.DEPLOY_COMMIT,
+    process.env.COMMIT_SHA,
+    process.env.REVISION_SHA,
+  );
+  const branch = firstString(
+    manifest?.branch,
+    process.env.GITHUB_REF_NAME,
+    process.env.DEPLOY_BRANCH,
+    process.env.BRANCH_NAME,
+  );
+  return {
+    commit: commit ? commit.toLowerCase() : null,
+    branch,
+    source: manifest?.source || (manifest ? "deployment_manifest" : "runtime_env"),
+  };
 }
 
 function sourceFor(value, pairs = []) {
@@ -186,8 +240,113 @@ export function buildDeploymentInfoRoutes({
   mcpCatalogSchemaReadinessReader = readMcpCatalogSchemaReadinessSafe,
   productionActivationReadinessReader = runProductionActivationReadiness,
   runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
+  requireBackendApiKey,
 } = {}) {
   const router = Router();
+
+  async function requireBackendServiceApiKey(req, res) {
+    if (typeof requireBackendApiKey !== "function") {
+      res.status(503).json({
+        ok: false,
+        error: {
+          code: "runtime_bootstrap_auth_unconfigured",
+          message: "Host-side runtime bootstrap requires the backend API-key guard.",
+          status: 503,
+        },
+        secrets_included: false,
+      });
+      return false;
+    }
+    let guardCompleted = false;
+    const proceed = () => {
+      guardCompleted = true;
+    };
+    await requireBackendApiKey(req, res, proceed);
+    if (!guardCompleted || res.headersSent) return false;
+    if (req.auth?.mode !== "backend_api_key" || req.auth?.is_admin !== true) {
+      res.status(403).json({
+        ok: false,
+        error: {
+          code: "backend_service_api_key_required",
+          message: "This runtime bootstrap read path requires the dedicated backend service API key.",
+          status: 403,
+        },
+        secrets_included: false,
+      });
+      return false;
+    }
+    return true;
+  }
+
+  router.post("/deployment-info/runtime-bootstrap-dry-run", async (req, res, next) => {
+    if (!(await requireBackendServiceApiKey(req, res))) return;
+    try {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const expectedSha = String(body.expected_sha || "").trim().toLowerCase();
+      const expectedBranch = String(body.expected_branch || "Production").trim();
+      const expectedRepository = String(body.expected_repository || "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os").trim();
+      const targetKey = String(body.target_key || "production-runtime").trim();
+      const migration = String(body.migration || "20260815_custom_gpt_mcp_catalog_levels.sql").trim();
+      if (!/^[0-9a-f]{40}$/iu.test(expectedSha)) {
+        return res.status(400).json({ ok: false, error: { code: "runtime_bootstrap_expected_sha_invalid", message: "expected_sha must be a full 40-character SHA", details: {}, secrets_included: false }, secrets_included: false });
+      }
+      if (expectedBranch !== "Production" || expectedRepository !== "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" || !targetKey || !migration) {
+        return res.status(400).json({ ok: false, error: { code: "runtime_bootstrap_binding_invalid", message: "Runtime bootstrap binding is invalid", details: {}, secrets_included: false }, secrets_included: false });
+      }
+      const runtimeIdentity = readRuntimeSourceIdentity();
+      if (!runtimeIdentity.commit || runtimeIdentity.commit !== expectedSha || runtimeIdentity.branch !== expectedBranch) {
+        return res.status(412).json({ ok: false, error: { code: "runtime_bootstrap_deployment_identity_mismatch", message: "The running deployment identity does not match expected_sha/expected_branch", details: { runtime_source: runtimeIdentity.source, runtime_commit_available: Boolean(runtimeIdentity.commit), runtime_branch_available: Boolean(runtimeIdentity.branch) }, secrets_included: false }, database_connection_performed: false, database_mutation_performed: false, migration_apply_performed: false, grant_mutation_performed: false, mutation_evidence: { mutation_attempted: false, mutation_state: "none", secrets_included: false }, raw_values_exposed: false, secrets_included: false });
+      }
+      const env = {
+        ...process.env,
+        BOOTSTRAP_MODE: "dry_run",
+        BOOTSTRAP_TARGET_SOURCE: "runtime_env",
+        BOOTSTRAP_EXPECTED_SHA: expectedSha,
+        BOOTSTRAP_EXPECTED_BRANCH: expectedBranch,
+        BOOTSTRAP_EXPECTED_REPOSITORY: expectedRepository,
+        BOOTSTRAP_TARGET_KEY: targetKey,
+        BOOTSTRAP_MIGRATION: migration,
+      };
+      const result = await runBootstrap({ env, contract: readRuntimeBootstrapContract() });
+      if (result.database_mutation_performed || result.migration_apply_performed || result.grant_mutation_performed) {
+        return res.status(500).json({ ok: false, error: { code: "runtime_bootstrap_dry_run_mutation_flagged", message: "Dry-run returned an unsafe mutation flag", details: {}, secrets_included: false }, database_connection_performed: result.database_connection_performed === true, database_mutation_performed: false, migration_apply_performed: false, grant_mutation_performed: false, mutation_evidence: result.mutation_evidence, secrets_included: false });
+      }
+      return res.status(200).json({
+        ...result,
+        ok: result.ok !== false,
+        operation: "read_only",
+        target_source: "runtime_env",
+        runtime_source: runtimeIdentity.source,
+        runtime_deployment_sha: runtimeIdentity.commit,
+        raw_values_exposed: false,
+        secrets_included: false,
+      });
+    } catch (error) {
+      const details = error?.details && typeof error.details === "object" ? { ...error.details } : {};
+      return res.status(412).json({
+        ok: false,
+        contract: "mad4b.hostinger.runtime-bootstrap-evidence.v1",
+        mode: "dry_run",
+        operation: "read_only",
+        target_source: "runtime_env",
+        error: sanitizeBootstrapError(error),
+        database_connection_performed: details.database_connection_performed === true,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        mutation_evidence: details.mutation_evidence || { mutation_attempted: false, mutation_state: "none", secrets_included: false },
+        raw_values_exposed: false,
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.get("/deployment-info/runtime-binding", async (req, res, next) => {
+    if (!(await requireBackendServiceApiKey(req, res))) return;
+    return next();
+  }, (req, res) => {
+    res.status(200).json({ ok: true, runtime_binding: buildRuntimeBindingEvidence(process.env), secrets_included: false });
+  });
 
   router.get("/deployment-info", async (req, res) => {
     const legacyDeployment = await readDeploymentCommit();

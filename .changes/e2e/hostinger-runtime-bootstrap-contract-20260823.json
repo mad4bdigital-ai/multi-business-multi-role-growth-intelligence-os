@@ -9,13 +9,25 @@
   "scope": {
     "include": [
       ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
+      "autopilot-portable-staging/manifest.json",
       "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/config/runtime-breakglass-catalog.json",
+      "http-generic-api/runtimeBreakglassBroker.js",
+      "http-generic-api/routes/runtimeBreakglassRoutes.js",
+      "http-generic-api/test-runtime-breakglass-broker.mjs",
+      "http-generic-api/config/host-breakglass-catalog.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/runtimeBootstrapContract.js",
       "http-generic-api/runtimeBootstrapStatus.js",
+      "http-generic-api/hostBreakglassCatalog.js",
       "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-admin-host-breakglass-routes.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
@@ -24,12 +36,43 @@
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/Dockerfile",
       "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/**",
       "http-generic-api/server.js",
       "http-generic-api/package.json",
       ".github/workflows/production-runtime-parity-evidence.yml",
       ".github/governance/test-authority-registry.json",
       "docs/governance/hostinger-runtime-bootstrap.md",
-      "docs/governance/configuration-drift-policy.json"
+      "docs/governance/configuration-drift-policy.json",
+      "http-generic-api/config/host-breakglass-tool-contracts.json",
+      "http-generic-api/scripts/host-breakglass-capsule-executor.mjs",
+      "http-generic-api/test-host-breakglass-capsule-executor.mjs",
+      "http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs",
+      "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
+      "http-generic-api/config/host-breakglass-capsule.schema.json",
+      "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
+      "http-generic-api/test-custom-gpt-schemas.mjs",
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/config/staging-migration-contract-policy.*",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/migrations/195_sprint66_connected_execution_read_only_tool_execution.sql",
+      "http-generic-api/migrations/196_sprint66_admin_tool_registry_tags_text.sql",
+      "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
+      "http-generic-api/scripts/frontend-surface-dispatch.mjs",
+      "http-generic-api/scripts/migration-contract-governance.*",
+      "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
+      "http-generic-api/test-openapi-detail-closure-batch.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
   "merge_contract": {
@@ -37,7 +80,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false,
@@ -62,14 +108,20 @@
           "steps": [
             "Validate exact Production source repository, branch, and 40-character SHA.",
             "Validate a repository-owned target entry with database SHA-256 and target fingerprint bound to repository, branch, key, runtime/governance databases, principal, and principal host.",
-            "Reject runtime DB credentials as bootstrap credentials and never fall back to DB_*.",
+            "Use dedicated bootstrap credentials for repository_allowlist and all mutation/capsule paths; never fall back to DB_* there.",
+            "For dry-run only, allow an explicit runtime_env source to derive DB_NAME/DB_USER locally from Hostinger, use DB_NAME as the connection database when MYSQL_BOOTSTRAP_DATABASE is absent, and expose only hashes/configured flags.",
+            "Permit DB_* credential reuse only for backend-key-authenticated runtime_env dry_run; reject runtime credentials for repository_allowlist, migration apply, grants, SQL capsules, and shell execution.",
             "Classify zero-table and nonempty databases before any baseline decision.",
             "Allow 225 and 1048 only in dry-run/verification mode and read back their canonical schema/readiness postconditions.",
             "Allow 20260815 only in apply_migration/apply_grants operation scopes; migration apply requires catalog prerequisite tables, checksum, statement count, ledger conflict checks, and declared postconditions, while grants require migration readiness and a separate confirmation.",
-            "For zero-table apply, require a same-SHA schema-only bundle manifest and runtime table-count/checksum pins; do not execute a generic migration directory.",
+            "For zero-table apply, require a same-SHA schema-only bundle manifest and separate runtime, governance, and runtime_persistence role table-count/checksum pins; execute the bounded runbook graph and read back governed_tool_response_chunks in the same cycle without executing a generic migration directory.",
             "Preflight all six grant tables before the first GRANT, apply only SELECT/INSERT/UPDATE, record completed tables, and require same-cycle readback without GRANT OPTION or schema/global write privileges.",
             "Expose typed bootstrap_not_configured/bootstrap_required status from startup and /deployment-info without opening a database connection.",
-            "Keep the normal GPT tool and session-context routes DB-backed and protected."
+            "Keep the normal GPT tool and session-context routes DB-backed and protected.",
+            "Resolve a repository-owned capability runbook and bind its exact tool contract SHA-256 before dispatch.",
+            "Before Production dispatch, recover any exact-correlation GitHub workflow run after process restart and reject ambiguous matches without issuing another POST.",
+            "For command exceptions, accept repository capsules only; require exact capsule hash and typed confirmation, plus Production backup/restore evidence.",
+            "Execute Production shell capsules through pinned known-hosts and key-only SSH, and return only bounded output hashes."
           ],
           "assertions": [
             "No plan/default startup/prestart/Docker start path performs database connection or mutation.",
@@ -77,8 +129,13 @@
             "Missing bundle, source mismatch, table-count mismatch, or checksum mismatch blocks zero-table mutation before SQL.",
             "A nonempty database cannot use the baseline bundle.",
             "A schema-ready database without apply-ledger evidence remains apply-required and is never record-only reconciled.",
-            "Credential values, SQL text, and passwords are absent from bounded evidence; failed DDL/GRANT attempts report unknown/partial mutation state and completed counts.",
-            "Combined apply is denied; migration and grants approvals are independent, and the repository does not claim that Hostinger release-hook configuration exists; live operational execution remains a separate step."
+            "Credential values, SQL text, raw database/principal values, and passwords are absent from bounded evidence; failed DDL/GRANT attempts report unknown/partial mutation state and completed counts.",
+            "The protected host-side runtime bootstrap dry-run route rejects missing backend authentication, accepts no database name from the request, and returns no mutation flags.",
+            "Runtime Breakglass status and plans are database-independent, service-key-only, and never expose credentials or target database values.",
+            "Combined apply is denied; migration and grants approvals are independent, and the repository does not claim that Hostinger release-hook configuration exists; live operational execution remains a separate step.",
+            "Inline SQL and shell payloads are rejected; only exact-SHA repository capsules can execute.",
+            "Production SQL rejects global, cross-schema, or grantable bootstrap identities before capsule execution.",
+            "Production SSH never disables host-key checking and never serializes command output or credentials."
           ],
           "tests": [
             {
@@ -96,10 +153,45 @@
               "args": []
             },
             {
+              "id": "runtime-breakglass-broker",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-breakglass-broker.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-static-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-admin-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-admin-host-breakglass-routes.mjs",
+              "args": []
+            },
+            {
               "id": "production-runtime-bootstrap-workflow-contract",
               "runner": "node",
               "working_directory": ".",
               "path": ".github/ops/test-production-runtime-recovery.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-capsule-executor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-capsule-executor.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-ssh-capsule-executor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-ssh-capsule-executor.mjs",
               "args": []
             }
           ],
@@ -111,9 +203,9 @@
             "http-generic-api/runtimeBootstrapContract.js",
             "http-generic-api/runtimeBootstrapStatus.js",
             "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
-      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
-      ".github/ops/test-production-runtime-recovery.mjs",
-      "http-generic-api/test-environment-impact-closure.mjs",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            ".github/ops/test-production-runtime-recovery.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
             "http-generic-api/.env.example",
             "http-generic-api/Dockerfile",
             "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -121,7 +213,20 @@
             ".github/workflows/production-runtime-parity-evidence.yml",
             "docs/governance/hostinger-runtime-bootstrap.md",
             "docs/governance/configuration-drift-policy.json",
-            "http-generic-api/test-runtime-bootstrap-contract.mjs"
+            "http-generic-api/test-runtime-bootstrap-contract.mjs",
+            "http-generic-api/config/runtime-breakglass-catalog.json",
+            "http-generic-api/runtimeBreakglassBroker.js",
+            "http-generic-api/routes/runtimeBreakglassRoutes.js",
+            "http-generic-api/test-runtime-breakglass-broker.mjs",
+            "http-generic-api/config/host-breakglass-tool-contracts.json",
+            "http-generic-api/scripts/host-breakglass-capsule-executor.mjs",
+            "http-generic-api/test-host-breakglass-capsule-executor.mjs",
+            "http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs",
+            "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
+            "http-generic-api/config/host-breakglass-capsule.schema.json",
+            "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
+            "http-generic-api/test-custom-gpt-schemas.mjs",
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs"
           ]
         }
       ]

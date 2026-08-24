@@ -96,6 +96,8 @@
       ".github/ops/production-runtime-recovery-routes.json",
       "docs/governance/runtime-recovery-schema-less-modes.md",
       "docs/governance/hostinger-runtime-bootstrap.md",
+      "docs/governance/runtime-breakglass-environments.md",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
       ".changes/e2e/e2e-contract-reference-integrity.json",
       ".changes/e2e/repository-inventory-governed-regeneration.json",
       ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",

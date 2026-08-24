@@ -2093,7 +2093,21 @@
     "scripts/repository-inventory.mjs|outputSummary|environment_reference|inventory.summary",
     "scripts/test-repository-evaluation.mjs|environmentProbe|literal_declaration|environmentprobe",
     "scripts/validate-staging-openapi-governance.mjs|policyPath|literal_declaration|policypath",
-    "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker"
+    "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker",
+    "http-generic-api/runtimeBootstrapContract.js|environment|literal_declaration|environment",
+    "http-generic-api/runtimeBootstrapStatus.js|targetPlanConfigured|literal_declaration|targetplanconfigured",
+    "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs|source|environment_reference|bootstrap.target.source",
+    "http-generic-api/test-runtime-bootstrap-contract.mjs|PATH|environment_reference|path",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|DB_NAME|environment_reference|db.name",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|DB_USER|environment_reference|db.user",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|GITHUB_REF_NAME|environment_reference|github.ref.name",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|GITHUB_SHA|environment_reference|github.sha",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|GOVERNANCE_DB_NAME|environment_reference|governance.db.name",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousGithubRefName|environment_reference|github.ref.name",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousGithubSha|environment_reference|github.sha",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeDbName|environment_reference|db.name",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeDbUser|environment_reference|db.user",
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeGovernanceDbName|environment_reference|governance.db.name"
   ],
   "max_existing_secret_candidates": 341,
   "fail_on_removed_candidates": false,
@@ -2305,15 +2319,15 @@
       "expires_at": "2026-11-30T23:59:59.000Z"
     },
     {
-      "fingerprint": "http-generic-api/scripts/migration-contract-governance.mjs|outputPath|environment_reference|migration.contract.governance.output",
-      "owner": "platform-team",
-      "reason": "Reviewed in PR #7609: outputPath is a caller-supplied report destination for the Staging-local, plan-only migration contract governance gate; it writes non-secret evidence only and cannot authorize migration generation, runtime mutation, Production activation, provider access, or credential use.",
-      "expires_at": "2026-11-30T23:59:59.000Z"
-    },
-    {
       "fingerprint": "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs|BOOTSTRAP_MODE|environment_reference|bootstrap.mode",
       "owner": "platform-team",
       "reason": "Reviewed in the schema-less runtime bootstrap control-plane PR: BOOTSTRAP_MODE selects plan, dry-run, or an independently confirmed allowlisted apply mode; plan is the default, no runtime credential fallback is allowed, and the selector contains no secret or automatic deployment authority.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/migration-contract-governance.mjs|outputPath|environment_reference|migration.contract.governance.output",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7609: outputPath is a caller-supplied report destination for the Staging-local, plan-only migration contract governance gate; it writes non-secret evidence only and cannot authorize migration generation, runtime mutation, Production activation, provider access, or credential use.",
       "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],

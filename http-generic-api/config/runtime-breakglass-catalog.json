@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.runtime-breakglass-catalog.v1",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "workflow": {
+    "file": ".github/workflows/production-runtime-parity-evidence.yml",
+    "dispatch_ref": "main",
+    "production_branch": "Production",
+    "production_environment": "Production",
+    "run_name_prefix": "runtime-breakglass-"
+  },
+  "environments": {
+    "staging": {
+      "source_branch": "main",
+      "deployment_provider": "local_device",
+      "deployment_mode": "local_windows_task_scheduler",
+      "runtime_kind": "windows_docker_compose",
+      "target_key": "staging-local-docker",
+      "target_source": "docker_local",
+      "allowed_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
+      "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
+      "credential_namespace": "staging",
+      "allowed_modes": ["plan", "dry_run"],
+      "execution_authority": "local_windows_docker_operator",
+      "admin_route_mutation": false,
+      "github_workflow_dispatch": false,
+      "readback_authority": "local_docker_health_version_deployment_info"
+    },
+    "production": {
+      "source_branch": "Production",
+      "deployment_provider": "hostinger",
+      "deployment_mode": "hostinger_auto_deploy",
+      "runtime_kind": "hostinger_cloud_business_plan",
+      "target_key": "production-runtime",
+      "target_sources": ["repository_allowlist", "runtime_env"],
+      "allowed_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
+      "forbidden_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
+      "credential_namespace": "production",
+      "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
+      "admin_route_mutation": "workflow_only",
+      "github_workflow_dispatch": true,
+      "readback_authority": "github_workflow_bounded_evidence_plus_hostinger_parity"
+    }
+  },
+  "contracts": [
+    {
+      "key": "runtime_diagnose",
+      "kind": "diagnose",
+      "description": "Read-only runtime, schema, identity, and route evidence.",
+      "environments": ["staging", "production"],
+      "allowed_modes": ["plan", "dry_run"],
+      "migration_policy": "verification_only_or_none",
+      "mutation_allowed": false,
+      "requires_readback": true
+    },
+    {
+      "key": "schema_repair",
+      "kind": "repair",
+      "description": "Repair one reviewed schema incident through the existing governed bootstrap workflow.",
+      "environments": ["staging", "production"],
+      "allowed_modes": ["plan", "dry_run", "apply_migration"],
+      "production_apply_target_source": "repository_allowlist",
+      "runtime_env_allowed_modes": ["dry_run"],
+      "staging_apply_policy": "local_operator_only_not_admin_route",
+      "allowed_migrations": [
+        "225_sprint67_capability_resolution_envelope_ledger.sql",
+        "1048_transport_response_chunk_schema_recovery.sql",
+        "20260815_custom_gpt_mcp_catalog_levels.sql"
+      ],
+      "mutation_allowed": "production_workflow_only",
+      "requires_readback": true
+    },
+    {
+      "key": "grant_repair",
+      "kind": "repair",
+      "description": "Repair the reviewed least-privilege runtime grant set with separate confirmation.",
+      "environments": ["staging", "production"],
+      "allowed_modes": ["plan", "dry_run", "apply_grants"],
+      "production_apply_target_source": "repository_allowlist",
+      "runtime_env_allowed_modes": ["dry_run"],
+      "staging_apply_policy": "local_operator_only_not_admin_route",
+      "mutation_allowed": "production_workflow_only",
+      "requires_readback": true,
+      "grant_policy_ref": ".github/ops/production-runtime-recovery-routes.json"
+    },
+    {
+      "key": "empty_database_rebuild",
+      "kind": "rebuild",
+      "description": "Rebuild an existing zero-table database from the reviewed schema bundle and canonical seeds; database creation is outside this contract.",
+      "environments": ["staging", "production"],
+      "allowed_modes": ["plan", "dry_run", "apply_migration"],
+      "requires_database_classification": "zero_tables_only",
+      "production_apply_target_source": "repository_allowlist",
+      "runtime_env_allowed_modes": ["dry_run"],
+      "staging_apply_policy": "local_operator_only_not_admin_route",
+      "mutation_allowed": "production_workflow_only",
+      "requires_readback": true,
+      "baseline_contract_ref": "http-generic-api/config/runtime-bootstrap-contract.json"
+    },
+    {
+      "key": "full_database_rebuild",
+      "kind": "rebuild",
+      "description": "Produce a complete reviewed rebuild plan and dry-run evidence; destructive replacement of a non-empty database is not routable by this catalog.",
+      "environments": ["staging", "production"],
+      "allowed_modes": ["plan", "dry_run"],
+      "requires_database_classification": "zero_tables_or_explicit_destructive_review",
+      "mutation_allowed": false,
+      "apply_policy": "forbidden_without_separate_destructive_review",
+      "requires_readback": true,
+      "baseline_contract_ref": "http-generic-api/config/runtime-bootstrap-contract.json"
+    }
+  ],
+  "safety": {
+    "environment_selection_required": true,
+    "exact_sha_required_for_non_plan": true,
+    "staging_source_branch_fixed": "main",
+    "production_source_branch_fixed": "Production",
+    "github_dispatch_ref_fixed": "main",
+    "production_runtime_parity_required": true,
+    "runtime_env_apply_forbidden": true,
+    "combined_apply_forbidden": true,
+    "full_rebuild_nonempty_apply_forbidden": true,
+    "staging_admin_route_mutation_forbidden": true,
+    "target_database_request_field_forbidden": true,
+    "credential_request_fields_forbidden": true,
+    "secrets_included": false
+  }
+}

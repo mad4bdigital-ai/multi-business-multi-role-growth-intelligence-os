@@ -58,6 +58,9 @@ test('canonical route contract is bound to repository runtime routes and deploym
   assert.match(healthRoutes, /["']\/health["']/u);
   assert.match(healthRoutes, /["']\/version["']/u);
   assert.match(deploymentRoutes, /["']\/deployment-info["']/u);
+  assert.match(deploymentRoutes, /["']\/deployment-info\/runtime-binding["']/u);
+  assert.match(deploymentRoutes, /["']\/deployment-info\/runtime-bootstrap-dry-run["']/u);
+  assert.match(deploymentRoutes, /runtime_env/u);
   assert.match(gptRoutes, /["']\/gpt\/tools["']/u);
   assert.match(gptRoutes, /["']\/gpt\/tools\/call["']/u);
   assert.match(activationRoutes, /["']\/activation\/session-context\/read-only["']/u);
@@ -386,7 +389,7 @@ test('workflow exposes snapshot variables only as non-secret descriptors', () =>
 
 test('explicit bootstrap requires live Hostinger parity and runs the parity contract test', () => {
   const parityGate = workflow.indexOf('Require live Hostinger runtime parity before bootstrap');
-  const bootstrapRun = workflow.indexOf('Run selected bootstrap contract mode');
+  const bootstrapRun = workflow.indexOf('Run selected repository bootstrap contract mode');
   assert.ok(parityGate >= 0 && parityGate < bootstrapRun, 'runtime parity gate must precede bootstrap execution');
   assert.match(workflow, /if: inputs\.bootstrap_mode != 'plan'/u);
   assert.match(workflow, /curl --proto '=https' --tlsv1\.2 --fail --silent --show-error/u);
@@ -396,11 +399,23 @@ test('explicit bootstrap requires live Hostinger parity and runs the parity cont
   assert.match(workflow, /deployment_sha,,.*EXPECTED_SHA/u);
   assert.match(workflow, /deployment_branch.*EXPECTED_BRANCH/u);
   assert.match(workflow, /BOOTSTRAP_RESULT_PATH: \$\{\{ github\.workspace \}\}/u);
+  assert.match(workflow, /bootstrap_target_source/u);
+  assert.match(workflow, /hostinger_runtime_env/u);
+  assert.match(workflow, /runtime-bootstrap-dry-run/u);
+  assert.match(workflow, /RUNTIME_BOOTSTRAP_URL/u);
+  assert.match(workflow, /hostinger_runtime_env.*bootstrap_mode.*dry_run|hostinger_runtime_env_dry_run_only/su);
   assert.match(workflow, /node --test test-runtime-gate-deployment-info-parity\.mjs/u);
   assert.match(workflow, /apply_migration/u);
   assert.match(workflow, /apply_grants/u);
   assert.match(workflow, /BOOTSTRAP_MIGRATION_CONFIRMATION/u);
   assert.match(workflow, /BOOTSTRAP_GRANTS_CONFIRMATION/u);
+  assert.match(workflow, /execute_sql_capsule/u);
+  assert.match(workflow, /execute_shell_capsule/u);
+  assert.match(workflow, /host-breakglass-capsule-executor\.mjs/u);
+  assert.match(workflow, /host-breakglass-ssh-capsule-executor\.mjs/u);
+  assert.match(workflow, /HOSTINGER_PROD_SSH_KNOWN_HOSTS/u);
+  assert.match(workflow, /Require live Hostinger parity after command capsule/u);
+  assert.doesNotMatch(workflow, /ssh-keyscan/u);
   assert.match(workflow, /group: production-runtime-bootstrap-production/u);
   assert.doesNotMatch(workflow, /group: production-runtime-bootstrap-\$\{\{.*expected_sha/u);
   const bootstrapJob = workflow.slice(workflow.indexOf('  bootstrap:'), workflow.indexOf('  live:'));
