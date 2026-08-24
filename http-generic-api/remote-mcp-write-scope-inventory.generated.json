@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7322,
-  "route_count": 1082,
-  "write_route_count": 657,
-  "classified_write_surface_count": 39,
-  "classified_write_route_count": 657,
+  "file_count": 7327,
+  "route_count": 1087,
+  "write_route_count": 659,
+  "classified_write_surface_count": 40,
+  "classified_write_route_count": 659,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 618,
-  "sensitive_intentionally_unmapped_write_route_count": 618,
+  "intentionally_unmapped_write_route_count": 619,
+  "sensitive_intentionally_unmapped_write_route_count": 619,
   "migration_count": 446,
   "registry_evidence_count": 108,
   "write_scope_count": 6,
@@ -7131,6 +7131,51 @@
       "write": false
     },
     {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#GET:/admin/runtime-breakglass/status:0",
+      "source_line": 82,
+      "source_offset": 2539,
+      "method": "GET",
+      "path": "/admin/runtime-breakglass/status",
+      "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/admin/runtime-breakglass/runs:1",
+      "source_line": 90,
+      "source_offset": 2815,
+      "method": "POST",
+      "path": "/admin/runtime-breakglass/runs",
+      "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#GET:/admin/runtime-breakglass/runs/:run_id:2",
+      "source_line": 104,
+      "source_offset": 3334,
+      "method": "GET",
+      "path": "/admin/runtime-breakglass/runs/:run_id",
+      "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#GET:/deployment-info/runtime-breakglass-status:3",
+      "source_line": 123,
+      "source_offset": 4085,
+      "method": "GET",
+      "path": "/deployment-info/runtime-breakglass-status",
+      "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4",
+      "source_line": 131,
+      "source_offset": 4376,
+      "method": "POST",
+      "path": "/deployment-info/runtime-breakglass-plan",
+      "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+      "write": true
+    },
+    {
       "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#POST:/runtime/verification-runs:0",
       "source_line": 23,
       "source_offset": 988,
@@ -10089,6 +10134,16 @@
       "method": "POST",
       "path": "/me/workspaces/:workspace_id/brands/:brand_key/assets/materialize-brand-core",
       "file": "http-generic-api/routes/resourceApiRoutes.js",
+      "status": "shadow",
+      "provider_mutation_allowed": false,
+      "readback_required": true
+    },
+    {
+      "scope_key": "hostinger.deploy",
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4",
+      "method": "POST",
+      "path": "/deployment-info/runtime-breakglass-plan",
+      "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
       "status": "shadow",
       "provider_mutation_allowed": false,
       "readback_required": true
@@ -40423,6 +40478,145 @@
       "reason": "credential_or_identity_mutation_requires_security_contract"
     },
     {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/admin/runtime-breakglass/runs:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+        "source_line": 90,
+        "handler_window_lines": [
+          90,
+          102
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": [
+            "dispatch",
+            "create"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4",
+      "classification": "shadow_candidate",
+      "mapping_status": "blocked_until_explicit_binding",
+      "domain": "hostinger",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/runtimeBreakglassRoutes.js",
+        "source_line": 131,
+        "handler_window_lines": [
+          131,
+          166
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response",
+            "readback"
+          ],
+          "mutation": [
+            "deploy",
+            "dispatch"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "medium_static",
+        "basis": "catalog_pattern_plus_handler_signals",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [
+        "hostinger.deploy"
+      ],
+      "classification_confidence": "catalog_pattern",
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "remote-mcp-governance"
+    },
+    {
       "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#POST:/runtime/verification-runs:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -52367,19 +52561,19 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 657,
+      "routes": 659,
       "domains": 11,
-      "handler_files": 130
+      "handler_files": 131
     },
     "edge_counts": {
-      "route_to_handler_file": 657,
-      "route_to_domain": 657,
-      "route_to_provider_signal": 96,
+      "route_to_handler_file": 659,
+      "route_to_domain": 659,
+      "route_to_provider_signal": 98,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 408,
-      "route_to_readback_signal": 368,
-      "route_to_mutation_signal": 374,
-      "route_to_explicit_scope_candidate": 39
+      "route_to_authority_signal": 410,
+      "route_to_readback_signal": 370,
+      "route_to_mutation_signal": 376,
+      "route_to_explicit_scope_candidate": 40
     },
     "execution_edges_are_non_authorizing": true,
     "static_only": true,
@@ -58801,8 +58995,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 618,
-      "sensitive_count": 618
+      "count": 619,
+      "sensitive_count": 619
     },
     {
       "severity": "medium",

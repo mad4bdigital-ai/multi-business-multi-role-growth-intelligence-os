@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 657
+    "route_count": 659
   },
   "scope_selection": [
     "approvals.request",
@@ -371,7 +371,7 @@
       "default_request": false,
       "tool_bound": false,
       "route_evidence": {
-        "route_count": 8,
+        "route_count": 9,
         "route_ids": [
           "http-generic-api/routes/adminCliRoutes.js#POST:/hostinger:6",
           "http-generic-api/routes/agentSurfaceRoutes.js#PUT:/me/agent-surfaces/:surface_key/deployment:4",
@@ -380,10 +380,11 @@
           "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
           "http-generic-api/routes/governanceRoutes.js#POST:/hostinger/ssh-runtime-read:4",
           "http-generic-api/routes/hostingerStorageTenantRoutes.js#POST:/tenant/storage-operations/apply-plan:0",
-          "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28"
+          "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
+          "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4"
         ],
         "classification_counts": {
-          "shadow_candidate": 8
+          "shadow_candidate": 9
         },
         "prerequisites": [
           "approval_policy_evidence",
@@ -440,7 +441,7 @@
   ],
   "summary": {
     "scope_count": 6,
-    "route_count": 39,
+    "route_count": 40,
     "all_preflight_decisions_denied": true,
     "all_execution_attempts_false": true,
     "all_rollback_plans_validated": true
@@ -457,5 +458,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "435a35fa4f3bc660e04844adca53e0a9d211dc0b0ce556fb41bf54c86150fcc9"
+  "evidence_fingerprint": "69bdda5eb5a7f269c7eebd330d238b795d42e9258a1e50a0136152b6e7ac1c72"
 }
