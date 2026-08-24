@@ -194,6 +194,7 @@
           "http-generic-api/scripts/migration-order.mjs",
           "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
           "http-generic-api/test-environment-impact-closure.mjs",
+          "docs/repo-maintenance-status.md",
           "docs/repository-*.json",
           "docs/repository-*.md",
           "docs/repo-autosync-permissions.md",
