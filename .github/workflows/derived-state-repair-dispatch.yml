@@ -70,7 +70,7 @@ jobs:
           report="$(find "$RUNNER_TEMP/closure" -type f -name report.json | head -n1)"
           objections="$(find "$RUNNER_TEMP/closure" -type f -name policy-objections.json | head -n1)"
           test -f "$report"
-          test "$(jq -r '.contract' "$report")" = "mad4b.repository-derived-state-closure.v1"
+          test "$(jq -r '.contract' "$report")" = "mad4b.repository-derived-state-closure.v2"
           test "$(jq -r '.candidate.kind' "$report")" = "github_merge_candidate"
           test "$(jq -r '.converged' "$report")" = "false"
           pr_number="$(jq -r '.candidate.pr_number // 0' "$report")"
