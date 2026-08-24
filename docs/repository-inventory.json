@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7300,
-    "bytes": 71319717,
-    "lines": 1669028,
+    "bytes": 71320147,
+    "lines": 1669033,
     "directories": 266,
     "categories": 13
   },
@@ -7242,9 +7242,9 @@
       "path": ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8675,
-      "lines": 142,
-      "sha256": "3c0cf08e72537f6f03382c375ab605b9dbc0ce371408fd7f71dd05bffa7d7a42",
+      "bytes": 8899,
+      "lines": 145,
+      "sha256": "3932f6a2939e0bbc1da020e5f3ff08073c1d19046ce12ea13e435cc936da2121",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13536,7 +13536,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "b88b1ed2c6492a721542689f8e4b851bc29d37b9cd68d4ebf74f55bd0320af16",
+      "sha256": "221b0204c94225b2c405888d1f153991ac8b8afe50332c1eeb2485a23aa89657",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34335,9 +34335,9 @@
       "path": "docs/write-scope-shadow-evidence-2026-08-15.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 17734,
-      "lines": 461,
-      "sha256": "affc27c20eb1f9d680360a75584f57ab1c758c43a35d5e01e0cfa8f3bd03cef8",
+      "bytes": 17845,
+      "lines": 462,
+      "sha256": "a4f1379b765533ec3ed1b9a2bed9512c4e494d9ab903d86c38e5da33ed2b8f38",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38042,9 +38042,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 9317,
-      "lines": 232,
-      "sha256": "0f2cc8f9267b2fa1f1652d08c3b063b3b6442600a75e7a9e323b25438b401943",
+      "bytes": 9379,
+      "lines": 233,
+      "sha256": "8ce8ef204352020717659d354bb46410477f604ed36361933762ef9a1c4206b1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -68646,7 +68646,7 @@
       "extension": ".mjs",
       "bytes": 2637,
       "lines": 59,
-      "sha256": "bfb48e5d88a6b35e31ea073f770040c07ad8303631edcd8c505811ef938e5931",
+      "sha256": "a0491631b3bc3e0735144de7b536ee3d2af1a32b0df2d019f82033df7fab63d8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85848,9 +85848,9 @@
       "path": "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 24660,
+      "bytes": 24693,
       "lines": 414,
-      "sha256": "e4bfcbbd6f11fd89e117e7758af2d203490d109988a01fbacd8d037ed43c81f0",
+      "sha256": "c057f822254908fd5b21b1430ddfddbe6154371e206f39af7315f75de694cfd8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85883,7 +85883,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "e44324a538b0385de3980fb7fc680961c09f19024ece99c54d090f013f7e4bd3",
+      "sha256": "e92ca59b2f7bfcbea241619699e4bd42294c1e0e9bb9db41f2a037a73e448575",
       "mode": "644",
       "executable": false,
       "generated": false
