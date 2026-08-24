@@ -16,6 +16,8 @@
       ".github/workflows/openapi-auto-sync.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
       ".github/workflows/surface-contract-auto-remediation.yml",
+      "Updating Registry Patch Index.md",
+      "deployment_parity_checklist.md",
       "autopilot-portable-staging/manifest.json",
       "docs/automation-overlap-governance.md",
       "docs/repo-autosync-permissions.md",
