@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "db2571ea22344f5dcfa4aa0ffa1bfda7deaa4356eb750ab40f2b33debde5ab49",
-    "dispatch_artifact_sha256": "0e696c37459569a38a89bd4e1450cc99e107f60c5b23ed397fc8080a8c88068c"
+    "dispatch_source_digest": "a679f28efe9469f08ba9127bc871aa791af6ffcf234c47d7db1806dc8cb0f536",
+    "dispatch_artifact_sha256": "234a7742be5bad86ef51dac8e7e237e98e1a27a3397e24924c2542c827340738"
   },
   "coverage": {
-    "operation_count": 1041,
-    "openapi_documented_count": 1025,
-    "openapi_canonical_documented_count": 710,
+    "operation_count": 1043,
+    "openapi_documented_count": 1027,
+    "openapi_canonical_documented_count": 712,
     "openapi_generated_index_count": 315,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
-    "unresolved_surface_decision_count": 0,
-    "coverage_complete": true
+    "unresolved_surface_decision_count": 2,
+    "coverage_complete": false
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -28,7 +28,7 @@
       },
       {
         "decision": "api_only",
-        "count": 38
+        "count": 37
       },
       {
         "decision": "embedded_ui",
@@ -37,6 +37,10 @@
       {
         "decision": "legacy_compatibility",
         "count": 6
+      },
+      {
+        "decision": "requires_review",
+        "count": 2
       },
       {
         "decision": "unified_ui",
@@ -646,9 +650,20 @@
   ],
   "priority_summary": {
     "blocking_contract_gap_count": 0,
-    "surface_decision_required_family_count": 0,
+    "surface_decision_required_family_count": 2,
     "documentation_only_detail_gap_count": 315,
-    "top_surface_decision_families": []
+    "top_surface_decision_families": [
+      {
+        "family_key": "deployment-info.developer",
+        "surface_decision": "requires_review",
+        "detail_gap_count": 0
+      },
+      {
+        "family_key": "deployment-info.public",
+        "surface_decision": "requires_review",
+        "detail_gap_count": 0
+      }
+    ]
   },
   "scope_boundary": {
     "route_wiring": false,

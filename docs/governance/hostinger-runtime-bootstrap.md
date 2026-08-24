@@ -80,3 +80,28 @@ npm run runtime-bootstrap:apply-grants
 ## Verification checklist بعد التشغيل
 
 بعد كل مرحلة مصرح بها يجب حفظ evidence للـexact SHA والهدف والـprincipal/host، وعدد الجداول قبل التنفيذ، ونتيجة العملية، وpostconditions، وcanonical ledger، وgrant preflight/readback، و`mutation_evidence`. ثم تعاد اختبارات session-context وMCP catalog وAdmin/System Tools وresponse-chunk persistence. ويجب أن يثبت dry-run لـ225 بنية ledger والسياسة والأداة، وأن يثبت dry-run لـ1048 الأعمدة والفهارس وreadiness view؛ schema/ledger presence وحدها لا تكفي لإثبات أن التطبيق يملك `INSERT` أو أن persistence live binding يعمل.
+
+## اكتشاف الهدف من بيئة Hostinger نفسها
+
+عندما لا يعرف المشغّل اسم قاعدة البيانات، لا ينبغي تخمينها من اسم القاعدة أو حجمها في hPanel، ولا نسخ ملف `.env` إلى GitHub. أضيف مسار `runtime_env` مخصص لـ`dry_run` فقط؛ يقرأ `DB_NAME` و`DB_USER` و`GOVERNANCE_DB_NAME` من بيئة التطبيق المحلية، ويشتق `MYSQL_BOOTSTRAP_DATABASE` من `DB_NAME` إذا لم يكن محددًا. لا يستخدم هذا المسار `DB_USER` أو `DB_PASSWORD` كحساب bootstrap، ولا يسمح بأي `apply`.
+
+التحميل من ملف Hostinger ليس ضمن `npm start` ولا `prestart`، بل يجب أن يكون صريحًا عبر أمر الـCLI:
+
+```bash
+cd http-generic-api
+npm run runtime-bootstrap:host-env-dry-run
+```
+
+وهذا يعادل:
+
+```bash
+node scripts/hostinger-runtime-bootstrap.mjs --dry-run --target-source runtime_env --env-file=.env
+```
+
+يقوم البرنامج بالتحقق من source SHA والفرع والـmigration allowlist وحساب bootstrap المخصص قبل أي اتصال. evidence تعرض `target_key` وhashes وconfigured flags فقط، وتضع `raw_values_exposed=false` و`secrets_included=false`. يجب أن يبقى `.env` خارج GitHub وخارج logs، وأن تُحفظ كلمات المرور في Hostinger Environment variables/secret store وفق إعدادات الاستضافة الرسمية.
+
+هذا المسار مناسب للتشخيص والـreadback فقط. أما `apply_migration` و`apply_grants` فيستمران باستخدام `repository_allowlist` و`RUNTIME_BOOTSTRAP_TARGETS_JSON` الموقّع/المثبت، مع approvals المستقلة الحالية. لا يعتبر نجاح `runtime_env` dry_run تفويضًا للتطبيق.
+
+### ملاحظة Hostinger
+
+يستطيع Hostinger استيراد `.env` أثناء إعداد Node.js أو تعديل Environment variables بعد النشر، لكن تغييرات المتغيرات تحتاج rebuild/redeploy لتأخذ أثرًا في التطبيق. لذلك يكون Hostinger Environment variables هو المصدر التشغيلي المفضل، بينما Server Files `.env` لا يصبح فعالًا إلا إذا استُخدم صراحةً عبر `--env-file` أو إعداد تشغيل مكافئ. لا يستطيع GitHub Actions قراءة Server Files مباشرةً.

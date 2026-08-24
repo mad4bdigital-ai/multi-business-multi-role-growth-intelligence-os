@@ -35,6 +35,26 @@
     "target_key_env": "BOOTSTRAP_TARGET_KEY",
     "database_env": "BOOTSTRAP_TARGET_DATABASE",
     "governance_database_env": "BOOTSTRAP_GOVERNANCE_DATABASE",
+    "target_source_env": "BOOTSTRAP_TARGET_SOURCE",
+    "target_source_default": "repository_allowlist",
+    "default_target_key": "production-runtime",
+    "target_sources": {
+      "repository_allowlist": {
+        "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
+        "requires_repository_target_json": true
+      },
+      "runtime_env": {
+        "allowed_modes": ["dry_run"],
+        "requires_repository_target_json": false,
+        "database_env": "DB_NAME",
+        "governance_database_env": "GOVERNANCE_DB_NAME",
+        "principal_env": "DB_USER",
+        "principal_host_env": "DB_PRINCIPAL_HOST",
+        "default_principal_host": "localhost",
+        "raw_values_exposed": false,
+        "apply_allowed": false
+      }
+    },
     "target_role": "runtime",
     "governance_role": "governance",
     "required_environment": "production",

@@ -42,6 +42,7 @@
     "manifest:portable-staging": "node scripts/generate-portable-staging-manifest.mjs",
     "runtime-bootstrap:plan": "node scripts/hostinger-runtime-bootstrap.mjs --plan",
     "runtime-bootstrap:dry-run": "node scripts/hostinger-runtime-bootstrap.mjs --dry-run",
+    "runtime-bootstrap:host-env-dry-run": "node scripts/hostinger-runtime-bootstrap.mjs --dry-run --target-source runtime_env --env-file=.env",
     "runtime-bootstrap:apply-migration": "node scripts/hostinger-runtime-bootstrap.mjs --apply-migration",
     "runtime-bootstrap:apply-grants": "node scripts/hostinger-runtime-bootstrap.mjs --apply-grants",
     "remote-mcp:client:provision": "node scripts/provision-remote-mcp-client.mjs",

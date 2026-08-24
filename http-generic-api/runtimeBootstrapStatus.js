@@ -25,9 +25,14 @@ function safeContractState() {
 export function getRuntimeBootstrapStatus(env = process.env) {
   const contract = safeContractState();
   const hookConfigured = String(env.RUNTIME_BOOTSTRAP_HOOK || "").trim() === HOOK_VALUE;
-  const targetPlanConfigured = configured(env.RUNTIME_BOOTSTRAP_TARGETS_JSON)
-    && configured(env.BOOTSTRAP_TARGET_KEY || env.RECOVERY_TARGET_KEY)
-    && configured(env.BOOTSTRAP_TARGET_DATABASE || env.MYSQL_BOOTSTRAP_DATABASE);
+  const targetSource = String(env.BOOTSTRAP_TARGET_SOURCE || "repository_allowlist").trim().toLowerCase();
+  const targetPlanConfigured = targetSource === "runtime_env"
+    ? configured(env.BOOTSTRAP_TARGET_KEY || env.RECOVERY_TARGET_KEY)
+      && configured(env.DB_NAME)
+      && configured(env.DB_USER)
+    : configured(env.RUNTIME_BOOTSTRAP_TARGETS_JSON)
+      && configured(env.BOOTSTRAP_TARGET_KEY || env.RECOVERY_TARGET_KEY)
+      && configured(env.BOOTSTRAP_TARGET_DATABASE || env.MYSQL_BOOTSTRAP_DATABASE);
   const exactShaConfigured = SHA_RE.test(String(env.BOOTSTRAP_EXPECTED_SHA || env.EXPECTED_SHA || "").trim());
   const bootstrapCredentialNamesConfigured = ["MYSQL_BOOTSTRAP_HOST", "MYSQL_BOOTSTRAP_USER", "MYSQL_BOOTSTRAP_PASSWORD"]
     .every((key) => configured(env[key]));
@@ -65,6 +70,12 @@ export function getRuntimeBootstrapStatus(env = process.env) {
       target_binding_configured: targetPlanConfigured,
       branch: "Production",
       repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    },
+    target_binding: {
+      source: targetSource,
+      raw_values_exposed: false,
+      secrets_included: false,
+      runtime_env_discovery_allowed_mode: "dry_run",
     },
     bootstrap_credentials: {
       namespace: "MYSQL_BOOTSTRAP_*",

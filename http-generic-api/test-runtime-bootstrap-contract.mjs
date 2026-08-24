@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import zlib from "node:zlib";
@@ -169,6 +171,68 @@ test("every non-plan bootstrap mode requires exact SHA metadata", () => {
     if (mode !== "plan") assert.equal(exactShaModes.has(mode), true, `missing exact SHA requirement for ${mode}`);
   }
   assert.equal(exactShaModes.has("apply"), false);
+});
+
+test("runtime_env target discovery derives a no-secret binding for dry_run without repository target JSON", () => {
+  const env = envFor();
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_USER = TARGET.principal;
+  delete env.BOOTSTRAP_TARGET_KEY;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  const result = buildPlan(env, contract);
+  assert.equal(result.ok, true);
+  assert.equal(result.target_binding.source, "runtime_env");
+  assert.equal(result.target_binding.target_key, TARGET_KEY);
+  assert.equal(result.target_binding.database_sha256, sha256Hex(TARGET_DATABASE));
+  assert.equal(result.target_binding.raw_values_exposed, false);
+  assert.equal(result.target_binding.secrets_included, false);
+  assert.equal(result.database_connection_performed, false);
+});
+
+test("runtime_env target discovery is denied for apply modes", () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_USER = TARGET.principal;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
+});
+
+test("CLI loads an explicit env file only for runtime_env dry_run and still fails before DB without bootstrap credentials", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-bootstrap-env-test-"));
+  const envFile = path.join(tempDir, ".env");
+  const cli = new URL("./scripts/hostinger-runtime-bootstrap.mjs", import.meta.url);
+  fs.writeFileSync(envFile, [
+    `BOOTSTRAP_EXPECTED_SHA=${EXPECTED_SHA}`,
+    "BOOTSTRAP_EXPECTED_BRANCH=Production",
+    "BOOTSTRAP_EXPECTED_REPOSITORY=mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    `BOOTSTRAP_TARGET_KEY=${TARGET_KEY}`,
+    `BOOTSTRAP_MIGRATION=20260815_custom_gpt_mcp_catalog_levels.sql`,
+    `DB_NAME=${TARGET_DATABASE}`,
+    "DB_HOST=db.internal",
+    `DB_USER=${TARGET.principal}`,
+  ].join("\n") + "\n", "utf8");
+  const result = spawnSync(process.execPath, [
+    cli.pathname,
+    "--dry-run",
+    "--target-source", "runtime_env",
+    "--env-file", envFile,
+  ], { encoding: "utf8", env: { PATH: process.env.PATH || "", NODE_NO_WARNINGS: "1" } });
+  try {
+    assert.equal(result.status, 1);
+    const evidence = JSON.parse(result.stdout);
+    assert.equal(evidence.error.code, "bootstrap_credentials_missing");
+    assert.equal(evidence.database_connection_performed, false);
+    assert.equal(evidence.database_mutation_performed, false);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("plan mode is the default and performs no DB connection or mutation", () => {

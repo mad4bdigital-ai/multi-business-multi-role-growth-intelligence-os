@@ -6,10 +6,10 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 | Metric | Value |
 |---|---:|
 | Tracked files scanned | 7306 |
-| Routes discovered | 1076 |
-| Write routes discovered | 654 |
-| Classified write-surface candidates | 38 |
-| Classified write routes | 654 |
+| Routes discovered | 1078 |
+| Write routes discovered | 655 |
+| Classified write-surface candidates | 39 |
+| Classified write routes | 655 |
 | Intentionally unmapped write routes (blocked) | 616 |
 | Migrations with governance evidence | 446 |
 | DB catalog fingerprint match | true |

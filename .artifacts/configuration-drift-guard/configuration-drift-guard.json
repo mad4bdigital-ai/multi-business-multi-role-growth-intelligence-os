@@ -1,0 +1,107 @@
+{
+  "contract": "mad4b.configuration-drift-guard.v1",
+  "schema_version": 1,
+  "ok": false,
+  "policy_path": "docs/governance/configuration-drift-policy.json",
+  "current_candidate_count": 2017,
+  "baseline_candidate_count": 2091,
+  "new_candidate_count": 46,
+  "suppressed_candidate_count": 32,
+  "removed_candidate_count": 120,
+  "current_fingerprint_sha256": "109f0b93546dd9b3dd17bb5f3357c88f29f6047e4a364d5e86b92e5c47eef521",
+  "findings": [
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/runtimeBootstrapContract.js|environment|literal_declaration|environment"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/runtimeBootstrapStatus.js|targetPlanConfigured|literal_declaration|targetplanconfigured"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs|source|environment_reference|bootstrap.target.source"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-bootstrap-contract.mjs|PATH|environment_reference|path"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|DB_NAME|environment_reference|db.name"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|DB_USER|environment_reference|db.user"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|GITHUB_REF_NAME|environment_reference|github.ref.name"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|GITHUB_SHA|environment_reference|github.sha"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|GOVERNANCE_DB_NAME|environment_reference|governance.db.name"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousGithubRefName|environment_reference|github.ref.name"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousGithubSha|environment_reference|github.sha"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeDbName|environment_reference|db.name"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeDbUser|environment_reference|db.user"
+    },
+    {
+      "code": "NEW_CONFIGURATION_CANDIDATE_DRIFT",
+      "severity": "high",
+      "message": "A new configuration candidate is not in the approved baseline or a valid suppression.",
+      "fingerprint": "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeGovernanceDbName|environment_reference|governance.db.name"
+    }
+  ],
+  "repository_mutation_executed": false,
+  "database_mutation_executed": false,
+  "production_activation_executed": false,
+  "secrets_included": false,
+  "manifest_safety": {
+    "migration_generation_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false
+  }
+}

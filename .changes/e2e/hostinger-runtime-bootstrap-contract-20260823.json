@@ -24,6 +24,8 @@
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/Dockerfile",
       "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/openapi.yaml",
       "http-generic-api/server.js",
       "http-generic-api/package.json",
       ".github/workflows/production-runtime-parity-evidence.yml",
@@ -57,11 +59,12 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository or GitHub Environment operator",
-          "entrypoint": "hostinger-runtime-bootstrap CLI or manual GitHub workflow",
-          "terminal_outcome": "Plan mode is read-only by default; dry-run classifies target schema, ledger, postconditions, and grants; apply_migration and apply_grants are separate operations with independent exact SHA/target/identity confirmations, while combined apply is denied.",
+          "entrypoint": "hostinger-runtime-bootstrap CLI, protected host-side runtime dry-run route, or manual GitHub workflow",
+          "terminal_outcome": "Plan mode is read-only by default; repository allowlist dry-run and host-side runtime_env dry-run classify target schema, ledger, postconditions, and grants; apply_migration and apply_grants are separate operations with independent exact SHA/target/identity confirmations, while combined apply and runtime_env apply are denied.",
           "steps": [
             "Validate exact Production source repository, branch, and 40-character SHA.",
             "Validate a repository-owned target entry with database SHA-256 and target fingerprint bound to repository, branch, key, runtime/governance databases, principal, and principal host.",
+            "For dry-run only, allow an explicit runtime_env source to derive DB_NAME/DB_USER locally from Hostinger, use DB_NAME as the connection database when MYSQL_BOOTSTRAP_DATABASE is absent, and expose only hashes/configured flags.",
             "Reject runtime DB credentials as bootstrap credentials and never fall back to DB_*.",
             "Classify zero-table and nonempty databases before any baseline decision.",
             "Allow 225 and 1048 only in dry-run/verification mode and read back their canonical schema/readiness postconditions.",
@@ -77,7 +80,8 @@
             "Missing bundle, source mismatch, table-count mismatch, or checksum mismatch blocks zero-table mutation before SQL.",
             "A nonempty database cannot use the baseline bundle.",
             "A schema-ready database without apply-ledger evidence remains apply-required and is never record-only reconciled.",
-            "Credential values, SQL text, and passwords are absent from bounded evidence; failed DDL/GRANT attempts report unknown/partial mutation state and completed counts.",
+            "Credential values, SQL text, raw database/principal values, and passwords are absent from bounded evidence; failed DDL/GRANT attempts report unknown/partial mutation state and completed counts.",
+            "The protected host-side runtime bootstrap dry-run route rejects missing backend authentication, accepts no database name from the request, and returns no mutation flags.",
             "Combined apply is denied; migration and grants approvals are independent, and the repository does not claim that Hostinger release-hook configuration exists; live operational execution remains a separate step."
           ],
           "tests": [

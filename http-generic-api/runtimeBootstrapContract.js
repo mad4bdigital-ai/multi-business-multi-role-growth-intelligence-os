@@ -160,6 +160,88 @@ function assertAccountHost(value, field) {
   return normalized;
 }
 
+const RUNTIME_ENV_TARGET_SOURCE = "runtime_env";
+const REPOSITORY_TARGET_SOURCE = "repository_allowlist";
+
+function normalizeTargetSource(value) {
+  const source = String(value || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
+  if (![REPOSITORY_TARGET_SOURCE, RUNTIME_ENV_TARGET_SOURCE].includes(source)) {
+    throw bootstrapError("bootstrap_target_source_invalid", "Bootstrap target source must be repository_allowlist or runtime_env", { source });
+  }
+  return source;
+}
+
+function normalizeRuntimeEnvironmentInputs(env = {}) {
+  const normalized = { ...env };
+  const source = String(normalized.BOOTSTRAP_TARGET_SOURCE || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
+  const mode = String(normalized.BOOTSTRAP_MODE || "plan").trim().toLowerCase();
+  if (source === RUNTIME_ENV_TARGET_SOURCE && mode === "dry_run") {
+    if (!String(normalized.MYSQL_BOOTSTRAP_HOST || "").trim() && String(normalized.DB_HOST || "").trim()) {
+      normalized.MYSQL_BOOTSTRAP_HOST = String(normalized.DB_HOST).trim();
+    }
+    if (!String(normalized.MYSQL_BOOTSTRAP_DATABASE || "").trim() && String(normalized.DB_NAME || "").trim()) {
+      normalized.MYSQL_BOOTSTRAP_DATABASE = String(normalized.DB_NAME).trim();
+    }
+  }
+  return normalized;
+}
+
+function buildRuntimeEnvironmentTarget(env, contract, mode) {
+  if (mode !== "dry_run") {
+    throw bootstrapError("bootstrap_runtime_target_source_mode_denied", "runtime_env target discovery is restricted to dry_run", { mode });
+  }
+  const repository = contract.source_binding.required_repository || contract.source_binding.repository;
+  const branch = contract.target_binding.required_branch || contract.source_binding.branch;
+  const key = assertIdentifier(env.BOOTSTRAP_TARGET_KEY || contract.target_binding.default_target_key || "production-runtime", "BOOTSTRAP_TARGET_KEY");
+  const database = assertDatabase(env.DB_NAME, "DB_NAME");
+  const governanceDatabase = String(env.GOVERNANCE_DB_NAME || "").trim()
+    ? assertDatabase(env.GOVERNANCE_DB_NAME, "GOVERNANCE_DB_NAME")
+    : database;
+  const principal = assertIdentifier(env.DB_USER, "DB_USER");
+  // Hostinger's standard MySQL host is localhost. A deployment may override this
+  // for a remote grant principal, but it must be explicit rather than inferred from DB_HOST.
+  const principalHost = assertAccountHost(env.DB_PRINCIPAL_HOST || "localhost", "DB_PRINCIPAL_HOST");
+  const bootstrapDatabase = String(env.MYSQL_BOOTSTRAP_DATABASE || "").trim();
+  if (bootstrapDatabase && bootstrapDatabase !== database) {
+    throw bootstrapError("bootstrap_connection_database_mismatch", "MYSQL_BOOTSTRAP_DATABASE must match DB_NAME for runtime_env discovery", { source: RUNTIME_ENV_TARGET_SOURCE });
+  }
+  const environment = "production";
+  const databaseSha = sha256Hex(database);
+  const governanceDatabaseSha = sha256Hex(governanceDatabase);
+  const targetFingerprint = sha256Hex(`${repository}:${branch}:${key}:${database}:${governanceDatabase}:${principal}:${principalHost}`);
+  return {
+    key,
+    database,
+    governance_database: governanceDatabase === database ? null : governanceDatabase,
+    repository,
+    branch,
+    environment,
+    principal,
+    principal_host: principalHost,
+    database_sha256: databaseSha,
+    governance_database_sha256: governanceDatabase === database ? null : governanceDatabaseSha,
+    target_fingerprint: targetFingerprint,
+    target_source: RUNTIME_ENV_TARGET_SOURCE,
+    target_source_runtime_env: true,
+  };
+}
+
+function describeTargetBinding(target, source) {
+  return {
+    source,
+    target_key: target.key,
+    database_configured: Boolean(target.database),
+    governance_database_configured: Boolean(target.governance_database || target.database),
+    principal_configured: Boolean(target.principal),
+    principal_host_configured: Boolean(target.principal_host),
+    database_sha256: target.database_sha256 || sha256Hex(target.database),
+    governance_database_sha256: target.governance_database_sha256 || sha256Hex(target.governance_database || target.database),
+    target_fingerprint: target.target_fingerprint || sha256Hex(`${target.repository}:${target.branch}:${target.key}:${target.database}:${target.governance_database || target.database}:${target.principal}:${target.principal_host}`),
+    raw_values_exposed: false,
+    secrets_included: false,
+  };
+}
+
 function normalizeEntry(entry) {
   if (typeof entry === "string") return { file: entry };
   if (!entry || typeof entry !== "object") throw bootstrapError("bootstrap_target_entry_invalid", "Bootstrap target entry must be an object or file string");
@@ -203,6 +285,9 @@ export function parseTargetAllowlist(env, contract) {
 }
 
 export function resolveBootstrapTarget(env, contract) {
+  const mode = normalizeMode(env.BOOTSTRAP_MODE || "plan");
+  const source = normalizeTargetSource(env.BOOTSTRAP_TARGET_SOURCE);
+  if (source === RUNTIME_ENV_TARGET_SOURCE) return buildRuntimeEnvironmentTarget(env, contract, mode);
   const key = requireString(env.BOOTSTRAP_TARGET_KEY, "bootstrap_target_key_missing", "BOOTSTRAP_TARGET_KEY");
   const requestedDatabase = requireString(env.BOOTSTRAP_TARGET_DATABASE, "bootstrap_target_database_missing", "BOOTSTRAP_TARGET_DATABASE");
   const targets = parseTargetAllowlist(env, contract);
@@ -222,7 +307,7 @@ export function resolveBootstrapTarget(env, contract) {
   if (target.governance_database && governanceDatabase !== String(env.BOOTSTRAP_GOVERNANCE_DATABASE || target.governance_database).trim()) {
     throw bootstrapError("bootstrap_governance_database_mismatch", "BOOTSTRAP_GOVERNANCE_DATABASE does not match the allowlisted target", { key });
   }
-  return { ...target, governance_database: governanceDatabase };
+  return { ...target, governance_database: governanceDatabase, target_source: REPOSITORY_TARGET_SOURCE, target_source_runtime_env: false };
 }
 
 export function validateSourceBinding(env, contract, mode) {
@@ -680,6 +765,7 @@ async function insertLedgerRecord(connection, migration, checksum, statementCoun
 }
 
 export function buildPlan(env = process.env, contract = readRuntimeBootstrapContract()) {
+  env = normalizeRuntimeEnvironmentInputs(env);
   const mode = normalizeMode(env.BOOTSTRAP_MODE || "plan");
   const source = validateSourceBinding(env, contract, mode);
   const result = {
@@ -703,10 +789,11 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   const credentials = validateBootstrapCredentials(env, { requirePassword: false, target });
   if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration: migration.file }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: true, separate_from_target_principal: credentials.separate_from_target_principal }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: true, separate_from_target_principal: credentials.separate_from_target_principal }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
 }
 
 export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory } = {}) {
+  env = normalizeRuntimeEnvironmentInputs(env);
   const mode = normalizeMode(env.BOOTSTRAP_MODE || "plan");
   const plan = buildPlan(env, contract);
   if (mode === "plan") return plan;

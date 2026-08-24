@@ -164,7 +164,7 @@ export function registerRoutes(app, deps) {
   app.use(createOpenApiMutationGovernanceMiddleware({ env: deps?.env || process.env }));
   app.use(buildTenantGptOAuthMetadataRoutes(deps));
   app.use(buildActivationHostGatewayRoutes());
-  app.use(buildDeploymentInfoRoutes());
+  app.use(buildDeploymentInfoRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminOnboardingRoutes({ ...deps, requireAdminPrincipal }));

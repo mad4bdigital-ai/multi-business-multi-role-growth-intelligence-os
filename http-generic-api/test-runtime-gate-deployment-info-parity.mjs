@@ -66,6 +66,11 @@ const dir = mkdtempSync(join(tmpdir(), "mad4b-deployment-info-parity-"));
 const manifestPath = join(dir, "deployment-manifest.json");
 const commitSha = "0123456789abcdef0123456789abcdef01234567";
 const previousManifestPath = process.env.DEPLOYMENT_MANIFEST_PATH;
+const previousRuntimeDbName = process.env.DB_NAME;
+const previousRuntimeDbUser = process.env.DB_USER;
+const previousRuntimeGovernanceDbName = process.env.GOVERNANCE_DB_NAME;
+const previousGithubSha = process.env.GITHUB_SHA;
+const previousGithubRefName = process.env.GITHUB_REF_NAME;
 let server;
 
 try {
@@ -80,8 +85,12 @@ try {
     build_source: "git",
   }));
   process.env.DEPLOYMENT_MANIFEST_PATH = manifestPath;
+  process.env.DB_NAME = "runtime-discovery-test";
+  process.env.DB_USER = "runtime-principal-test";
+  process.env.GOVERNANCE_DB_NAME = "governance-discovery-test";
 
   const app = express();
+  app.use(express.json());
   let integrityReaderInput;
   app.use(buildDeploymentInfoRoutes({
     runtimeIntegrityReader: async (input) => {
@@ -105,6 +114,10 @@ try {
       provenance_verified: false,
       provenance_source: null,
     });
+    },
+    requireBackendApiKey: (req, res, next) => {
+      if (req.headers["x-api-key"] !== "test-backend-key") return res.status(401).json({ ok: false, error: { code: "missing_backend_api_key" } });
+      return next();
     },
     runtimeBootstrapStatusReader: async () => ({
       contract: "mad4b.hostinger.runtime-bootstrap-status.v1",
@@ -179,6 +192,39 @@ try {
   );
   assert.equal(Object.hasOwn(deploymentInfo, "production_activation_readiness"), false, "combined readiness must remain opt-in");
 
+  const bindingUnauthorizedResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`);
+  assert.equal(bindingUnauthorizedResponse.status, 401);
+  const bindingResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`, { headers: { "x-api-key": "test-backend-key" } });
+  assert.equal(bindingResponse.status, 200);
+  const bindingInfo = await bindingResponse.json();
+  assert.equal(bindingInfo.ok, true);
+  assert.equal(bindingInfo.runtime_binding.configured, true);
+  assert.equal(bindingInfo.runtime_binding.database_sha256, "6195886430387397fcbdd86c75e75a72528b08f2d19d7b36ed570df021710ede");
+  assert.equal(bindingInfo.runtime_binding.raw_values_exposed, false);
+  assert.equal(bindingInfo.runtime_binding.secrets_included, false);
+  assert.equal(Object.hasOwn(bindingInfo.runtime_binding, "database"), false);
+  assert.equal(Object.hasOwn(bindingInfo.runtime_binding, "principal"), false);
+  assert.equal(bindingInfo.runtime_binding.database_connection_performed, false);
+  assert.equal(bindingInfo.runtime_binding.database_mutation_performed, false);
+
+  process.env.DEPLOYMENT_MANIFEST_PATH = join(dir, "missing-deployment-manifest.json");
+  process.env.GITHUB_SHA = commitSha;
+  process.env.GITHUB_REF_NAME = "Production";
+  const dryRunResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-bootstrap-dry-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "test-backend-key" },
+    body: JSON.stringify({ expected_sha: commitSha }),
+  });
+  assert.equal(dryRunResponse.status, 412);
+  const dryRunInfo = await dryRunResponse.json();
+  assert.equal(dryRunInfo.error.code, "bootstrap_credentials_missing");
+  assert.equal(dryRunInfo.target_source, "runtime_env");
+  assert.equal(dryRunInfo.database_connection_performed, false);
+  assert.equal(dryRunInfo.database_mutation_performed, false);
+  assert.equal(dryRunInfo.migration_apply_performed, false);
+  assert.equal(dryRunInfo.grant_mutation_performed, false);
+  assert.equal(dryRunInfo.secrets_included, false);
+
   const readinessResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info?include_production_activation_readiness=1`);
   assert.equal(readinessResponse.status, 200);
   const readinessInfo = await readinessResponse.json();
@@ -192,6 +238,16 @@ try {
   if (server) await new Promise((resolve) => server.close(resolve));
   if (previousManifestPath === undefined) delete process.env.DEPLOYMENT_MANIFEST_PATH;
   else process.env.DEPLOYMENT_MANIFEST_PATH = previousManifestPath;
+  if (previousRuntimeDbName === undefined) delete process.env.DB_NAME;
+  else process.env.DB_NAME = previousRuntimeDbName;
+  if (previousRuntimeDbUser === undefined) delete process.env.DB_USER;
+  else process.env.DB_USER = previousRuntimeDbUser;
+  if (previousRuntimeGovernanceDbName === undefined) delete process.env.GOVERNANCE_DB_NAME;
+  else process.env.GOVERNANCE_DB_NAME = previousRuntimeGovernanceDbName;
+  if (previousGithubSha === undefined) delete process.env.GITHUB_SHA;
+  else process.env.GITHUB_SHA = previousGithubSha;
+  if (previousGithubRefName === undefined) delete process.env.GITHUB_REF_NAME;
+  else process.env.GITHUB_REF_NAME = previousGithubRefName;
   rmSync(dir, { recursive: true, force: true });
 }
 

@@ -9,10 +9,10 @@
   ],
   "db_catalog_fingerprint_match": true,
   "file_count": 7306,
-  "route_count": 1076,
-  "write_route_count": 654,
-  "classified_write_surface_count": 38,
-  "classified_write_route_count": 654,
+  "route_count": 1078,
+  "write_route_count": 655,
+  "classified_write_surface_count": 39,
+  "classified_write_route_count": 655,
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 616,
   "sensitive_intentionally_unmapped_write_route_count": 616,
@@ -2550,9 +2550,27 @@
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:0",
-      "source_line": 192,
-      "source_offset": 6071,
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
+      "source_line": 247,
+      "source_offset": 7941,
+      "method": "POST",
+      "path": "/deployment-info/runtime-bootstrap-dry-run",
+      "file": "http-generic-api/routes/deploymentInfoRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:1",
+      "source_line": 327,
+      "source_offset": 12996,
+      "method": "GET",
+      "path": "/deployment-info/runtime-binding",
+      "file": "http-generic-api/routes/deploymentInfoRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:2",
+      "source_line": 342,
+      "source_offset": 13590,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -9875,6 +9893,16 @@
       "method": "POST",
       "path": "/connector/:device_id/github",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
+      "status": "shadow",
+      "provider_mutation_allowed": false,
+      "readback_required": true
+    },
+    {
+      "scope_key": "hostinger.deploy",
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
+      "method": "POST",
+      "path": "/deployment-info/runtime-bootstrap-dry-run",
+      "file": "http-generic-api/routes/deploymentInfoRoutes.js",
       "status": "shadow",
       "provider_mutation_allowed": false,
       "readback_required": true
@@ -20602,6 +20630,70 @@
       "classification_confidence": "heuristic_requires_manual_confirmation",
       "risk_class": "high",
       "reason": "tenant_domain_write_requires_resource_authority_binding"
+    },
+    {
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
+      "classification": "shadow_candidate",
+      "mapping_status": "blocked_until_explicit_binding",
+      "domain": "hostinger",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/deploymentInfoRoutes.js",
+        "source_line": 247,
+        "handler_window_lines": [
+          247,
+          325
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": false,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "hostinger"
+          ],
+          "db_registry": [],
+          "authority": [
+            "role"
+          ],
+          "readback": [],
+          "mutation": [
+            "deploy"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [
+        "hostinger.deploy"
+      ],
+      "classification_confidence": "catalog_pattern",
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "remote-mcp-governance"
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/openclaude/bridge/v1/chat/completions:2",
@@ -52106,19 +52198,19 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 654,
+      "routes": 655,
       "domains": 11,
-      "handler_files": 128
+      "handler_files": 129
     },
     "edge_counts": {
-      "route_to_handler_file": 654,
-      "route_to_domain": 654,
-      "route_to_provider_signal": 94,
+      "route_to_handler_file": 655,
+      "route_to_domain": 655,
+      "route_to_provider_signal": 95,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 405,
+      "route_to_authority_signal": 406,
       "route_to_readback_signal": 366,
-      "route_to_mutation_signal": 372,
-      "route_to_explicit_scope_candidate": 38
+      "route_to_mutation_signal": 373,
+      "route_to_explicit_scope_candidate": 39
     },
     "execution_edges_are_non_authorizing": true,
     "static_only": true,
