@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7331,
+  "file_count": 7336,
   "route_count": 1087,
   "write_route_count": 659,
   "classified_write_surface_count": 40,
@@ -2587,8 +2587,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
-      "source_line": 282,
-      "source_offset": 9031,
+      "source_line": 281,
+      "source_offset": 8990,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2596,8 +2596,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:1",
-      "source_line": 346,
-      "source_offset": 13579,
+      "source_line": 344,
+      "source_offset": 13503,
       "method": "GET",
       "path": "/deployment-info/runtime-binding",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2605,8 +2605,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:2",
-      "source_line": 353,
-      "source_offset": 13891,
+      "source_line": 351,
+      "source_offset": 13815,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -9023,7 +9023,7 @@
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-authorization-server:0",
       "source_line": 140,
-      "source_offset": 5260,
+      "source_offset": 5245,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -9032,7 +9032,7 @@
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-protected-resource:1",
       "source_line": 179,
-      "source_offset": 7242,
+      "source_offset": 7223,
       "method": "GET",
       "path": "/.well-known/oauth-protected-resource",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -9040,8 +9040,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js#POST:/auth/oauth/token:0",
-      "source_line": 302,
-      "source_offset": 11521,
+      "source_line": 287,
+      "source_offset": 10982,
       "method": "POST",
       "path": "/auth/oauth/token",
       "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
@@ -20863,10 +20863,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 282,
+        "source_line": 281,
         "handler_window_lines": [
-          282,
-          344
+          281,
+          342
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49218,10 +49218,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-        "source_line": 302,
+        "source_line": 287,
         "handler_window_lines": [
-          302,
-          578
+          287,
+          567
         ],
         "evidence_flags": {
           "handler_window_present": true,

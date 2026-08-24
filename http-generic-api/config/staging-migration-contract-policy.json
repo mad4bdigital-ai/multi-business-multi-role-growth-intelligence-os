@@ -86,6 +86,25 @@
     "provider_access_allowed": false,
     "secrets_included": false
   },
+  "enum_seed_chain_contract": {
+    "enabled": true,
+    "engine": "mariadb",
+    "baseline_file": "http-generic-api/schema.sql",
+    "ordered_numeric_filename_and_lexicographic_tie_break": true,
+    "fail_on_unsupported_literal": true,
+    "inspect_create_alter_enum_domains": true,
+    "inspect_insert_replace_update_literals": true,
+    "allow_null_default_and_dynamic_expressions": true,
+    "static_only": true,
+    "database_connection_allowed": false,
+    "sql_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "credential_access_allowed": false,
+    "data_export_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false,
+    "policy_key": "mariadb_enum_seed_ordered_chain_v1"
+  },
   "canonical_unique_guard_contracts": [
     {
       "table": "secret_references",

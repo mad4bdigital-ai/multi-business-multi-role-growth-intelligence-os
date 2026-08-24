@@ -65,6 +65,29 @@ jobs:
             .plan.ordered_collation_chain.sql_mutation_performed == false and
             .plan.ordered_collation_chain.provider_mutation_performed == false and
             .plan.ordered_collation_chain.secrets_included == false and
+            .plan.ordered_enum_seed_chain.ok == true and
+            .plan.ordered_enum_seed_chain.ready == true and
+            .plan.ordered_enum_seed_chain.finding_count == 0 and
+            (.plan.ordered_enum_seed_chain.files_checked == (.plan.migration_count + 1)) and
+            (.plan.ordered_enum_seed_chain.statements_checked > .plan.statement_count) and
+            .plan.ordered_enum_seed_chain.database_connection_performed == false and
+            .plan.ordered_enum_seed_chain.sql_mutation_performed == false and
+            .plan.ordered_enum_seed_chain.provider_mutation_performed == false and
+            .plan.ordered_enum_seed_chain.credential_access_performed == false and
+            .plan.ordered_enum_seed_chain.data_export_performed == false and
+            .plan.ordered_enum_seed_chain.runtime_mutation_performed == false and
+            .plan.ordered_enum_seed_chain.secrets_included == false and
+            .enum_seed_chain.ok == true and
+            (.enum_seed_chain.findings | length) == 0 and
+            (.enum_seed_chain.files_checked > 0) and
+            (.enum_seed_chain.statements_checked > 0) and
+            .enum_seed_chain.database_connection_performed == false and
+            .enum_seed_chain.sql_mutation_performed == false and
+            .enum_seed_chain.provider_mutation_performed == false and
+            .enum_seed_chain.credential_access_performed == false and
+            .enum_seed_chain.data_export_performed == false and
+            .enum_seed_chain.runtime_mutation_performed == false and
+            .enum_seed_chain.secrets_included == false and
             .collation_chain.ok == true and
             (.collation_chain.findings | length) == 0 and
             (.collation_chain.files_checked > 0) and
@@ -93,6 +116,8 @@ jobs:
             " | migrations=" + (.counts.migration_files|tostring) +
             " | statements=" + (.counts.migration_statements|tostring) +
             " | blockers=" + (.summary.blockers|tostring) +
+            " | collation_findings=" + ((.plan.ordered_collation_chain.finding_count // 0)|tostring) +
+            " | enum_seed_findings=" + ((.plan.ordered_enum_seed_chain.finding_count // 0)|tostring) +
             " | preuse=index/fk/ddl-targets/fail-closed" +
             " | safety=static-only/no-db/no-provider/no-secrets"
           ' "$REPORT" >> "$GITHUB_STEP_SUMMARY"

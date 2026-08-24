@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import { splitStatements } from "./scripts/staging-sql-parser.mjs";
 import { compareMigrationFiles, isMigrationFilename } from "./scripts/migration-order.mjs";
+import { inspectOrderedMigrationChainEnumSeeds } from "./databaseEnumSeedPolicyGuard.js";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
@@ -66,6 +67,25 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
   assert.equal(migrationPolicy.safety.provider_access_allowed, false);
   assert.equal(migrationPolicy.safety.credential_access_allowed, false);
   assert.equal(migrationPolicy.safety.data_export_allowed, false);
+  assert.deepEqual(migrationPolicy.enum_seed_chain_contract, {
+    enabled: true,
+    engine: "mariadb",
+    baseline_file: "http-generic-api/schema.sql",
+    ordered_numeric_filename_and_lexicographic_tie_break: true,
+    fail_on_unsupported_literal: true,
+    inspect_create_alter_enum_domains: true,
+    inspect_insert_replace_update_literals: true,
+    allow_null_default_and_dynamic_expressions: true,
+    static_only: true,
+    database_connection_allowed: false,
+    sql_mutation_allowed: false,
+    provider_access_allowed: false,
+    credential_access_allowed: false,
+    data_export_allowed: false,
+    runtime_mutation_allowed: false,
+    secrets_included: false,
+    policy_key: "mariadb_enum_seed_ordered_chain_v1",
+  });
 });
 
 test("schema bundle manifest declares exactly three isolated roles", () => {
@@ -218,6 +238,16 @@ test("numeric migration ordering runs dependencies before later indexes", () => 
       < orderedMigrations.indexOf("20260725_repository_authority_capability_readiness_repair.sql"),
     "repository authority system-key alignment must run before the 20260725 repair",
   );
+  for (const [repair, firstWriter] of [
+    ["201_sprint67_z_mariadb_engine_registry_enum_domain_alignment.sql", "201_sprint68_lifecycle_owner_engine_registry_alignment.sql"],
+    ["233_sprint67_z_mariadb_policy_mode_enum_domain_alignment.sql", "233_sprint68_general_mode_choice_governance.sql"],
+    ["244_sprint67_z_mariadb_lifecycle_registry_enum_domain_alignment.sql", "244_sprint68_sequential_plan_orchestrator.sql"],
+    ["20260720_z_mariadb_activation_tile_scope_enum_domain_alignment.sql", "20260721_ci_guard_operational_alert_ingestion_slo.sql"],
+    ["958_sprint67_z_mariadb_resource_adapter_kind_enum_domain_alignment.sql", "958_sprint68_github_file_content_gate_and_patch_plan_registry.sql"],
+  ]) {
+    assert.ok(orderedMigrations.indexOf(repair) !== -1, `${repair} must exist`);
+    assert.ok(orderedMigrations.indexOf(repair) < orderedMigrations.indexOf(firstWriter), `${repair} must precede ${firstWriter}`);
+  }
 });
 
 test("expanded pre-use audit catches index and foreign-key dependency gaps", () => {
@@ -594,19 +624,32 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 787);
-  assert.equal(plan.statement_count, 3051);
+  assert.equal(plan.migration_count, 792);
+  assert.equal(plan.statement_count, 3056);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 788);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3078);
+  assert.equal(plan.ordered_collation_chain.files_checked, 793);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3083);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.secrets_included, false);
+  assert.equal(plan.ordered_enum_seed_chain.contract, "mad4b.mariadb-enum-seed-ordered-chain.v1");
+  assert.equal(plan.ordered_enum_seed_chain.ok, true);
+  assert.equal(plan.ordered_enum_seed_chain.ready, true);
+  assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 793);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3083);
+  assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
+  assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
+  assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
+  assert.equal(plan.ordered_enum_seed_chain.credential_access_performed, false);
+  assert.equal(plan.ordered_enum_seed_chain.data_export_performed, false);
+  assert.equal(plan.ordered_enum_seed_chain.runtime_mutation_performed, false);
+  assert.equal(plan.ordered_enum_seed_chain.secrets_included, false);
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
@@ -739,6 +782,9 @@ test("generator preflight emits batch baseline and collation-chain contract evid
   assert.match(generator, /function orderedCollationAudit/);
   assert.match(generator, /ordered_collation_chain: collationAuditMetadata/);
   assert.match(generator, /ordered_collation_chain_checked: true/);
+  assert.match(generator, /function orderedEnumSeedAudit/);
+  assert.match(generator, /ordered_enum_seed_chain: orderedEnumSeedMetadata/);
+  assert.match(generator, /ordered_enum_seed_chain_checked: true/);
 });
 
 test("MariaDB collation repairs are narrow and precede first risky JOIN use", () => {

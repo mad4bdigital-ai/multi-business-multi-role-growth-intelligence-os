@@ -77,6 +77,15 @@ function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+const PARALLEL_SHARED_GOVERNANCE_FILES = new Set([
+  "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+  "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs"
+]);
+
+function isParallelSharedGovernanceFile(file) {
+  return PARALLEL_SHARED_GOVERNANCE_FILES.has(normalize(file));
+}
+
 export function resolveParallelMaintenanceScope(contract) {
   const contractScope = Array.isArray(contract.scope?.include) ? contract.scope.include : [];
   const workstreamScopes = Array.isArray(contract.parallel_work?.workstreams)
@@ -487,6 +496,7 @@ function main() {
     const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
     const runtimeFiles = report.changed_files.filter((file) =>
       policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
+      && !isParallelSharedGovernanceFile(file)
     );
     const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
       root: options.root,
