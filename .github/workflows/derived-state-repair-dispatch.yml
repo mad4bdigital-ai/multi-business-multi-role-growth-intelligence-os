@@ -90,13 +90,14 @@ jobs:
           normalized_head_repo="$(printf '%s' "$head_repo_full_name" | tr '[:upper:]' '[:lower:]')"
           normalized_base_repo="$(printf '%s' "$base_repo_full_name" | tr '[:upper:]' '[:lower:]')"
           [[ "$expected_repo" =~ ^[a-z0-9_.-]+/[a-z0-9_.-]+$ ]]
-          [[ "$normalized_head_repo" =~ ^[a-z0-9_.-]+/[a-z0-9_.-]+$ ]]
-          [[ "$normalized_base_repo" =~ ^[a-z0-9_.-]+/[a-z0-9_.-]+$ ]]
           [[ "$head_repo_fork" == "true" || "$head_repo_fork" == "false" ]]
           printf 'validated_pr_state=%s\nvalidated_base_ref=%s\nvalidated_head_repo=%s\nvalidated_base_repo=%s\nvalidated_expected_repo=%s\nvalidated_head_repo_fork=%s\nvalidated_pr_head_sha=%s\nvalidated_report_head_sha=%s\n' "$pr_state" "$base_ref" "$normalized_head_repo" "$normalized_base_repo" "$expected_repo" "$head_repo_fork" "$pr_head_sha" "$head_sha"
           test "$pr_state" = "open"
           test "$base_ref" = "main"
-          test "$normalized_head_repo" = "$normalized_base_repo"
+          case "$head_repo_fork" in
+            false) ;;
+            *) echo "Fork PR head is forbidden: $normalized_head_repo" >&2; exit 1 ;;
+          esac
           test "$pr_head_sha" = "$head_sha"
           target_ref="$(jq -er '.head.ref' "$pr" | tr -d '\r')"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
