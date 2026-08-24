@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7334,
-    "bytes": 71909807,
-    "lines": 1679722,
+    "bytes": 71911105,
+    "lines": 1679746,
     "directories": 266,
     "categories": 13
   },
@@ -7088,9 +7088,9 @@
       "path": ".changes/e2e/host-local-inspection-adapter-20260824.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 6984,
-      "lines": 133,
-      "sha256": "a907471abbb96834ef6fa70350e7905d7fe23da272d4a31334e9fb62b476954f",
+      "bytes": 7182,
+      "lines": 136,
+      "sha256": "219e11734344b94f808ab2c36d72adb22e3ac759ddcdc3b543ce8a380e0ac5d9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13580,7 +13580,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "97f02a492605886f2d094fe60229f57895c73ca53093872669ac9549f33aad71",
+      "sha256": "02e3b5c44d893ae365d935b6b9b3ee27cdafdc55cf44bf88abc6f7a45c4dcbcc",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31189,9 +31189,9 @@
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 267937,
-      "lines": 2346,
-      "sha256": "7083963f72a12419c71464fbfa489824ea66e6f19c2c4b42bed257dacb8fdbca",
+      "bytes": 268311,
+      "lines": 2349,
+      "sha256": "ab312a08f6e8b09c804aeac978ac18ab13109cd70964465f7f4e61a44e4edce7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31244,9 +31244,9 @@
       "path": "docs/governance/platform-configuration-entry-registry.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 51177,
-      "lines": 1268,
-      "sha256": "5ffec2d0212c585a1391cd27faab1f0fcba4f39c84ad08b3c75dd9ebf7516b24",
+      "bytes": 51903,
+      "lines": 1286,
+      "sha256": "7e72a6371b415da8493c2426710880b4e6ad65af18c1722d9cb5fe4e2efb70f9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -40277,7 +40277,7 @@
       "extension": ".json",
       "bytes": 3521488,
       "lines": 99287,
-      "sha256": "73162124bee107185fef933702d14fd583ace74710f3fccf2dc890567e281aa3",
+      "sha256": "e22f1f428577ebc48e801c17cc398f01d5abfee04f09d5c1c28f36ab22fc85a1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50969,7 +50969,7 @@
       "extension": ".json",
       "bytes": 27118,
       "lines": 653,
-      "sha256": "b6daba01f0f4886e1ba6197eeaad9b6286e826415698282ade5cc3554a78826c",
+      "sha256": "01948c0a640eab849881ff47c4d9a151763e60cd2666872eaa99c80be46954fb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86279,7 +86279,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "8c08525f71c0094b503e62aa0f29920cfb26f44edaf0862aa94d8e1bfb93576b",
+      "sha256": "a07320721e0b38d6b60d6a563b31ed57eaa4bb25beba9d500dd70c1a62815909",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86290,7 +86290,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "3df5fa801379968a86609fa9138171649622d39c6e1f386ec84a1c661d7f7c9d",
+      "sha256": "4cde15f32ef08a82cd0d25ad74e72fb45686afdfed7d3ae050fb271b454ba025",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86301,7 +86301,7 @@
       "extension": ".json",
       "bytes": 273753,
       "lines": 6500,
-      "sha256": "78d59fc146d61f6a65e1d49bf994e9e6bba0094b85777a9c0aa34dfb0f179aa8",
+      "sha256": "7f867c8929641ca393991955f9c3848c3642e018bcb4e3d18ef5c3c94ed53350",
       "mode": "644",
       "executable": false,
       "generated": false

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7334,
-    "bytes": 71909807,
-    "lines": 1679722,
+    "bytes": 71911105,
+    "lines": 1679746,
     "directories": 266,
     "categories": 13
   },
@@ -336,8 +336,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 267937,
-      "lines": 2346
+      "bytes": 268311,
+      "lines": 2349
     },
     {
       "path": "docs/surface-contract-safety-attestations.json",

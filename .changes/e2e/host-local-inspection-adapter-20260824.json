@@ -11,6 +11,8 @@
       ".changes/e2e/host-local-inspection-adapter-20260824.json",
       "docs/governance/hostinger-runtime-bootstrap.md",
       "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "docs/governance/configuration-drift-policy.json",
       ".github/governance/test-authority-registry.json",
       ".github/derived-state-governance.json",
       "http-generic-api/frontend-surface-policy.json",
