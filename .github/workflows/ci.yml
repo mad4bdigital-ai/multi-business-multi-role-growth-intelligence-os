@@ -33,6 +33,56 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Enforce full Staging migration contract governance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          EXPECTED_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_COMMIT_SHA}" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::CI head SHA is not a full commit SHA"; exit 1; }
+          REPORT="$RUNNER_TEMP/staging-migration-contract-governance.json"
+          node scripts/migration-contract-governance.mjs \
+            --root "$GITHUB_WORKSPACE" \
+            --expected-commit "$EXPECTED_COMMIT_SHA" \
+            --output "$REPORT" | tee "$RUNNER_TEMP/staging-migration-contract-governance-summary.json"
+          jq -e '
+            .source_commit == (env.EXPECTED_COMMIT_SHA | ascii_downcase) and
+            .summary.ok == true and
+            .summary.blockers == 0 and
+            .counts.migration_files > 0 and
+            .plan.plan_only == true and
+            .plan.migration_count == .counts.migration_files and
+            .plan.statement_count == .counts.migration_statements and
+            .plan.ordered_preuse_audit.missing_table_gaps == 0 and
+            .plan.ordered_preuse_audit.missing_column_gaps == 0 and
+            .plan.canonical_table_bootstrap.unresolved_missing_table_gaps == 0 and
+            .safety.database_connection_performed == false and
+            .safety.database_mutation_performed == false and
+            .safety.provider_access_performed == false and
+            .safety.credential_access_performed == false and
+            .safety.data_export_performed == false and
+            .safety.runtime_mutation_performed == false and
+            .safety.secrets_included == false
+          ' "$REPORT"
+          jq -r '
+            "Staging migration contract governance: PASS" +
+            " | source=" + .source_commit +
+            " | migrations=" + (.counts.migration_files|tostring) +
+            " | statements=" + (.counts.migration_statements|tostring) +
+            " | blockers=" + (.summary.blockers|tostring) +
+            " | safety=static-only/no-db/no-provider/no-secrets"
+          ' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Staging migration contract evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-migration-contract-governance-${{ github.run_id }}
+          path: ${{ runner.temp }}/staging-migration-contract-governance.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Guard MariaDB migration charset and collation policy
         working-directory: http-generic-api
         shell: bash

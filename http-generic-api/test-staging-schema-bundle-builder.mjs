@@ -397,6 +397,22 @@ test("migration 1030 widens catalog tags before append-only governance updates",
   assert.doesNotMatch(migration1030, /\b(?:LEFT|SUBSTRING|TRUNCATE)\s*\(/i, "migration 1030 must not truncate governance tags");
 });
 
+test("migration 196 widens every catalog tags column before later long writers", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const migration195 = fs.readFileSync(path.join(migrationsDir, "195_sprint66_connected_execution_read_only_tool_execution.sql"), "utf8");
+  const migration196 = fs.readFileSync(path.join(migrationsDir, "196_sprint66_admin_tool_registry_tags_text.sql"), "utf8");
+  const migration202 = fs.readFileSync(path.join(migrationsDir, "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql"), "utf8");
+  const migration195Alter = /ALTER TABLE\s+admin_platform_endpoint_tools[\s\S]*?MODIFY COLUMN\s+tags\s+TEXT\s+NULL/i;
+  assert.match(migration195, migration195Alter, "migration 195 must widen admin tags before its long update");
+  const tables = ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "local_gateway_tools"];
+  for (const table of tables) {
+    const alter = new RegExp(`ALTER TABLE\\s+${table}\\s+MODIFY COLUMN\\s+tags\\s+TEXT\\s+NULL`, "i");
+    assert.match(migration196, alter, `${table}.tags must be widened by the shared compatibility migration`);
+  }
+  assert.ok(migration196.indexOf("ALTER TABLE tenant_platform_endpoint_tools") < migration196.indexOf("UPDATE admin_platform_endpoint_tools"));
+  assert.match(migration202, /INSERT INTO tenant_platform_endpoint_tools[\s\S]*tags[\s\S]*tenant,infrastructure,ssh,cli,execute/i);
+});
+
 test("migration 1037 uses only the canonical brand_core column contract", () => {
   const migration1037 = fs.readFileSync(path.join(apiRoot, "migrations", "1037_sprint69_dona_brand_core_readiness_data_repair.sql"), "utf8");
   const sql = migration1037.slice(migration1037.indexOf("UPDATE `brand_core`"));
