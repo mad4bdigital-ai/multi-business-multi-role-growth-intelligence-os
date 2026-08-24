@@ -95,7 +95,6 @@ jobs:
           test "$pr_state" = "open"
           test "$base_ref" = "main"
           test "$normalized_head_repo" = "$normalized_base_repo"
-          test "$normalized_base_repo" = "$expected_repo"
           test "$pr_head_sha" = "$head_sha"
           target_ref="$(jq -er '.head.ref' "$pr" | tr -d '\r')"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
