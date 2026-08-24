@@ -108,11 +108,19 @@ jobs:
             echo "reason=no_blocking_repair_authority" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          authority_kind="$(jq -er '.kind' <<<"$authority")"
+          authority_id="$(jq -er '.id' <<<"$authority")"
+          authority_recipe="$(jq -r '.recipe // empty' <<<"$authority")"
+          [[ "$authority_kind" =~ ^[a-z0-9_]+$ ]]
+          [[ "$authority_id" =~ ^[a-z0-9_.-]+$ ]]
+          [[ -z "$authority_recipe" || "$authority_recipe" =~ ^[a-z0-9_.-]+$ ]]
           echo "eligible=true" >> "$GITHUB_OUTPUT"
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
           echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "authority_b64=$(printf '%s' "$authority" | base64 -w0)" >> "$GITHUB_OUTPUT"
+          echo "authority_kind=$authority_kind" >> "$GITHUB_OUTPUT"
+          echo "authority_id=$authority_id" >> "$GITHUB_OUTPUT"
+          echo "authority_recipe=$authority_recipe" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch registered authority
         if: steps.target.outputs.eligible == 'true'
@@ -123,17 +131,21 @@ jobs:
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           TARGET_REF: ${{ steps.target.outputs.target_ref }}
           HEAD_SHA: ${{ steps.target.outputs.head_sha }}
-          AUTHORITY_B64: ${{ steps.target.outputs.authority_b64 }}
+          AUTHORITY_KIND: ${{ steps.target.outputs.authority_kind }}
+          AUTHORITY_ID: ${{ steps.target.outputs.authority_id }}
+          AUTHORITY_RECIPE: ${{ steps.target.outputs.authority_recipe }}
         run: |
           set -euo pipefail
           case "$TARGET_REF" in
             main|Production) echo "Protected branch mutation target is forbidden: $TARGET_REF" >&2; exit 1 ;;
           esac
-          authority="$(printf '%s' "$AUTHORITY_B64" | base64 -d)"
-          kind="$(jq -r '.kind' <<<"$authority")"
-          id="$(jq -r '.id' <<<"$authority")"
+          kind="$AUTHORITY_KIND"
+          id="$AUTHORITY_ID"
+          recipe="$AUTHORITY_RECIPE"
+          [[ "$kind" =~ ^[a-z0-9_]+$ ]]
+          [[ "$id" =~ ^[a-z0-9_.-]+$ ]]
+          [[ -z "$recipe" || "$recipe" =~ ^[a-z0-9_.-]+$ ]]
           if [[ "$kind" == "generated_artifact_recipe" ]]; then
-            recipe="$(jq -r '.recipe' <<<"$authority")"
             payload="$(jq -cn --arg ref main --arg target_ref "$TARGET_REF" --arg head "$HEAD_SHA" --arg recipe "$recipe" '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$head,recipe:$recipe,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",source_main_sha:""}}')"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" --input - <<<"$payload"
             state="dispatched"
