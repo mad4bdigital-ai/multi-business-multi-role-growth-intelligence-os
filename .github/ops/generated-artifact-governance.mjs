@@ -55,6 +55,8 @@ export function loadGeneratedArtifactRegistry(root = defaultRoot) {
   assert.equal(registry.schema_version, 1);
   assert.equal(registry.defaults?.unknown_output, "deny");
   assert.equal(registry.defaults?.unknown_owner, "deny");
+  assert.equal(registry.defaults?.unknown_environment_impact, "deny");
+  assert.equal(registry.defaults?.production_mutation_allowed, false);
   return registry;
 }
 
@@ -169,12 +171,14 @@ export function buildGeneratedArtifactGovernanceReport(registry, sources = {}) {
       "repository-maintenance-status": "docs/repo-maintenance-status.md",
       "surface-contract-documents": "docs/surface-contract-governance-dashboard.json",
       "surface-contract-governance-documents": "docs/ai-docs-agent-governance.md",
-      "surface-contract-root-documents": "Updating Registry Patch Index.md",
-      "canonical-markdown-generated-candidates": "canonicals/example/generated.md",
+      "surface-contract-root-documents": "Updating Registry Patch Index.md"
     };
     for (const artifact of registry.artifacts || []) {
       const sample = representative[artifact.id];
-      if (!sample) continue;
+      if (!sample) {
+        findings.push({ artifact: artifact.id, code: "missing_governance_sample" });
+        continue;
+      }
       try {
         assertConstitutionClassification(sample, registry, sources.constitution);
         assertEnvironmentClassification(sample, registry, sources.deploymentPolicy);
