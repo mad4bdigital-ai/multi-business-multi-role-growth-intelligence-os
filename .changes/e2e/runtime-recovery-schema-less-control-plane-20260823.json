@@ -10,6 +10,7 @@
 
   "scope": {
     "include": [
+        "http-generic-api/**",
         "http-generic-api/config/runtime-breakglass-catalog.json",
         "http-generic-api/runtimeBreakglassBroker.js",
         "http-generic-api/routes/runtimeBreakglassRoutes.js",
