@@ -10,6 +10,7 @@
     "include": [
       ".changes/e2e/production-long-term-remediation-20260824.json",
       "docs/governance/hostinger-runtime-bootstrap.md",
+      ".github/governance/test-authority-registry.json",
       "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
       "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
       "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
@@ -24,6 +25,7 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "docs/remote-mcp-write-scope-inventory.md",
@@ -65,6 +67,20 @@
             "access_token is absent from diagnostic evidence",
             "token response behavior remains unchanged",
             "secrets_included=false"
+          ],
+          "tests": [
+            {
+              "id": "oauth-diagnostic-redaction-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+            ".changes/e2e/production-long-term-remediation-20260824.json"
           ]
         },
         {
@@ -83,6 +99,28 @@
             "schema_not_ready and dependency_not_ready are the only exposed dependency categories",
             "retry_same_code is true before code consumption",
             "raw error messages and token material are absent"
+          ],
+          "tests": [
+            {
+              "id": "dependency-failure-envelope-routes-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "dependency-failure-envelope-policy-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs"
           ]
         },
         {
@@ -102,6 +140,29 @@
             "direct or caller-supplied forwarded-host evidence is insufficient",
             "failure status is 503 and secrets_included=false",
             "Production activation remains disabled until edge capability and direct-origin posture are separately proven"
+          ],
+          "tests": [
+            {
+              "id": "signed-trusted-ingress-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "production-trusted-ingress-route-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-production-trusted-ingress.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/trustedIngressContract.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/test-trusted-ingress-contract.mjs",
+            "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
+            "docs/governance/hostinger-runtime-bootstrap.md"
           ]
         },
         {
@@ -120,43 +181,22 @@
             "mutation governance remains false until independent evidence exists",
             "domain readiness does not imply production activation",
             "aggregate blocking checks remain authoritative"
+          ],
+          "tests": [
+            {
+              "id": "readiness-domain-separation-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-operational-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/tenantGptOperationalReadiness.js",
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+            ".changes/e2e/production-long-term-remediation-20260824.json"
           ]
         }
-      ],
-      "tests": [
-        {
-          "id": "long-term-remediation-contracts",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-trusted-ingress-contract.mjs",
-          "args": []
-        },
-        {
-          "id": "long-term-remediation-oauth-routes",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
-          "args": []
-        },
-        {
-          "id": "long-term-remediation-readiness",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-tenant-gpt-operational-readiness.mjs",
-          "args": []
-        }
-      ],
-      "evidence_paths": [
-        ".changes/e2e/production-long-term-remediation-20260824.json",
-        "http-generic-api/trustedIngressContract.js",
-        "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
-        "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-        "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
-        "http-generic-api/tenantGptOperationalReadiness.js",
-        "http-generic-api/test-trusted-ingress-contract.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
-        "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
-        "docs/governance/hostinger-runtime-bootstrap.md"
       ]
     }
   ],
