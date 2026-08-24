@@ -65,7 +65,7 @@ const exactCheckoutCount = recovery.split("ref: ${{ github.event.pull_request.he
 assert.equal(exactCheckoutCount, 2, `expected two exact candidate checkouts, got ${exactCheckoutCount}`);
 
 const canonicalExactCheckoutCount = canonical.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
-assert.equal(canonicalExactCheckoutCount, 4, `expected four canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
+assert.equal(canonicalExactCheckoutCount, 5, `expected five canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
 assert(canonical.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'), "canonical deployment evidence must bind to the exact pull-request head");
 
 const testJobNeedsSyntax = /test:\n\s+name: Unit & Integration Tests[\s\S]*?needs: syntax/.test(recovery);
