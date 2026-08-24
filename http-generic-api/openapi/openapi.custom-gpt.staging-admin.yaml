@@ -1160,7 +1160,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 0fac28da0cc3175f0a0bba996fc2d7450bd408d43e4fd279d66c07f1cd154648
+  source_openapi_sha256: 04484af603d8acd19225d2a3127e8de69939231d057fae0b116ea5951e70a2b8
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
@@ -1220,7 +1220,7 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 26
+  operation_count: 30
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30
