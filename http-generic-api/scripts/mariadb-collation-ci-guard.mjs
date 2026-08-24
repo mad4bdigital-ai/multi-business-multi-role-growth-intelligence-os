@@ -4,8 +4,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   inspectMigrationCollationSql,
+  inspectOrderedMigrationChainCollations,
   loadDatabaseCollationPolicy,
 } from "../databaseCollationPolicyGuard.js";
+import { compareMigrationFiles } from "./migration-order.mjs";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(MODULE_PATH);
@@ -40,7 +42,7 @@ export function resolveSqlFiles({ baseSha = "", headSha = "", all = false, gitFn
       .split(/\r?\n/u)
       .map((file) => file.trim())
       .filter(isSqlFile)
-      .sort();
+      .sort((left, right) => compareMigrationFiles(path.basename(left), path.basename(right)));
   }
 
   const normalizedBase = String(baseSha || "").trim();
@@ -115,10 +117,12 @@ function parseArgs(argv = process.argv.slice(2)) {
     baseSha: process.env.COLLATION_BASE_SHA || "",
     headSha: process.env.COLLATION_HEAD_SHA || "",
     all: false,
+    orderedChain: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--all") options.all = true;
+    else if (arg === "--ordered-chain") options.orderedChain = true;
     else if (arg === "--base-sha") options.baseSha = String(argv[++index] || "");
     else if (arg.startsWith("--base-sha=")) options.baseSha = arg.slice("--base-sha=".length);
     else if (arg === "--head-sha") options.headSha = String(argv[++index] || "");
@@ -128,9 +132,33 @@ function parseArgs(argv = process.argv.slice(2)) {
   return options;
 }
 
+export function evaluateOrderedSqlChain(files = [], options = {}) {
+  return inspectOrderedMigrationChainCollations({
+    files,
+    engine: options.engine || "mariadb",
+    policy: options.policy || loadDatabaseCollationPolicy(),
+    baselineFile: options.baselineFile || "http-generic-api/schema.sql",
+    readFile: options.readFile,
+  });
+}
+
 export function runCollationGuard(options = {}) {
   const files = resolveSqlFiles(options);
-  return evaluateSqlFiles(files, options);
+  const report = evaluateSqlFiles(files, options);
+  if (!options.orderedChain) return report;
+  const allSqlFiles = resolveSqlFiles({ ...options, all: true });
+  const orderedChain = evaluateOrderedSqlChain(allSqlFiles, options);
+  const orderedBlockedFiles = (orderedChain.findings || []).map((finding) => finding.file).filter(Boolean);
+  const blockedFiles = [...new Set([...(report.blocked_files || []), ...orderedBlockedFiles])];
+  return {
+    ...report,
+    ordered_chain: orderedChain,
+    blocked_files: blockedFiles,
+    ok: report.ok === true && orderedChain.ok === true,
+    ready: report.ready === true && orderedChain.ready === true,
+    ordered_chain_files_checked: orderedChain.files_checked || 0,
+    ordered_chain_statements_checked: orderedChain.statements_checked || 0,
+  };
 }
 
 if (path.resolve(process.argv[1] || "") === path.resolve(MODULE_PATH)) {

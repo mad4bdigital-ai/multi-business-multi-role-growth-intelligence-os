@@ -170,6 +170,7 @@
           "docs/auto-docs-agent/README.md",
           "docs/change-documentation-governance.md",
           "scripts/**",
+          "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
           "http-generic-api/activation-surfaces/**",
           "http-generic-api/config/**",
           "http-generic-api/context-kernel-hardcoding-scan.config.json",
