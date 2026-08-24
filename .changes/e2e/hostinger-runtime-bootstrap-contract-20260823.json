@@ -56,7 +56,9 @@
       "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
       "http-generic-api/config/host-breakglass-capsule.schema.json",
       "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
-      "http-generic-api/test-custom-gpt-schemas.mjs"
+      "http-generic-api/test-custom-gpt-schemas.mjs",
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json"
     ]
   },
   "merge_contract": {

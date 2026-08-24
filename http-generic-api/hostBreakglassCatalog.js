@@ -100,23 +100,23 @@ function migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey 
     fail(500, "host_breakglass_migration_governance_invalid", "Migration discovery must remain separate from execution authority and silent reconciliation.");
   }
   const files = fs.readdirSync(MIGRATIONS_PATH).filter((file) => /^\d[^/\\]*\.sql$/u.test(file)).sort((left, right) => Number(left.match(/^\d+/u)?.[0] || 0) - Number(right.match(/^\d+/u)?.[0] || 0) || left.localeCompare(right));
-  const cacheKey = `${environmentKey || "all"}:${stableHash(bootstrapContract.migrations || {})}:${files.join("|")}`;
-  const cached = MIGRATION_DISCOVERY_CACHE.get(cacheKey);
+  const discoveryIdentity = `${environmentKey || "all"}:${stableHash(bootstrapContract.migrations || {})}:${files.join("|")}`;
+  const cached = MIGRATION_DISCOVERY_CACHE.get(discoveryIdentity);
   if (cached) return cached;
   const digest = createHash("sha256");
   for (const file of files) digest.update(`${file}:${stableFileHash(path.join(MIGRATIONS_PATH, file))}\n`);
   const allowlisted = Object.entries(bootstrapContract.migrations || {});
   const applyEligible = allowlisted.filter(([, rule]) => Array.isArray(rule.allowed_modes) && rule.allowed_modes.includes("apply_migration"));
-  let sharedPolicy = { available: false, compatible: false };
+  let foundationEvidence = { available: false, compatible: false };
   if (fs.existsSync(SHARED_MIGRATION_POLICY_PATH)) {
     const policy = JSON.parse(fs.readFileSync(SHARED_MIGRATION_POLICY_PATH, "utf8"));
-    sharedPolicy = {
+    foundationEvidence = {
       available: true,
       compatible: policy.execution_authority?.discovery_grants_execution === false && policy.execution_authority?.production_auto_apply_allowed === false,
       environment_profile_declared: environmentKey ? Boolean(policy.environment_profiles?.[environmentKey]) : null,
       sha256: stableFileHash(SHARED_MIGRATION_POLICY_PATH)
     };
-    if (!sharedPolicy.compatible || (environmentKey && !sharedPolicy.environment_profile_declared)) fail(500, "host_breakglass_shared_migration_policy_invalid", "Shared migration policy does not isolate discovery, environment, and execution authority.");
+    if (!foundationEvidence.compatible || (environmentKey && !foundationEvidence.environment_profile_declared)) fail(500, "host_breakglass_shared_migration_policy_invalid", "Shared migration policy does not isolate discovery, environment, and execution authority.");
   }
   const evidence = {
     contract: governance.contract,
@@ -127,12 +127,12 @@ function migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey 
     migration_catalog_sha256: digest.digest("hex"),
     discovery_grants_execution: false,
     production_auto_apply_allowed: false,
-    shared_policy: sharedPolicy,
+    shared_policy: foundationEvidence,
     required_database_roles: Object.entries(catalog.database_role_topology || {}).filter(([, role]) => role.required === true).map(([role]) => role).sort(),
     missing_rebuild_role_executors: Object.entries(catalog.database_role_topology || {}).filter(([, role]) => role.required === true && role.rebuild_executor_available !== true).map(([role]) => role).sort(),
     secrets_included: false
   };
-  MIGRATION_DISCOVERY_CACHE.set(cacheKey, evidence);
+  MIGRATION_DISCOVERY_CACHE.set(discoveryIdentity, evidence);
   return evidence;
 }
 
