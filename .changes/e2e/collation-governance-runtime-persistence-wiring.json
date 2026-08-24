@@ -43,6 +43,8 @@
             "Reject unknown engines, implicit defaults, or mixed join-key collations before apply.",
             "Project MariaDB ENUM domains across the complete ordered migration chain and reject unsupported INSERT, REPLACE, or UPDATE literals before apply.",
             "Project MariaDB bounded text widths across the complete ordered migration chain and reject literal INSERT, REPLACE, or UPDATE overflow before apply.",
+            "Evaluate static CONCAT and CONCAT_WS append expressions against the projected bounded text domain, including direct and COALESCE/IFNULL/NULLIF-wrapped target columns.",
+            "Apply platform_runtime_config.note and execution_policies scope-column TEXT alignment before the first ordered descriptive writer.",
             "Resolve the dedicated runtime persistence pool for governed response chunks.",
             "Verify least-privilege readiness and same-source chunk readback or fail closed when configuration is absent."
           ],
@@ -54,7 +56,8 @@
             "Runtime persistence uses RUNTIME_PERSISTENCE_DB_* identity rather than DB_USER fallback.",
             "Missing dedicated runtime persistence configuration returns a bounded 503 and no durable mutation.",
             "ENUM-domain/seed mismatches fail closed before Docker or any database connection.",
-            "Text-width/literal overflow mismatches fail closed before Docker or any database connection."
+            "Text-width/literal and static append-expression overflow mismatches fail closed before Docker or any database connection.",
+            "The platform runtime note and execution-policy scope domains are unbounded before their ordered writers; no later writer may rely on the historical VARCHAR(255) width."
           ],
           "tests": [
             {
@@ -106,6 +109,7 @@
             "http-generic-api/databaseEnumSeedPolicyGuard.js",
             "http-generic-api/databaseTextWidthPolicyGuard.js",
             "http-generic-api/migrations/204_sprint67_z_mariadb_runtime_dispatch_text_width_alignment.sql",
+            "http-generic-api/migrations/204_sprint67_zz_mariadb_platform_runtime_config_note_text_width_alignment.sql",
             "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-contract-governance.mjs",
