@@ -15,6 +15,7 @@
       "docs/governance/configuration-drift-policy.json",
       ".github/governance/test-authority-registry.json",
       ".github/derived-state-governance.json",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
       "http-generic-api/frontend-surface-policy.json",
       "http-generic-api/hostBreakglassCatalog.js",
       "http-generic-api/hostLocalRuntimeInspection.js",

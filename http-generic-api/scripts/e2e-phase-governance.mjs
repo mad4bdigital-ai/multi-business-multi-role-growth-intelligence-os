@@ -11,7 +11,12 @@ import {
 
 export { REPO_ROOT, matchesPattern, executePhaseTests };
 
-const E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"]);
+const E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set([
+  "work-map-integration.json",
+  "openapi-detail-closure-batch-full.json",
+  "openapi-detail-gap-classification.json",
+  "openapi-gap-closure-plan.json"
+]);
 const E2E_OWNERSHIP_NEUTRAL_FINDINGS = new Set([
   "missing_spec_e2e_phase_contract",
   "e2e_phase_contract_not_changed_with_feature"
