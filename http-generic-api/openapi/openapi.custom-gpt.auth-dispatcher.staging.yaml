@@ -387,6 +387,177 @@ paths:
                 properties: {}
         "403":
           $ref: "#/components/responses/Forbidden"
+  /admin/runtime-breakglass/status:
+    get:
+      operationId: getAdminRuntimeBreakglassStatus
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Read the database-independent Runtime Breakglass catalog status
+      description: Returns the repository-owned environment-scoped Breakglass catalog, workflow identity, and safe readiness metadata without opening a database or exposing credentials. Staging is local Windows/Docker only; Production is Hostinger Auto Deploy through the fixed GitHub workflow.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Secret-free Breakglass catalog status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Breakglass catalog is unavailable
+  /admin/runtime-breakglass/runs:
+    post:
+      operationId: createAdminRuntimeBreakglassRun
+      tags:
+        - admin-operations
+      x-openai-isConsequential: true
+      summary: Plan or dispatch a bounded Runtime Breakglass operation
+      description: Dispatches only the fixed Production GitHub workflow after exact Production SHA validation. Staging requests remain local Windows/Docker operator plans and are never sent to the Production workflow. Database names, credentials, arbitrary workflow paths, and arbitrary refs are server-controlled and.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - environment
+                - contract_key
+                - mode
+              properties:
+                environment:
+                  type: string
+                  enum:
+                    - staging
+                    - production
+                contract_key:
+                  type: string
+                  enum:
+                    - runtime_diagnose
+                    - schema_repair
+                    - grant_repair
+                    - empty_database_rebuild
+                    - full_database_rebuild
+                mode:
+                  type: string
+                  enum:
+                    - plan
+                    - dry_run
+                    - apply_migration
+                    - apply_grants
+                expected_sha:
+                  type: string
+                  pattern: ^[0-9a-fA-F]{40}$
+                expected_branch:
+                  type: string
+                  enum:
+                    - main
+                    - Production
+                target_key:
+                  type: string
+                  enum:
+                    - staging-local-docker
+                    - production-runtime
+                target_source:
+                  type: string
+                  enum:
+                    - docker_local
+                    - repository_allowlist
+                    - runtime_env
+                migration:
+                  type: string
+                  enum:
+                    - 225_sprint67_capability_resolution_envelope_ledger.sql
+                    - 1048_transport_response_chunk_schema_recovery.sql
+                    - 20260815_custom_gpt_mcp_catalog_levels.sql
+                idempotency_key:
+                  type: string
+                  minLength: 8
+                  maxLength: 96
+                  pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,95}$
+                confirmation:
+                  type: string
+                  maxLength: 500
+      responses:
+        "200":
+          description: Plan or existing/queued Breakglass request
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "202":
+          description: Workflow dispatched while run discovery remains pending
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "412":
+          description: Exact Production SHA or typed binding precondition failed
+        "503":
+          description: Server-side GitHub broker is unavailable
+  /admin/runtime-breakglass/runs/{run_id}:
+    get:
+      operationId: getAdminRuntimeBreakglassRun
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Read bounded Breakglass workflow status and evidence metadata
+      description: Reads only the fixed workflow run identity, status, conclusion, exact run-name binding, and bounded artifact metadata. It does not read raw logs or secrets.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^[0-9]{1,20}$
+        - name: expected_sha
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: ^[0-9a-fA-F]{40}$
+        - name: correlation_id
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 96
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,95}$
+      responses:
+        "200":
+          description: Bounded workflow run readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          description: Server-side GitHub broker is unavailable
   /system/connectors:
     get:
       tags:
@@ -2004,9 +2175,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 35568019a8e9009c4d1632186570be27d14173757bbd3e56a535cfeaa36d7449
+  source_openapi_sha256: 825ab0519a0f355bcd2cd0c5c7b435b442b5a2ff00b28a9c6688e8cba043e705
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
+  registry_sha256: a3c3656ff523a2d30e8b7b097484ffb374cc9451545284a78b4727011a8a5121
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: staging
@@ -2024,6 +2195,14 @@ x-custom-gpt-generation:
       - operation_id: revokeAuthOAuthSsoSession
         reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
         owner: identity-platform
+        review_after: 2026-09-30
+      - operation_id: getHostRuntimeBreakglassStatus
+        reason: Host-internal Breakglass status is an internal service-key route and must not be exposed as an Admin GPT operation.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getHostRuntimeBreakglassPlan
+        reason: Host-internal Breakglass planning is an internal service-key route and must not be exposed as an Admin GPT operation.
+        owner: platform-governance
         review_after: 2026-09-30
       - operation_id: sessionInsightTargetWriteReadbackCreate
         reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
@@ -2064,7 +2243,7 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 26
+  operation_count: 29
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30

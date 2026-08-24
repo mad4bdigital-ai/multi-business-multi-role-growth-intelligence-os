@@ -1,4 +1,7 @@
-name: Production Runtime Parity Evidence
+name: Production Runtime Parity and Breakglass Evidence
+
+run-name: >-
+  runtime-breakglass-${{ inputs.breakglass_correlation_id || github.run_id }}-${{ inputs.expected_sha || github.sha }}
 
 on:
   pull_request:
@@ -21,7 +24,11 @@ on:
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
       - 'http-generic-api/config/deployment-branch-policy.json'
       - 'http-generic-api/config/runtime-bootstrap-contract.json'
+      - 'http-generic-api/config/runtime-breakglass-catalog.json'
       - 'http-generic-api/runtimeBootstrapContract.js'
+      - 'http-generic-api/runtimeBreakglassBroker.js'
+      - 'http-generic-api/routes/runtimeBreakglassRoutes.js'
+      - 'http-generic-api/test-runtime-breakglass-broker.mjs'
       - 'http-generic-api/runtimeBootstrapStatus.js'
       - 'http-generic-api/scripts/hostinger-runtime-bootstrap.mjs'
       - 'http-generic-api/test-runtime-bootstrap-contract.mjs'
@@ -141,6 +148,10 @@ on:
         description: Optional exact generated schema bundle manifest for zero-table apply.
         required: false
         type: string
+      breakglass_correlation_id:
+        description: Server-generated idempotency/correlation id for an Admin Breakglass request.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -189,6 +200,7 @@ jobs:
           set -Eeuo pipefail
           node --test test-runtime-bootstrap-contract.mjs
           node --test test-runtime-gate-deployment-info-parity.mjs
+          node --test test-runtime-breakglass-broker.mjs
           node scripts/hostinger-runtime-bootstrap.mjs --plan
 
   bootstrap:
@@ -208,13 +220,11 @@ jobs:
       BOOTSTRAP_EXPECTED_REPOSITORY: ${{ github.repository }}
       BOOTSTRAP_TARGET_KEY: ${{ inputs.bootstrap_target_key }}
       BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
-      BOOTSTRAP_TARGET_DATABASE: ${{ inputs.bootstrap_target_database }}
       BOOTSTRAP_MIGRATION: ${{ inputs.bootstrap_migration }}
       BOOTSTRAP_MIGRATION_CONFIRMATION: ${{ inputs.bootstrap_migration_confirmation }}
       BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
-      BOOTSTRAP_GOVERNANCE_DATABASE: ${{ vars.BOOTSTRAP_GOVERNANCE_DATABASE }}
     steps:
       - name: Validate bootstrap target source scope
         env:
@@ -292,12 +302,30 @@ jobs:
         if: inputs.bootstrap_mode != 'plan' && inputs.bootstrap_target_source == 'repository_allowlist'
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
+      - name: Resolve repository-owned bootstrap target without caller database input
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'plan'
+        env:
+          TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
+          TARGET_KEY: ${{ inputs.bootstrap_target_key }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ -n "${TARGETS_JSON}" ]]
+          [[ -n "${TARGET_KEY}" ]]
+          target_database="$(jq -er --arg key "${TARGET_KEY}" '.[] | select(.key == $key and .environment == "production" and .branch == "Production") | .database' <<<"${TARGETS_JSON}")"
+          governance_database="$(jq -er --arg key "${TARGET_KEY}" '.[] | select(.key == $key and .environment == "production" and .branch == "Production") | (.governance_database // .database)' <<<"${TARGETS_JSON}")"
+          [[ -n "${target_database}" && -n "${governance_database}" ]]
+          {
+            printf 'BOOTSTRAP_TARGET_DATABASE=%s\n' "${target_database}"
+            printf 'MYSQL_BOOTSTRAP_DATABASE=%s\n' "${target_database}"
+            printf 'BOOTSTRAP_GOVERNANCE_DATABASE=%s\n' "${governance_database}"
+          } >> "${GITHUB_ENV}"
+
       - name: Run selected repository bootstrap contract mode
         if: inputs.bootstrap_target_source == 'repository_allowlist'
         env:
           MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
           MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-          MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json

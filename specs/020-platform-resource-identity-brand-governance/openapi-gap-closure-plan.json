@@ -6,27 +6,27 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "75b6e52dfd15121025784a8813baca2ebd7df11c7458fde43eb331b4b1f789aa",
-    "dispatch_artifact_sha256": "3d2e30a2ddede375f765d59b49e65997caa71410a7ee6ae8a781fe7bc84a064b"
+    "dispatch_source_digest": "25d7f879d8c721a9b14b93276698e2ec66f0ed6d4c50c1356393c5b1cf37e181",
+    "dispatch_artifact_sha256": "d4253cf4e77afd397be199be8f7b192dba374461da9e4879227c61aeec164984"
   },
   "coverage": {
-    "operation_count": 1043,
-    "mounted_family_count": 169,
+    "operation_count": 1048,
+    "mounted_family_count": 170,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
-    "unresolved_surface_decision_count": 0,
-    "unresolved_operation_class_count": 0,
-    "untested_family_count": 0,
-    "untested_operation_count": 0,
-    "coverage_complete": true
+    "unresolved_surface_decision_count": 1,
+    "unresolved_operation_class_count": 2,
+    "untested_family_count": 1,
+    "untested_operation_count": 5,
+    "coverage_complete": false
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
     "read_only_traceability_closures": 315,
-    "surface_decisions_requiring_owner": 0,
+    "surface_decisions_requiring_owner": 1,
     "priority_family_counts": {
-      "P1_surface_decision": 0,
+      "P1_surface_decision": 1,
       "P2_detail_traceability": 74,
       "P3_observe": 95
     },
@@ -35,6 +35,7 @@
       "embedded_ui": 6,
       "internal_only": 118,
       "legacy_compatibility": 6,
+      "requires_review": 1,
       "unified_ui": 1
     },
     "all_safe_closures_included": true,
@@ -78,6 +79,41 @@
     }
   ],
   "families": [
+    {
+      "family_key": "runtime-breakglass",
+      "label": "runtime breakglass",
+      "scope": "developer",
+      "surface_decision": "requires_review",
+      "priority": "P1_surface_decision",
+      "detail_gap_count": 0,
+      "operation_count": 5,
+      "untested_operation_count": 5,
+      "unresolved_operation_count": 2,
+      "next_action": "assign_owner_and_record_surface_decision_before_projection",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/runtimeBreakglassRoutes.js",
+        "scripts/test-manifest.mjs"
+      ]
+    },
     {
       "family_key": "dev-agent",
       "label": "dev agent",

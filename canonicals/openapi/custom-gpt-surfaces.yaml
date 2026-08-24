@@ -33,6 +33,14 @@ surfaces:
           reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
           owner: identity-platform
           review_after: 2026-09-30
+        - operation_id: getHostRuntimeBreakglassStatus
+          reason: Host-internal Breakglass status is an internal service-key route and must not be exposed as an Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getHostRuntimeBreakglassPlan
+          reason: Host-internal Breakglass planning is an internal service-key route and must not be exposed as an Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
         - operation_id: sessionInsightTargetWriteReadbackCreate
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
