@@ -105,6 +105,25 @@
     "secrets_included": false,
     "policy_key": "mariadb_enum_seed_ordered_chain_v1"
   },
+  "text_width_chain_contract": {
+    "enabled": true,
+    "engine": "mariadb",
+    "baseline_file": "http-generic-api/schema.sql",
+    "ordered_numeric_filename_and_lexicographic_tie_break": true,
+    "fail_on_literal_overflow": true,
+    "inspect_create_alter_text_domains": true,
+    "inspect_insert_replace_update_literals": true,
+    "allow_null_default_and_dynamic_expressions": true,
+    "static_only": true,
+    "database_connection_allowed": false,
+    "sql_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "credential_access_allowed": false,
+    "data_export_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false,
+    "policy_key": "mariadb_text_width_ordered_chain_v1"
+  },
   "canonical_unique_guard_contracts": [
     {
       "table": "secret_references",
@@ -129,6 +148,24 @@
     {
       "table": "local_gateway_tools",
       "column": "tags",
+      "initial_max_length": 255,
+      "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
+    },
+    {
+      "table": "runtime_dispatch_certification_registry",
+      "column": "smoke_strategy",
+      "initial_max_length": 128,
+      "widening_types": ["TEXT", "VARCHAR(256)", "VARCHAR(512)"]
+    },
+    {
+      "table": "runtime_dispatch_certification_registry",
+      "column": "certification_status",
+      "initial_max_length": 64,
+      "widening_types": ["TEXT", "VARCHAR(128)", "VARCHAR(256)"]
+    },
+    {
+      "table": "platform_runtime_config",
+      "column": "note",
       "initial_max_length": 255,
       "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
     }

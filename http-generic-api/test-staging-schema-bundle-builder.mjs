@@ -7,6 +7,7 @@ import os from "node:os";
 import { splitStatements } from "./scripts/staging-sql-parser.mjs";
 import { compareMigrationFiles, isMigrationFilename } from "./scripts/migration-order.mjs";
 import { inspectOrderedMigrationChainEnumSeeds } from "./databaseEnumSeedPolicyGuard.js";
+import { inspectOrderedMigrationChainTextWidths } from "./databaseTextWidthPolicyGuard.js";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
@@ -86,6 +87,15 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
     secrets_included: false,
     policy_key: "mariadb_enum_seed_ordered_chain_v1",
   });
+  assert.equal(migrationPolicy.text_width_chain_contract.enabled, true);
+  assert.equal(migrationPolicy.text_width_chain_contract.static_only, true);
+  assert.equal(migrationPolicy.text_width_chain_contract.database_connection_allowed, false);
+  assert.equal(migrationPolicy.text_width_chain_contract.sql_mutation_allowed, false);
+  assert.equal(migrationPolicy.text_width_chain_contract.provider_access_allowed, false);
+  assert.equal(migrationPolicy.text_width_chain_contract.credential_access_allowed, false);
+  assert.equal(migrationPolicy.text_width_chain_contract.data_export_allowed, false);
+  assert.equal(migrationPolicy.text_width_chain_contract.runtime_mutation_allowed, false);
+  assert.equal(migrationPolicy.text_width_chain_contract.secrets_included, false);
 });
 
 test("schema bundle manifest declares exactly three isolated roles", () => {
@@ -624,15 +634,15 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 792);
-  assert.equal(plan.statement_count, 3056);
+  assert.equal(plan.migration_count, 793);
+  assert.equal(plan.statement_count, 3057);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 793);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3083);
+  assert.equal(plan.ordered_collation_chain.files_checked, 794);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3084);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -641,8 +651,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 793);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3083);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 794);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3084);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
@@ -650,6 +660,19 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.data_export_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.runtime_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.secrets_included, false);
+  assert.equal(plan.ordered_text_width_chain.contract, "mad4b.mariadb-text-width-ordered-chain.v1");
+  assert.equal(plan.ordered_text_width_chain.ok, true);
+  assert.equal(plan.ordered_text_width_chain.ready, true);
+  assert.equal(plan.ordered_text_width_chain.finding_count, 0);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 794);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3084);
+  assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
+  assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
+  assert.equal(plan.ordered_text_width_chain.provider_mutation_performed, false);
+  assert.equal(plan.ordered_text_width_chain.credential_access_performed, false);
+  assert.equal(plan.ordered_text_width_chain.data_export_performed, false);
+  assert.equal(plan.ordered_text_width_chain.runtime_mutation_performed, false);
+  assert.equal(plan.ordered_text_width_chain.secrets_included, false);
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",

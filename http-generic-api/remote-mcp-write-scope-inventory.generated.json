@@ -8,11 +8,11 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7337,
-  "route_count": 1087,
-  "write_route_count": 659,
-  "classified_write_surface_count": 40,
-  "classified_write_route_count": 659,
+  "file_count": 7342,
+  "route_count": 1088,
+  "write_route_count": 660,
+  "classified_write_surface_count": 41,
+  "classified_write_route_count": 660,
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 619,
   "sensitive_intentionally_unmapped_write_route_count": 619,
@@ -2587,26 +2587,35 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
-      "source_line": 282,
-      "source_offset": 9031,
+      "source_line": 288,
+      "source_offset": 9331,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:1",
-      "source_line": 346,
-      "source_offset": 13579,
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
+      "source_line": 352,
+      "source_offset": 13879,
+      "method": "POST",
+      "path": "/deployment-info/runtime-bootstrap-role-dry-run",
+      "file": "http-generic-api/routes/deploymentInfoRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:2",
+      "source_line": 430,
+      "source_offset": 17474,
       "method": "GET",
       "path": "/deployment-info/runtime-binding",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:2",
-      "source_line": 353,
-      "source_offset": 13891,
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:3",
+      "source_line": 437,
+      "source_offset": 17786,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -9983,6 +9992,16 @@
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
+      "file": "http-generic-api/routes/deploymentInfoRoutes.js",
+      "status": "shadow",
+      "provider_mutation_allowed": false,
+      "readback_required": true
+    },
+    {
+      "scope_key": "hostinger.deploy",
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
+      "method": "POST",
+      "path": "/deployment-info/runtime-bootstrap-role-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
       "status": "shadow",
       "provider_mutation_allowed": false,
@@ -20863,10 +20882,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 282,
+        "source_line": 288,
         "handler_window_lines": [
-          282,
-          344
+          288,
+          350
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20895,6 +20914,75 @@
       "evidence_confidence": {
         "level": "low_static",
         "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [
+        "hostinger.deploy"
+      ],
+      "classification_confidence": "catalog_pattern",
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "remote-mcp-governance"
+    },
+    {
+      "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
+      "classification": "shadow_candidate",
+      "mapping_status": "blocked_until_explicit_binding",
+      "domain": "hostinger",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/deploymentInfoRoutes.js",
+        "source_line": 352,
+        "handler_window_lines": [
+          352,
+          428
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "request(",
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "role",
+            "role"
+          ],
+          "readback": [
+            "select"
+          ],
+          "mutation": [
+            "deploy",
+            "dispatch"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "medium_static",
+        "basis": "catalog_pattern_plus_handler_signals",
         "authorizes": false
       },
       "promotion_prerequisites": [
@@ -52561,19 +52649,19 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 659,
+      "routes": 660,
       "domains": 11,
       "handler_files": 131
     },
     "edge_counts": {
-      "route_to_handler_file": 659,
-      "route_to_domain": 659,
-      "route_to_provider_signal": 98,
+      "route_to_handler_file": 660,
+      "route_to_domain": 660,
+      "route_to_provider_signal": 99,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 410,
-      "route_to_readback_signal": 370,
-      "route_to_mutation_signal": 376,
-      "route_to_explicit_scope_candidate": 40
+      "route_to_authority_signal": 411,
+      "route_to_readback_signal": 371,
+      "route_to_mutation_signal": 377,
+      "route_to_explicit_scope_candidate": 41
     },
     "execution_edges_are_non_authorizing": true,
     "static_only": true,

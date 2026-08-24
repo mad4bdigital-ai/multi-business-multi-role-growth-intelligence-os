@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7331,
-    "bytes": 71858432,
-    "lines": 1678604,
+    "files": 7336,
+    "bytes": 71942630,
+    "lines": 1680263,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2178,
+      "tests-and-specs": 2179,
       "documentation": 1912,
-      "api-runtime": 1490,
-      "database-migrations": 792,
-      "root-and-other": 328,
+      "api-runtime": 1492,
+      "database-migrations": 793,
+      "root-and-other": 329,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 131,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2514,
-      ".mjs": 1747,
-      ".js": 1003,
-      ".json": 869,
-      ".sql": 807,
+      ".mjs": 1748,
+      ".js": 1005,
+      ".json": 870,
+      ".sql": 808,
       ".yml": 173,
       ".yaml": 119,
       ".ps1": 20,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3782,
+      "http-generic-api": 3786,
       "docs": 1816,
       "specs": 880,
       ".github": 301,
-      ".changes": 297,
+      ".changes": 298,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -256,9 +256,9 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 792,
+    "migrations": 793,
     "apiContracts": 191,
-    "testSpecFiles": 2268
+    "testSpecFiles": 2269
   },
   "largestFiles": [
     {
@@ -270,14 +270,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3518081,
-      "lines": 99201
+      "bytes": 3521488,
+      "lines": 99287
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1951665,
-      "lines": 59016
+      "bytes": 1954531,
+      "lines": 59104
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -288,14 +288,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 1010645,
-      "lines": 23336
+      "bytes": 1013853,
+      "lines": 23385
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 619325,
-      "lines": 11720
+      "bytes": 621132,
+      "lines": 11760
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -336,8 +336,8 @@
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 267937,
-      "lines": 2346
+      "bytes": 268311,
+      "lines": 2349
     },
     {
       "path": "docs/surface-contract-safety-attestations.json",

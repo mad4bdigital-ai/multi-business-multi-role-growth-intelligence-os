@@ -9,6 +9,7 @@ import { buildVersionPayload } from "./deploymentManifest.js";
 
 // frontend-surface-operation: GET /deployment-info/runtime-binding
 // frontend-surface-operation: POST /deployment-info/runtime-bootstrap-dry-run
+// frontend-surface-operation: POST /deployment-info/runtime-bootstrap-role-dry-run
 
 function fakePool(row) {
   return {
@@ -72,9 +73,10 @@ const previousManifestPath = process.env.DEPLOYMENT_MANIFEST_PATH;
 const previousRuntimeDbName = process.env.DB_NAME;
 const previousRuntimeDbUser = process.env.DB_USER;
 const previousRuntimeGovernanceDbName = process.env.GOVERNANCE_DB_NAME;
-const previousGithubSha = process.env.GITHUB_SHA;
-const previousGithubRefName = process.env.GITHUB_REF_NAME;
-let server;
+  const previousGithubSha = process.env.GITHUB_SHA;
+  const previousGithubRefName = process.env.GITHUB_REF_NAME;
+  const previousGithubRepository = process.env.GITHUB_REPOSITORY;
+  let server;
 
 try {
   writeFileSync(manifestPath, JSON.stringify({
@@ -96,6 +98,8 @@ try {
   app.use(express.json());
   let integrityReaderInput;
   let runtimeBootstrapReaderInput;
+  let hostLocalInspectionReaderInput;
+  process.env.GITHUB_REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
   app.use(buildDeploymentInfoRoutes({
     runtimeIntegrityReader: async (input) => {
       integrityReaderInput = input;
@@ -124,6 +128,25 @@ try {
       const error = new Error("test-only missing credentials");
       error.code = "bootstrap_credentials_missing";
       throw error;
+    },
+    hostLocalInspectionReader: async (request, { env }) => {
+      hostLocalInspectionReaderInput = { request: { ...request }, env: { ...env } };
+      return {
+        ok: true,
+        status: "host_local_inspection_complete",
+        mode: "dry_run",
+        operation: "read_only",
+        target_source: "host_local_role_env",
+        migration: null,
+        migration_selected: false,
+        migration_selection: "full_inspection_catalog",
+        database_connection_performed: true,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        workflow_dispatch_performed: false,
+        secrets_included: false,
+      };
     },
     requireBackendApiKey: (req, res, next) => {
       if (req.headers["x-api-key"] === "test-backend-key") {
@@ -271,6 +294,42 @@ try {
   assert.equal(dryRunInfo.grant_mutation_performed, false);
   assert.equal(dryRunInfo.secrets_included, false);
 
+  const roleUserJwtResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-bootstrap-role-dry-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer simulated-user-jwt" },
+    body: JSON.stringify({ expected_sha: commitSha }),
+  });
+  assert.equal(roleUserJwtResponse.status, 403);
+
+  const roleResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-bootstrap-role-dry-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "test-backend-key" },
+    body: JSON.stringify({ expected_sha: commitSha }),
+  });
+  assert.equal(roleResponse.status, 200);
+  const roleInfo = await roleResponse.json();
+  assert.equal(roleInfo.contract, "mad4b.host-breakglass-host-local-inspection.v1");
+  assert.equal(roleInfo.mode, "dry_run");
+  assert.equal(roleInfo.operation, "read_only");
+  assert.equal(roleInfo.target_source, "host_local_role_env");
+  assert.equal(roleInfo.migration, null);
+  assert.equal(roleInfo.migration_selected, false);
+  assert.equal(roleInfo.migration_selection, "full_inspection_catalog");
+  assert.equal(roleInfo.database_connection_performed, true);
+  assert.equal(roleInfo.database_mutation_performed, false);
+  assert.equal(roleInfo.migration_apply_performed, false);
+  assert.equal(roleInfo.grant_mutation_performed, false);
+  assert.equal(roleInfo.workflow_dispatch_performed, false);
+  assert.equal(roleInfo.secrets_included, false);
+  assert.equal(hostLocalInspectionReaderInput.request.expected_sha, commitSha);
+  assert.equal(hostLocalInspectionReaderInput.request.target_source, "host_local_role_env");
+  assert.equal(hostLocalInspectionReaderInput.request.operation_key, "database.inspect");
+  assert.equal(hostLocalInspectionReaderInput.request.runbook_key, "database.full_inspection");
+  assert.equal(hostLocalInspectionReaderInput.request.migration, null);
+  assert.equal(Object.hasOwn(hostLocalInspectionReaderInput.request, "password"), false);
+  assert.equal(Object.hasOwn(hostLocalInspectionReaderInput.request, "database"), false);
+  assert.equal(Object.hasOwn(hostLocalInspectionReaderInput.request, "db_password"), false);
+
   const readinessResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info?include_production_activation_readiness=1`);
   assert.equal(readinessResponse.status, 200);
   const readinessInfo = await readinessResponse.json();
@@ -294,6 +353,8 @@ try {
   else process.env.GITHUB_SHA = previousGithubSha;
   if (previousGithubRefName === undefined) delete process.env.GITHUB_REF_NAME;
   else process.env.GITHUB_REF_NAME = previousGithubRefName;
+  if (previousGithubRepository === undefined) delete process.env.GITHUB_REPOSITORY;
+  else process.env.GITHUB_REPOSITORY = previousGithubRepository;
   rmSync(dir, { recursive: true, force: true });
 }
 

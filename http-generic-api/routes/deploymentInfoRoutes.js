@@ -16,6 +16,10 @@ import {
   runBootstrap,
   sanitizeBootstrapError,
 } from "../runtimeBootstrapContract.js";
+import {
+  buildHostLocalRoleInspectionRequest,
+  executeHostLocalRoleInspection,
+} from "../hostLocalRuntimeInspection.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -126,6 +130,7 @@ function readRuntimeSourceIdentity() {
   return {
     commit: commit ? commit.toLowerCase() : null,
     branch,
+    repository: firstString(manifest?.repository, process.env.GITHUB_REPOSITORY, process.env.DEPLOY_REPOSITORY),
     source: manifest?.source || (manifest ? "deployment_manifest" : "runtime_env"),
   };
 }
@@ -241,6 +246,7 @@ export function buildDeploymentInfoRoutes({
   productionActivationReadinessReader = runProductionActivationReadiness,
   runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
   runtimeBootstrapReader = runBootstrap,
+  hostLocalInspectionReader = executeHostLocalRoleInspection,
   requireBackendApiKey,
 } = {}) {
   const router = Router();
@@ -337,6 +343,84 @@ export function buildDeploymentInfoRoutes({
         migration_apply_performed: false,
         grant_mutation_performed: false,
         mutation_evidence: details.mutation_evidence || { mutation_attempted: false, mutation_state: "none", secrets_included: false },
+        raw_values_exposed: false,
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.post("/deployment-info/runtime-bootstrap-role-dry-run", async (req, res) => {
+    if (!(await requireBackendServiceApiKey(req, res))) return;
+    try {
+      const request = buildHostLocalRoleInspectionRequest(req.body && typeof req.body === "object" ? req.body : {});
+      const runtimeIdentity = readRuntimeSourceIdentity();
+      if (runtimeIdentity.commit !== request.expected_sha || runtimeIdentity.branch !== request.expected_branch || runtimeIdentity.repository !== request.expected_repository) {
+        return res.status(412).json({
+          ok: false,
+          contract: "mad4b.host-breakglass-host-local-inspection.v1",
+          mode: "dry_run",
+          operation: "read_only",
+          target_source: "host_local_role_env",
+          error: {
+            code: "host_local_runtime_identity_mismatch",
+            message: "The running deployment identity does not match the exact Production SHA, branch, and repository.",
+            details: {
+              runtime_identity: {
+                source: runtimeIdentity.source,
+                commit_available: Boolean(runtimeIdentity.commit),
+                branch_available: Boolean(runtimeIdentity.branch),
+                repository_available: Boolean(runtimeIdentity.repository),
+              },
+              expected_sha_available: true,
+              expected_branch: request.expected_branch,
+              expected_repository: request.expected_repository,
+              secrets_included: false,
+            },
+            secrets_included: false,
+          },
+          database_connection_performed: false,
+          database_mutation_performed: false,
+          migration_apply_performed: false,
+          grant_mutation_performed: false,
+          workflow_dispatch_performed: false,
+          raw_values_exposed: false,
+          secrets_included: false,
+        });
+      }
+      const result = await hostLocalInspectionReader(request, { env: process.env });
+      return res.status(200).json({
+        ...result,
+        ok: result?.ok !== false,
+        contract: "mad4b.host-breakglass-host-local-inspection.v1",
+        mode: "dry_run",
+        operation: "read_only",
+        target_source: "host_local_role_env",
+        migration: null,
+        migration_selected: false,
+        migration_selection: "full_inspection_catalog",
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        workflow_dispatch_performed: false,
+        raw_values_exposed: false,
+        secrets_included: false,
+      });
+    } catch (error) {
+      const details = error?.details && typeof error.details === "object" ? { ...error.details } : {};
+      return res.status(Number(error?.status || 412)).json({
+        ok: false,
+        contract: "mad4b.host-breakglass-host-local-inspection.v1",
+        mode: "dry_run",
+        operation: "read_only",
+        target_source: "host_local_role_env",
+        error: error?.hostLocalAdapter
+          ? { code: error.code || "host_local_inspection_failed", category: "bootstrap_error", message: String(error.message || "Host-local inspection failed").slice(0, 500), details, secrets_included: false }
+          : sanitizeBootstrapError(error),
+        database_connection_performed: details.database_connection_performed === true,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        workflow_dispatch_performed: false,
         raw_values_exposed: false,
         secrets_included: false,
       });

@@ -2,11 +2,11 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1d3451d44afea7775c0c6d823120e30d52cab9bd7d81aecb24a2f74645283d56",
+    "source_digest": "42579549aa32da79aadeb56b29c8b6a5851115e1abaf456aa745752df4d60b59",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "428e9b2c5e951246d7f9c1a1e98dc9d0bdc48e94095ec50a1b8253b7c704921c",
+        "sha256": "b7a1370a9719da6c576e0d3c7a496a21f320e8069e94add2dc3be9fc79319b5b",
         "present": true
       },
       {
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "cde0bf436a6c9cc41cd1f5a062ff83b224a2f4184040cde49de70af777c68a5b",
+        "sha256": "c6c8815251729c06a3ee2c5d5c41aa205ae4aa97f1298c6991e0ec73c98dc46d",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "f784d09bf7ab988e8ca4a98d7d6413ba8c96fed1398413a1905dcc27d7a30710",
+        "sha256": "358a068292296eb07cc9631aa43a3b4f102acba9a06a3639d883c6630e6d1b1f",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "4dd519698e9eefabd75d6d8a00190a9e677e6725b2428ed1c6abb10437c4c0b0",
+        "sha256": "7224d9f2e0b6c9ce648435a5fcd706fe1c25e304554a7b3a5815a46ee3c5c461",
         "present": true
       },
       {
@@ -546,7 +546,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "b7be7537f5edb753cc75358310efb417aadc29b4e41572414ed182d2bf9ffed8",
+        "sha256": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
         "present": true
       },
       {
@@ -1076,7 +1076,7 @@
       },
       {
         "file": "test-admin-host-breakglass-routes.mjs",
-        "sha256": "4999d97bbd7afd5cefb1512e7f72b05f7e5686ec042169b16380ad982f2faebe",
+        "sha256": "1eae08f6df8a7da9b5f7cb5d838afb0abf82d29e929938d97000d17c8d5e5339",
         "present": true
       },
       {
@@ -1106,7 +1106,7 @@
       },
       {
         "file": "test-runtime-gate-deployment-info-parity.mjs",
-        "sha256": "c4c5a6b681a9cebd3db757bb4341eb074232b1ee2c319fb23bc4d116df21ad32",
+        "sha256": "cdc073afd1296ac662b2acb6a0d928504d879a8bbfcfca11d35ff1d9a3c7f2a5",
         "present": true
       },
       {
@@ -1144,21 +1144,21 @@
     "mounted_family_count": 171,
     "mounted_route_file_count": 141,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1052,
-    "openapi_documented_count": 1036,
-    "openapi_canonical_documented_count": 721,
+    "operation_count": 1053,
+    "openapi_documented_count": 1037,
+    "openapi_canonical_documented_count": 722,
     "openapi_generated_index_count": 315,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 315,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1036,
+      "equivalent": 1037,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 637,
+    "non_get_candidate_count": 638,
     "unresolved_operation_class_count": 0,
     "classified_mutation_count": 15,
     "governed_mutation_operation_count": 15,
@@ -1166,7 +1166,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 171,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1052,
+    "test_owned_operation_count": 1053,
     "untested_operation_count": 0,
     "ready_task_count": 171,
     "blocked_task_count": 0,
@@ -1837,7 +1837,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "b7be7537f5edb753cc75358310efb417aadc29b4e41572414ed182d2bf9ffed8",
+      "source_digest": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
       "mount_prefix": "/",
       "mount_order": 12608,
       "split_from_mixed_scope_file": true,
@@ -1866,9 +1866,11 @@
             ],
             "guard_chain": [],
             "evidence": [
+              "hostLocalRuntimeInspection.js",
               "openapi.yaml",
               "routes/deploymentInfoRoutes.js",
               "runtimeGuards.js",
+              "test-host-local-runtime-inspection.mjs",
               "test-runtime-gate-deployment-info-parity.mjs"
             ]
           },
@@ -1919,6 +1921,88 @@
           "mutation": false
         },
         {
+          "method": "POST",
+          "path": "/deployment-info/runtime-bootstrap-role-dry-run",
+          "signature": "POST /deployment-info/runtime-bootstrap-role-dry-run",
+          "source_file": "routes/deploymentInfoRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_api_key_surface",
+            "alternatives": [
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ],
+            "guard_chain": [],
+            "evidence": [
+              "hostLocalRuntimeInspection.js",
+              "openapi.yaml",
+              "routes/deploymentInfoRoutes.js",
+              "runtimeGuards.js",
+              "test-host-local-runtime-inspection.mjs",
+              "test-runtime-gate-deployment-info-parity.mjs"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-runtime-gate-deployment-info-parity.mjs"
+          ],
+          "governance": {
+            "classification": "read_action",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": null,
+            "parameter_bindings": {
+              "expected_sha": "request.body.expected_sha",
+              "target_key": "request.body.target_key",
+              "target_source": "server.host_local_role_env",
+              "migration": "server.null"
+            },
+            "blockers": [],
+            "rule_id": "hostinger-runtime-bootstrap-role-inspection-read-action",
+            "owner": "runtime-operations",
+            "rationale": "The Hostinger role-local bridge performs only exact-SHA Production full inspection in dry_run mode. It derives existing per-role identities on the host, omits migration selection, and fails closed before connection on identity or credential preflight failure.",
+            "evidence_refs": [
+              "docs/governance/hostinger-runtime-bootstrap.md",
+              "hostLocalRuntimeInspection.js",
+              "openapi.yaml",
+              "routes/deploymentInfoRoutes.js",
+              "runtimeBootstrapContract.js",
+              "test-host-local-runtime-inspection.mjs",
+              "test-runtime-gate-deployment-info-parity.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
           "method": "GET",
           "path": "/deployment-info/runtime-binding",
           "signature": "GET /deployment-info/runtime-binding",
@@ -1938,9 +2022,11 @@
             ],
             "guard_chain": [],
             "evidence": [
+              "hostLocalRuntimeInspection.js",
               "openapi.yaml",
               "routes/deploymentInfoRoutes.js",
               "runtimeGuards.js",
+              "test-host-local-runtime-inspection.mjs",
               "test-runtime-gate-deployment-info-parity.mjs"
             ]
           },
@@ -2040,7 +2126,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "b7be7537f5edb753cc75358310efb417aadc29b4e41572414ed182d2bf9ffed8",
+      "source_digest": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
       "mount_prefix": "/",
       "mount_order": 12608,
       "split_from_mixed_scope_file": true,
