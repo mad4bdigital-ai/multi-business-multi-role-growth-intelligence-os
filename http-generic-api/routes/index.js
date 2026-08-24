@@ -67,6 +67,7 @@ import { buildLocalConnectorDeviceRouteRoutes } from "./localConnectorDeviceRout
 import { buildLocalManagerBetaRoutes } from "./localManagerBetaRoutes.js";
 import { buildLocalManagerDesktopCommandRoutes } from "./localManagerDesktopCommandRoutes.js";
 import { buildDeploymentInfoRoutes } from "./deploymentInfoRoutes.js";
+import { buildAdminHostBreakglassRoutes } from "./adminHostBreakglassRoutes.js";
 import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
 import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
@@ -165,6 +166,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantGptOAuthMetadataRoutes(deps));
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
+  app.use(buildAdminHostBreakglassRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminOnboardingRoutes({ ...deps, requireAdminPrincipal }));

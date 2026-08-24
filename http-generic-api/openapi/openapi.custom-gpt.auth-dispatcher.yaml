@@ -387,6 +387,224 @@ paths:
                 properties: {}
         "403":
           $ref: "#/components/responses/Forbidden"
+  /admin/runtime-bootstrap/catalog:
+    get:
+      operationId: getAdminRuntimeBootstrapCatalog
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Read the repository-owned Host Breakglass catalog
+      description: Returns database-independent recovery capabilities without reading the runtime database or exposing credentials.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Host Breakglass catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/runtime-bootstrap/plan:
+    post:
+      operationId: planAdminRuntimeBootstrap
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Build a database-independent Host Breakglass plan
+      description: Validates inspect, repair, or empty-database rebuild without mutation.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - operation_key
+                - action
+                - expected_sha
+              properties:
+                environment_key:
+                  type: string
+                  enum:
+                    - staging_local_windows_docker
+                    - production_hostinger_autodeploy
+                  default: production_hostinger_autodeploy
+                operation_key:
+                  type: string
+                  enum:
+                    - database.inspect
+                    - database.repair
+                    - database.rebuild_empty
+                action:
+                  type: string
+                  enum:
+                    - plan
+                    - dry_run
+                    - apply_migration
+                    - apply_grants
+                expected_sha:
+                  type: string
+                  pattern: ^[0-9a-f]{40}$
+                target_source:
+                  type: string
+                  enum:
+                    - repository_allowlist
+                    - runtime_env
+                  default: repository_allowlist
+                target_key:
+                  type: string
+                  pattern: ^[A-Za-z0-9._:-]{1,128}$
+                  default: production-runtime
+                migration:
+                  type: string
+                  maxLength: 191
+                  description: Repository migration selected from the bootstrap contract at runtime.
+                confirmation:
+                  type: string
+                  maxLength: 500
+                correlation_id:
+                  type: string
+                  pattern: ^[A-Za-z0-9._:-]{1,128}$
+                idempotency_key:
+                  type: string
+                  pattern: ^[A-Za-z0-9._:-]{1,128}$
+      responses:
+        "200":
+          description: Validated immutable plan
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/runtime-bootstrap/runs:
+    post:
+      operationId: createAdminRuntimeBootstrapRun
+      tags:
+        - admin-operations
+      x-openai-isConsequential: true
+      summary: Dispatch a governed Host Breakglass run
+      description: Dispatches the fixed workflow on main with exact Production SHA binding; runtime_env remains dry-run-only.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - operation_key
+                - action
+                - expected_sha
+              properties:
+                environment_key:
+                  type: string
+                  enum:
+                    - staging_local_windows_docker
+                    - production_hostinger_autodeploy
+                  default: production_hostinger_autodeploy
+                operation_key:
+                  type: string
+                  enum:
+                    - database.inspect
+                    - database.repair
+                    - database.rebuild_empty
+                action:
+                  type: string
+                  enum:
+                    - plan
+                    - dry_run
+                    - apply_migration
+                    - apply_grants
+                expected_sha:
+                  type: string
+                  pattern: ^[0-9a-f]{40}$
+                target_source:
+                  type: string
+                  enum:
+                    - repository_allowlist
+                    - runtime_env
+                  default: repository_allowlist
+                target_key:
+                  type: string
+                  pattern: ^[A-Za-z0-9._:-]{1,128}$
+                  default: production-runtime
+                migration:
+                  type: string
+                  maxLength: 191
+                  description: Repository migration selected from the bootstrap contract at runtime.
+                confirmation:
+                  type: string
+                  maxLength: 500
+                correlation_id:
+                  type: string
+                  pattern: ^[A-Za-z0-9._:-]{1,128}$
+                idempotency_key:
+                  type: string
+                  pattern: ^[A-Za-z0-9._:-]{1,128}$
+      responses:
+        "200":
+          description: Plan-only result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "202":
+          description: Workflow dispatch accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/runtime-bootstrap/runs/{correlation_id}:
+    get:
+      operationId: getAdminRuntimeBootstrapRun
+      tags:
+        - admin-operations
+      x-openai-isConsequential: false
+      summary: Read bounded Host Breakglass workflow status
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: correlation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{1,128}$
+      responses:
+        "200":
+          description: Bounded workflow evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /system/connectors:
     get:
       tags:
@@ -2004,7 +2222,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 35568019a8e9009c4d1632186570be27d14173757bbd3e56a535cfeaa36d7449
+  source_openapi_sha256: 16e7fbaa7484802f4d777b1f8a5cbe61a3d5f8bdfb869a52ee8357603836763a
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
@@ -2064,7 +2282,7 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 26
+  operation_count: 30
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30

@@ -10,12 +10,18 @@
     "include": [
       ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
       "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/config/host-breakglass-catalog.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/runtimeBootstrapContract.js",
       "http-generic-api/runtimeBootstrapStatus.js",
+      "http-generic-api/hostBreakglassCatalog.js",
       "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-admin-host-breakglass-routes.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
@@ -33,6 +39,7 @@
       "http-generic-api/activation-gateway-runtime/**",
       "edge/activation-gateway/generated/route-policy.json",
       "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/openapi.yaml",
       "http-generic-api/openapi/**",
@@ -107,6 +114,20 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-static-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-admin-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-admin-host-breakglass-routes.mjs",
               "args": []
             },
             {

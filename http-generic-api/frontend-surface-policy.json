@@ -162,6 +162,23 @@
       ]
     },
     {
+      "rule_id": "host-breakglass-admin-api-surface",
+      "family_key": "admin-host-breakglass",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "scope": "admin",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Database-independent Admin recovery API exposed only through the bounded Admin Core action surface; it is not a browser navigation surface.",
+      "evidence_refs": [
+        "routes/adminHostBreakglassRoutes.js",
+        "hostBreakglassCatalog.js",
+        "config/host-breakglass-catalog.json",
+        "test-admin-host-breakglass-routes.mjs",
+        "test-host-breakglass-catalog.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
       "rule_id": "generated-gap-backup-artifact-routes-backupartifactroutes-js",
       "family_key": "backup-artifact",
       "source_file": "routes/backupArtifactRoutes.js",
@@ -2914,6 +2931,45 @@
     }
   ],
   "operation_rules": [
+    {
+      "rule_id": "host-breakglass-plan-read-action",
+      "operation": "POST /admin/runtime-bootstrap/plan",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Builds and hashes an immutable repository-owned recovery plan without database or provider mutation.",
+      "evidence_refs": ["hostBreakglassCatalog.js", "test-host-breakglass-catalog.mjs", "test-admin-host-breakglass-routes.mjs"]
+    },
+    {
+      "rule_id": "host-breakglass-dispatch-external-effect",
+      "operation": "POST /admin/runtime-bootstrap/runs",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "Dispatches only the fixed repository workflow after exact-SHA, catalog, target-source, confirmation, and idempotency validation; execution remains gated by the Production environment and same-cycle readback.",
+      "preflight": {
+        "mode": "inline_contract_validation"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_environment_approval"
+      },
+      "readback": {
+        "mode": "separate_operation",
+        "operation": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The API mutation is only a workflow dispatch. Database mutation remains behind environment approval and the bootstrap engine reports partial_possible with same-cycle readback; destructive nonempty rebuild is prohibited."
+      },
+      "parameter_bindings": {
+        "environment_key": "request.body.environment_key",
+        "operation_key": "request.body.operation_key",
+        "expected_sha": "request.body.expected_sha",
+        "correlation_id": "request.body.correlation_id",
+        "run_status": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
+      },
+      "evidence_refs": ["hostBreakglassCatalog.js", "config/host-breakglass-catalog.json", "production-runtime-parity-evidence.yml", "test-host-breakglass-catalog.mjs"]
+    },
     {
       "rule_id": "root-discovery-delete-read-action",
       "operation": "DELETE /",

@@ -836,6 +836,9 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     }
     const beforeTableCount = await tableCount(connection, target.database);
     const databaseClassification = classifyDatabaseTableCount(beforeTableCount);
+    if (String(env.HOST_BREAKGLASS_OPERATION || "").trim() === "database.rebuild_empty" && databaseClassification !== "zero_tables") {
+      throw bootstrapError("host_breakglass_rebuild_nonempty_denied", "database.rebuild_empty requires a zero-table target and never drops an existing schema", { table_count: beforeTableCount, database_classification: databaseClassification });
+    }
     const required = spec.requires_tables || [];
     const requiredEvidence = await requiredTableEvidence(connection, target.database, required);
     if (requiredEvidence.some((entry) => !entry.present) && beforeTableCount > 0) {

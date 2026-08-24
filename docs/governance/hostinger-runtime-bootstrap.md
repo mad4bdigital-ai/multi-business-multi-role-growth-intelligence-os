@@ -1,5 +1,15 @@
 # Hostinger Runtime Bootstrap Contract
 
+## Repository-owned Host Breakglass catalog
+
+`http-generic-api/config/host-breakglass-catalog.json` هو كتالوج الاستعادة المستقل عن قاعدة البيانات. يعرض عقود قدرات بدل تكرار قائمة migrations ثابتة: فحص وإعادة بناء schema bundle لقاعدة فارغة، فحص وتطبيق migrations المملوكة للريبو، إصلاح grants، وقراءة postconditions والـledger. تبقى أسماء migrations والـchecksums من `runtime-bootstrap-contract.json` عند الـSHA المستهدف فقط.
+
+توفر Admin surface عمليات catalog وplan وdispatch وstatus دون استخدام operation orchestrator أو MCP catalog أو session tables. الـdispatch ثابت على هذا المستودع وworkflow `production-runtime-parity-evidence.yml` و`ref=main`، بينما يثبت الـworkflow بشكل مستقل رأس Production والـSHA المنشورة حيًا.
+
+إعادة البناء الكامل مسموحة فقط لقاعدة غير موجودة أو ذات صفر جداول، وتستخدم schema bundle وseeds وmigrations وgrants وsame-cycle readback. هذا المسار لا يسقط جداول قاعدة غير فارغة؛ الاستبدال يتطلب target جديدًا أو lifecycle منفصلة مع backup proof.
+
+الكتالوج يفصل بيئتين: `staging_local_windows_docker` يعمل من Windows checkout محلي عبر Docker وlocal CLI ولا يملك Hostinger أو GitHub workflow authority، بينما `production_hostinger_autodeploy` يستخدم GitHub dispatch على `main` ثم يثبت رأس `Production` وHostinger Auto Deploy parity. أسماء credentials ووسيلة التنفيذ وbranch bindings منفصلة، وأي cross-environment dispatch مرفوض.
+
 هذا العقد يضيف مسارًا مستقلًا ومحدودًا لمعالجة قواعد runtime التي تكون ناقصة schema أو غير جاهزة للصلاحيات. وهو لا يضعف `/gpt/tools` أو `/gpt/tools/call` أو مسارات session-context؛ هذه المسارات تظل DB-backed ومحمية بطبقات authorization المعتادة.
 
 > **قاعدة أساسية:** تشغيل `npm start` أو `prestart` أو Docker لا يطبق migrations أو grants. حالة التطبيق التشخيصية لا تعني أن bootstrap حدث، ونجاح Auto Deploy لا يساوي نجاح SQL apply.

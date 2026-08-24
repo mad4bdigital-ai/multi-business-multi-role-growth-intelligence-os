@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.host-breakglass-catalog.v1",
+  "status": "repository_owned_fail_closed_catalog",
+  "database_independent": true,
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "dispatch_ref": "main",
+  "target_branch": "Production",
+  "workflow": "production-runtime-parity-evidence.yml",
+  "environments": {
+    "staging_local_windows_docker": {
+      "environment": "staging",
+      "host": "local_windows",
+      "runtime": "docker_compose",
+      "execution_transport": "local_cli",
+      "source_branch": "main",
+      "default_target_key": "staging-runtime",
+      "provider": "local_docker",
+      "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
+      "github_workflow_dispatch_allowed": false,
+      "hostinger_access_allowed": false
+    },
+    "production_hostinger_autodeploy": {
+      "environment": "production",
+      "host": "hostinger_cloud_business",
+      "runtime": "github_auto_deploy",
+      "execution_transport": "github_workflow",
+      "source_branch": "Production",
+      "default_target_key": "production-runtime",
+      "dispatch_ref": "main",
+      "provider": "hostinger",
+      "credential_namespace": "MYSQL_BOOTSTRAP_*",
+      "github_workflow_dispatch_allowed": true,
+      "hostinger_access_allowed": true
+    }
+  },
+  "tools": [
+    { "key": "schema_bundle.inspect", "mutation": false, "database_required": false },
+    { "key": "schema_bundle.rebuild_empty", "mutation": true, "zero_table_required": true },
+    { "key": "migration_contract.inspect", "mutation": false, "catalog_source": "runtime-bootstrap-contract.json" },
+    { "key": "migration_contract.apply", "mutation": true, "catalog_source": "runtime-bootstrap-contract.json" },
+    { "key": "grant_contract.inspect", "mutation": false },
+    { "key": "grant_contract.apply", "mutation": true },
+    { "key": "database.postconditions.read", "mutation": false },
+    { "key": "ledger.readback", "mutation": false }
+  ],
+  "operations": [
+    {
+      "key": "database.inspect",
+      "risk": "read_only",
+      "allowed_actions": ["plan", "dry_run"],
+      "target_sources": ["repository_allowlist", "runtime_env"],
+      "requires_exact_sha": true,
+      "requires_confirmation": false,
+      "purpose": "Classify database existence, table population, ledger, schema bundle eligibility, postconditions, and grants without mutation."
+    },
+    {
+      "key": "database.repair",
+      "risk": "controlled_mutation",
+      "allowed_actions": ["plan", "dry_run", "apply_migration", "apply_grants"],
+      "target_sources": ["repository_allowlist"],
+      "requires_exact_sha": true,
+      "requires_confirmation": true,
+      "purpose": "Repair a database from repository-owned migration and grant contracts selected at runtime from the signed repository contract."
+    },
+    {
+      "key": "database.rebuild_empty",
+      "risk": "controlled_mutation",
+      "allowed_actions": ["plan", "dry_run", "apply_migration", "apply_grants"],
+      "target_sources": ["repository_allowlist"],
+      "requires_exact_sha": true,
+      "requires_confirmation": true,
+      "requires_zero_table_database": true,
+      "purpose": "Rebuild an empty database from the exact-SHA schema bundle, seeds, repository migrations, grants, and same-cycle readback."
+    }
+  ],
+  "destructive_nonempty_rebuild": {
+    "supported": false,
+    "reason": "A nonempty database must be restored into a new target or emptied through an independently approved provider lifecycle with backup proof; this catalog never drops live tables."
+  },
+  "secrets_included": false
+}

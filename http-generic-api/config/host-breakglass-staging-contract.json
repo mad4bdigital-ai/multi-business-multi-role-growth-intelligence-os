@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.host-breakglass-staging-windows-docker.v1",
+  "base_contract": "runtime-bootstrap-contract.json",
+  "environment_key": "staging_local_windows_docker",
+  "required_platform": "win32",
+  "required_runtime": "docker_compose",
+  "source_branch": "main",
+  "target_environment": "staging",
+  "default_target_key": "staging-runtime",
+  "credential_mapping": {
+    "STAGING_MYSQL_BOOTSTRAP_HOST": "MYSQL_BOOTSTRAP_HOST",
+    "STAGING_MYSQL_BOOTSTRAP_PORT": "MYSQL_BOOTSTRAP_PORT",
+    "STAGING_MYSQL_BOOTSTRAP_DATABASE": "MYSQL_BOOTSTRAP_DATABASE",
+    "STAGING_MYSQL_BOOTSTRAP_USER": "MYSQL_BOOTSTRAP_USER",
+    "STAGING_MYSQL_BOOTSTRAP_PASSWORD": "MYSQL_BOOTSTRAP_PASSWORD"
+  },
+  "github_workflow_dispatch_allowed": false,
+  "hostinger_access_allowed": false,
+  "secrets_included": false
+}

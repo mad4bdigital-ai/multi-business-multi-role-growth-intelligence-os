@@ -61,6 +61,19 @@ on:
         required: false
         default: https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run
         type: string
+      host_breakglass_operation:
+        description: Repository-owned Host Breakglass catalog operation key.
+        required: false
+        default: database.inspect
+        type: choice
+        options:
+          - database.inspect
+          - database.repair
+          - database.rebuild_empty
+      host_breakglass_correlation_id:
+        description: Bounded broker correlation identifier; contains no credentials.
+        required: false
+        type: string
       strategy:
         description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
         required: false
@@ -220,6 +233,7 @@ jobs:
         env:
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+          HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -227,6 +241,23 @@ jobs:
             echo '{"ok":false,"code":"hostinger_runtime_env_dry_run_only","secrets_included":false}' >&2
             exit 1
           fi
+
+      - name: Validate Host Breakglass catalog binding
+        if: inputs.host_breakglass_correlation_id != ''
+        env:
+          BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
+          BREAKGLASS_CORRELATION_ID: ${{ inputs.host_breakglass_correlation_id }}
+          BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
+          BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${BREAKGLASS_CORRELATION_ID}" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]
+          case "${BREAKGLASS_OPERATION}" in
+            database.inspect) [[ "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" ]] ;;
+            database.repair|database.rebuild_empty) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]] ;;
+            *) exit 1 ;;
+          esac
 
       - name: Validate trusted dispatch ref and exact Production head
         env:
@@ -295,6 +326,7 @@ jobs:
       - name: Run selected repository bootstrap contract mode
         if: inputs.bootstrap_target_source == 'repository_allowlist'
         env:
+          HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
           MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
           MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
           MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}

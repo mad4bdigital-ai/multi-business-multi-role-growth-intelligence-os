@@ -86,6 +86,8 @@ const staticDiscoveryCommands = [
   "node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
   "node scripts/test-runtime-startup-deployment-evidence.mjs",
   "node test-runtime-gate-deployment-info-parity.mjs",
+  "node test-host-breakglass-catalog.mjs",
+  "node test-admin-host-breakglass-routes.mjs",
   "node test-remote-mcp-disabled-startup-boundary.mjs",
   "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
