@@ -103,9 +103,10 @@ jobs:
           test "$main_sha" = "$base_sha"
           test "$compare_behind" = "0"
           authority="$(jq -c '.repair_authorities[0] // null' "$report")"
+          state_file="$RUNNER_TEMP/repair-target.env"
           if [[ "$authority" == "null" ]]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=no_blocking_repair_authority" >> "$GITHUB_OUTPUT"
+            printf 'eligible=false\nreason=no_blocking_repair_authority\n' > "$state_file"
+            chmod 600 "$state_file"
             exit 0
           fi
           authority_kind="$(jq -er '.kind' <<<"$authority")"
@@ -114,32 +115,38 @@ jobs:
           [[ "$authority_kind" =~ ^[a-z0-9_]+$ ]]
           [[ "$authority_id" =~ ^[a-z0-9_.-]+$ ]]
           [[ -z "$authority_recipe" || "$authority_recipe" =~ ^[a-z0-9_.-]+$ ]]
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
-          echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
           authority_file="$RUNNER_TEMP/repair-authority.json"
           printf '%s' "$authority" > "$authority_file"
           chmod 600 "$authority_file"
           test -s "$authority_file"
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          printf 'eligible=true\npr_number=%s\ntarget_ref=%s\nhead_sha=%s\n' "$pr_number" "$target_ref" "$head_sha" > "$state_file"
+          chmod 600 "$state_file"
+          test -s "$state_file"
 
       - name: Dispatch registered authority
-        if: steps.target.outputs.eligible == 'true'
+        if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_FORCE_TTY: "0"
-          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          TARGET_REF: ${{ steps.target.outputs.target_ref }}
-          HEAD_SHA: ${{ steps.target.outputs.head_sha }}
         run: |
           set -euo pipefail
-          case "$TARGET_REF" in
-            main|Production) echo "Protected branch mutation target is forbidden: $TARGET_REF" >&2; exit 1 ;;
+          state_file="$RUNNER_TEMP/repair-target.env"
+          test -s "$state_file"
+          source "$state_file"
+          if [[ "$eligible" != "true" ]]; then
+            printf 'eligible=%s\nreason=%s\n' "$eligible" "${reason:-unknown}"
+            exit 0
+          fi
+          case "$target_ref" in
+            main|Production) echo "Protected branch mutation target is forbidden: $target_ref" >&2; exit 1 ;;
           esac
           authority_file="$RUNNER_TEMP/repair-authority.json"
           test -s "$authority_file"
           authority="$(cat "$authority_file")"
+          PR_NUMBER="$pr_number"
+          TARGET_REF="$target_ref"
+          HEAD_SHA="$head_sha"
           kind="$(jq -er '.kind' <<<"$authority")"
           id="$(jq -er '.id' <<<"$authority")"
           recipe="$(jq -r '.recipe // empty' <<<"$authority")"
