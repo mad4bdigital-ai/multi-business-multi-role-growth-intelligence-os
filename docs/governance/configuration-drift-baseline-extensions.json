@@ -68,6 +68,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs|DEFAULT_BASELINE_EXTENSION|literal_declaration|baseline.extension",
+      "owner": "repository-governance",
+      "reason": "The default baseline-extension path is the code-owned locator for the permanent configuration governance extension authority. It selects a tracked report-only contract, contains no credential, and grants no runtime, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
