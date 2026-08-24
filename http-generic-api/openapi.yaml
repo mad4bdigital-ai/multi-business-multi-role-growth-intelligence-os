@@ -6401,7 +6401,7 @@ paths:
 
   /deployment-info/runtime-bootstrap-role-dry-run:
     post:
-      tags: [dev-diagnostics]
+      tags: [dev-diagnostics, admin-control]
       security:
         - backendApiKeyAuth: []
       operationId: runHostLocalRoleBootstrapDryRun

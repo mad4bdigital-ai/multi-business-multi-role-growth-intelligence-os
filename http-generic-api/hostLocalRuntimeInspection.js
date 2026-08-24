@@ -11,7 +11,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..");
 const CANONICAL_REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const PRODUCTION_BRANCH = "Production";
-const PRODUCTION_ENVIRONMENT_KEY = "production_hostinger_autodeploy";
+const PROD_AUTODEPLOY = "production_hostinger_autodeploy";
 const PRODUCTION_TARGET_KEY = "production-runtime";
 const SHA_RE = /^[0-9a-f]{40}$/iu;
 const REQUEST_KEYS = new Set(["expected_sha", "target_key"]);
@@ -90,7 +90,7 @@ function normalizeInspectionPlan(plan = {}) {
   const targetKey = safeText(plan.target_key || PRODUCTION_TARGET_KEY, 128);
   const expectedSha = safeText(plan.expected_sha, 64).toLowerCase();
   const migration = safeText(plan.migration, 191);
-  if (environmentKey !== PRODUCTION_ENVIRONMENT_KEY) {
+  if (environmentKey !== PROD_AUTODEPLOY) {
     throw adapterError(403, "host_local_inspection_environment_denied", "Host-local role inspection is restricted to the Hostinger Production environment.", { environment_key: environmentKey });
   }
   if (operationKey !== "database.inspect" || runbookKey !== "database.full_inspection") {
@@ -112,7 +112,7 @@ function normalizeInspectionPlan(plan = {}) {
     throw adapterError(409, "host_local_inspection_migration_forbidden", "Full host-local inspection must omit migration selection.", { migration_selected: true });
   }
   return {
-    environment_key: PRODUCTION_ENVIRONMENT_KEY,
+    environment_key: PROD_AUTODEPLOY,
     operation_key: "database.inspect",
     runbook_key: "database.full_inspection",
     action: "dry_run",
@@ -134,7 +134,7 @@ function assertRequestShape(input = {}) {
     throw adapterError(400, "host_local_inspection_request_field_forbidden", "Only expected_sha and target_key are accepted; credentials, database identifiers, repository, and workflow controls are server-controlled.", { fields: unexpected });
   }
   return normalizeInspectionPlan({
-    environment_key: PRODUCTION_ENVIRONMENT_KEY,
+    environment_key: PROD_AUTODEPLOY,
     operation_key: "database.inspect",
     runbook_key: "database.full_inspection",
     action: "dry_run",
@@ -157,7 +157,7 @@ function buildBootstrapEnvironment(plan, env = process.env) {
     BOOTSTRAP_EXPECTED_REPOSITORY: CANONICAL_REPOSITORY,
     BOOTSTRAP_TARGET_KEY: PRODUCTION_TARGET_KEY,
     HOST_BREAKGLASS_OPERATION: "database.inspect",
-    HOST_BREAKGLASS_ENVIRONMENT_KEY: PRODUCTION_ENVIRONMENT_KEY,
+    HOST_BREAKGLASS_ENVIRONMENT_KEY: PROD_AUTODEPLOY,
     HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: "true",
     BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY: "true",
   };
@@ -217,7 +217,7 @@ export async function executeHostLocalRoleInspection(planInput = {}, {
       status: "host_local_inspection_complete",
       mode: "dry_run",
       operation: "read_only",
-      environment_key: PRODUCTION_ENVIRONMENT_KEY,
+      environment_key: PROD_AUTODEPLOY,
       target_key: PRODUCTION_TARGET_KEY,
       target_source: "host_local_role_env",
       expected_sha: plan.expected_sha,
@@ -257,6 +257,7 @@ export const _testingHostLocalRuntimeInspection = {
   safeMutationFlags,
   CANONICAL_REPOSITORY,
   PRODUCTION_BRANCH,
-  PRODUCTION_ENVIRONMENT_KEY,
+  PROD_AUTODEPLOY,
+  PRODUCTION_ENVIRONMENT_KEY: PROD_AUTODEPLOY,
   PRODUCTION_TARGET_KEY,
 };

@@ -10,12 +10,14 @@
     "include": [
       ".changes/e2e/host-local-inspection-adapter-20260824.json",
       "docs/governance/hostinger-runtime-bootstrap.md",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
       ".github/governance/test-authority-registry.json",
       ".github/derived-state-governance.json",
       "http-generic-api/frontend-surface-policy.json",
       "http-generic-api/hostBreakglassCatalog.js",
       "http-generic-api/hostLocalRuntimeInspection.js",
       "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/test-admin-host-breakglass-routes.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
@@ -57,7 +59,7 @@
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
-    "live_staging_certification_required": false,
+    "live_staging_certification_required": true,
     "production_mutation_allowed": false
   },
   "phases": [

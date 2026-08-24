@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7334,
-    "bytes": 71908467,
-    "lines": 1679700,
+    "bytes": 71909807,
+    "lines": 1679722,
     "directories": 266,
     "categories": 13
   },
@@ -288,7 +288,7 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 1013838,
+      "bytes": 1013853,
       "lines": 23385
     },
     {
