@@ -73,6 +73,7 @@
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
     ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+      ".changes/e2e/collation-governance-runtime-persistence-wiring.json",
       ".changes/e2e/governed-migration-runner-bootstrap-diagnostics-20260821.json",
       ".changes/e2e/remote-mcp-oauth-path-format-guard.json",
       ".changes/e2e/derived-state-closure-governance-20260815.json",
