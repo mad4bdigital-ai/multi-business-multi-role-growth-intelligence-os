@@ -155,3 +155,9 @@ The reconstruction plan exposes a hashed, role-by-role `apply_runbook` execution
 Before issuing a Production workflow dispatch, the broker searches the repository-owned workflow for the exact correlation display title on its trusted dispatch branch. One existing run is returned as a durable replay after a process restart; multiple matches fail closed, and neither case issues a second dispatch. Process-local receipts remain a cache, not the sole replay authority.
 
 For runtime binding, catalog inspection, and backend-key-authenticated `runtime_env` dry-run, the required new environment-variable count remains **zero** when the existing application `.env` already contains `BACKEND_API_KEY` and `DB_*`. SSH and privileged database credentials remain necessary only for their separately authorized mutation transports.
+
+### Existing environment bindings and reconstruction boundaries
+
+Keep one centrally managed `.env` for each environment. Bind the runtime role to the existing `DB_NAME`/`DB_USER`, the governance role to `GOVERNANCE_DB_NAME`/`GOVERNANCE_DB_USER`, and the persistence role to `RUNTIME_PERSISTENCE_DB_NAME`/`RUNTIME_PERSISTENCE_DB_USER`. These are existing role bindings, not additional Host Breakglass configuration; never collapse an isolated persistence database into the runtime database to avoid configuration.
+
+`BACKEND_API_KEY` authorizes the existing internal read-only runtime binding and `runtime_env` dry-run transport. It is not a database privilege, SSH credential, Production approval, or substitute for the repository-owned target allowlist. If a privileged role identity, target binding, or separate persistence database is absent, report the missing prerequisite and fail closed rather than falling back to another role or inventing a new environment variable.
