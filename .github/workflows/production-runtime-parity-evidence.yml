@@ -1,6 +1,6 @@
 name: Production Runtime Parity Evidence
 run-name: >-
-  runtime-breakglass-${{ inputs.breakglass_correlation_id || inputs.host_breakglass_correlation_id || github.run_id }}-${{ inputs.expected_sha || github.sha }}
+  runtime-breakglass-${{ inputs.breakglass_correlation_id || inputs.host_breakglass_correlation_id || github.run_id }}-${{ inputs.expected_sha || github.sha }}${{ inputs.host_breakglass_plan_sha256 && format('-{0}', inputs.host_breakglass_plan_sha256) || '' }}
 
 on:
   pull_request:
@@ -88,6 +88,10 @@ on:
         description: Bounded broker correlation identifier; contains no credentials.
         required: false
         type: string
+      host_breakglass_plan_sha256:
+        description: Exact SHA-256 of the repository-owned Host Breakglass plan; used for durable run correlation.
+        required: false
+        type: string
       host_breakglass_runbook:
         description: Repository-owned capability runbook compatible with the selected operation and action.
         required: false
@@ -166,10 +170,6 @@ on:
         options:
           - repository_allowlist
           - hostinger_runtime_env
-      bootstrap_target_database:
-        description: Exact bootstrap database identifier matching the repository-owned target.
-        required: false
-        type: string
       bootstrap_migration:
         description: 20260815 is the only apply candidate; 225/1048 remain verification-only.
         required: false
@@ -255,13 +255,11 @@ jobs:
       BOOTSTRAP_EXPECTED_REPOSITORY: ${{ github.repository }}
       BOOTSTRAP_TARGET_KEY: ${{ inputs.bootstrap_target_key }}
       BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
-      BOOTSTRAP_TARGET_DATABASE: ${{ inputs.bootstrap_target_database }}
       BOOTSTRAP_MIGRATION: ${{ inputs.bootstrap_migration }}
       BOOTSTRAP_MIGRATION_CONFIRMATION: ${{ inputs.bootstrap_migration_confirmation }}
       BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
-      BOOTSTRAP_GOVERNANCE_DATABASE: ${{ vars.BOOTSTRAP_GOVERNANCE_DATABASE }}
     steps:
       - name: Validate bootstrap target source scope
         env:
@@ -283,12 +281,14 @@ jobs:
           BREAKGLASS_CORRELATION_ID: ${{ inputs.host_breakglass_correlation_id }}
           BREAKGLASS_RUNBOOK: ${{ inputs.host_breakglass_runbook }}
           BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
+          BREAKGLASS_PLAN_SHA256: ${{ inputs.host_breakglass_plan_sha256 }}
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
         shell: bash
         run: |
           set -Eeuo pipefail
           [[ "${BREAKGLASS_CORRELATION_ID}" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]
+          [[ "${BREAKGLASS_PLAN_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           case "${BREAKGLASS_OPERATION}" in
             database.inspect) [[ "${BREAKGLASS_RUNBOOK}" == "database.full_inspection" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" ) ]] ;;
             database.repair)
@@ -386,7 +386,6 @@ jobs:
           HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
           MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
           MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-          MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
@@ -399,7 +398,6 @@ jobs:
         env:
           MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
           MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-          MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
           HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}

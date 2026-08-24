@@ -238,20 +238,61 @@ async function githubRequest({ token, method = "GET", pathname, body, fetchImpl 
   return { status: response.status, payload };
 }
 
-export async function dispatchHostBreakglassPlan(plan, { fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
+async function resolveHostBreakglassToken({ env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
+  const directToken = String(env.RUNTIME_BREAKGLASS_GITHUB_TOKEN || "").trim();
+  if (directToken) return { token: directToken, auth_mode: "server_side_token" };
+  try {
+    const token = await tokenResolver({
+      action: {
+        github_app_id: env.RUNTIME_BREAKGLASS_GITHUB_APP_ID || env.GITHUB_APP_ID,
+        github_app_installation_id: env.RUNTIME_BREAKGLASS_GITHUB_APP_INSTALLATION_ID || env.GITHUB_APP_INSTALLATION_ID,
+        secret_store_ref: env.RUNTIME_BREAKGLASS_GITHUB_APP_PRIVATE_KEY_REF || "",
+      },
+      fetchImpl,
+    });
+    if (token) return { token: String(token), auth_mode: "github_app_installation" };
+  } catch (error) {
+    fail(503, "host_breakglass_github_broker_unconfigured", "The server-side GitHub broker credential is unavailable or invalid.", { cause_code: error?.code || "github_broker_auth_failed" });
+  }
+  fail(503, "host_breakglass_github_broker_unconfigured", "The server-side GitHub broker credential is not configured.");
+}
+
+function expectedHostBreakglassRunName(plan) {
+  return `runtime-breakglass-${plan.correlation_id}-${plan.expected_sha}-${plan.plan_sha256}`;
+}
+
+function workflowRunsPath(plan) {
+  const [owner, repo] = plan.repository.split("/");
+  return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(plan.dispatch_ref)}&per_page=20`;
+}
+
+function matchingHostBreakglassRuns(payload, plan) {
+  const expectedRunName = expectedHostBreakglassRunName(plan);
+  return (payload?.workflow_runs || []).filter((item) =>
+    String(item?.path || "") === String(plan.workflow || "")
+      && String(item?.event || "") === "workflow_dispatch"
+      && String(item?.head_branch || "") === String(plan.dispatch_ref || "")
+      && String(item?.display_title || item?.run_name || "") === expectedRunName
+  );
+}
+
+export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {
     return { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   const existing = RUNS.get(plan.correlation_id);
-  if (existing) {
-    if (existing.plan_sha256 !== plan.plan_sha256) fail(409, "host_breakglass_idempotency_conflict", "correlation_id is already bound to a different plan.");
-    const { prior_run_ids, ...publicExisting } = existing;
-    return { ...publicExisting, replayed: true, secrets_included: false };
-  }
+  if (existing && existing.plan_sha256 !== plan.plan_sha256) fail(409, "host_breakglass_idempotency_conflict", "correlation_id is already bound to a different plan.");
   const [owner, repo] = plan.repository.split("/");
-  const token = await tokenResolver({ action: {} , fetchImpl });
-  const prior = await githubRequest({ token, pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(plan.dispatch_ref)}&per_page=20`, fetchImpl });
-  const priorRunIds = (prior.payload?.workflow_runs || []).map((item) => String(item.id));
+  const { token, auth_mode } = await resolveHostBreakglassToken({ env, fetchImpl, tokenResolver });
+  const prior = await githubRequest({ token, pathname: workflowRunsPath(plan), fetchImpl });
+  const matchingRuns = matchingHostBreakglassRuns(prior.payload, plan);
+  if (matchingRuns.length > 1) fail(409, "host_breakglass_correlation_ambiguous", "More than one exact GitHub workflow run matches this correlation and plan.", { candidate_count: matchingRuns.length });
+  if (matchingRuns.length === 1) {
+    const run = matchingRuns[0];
+    const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "reused", workflow_run_id: String(run.id), workflow_dispatch_performed: false, idempotent_reuse: true, broker_auth_mode: auth_mode, database_mutation_performed: false, secrets_included: false };
+    RUNS.set(plan.correlation_id, receipt);
+    return receipt;
+  }
   const dispatchedAt = new Date().toISOString();
   await githubRequest({ token, method: "POST", pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/dispatches`, fetchImpl, body: { ref: plan.dispatch_ref, inputs: {
     expected_sha: plan.expected_sha,
@@ -266,26 +307,26 @@ export async function dispatchHostBreakglassPlan(plan, { fetchImpl = fetch, toke
     host_breakglass_runbook: plan.runbook_key,
     host_breakglass_tool_contract_sha256: plan.tool_contract_sha256,
     host_breakglass_capsule: plan.capsule_path ? JSON.stringify({ path: plan.capsule_path, sha256: plan.capsule_sha256, confirmation: plan.confirmation, backup_evidence_path: plan.backup_evidence_path }) : "",
-    host_breakglass_correlation_id: plan.correlation_id
+    host_breakglass_correlation_id: plan.correlation_id,
+    host_breakglass_plan_sha256: plan.plan_sha256
   } } });
-  const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "dispatched", workflow_run_id: null, workflow_dispatch_performed: true, database_mutation_performed: false, dispatched_at: dispatchedAt, prior_run_ids: priorRunIds, secrets_included: false };
+  const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "dispatched", workflow_run_id: null, workflow_dispatch_performed: true, broker_auth_mode: auth_mode, database_mutation_performed: false, dispatched_at: dispatchedAt, secrets_included: false };
   RUNS.set(plan.correlation_id, receipt);
-  const { prior_run_ids, ...publicReceipt } = receipt;
-  return publicReceipt;
+  return receipt;
 }
 
-export async function readHostBreakglassRun(correlationId, { catalog = readHostBreakglassCatalog(), fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
+export async function readHostBreakglassRun(correlationId, { catalog = readHostBreakglassCatalog(), fetchImpl = fetch, env = process.env, tokenResolver = getGitHubAppInstallationToken } = {}) {
   if (!SAFE_ID_RE.test(String(correlationId || ""))) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");
   const receipt = RUNS.get(correlationId);
   const [owner, repo] = catalog.repository.split("/");
-  const token = await tokenResolver({ action: {}, fetchImpl });
+  const { token, auth_mode } = await resolveHostBreakglassToken({ env, fetchImpl, tokenResolver });
   const result = await githubRequest({ token, pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(catalog.workflow)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(catalog.dispatch_ref)}&per_page=20`, fetchImpl });
-  const durableTitle = `Host Breakglass ${correlationId}`;
-  const candidates = (result.payload?.workflow_runs || []).filter((item) => item?.head_branch === catalog.dispatch_ref && String(item.display_title || "") === durableTitle && (!receipt || (!receipt.prior_run_ids.includes(String(item.id)) && Date.parse(item.created_at || 0) >= Date.parse(receipt.dispatched_at))));
-  if (!receipt && candidates.length === 0) return { ok: false, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, status: "not_found", durable_github_readback: true, secrets_included: false };
+  const durablePrefix = `runtime-breakglass-${correlationId}-`;
+  const candidates = (result.payload?.workflow_runs || []).filter((item) => item?.head_branch === catalog.dispatch_ref && String(item?.event || "") === "workflow_dispatch" && String(item.display_title || item.run_name || "").startsWith(durablePrefix));
+  if (candidates.length === 0) return { ok: false, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, status: "not_found", durable_github_readback: true, secrets_included: false };
   if (candidates.length > 1) return { ok: false, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, status: "correlation_ambiguous", candidate_count: candidates.length, secrets_included: false };
-  const run = candidates.length === 1 ? candidates.pop() : null;
-  return { ok: true, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, dispatch_status: receipt?.status || "recovered_from_github", workflow_run_id: run?.id ? String(run.id) : null, status: run?.status || "queued", conclusion: run?.conclusion || null, durable_github_readback: true, secrets_included: false };
+  const run = candidates[0];
+  return { ok: true, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, plan_sha256: receipt?.plan_sha256 || String(run.display_title || run.run_name || "").split("-").pop() || null, dispatch_status: receipt?.status || "recovered_from_github", workflow_run_id: run?.id ? String(run.id) : null, status: run?.status || "queued", conclusion: run?.conclusion || null, durable_github_readback: true, broker_auth_mode: auth_mode, secrets_included: false };
 }
 
 export const __hostBreakglassTest = { RUNS, MIGRATION_DISCOVERY_CACHE };

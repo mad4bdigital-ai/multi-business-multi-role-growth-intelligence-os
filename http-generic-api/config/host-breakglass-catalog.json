@@ -112,6 +112,24 @@
       "purpose": "Execute repository-owned raw SQL or Docker shell capsules as an explicit Host Breakglass exception. Inline commands are never accepted. Production shell remains unavailable without a governed Hostinger remote-exec transport."
     }
   ],
+  "reconstruction_plan": {
+    "contract": "mad4b.host-breakglass-reconstruction-plan.v1",
+    "mode": "plan_only",
+    "execution_allowed": false,
+    "steps": [
+      { "key": "classify_target", "mutation": false, "readback": true },
+      { "key": "inspect_schema_bundle", "mutation": false, "readback": true },
+      { "key": "rebuild_runtime_schema", "role": "runtime", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+      { "key": "rebuild_governance_schema", "role": "governance", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+      { "key": "rebuild_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "executor_available": false, "blocked_reason": "role_specific_persistence_executor_not_configured" },
+      { "key": "apply_canonical_seeds", "mutation": true, "requires": ["exact_sha", "typed_confirmation"] },
+      { "key": "reconcile_reviewed_migrations", "mutation": true, "requires": ["repository_allowlist", "exact_sha", "typed_confirmation"] },
+      { "key": "apply_least_privilege_grants", "mutation": true, "requires": ["separate_confirmation", "postconditions_ready"] },
+      { "key": "read_postconditions_and_ledger", "mutation": false, "readback": true }
+    ],
+    "complete": false,
+    "blocking_reason": "runtime_persistence_role_executor_and_target binding require a separate reviewed change"
+  },
   "destructive_nonempty_rebuild": {
     "supported": false,
     "reason": "A nonempty database must be restored into a new target or emptied through an independently approved provider lifecycle with backup proof; this catalog never drops live tables."

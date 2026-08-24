@@ -173,7 +173,7 @@ function safeEnvironmentSummary(environmentKey, entry) {
 }
 
 function gitHubBrokerStatus(env = process.env) {
-  const directToken = Boolean(String(env.RUNTIME_BREAKGLASS_GITHUB_TOKEN || env.GITHUB_TOKEN || "").trim());
+  const directToken = Boolean(String(env.RUNTIME_BREAKGLASS_GITHUB_TOKEN || "").trim());
   const appConfig = resolveGitHubAppConfig({
     github_app_id: env.RUNTIME_BREAKGLASS_GITHUB_APP_ID || env.GITHUB_APP_ID,
     github_app_installation_id: env.RUNTIME_BREAKGLASS_GITHUB_APP_INSTALLATION_ID || env.GITHUB_APP_INSTALLATION_ID,
@@ -347,7 +347,7 @@ function githubApiBase(env = process.env) {
 }
 
 async function resolveGitHubToken({ env = process.env, fetchImpl = fetch, getAppToken = getGitHubAppInstallationToken } = {}) {
-  const directToken = String(env.RUNTIME_BREAKGLASS_GITHUB_TOKEN || env.GITHUB_TOKEN || "").trim();
+  const directToken = String(env.RUNTIME_BREAKGLASS_GITHUB_TOKEN || "").trim();
   if (directToken) return { token: directToken, auth_mode: "server_side_token" };
   const action = {
     github_app_id: env.RUNTIME_BREAKGLASS_GITHUB_APP_ID || env.GITHUB_APP_ID,

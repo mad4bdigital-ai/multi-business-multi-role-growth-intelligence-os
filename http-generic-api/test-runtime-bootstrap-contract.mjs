@@ -55,6 +55,17 @@ function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode =
   };
 }
 
+test("repository allowlist derives database binding from target key without caller database inputs", () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "dry_run");
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  const plan = buildPlan(env, contract);
+  assert.equal(plan.target_key, TARGET_KEY);
+  assert.equal(plan.target_binding.database_sha256, sha256Hex(TARGET_DATABASE));
+  assert.equal(plan.target_binding.raw_values_exposed, false);
+  assert.equal(plan.database_connection_performed, false);
+});
+
 function grantRows() {
   return TARGET ? [
     ...contract.grant_policy.required_tables.flatMap((table) => [

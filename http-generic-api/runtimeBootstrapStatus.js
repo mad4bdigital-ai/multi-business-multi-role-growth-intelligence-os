@@ -31,8 +31,7 @@ export function getRuntimeBootstrapStatus(env = process.env) {
       && configured(env.DB_NAME)
       && configured(env.DB_USER)
     : configured(env.RUNTIME_BOOTSTRAP_TARGETS_JSON)
-      && configured(env.BOOTSTRAP_TARGET_KEY || env.RECOVERY_TARGET_KEY)
-      && configured(env.BOOTSTRAP_TARGET_DATABASE || env.MYSQL_BOOTSTRAP_DATABASE);
+      && configured(env.BOOTSTRAP_TARGET_KEY || env.RECOVERY_TARGET_KEY);
   const exactShaConfigured = SHA_RE.test(String(env.BOOTSTRAP_EXPECTED_SHA || env.EXPECTED_SHA || "").trim());
   const bootstrapCredentialNamesConfigured = ["MYSQL_BOOTSTRAP_HOST", "MYSQL_BOOTSTRAP_USER", "MYSQL_BOOTSTRAP_PASSWORD"]
     .every((key) => configured(env[key]));

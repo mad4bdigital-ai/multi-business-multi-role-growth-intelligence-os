@@ -3,7 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { buildHostBreakglassPlan, publicHostBreakglassCatalog, readHostBreakglassRun, readHostBreakglassToolContract, __hostBreakglassTest } from "./hostBreakglassCatalog.js";
+import { buildHostBreakglassPlan, dispatchHostBreakglassPlan, publicHostBreakglassCatalog, readHostBreakglassRun, readHostBreakglassToolContract, __hostBreakglassTest } from "./hostBreakglassCatalog.js";
 const SHA = "a".repeat(40);
 const MIGRATION = "20260815_custom_gpt_mcp_catalog_levels.sql";
 const REPO_ROOT = path.resolve(process.cwd(), "..");
@@ -25,6 +25,13 @@ test("catalog is repository-owned and database independent", () => {
   assert.equal(catalog.operations.some((item) => item.key === "database.rebuild_empty"), true);
   assert.equal(catalog.tool_contract.default_policy, "deny");
   assert.equal(catalog.tool_contract.denied_capabilities.includes("raw_sql.inline"), true);
+});
+test("reconstruction graph is explicit but remains plan-only while persistence executor is absent", () => {
+  const catalog = publicHostBreakglassCatalog();
+  assert.equal(catalog.reconstruction_plan.mode, "plan_only");
+  assert.equal(catalog.reconstruction_plan.execution_allowed, false);
+  assert.equal(catalog.reconstruction_plan.steps.some((step) => step.key === "rebuild_runtime_persistence_schema" && step.executor_available === false), true);
+  assert.equal(catalog.reconstruction_plan.complete, false);
 });
 test("tool contract exposes governed platform capabilities with capsule-only raw exceptions", () => {
   const contract = readHostBreakglassToolContract();
@@ -92,11 +99,32 @@ test("Staging Windows Docker and Production Hostinger authorities cannot cross",
   assert.throws(() => buildHostBreakglassPlan({ environment_key: "staging_local_windows_docker", operation_key: "database.inspect", action: "plan", expected_sha: SHA, target_key: "production-runtime" }), /does not belong/u);
   assert.throws(() => buildHostBreakglassPlan({ environment_key: "production_hostinger_autodeploy", operation_key: "database.inspect", action: "plan", expected_sha: SHA, target_key: "staging-runtime" }), /does not belong/u);
 });
+test("Production dispatch reuses an exact GitHub run after process-local receipt loss", async () => {
+  const correlation = "durable-dispatch-test";
+  const plan = buildHostBreakglassPlan({ operation_key: "database.repair", runbook_key: "database.schema_repair", action: "dry_run", expected_sha: SHA, migration: MIGRATION, correlation_id: correlation });
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url: String(url), method: options.method || "GET" });
+    if (String(url).includes("/actions/workflows/production-runtime-parity-evidence.yml/runs?")) {
+      return new Response(JSON.stringify({ workflow_runs: [{ id: 88, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${plan.correlation_id}-${plan.expected_sha}-${plan.plan_sha256}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }), { status: 200 });
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const env = { RUNTIME_BREAKGLASS_GITHUB_TOKEN: "server-side-test-token" };
+  const first = await dispatchHostBreakglassPlan(plan, { env, fetchImpl, tokenResolver: async () => { throw new Error("GitHub App must not be used when dedicated token is present"); } });
+  assert.equal(first.idempotent_reuse, true);
+  assert.equal(first.workflow_dispatch_performed, false);
+  assert.equal(first.workflow_run_id, "88");
+  __hostBreakglassTest.RUNS.clear();
+  const second = await dispatchHostBreakglassPlan(plan, { env, fetchImpl, tokenResolver: async () => { throw new Error("GitHub App must not be used when dedicated token is present"); } });
+  assert.equal(second.idempotent_reuse, true);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 0);
+});
 test("Production correlation status survives process-local receipt loss through GitHub run-name readback", async () => {
   const correlation = "durable-status-test";
   __hostBreakglassTest.RUNS.clear();
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 77, head_branch: "main", display_title: `Host Breakglass ${correlation}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }) });
-  const result = await readHostBreakglassRun(correlation, { fetchImpl, tokenResolver: async () => "token" });
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 77, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${SHA}-${"c".repeat(64)}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }) });
+  const result = await readHostBreakglassRun(correlation, { fetchImpl, env: { RUNTIME_BREAKGLASS_GITHUB_TOKEN: "server-side-test-token" }, tokenResolver: async () => { throw new Error("GitHub App must not be used when dedicated token is present"); } });
   assert.equal(result.dispatch_status, "recovered_from_github");
   assert.equal(result.workflow_run_id, "77");
   assert.equal(result.durable_github_readback, true);

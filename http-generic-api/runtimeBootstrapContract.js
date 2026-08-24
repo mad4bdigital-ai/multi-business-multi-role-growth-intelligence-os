@@ -290,15 +290,15 @@ export function resolveBootstrapTarget(env, contract) {
   const source = normalizeTargetSource(env.BOOTSTRAP_TARGET_SOURCE);
   if (source === RUNTIME_ENV_TARGET_SOURCE) return buildRuntimeEnvironmentTarget(env, contract, mode);
   const key = requireString(env.BOOTSTRAP_TARGET_KEY, "bootstrap_target_key_missing", "BOOTSTRAP_TARGET_KEY");
-  const requestedDatabase = requireString(env.BOOTSTRAP_TARGET_DATABASE, "bootstrap_target_database_missing", "BOOTSTRAP_TARGET_DATABASE");
   const targets = parseTargetAllowlist(env, contract);
   const target = targets.find((candidate) => candidate.key === key);
   if (!target) throw bootstrapError("bootstrap_target_not_allowlisted", "BOOTSTRAP_TARGET_KEY is not present in the repository-owned target allowlist", { key });
-  if (target.database !== requestedDatabase) {
+  const requestedDatabase = String(env.BOOTSTRAP_TARGET_DATABASE || "").trim();
+  if (requestedDatabase && target.database !== requestedDatabase) {
     throw bootstrapError("bootstrap_target_database_mismatch", "BOOTSTRAP_TARGET_DATABASE does not match the allowlisted target", { key });
   }
-  const bootstrapDatabase = requireString(env.MYSQL_BOOTSTRAP_DATABASE, "bootstrap_connection_database_missing", "MYSQL_BOOTSTRAP_DATABASE");
-  if (bootstrapDatabase !== target.database) {
+  const bootstrapDatabase = String(env.MYSQL_BOOTSTRAP_DATABASE || "").trim();
+  if (bootstrapDatabase && bootstrapDatabase !== target.database) {
     throw bootstrapError("bootstrap_connection_database_mismatch", "MYSQL_BOOTSTRAP_DATABASE does not match the allowlisted target", { key });
   }
   if (!target.governance_database && String(env.BOOTSTRAP_GOVERNANCE_DATABASE || "").trim()) {

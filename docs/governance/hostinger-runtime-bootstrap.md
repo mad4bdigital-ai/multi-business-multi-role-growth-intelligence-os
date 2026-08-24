@@ -6,7 +6,9 @@
 
 توفر Admin surface عمليات catalog وplan وdispatch وstatus دون استخدام operation orchestrator أو MCP catalog أو session tables. الـdispatch ثابت على هذا المستودع وworkflow `production-runtime-parity-evidence.yml` و`ref=main`، بينما يثبت الـworkflow بشكل مستقل رأس Production والـSHA المنشورة حيًا.
 
-إعادة البناء الكامل مسموحة فقط لقاعدة غير موجودة أو ذات صفر جداول، وتستخدم schema bundle وseeds وmigrations وsame-cycle readback. grants تنفذ لاحقًا بعقد `database.access_repair` وموافقة مستقلة. هذا المسار لا يسقط جداول قاعدة غير فارغة؛ الاستبدال يتطلب target جديدًا أو lifecycle منفصلة مع backup proof.
+إعادة البناء الفارغ مسموحة فقط لقاعدة موجودة ذات صفر جداول، وتستخدم schema bundle وseeds وmigrations وsame-cycle readback؛ إنشاء قاعدة مفقودة خارج هذا العقد. grants تنفذ لاحقًا بعقد `database.access_repair` وموافقة مستقلة. هذا المسار لا يسقط جداول قاعدة غير فارغة؛ الاستبدال يتطلب target جديدًا أو lifecycle منفصلة مع backup proof.
+
+يعرض `reconstruction_plan` graph متعدد الخطوات والأدوار (`runtime`, `governance`, `runtime_persistence`) للتشخيص والتخطيط فقط. يظل `runtime_persistence`، الذي يملك `governed_tool_response_chunks`، بلا executor إنتاجي في هذه النسخة؛ لذلك `complete=false` و`execution_allowed=false`، ولا يصح وصف الكتالوج بأنه ينفذ Full Database Rebuild لجميع الأدوار.
 
 ### استثناء Raw SQL وShell
 
@@ -42,8 +44,8 @@ Shell يعمل في Staging داخل خدمة Docker Compose المحددة في
 | المجموعة | المتغيرات | القاعدة |
 |---|---|---|
 | المصدر | `BOOTSTRAP_EXPECTED_SHA`, `BOOTSTRAP_EXPECTED_BRANCH`, `BOOTSTRAP_EXPECTED_REPOSITORY` | SHA كامل بطول 40، والفرع `Production` والمستودع canonical |
-| الهدف | `RUNTIME_BOOTSTRAP_TARGETS_JSON`, `BOOTSTRAP_TARGET_KEY`, `BOOTSTRAP_TARGET_DATABASE` | الهدف يجب أن يكون allowlisted مع `database_sha256` و`target_fingerprint` المطابقين |
-| الحساب | `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, `MYSQL_BOOTSTRAP_PASSWORD`, `MYSQL_BOOTSTRAP_DATABASE` | حساب مستقل عن `DB_*` وعن `target.principal`؛ لا يوجد fallback إلى runtime credentials |
+| الهدف | `RUNTIME_BOOTSTRAP_TARGETS_JSON`, `BOOTSTRAP_TARGET_KEY` | اسم القاعدة والـgovernance database مشتقان من entry الموقعة المطابقة للمفتاح؛ أي database input caller اختياري للتوافق ويُرفض عند mismatch |
+| الحساب | `MYSQL_BOOTSTRAP_HOST`, `MYSQL_BOOTSTRAP_PORT`, `MYSQL_BOOTSTRAP_USER`, `MYSQL_BOOTSTRAP_PASSWORD` | حساب مستقل عن `DB_*` وعن `target.principal`؛ اسم قاعدة الاتصال مشتق من target entry ولا يحتاج متغيرًا مستقلًا |
 | migration | `BOOTSTRAP_MIGRATION` | `20260815` فقط قابلة لـ`apply_migration`؛ `225` و`1048` verification-only مع readiness readback |
 | تأكيد migration | `BOOTSTRAP_MIGRATION_CONFIRMATION` | `APPLY_HOSTINGER_RUNTIME_MIGRATION:<exact-sha>:<target-key>:<migration-file>` |
 | تأكيد grants | `BOOTSTRAP_GRANTS_CONFIRMATION` | `APPLY_HOSTINGER_RUNTIME_GRANTS:<exact-sha>:<target-key>:<principal>:<principal-host>` |
@@ -52,6 +54,8 @@ Shell يعمل في Staging داخل خدمة Docker Compose المحددة في
 | Production SSH secrets | `HOSTINGER_PROD_SSH_PRIVATE_KEY`, `HOSTINGER_PROD_SSH_KNOWN_HOSTS` | تحفظ كـGitHub Environment Secrets؛ public key المقابل يضاف إلى Hostinger، ولا يستخدم password أو `ssh-keyscan` وقت التنفيذ |
 
 لا تعرض قيمة `RUNTIME_BOOTSTRAP_TARGETS_JSON` أو credentials في التقرير النهائي. يكتب البرنامج evidence محدودًا ويعلن دائمًا `secrets_included=false`.
+
+**الحد الأدنى العملي لمسار Admin Host Breakglass** هو `BACKEND_API_KEY` الموجود أصلًا لحماية HTTP route، إضافةً إلى اعتماد GitHub server-side واحد: يفضّل `RUNTIME_BREAKGLASS_GITHUB_TOKEN` المقيّد بالمستودع والـworkflow، أو يمكن إعادة استخدام GitHub App installation credential القائم عبر مرجع secret server-side. لا يُستخدم `BACKEND_API_KEY` للمصادقة مع GitHub، ولا يعود broker إلى generic `GITHUB_TOKEN`. إذا كان اعتماد GitHub App القائم مضبوطًا، فلا يلزم secret جديد؛ وإلا فالمطلوب secret مخصص واحد فقط، مع إبقاء `RUNTIME_BOOTSTRAP_TARGETS_JSON` كـGitHub Environment Variable غير سري ومملوكًا للريبو.
 
 لإنشاء known-hosts من جهاز موثوق استخدم المنفذ المعروض في hPanel، ثم قارن بصمة المفتاح مع مصدر مستقل قبل حفظ السطر في GitHub. لا تنسخ private key أو password إلى المحادثات أو ملفات المستودع. Hostinger `.env` يخص عملية التطبيق على الخادم، بينما SSH Breakglass يبدأ من GitHub runner، لذلك وضع private key في `.env` يزيد نطاق التسريب ولا يضيف وظيفة.
 
@@ -91,7 +95,7 @@ npm run runtime-bootstrap:apply-grants
 
 ## GitHub workflow
 
-يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` (`disabled|plan|dry_run|apply_migration|apply_grants|execute_sql_capsule|execute_shell_capsule`) و`bootstrap_target_key` و`bootstrap_target_database` و`bootstrap_migration` وconfirmation الخاصة بالمرحلة. تحمل عمليتا capsule مدخل JSON واحدًا محدودًا باسم `host_breakglass_capsule` يحوي المسار والبصمة وbackup evidence؛ ولا يوجد مدخل SQL أو shell inline. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، وكل mutation مشروطة بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
+يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` (`disabled|plan|dry_run|apply_migration|apply_grants|execute_sql_capsule|execute_shell_capsule`) و`bootstrap_target_key` و`bootstrap_migration` وconfirmation الخاصة بالمرحلة. يقرأ workflow target database من `RUNTIME_BOOTSTRAP_TARGETS_JSON` الموجود في GitHub Environment ولا يقبل اسم قاعدة من caller. تحمل عمليتا capsule مدخل JSON واحدًا محدودًا باسم `host_breakglass_capsule` يحوي المسار والبصمة وbackup evidence؛ ولا يوجد مدخل SQL أو shell inline. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، وكل mutation مشروطة بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
 
 يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يتحقق من بصمة عقد الأدوات والـcapsule من ذلك checkout، ويشغّل contract tests، ثم ينفذ الوضع الصريح فقط. قبل `dry_run` أو أي mutation ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. بعد SQL أو SSH capsule يعاد فحص Hostinger للتأكد من بقاء النشر على الـSHA نفسها. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح اتصال bootstrap أو SSH. لا يصنف أي 502 من Hostinger أو غياب route كنجاح؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
 
