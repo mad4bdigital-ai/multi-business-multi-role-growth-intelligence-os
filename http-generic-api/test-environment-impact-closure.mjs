@@ -61,6 +61,8 @@ assert.deepEqual(classifyPath("http-generic-api/scripts/test-github-review-polic
 assert.deepEqual(classifyPath("http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/taxonomy/automation-overlap-policy.json", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/taxonomy/script-taxonomy.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/migration-order.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/hostinger-runtime-bootstrap.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".dockerignore", classes).map((entry) => entry.id), ["staging_only", "repository_governance"]);
