@@ -356,7 +356,8 @@ export async function readHostBreakglassRun(correlationId, { catalog = readHostB
   const candidates = (result.payload?.workflow_runs || []).filter((item) => item?.head_branch === catalog.dispatch_ref && String(item?.event || "") === "workflow_dispatch" && String(item.display_title || item.run_name || "").startsWith(durablePrefix));
   if (candidates.length === 0) return { ok: false, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, status: "not_found", durable_github_readback: true, secrets_included: false };
   if (candidates.length > 1) return { ok: false, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, status: "correlation_ambiguous", candidate_count: candidates.length, secrets_included: false };
-  const run = candidates[0];
+  // Zero and ambiguity cases returned above; destructuring preserves the proven-unique candidate without positional selection.
+  const [run] = candidates;
   return { ok: true, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, plan_sha256: receipt?.plan_sha256 || String(run.display_title || run.run_name || "").split("-").pop() || null, dispatch_status: receipt?.status || "recovered_from_github", workflow_run_id: run?.id ? String(run.id) : null, status: run?.status || "queued", conclusion: run?.conclusion || null, durable_github_readback: true, broker_auth_mode: auth_mode, secrets_included: false };
 }
 

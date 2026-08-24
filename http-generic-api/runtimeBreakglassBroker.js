@@ -425,7 +425,8 @@ async function discoverWorkflowRun({ env, token, request, dispatchStartedAt, fet
   const runs = Array.isArray(result?.workflow_runs) ? result.workflow_runs : [];
   const candidates = runs.filter((run) => runMatchesRequest(run, request, dispatchStartedAt));
   if (candidates.length !== 1) return { proven: false, run_id: null, candidate_count: candidates.length };
-  const run = candidates[0];
+  // Exactly one candidate is proven above; destructuring avoids an implicit positional context choice.
+  const [run] = candidates;
   return { proven: true, run_id: String(run.id), candidate_count: 1, run };
 }
 
