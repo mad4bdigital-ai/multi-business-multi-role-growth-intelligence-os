@@ -44,6 +44,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_FORCE_TTY: "0"
           SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
           MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
         run: |
@@ -104,6 +105,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_FORCE_TTY: "0"
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           TARGET_REF: ${{ steps.target.outputs.target_ref }}
           HEAD_SHA: ${{ steps.target.outputs.head_sha }}
