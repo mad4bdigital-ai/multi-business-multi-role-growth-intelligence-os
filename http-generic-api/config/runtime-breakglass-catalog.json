@@ -86,7 +86,7 @@
     {
       "key": "empty_database_rebuild",
       "kind": "rebuild",
-      "description": "Rebuild a missing or zero-table database from the reviewed schema bundle and canonical seeds.",
+      "description": "Rebuild an existing zero-table database from the reviewed schema bundle and canonical seeds; database creation is outside this contract.",
       "environments": ["staging", "production"],
       "allowed_modes": ["plan", "dry_run", "apply_migration"],
       "requires_database_classification": "zero_tables_only",

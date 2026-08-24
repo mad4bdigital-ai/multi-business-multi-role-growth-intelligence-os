@@ -409,6 +409,13 @@ test('explicit bootstrap requires live Hostinger parity and runs the parity cont
   assert.match(workflow, /apply_grants/u);
   assert.match(workflow, /BOOTSTRAP_MIGRATION_CONFIRMATION/u);
   assert.match(workflow, /BOOTSTRAP_GRANTS_CONFIRMATION/u);
+  assert.match(workflow, /execute_sql_capsule/u);
+  assert.match(workflow, /execute_shell_capsule/u);
+  assert.match(workflow, /host-breakglass-capsule-executor\.mjs/u);
+  assert.match(workflow, /host-breakglass-ssh-capsule-executor\.mjs/u);
+  assert.match(workflow, /HOSTINGER_PROD_SSH_KNOWN_HOSTS/u);
+  assert.match(workflow, /Require live Hostinger parity after command capsule/u);
+  assert.doesNotMatch(workflow, /ssh-keyscan/u);
   assert.match(workflow, /group: production-runtime-bootstrap-production/u);
   assert.doesNotMatch(workflow, /group: production-runtime-bootstrap-\$\{\{.*expected_sha/u);
   const bootstrapJob = workflow.slice(workflow.indexOf('  bootstrap:'), workflow.indexOf('  live:'));

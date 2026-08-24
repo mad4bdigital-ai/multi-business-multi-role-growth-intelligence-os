@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7311,
-  "route_count": 1083,
-  "write_route_count": 657,
+  "file_count": 7383,
+  "route_count": 1087,
+  "write_route_count": 659,
   "classified_write_surface_count": 40,
-  "classified_write_route_count": 657,
+  "classified_write_route_count": 659,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 617,
-  "sensitive_intentionally_unmapped_write_route_count": 617,
+  "intentionally_unmapped_write_route_count": 619,
+  "sensitive_intentionally_unmapped_write_route_count": 619,
   "migration_count": 446,
   "registry_evidence_count": 108,
   "write_scope_count": 6,
@@ -504,6 +504,42 @@
       "method": "GET",
       "path": "/data-source/census",
       "file": "http-generic-api/routes/adminCliRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
+      "source_line": 13,
+      "source_offset": 942,
+      "method": "GET",
+      "path": "/admin/runtime-bootstrap/catalog",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
+      "source_line": 14,
+      "source_offset": 1059,
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/plan",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
+      "source_line": 15,
+      "source_offset": 1306,
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/runs",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
+      "source_line": 16,
+      "source_offset": 1658,
+      "method": "GET",
+      "path": "/admin/runtime-bootstrap/runs/:correlation_id",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": false
     },
     {
@@ -11783,6 +11819,139 @@
       "classification_confidence": "heuristic_requires_manual_confirmation",
       "risk_class": "critical",
       "reason": "connector_or_local_execution_requires_device_capability"
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "source_line": 14,
+        "handler_window_lines": [
+          14,
+          14
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "source_line": 15,
+        "handler_window_lines": [
+          15,
+          15
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": [
+            "dispatch"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
       "route_id": "http-generic-api/routes/adminOnboardingRoutes.js#POST:/admin/onboarding/:user_id/create-workspace:2",
@@ -52392,18 +52561,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 657,
+      "routes": 659,
       "domains": 11,
-      "handler_files": 130
+      "handler_files": 131
     },
     "edge_counts": {
-      "route_to_handler_file": 657,
-      "route_to_domain": 657,
-      "route_to_provider_signal": 97,
+      "route_to_handler_file": 659,
+      "route_to_domain": 659,
+      "route_to_provider_signal": 98,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 408,
-      "route_to_readback_signal": 368,
-      "route_to_mutation_signal": 375,
+      "route_to_authority_signal": 410,
+      "route_to_readback_signal": 370,
+      "route_to_mutation_signal": 376,
       "route_to_explicit_scope_candidate": 40
     },
     "execution_edges_are_non_authorizing": true,
@@ -58825,8 +58994,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 617,
-      "sensitive_count": 617
+      "count": 619,
+      "sensitive_count": 619
     },
     {
       "severity": "medium",

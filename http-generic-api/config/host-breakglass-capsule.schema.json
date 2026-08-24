@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mad4b.host-breakglass-capsule.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path", "sha256", "confirmation", "backup_evidence_path"],
+  "properties": {
+    "path": { "type": "string", "pattern": "^\\.github/breakglass/(sql/[A-Za-z0-9._-]+\\.sql|shell/[A-Za-z0-9._-]+\\.sh)$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "confirmation": { "type": "string", "pattern": "^EXECUTE_HOST_BREAKGLASS_CAPSULE:(staging_local_windows_docker|production_hostinger_autodeploy):[0-9a-f]{40}:[0-9a-f]{64}$" },
+    "backup_evidence_path": { "type": ["string", "null"], "pattern": "^\\.github/breakglass/evidence/[A-Za-z0-9._-]+\\.json$" }
+  }
+}

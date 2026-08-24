@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "166758de1729be563df7424c2afdc3b53167d793954679750428ee795d49e8f6"
+      "sha256": "ab01ce9c015602cb0e78870df6bbaee240d911fdd612d8e8aadd405812c14ef3"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "a91a98a4316b692c530f4742c2ac8a7e12d9650d08205c35399e09487373376e"
+      "sha256": "ef5e37365f82f65257a7149075b5752d2fe0e8da4548430611bef9487b3cace7"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "dcfa38a891a5986ed45e103e2d2cf1a00283eee35fc1a8ddacffe1fdbb6cdc3c"
+      "sha256": "119fd67a16dcd8d8ed35ed564c61b539c47e80deeb2a159998106c8ad443505f"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "4ffda86a2b2a81f792628c813f146d08d0d1255780f162002d5848f3051459a3"
+      "sha256": "bfc4dabc8e613ee51982785d6b115fb2832f1e330224c9eb5f8bf0b0c471ef7a"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",

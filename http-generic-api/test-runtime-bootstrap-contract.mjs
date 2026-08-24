@@ -204,6 +204,14 @@ test("runtime_env target discovery is denied for apply modes", () => {
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
 });
 
+test("Host Breakglass empty rebuild contract is represented as a zero-table-only capability", () => {
+  const catalog = JSON.parse(fs.readFileSync(new URL("./config/host-breakglass-catalog.json", import.meta.url), "utf8"));
+  const rebuild = catalog.operations.find((entry) => entry.key === "database.rebuild_empty");
+  assert.equal(catalog.database_independent, true);
+  assert.equal(rebuild.requires_zero_table_database, true);
+  assert.equal(catalog.destructive_nonempty_rebuild.supported, false);
+});
+
 test("CLI loads an explicit env file only for runtime_env dry_run and still fails before DB without bootstrap credentials", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-bootstrap-env-test-"));
   const envFile = path.join(tempDir, ".env");

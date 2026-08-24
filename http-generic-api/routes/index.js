@@ -68,6 +68,7 @@ import { buildLocalManagerBetaRoutes } from "./localManagerBetaRoutes.js";
 import { buildLocalManagerDesktopCommandRoutes } from "./localManagerDesktopCommandRoutes.js";
 import { buildDeploymentInfoRoutes } from "./deploymentInfoRoutes.js";
 import { buildRuntimeBreakglassRoutes } from "./runtimeBreakglassRoutes.js";
+import { buildAdminHostBreakglassRoutes } from "./adminHostBreakglassRoutes.js";
 import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
 import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
@@ -167,6 +168,7 @@ export function registerRoutes(app, deps) {
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildRuntimeBreakglassRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey, env: deps?.env || process.env }));
+  app.use(buildAdminHostBreakglassRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminOnboardingRoutes({ ...deps, requireAdminPrincipal }));
