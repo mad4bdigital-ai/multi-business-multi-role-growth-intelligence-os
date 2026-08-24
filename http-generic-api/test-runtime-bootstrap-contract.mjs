@@ -373,6 +373,74 @@ test("dry-run supports an explicitly allowlisted separate governance database", 
   assert.equal(result.database_mutation_performed, false);
 });
 
+test("dry-run binds an explicitly allowlisted runtime persistence database to its own connection", async () => {
+  const env = envFor();
+  const persistenceDatabase = "growth_persistence";
+  const splitTarget = {
+    ...TARGET,
+    runtime_persistence_database: persistenceDatabase,
+    runtime_persistence_database_sha256: sha256Hex(persistenceDatabase),
+  };
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  env.RUNTIME_PERSISTENCE_DB_NAME = persistenceDatabase;
+  const opened = [];
+  const connections = [fakeConnection(), fakeConnection()];
+  const result = await runBootstrap({
+    env,
+    contract,
+    connectionFactory: async (request) => {
+      opened.push({ role: request.role, database: request.database });
+      return connections[opened.length - 1];
+    },
+  });
+  assert.deepEqual(opened, [
+    { role: "runtime", database: TARGET_DATABASE },
+    { role: "runtime_persistence", database: persistenceDatabase },
+  ]);
+  assert.equal(result.target_binding.runtime_persistence_database_sha256, sha256Hex(persistenceDatabase));
+  assert.equal(connections[1].queryCalls.includes(`USE \`${persistenceDatabase}\``), true);
+  assert.equal(result.database_mutation_performed, false);
+});
+
+test("runtime persistence databases reject missing allowlist binding, wrong hash, and cross-target substitution", () => {
+  const env = envFor();
+  env.RUNTIME_PERSISTENCE_DB_NAME = "growth_persistence";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_not_allowlisted");
+
+  const splitTarget = {
+    ...TARGET,
+    runtime_persistence_database: "growth_persistence",
+    runtime_persistence_database_sha256: "0".repeat(64),
+  };
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_fingerprint_mismatch");
+
+  splitTarget.runtime_persistence_database_sha256 = sha256Hex("growth_persistence");
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  env.RUNTIME_PERSISTENCE_DB_NAME = "different_persistence";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_mismatch");
+});
+
+test("nonempty runtime persistence target blocks split-role baseline before any mutation", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  const persistenceDatabase = "growth_persistence";
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  env.RUNTIME_PERSISTENCE_DB_NAME = persistenceDatabase;
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([{
+    ...TARGET,
+    runtime_persistence_database: persistenceDatabase,
+    runtime_persistence_database_sha256: sha256Hex(persistenceDatabase),
+  }]);
+  const runtime = fakeConnection({ tableCount: 0 });
+  const persistence = fakeConnection({ tableCount: 1 });
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "runtime_persistence" ? persistence : runtime }),
+    (error) => error.code === "bootstrap_persistence_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
+  );
+  assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+  assert.equal(persistence.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+});
+
 test("dry-run verifies 225 envelope schema/policy/tool and 1048 response-chunk readiness", async () => {
   for (const migration of [
     "225_sprint67_capability_resolution_envelope_ledger.sql",
