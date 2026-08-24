@@ -464,6 +464,24 @@ test("migration 1030 widens catalog tags before append-only governance updates",
   assert.doesNotMatch(migration1030, /\b(?:LEFT|SUBSTRING|TRUNCATE)\s*\(/i, "migration 1030 must not truncate governance tags");
 });
 
+test("cross-environment migration governance keeps discovery, roles, and execution authority isolated", () => {
+  const policy = JSON.parse(fs.readFileSync(path.join(apiRoot, "config", "staging-migration-contract-policy.json"), "utf8"));
+  const staging = policy.environment_profiles.staging_local_windows_docker;
+  const production = policy.environment_profiles.production_hostinger_autodeploy;
+  assert.equal(staging.source_branch, "main");
+  assert.equal(staging.hostinger_access_allowed, false);
+  assert.equal(staging.production_access_allowed, false);
+  assert.equal(production.source_branch, "Production");
+  assert.equal(production.local_docker_access_allowed, false);
+  assert.equal(production.exact_source_sha_required, true);
+  assert.equal(production.typed_approval_required, true);
+  assert.equal(policy.execution_authority.discovery_grants_execution, false);
+  assert.equal(policy.execution_authority.production_auto_apply_allowed, false);
+  assert.equal(policy.migration_history.silent_ledger_reconciliation_allowed, false);
+  assert.equal(policy.database_role_topology.governance.owns_migration_ledger, true);
+  assert.equal(policy.database_role_topology.runtime_persistence.owns_tables.includes("governed_tool_response_chunks"), true);
+});
+
 test("migration 196 widens every catalog tags column before later long writers", () => {
   const migrationsDir = path.join(apiRoot, "migrations");
   const migration195 = fs.readFileSync(path.join(migrationsDir, "195_sprint66_connected_execution_read_only_tool_execution.sql"), "utf8");

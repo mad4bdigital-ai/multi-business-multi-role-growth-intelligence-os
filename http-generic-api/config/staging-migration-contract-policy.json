@@ -3,6 +3,49 @@
   "contract": "mad4b.staging.migration-contract-policy.v1",
   "engine": "mariadb-11.4",
   "scope": "all numerically ordered http-generic-api migrations plus schema.sql",
+  "governance_scope": "cross_environment_static_analysis_only",
+  "environment_profiles": {
+    "staging_local_windows_docker": {
+      "environment": "staging",
+      "source_branch": "main",
+      "execution_transport": "local_cli",
+      "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
+      "target_key_prefix": "staging-",
+      "hostinger_access_allowed": false,
+      "production_access_allowed": false,
+      "automatic_mutation_allowed": false
+    },
+    "production_hostinger_autodeploy": {
+      "environment": "production",
+      "source_branch": "Production",
+      "execution_transport": "github_workflow",
+      "credential_namespace": "MYSQL_BOOTSTRAP_*",
+      "target_key_prefix": "production-",
+      "hostinger_access_allowed": true,
+      "local_docker_access_allowed": false,
+      "automatic_mutation_allowed": false,
+      "exact_source_sha_required": true,
+      "typed_approval_required": true
+    }
+  },
+  "database_role_topology": {
+    "runtime": { "required": true, "database_env": "DB_NAME" },
+    "governance": { "required": true, "database_env": "GOVERNANCE_DB_NAME", "owns_migration_ledger": true },
+    "runtime_persistence": { "required": true, "database_env": "RUNTIME_PERSISTENCE_DB_NAME", "owns_tables": ["governed_tool_response_chunks"] }
+  },
+  "migration_history": {
+    "published_checksum_verification_required": true,
+    "silent_ledger_reconciliation_allowed": false,
+    "historical_replay_amendment_requires_explicit_contract": true,
+    "production_apply_requires_ledger_compatibility": true
+  },
+  "execution_authority": {
+    "discovery_grants_execution": false,
+    "production_auto_apply_allowed": false,
+    "separate_grants_approval_required": true,
+    "same_cycle_postcondition_readback_required": true,
+    "nonempty_destructive_rebuild_allowed": false
+  },
   "safety": {
     "database_connection_allowed": false,
     "database_mutation_allowed": false,
