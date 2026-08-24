@@ -21,7 +21,7 @@ const SHA_RE = /^[0-9a-f]{40}$/iu;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,95}$/u;
 const RUN_ID_RE = /^[0-9]{1,20}$/u;
 const MAX_RESPONSE_CHARS = 48_000;
-const DEFAULT_MIGRATION = "20260815_custom_gpt_mcp_catalog_levels.sql";
+const REVIEWED_SCHEMA_FILE = "20260815_custom_gpt_mcp_catalog_levels.sql";
 const FORBIDDEN_REQUEST_KEYS = new Set([
   "database",
   "database_name",
@@ -43,8 +43,8 @@ const FORBIDDEN_REQUEST_KEYS = new Set([
   "dispatch_ref",
 ]);
 
-let catalogCache = null;
-let recoveryRoutesCache = null;
+let catalogMemo = null;
+let recoveryRoutesMemo = null;
 
 function safeText(value, max = 500) {
   return String(value ?? "").trim().slice(0, max);
@@ -70,19 +70,19 @@ function readJsonFile(file, code, message) {
 }
 
 function readCatalog() {
-  if (!catalogCache) catalogCache = readJsonFile(CATALOG_PATH, "breakglass_catalog_unreadable", "The repository-owned Breakglass catalog is unavailable.");
-  if (catalogCache?.contract !== "mad4b.runtime-breakglass-catalog.v1") {
+  if (!catalogMemo) catalogMemo = readJsonFile(CATALOG_PATH, "breakglass_catalog_unreadable", "The repository-owned Breakglass catalog is unavailable.");
+  if (catalogMemo?.contract !== "mad4b.runtime-breakglass-catalog.v1") {
     throw brokerError(500, "breakglass_catalog_contract_invalid", "The repository-owned Breakglass catalog contract is invalid.");
   }
-  return catalogCache;
+  return catalogMemo;
 }
 
 function readRecoveryRoutes() {
-  if (!recoveryRoutesCache) recoveryRoutesCache = readJsonFile(RECOVERY_ROUTES_PATH, "breakglass_recovery_policy_unreadable", "The reviewed recovery policy is unavailable.");
-  if (recoveryRoutesCache?.schema_version !== "production-runtime-recovery-routes.v1") {
+  if (!recoveryRoutesMemo) recoveryRoutesMemo = readJsonFile(RECOVERY_ROUTES_PATH, "breakglass_recovery_policy_unreadable", "The reviewed recovery policy is unavailable.");
+  if (recoveryRoutesMemo?.schema_version !== "production-runtime-recovery-routes.v1") {
     throw brokerError(500, "breakglass_recovery_policy_invalid", "The reviewed recovery policy contract is invalid.");
   }
-  return recoveryRoutesCache;
+  return recoveryRoutesMemo;
 }
 
 function canonicalRepository() {
@@ -132,7 +132,7 @@ function normalizeId(value, field) {
 }
 
 function normalizeMigration(value, mode) {
-  const migration = safeText(value || DEFAULT_MIGRATION, 191);
+  const migration = safeText(value || REVIEWED_SCHEMA_FILE, 191);
   if (!migration || migration.includes("/") || migration.includes("\\") || migration.includes("..")) {
     throw brokerError(400, "breakglass_migration_invalid", "migration must be a canonical allowlisted filename.");
   }
@@ -235,7 +235,7 @@ function buildNormalizedRequest(input = {}) {
   if (targetKey !== envEntry.target_key) throw brokerError(409, "breakglass_target_key_environment_mismatch", "target_key does not match the selected environment authority.", { environment });
   const migration = contract.key === "grant_repair" || contract.key === "schema_repair" || contract.key === "empty_database_rebuild" || contract.key === "runtime_diagnose"
     ? normalizeMigration(input.migration, mode === "apply_migration" ? "apply_migration" : mode)
-    : DEFAULT_MIGRATION;
+    : REVIEWED_SCHEMA_FILE;
   const idempotencyKey = input.idempotency_key
     ? normalizeId(input.idempotency_key, "idempotency_key")
     : (environment === "production" && mode !== "plan" ? normalizeId("", "idempotency_key") : null);
