@@ -6,12 +6,12 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "db2571ea22344f5dcfa4aa0ffa1bfda7deaa4356eb750ab40f2b33debde5ab49",
-    "dispatch_artifact_sha256": "0e696c37459569a38a89bd4e1450cc99e107f60c5b23ed397fc8080a8c88068c"
+    "dispatch_source_digest": "90e62f7339b0729c2252ef2832d15a9540f0bcc7dcccf17e33d5e2d14119ccab",
+    "dispatch_artifact_sha256": "62f293ae8ef745517cb9c99f00cf4314e5e5af64b9194ca5cacdd118bb10d100"
   },
   "coverage": {
-    "operation_count": 1041,
-    "mounted_family_count": 168,
+    "operation_count": 1052,
+    "mounted_family_count": 171,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
@@ -28,12 +28,12 @@
     "priority_family_counts": {
       "P1_surface_decision": 0,
       "P2_detail_traceability": 74,
-      "P3_observe": 94
+      "P3_observe": 97
     },
     "surface_decision_family_counts": {
-      "api_only": 38,
+      "api_only": 39,
       "embedded_ui": 6,
-      "internal_only": 117,
+      "internal_only": 119,
       "legacy_compatibility": 6,
       "unified_ui": 1
     },
@@ -3072,6 +3072,42 @@
       ]
     },
     {
+      "family_key": "admin-host-breakglass",
+      "label": "admin host breakglass",
+      "scope": "admin",
+      "surface_decision": "api_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 4,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/adminHostBreakglassRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-admin-host-breakglass-routes.mjs"
+      ]
+    },
+    {
       "family_key": "admin-scope-grants",
       "label": "admin scope grants",
       "scope": "developer",
@@ -4095,8 +4131,44 @@
       ]
     },
     {
-      "family_key": "deployment-info",
-      "label": "deployment info",
+      "family_key": "deployment-info.developer",
+      "label": "deployment info (developer)",
+      "scope": "developer",
+      "surface_decision": "internal_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 2,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/deploymentInfoRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-runtime-gate-deployment-info-parity.mjs"
+      ]
+    },
+    {
+      "family_key": "deployment-info.public",
+      "label": "deployment info (public)",
       "scope": "public",
       "surface_decision": "api_only",
       "priority": "P3_observe",
@@ -5639,6 +5711,42 @@
         "routes/rootDiscoveryRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "runtime-breakglass",
+      "label": "runtime breakglass",
+      "scope": "developer",
+      "surface_decision": "internal_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 5,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/runtimeBreakglassRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-runtime-breakglass-broker.mjs"
       ]
     },
     {

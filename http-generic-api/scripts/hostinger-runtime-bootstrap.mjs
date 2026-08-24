@@ -32,7 +32,9 @@ function usage() {
     "Usage: node scripts/hostinger-runtime-bootstrap.mjs [--plan|--dry-run|--apply-migration|--apply-grants]",
     "",
     "Default mode is --plan and never opens a database connection.",
-    "--dry-run requires repository-owned target JSON and dedicated MYSQL_BOOTSTRAP_* credentials.",
+    "--dry-run defaults to repository-owned target JSON and dedicated MYSQL_BOOTSTRAP_* credentials.",
+    "--target-source runtime_env derives DB_NAME/DB_USER from the Hostinger runtime environment and is allowed only for --dry-run.",
+    "--env-file <path> explicitly loads a local Hostinger .env file for runtime_env dry_run only; it is never loaded implicitly.",
     "--apply-migration requires --migration-confirm APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>.",
     "--apply-grants requires --grants-confirm APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>.",
     "--apply is rejected because migration and grants approvals are independent.",
@@ -52,12 +54,38 @@ function modeFromArgs() {
   return normalizeMode(process.env.BOOTSTRAP_MODE || "plan");
 }
 
+function loadExplicitEnvFile() {
+  const envFile = valueAfter("--env-file");
+  if (envFile === undefined) return;
+  const mode = modeFromArgs();
+  const source = String(valueAfter("--target-source") || process.env.BOOTSTRAP_TARGET_SOURCE || "repository_allowlist").trim().toLowerCase();
+  if (mode !== "dry_run" || source !== "runtime_env") {
+    throw bootstrapError("bootstrap_env_file_mode_denied", "--env-file is allowed only with --dry-run and --target-source runtime_env");
+  }
+  const resolved = path.resolve(String(envFile || "").trim());
+  if (!resolved || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    throw bootstrapError("bootstrap_env_file_unreadable", "Explicit bootstrap env file is unreadable", { file: path.basename(resolved || "env") });
+  }
+  if (fs.statSync(resolved).size > 1024 * 1024) {
+    throw bootstrapError("bootstrap_env_file_too_large", "Explicit bootstrap env file exceeds the bounded size limit", { max_bytes: 1024 * 1024 });
+  }
+  if (typeof process.loadEnvFile !== "function") {
+    throw bootstrapError("bootstrap_env_file_unsupported", "This Node.js runtime cannot load an explicit env file safely");
+  }
+  try {
+    process.loadEnvFile(resolved);
+  } catch (error) {
+    throw bootstrapError("bootstrap_env_file_invalid", "Explicit bootstrap env file is invalid", { cause: error?.message || "parse_failed" });
+  }
+}
+
 function buildEnvironment() {
   const mode = modeFromArgs();
   const env = { ...process.env, BOOTSTRAP_MODE: mode };
   const mappings = [
     ["--migration", "BOOTSTRAP_MIGRATION"],
     ["--target-key", "BOOTSTRAP_TARGET_KEY"],
+    ["--target-source", "BOOTSTRAP_TARGET_SOURCE"],
     ["--target-database", "BOOTSTRAP_TARGET_DATABASE"],
     ["--expected-sha", "BOOTSTRAP_EXPECTED_SHA"],
     ["--expected-branch", "BOOTSTRAP_EXPECTED_BRANCH"],
@@ -105,6 +133,7 @@ async function main() {
   }
   let env = { ...process.env, BOOTSTRAP_MODE: "plan" };
   try {
+    loadExplicitEnvFile();
     env = buildEnvironment();
     const result = env.BOOTSTRAP_MODE === "plan"
       ? buildPlan(env, contract)

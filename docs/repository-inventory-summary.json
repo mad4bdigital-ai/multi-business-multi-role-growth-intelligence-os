@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7300,
-    "bytes": 71264214,
-    "lines": 1667916,
+    "bytes": 71321833,
+    "lines": 1669047,
     "directories": 266,
     "categories": 13
   },
@@ -177,6 +177,7 @@
         "manifest:portable-staging",
         "runtime-bootstrap:plan",
         "runtime-bootstrap:dry-run",
+        "runtime-bootstrap:host-env-dry-run",
         "runtime-bootstrap:apply-migration",
         "runtime-bootstrap:apply-grants",
         "remote-mcp:client:provision",
@@ -267,14 +268,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3474187,
-      "lines": 97972
+      "bytes": 3483708,
+      "lines": 98228
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1936395,
-      "lines": 58560
+      "bytes": 1939462,
+      "lines": 58652
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -285,14 +286,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 991977,
-      "lines": 23027
+      "bytes": 997088,
+      "lines": 23113
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 610355,
-      "lines": 11546
+      "bytes": 612757,
+      "lines": 11593
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -327,20 +328,20 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 269236,
-      "lines": 6392
+      "bytes": 270767,
+      "lines": 6428
+    },
+    {
+      "path": "docs/governance/configuration-drift-policy.json",
+      "category": "documentation",
+      "bytes": 267002,
+      "lines": 2337
     },
     {
       "path": "docs/surface-contract-safety-attestations.json",
       "category": "documentation",
       "bytes": 266975,
       "lines": 7996
-    },
-    {
-      "path": "docs/governance/configuration-drift-policy.json",
-      "category": "documentation",
-      "bytes": 265373,
-      "lines": 2323
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",

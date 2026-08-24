@@ -1160,9 +1160,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 0fac28da0cc3175f0a0bba996fc2d7450bd408d43e4fd279d66c07f1cd154648
+  source_openapi_sha256: 445d1d3e212fb1a3b5cba4271be8c04cca637d7265ca4febdb890d5e9b953953
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
+  registry_sha256: 428e9b2c5e951246d7f9c1a1e98dc9d0bdc48e94095ec50a1b8253b7c704921c
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: unspecified
@@ -1180,6 +1180,26 @@ x-custom-gpt-generation:
       - operation_id: revokeAuthOAuthSsoSession
         reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
         owner: identity-platform
+        review_after: 2026-09-30
+      - operation_id: getHostRuntimeBreakglassStatus
+        reason: Host-internal Breakglass status is an internal service-key route and must not be exposed as an Admin GPT operation.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getHostRuntimeBreakglassPlan
+        reason: Host-internal Breakglass planning is an internal service-key route and must not be exposed as an Admin GPT operation.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminRuntimeBreakglassStatus
+        reason: Admin Breakglass status is an internal service-key route and must not be exposed as a public Admin GPT operation.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: createAdminRuntimeBreakglassRun
+        reason: Admin Breakglass dispatch is an internal service-key route and must not be exposed as a public Admin GPT operation.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminRuntimeBreakglassRun
+        reason: Admin Breakglass readback is an internal service-key route and must not be exposed as a public Admin GPT operation.
+        owner: platform-governance
         review_after: 2026-09-30
       - operation_id: sessionInsightTargetWriteReadbackCreate
         reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
@@ -1220,7 +1240,7 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 26
+  operation_count: 30
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30

@@ -132,7 +132,7 @@
     },
     {
       "rule_id": "generated-gap-deployment-info-routes-deploymentinforoutes-js",
-      "family_key": "deployment-info",
+      "family_key": "deployment-info.public",
       "source_file": "routes/deploymentInfoRoutes.js",
       "scope": "public",
       "decision": "api_only",
@@ -144,6 +144,53 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-developer-surface",
+      "family_key": "deployment-info.developer",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "scope": "developer",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "Hash-only runtime binding and Hostinger bootstrap dry-run evidence are protected internal operational APIs, not browser navigation surfaces. They remain read-only and service-key-only, and the dry-run cannot authorize migrations, grants, deployment, or restart.",
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "openapi.yaml",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-internal-service-key",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "scope": "developer",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "Environment-scoped Runtime Breakglass status, planning, dispatch, and bounded readback are internal service-key operational contracts. They are not browser navigation surfaces, do not expose credentials or database names, and remain subject to exact-SHA, plan, confirmation, and readback controls.",
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "openapi.yaml",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md"
+      ]
+    },
+    {
+      "rule_id": "host-breakglass-admin-api-surface",
+      "family_key": "admin-host-breakglass",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "scope": "admin",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Database-independent Admin recovery API is exposed only through the bounded Admin Core action surface; it is not a browser navigation surface and does not itself grant mutation authority.",
+      "evidence_refs": [
+        "routes/adminHostBreakglassRoutes.js",
+        "hostBreakglassCatalog.js",
+        "config/host-breakglass-catalog.json",
+        "test-admin-host-breakglass-routes.mjs",
+        "test-host-breakglass-catalog.mjs",
+        "openapi.yaml"
       ]
     },
     {
@@ -2878,9 +2925,66 @@
         "test-frontend-auth-openapi-parity.mjs",
         "test-governed-autopilot-production-deployment.mjs"
       ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-backend-api-key-auth",
+      "operations": [
+        "GET /deployment-info/runtime-binding",
+        "POST /deployment-info/runtime-bootstrap-dry-run"
+      ],
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "profile": "backend_api_key_surface",
+      "runtime_compatibility": "backend_api_key_guard",
+      "owner": "runtime-operations",
+      "rationale": "Runtime database binding and Hostinger bootstrap dry-run evidence are service-only operational endpoints. The generic backend guard keeps compatibility parsing for user JWTs, but these routes explicitly reject non-service auth modes before reading runtime binding or invoking bootstrap logic.",
+      "evidence_refs": [
+        "runtimeGuards.js",
+        "routes/deploymentInfoRoutes.js",
+        "openapi.yaml",
+        "test-runtime-gate-deployment-info-parity.mjs"
+      ]
     }
   ],
   "operation_rules": [
+    {
+      "rule_id": "host-breakglass-plan-read-action",
+      "operation": "POST /admin/runtime-bootstrap/plan",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Builds and hashes an immutable repository-owned recovery plan without database or provider mutation.",
+      "evidence_refs": ["hostBreakglassCatalog.js", "test-host-breakglass-catalog.mjs", "test-admin-host-breakglass-routes.mjs"]
+    },
+    {
+      "rule_id": "host-breakglass-dispatch-external-effect",
+      "operation": "POST /admin/runtime-bootstrap/runs",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "Dispatches only the fixed repository workflow after exact-SHA, catalog, target-source, confirmation, and idempotency validation; execution remains gated by the Production environment and same-cycle readback.",
+      "preflight": {
+        "mode": "inline_contract_validation"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_environment_approval"
+      },
+      "readback": {
+        "mode": "separate_operation",
+        "operation": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The API mutation is only a workflow dispatch. Database mutation remains behind environment approval and the bootstrap engine reports partial_possible with same-cycle readback; destructive nonempty rebuild is prohibited."
+      },
+      "parameter_bindings": {
+        "environment_key": "request.body.environment_key",
+        "operation_key": "request.body.operation_key",
+        "expected_sha": "request.body.expected_sha",
+        "correlation_id": "request.body.correlation_id",
+        "run_status": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
+      },
+      "evidence_refs": ["hostBreakglassCatalog.js", "config/host-breakglass-catalog.json", "production-runtime-parity-evidence.yml", "test-host-breakglass-catalog.mjs"]
+    },
     {
       "rule_id": "root-discovery-delete-read-action",
       "operation": "DELETE /",
@@ -11538,6 +11642,76 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-dry-run-read-action",
+      "operation": "POST /deployment-info/runtime-bootstrap-dry-run",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The Hostinger runtime bootstrap endpoint is a protected, bounded dry-run read path: it derives hash-only binding evidence and verifies migration readiness without authorizing database mutation.",
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "runtimeBootstrapContract.js",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-plan-read-action",
+      "operation": "POST /deployment-info/runtime-breakglass-plan",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The environment-scoped Breakglass plan endpoint only resolves the repository-owned contract matrix and safe deployment metadata. It does not dispatch GitHub, connect to a database, mutate state, or expose target identifiers.",
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "http-generic-api/config/runtime-breakglass-catalog.json",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-workflow-dispatch-external-effect",
+      "operation": "POST /admin/runtime-breakglass/runs",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "This protected service-key route may dispatch only the fixed repository-owned Production workflow after environment, contract, exact-SHA, idempotency, and server-controlled target checks. The broker never accepts database names, credentials, arbitrary refs, or workflow paths; runtime_env remains dry-run-only and all mutation modes remain separately gated by the workflow contract.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The catalog dispatches a bounded workflow execution record rather than applying a database or provider mutation in this route; failed or mismatched runs are retained as evidence and cannot be silently replayed because idempotency and exact-run binding are required."
+      },
+      "parameter_bindings": {
+        "environment": "request.body.environment",
+        "contract_key": "request.body.contract_key",
+        "mode": "request.body.mode",
+        "expected_sha": "request.body.expected_sha",
+        "idempotency_key": "request.body.idempotency_key",
+        "correlation_id": "response.correlation_id",
+        "workflow_run_id": "response.workflow_run_id"
+      },
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "http-generic-api/config/runtime-breakglass-catalog.json",
+        ".github/workflows/production-runtime-parity-evidence.yml",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
+        "openapi.yaml"
       ]
     }
   ],

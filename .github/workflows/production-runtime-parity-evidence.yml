@@ -1,4 +1,6 @@
 name: Production Runtime Parity Evidence
+run-name: >-
+  runtime-breakglass-${{ inputs.breakglass_correlation_id || inputs.host_breakglass_correlation_id || github.run_id }}-${{ inputs.expected_sha || github.sha }}${{ inputs.host_breakglass_plan_sha256 && format('-{0}', inputs.host_breakglass_plan_sha256) || '' }}
 
 on:
   pull_request:
@@ -21,6 +23,18 @@ on:
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
       - 'http-generic-api/config/deployment-branch-policy.json'
       - 'http-generic-api/config/runtime-bootstrap-contract.json'
+      - 'http-generic-api/config/runtime-breakglass-catalog.json'
+      - 'http-generic-api/runtimeBreakglassBroker.js'
+      - 'http-generic-api/routes/runtimeBreakglassRoutes.js'
+      - 'http-generic-api/test-runtime-breakglass-broker.mjs'
+      - 'http-generic-api/config/host-breakglass-catalog.json'
+      - 'http-generic-api/config/host-breakglass-tool-contracts.json'
+      - 'http-generic-api/hostBreakglassCatalog.js'
+      - 'http-generic-api/test-host-breakglass-catalog.mjs'
+      - 'http-generic-api/scripts/host-breakglass-capsule-executor.mjs'
+      - 'http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs'
+      - 'http-generic-api/test-host-breakglass-capsule-executor.mjs'
+      - 'http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs'
       - 'http-generic-api/runtimeBootstrapContract.js'
       - 'http-generic-api/runtimeBootstrapStatus.js'
       - 'http-generic-api/scripts/hostinger-runtime-bootstrap.mjs'
@@ -55,6 +69,45 @@ on:
         description: Hostinger Production auth runtime /deployment-info endpoint
         required: false
         default: https://auth.mad4b.com/deployment-info
+        type: string
+      runtime_bootstrap_url:
+        description: Protected Hostinger-side runtime_env dry-run endpoint; only used with hostinger_runtime_env source.
+        required: false
+        default: https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run
+        type: string
+      host_breakglass_operation:
+        description: Repository-owned Host Breakglass catalog operation key.
+        required: false
+        default: database.inspect
+        type: choice
+        options:
+          - database.inspect
+          - database.repair
+          - database.rebuild_empty
+      host_breakglass_correlation_id:
+        description: Bounded broker correlation identifier; contains no credentials.
+        required: false
+        type: string
+      host_breakglass_plan_sha256:
+        description: Exact SHA-256 of the repository-owned Host Breakglass plan; used for durable run correlation.
+        required: false
+        type: string
+      host_breakglass_runbook:
+        description: Repository-owned capability runbook compatible with the selected operation and action.
+        required: false
+        default: database.full_inspection
+        type: string
+      host_breakglass_tool_contract_sha256:
+        description: SHA-256 of the canonical database-independent tool contract.
+        required: false
+        type: string
+      host_breakglass_capsule:
+        description: JSON envelope containing repository path, SHA-256, confirmation, and Production backup evidence path. Inline commands are forbidden.
+        required: false
+        type: string
+      breakglass_correlation_id:
+        description: Bounded Runtime Breakglass idempotency/correlation identifier; contains no credentials.
+        required: false
         type: string
       strategy:
         description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
@@ -102,15 +155,21 @@ on:
           - dry_run
           - apply_migration
           - apply_grants
+          - execute_sql_capsule
+          - execute_shell_capsule
       bootstrap_target_key:
-        description: Repository-owned bootstrap target key from RUNTIME_BOOTSTRAP_TARGETS_JSON.
+        description: Repository-owned bootstrap target key; runtime-env discovery uses the same default key without reading target database input.
         required: false
         default: production-runtime
         type: string
-      bootstrap_target_database:
-        description: Exact bootstrap database identifier matching the repository-owned target.
+      bootstrap_target_source:
+        description: Target source; repository_allowlist uses GitHub target binding, hostinger_runtime_env calls the protected Hostinger runtime dry-run route and is dry-run-only.
         required: false
-        type: string
+        default: repository_allowlist
+        type: choice
+        options:
+          - repository_allowlist
+          - hostinger_runtime_env
       bootstrap_migration:
         description: 20260815 is the only apply candidate; 225/1048 remain verification-only.
         required: false
@@ -176,6 +235,7 @@ jobs:
           set -Eeuo pipefail
           node --test test-runtime-bootstrap-contract.mjs
           node --test test-runtime-gate-deployment-info-parity.mjs
+          node --test test-runtime-breakglass-broker.mjs
           node scripts/hostinger-runtime-bootstrap.mjs --plan
 
   bootstrap:
@@ -194,14 +254,58 @@ jobs:
       BOOTSTRAP_EXPECTED_BRANCH: ${{ inputs.expected_branch }}
       BOOTSTRAP_EXPECTED_REPOSITORY: ${{ github.repository }}
       BOOTSTRAP_TARGET_KEY: ${{ inputs.bootstrap_target_key }}
-      BOOTSTRAP_TARGET_DATABASE: ${{ inputs.bootstrap_target_database }}
+      BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
       BOOTSTRAP_MIGRATION: ${{ inputs.bootstrap_migration }}
       BOOTSTRAP_MIGRATION_CONFIRMATION: ${{ inputs.bootstrap_migration_confirmation }}
       BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
-      BOOTSTRAP_GOVERNANCE_DATABASE: ${{ vars.BOOTSTRAP_GOVERNANCE_DATABASE }}
     steps:
+      - name: Validate bootstrap target source scope
+        env:
+          BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
+          BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+          HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "${BOOTSTRAP_TARGET_SOURCE}" == "hostinger_runtime_env" && "${BOOTSTRAP_MODE}" != "dry_run" ]]; then
+            echo '{"ok":false,"code":"hostinger_runtime_env_dry_run_only","secrets_included":false}' >&2
+            exit 1
+          fi
+
+      - name: Validate Host Breakglass catalog binding
+        if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
+          BREAKGLASS_CORRELATION_ID: ${{ inputs.host_breakglass_correlation_id }}
+          BREAKGLASS_RUNBOOK: ${{ inputs.host_breakglass_runbook }}
+          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
+          BREAKGLASS_PLAN_SHA256: ${{ inputs.host_breakglass_plan_sha256 }}
+          BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
+          BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${BREAKGLASS_CORRELATION_ID}" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]
+          [[ "${BREAKGLASS_PLAN_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          case "${BREAKGLASS_OPERATION}" in
+            database.inspect) [[ "${BREAKGLASS_RUNBOOK}" == "database.full_inspection" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" ) ]] ;;
+            database.repair)
+              [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]]
+              if [[ "${BREAKGLASS_RUNBOOK}" == "database.schema_repair" ]]; then
+                [[ "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ]]
+              elif [[ "${BREAKGLASS_RUNBOOK}" == "database.access_repair" ]]; then
+                [[ "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_grants" ]]
+              else
+                exit 1
+              fi
+              ;;
+            database.rebuild_empty) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && "${BREAKGLASS_RUNBOOK}" == "database.empty_rebuild" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ) ]] ;;
+            host.command_capsule) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && (( "${BREAKGLASS_RUNBOOK}" == "host.sql_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_sql_capsule" ) || ( "${BREAKGLASS_RUNBOOK}" == "host.shell_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_shell_capsule" )) ]] ;;
+            *) exit 1 ;;
+          esac
+
       - name: Validate trusted dispatch ref and exact Production head
         env:
           GH_TOKEN: ${{ github.token }}
@@ -221,6 +325,16 @@ jobs:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
           persist-credentials: false
+      - name: Validate exact Production Host Breakglass tool contract
+        if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${BREAKGLASS_TOOL_CONTRACT_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          actual_contract_sha256="$(node -e 'const fs=require("fs"),c=require("crypto");const v=JSON.parse(fs.readFileSync("http-generic-api/config/host-breakglass-tool-contracts.json","utf8"));process.stdout.write(c.createHash("sha256").update(JSON.stringify(v)).digest("hex"))')"
+          [[ "${actual_contract_sha256}" == "${BREAKGLASS_TOOL_CONTRACT_SHA256}" ]]
       - name: Require live Hostinger runtime parity before bootstrap
         if: inputs.bootstrap_mode != 'plan'
         env:
@@ -263,14 +377,15 @@ jobs:
         with:
           node-version: '22'
       - name: Install database client without lifecycle scripts
-        if: inputs.bootstrap_mode != 'plan'
+        if: inputs.bootstrap_mode != 'plan' && inputs.bootstrap_target_source == 'repository_allowlist'
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
-      - name: Run selected bootstrap contract mode
+      - name: Run selected repository bootstrap contract mode
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'execute_sql_capsule' && inputs.bootstrap_mode != 'execute_shell_capsule'
         env:
+          HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
           MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
           MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-          MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
@@ -278,6 +393,105 @@ jobs:
           set -Eeuo pipefail
           mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
           node http-generic-api/scripts/hostinger-runtime-bootstrap.mjs
+      - name: Execute repository-owned raw SQL capsule exception
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'execute_sql_capsule'
+        env:
+          MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+          MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+          MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+          MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+          HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          node http-generic-api/scripts/host-breakglass-capsule-executor.mjs > "${BOOTSTRAP_RESULT_PATH}"
+      - name: Execute repository-owned Hostinger shell capsule exception
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          HOSTINGER_PROD_SSH_HOST: ${{ vars.HOSTINGER_PROD_SSH_HOST }}
+          HOSTINGER_PROD_SSH_PORT: ${{ vars.HOSTINGER_PROD_SSH_PORT }}
+          HOSTINGER_PROD_SSH_USER: ${{ vars.HOSTINGER_PROD_SSH_USER }}
+          HOSTINGER_PROD_SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_PROD_SSH_PRIVATE_KEY }}
+          HOSTINGER_PROD_SSH_KNOWN_HOSTS: ${{ secrets.HOSTINGER_PROD_SSH_KNOWN_HOSTS }}
+          HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          node http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs > "${BOOTSTRAP_RESULT_PATH}"
+      - name: Require live Hostinger parity after command capsule
+        if: inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          VERSION_URL: ${{ inputs.auth_url }}
+          DEPLOYMENT_INFO_URL: ${{ inputs.deployment_info_url }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for attempt in 1 2 3 4 5; do
+            version_sha="$(curl --proto '=https' --tlsv1.2 --fail --silent --show-error --connect-timeout 10 --max-time 30 "${VERSION_URL}" | jq -er '.gitCommitFull // .git_commit_full // .deployment.deployed_commit_sha // empty')" || true
+            deployment_json="$(curl --proto '=https' --tlsv1.2 --fail --silent --show-error --connect-timeout 10 --max-time 30 "${DEPLOYMENT_INFO_URL}")" || true
+            deployment_sha="$(jq -er '.gitCommitFull // .git_commit_full // .commit_sha // .deployment.deployed_commit_sha // empty' <<<"${deployment_json}")" || true
+            deployment_branch="$(jq -er '.gitBranch // .git_branch // .branch // .deployment.branch // empty' <<<"${deployment_json}")" || true
+            if [[ "${version_sha,,}" == "${EXPECTED_SHA,,}" && "${deployment_sha,,}" == "${EXPECTED_SHA,,}" && "${deployment_branch}" == "${EXPECTED_BRANCH}" ]]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo '{"ok":false,"code":"host_breakglass_post_capsule_parity_failed","secrets_included":false}' >&2
+          exit 1
+      - name: Run Hostinger-side runtime environment dry-run
+        if: inputs.bootstrap_target_source == 'hostinger_runtime_env'
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          TARGET_KEY: ${{ inputs.bootstrap_target_key }}
+          MIGRATION: ${{ inputs.bootstrap_migration }}
+          RUNTIME_BOOTSTRAP_URL: ${{ inputs.runtime_bootstrap_url }}
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "${EXPECTED_BRANCH}" == "Production" ]]
+          [[ "${RUNTIME_BOOTSTRAP_URL}" == "https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run" ]]
+          [[ -n "${BACKEND_API_KEY}" ]]
+          mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          payload_file="${RUNNER_TEMP}/runtime-bootstrap-dry-run-payload.json"
+          header_file="${RUNNER_TEMP}/runtime-bootstrap-dry-run-header.txt"
+          result_file="${BOOTSTRAP_RESULT_PATH}"
+          jq -n \
+            --arg expected_sha "${EXPECTED_SHA,,}" \
+            --arg expected_branch "${EXPECTED_BRANCH}" \
+            --arg expected_repository "${EXPECTED_REPOSITORY}" \
+            --arg target_key "${TARGET_KEY}" \
+            --arg migration "${MIGRATION}" \
+            '{expected_sha:$expected_sha,expected_branch:$expected_branch,expected_repository:$expected_repository,target_key:$target_key,migration:$migration}' \
+            > "${payload_file}"
+          printf 'header = "x-api-key: %s"\n' "${BACKEND_API_KEY}" > "${header_file}"
+          http_status="$(curl --proto '=https' --tlsv1.2 --silent --show-error --connect-timeout 10 --max-time 300 --config "${header_file}" -H 'content-type: application/json' --data-binary "@${payload_file}" -o "${result_file}" -w '%{http_code}' "${RUNTIME_BOOTSTRAP_URL}")"
+          rm -f "${payload_file}" "${header_file}"
+          [[ "$(wc -c < "${result_file}")" -le 49152 ]]
+          jq -e --argjson status "${http_status}" '
+            (.secrets_included == false) and
+            ((.. | objects | keys[]) as $key | ($key == "database" or $key == "principal" or $key == "password" or $key == "secret" or $key == "connection_string") | not) and
+            (.mode == "dry_run") and
+            (.operation == "read_only") and
+            (.target_source == "runtime_env") and
+            (.database_mutation_performed == false) and
+            (.migration_apply_performed == false) and
+            (.grant_mutation_performed == false) and
+            ($status == 200)
+          ' "${result_file}" >/dev/null || {
+            echo '{"ok":false,"code":"hostinger_runtime_env_dry_run_failed_or_unsafe","secrets_included":false}' >&2
+            exit 1
+          }
       - name: Upload bounded no-secret bootstrap evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

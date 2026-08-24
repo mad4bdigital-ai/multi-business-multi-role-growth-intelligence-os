@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import zlib from "node:zlib";
@@ -52,6 +55,17 @@ function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode =
     DB_PASSWORD: "runtime-secret-for-test-only",
   };
 }
+
+test("repository allowlist derives database binding from target key without caller database inputs", () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "dry_run");
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  const plan = buildPlan(env, contract);
+  assert.equal(plan.target_key, TARGET_KEY);
+  assert.equal(plan.target_binding.database_sha256, sha256Hex(TARGET_DATABASE));
+  assert.equal(plan.target_binding.raw_values_exposed, false);
+  assert.equal(plan.database_connection_performed, false);
+});
 
 function grantRows() {
   return TARGET ? [
@@ -171,6 +185,103 @@ test("every non-plan bootstrap mode requires exact SHA metadata", () => {
   assert.equal(exactShaModes.has("apply"), false);
 });
 
+test("runtime_env target discovery derives a no-secret binding for dry_run without repository target JSON", () => {
+  const env = envFor();
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_USER = TARGET.principal;
+  delete env.BOOTSTRAP_TARGET_KEY;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  const result = buildPlan(env, contract);
+  assert.equal(result.ok, true);
+  assert.equal(result.target_binding.source, "runtime_env");
+  assert.equal(result.target_binding.target_key, TARGET_KEY);
+  assert.equal(result.target_binding.database_sha256, sha256Hex(TARGET_DATABASE));
+  assert.equal(result.target_binding.raw_values_exposed, false);
+  assert.equal(result.target_binding.secrets_included, false);
+  assert.equal(result.database_connection_performed, false);
+});
+
+test("runtime_env read-only dry-run reuses centralized DB credentials without granting mutation authority", () => {
+  const env = envFor();
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_PORT = "3307";
+  env.DB_USER = TARGET.principal;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.MYSQL_BOOTSTRAP_HOST;
+  delete env.MYSQL_BOOTSTRAP_PORT;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_USER;
+  delete env.MYSQL_BOOTSTRAP_PASSWORD;
+  const result = buildPlan(env, contract);
+  assert.equal(result.operation, "read_only");
+  assert.equal(result.credentials.credential_source, "runtime_read_only");
+  assert.equal(result.credentials.separate_from_runtime, false);
+  assert.equal(result.database_connection_performed, false);
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(result.migration_apply_performed, false);
+  assert.equal(result.grant_mutation_performed, false);
+
+  env.BOOTSTRAP_MODE = "apply_migration";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
+});
+
+test("runtime_env target discovery is denied for apply modes", () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_USER = TARGET.principal;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
+});
+
+test("Host Breakglass empty rebuild contract is represented as a zero-table-only capability", () => {
+  const catalog = JSON.parse(fs.readFileSync(new URL("./config/host-breakglass-catalog.json", import.meta.url), "utf8"));
+  const rebuild = catalog.operations.find((entry) => entry.key === "database.rebuild_empty");
+  assert.equal(catalog.database_independent, true);
+  assert.equal(rebuild.requires_zero_table_database, true);
+  assert.equal(catalog.destructive_nonempty_rebuild.supported, false);
+});
+
+test("CLI loads an explicit env file only for runtime_env dry_run and still fails before DB without bootstrap credentials", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-bootstrap-env-test-"));
+  const envFile = path.join(tempDir, ".env");
+  const cli = new URL("./scripts/hostinger-runtime-bootstrap.mjs", import.meta.url);
+  fs.writeFileSync(envFile, [
+    `BOOTSTRAP_EXPECTED_SHA=${EXPECTED_SHA}`,
+    "BOOTSTRAP_EXPECTED_BRANCH=Production",
+    "BOOTSTRAP_EXPECTED_REPOSITORY=mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    `BOOTSTRAP_TARGET_KEY=${TARGET_KEY}`,
+    `BOOTSTRAP_MIGRATION=20260815_custom_gpt_mcp_catalog_levels.sql`,
+    `DB_NAME=${TARGET_DATABASE}`,
+    "DB_HOST=db.internal",
+    `DB_USER=${TARGET.principal}`,
+  ].join("\n") + "\n", "utf8");
+  const result = spawnSync(process.execPath, [
+    cli.pathname,
+    "--dry-run",
+    "--target-source", "runtime_env",
+    "--env-file", envFile,
+  ], { encoding: "utf8", env: { PATH: process.env.PATH || "", NODE_NO_WARNINGS: "1" } });
+  try {
+    assert.equal(result.status, 1);
+    const evidence = JSON.parse(result.stdout);
+    assert.equal(evidence.error.code, "bootstrap_credentials_missing");
+    assert.equal(evidence.database_connection_performed, false);
+    assert.equal(evidence.database_mutation_performed, false);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("plan mode is the default and performs no DB connection or mutation", () => {
   const result = buildPlan({ BOOTSTRAP_MODE: "plan" }, contract);
   assert.equal(result.status, "bootstrap_not_executed");
@@ -271,6 +382,74 @@ test("dry-run supports an explicitly allowlisted separate governance database", 
   assert.equal(result.status, "dry_run_complete");
   assert.equal(result.grant_readback.ready, true);
   assert.equal(result.database_mutation_performed, false);
+});
+
+test("dry-run binds an explicitly allowlisted runtime persistence database to its own connection", async () => {
+  const env = envFor();
+  const persistenceDatabase = "growth_persistence";
+  const splitTarget = {
+    ...TARGET,
+    runtime_persistence_database: persistenceDatabase,
+    runtime_persistence_database_sha256: sha256Hex(persistenceDatabase),
+  };
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  env.RUNTIME_PERSISTENCE_DB_NAME = persistenceDatabase;
+  const opened = [];
+  const connections = [fakeConnection(), fakeConnection()];
+  const result = await runBootstrap({
+    env,
+    contract,
+    connectionFactory: async (request) => {
+      opened.push({ role: request.role, database: request.database });
+      return connections[opened.length - 1];
+    },
+  });
+  assert.deepEqual(opened, [
+    { role: "runtime", database: TARGET_DATABASE },
+    { role: "runtime_persistence", database: persistenceDatabase },
+  ]);
+  assert.equal(result.target_binding.runtime_persistence_database_sha256, sha256Hex(persistenceDatabase));
+  assert.equal(connections[1].queryCalls.includes(`USE \`${persistenceDatabase}\``), true);
+  assert.equal(result.database_mutation_performed, false);
+});
+
+test("runtime persistence databases reject missing allowlist binding, wrong hash, and cross-target substitution", () => {
+  const env = envFor();
+  env.RUNTIME_PERSISTENCE_DB_NAME = "growth_persistence";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_not_allowlisted");
+
+  const splitTarget = {
+    ...TARGET,
+    runtime_persistence_database: "growth_persistence",
+    runtime_persistence_database_sha256: "0".repeat(64),
+  };
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_fingerprint_mismatch");
+
+  splitTarget.runtime_persistence_database_sha256 = sha256Hex("growth_persistence");
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  env.RUNTIME_PERSISTENCE_DB_NAME = "different_persistence";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_mismatch");
+});
+
+test("nonempty runtime persistence target blocks split-role baseline before any mutation", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  const persistenceDatabase = "growth_persistence";
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  env.RUNTIME_PERSISTENCE_DB_NAME = persistenceDatabase;
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([{
+    ...TARGET,
+    runtime_persistence_database: persistenceDatabase,
+    runtime_persistence_database_sha256: sha256Hex(persistenceDatabase),
+  }]);
+  const runtime = fakeConnection({ tableCount: 0 });
+  const persistence = fakeConnection({ tableCount: 1 });
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "runtime_persistence" ? persistence : runtime }),
+    (error) => error.code === "bootstrap_persistence_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
+  );
+  assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+  assert.equal(persistence.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
 });
 
 test("dry-run verifies 225 envelope schema/policy/tool and 1048 response-chunk readiness", async () => {
@@ -409,6 +588,34 @@ test("empty-database bundle is blocked when manifest or pinned artifact is absen
     roles: { runtime: { bundle_file: "runtime.schema.sql.gz", tables, table_count: tables.length, sha256: "0".repeat(64) } },
   }));
   assert.throws(() => validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract), (error) => error.code === "bootstrap_bundle_checksum_mismatch");
+});
+
+test("runtime persistence rebuild requires its exact-SHA repository bundle, required table, and pinned checksum", () => {
+  const directory = fs.mkdtempSync(path.join("/tmp", "runtime-persistence-bootstrap-test-"));
+  const bundlePath = path.join(directory, "persistence.schema.sql.gz");
+  const bundle = zlib.gzipSync("CREATE TABLE `governed_tool_response_chunks` (`chunk_id` VARCHAR(128));\n");
+  fs.writeFileSync(bundlePath, bundle);
+  const tables = contract.baseline_bundle.required_runtime_persistence_tables;
+  const manifestPath = path.join(directory, "staging-schema-bundle-manifest.json");
+  const manifest = {
+    contract: "mad4b.staging.schema-bundle-output.v1",
+    source_commit: EXPECTED_SHA,
+    schema_only: true,
+    production_accessed: false,
+    provider_accessed: false,
+    data_exported: false,
+    secrets_included: false,
+    roles: { runtime_persistence: { bundle_file: "persistence.schema.sql.gz", tables, table_count: tables.length, sha256: createHash("sha256").update(bundle).digest("hex") } },
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  const validated = validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, "runtime_persistence");
+  assert.equal(validated.role.file, "persistence.schema.sql.gz");
+  assert.equal(validated.role.tables.includes("governed_tool_response_chunks"), true);
+  assert.throws(() => validateSchemaBundleManifest(manifestPath, "a".repeat(40), contract, "runtime_persistence"), (error) => error.code === "bootstrap_bundle_source_mismatch");
+  manifest.roles.runtime_persistence.sha256 = "0".repeat(64);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  assert.throws(() => validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, "runtime_persistence"), (error) => error.code === "bootstrap_bundle_checksum_mismatch");
+  fs.rmSync(directory, { recursive: true, force: true });
 });
 
 test("error taxonomy separates missing schema from privilege denied", () => {

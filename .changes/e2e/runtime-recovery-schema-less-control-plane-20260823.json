@@ -2,12 +2,24 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "runtime-recovery-schema-less-control-plane-20260823",
-  "title": "Schema-less runtime recovery control plane and Work Map binding maintenance",
+  "title": "Schema-less runtime recovery control plane, environment-scoped Breakglass catalog, and Work Map binding maintenance",
+
   "delivery_mode": "single_pr",
   "secrets_included": false,
   "current_phase": "mvp",
+
   "scope": {
     "include": [
+          "http-generic-api/config/runtime-breakglass-catalog.json",
+        "http-generic-api/runtimeBreakglassBroker.js",
+        "http-generic-api/routes/runtimeBreakglassRoutes.js",
+        "http-generic-api/test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
+        "canonicals/openapi/custom-gpt-surfaces.yaml",
+        "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+        "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+        "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+
       ".changes/e2e/runtime-recovery-schema-less-control-plane-20260823.json",
       "http-generic-api/.env.example",
       "http-generic-api/config/repository-governance-constitution.json",
@@ -55,7 +67,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide two bounded GitHub-controlled read-only recovery snapshot sources for runtimes that do not yet have the canonical schema or tables, while retaining SQL/runtime recovery as a separate authority path.",
+      "objective": "Provide bounded schema-less recovery evidence and an environment-scoped Breakglass catalog for Staging local Windows/Docker and Production Hostinger runtimes, while retaining SQL/runtime recovery as separate reviewed authority paths.",
       "e2e_journeys": [
         {
           "id": "schema-less-snapshot-recovery-is-read-only",
@@ -76,6 +88,10 @@
             "Run the route regression without connecting to or mutating a live database."
           ],
           "assertions": [
+        "Breakglass environment selection is explicit: Staging is local Windows/Docker on main, while Production is Hostinger Auto Deploy on Production through the fixed workflow dispatched from main.",
+        "Staging Breakglass never dispatches the Production workflow and never permits Admin-route migration or grant mutation; local operator authority remains separate.",
+        "Production Breakglass never accepts caller-supplied database names, credentials, arbitrary refs, workflow paths, or target keys; repository-owned GitHub variables resolve the target inside the reviewed workflow.",
+        "Full database rebuild is plan/dry-run only and non-empty destructive replacement is not routable through this catalog.",
             "Snapshot source values are non-secret and bounded; snapshot JSON is never read from GitHub Secrets.",
             "Snapshot strategy rejects sql source mode and any apply_execution request.",
             "Snapshot session context has no durable session_id and no persistence write path.",
@@ -89,6 +105,13 @@
             "No Migration Apply, grant, database/provider mutation, deployment, restart, Policy Apply, Production activation, force push, or secret evidence occurs during validation."
           ],
           "tests": [
+            {
+              "id": "runtime-breakglass-environment-scoped-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-breakglass-broker.mjs",
+              "args": []
+            },
             {
               "id": "runtime-recovery-snapshot-routes",
               "runner": "node",
@@ -119,7 +142,16 @@
             "docs/governance/configuration-drift-policy.json",
             "http-generic-api/runtimeRecoverySnapshot.js",
             "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
-            ".github/ops/test-production-runtime-recovery.mjs"
+            ".github/ops/test-production-runtime-recovery.mjs",
+            "http-generic-api/config/runtime-breakglass-catalog.json",
+            "http-generic-api/runtimeBreakglassBroker.js",
+            "http-generic-api/routes/runtimeBreakglassRoutes.js",
+            "http-generic-api/test-runtime-breakglass-broker.mjs",
+            "docs/governance/runtime-breakglass-environments.md",
+            "canonicals/openapi/custom-gpt-surfaces.yaml",
+            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json"
           ]
         }
       ]

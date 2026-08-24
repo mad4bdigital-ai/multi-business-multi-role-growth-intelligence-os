@@ -33,8 +33,30 @@
   "target_binding": {
     "targets_json_env": "RUNTIME_BOOTSTRAP_TARGETS_JSON",
     "target_key_env": "BOOTSTRAP_TARGET_KEY",
-    "database_env": "BOOTSTRAP_TARGET_DATABASE",
-    "governance_database_env": "BOOTSTRAP_GOVERNANCE_DATABASE",
+    "database_env": null,
+    "governance_database_env": null,
+    "database_binding": "RUNTIME_BOOTSTRAP_TARGETS_JSON[target_key].database",
+    "governance_database_binding": "RUNTIME_BOOTSTRAP_TARGETS_JSON[target_key].governance_database_or_database",
+    "target_source_env": "BOOTSTRAP_TARGET_SOURCE",
+    "target_source_default": "repository_allowlist",
+    "default_target_key": "production-runtime",
+    "target_sources": {
+      "repository_allowlist": {
+        "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
+        "requires_repository_target_json": true
+      },
+      "runtime_env": {
+        "allowed_modes": ["dry_run"],
+        "requires_repository_target_json": false,
+        "database_env": "DB_NAME",
+        "governance_database_env": "GOVERNANCE_DB_NAME",
+        "principal_env": "DB_USER",
+        "principal_host_env": "DB_PRINCIPAL_HOST",
+        "default_principal_host": "localhost",
+        "raw_values_exposed": false,
+        "apply_allowed": false
+      }
+    },
     "target_role": "runtime",
     "governance_role": "governance",
     "required_environment": "production",
@@ -62,15 +84,16 @@
     "manifest_env": "BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST",
     "default_manifest_path": "autopilot-portable-staging/staging-db-dumps/staging-schema-bundle-manifest.json",
     "manifest_contract": "mad4b.staging.schema-bundle-output.v1",
-    "when_allowed": "database_missing_or_zero_tables_only",
+    "when_allowed": "existing_zero_tables_only; database_creation_is_outside_this_contract",
     "schema_only_required": true,
     "production_accessed_required": false,
     "provider_accessed_required": false,
     "data_exported_required": false,
     "secrets_included_required": false,
-    "required_roles": ["runtime", "governance"],
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
     "runtime_role_file": "runtime.schema.sql.gz",
     "governance_role_file": "governance.schema.sql.gz",
+    "runtime_persistence_role_file": "persistence.schema.sql.gz",
     "required_runtime_tables": [
       "admin_platform_endpoint_tools",
       "tenant_platform_endpoint_tools",
@@ -82,6 +105,8 @@
       "json_assets"
     ],
     "required_governance_tables": ["governed_migration_ledger"],
+    "required_runtime_persistence_tables": ["governed_tool_response_chunks"],
+    "runtime_persistence_readback_migration": "1048_transport_response_chunk_schema_recovery.sql",
     "governance_database_optional": true,
     "governance_database_must_be_allowlisted_when_present": true,
     "role_split_baseline_requires_no_partial_pair": true,

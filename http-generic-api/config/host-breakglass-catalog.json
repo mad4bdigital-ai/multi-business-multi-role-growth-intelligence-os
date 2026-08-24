@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.host-breakglass-catalog.v1",
+  "status": "repository_owned_fail_closed_catalog",
+  "database_independent": true,
+  "tool_contract": "config/host-breakglass-tool-contracts.json",
+  "capsule_schema": "config/host-breakglass-capsule.schema.json",
+  "backup_evidence_schema": "config/host-breakglass-backup-evidence.schema.json",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "dispatch_ref": "main",
+  "target_branch": "Production",
+  "workflow": "production-runtime-parity-evidence.yml",
+  "environments": {
+    "staging_local_windows_docker": {
+      "environment": "staging",
+      "host": "local_windows",
+      "runtime": "docker_compose",
+      "execution_transport": "local_cli",
+      "source_branch": "main",
+      "default_target_key": "staging-runtime",
+      "target_key_prefix": "staging-",
+      "provider": "local_docker",
+      "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
+      "github_workflow_dispatch_allowed": false,
+      "hostinger_access_allowed": false
+    },
+    "production_hostinger_autodeploy": {
+      "environment": "production",
+      "host": "hostinger_cloud_business",
+      "runtime": "github_auto_deploy",
+      "execution_transport": "github_workflow",
+      "source_branch": "Production",
+      "default_target_key": "production-runtime",
+      "target_key_prefix": "production-",
+      "dispatch_ref": "main",
+      "provider": "hostinger",
+      "credential_namespace": "MYSQL_BOOTSTRAP_*",
+      "github_workflow_dispatch_allowed": true,
+      "hostinger_access_allowed": true
+    }
+  },
+  "migration_governance": {
+    "contract": "mad4b.cross-environment.migration-discovery.v1",
+    "migration_directory": "http-generic-api/migrations",
+    "full_catalog_discovery": true,
+    "execution_catalog_source": "config/runtime-bootstrap-contract.json",
+    "discovery_grants_execution": false,
+    "production_auto_apply_allowed": false,
+    "historical_checksum_verification_required": true,
+    "silent_ledger_reconciliation_allowed": false,
+    "same_cycle_postcondition_readback_required": true,
+    "shared_policy_path": "config/staging-migration-contract-policy.json",
+    "shared_policy_optional_until_foundation_merge": true
+  },
+  "database_role_topology": {
+    "runtime": { "required": true, "rebuild_executor_available": true },
+    "governance": { "required": true, "owns_migration_ledger": true, "rebuild_executor_available": true },
+    "runtime_persistence": { "required": true, "owns_tables": ["governed_tool_response_chunks"], "rebuild_executor_available": true, "executor": "hostinger-runtime-bootstrap", "repository_bundle_file": "persistence.schema.sql.gz", "same_cycle_postcondition_readback_required": true }
+  },
+  "tools": [
+    { "key": "migration_catalog.inspect", "mutation": false, "database_required": false },
+    { "key": "database_role_topology.inspect", "mutation": false, "database_required": false },
+    { "key": "schema_bundle.inspect", "mutation": false, "database_required": false },
+    { "key": "schema_bundle.rebuild_empty", "mutation": true, "zero_table_required": true },
+    { "key": "migration_contract.inspect", "mutation": false, "catalog_source": "runtime-bootstrap-contract.json" },
+    { "key": "migration_contract.apply", "mutation": true, "catalog_source": "runtime-bootstrap-contract.json" },
+    { "key": "grant_contract.inspect", "mutation": false },
+    { "key": "grant_contract.apply", "mutation": true },
+    { "key": "database.postconditions.read", "mutation": false },
+    { "key": "ledger.readback", "mutation": false }
+  ],
+  "operations": [
+    {
+      "key": "database.inspect",
+      "risk": "read_only",
+      "allowed_actions": ["plan", "dry_run"],
+      "target_sources": ["repository_allowlist", "runtime_env"],
+      "requires_exact_sha": true,
+      "requires_confirmation": false,
+      "allowed_runbooks": ["database.full_inspection"],
+      "purpose": "Classify database existence, table population, ledger, schema bundle eligibility, postconditions, and grants without mutation."
+    },
+    {
+      "key": "database.repair",
+      "risk": "controlled_mutation",
+      "allowed_actions": ["plan", "dry_run", "apply_migration", "apply_grants"],
+      "target_sources": ["repository_allowlist"],
+      "requires_exact_sha": true,
+      "requires_confirmation": true,
+      "allowed_runbooks": ["database.schema_repair", "database.access_repair"],
+      "purpose": "Repair a database from repository-owned migration and grant contracts selected at runtime from the signed repository contract."
+    },
+    {
+      "key": "database.rebuild_empty",
+      "risk": "controlled_mutation",
+      "allowed_actions": ["plan", "dry_run", "apply_migration"],
+      "target_sources": ["repository_allowlist"],
+      "requires_exact_sha": true,
+      "requires_confirmation": true,
+      "allowed_runbooks": ["database.empty_rebuild"],
+      "requires_zero_table_database": true,
+      "purpose": "Rebuild an empty database from the exact-SHA schema bundle, seeds, repository migrations, and same-cycle readback. Grants remain a separate database.access_repair approval after rebuild readback."
+    },
+    {
+      "key": "host.command_capsule",
+      "risk": "exception_mutation",
+      "allowed_actions": ["plan", "execute_sql_capsule", "execute_shell_capsule"],
+      "target_sources": ["repository_allowlist"],
+      "requires_exact_sha": true,
+      "requires_confirmation": true,
+      "allowed_runbooks": ["host.sql_capsule_exception", "host.shell_capsule_exception"],
+      "purpose": "Execute repository-owned raw SQL or Docker shell capsules as an explicit Host Breakglass exception. Inline commands are never accepted. Production shell remains unavailable without a governed Hostinger remote-exec transport."
+    }
+  ],
+  "reconstruction_plan": {
+    "contract": "mad4b.host-breakglass-reconstruction-plan.v1",
+    "mode": "plan_and_explicit_apply",
+    "scope": "existing_zero_table_only",
+    "execution_allowed": true,
+    "steps": [
+      { "key": "classify_target", "mutation": false, "readback": true },
+      { "key": "inspect_schema_bundle", "mutation": false, "readback": true },
+      { "key": "rebuild_runtime_schema", "role": "runtime", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+      { "key": "rebuild_governance_schema", "role": "governance", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+      { "key": "rebuild_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "executor_available": true, "executor": "hostinger-runtime-bootstrap", "bundle_file": "persistence.schema.sql.gz", "same_cycle_readback_required": true },
+      { "key": "apply_canonical_seeds", "mutation": true, "requires": ["exact_sha", "typed_confirmation"] },
+      { "key": "reconcile_reviewed_migrations", "mutation": true, "requires": ["repository_allowlist", "exact_sha", "typed_confirmation"] },
+      { "key": "apply_least_privilege_grants", "mutation": true, "requires": ["separate_confirmation", "postconditions_ready"] },
+      { "key": "read_postconditions_and_ledger", "mutation": false, "readback": true }
+    ],
+    "complete": true,
+    "blocking_reason": null,
+    "destructive_nonempty_rebuild_allowed": false
+  },
+  "destructive_nonempty_rebuild": {
+    "supported": false,
+    "reason": "A nonempty database must be restored into a new target or emptied through an independently approved provider lifecycle with backup proof; this catalog never drops live tables."
+  },
+  "secrets_included": false
+}
