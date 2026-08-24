@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -202,6 +203,33 @@ test("runtime_env target discovery derives a no-secret binding for dry_run witho
   assert.equal(result.target_binding.raw_values_exposed, false);
   assert.equal(result.target_binding.secrets_included, false);
   assert.equal(result.database_connection_performed, false);
+});
+
+test("runtime_env read-only dry-run reuses centralized DB credentials without granting mutation authority", () => {
+  const env = envFor();
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_PORT = "3307";
+  env.DB_USER = TARGET.principal;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.MYSQL_BOOTSTRAP_HOST;
+  delete env.MYSQL_BOOTSTRAP_PORT;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_USER;
+  delete env.MYSQL_BOOTSTRAP_PASSWORD;
+  const result = buildPlan(env, contract);
+  assert.equal(result.operation, "read_only");
+  assert.equal(result.credentials.credential_source, "runtime_read_only");
+  assert.equal(result.credentials.separate_from_runtime, false);
+  assert.equal(result.database_connection_performed, false);
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(result.migration_apply_performed, false);
+  assert.equal(result.grant_mutation_performed, false);
+
+  env.BOOTSTRAP_MODE = "apply_migration";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
 });
 
 test("runtime_env target discovery is denied for apply modes", () => {
@@ -492,6 +520,34 @@ test("empty-database bundle is blocked when manifest or pinned artifact is absen
     roles: { runtime: { bundle_file: "runtime.schema.sql.gz", tables, table_count: tables.length, sha256: "0".repeat(64) } },
   }));
   assert.throws(() => validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract), (error) => error.code === "bootstrap_bundle_checksum_mismatch");
+});
+
+test("runtime persistence rebuild requires its exact-SHA repository bundle, required table, and pinned checksum", () => {
+  const directory = fs.mkdtempSync(path.join("/tmp", "runtime-persistence-bootstrap-test-"));
+  const bundlePath = path.join(directory, "persistence.schema.sql.gz");
+  const bundle = zlib.gzipSync("CREATE TABLE `governed_tool_response_chunks` (`chunk_id` VARCHAR(128));\n");
+  fs.writeFileSync(bundlePath, bundle);
+  const tables = contract.baseline_bundle.required_runtime_persistence_tables;
+  const manifestPath = path.join(directory, "staging-schema-bundle-manifest.json");
+  const manifest = {
+    contract: "mad4b.staging.schema-bundle-output.v1",
+    source_commit: EXPECTED_SHA,
+    schema_only: true,
+    production_accessed: false,
+    provider_accessed: false,
+    data_exported: false,
+    secrets_included: false,
+    roles: { runtime_persistence: { bundle_file: "persistence.schema.sql.gz", tables, table_count: tables.length, sha256: createHash("sha256").update(bundle).digest("hex") } },
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  const validated = validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, "runtime_persistence");
+  assert.equal(validated.role.file, "persistence.schema.sql.gz");
+  assert.equal(validated.role.tables.includes("governed_tool_response_chunks"), true);
+  assert.throws(() => validateSchemaBundleManifest(manifestPath, "a".repeat(40), contract, "runtime_persistence"), (error) => error.code === "bootstrap_bundle_source_mismatch");
+  manifest.roles.runtime_persistence.sha256 = "0".repeat(64);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  assert.throws(() => validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, "runtime_persistence"), (error) => error.code === "bootstrap_bundle_checksum_mismatch");
+  fs.rmSync(directory, { recursive: true, force: true });
 });
 
 test("error taxonomy separates missing schema from privilege denied", () => {

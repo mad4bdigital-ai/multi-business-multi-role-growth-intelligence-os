@@ -34,6 +34,35 @@ function stableFileHash(filePath) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology }) {
+  if (runbookKey !== "database.empty_rebuild") return null;
+  const mutating = action === "apply_migration";
+  const steps = [
+    { key: "target.classify", mutation: false, zero_table_required: true },
+    { key: "schema_bundle.inspect", mutation: false, exact_sha_required: true },
+    ...Object.keys(databaseRoleTopology).filter((role) => databaseRoleTopology[role]?.required === true).map((role) => ({
+      key: `schema_bundle.rebuild_empty.${role}`,
+      role,
+      mutation: mutating,
+      executor_available: databaseRoleTopology[role]?.rebuild_executor_available === true,
+      zero_table_required: true,
+      same_cycle_readback_required: role === "runtime_persistence",
+    })),
+    { key: "canonical_seeds.apply", mutation: mutating, repository_owned: true },
+    { key: "migration_contract.apply", mutation: mutating, execution_allowlist_required: true },
+    { key: "database.postconditions.read", mutation: false, same_cycle_readback_required: true },
+    { key: "ledger.readback", mutation: false, same_cycle_readback_required: true },
+  ];
+  if (mutating && (!toolChain.includes("schema_bundle.rebuild_empty") || !toolChain.includes("schema_bundle.rebuild_runtime_persistence") || !toolChain.includes("migration_contract.apply"))) {
+    fail(403, "host_breakglass_runbook_execution_denied", "Runbook graph does not grant both repository-owned reconstruction and migration capabilities.");
+  }
+  if (mutating && steps.some((step) => step.executor_available === false)) {
+    fail(409, "host_breakglass_runbook_executor_missing", "A required database role has no reconstruction executor.");
+  }
+  const graph = { contract: "mad4b.host-breakglass-runbook-graph.v1", runbook_key: runbookKey, execution_mode: mutating ? "apply_runbook" : "inspect_runbook", grants_included: false, arbitrary_sql_allowed: false, destructive_nonempty_rebuild_allowed: false, steps };
+  return { ...graph, graph_sha256: stableHash(graph) };
+}
+
 function validateRepositoryBackupEvidence(relativePath, { expectedSha, targetKey }) {
   const absolute = path.resolve(HERE, "..", relativePath);
   const repositoryRoot = path.resolve(HERE, "..");
@@ -100,23 +129,23 @@ function migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey 
     fail(500, "host_breakglass_migration_governance_invalid", "Migration discovery must remain separate from execution authority and silent reconciliation.");
   }
   const files = fs.readdirSync(MIGRATIONS_PATH).filter((file) => /^\d[^/\\]*\.sql$/u.test(file)).sort((left, right) => Number(left.match(/^\d+/u)?.[0] || 0) - Number(right.match(/^\d+/u)?.[0] || 0) || left.localeCompare(right));
-  const cacheKey = `${environmentKey || "all"}:${stableHash(bootstrapContract.migrations || {})}:${files.join("|")}`;
-  const cached = MIGRATION_DISCOVERY_CACHE.get(cacheKey);
+  const discoveryIdentity = `${environmentKey || "all"}:${stableHash(bootstrapContract.migrations || {})}:${files.join("|")}`;
+  const cached = MIGRATION_DISCOVERY_CACHE.get(discoveryIdentity);
   if (cached) return cached;
   const digest = createHash("sha256");
   for (const file of files) digest.update(`${file}:${stableFileHash(path.join(MIGRATIONS_PATH, file))}\n`);
   const allowlisted = Object.entries(bootstrapContract.migrations || {});
   const applyEligible = allowlisted.filter(([, rule]) => Array.isArray(rule.allowed_modes) && rule.allowed_modes.includes("apply_migration"));
-  let sharedPolicy = { available: false, compatible: false };
+  let foundationEvidence = { available: false, compatible: false };
   if (fs.existsSync(SHARED_MIGRATION_POLICY_PATH)) {
     const policy = JSON.parse(fs.readFileSync(SHARED_MIGRATION_POLICY_PATH, "utf8"));
-    sharedPolicy = {
+    foundationEvidence = {
       available: true,
       compatible: policy.execution_authority?.discovery_grants_execution === false && policy.execution_authority?.production_auto_apply_allowed === false,
       environment_profile_declared: environmentKey ? Boolean(policy.environment_profiles?.[environmentKey]) : null,
       sha256: stableFileHash(SHARED_MIGRATION_POLICY_PATH)
     };
-    if (!sharedPolicy.compatible || (environmentKey && !sharedPolicy.environment_profile_declared)) fail(500, "host_breakglass_shared_migration_policy_invalid", "Shared migration policy does not isolate discovery, environment, and execution authority.");
+    if (!foundationEvidence.compatible || (environmentKey && !foundationEvidence.environment_profile_declared)) fail(500, "host_breakglass_shared_migration_policy_invalid", "Shared migration policy does not isolate discovery, environment, and execution authority.");
   }
   const evidence = {
     contract: governance.contract,
@@ -127,12 +156,12 @@ function migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey 
     migration_catalog_sha256: digest.digest("hex"),
     discovery_grants_execution: false,
     production_auto_apply_allowed: false,
-    shared_policy: sharedPolicy,
+    shared_policy: foundationEvidence,
     required_database_roles: Object.entries(catalog.database_role_topology || {}).filter(([, role]) => role.required === true).map(([role]) => role).sort(),
     missing_rebuild_role_executors: Object.entries(catalog.database_role_topology || {}).filter(([, role]) => role.required === true && role.rebuild_executor_available !== true).map(([role]) => role).sort(),
     secrets_included: false
   };
-  MIGRATION_DISCOVERY_CACHE.set(cacheKey, evidence);
+  MIGRATION_DISCOVERY_CACHE.set(discoveryIdentity, evidence);
   return evidence;
 }
 
@@ -154,6 +183,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
   if (!targetKey.startsWith(environment.target_key_prefix || `${environment.environment}-`)) fail(403, "host_breakglass_environment_target_mismatch", "Target key does not belong to the selected environment.", { environment_key: environmentKey, target_key: targetKey });
   const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
+  const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {} });
   const migration = String(input.migration || "").trim();
   if (["dry_run", "apply_migration"].includes(action) && !migrationFiles(bootstrapContract).has(migration)) {
     fail(400, "host_breakglass_migration_not_cataloged", "Migration is not present in the repository-owned bootstrap contract.", { migration });
@@ -211,6 +241,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     target_key: targetKey,
     migration_governance: governanceEvidence,
     database_role_topology: catalog.database_role_topology,
+    runbook_execution_graph: executionGraph,
     migration: migration || null,
     capsule_path: capsulePath || null,
     capsule_sha256: capsuleSha256 || null,
@@ -286,10 +317,10 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
   const { token, auth_mode } = await resolveHostBreakglassToken({ env, fetchImpl, tokenResolver });
   const prior = await githubRequest({ token, pathname: workflowRunsPath(plan), fetchImpl });
   const matchingRuns = matchingHostBreakglassRuns(prior.payload, plan);
-  if (matchingRuns.length > 1) fail(409, "host_breakglass_correlation_ambiguous", "More than one exact GitHub workflow run matches this correlation and plan.", { candidate_count: matchingRuns.length });
+  if (matchingRuns.length > 1) fail(409, "host_breakglass_idempotency_ambiguous", "More than one exact GitHub workflow run matches this correlation and plan.", { candidate_count: matchingRuns.length });
   if (matchingRuns.length === 1) {
     const run = matchingRuns[0];
-    const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "reused", workflow_run_id: String(run.id), workflow_dispatch_performed: false, idempotent_reuse: true, broker_auth_mode: auth_mode, database_mutation_performed: false, secrets_included: false };
+    const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "reused", workflow_run_id: String(run.id), workflow_dispatch_performed: false, idempotent_reuse: true, replayed: true, durable_github_readback: true, broker_auth_mode: auth_mode, database_mutation_performed: false, secrets_included: false };
     RUNS.set(plan.correlation_id, receipt);
     return receipt;
   }

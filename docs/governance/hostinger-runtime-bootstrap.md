@@ -111,7 +111,7 @@ npm run runtime-bootstrap:apply-grants
 
 ## اكتشاف الهدف من بيئة Hostinger نفسها
 
-عندما لا يعرف المشغّل اسم قاعدة البيانات، لا ينبغي تخمينها من اسم القاعدة أو حجمها في hPanel، ولا نسخ ملف `.env` إلى GitHub. أضيف مسار `runtime_env` مخصص لـ`dry_run` فقط؛ يقرأ `DB_NAME` و`DB_USER` و`GOVERNANCE_DB_NAME` من بيئة التطبيق المحلية، ويشتق `MYSQL_BOOTSTRAP_DATABASE` من `DB_NAME` إذا لم يكن محددًا. لا يستخدم هذا المسار `DB_USER` أو `DB_PASSWORD` كحساب bootstrap، ولا يسمح بأي `apply`.
+عندما لا يعرف المشغّل اسم قاعدة البيانات، لا ينبغي تخمينها من اسم القاعدة أو حجمها في hPanel، ولا نسخ ملف `.env` إلى GitHub. أضيف مسار `runtime_env` مخصص لـ`dry_run` فقط؛ يقرأ `DB_NAME` و`DB_USER` و`GOVERNANCE_DB_NAME` من بيئة التطبيق المحلية، ويشتق `MYSQL_BOOTSTRAP_DATABASE` من `DB_NAME` إذا لم يكن محددًا. يمكن لهذا المسار استخدام `DB_USER` و`DB_PASSWORD` كهوية قراءة فقط عند غياب حساب Bootstrap مخصص، ولا يسمح بأي `apply`.
 
 التحميل من ملف Hostinger ليس ضمن `npm start` ولا `prestart`، بل يجب أن يكون صريحًا عبر أمر الـCLI:
 
@@ -133,3 +133,17 @@ node scripts/hostinger-runtime-bootstrap.mjs --dry-run --target-source runtime_e
 ### ملاحظة Hostinger
 
 يستطيع Hostinger استيراد `.env` أثناء إعداد Node.js أو تعديل Environment variables بعد النشر، لكن تغييرات المتغيرات تحتاج rebuild/redeploy لتأخذ أثرًا في التطبيق. لذلك يكون Hostinger Environment variables هو المصدر التشغيلي المفضل، بينما Server Files `.env` لا يصبح فعالًا إلا إذا استُخدم صراحةً عبر `--env-file` أو إعداد تشغيل مكافئ. لا يستطيع GitHub Actions قراءة Server Files مباشرةً.
+
+## Centralized per-environment configuration and minimum setup
+
+Use the application `.env` as the source of truth for each environment. Staging reads its Windows/Docker application configuration; Production reads its existing Hostinger application configuration. Do not duplicate `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, or `DB_PASSWORD` into environment-specific SSH or bootstrap variables merely to inspect the runtime.
+
+The existing protected `/deployment-info/runtime-bootstrap-dry-run` route authenticates using the existing `BACKEND_API_KEY`, validates exact Production SHA, branch, and repository, and executes in `runtime_env` mode on the Hostinger host itself. For this read-only mode only, host, port, database, username, and password can be derived from the existing `DB_*` runtime configuration. Evidence identifies this identity as `runtime_read_only`; it never grants migration, grant, shell, SQL-capsule, or mutation authority. The same credentials remain denied for every apply mode and for repository-allowlist mutation.
+
+The existing GitHub App integration (`GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`) is reused if it already exists in Hostinger. Do not create replacements solely for Host Breakglass. The existing `BACKEND_API_KEY` must match the already-configured repository/environment secret used by the workflow; reuse that key rather than creating another service credential.
+
+Repository-allowlist mutation continues to use the existing governed workflow input `bootstrap_target_database`, together with the matching `RUNTIME_BOOTSTRAP_TARGETS_JSON` entry. No new `MYSQL_BOOTSTRAP_DATABASE` GitHub Variable is required.
+
+A privileged mutation cannot acquire permissions that the existing runtime database identity does not possess. If a dedicated Hostinger-side bootstrap identity is wanted and none already exists, its only identity settings are `MYSQL_BOOTSTRAP_USER` and `MYSQL_BOOTSTRAP_PASSWORD`; host, port, and database can be derived from existing `DB_*` values for the read-only runtime path. These two Hostinger settings do not enable runtime apply: privileged migration and grant execution remains restricted to the existing approved repository-allowlist workflow and its separately governed credentials. Never reuse `DB_USER` or `DB_PASSWORD` for a privileged mutation.
+
+Production SSH is optional and required only for the separate `execute_shell_capsule` transport. Do not configure `HOSTINGER_PROD_SSH_*` when only catalog inspection, runtime binding, or backend-key-authenticated `runtime_env` dry-run is needed. SSH key and pinned-host setup becomes necessary only if a remote SSH shell capability is explicitly activated later.

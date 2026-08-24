@@ -55,7 +55,7 @@
   "database_role_topology": {
     "runtime": { "required": true, "rebuild_executor_available": true },
     "governance": { "required": true, "owns_migration_ledger": true, "rebuild_executor_available": true },
-    "runtime_persistence": { "required": true, "owns_tables": ["governed_tool_response_chunks"], "rebuild_executor_available": false, "blocking_reason": "role_specific_persistence_executor_not_configured" }
+    "runtime_persistence": { "required": true, "owns_tables": ["governed_tool_response_chunks"], "rebuild_executor_available": true, "executor": "hostinger-runtime-bootstrap", "repository_bundle_file": "persistence.schema.sql.gz", "same_cycle_postcondition_readback_required": true }
   },
   "tools": [
     { "key": "migration_catalog.inspect", "mutation": false, "database_required": false },
@@ -114,21 +114,23 @@
   ],
   "reconstruction_plan": {
     "contract": "mad4b.host-breakglass-reconstruction-plan.v1",
-    "mode": "plan_only",
-    "execution_allowed": false,
+    "mode": "plan_and_explicit_apply",
+    "scope": "existing_zero_table_only",
+    "execution_allowed": true,
     "steps": [
       { "key": "classify_target", "mutation": false, "readback": true },
       { "key": "inspect_schema_bundle", "mutation": false, "readback": true },
       { "key": "rebuild_runtime_schema", "role": "runtime", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
       { "key": "rebuild_governance_schema", "role": "governance", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
-      { "key": "rebuild_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "executor_available": false, "blocked_reason": "role_specific_persistence_executor_not_configured" },
+      { "key": "rebuild_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "executor_available": true, "executor": "hostinger-runtime-bootstrap", "bundle_file": "persistence.schema.sql.gz", "same_cycle_readback_required": true },
       { "key": "apply_canonical_seeds", "mutation": true, "requires": ["exact_sha", "typed_confirmation"] },
       { "key": "reconcile_reviewed_migrations", "mutation": true, "requires": ["repository_allowlist", "exact_sha", "typed_confirmation"] },
       { "key": "apply_least_privilege_grants", "mutation": true, "requires": ["separate_confirmation", "postconditions_ready"] },
       { "key": "read_postconditions_and_ledger", "mutation": false, "readback": true }
     ],
-    "complete": false,
-    "blocking_reason": "runtime_persistence_role_executor_and_target binding require a separate reviewed change"
+    "complete": true,
+    "blocking_reason": null,
+    "destructive_nonempty_rebuild_allowed": false
   },
   "destructive_nonempty_rebuild": {
     "supported": false,

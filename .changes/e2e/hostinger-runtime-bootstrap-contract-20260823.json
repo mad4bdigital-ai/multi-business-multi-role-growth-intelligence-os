@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
+      "autopilot-portable-staging/manifest.json",
       "http-generic-api/config/runtime-bootstrap-contract.json",
       "http-generic-api/config/runtime-breakglass-catalog.json",
       "http-generic-api/runtimeBreakglassBroker.js",
@@ -24,6 +25,7 @@
       "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-admin-host-breakglass-routes.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
@@ -51,7 +53,9 @@
       "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
       "http-generic-api/config/host-breakglass-capsule.schema.json",
       "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
-      "http-generic-api/test-custom-gpt-schemas.mjs"
+      "http-generic-api/test-custom-gpt-schemas.mjs",
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json"
     ]
   },
   "merge_contract": {
@@ -87,15 +91,18 @@
           "steps": [
             "Validate exact Production source repository, branch, and 40-character SHA.",
             "Validate a repository-owned target entry with database SHA-256 and target fingerprint bound to repository, branch, key, runtime/governance databases, principal, and principal host.",
-            "Reject runtime DB credentials as bootstrap credentials and never fall back to DB_*.",
+            "Use dedicated bootstrap credentials for repository_allowlist and all mutation/capsule paths; never fall back to DB_* there.",
+            "For dry-run only, allow an explicit runtime_env source to derive DB_NAME/DB_USER locally from Hostinger, use DB_NAME as the connection database when MYSQL_BOOTSTRAP_DATABASE is absent, and expose only hashes/configured flags.",
+            "Permit DB_* credential reuse only for backend-key-authenticated runtime_env dry_run; reject runtime credentials for repository_allowlist, migration apply, grants, SQL capsules, and shell execution.",
             "Classify zero-table and nonempty databases before any baseline decision.",
             "Allow 225 and 1048 only in dry-run/verification mode and read back their canonical schema/readiness postconditions.",
             "Allow 20260815 only in apply_migration/apply_grants operation scopes; migration apply requires catalog prerequisite tables, checksum, statement count, ledger conflict checks, and declared postconditions, while grants require migration readiness and a separate confirmation.",
-            "For zero-table apply, require a same-SHA schema-only bundle manifest and runtime table-count/checksum pins; do not execute a generic migration directory.",
+            "For zero-table apply, require a same-SHA schema-only bundle manifest and separate runtime, governance, and runtime_persistence role table-count/checksum pins; execute the bounded runbook graph and read back governed_tool_response_chunks in the same cycle without executing a generic migration directory.",
             "Preflight all six grant tables before the first GRANT, apply only SELECT/INSERT/UPDATE, record completed tables, and require same-cycle readback without GRANT OPTION or schema/global write privileges.",
             "Expose typed bootstrap_not_configured/bootstrap_required status from startup and /deployment-info without opening a database connection.",
             "Keep the normal GPT tool and session-context routes DB-backed and protected.",
             "Resolve a repository-owned capability runbook and bind its exact tool contract SHA-256 before dispatch.",
+            "Before Production dispatch, recover any exact-correlation GitHub workflow run after process restart and reject ambiguous matches without issuing another POST.",
             "For command exceptions, accept repository capsules only; require exact capsule hash and typed confirmation, plus Production backup/restore evidence.",
             "Execute Production shell capsules through pinned known-hosts and key-only SSH, and return only bounded output hashes."
           ],
@@ -201,7 +208,8 @@
             "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
             "http-generic-api/config/host-breakglass-capsule.schema.json",
             "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
-            "http-generic-api/test-custom-gpt-schemas.mjs"
+            "http-generic-api/test-custom-gpt-schemas.mjs",
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs"
           ]
         }
       ]
