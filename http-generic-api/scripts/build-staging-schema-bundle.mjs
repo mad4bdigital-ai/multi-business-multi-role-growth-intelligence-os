@@ -8,6 +8,7 @@ import { splitStatements } from "./staging-sql-parser.mjs";
 import { compareMigrationFiles, isMigrationFilename } from "./migration-order.mjs";
 import { inspectOrderedMigrationChainCollations } from "../databaseCollationPolicyGuard.js";
 import { inspectOrderedMigrationChainEnumSeeds } from "../databaseEnumSeedPolicyGuard.js";
+import { inspectOrderedMigrationChainTextWidths } from "../databaseTextWidthPolicyGuard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -521,6 +522,29 @@ function orderedEnumSeedAudit(files) {
   return audit;
 }
 
+function orderedTextWidthAudit(files) {
+  if (!fs.existsSync(migrationContractPolicyPath)) fail(`staging migration contract policy is missing: ${migrationContractPolicyPath}`);
+  let policy;
+  try { policy = JSON.parse(fs.readFileSync(migrationContractPolicyPath, "utf8")); }
+  catch (error) { fail(`staging migration contract policy is invalid: ${error.message}`); }
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const audit = inspectOrderedMigrationChainTextWidths({
+    files: orderedFiles,
+    baselineFile: "http-generic-api/schema.sql",
+    engine: "mariadb",
+    policy,
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  if (audit.findings.length > 0) {
+    const sample = audit.findings.slice(0, 8).map((finding) => `${path.basename(finding.file)}#${finding.statement_index ?? "?"}:${finding.table}.${finding.column}=${finding.length}>${finding.max_length}`).join(", ");
+    fail(`ordered MariaDB text-width audit found ${audit.findings.length} literal overflows (${sample})`);
+  }
+  if (audit.database_connection_performed !== false || audit.sql_mutation_performed !== false || audit.provider_mutation_performed !== false || audit.credential_access_performed !== false || audit.data_export_performed !== false || audit.runtime_mutation_performed !== false || audit.secrets_included !== false) {
+    fail("ordered MariaDB text-width audit violated static-only safety boundary");
+  }
+  return audit;
+}
+
 function orderedEnumSeedMetadata(audit) {
   return {
     contract: audit.contract,
@@ -531,6 +555,33 @@ function orderedEnumSeedMetadata(audit) {
     migration_files_checked: audit.migration_files_checked,
     statements_checked: audit.statements_checked,
     enum_columns: audit.enum_columns,
+    definitions_applied: audit.definitions_applied,
+    ok: audit.ok,
+    ready: audit.ready,
+    finding_count: audit.findings.length,
+    warning_count: audit.warnings.length,
+    findings: audit.findings.slice(0, 8),
+    warning_samples: audit.warnings.slice(0, 8),
+    database_connection_performed: audit.database_connection_performed,
+    sql_mutation_performed: audit.sql_mutation_performed,
+    provider_mutation_performed: audit.provider_mutation_performed,
+    credential_access_performed: audit.credential_access_performed,
+    data_export_performed: audit.data_export_performed,
+    runtime_mutation_performed: audit.runtime_mutation_performed,
+    secrets_included: audit.secrets_included,
+  };
+}
+
+function textWidthMetadata(audit) {
+  return {
+    contract: audit.contract,
+    engine: audit.engine,
+    policy_key: audit.policy_key,
+    baseline_file: audit.baseline_file,
+    files_checked: audit.files_checked,
+    migration_files_checked: audit.migration_files_checked,
+    statements_checked: audit.statements_checked,
+    bounded_text_columns: audit.bounded_text_columns,
     definitions_applied: audit.definitions_applied,
     ok: audit.ok,
     ready: audit.ready,
@@ -753,7 +804,7 @@ function collationAuditMetadata(audit) {
   };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, bootstrap, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, bootstrap, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -772,6 +823,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
     ordered_collation_chain: collationAuditMetadata(collationAudit),
     ordered_enum_seed_chain: orderedEnumSeedMetadata(enumSeedAudit),
+    ordered_text_width_chain: textWidthMetadata(textWidthAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     roles: bundles,
     validation: {
@@ -793,6 +845,11 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       ordered_enum_seed_chain_warnings: enumSeedAudit.warnings.length,
       ordered_enum_seed_chain_files_checked: enumSeedAudit.files_checked,
       ordered_enum_seed_chain_statements_checked: enumSeedAudit.statements_checked,
+      ordered_text_width_chain_checked: true,
+      ordered_text_width_chain_findings: textWidthAudit.findings.length,
+      ordered_text_width_chain_warnings: textWidthAudit.warnings.length,
+      ordered_text_width_chain_files_checked: textWidthAudit.files_checked,
+      ordered_text_width_chain_statements_checked: textWidthAudit.statements_checked,
     },
   };
   const outputPath = path.join(outputDir, "staging-schema-bundle-manifest.json");
@@ -800,7 +857,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
   return outputPath;
 }
 
-function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, bootstrap) {
+function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, bootstrap) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
@@ -812,6 +869,7 @@ function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit
     ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
     ordered_collation_chain: collationAuditMetadata(collationAudit),
     ordered_enum_seed_chain: orderedEnumSeedMetadata(enumSeedAudit),
+    ordered_text_width_chain: textWidthMetadata(textWidthAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     required_bundle_files: manifest.validation.required_bundle_files,
     confirmation_required: manifest.safety.confirmation,
@@ -827,6 +885,7 @@ const files = migrationFiles();
 const rows = migrationPlan(files);
 const collationAudit = orderedCollationAudit(files);
 const enumSeedAudit = orderedEnumSeedAudit(files);
+const textWidthAudit = orderedTextWidthAudit(files);
 const initialAudit = orderedPreuseAudit();
 if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
 const tableBootstrap = canonicalTableBootstrap(files, initialAudit);
@@ -841,7 +900,7 @@ if (orderedAudit.missing_column_gaps > 0) {
 }
 const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
-  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, tableBootstrap);
+  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, tableBootstrap);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -858,7 +917,7 @@ try {
       governance: makeDump("governance", sets.governance, manifest),
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, tableBootstrap, sets, bundles);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, tableBootstrap, sets, bundles);
 
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {
