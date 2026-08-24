@@ -51,8 +51,40 @@ export async function buildTenantGptOperationalReadiness({ env = process.env, po
     chatgpt_client_evidence_ready: browserClientEvidence,
   };
   const blocking = Object.entries(checks).filter(([, value]) => value !== true).map(([key]) => key);
+  const readinessDomains = {
+    discovery: {
+      ready: checks.trusted_ingress_ready === true && checks.openapi_coverage_ready === true,
+      blocking_checks: ["trusted_ingress_ready", "openapi_coverage_ready"].filter((key) => checks[key] !== true),
+    },
+    data_plane: {
+      ready: checks.mcp_catalog_schema_ready === true && checks.refresh_ready === true,
+      blocking_checks: ["mcp_catalog_schema_ready", "refresh_ready"].filter((key) => checks[key] !== true),
+    },
+    oauth_token: {
+      ready: checks.sso_secret_ready === true
+        && checks.jwt_secret_ready === true
+        && checks.activation_cookie_handoff_ready === true
+        && checks.refresh_ready === true,
+      blocking_checks: ["sso_secret_ready", "jwt_secret_ready", "activation_cookie_handoff_ready", "refresh_ready"]
+        .filter((key) => checks[key] !== true),
+    },
+    mutation_governance: {
+      ready: checks.mutation_governance_ready === true,
+      blocking_checks: ["mutation_governance_ready"].filter((key) => checks[key] !== true),
+    },
+    external_acceptance: {
+      ready: checks.external_canary_ready === true && checks.chatgpt_client_evidence_ready === true,
+      blocking_checks: ["external_canary_ready", "chatgpt_client_evidence_ready"].filter((key) => checks[key] !== true),
+    },
+  };
   return {
     ready: blocking.length === 0,
+    production_ready: blocking.length === 0,
+    discovery_ready: readinessDomains.discovery.ready,
+    data_plane_ready: readinessDomains.data_plane.ready,
+    oauth_token_ready: readinessDomains.oauth_token.ready,
+    mutation_governance_ready: readinessDomains.mutation_governance.ready,
+    readiness_domains: readinessDomains,
     environment: String(env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV || "staging").trim().toLowerCase(),
     checks,
     blocking_checks: blocking,

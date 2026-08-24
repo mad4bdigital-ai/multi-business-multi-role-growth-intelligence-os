@@ -15,6 +15,10 @@ process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const stagingAuthDispatcher = read("http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml");
+assert.doesNotMatch(stagingAuthDispatcher, /host_local_role_env/u, "Staging OpenAPI must not advertise the Production host-local role source");
+const productionAuthDispatcher = read("http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml");
+assert.match(productionAuthDispatcher, /host_local_role_env/u, "Production OpenAPI must advertise the explicitly scoped host-local role source");
 const schemaDefinitions = [
   {
     name: "tenant",

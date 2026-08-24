@@ -1185,6 +1185,48 @@
       "secrets_included": false
     },
     {
+      "config_key": "attestation.header",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": ["platform", "production", "staging"],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.clock.skew.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": ["platform", "production", "staging"],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.attestation.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": ["platform", "production", "staging"],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "governed.migration.preflight.query.timeout.ms",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",

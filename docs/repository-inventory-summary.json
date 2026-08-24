@@ -3,34 +3,34 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7300,
-    "bytes": 71321833,
-    "lines": 1669047,
+    "files": 7331,
+    "bytes": 71858432,
+    "lines": 1678604,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2173,
-      "documentation": 1911,
-      "api-runtime": 1476,
-      "database-migrations": 784,
-      "root-and-other": 327,
+      "tests-and-specs": 2178,
+      "documentation": 1912,
+      "api-runtime": 1490,
+      "database-migrations": 792,
+      "root-and-other": 328,
       "api-contracts": 191,
       "ci-workflows": 170,
       "ci-config": 131,
-      "schemas-and-data": 75,
+      "schemas-and-data": 77,
       "connectors-and-edge": 29,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2513,
-      ".mjs": 1738,
-      ".js": 998,
-      ".json": 861,
-      ".sql": 799,
+      ".md": 2514,
+      ".mjs": 1747,
+      ".js": 1003,
+      ".json": 869,
+      ".sql": 807,
       ".yml": 173,
       ".yaml": 119,
       ".ps1": 20,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3753,
-      "docs": 1815,
+      "http-generic-api": 3782,
+      "docs": 1816,
       "specs": 880,
       ".github": 301,
-      ".changes": 296,
+      ".changes": 297,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -180,6 +180,8 @@
         "runtime-bootstrap:host-env-dry-run",
         "runtime-bootstrap:apply-migration",
         "runtime-bootstrap:apply-grants",
+        "host-breakglass:test",
+        "host-breakglass:local",
         "remote-mcp:client:provision",
         "remote-mcp:client:profiles",
         "remote-mcp:client:status",
@@ -254,9 +256,9 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 784,
+    "migrations": 792,
     "apiContracts": 191,
-    "testSpecFiles": 2263
+    "testSpecFiles": 2268
   },
   "largestFiles": [
     {
@@ -268,14 +270,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3483708,
-      "lines": 98228
+      "bytes": 3518081,
+      "lines": 99201
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1939462,
-      "lines": 58652
+      "bytes": 1951665,
+      "lines": 59016
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -286,14 +288,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 997088,
-      "lines": 23113
+      "bytes": 1010645,
+      "lines": 23336
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 612757,
-      "lines": 11593
+      "bytes": 619325,
+      "lines": 11720
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -328,20 +330,20 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 270767,
-      "lines": 6428
+      "bytes": 273753,
+      "lines": 6500
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
-      "bytes": 267002,
-      "lines": 2337
+      "bytes": 267937,
+      "lines": 2346
     },
     {
       "path": "docs/surface-contract-safety-attestations.json",
       "category": "documentation",
-      "bytes": 266975,
-      "lines": 7996
+      "bytes": 258284,
+      "lines": 7744
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
@@ -376,8 +378,8 @@
     {
       "path": "Updating Registry Patch Index.md",
       "category": "documentation",
-      "bytes": 156080,
-      "lines": 1830
+      "bytes": 154847,
+      "lines": 1825
     }
   ]
 }

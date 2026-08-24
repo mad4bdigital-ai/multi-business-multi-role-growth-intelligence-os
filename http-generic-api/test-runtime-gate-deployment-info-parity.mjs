@@ -95,6 +95,7 @@ try {
   const app = express();
   app.use(express.json());
   let integrityReaderInput;
+  let runtimeBootstrapReaderInput;
   app.use(buildDeploymentInfoRoutes({
     runtimeIntegrityReader: async (input) => {
       integrityReaderInput = input;
@@ -117,6 +118,12 @@ try {
       provenance_verified: false,
       provenance_source: null,
     });
+    },
+    runtimeBootstrapReader: async ({ env }) => {
+      runtimeBootstrapReaderInput = { ...env };
+      const error = new Error("test-only missing credentials");
+      error.code = "bootstrap_credentials_missing";
+      throw error;
     },
     requireBackendApiKey: (req, res, next) => {
       if (req.headers["x-api-key"] === "test-backend-key") {
@@ -255,6 +262,9 @@ try {
   const dryRunInfo = await dryRunResponse.json();
   assert.equal(dryRunInfo.error.code, "bootstrap_credentials_missing");
   assert.equal(dryRunInfo.target_source, "runtime_env");
+  assert.equal(runtimeBootstrapReaderInput.HOST_BREAKGLASS_OPERATION, "database.inspect");
+  assert.equal(Object.hasOwn(runtimeBootstrapReaderInput, "BOOTSTRAP_MIGRATION"), false);
+  assert.equal(runtimeBootstrapReaderInput.BOOTSTRAP_TARGET_SOURCE, "runtime_env");
   assert.equal(dryRunInfo.database_connection_performed, false);
   assert.equal(dryRunInfo.database_mutation_performed, false);
   assert.equal(dryRunInfo.migration_apply_performed, false);

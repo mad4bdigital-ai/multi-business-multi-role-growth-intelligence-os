@@ -21,6 +21,12 @@ assert.equal(readiness.production_allowed, false);
 assert.equal(readiness.write_scopes_enabled, false);
 assert.equal(readiness.migrations_applied, false);
 assert.ok(readiness.blocking_checks.includes("refresh_ready"));
+assert.equal(readiness.production_ready, false);
+assert.equal(readiness.discovery_ready, true);
+assert.equal(readiness.data_plane_ready, false);
+assert.equal(readiness.oauth_token_ready, false);
+assert.equal(readiness.mutation_governance_ready, false);
+assert.deepEqual(readiness.readiness_domains.mutation_governance.blocking_checks, ["mutation_governance_ready"]);
 const readyPool = {
   async query(sql) {
     if (String(sql).includes("information_schema.tables")) return [[{ present: 1 }]];
@@ -38,6 +44,9 @@ assert.equal(refreshReady.refresh_readiness.migration_present, true);
 assert.equal(refreshReady.refresh_readiness.indexes_present, true);
 assert.equal(refreshReady.refresh_readiness.transaction_probe_ready, true);
 assert.equal(refreshReady.checks.mcp_catalog_schema_ready, true);
+assert.equal(refreshReady.data_plane_ready, true);
+assert.equal(refreshReady.oauth_token_ready, true);
+assert.equal(refreshReady.readiness_domains.data_plane.ready, true);
 assert.equal(readiness.checks.openapi_coverage_ready, true);
 assert.ok(readiness.blocking_checks.includes("mcp_catalog_schema_ready"));
 assert.equal(readiness.checks.mutation_governance_ready, false);

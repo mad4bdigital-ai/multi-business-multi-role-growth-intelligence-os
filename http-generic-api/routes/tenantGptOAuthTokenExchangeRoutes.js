@@ -38,6 +38,21 @@ function text(value, max = 128) {
   return String(value || "").trim().slice(0, max) || null;
 }
 
+const SCHEMA_DEPENDENCY_CODES = new Set([
+  "ER_NO_SUCH_TABLE",
+  "ER_BAD_FIELD_ERROR",
+  "ER_WRONG_TABLE_NAME",
+  "ER_DB_CREATE_EXISTS",
+]);
+
+function dependencyCategory(errorOrReason) {
+  const code = text(errorOrReason?.code || errorOrReason?.errno || errorOrReason, 96);
+  const reason = text(errorOrReason?.reason || errorOrReason?.message || errorOrReason, 160).toLowerCase();
+  return SCHEMA_DEPENDENCY_CODES.has(code) || /schema|migration|table|column|index/u.test(reason)
+    ? "schema_not_ready"
+    : "dependency_not_ready";
+}
+
 function parseRedirectUri(value) {
   try {
     const url = new URL(String(value || ""));
@@ -203,9 +218,9 @@ async function recordTokenExchangeDiagnostic(query, event = {}) {
       client_validation_source: event.client_validation_source || null,
       resource_profile: event.resource_profile || null,
       bearer_profile: event.bearer_profile || null,
+      access_token: event.access_token || null,
       subject_prevalidated: event.subject_prevalidated === true,
       access_token_prepared: event.access_token_prepared === true,
-      access_token: event.access_token || null,
       requested_scope: event.requested_scope || null,
       code_consumption: event.code_consumption || null,
       activation_context: event.activation_context || null,
@@ -334,6 +349,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         status: "failed",
         classification: decision.classification,
         failure_reason: decision.error_code,
+        dependency_category: decision.dependency_category || null,
         http_status: decision.http_status,
         code_consumption: {
           outcome_unknown: decision.outcome_unknown,
@@ -408,12 +424,20 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       }
 
       if (grantType === "refresh_token") {
-        if (!refreshTokensEnabled || !refreshReadiness.ready) {
+        if (!refreshTokensEnabled) {
           return res.status(400).json(directOAuthError({
             error: "unsupported_grant_type",
             description: "refresh_token is not enabled for this Tenant GPT deployment.",
             code: "oauth_refresh_tokens_disabled",
             requestId,
+          }));
+        }
+        if (!refreshReadiness.ready) {
+          return sendDecision(classifyTenantGptOAuthTokenExchangeOutcome({
+            phase: "before_code_consumption",
+            consumption: null,
+            failure_reason: refreshReadiness.reason || "refresh_store_not_ready",
+            dependency_category: dependencyCategory(refreshReadiness.reason || "refresh_store_not_ready"),
           }));
         }
         const refreshToken = String(req.body?.refresh_token || "");
@@ -558,12 +582,12 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           scope: codePayload.scope,
         },
       );
-      tokenLogContext.access_token_prepared = true;
       tokenLogContext.access_token = {
         token_type: "bearer",
         length: String(accessToken || "").length,
         secrets_included: false,
       };
+      tokenLogContext.access_token_prepared = true;
       tokenLogContext.requested_scope = {
         count: String(codePayload.scope || "").split(/\s+/u).filter(Boolean).length,
         secrets_included: false,
@@ -696,6 +720,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         phase,
         consumption: null,
         failure_reason: text(error?.code, 64) || "preconsumption_dependency_failure",
+        dependency_category: dependencyCategory(error),
       }));
     }
   });

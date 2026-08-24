@@ -33,6 +33,7 @@ export function classifyTenantGptOAuthTokenExchangeOutcome({
   consumption = null,
   response_committed = false,
   failure_reason = null,
+  dependency_category = null,
 } = {}) {
   if (!ALLOWED_PHASES.has(phase)) {
     throw new TypeError("phase is not a governed OAuth token-exchange phase.");
@@ -113,6 +114,9 @@ export function classifyTenantGptOAuthTokenExchangeOutcome({
 
   const codeStillAvailable = phase === "before_code_consumption";
   const consumptionAttemptUnknown = phase === "code_consumption";
+  const normalizedDependencyCategory = ["schema_not_ready", "dependency_not_ready"].includes(String(dependency_category || ""))
+    ? String(dependency_category)
+    : null;
   return freezeDecision({
     classification: codeStillAvailable
       ? "token_exchange_preconsumption_dependency_unavailable"
@@ -127,6 +131,7 @@ export function classifyTenantGptOAuthTokenExchangeOutcome({
     outcome_unknown: consumptionAttemptUnknown,
     operator_reconciliation_required: consumptionAttemptUnknown,
     failure_reason: text(failure_reason, 160) || "token_exchange_dependency_unavailable",
+    ...(normalizedDependencyCategory ? { dependency_category: normalizedDependencyCategory } : {}),
   });
 }
 
@@ -159,6 +164,7 @@ export function buildTenantGptOAuthTokenErrorResponse(decision, { request_id = n
     restart_authorization: decision.restart_authorization === true,
     outcome_unknown: decision.outcome_unknown === true,
     operator_reconciliation_required: decision.operator_reconciliation_required === true,
+    ...(decision.dependency_category ? { dependency_category: decision.dependency_category } : {}),
     secrets_included: false,
   });
 }

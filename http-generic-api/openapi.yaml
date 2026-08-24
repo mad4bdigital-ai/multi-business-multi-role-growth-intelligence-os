@@ -166,9 +166,9 @@ components:
         runbook_key: { type: string, enum: [database.full_inspection, database.schema_repair, database.access_repair, database.empty_rebuild, host.sql_capsule_exception, host.shell_capsule_exception], description: Repository-owned capability runbook; incompatible operation/runbook pairs fail closed. }
         action: { type: string, enum: [plan, dry_run, apply_migration, apply_grants, execute_sql_capsule, execute_shell_capsule] }
         expected_sha: { type: string, pattern: '^[0-9a-f]{40}$' }
-        target_source: { type: string, enum: [repository_allowlist, runtime_env], default: repository_allowlist }
+        target_source: { type: string, enum: [repository_allowlist, runtime_env, host_local_role_env], default: repository_allowlist, description: Production-only Hostinger role-local source for database.inspect dry_run; credentials remain host-side and are never accepted in the request. }
         target_key: { type: string, pattern: '^[A-Za-z0-9._:-]{1,128}$', default: production-runtime }
-        migration: { type: string, maxLength: 191, description: Repository migration selected from the bootstrap contract at runtime. }
+        migration: { type: string, maxLength: 191, description: Optional for database.full_inspection dry_run; required when a migration-specific dry_run or apply action is selected. }
         capsule_path: { type: string, pattern: '^\.github/breakglass/(sql/[A-Za-z0-9._-]+\.sql|shell/[A-Za-z0-9._-]+\.sh)$', description: Exact repository path; inline SQL and shell text are not accepted. }
         capsule_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
         backup_evidence_path: { type: string, pattern: '^\.github/breakglass/evidence/[A-Za-z0-9._-]+\.json$', description: Required by the Production SQL capsule executor. }
@@ -4109,7 +4109,7 @@ paths:
                 expected_branch: { type: string, enum: [main, Production] }
                 target_key: { type: string, enum: [staging-local-docker, production-runtime] }
                 target_source: { type: string, enum: [docker_local, repository_allowlist, runtime_env] }
-                migration: { type: string, enum: [225_sprint67_capability_resolution_envelope_ledger.sql, 1048_transport_response_chunk_schema_recovery.sql, 20260815_custom_gpt_mcp_catalog_levels.sql] }
+                migration: { type: string, enum: [225_sprint67_capability_resolution_envelope_ledger.sql, 1048_transport_response_chunk_schema_recovery.sql, 20260815_custom_gpt_mcp_catalog_levels.sql], description: Optional for runtime_diagnose/full inspection dry_run; required for migration-specific operations. }
                 idempotency_key: { type: string, minLength: 8, maxLength: 96, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{7,95}$' }
                 confirmation: { type: string, maxLength: 500 }
       responses:
@@ -6343,7 +6343,7 @@ paths:
                 mode: { type: string, enum: [plan, dry_run], default: plan }
                 expected_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
                 target_source: { type: string, enum: [docker_local, repository_allowlist, runtime_env] }
-                migration: { type: string, enum: [225_sprint67_capability_resolution_envelope_ledger.sql, 1048_transport_response_chunk_schema_recovery.sql, 20260815_custom_gpt_mcp_catalog_levels.sql] }
+                migration: { type: string, enum: [225_sprint67_capability_resolution_envelope_ledger.sql, 1048_transport_response_chunk_schema_recovery.sql, 20260815_custom_gpt_mcp_catalog_levels.sql], description: Optional for runtime_diagnose/full inspection dry_run; required for migration-specific operations. }
       responses:
         '200':
           description: Read-only Breakglass plan
@@ -6373,7 +6373,7 @@ paths:
                 expected_branch: { type: string, enum: [Production] }
                 expected_repository: { type: string, enum: [mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os] }
                 target_key: { type: string, default: production-runtime }
-                migration: { type: string, enum: [225_sprint67_capability_resolution_envelope_ledger.sql, 1048_transport_response_chunk_schema_recovery.sql, 20260815_custom_gpt_mcp_catalog_levels.sql] }
+                migration: { type: string, enum: [225_sprint67_capability_resolution_envelope_ledger.sql, 1048_transport_response_chunk_schema_recovery.sql, 20260815_custom_gpt_mcp_catalog_levels.sql], description: Optional for runtime_diagnose/full inspection dry_run; required for migration-specific operations. }
       responses:
         "200":
           description: Read-only dry-run evidence
