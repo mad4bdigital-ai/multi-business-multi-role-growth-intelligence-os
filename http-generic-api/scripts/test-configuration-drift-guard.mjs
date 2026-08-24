@@ -22,6 +22,7 @@ try {
       "configuration-drift-guard": { entrypoint: "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs", mode: "read_only", report_contract: "mad4b.configuration-drift-guard.v1" },
     },
   }));
+  const baselineExtensionPath = "docs/governance/configuration-drift-baseline-extensions.json";
   const e2e = {
     current_phase: "mvp",
     secrets_included: false,
@@ -30,6 +31,7 @@ try {
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/repository-tool-lifecycle-governance.yml",
       "docs/governance/configuration-drift-policy.json",
+      baselineExtensionPath,
       "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-drift-guard.mjs",
@@ -58,32 +60,92 @@ try {
     suppressions: [],
     safety: { report_only: true, migration_generation_allowed: false, runtime_mutation_allowed: false, production_activation_allowed: false, secrets_included: false },
   };
+  const extension = {
+    contract: "mad4b.configuration-drift-baseline-extension.v1",
+    schema_version: 1,
+    entries: [],
+    safety: { report_only: true, runtime_mutation_allowed: false, production_activation_allowed: false, secrets_included: false },
+  };
   await writeFile(join(root, policyPath), `${JSON.stringify(policy, null, 2)}\n`);
+  await writeFile(join(root, baselineExtensionPath), `${JSON.stringify(extension, null, 2)}\n`);
   execFileSync("git", ["add", "."], { cwd: root });
 
-  const baselineResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, outputDir: ".artifacts/baseline", failOnDrift: true });
+  const baselineResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/baseline", failOnDrift: true });
   assert.equal(baselineResult.ok, true);
   assert.equal(baselineResult.new_candidate_count, 0);
+  assert.equal(baselineResult.baseline_extension_count, 0);
 
   await writeFile(join(root, "http-generic-api/runtime/example.js"), "const DEFAULT_TIMEOUT = 30;\nconst DEFAULT_RETRY = 3;\n");
-  const driftResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, outputDir: ".artifacts/drift" });
+  const driftResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/drift" });
   assert.equal(driftResult.ok, false);
   assert.ok(driftResult.findings.some((item) => item.code === "NEW_CONFIGURATION_CANDIDATE_DRIFT"));
   const retryFingerprint = "http-generic-api/runtime/example.js|DEFAULT_RETRY|literal_declaration|retry";
+
+  extension.entries = [{
+    fingerprint: retryFingerprint,
+    owner: "repository-governance",
+    reason: "permanent test-only CI governance input",
+    lifecycle: "permanent",
+    configuration_class: "ci_governance_input",
+    contains_secret_value: false,
+    grants_runtime_mutation: false,
+    grants_production_activation: false,
+  }];
+  await writeFile(join(root, baselineExtensionPath), `${JSON.stringify(extension, null, 2)}\n`);
+  const extensionResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/extension", failOnDrift: true });
+  assert.equal(extensionResult.ok, true);
+  assert.equal(extensionResult.baseline_extension_count, 1);
+  assert.equal(extensionResult.suppressed_candidate_count, 0);
+
+  extension.entries[0].grants_runtime_mutation = true;
+  await writeFile(join(root, baselineExtensionPath), `${JSON.stringify(extension, null, 2)}\n`);
+  const unsafeExtensionResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/unsafe-extension" });
+  assert.equal(unsafeExtensionResult.ok, false);
+  assert.ok(unsafeExtensionResult.findings.some((item) => item.code === "BASELINE_EXTENSION_ENTRY_UNSAFE"));
+
+  extension.entries = [];
+  await writeFile(join(root, baselineExtensionPath), `${JSON.stringify(extension, null, 2)}\n`);
   policy.suppressions = [{ fingerprint: retryFingerprint, owner: "owner@example.invalid", reason: "reviewed runtime retry setting", expires_at: "2099-01-01T00:00:00.000Z" }];
   await writeFile(join(root, policyPath), `${JSON.stringify(policy, null, 2)}\n`);
-  const suppressedResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, outputDir: ".artifacts/suppressed", failOnDrift: true });
+  const suppressedResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/suppressed", failOnDrift: true });
   assert.equal(suppressedResult.ok, true);
   assert.equal(suppressedResult.suppressed_candidate_count, 1);
 
+  extension.entries = [{
+    fingerprint: retryFingerprint,
+    owner: "repository-governance",
+    reason: "permanent test-only CI governance input",
+    lifecycle: "permanent",
+    configuration_class: "ci_governance_input",
+    contains_secret_value: false,
+    grants_runtime_mutation: false,
+    grants_production_activation: false,
+  }];
+  await writeFile(join(root, baselineExtensionPath), `${JSON.stringify(extension, null, 2)}\n`);
+  const conflictingResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/conflict" });
+  assert.equal(conflictingResult.ok, false);
+  assert.ok(conflictingResult.findings.some((item) => item.code === "BASELINE_EXTENSION_SUPPRESSION_CONFLICT"));
+
+  extension.entries = [];
+  await writeFile(join(root, baselineExtensionPath), `${JSON.stringify(extension, null, 2)}\n`);
   policy.suppressions[0].expires_at = "2020-01-01T00:00:00.000Z";
   await writeFile(join(root, policyPath), `${JSON.stringify(policy, null, 2)}\n`);
-  const expiredResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, outputDir: ".artifacts/expired" });
+  const expiredResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/expired" });
   assert.equal(expiredResult.ok, false);
   assert.ok(expiredResult.findings.some((item) => item.code === "INVALID_OR_EXPIRED_SUPPRESSION"));
   assert.equal(JSON.stringify(expiredResult).includes("secret-raw-value"), false);
 
-  console.log(JSON.stringify({ ok: true, contract: "mad4b.configuration-drift-guard-regression.v1", cases: 4, repository_mutation_executed: false, database_mutation_executed: false, secrets_included: false }));
+  const scopedE2e = JSON.parse(await readFile(join(root, ".changes/e2e/configuration-drift-guard-20260815.json"), "utf8"));
+  scopedE2e.scope.include = scopedE2e.scope.include.filter((path) => path !== baselineExtensionPath);
+  await writeFile(join(root, ".changes/e2e/configuration-drift-guard-20260815.json"), JSON.stringify(scopedE2e));
+  policy.suppressions = [];
+  policy.baseline_fingerprints = [...baseline, retryFingerprint];
+  await writeFile(join(root, policyPath), `${JSON.stringify(policy, null, 2)}\n`);
+  const scopeResult = await runConfigurationDriftGuard({ repositoryRoot: root, policyPath, baselineExtensionPath, outputDir: ".artifacts/scope" });
+  assert.equal(scopeResult.ok, false);
+  assert.ok(scopeResult.findings.some((item) => item.code === "E2E_SCOPE_DRIFT" && item.path === baselineExtensionPath));
+
+  console.log(JSON.stringify({ ok: true, contract: "mad4b.configuration-drift-guard-regression.v1", cases: 7, repository_mutation_executed: false, database_mutation_executed: false, secrets_included: false }));
 } finally {
   await rm(root, { recursive: true, force: true });
 }
