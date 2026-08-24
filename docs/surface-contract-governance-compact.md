@@ -2,7 +2,7 @@
 
 - Gate: fail
 - Blocking new items: 7
-- Docs completion: 469/477 (98.32%)
+- Docs completion: 467/477 (97.9%)
 - Queue items: 10
 - OpenAPI missing SQL routes: 2
 - OpenAPI-exempt SQL route-like literals: 676/710
@@ -15,3 +15,5 @@
 - `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 907; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260812_repository_reconciliation_admin_apply_activation.sql` — critical_review, score 862; add targeted patch-index, parity, and governance documentation
 - `20260815_custom_gpt_mcp_catalog_levels.sql` — critical_review, score 850; add targeted patch-index, parity, and governance documentation
+- `1038_sprint69_github_actions_workflow_control_dispatch.sql` — high_review, score 655; add targeted patch-index, parity, and governance documentation
+- `1030_sprint69_default_blocker_recovery_governance_seed.sql` — high_review, score 477; add targeted patch-index, parity, and governance documentation
