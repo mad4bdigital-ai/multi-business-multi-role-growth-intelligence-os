@@ -23,6 +23,7 @@
       "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/test-admin-host-breakglass-routes.mjs",
+      "http-generic-api/test-admin-control.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-host-local-runtime-inspection.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
