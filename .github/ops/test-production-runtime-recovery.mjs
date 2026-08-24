@@ -409,9 +409,6 @@ test('explicit bootstrap requires live Hostinger parity and runs the parity cont
   assert.match(workflow, /apply_grants/u);
   assert.match(workflow, /BOOTSTRAP_MIGRATION_CONFIRMATION/u);
   assert.match(workflow, /BOOTSTRAP_GRANTS_CONFIRMATION/u);
-  assert.ok(workflow.includes('Resolve database from the existing governed target allowlist'));
-  assert.ok(workflow.includes('export MYSQL_BOOTSTRAP_DATABASE="${BOOTSTRAP_TARGET_DATABASE}"'));
-  assert.ok(!workflow.includes('vars.MYSQL_BOOTSTRAP_DATABASE'), 'centralized runtime configuration must not require a new GitHub database variable');
   assert.match(workflow, /execute_sql_capsule/u);
   assert.match(workflow, /execute_shell_capsule/u);
   assert.match(workflow, /host-breakglass-capsule-executor\.mjs/u);

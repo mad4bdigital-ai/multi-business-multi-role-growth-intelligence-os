@@ -20,6 +20,7 @@
       "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-admin-host-breakglass-routes.mjs",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
@@ -95,7 +96,7 @@
             "Validate exact Production source repository, branch, and 40-character SHA.",
             "Validate a repository-owned target entry with database SHA-256 and target fingerprint bound to repository, branch, key, runtime/governance databases, principal, and principal host.",
             "For dry-run only, allow an explicit runtime_env source to derive DB_NAME/DB_USER locally from Hostinger, use DB_NAME as the connection database when MYSQL_BOOTSTRAP_DATABASE is absent, and expose only hashes/configured flags.",
-            "Reject runtime DB credentials as bootstrap credentials and never fall back to DB_*.",
+            "Permit DB_* credential fallback only for backend-key-authenticated runtime_env dry_run; reject runtime DB credentials for repository_allowlist, migration apply, grants, SQL capsules, and shell execution.",
             "Classify zero-table and nonempty databases before any baseline decision.",
             "Allow 225 and 1048 only in dry-run/verification mode and read back their canonical schema/readiness postconditions.",
             "Allow 20260815 only in apply_migration/apply_grants operation scopes; migration apply requires catalog prerequisite tables, checksum, statement count, ledger conflict checks, and declared postconditions, while grants require migration readiness and a separate confirmation.",
@@ -197,7 +198,8 @@
             "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
             "http-generic-api/config/host-breakglass-capsule.schema.json",
             "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
-            "http-generic-api/test-custom-gpt-schemas.mjs"
+            "http-generic-api/test-custom-gpt-schemas.mjs",
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs"
           ]
         }
       ]
