@@ -53,6 +53,10 @@ surfaces:
           reason: Admin Breakglass readback is an internal service-key route and must not be exposed as a public Admin GPT operation.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: runHostLocalRoleBootstrapDryRun
+          reason: Hostinger role-local full inspection is an internal service-key route and must not be exposed as an Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
         - operation_id: sessionInsightTargetWriteReadbackCreate
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
