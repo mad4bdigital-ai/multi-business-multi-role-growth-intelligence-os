@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7325,
-    "bytes": 71828978,
-    "lines": 1677997,
+    "files": 7331,
+    "bytes": 71858432,
+    "lines": 1678604,
     "directories": 266,
     "categories": 13
   },
@@ -13,8 +13,8 @@
     "byCategory": {
       "tests-and-specs": 2178,
       "documentation": 1912,
-      "api-runtime": 1489,
-      "database-migrations": 787,
+      "api-runtime": 1490,
+      "database-migrations": 792,
       "root-and-other": 328,
       "api-contracts": 191,
       "ci-workflows": 170,
@@ -28,9 +28,9 @@
     "byExtension": {
       ".md": 2514,
       ".mjs": 1747,
-      ".js": 1002,
+      ".js": 1003,
       ".json": 869,
-      ".sql": 802,
+      ".sql": 807,
       ".yml": 173,
       ".yaml": 119,
       ".ps1": 20,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3776,
+      "http-generic-api": 3782,
       "docs": 1816,
       "specs": 880,
       ".github": 301,
@@ -256,7 +256,7 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 787,
+    "migrations": 792,
     "apiContracts": 191,
     "testSpecFiles": 2268
   },
@@ -342,8 +342,8 @@
     {
       "path": "docs/surface-contract-safety-attestations.json",
       "category": "documentation",
-      "bytes": 266975,
-      "lines": 7996
+      "bytes": 258284,
+      "lines": 7744
     },
     {
       "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
@@ -378,8 +378,8 @@
     {
       "path": "Updating Registry Patch Index.md",
       "category": "documentation",
-      "bytes": 156080,
-      "lines": 1830
+      "bytes": 154847,
+      "lines": 1825
     }
   ]
 }
