@@ -107,6 +107,61 @@ const parseColumnDefinitions = (body) => {
   }
   return cols;
 };
+const parenthesized = (text, offset) => {
+  let index = offset;
+  while (/\s/u.test(text[index] ?? "")) index += 1;
+  if (text[index] !== "(") return null;
+  const start = index + 1;
+  let depth = 1;
+  let quote = null;
+  let escaped = false;
+  for (index = start; index < text.length; index += 1) {
+    const current = text[index];
+    const next = text[index + 1] ?? "";
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === quote) {
+        if (next === quote) index += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (["'", '"', "`"].includes(current)) quote = current;
+    else if (current === "(") depth += 1;
+    else if (current === ")") {
+      depth -= 1;
+      if (depth === 0) return { content: text.slice(start, index), end: index + 1 };
+    }
+  }
+  return null;
+};
+const indexColumns = (body) => splitTopLevel(body).map((part) => {
+  const token = part.trim().replace(/\s+(?:ASC|DESC)\s*$/i, "").replace(/\s*\(\s*\d+\s*\)\s*$/u, "").trim();
+  const match = token.match(/^(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))$/u);
+  return match ? (match[1] ?? match[2]) : null;
+}).filter(Boolean);
+const recordIndexDefinition = ({ table, columns, file, line, statement, detail }) => {
+  if (!ensureTable(table)) {
+    record({ kind: "missing_table", table, file, line, statement, detail: `${detail}: target table is absent before index operation` });
+    return;
+  }
+  for (const column of indexColumns(columns)) {
+    if (!ensureTable(table).has(columnName(column))) record({ kind: "missing_column", table, column, file, line, statement, detail: `${detail}: indexed column is absent before index operation` });
+  }
+};
+const recordForeignKeyReferences = (sql, file, line) => {
+  const clean = stripStringLiterals(stripComments(sql));
+  for (const match of clean.matchAll(/\bREFERENCES\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\(([^)]*)\)/ig)) {
+    const table = match[1] ?? match[2];
+    const state = ensureTable(table);
+    if (!state) {
+      record({ kind: "missing_table", table, file, line, statement: sql, detail: "FOREIGN KEY parent table is absent before reference" });
+      continue;
+    }
+    for (const column of indexColumns(match[3])) if (!state.has(columnName(column))) record({ kind: "missing_column", table, column, file, line, statement: sql, detail: "FOREIGN KEY parent column is absent before reference" });
+  }
+};
 const parseCreate = (sql, file, line) => {
   const clean = stripComments(sql);
   const create = clean.match(/CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*(?:LIKE\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))|\((?<body>[\s\S]*)\))\s*(?:ENGINE|DEFAULT|COMMENT|$)/i);
@@ -123,11 +178,69 @@ const parseCreate = (sql, file, line) => {
   if (ensureTable(target) && !create[1]) {
     record({ kind: "table_already_exists", table: target, file, line, statement: sql, detail: "CREATE TABLE without IF NOT EXISTS while table is already present" });
   } else if (!ensureTable(target)) addTable(target, columns);
+  recordForeignKeyReferences(sql, file, line);
   return true;
 };
-const parseDrop = (sql) => {
+const parseCreateIndex = (sql, file, line) => {
   const clean = stripComments(sql);
-  for (const match of clean.matchAll(/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) tables.delete(tableName(match[1] ?? match[2]));
+  const match = clean.match(/^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_$]*)\s+ON\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*/i);
+  if (!match) return false;
+  const body = parenthesized(clean, match[0].length);
+  if (!body) return true;
+  recordIndexDefinition({ table: match[1] ?? match[2], columns: body.content, file, line, statement: sql, detail: "CREATE INDEX" });
+  return true;
+};
+const parseCreateAsSelect = (sql, file, line) => {
+  const clean = stripComments(sql);
+  const match = clean.match(/^\s*CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\s+SELECT\b/i);
+  if (!match) return false;
+  const target = match[1] ?? match[2];
+  if (!ensureTable(target)) addTable(target);
+  parseFromJoins(sql, file, line);
+  return true;
+};
+const parseDrop = (sql, file, line) => {
+  const clean = stripComments(sql);
+  for (const match of clean.matchAll(/DROP\s+TABLE\s+(IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
+    const safe = Boolean(match[1]);
+    const target = match[2] ?? match[3];
+    if (!safe && !ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP TABLE target is absent without IF EXISTS" });
+    tables.delete(tableName(target));
+  }
+  for (const match of clean.matchAll(/DROP\s+VIEW\s+(IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
+    const safe = Boolean(match[1]);
+    const target = match[2] ?? match[3];
+    if (!safe && !ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP VIEW target is absent without IF EXISTS" });
+    tables.delete(tableName(target));
+  }
+};
+const parseDropIndex = (sql, file, line) => {
+  const clean = stripComments(sql);
+  for (const match of clean.matchAll(/DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_$]*)\s+ON\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
+    const target = match[1] ?? match[2];
+    if (!ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP INDEX target table is absent" });
+  }
+};
+const parseTruncate = (sql, file, line) => {
+  const clean = stripComments(sql);
+  for (const match of clean.matchAll(/TRUNCATE\s+TABLE\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
+    const target = match[1] ?? match[2];
+    if (!ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "TRUNCATE TABLE target is absent" });
+  }
+};
+const parseRename = (sql, file, line) => {
+  const clean = stripComments(sql);
+  const match = clean.match(/^\s*RENAME\s+TABLE\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+TO\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/i);
+  if (!match) return false;
+  const source = match[1] ?? match[2];
+  const target = match[3] ?? match[4];
+  const state = ensureTable(source);
+  if (!state) record({ kind: "missing_table", table: source, file, line, statement: sql, detail: "RENAME TABLE source is absent" });
+  else {
+    tables.delete(tableName(source));
+    if (!ensureTable(target)) addTable(target, [...state]);
+  }
+  return true;
 };
 const parseAlter = (sql, file, line) => {
   const clean = stripComments(sql);
@@ -139,9 +252,35 @@ const parseAlter = (sql, file, line) => {
     record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "ALTER TABLE target is absent before statement" });
     return true;
   }
+  const rename = clean.match(/\bRENAME\s+TO\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/i);
+  if (rename) {
+    const renamed = rename[1] ?? rename[2];
+    tables.delete(tableName(target));
+    addTable(renamed, [...state]);
+    return true;
+  }
   const sameStatementAdded = new Set();
   const clausePattern = /(?:ADD\s+COLUMN(?:\s+IF\s+NOT\s+EXISTS)?|MODIFY\s+COLUMN|CHANGE\s+COLUMN|DROP\s+COLUMN)\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))(?:\s+(?:`([^`]+)`|([A-Za-z0-9_$]+)))?/ig;
   const clauses = [...clean.matchAll(clausePattern)];
+  const sameStatementColumnAdds = new Set(clauses.filter((clause) => clause[0].toUpperCase().startsWith("ADD COLUMN")).map((clause) => columnName(clause[1] ?? clause[2])));
+  for (const indexMatch of clean.matchAll(/\bADD\s+(?:(?:UNIQUE|FULLTEXT|SPATIAL)\s+)?(?:INDEX|KEY)\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_$]*)\s+)?\(/ig)) {
+    const body = parenthesized(clean, indexMatch.index + indexMatch[0].length - 1);
+    if (!body) continue;
+    const indexed = indexColumns(body.content);
+    const state = ensureTable(target);
+    if (!state) {
+      record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "ALTER TABLE ADD INDEX: target table is absent before index operation" });
+      continue;
+    }
+    for (const column of indexed) {
+      if (state.has(columnName(column))) continue;
+      if (sameStatementColumnAdds.has(columnName(column))) {
+        ignoredFalsePositives.push({ kind: "missing_column", table: tableName(target), column: columnName(column), file, line, detail: "ALTER TABLE ADD INDEX: indexed column is added in the same ALTER TABLE statement" });
+      } else {
+        record({ kind: "missing_column", table: target, column, file, line, statement: sql, detail: "ALTER TABLE ADD INDEX: indexed column is absent before index operation" });
+      }
+    }
+  }
   for (let i = 0; i < clauses.length; i += 1) {
     const clause = clauses[i];
     const keyword = clause[0].toUpperCase();
@@ -170,6 +309,7 @@ const parseAlter = (sql, file, line) => {
       state.delete(columnName(first));
     }
   }
+  recordForeignKeyReferences(sql, file, line);
   return true;
 };
 const recordTableColumns = ({ table, columns, file, line, statement, detail }) => {
@@ -245,7 +385,12 @@ const processStatement = (sql, file, line) => {
   const clean = stripComments(sql);
   if (!clean.trim()) return;
   if (parseCreate(sql, file, line)) return;
-  parseDrop(sql);
+  if (parseCreateIndex(sql, file, line)) return;
+  if (parseCreateAsSelect(sql, file, line)) return;
+  parseDrop(sql, file, line);
+  parseDropIndex(sql, file, line);
+  if (parseRename(sql, file, line)) return;
+  parseTruncate(sql, file, line);
   if (parseAlter(sql, file, line)) return;
   if (parseInsert(sql, file, line)) { parseFromJoins(sql, file, line); return; }
   if (parseUpdate(sql, file, line)) { parseFromJoins(sql, file, line); return; }
@@ -258,7 +403,10 @@ const processStatement = (sql, file, line) => {
 };
 
 const baselineSql = fs.readFileSync(schemaPath, "utf8");
-for (const statement of splitStatements(baselineSql)) processStatement(statement, "schema.sql", lineOf(baselineSql, baselineSql.indexOf(statement)));
+const baselineStatements = splitStatements(baselineSql);
+const immediateBaselineStatements = baselineStatements.filter((statement) => !/^\s*CREATE\s+TABLE[\s\S]*\bFOREIGN\s+KEY\b/imu.test(statement));
+const deferredBaselineStatements = baselineStatements.filter((statement) => /^\s*CREATE\s+TABLE[\s\S]*\bFOREIGN\s+KEY\b/imu.test(statement));
+for (const statement of immediateBaselineStatements) processStatement(statement, "schema.sql", lineOf(baselineSql, baselineSql.indexOf(statement)));
 for (const file of migrations) {
   for (const entry of bootstrapByFile.get(file) || []) {
     if (!migrations.includes(entry.source_file)) throw new Error(`canonical bootstrap source is outside the exact migration chain: ${entry.source_file}`);
@@ -277,6 +425,7 @@ for (const file of migrations) {
   const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
   for (const statement of splitStatements(sql)) processStatement(statement, relative, lineOf(sql, sql.indexOf(statement)));
 }
+for (const statement of deferredBaselineStatements) processStatement(statement, "schema.sql", lineOf(baselineSql, baselineSql.indexOf(statement)));
 
 const firstByKey = new Map();
 for (const event of events) {

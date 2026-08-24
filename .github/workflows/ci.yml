@@ -57,6 +57,12 @@ jobs:
             .plan.ordered_preuse_audit.missing_table_gaps == 0 and
             .plan.ordered_preuse_audit.missing_column_gaps == 0 and
             .plan.canonical_table_bootstrap.unresolved_missing_table_gaps == 0 and
+            .preuse_contract.check_create_index_table_and_columns == true and
+            .preuse_contract.check_alter_add_index_table_and_columns == true and
+            .preuse_contract.check_foreign_key_parent_tables == true and
+            .preuse_contract.check_table_source_operations == true and
+            .preuse_contract.check_rename_and_drop_targets == true and
+            .preuse_contract.fail_on_unresolved_gaps == true and
             .safety.database_connection_performed == false and
             .safety.database_mutation_performed == false and
             .safety.provider_access_performed == false and
@@ -71,6 +77,7 @@ jobs:
             " | migrations=" + (.counts.migration_files|tostring) +
             " | statements=" + (.counts.migration_statements|tostring) +
             " | blockers=" + (.summary.blockers|tostring) +
+            " | preuse=index/fk/ddl-targets/fail-closed" +
             " | safety=static-only/no-db/no-provider/no-secrets"
           ' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
 
