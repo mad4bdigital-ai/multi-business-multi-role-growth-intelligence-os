@@ -196,7 +196,8 @@
         "http-generic-api/test-host-breakglass-capsule-executor.mjs",
         "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
         "http-generic-api/test-custom-gpt-schemas.mjs",
-        "http-generic-api/test-frontend-surface-coverage-claims.mjs"
+        "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+        "http-generic-api/test-tenant-gpt-operational-readiness.mjs"
       ]
     },
     {
