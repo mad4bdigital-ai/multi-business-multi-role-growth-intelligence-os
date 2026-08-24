@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7300,
-    "bytes": 71320147,
-    "lines": 1669033,
+    "bytes": 71321833,
+    "lines": 1669047,
     "directories": 266,
     "categories": 13
   },
@@ -10168,9 +10168,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 10845,
+      "bytes": 10902,
       "lines": 107,
-      "sha256": "efcd1477ffa7c427b362288373d1d03a4355dfd5e8c743226a2eff1cb9173714",
+      "sha256": "52a409fdf0f81acbe1705fc818ea64627be36cd77846e7ad12552a150c390fa4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31145,9 +31145,9 @@
       "path": "docs/governance/configuration-drift-policy.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 265373,
-      "lines": 2323,
-      "sha256": "29beb358d966b7e3b885bb9bc1795d30c6fa16ec9a62e252f27b19abf65b56d4",
+      "bytes": 267002,
+      "lines": 2337,
+      "sha256": "1f14fa1145a7a7c917d05c90fdfd6e2de5e48f507f5714e65d208a436e812e3b",
       "mode": "644",
       "executable": false,
       "generated": false
