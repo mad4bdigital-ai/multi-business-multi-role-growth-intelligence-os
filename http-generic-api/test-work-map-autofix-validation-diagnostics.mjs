@@ -10,18 +10,23 @@ const workflowPath = path.join(repoRoot, ".github", "workflows", "spec-kit-work-
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
 const initializationStart = workflow.indexOf("      - name: Initialize diagnostics and validate inputs");
+const trustedIdentityStart = workflow.indexOf("      - name: Require trusted follow-up writer identity");
 const checkoutStart = workflow.indexOf("      - name: Checkout exact authorized head");
 const validationStart = workflow.indexOf("      - name: Validate generator and governance contracts");
 const generationStart = workflow.indexOf("      - name: Regenerate and prove idempotency");
 assert.notEqual(initializationStart, -1, "diagnostic initialization step is missing");
+assert.notEqual(trustedIdentityStart, -1, "trusted follow-up writer identity preflight is missing");
 assert.notEqual(checkoutStart, -1, "checkout step is missing");
 assert.notEqual(validationStart, -1, "validation step is missing");
 assert.notEqual(generationStart, -1, "generation step is missing");
-assert.ok(checkoutStart > initializationStart, "checkout must follow input and diagnostic initialization");
+assert.ok(trustedIdentityStart > initializationStart, "trusted identity validation must follow input and diagnostic initialization");
+assert.ok(checkoutStart > trustedIdentityStart, "checkout must follow the trusted identity preflight");
 assert.ok(validationStart > checkoutStart, "validation must follow checkout");
 assert.ok(generationStart > validationStart, "validation step must precede generation");
 
 const initializationBlock = workflow.slice(initializationStart, checkoutStart);
+const trustedIdentityBlock = workflow.slice(trustedIdentityStart, checkoutStart);
+const checkoutBlock = workflow.slice(checkoutStart, workflow.indexOf("      - name: Set up Node.js 22", checkoutStart));
 const validationBlock = workflow.slice(validationStart, generationStart);
 const contractNames = [
   "syntax-platform-work-map-generator",
@@ -47,6 +52,10 @@ assert.match(
   "diagnostics must live outside GITHUB_WORKSPACE so checkout cannot remove them",
 );
 assert.doesNotMatch(initializationBlock, /GITHUB_WORKSPACE.*work-map-autofix-diagnostics/);
+assert.match(trustedIdentityBlock, /REPO_AUTOSYNC_TOKEN_PRESENT: \$\{\{ secrets\.REPO_AUTOSYNC_TOKEN != '' \}\}/);
+assert.match(trustedIdentityBlock, /instead of action_required/, "missing trusted credentials must explain the blocked-CI failure mode");
+assert.match(checkoutBlock, /token: \$\{\{ secrets\.REPO_AUTOSYNC_TOKEN \}\}/, "the bounded Work Map branch push must use the trusted identity");
+assert.doesNotMatch(checkoutBlock, /secrets\.GITHUB_TOKEN/, "Work Map branch push must not silently fall back to the recursion-suppressed bot token");
 assert.ok(
   initializationBlock.includes('git check-ref-format --branch "${TARGET_BRANCH}"'),
   "target branch must be validated with git check-ref-format",

@@ -23,5 +23,7 @@ assert.doesNotMatch(
   "finalizer auto-merge must not fall back to GITHUB_TOKEN",
 );
 assert.match(workflow, /REPO_AUTOSYNC_TOKEN is required so an auto-merge produces a normal push event/, "missing dedicated token must block automated merge");
+assert.match(workflow, /--jq '\.allow_auto_merge'/, "finalizer must verify repository auto-merge is enabled before registration");
+assert.match(workflow, /Repository Allow auto-merge is disabled/, "disabled repository auto-merge must produce an actionable diagnosis");
 
 console.log("derived state converged auto-merge source event tests passed");

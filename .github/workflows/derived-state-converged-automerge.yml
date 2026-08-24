@@ -181,6 +181,10 @@ jobs:
             echo "REPO_AUTOSYNC_TOKEN is required so an auto-merge produces a normal push event and full post-merge CI." >&2
             exit 1
           fi
+          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.allow_auto_merge')" != "true" ]]; then
+            echo "Repository Allow auto-merge is disabled; enable Settings > General > Pull Requests > Allow auto-merge." >&2
+            exit 1
+          fi
           pr="$RUNNER_TEMP/pr.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "$pr"
           test "$(jq -r '.state' "$pr")" = "open"
