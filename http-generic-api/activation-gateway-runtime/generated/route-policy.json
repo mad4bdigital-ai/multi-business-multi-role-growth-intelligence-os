@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "5976f494c78a91f641436d1493882369b6dfbea8194bb912e4572c64ad641545",
+  "content_hash_sha256": "ed47906dd1ef52df6054ed66e1d65d8dbe8506ba1a47c941077eb4570417612c",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -588,7 +588,7 @@
   ],
   "secrets_included": false,
   "signature_algorithm": "Ed25519",
-  "source_openapi_sha256": "35568019a8e9009c4d1632186570be27d14173757bbd3e56a535cfeaa36d7449",
+  "source_openapi_sha256": "16e7fbaa7484802f4d777b1f8a5cbe61a3d5f8bdfb869a52ee8357603836763a",
   "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
   "source_surfaces": [
     "activation_admin",
