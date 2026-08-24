@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "a679f28efe9469f08ba9127bc871aa791af6ffcf234c47d7db1806dc8cb0f536",
-    "dispatch_artifact_sha256": "234a7742be5bad86ef51dac8e7e237e98e1a27a3397e24924c2542c827340738"
+    "dispatch_source_digest": "2182aa5ddeb5ea2f13648f1dbfe6b374053ac424ec74776d43d8472a767e0f11",
+    "dispatch_artifact_sha256": "8cb5742fe275fc0d331460d3ceb491bb7c5d2028db61995cc5b8a7f684606f34"
   },
   "coverage": {
     "operation_count": 1043,
@@ -17,18 +17,18 @@
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
-    "unresolved_surface_decision_count": 2,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "coverage_complete": true
   },
   "distributions": {
     "surface_decisions_by_family": [
       {
         "decision": "internal_only",
-        "count": 117
+        "count": 118
       },
       {
         "decision": "api_only",
-        "count": 37
+        "count": 38
       },
       {
         "decision": "embedded_ui",
@@ -37,10 +37,6 @@
       {
         "decision": "legacy_compatibility",
         "count": 6
-      },
-      {
-        "decision": "requires_review",
-        "count": 2
       },
       {
         "decision": "unified_ui",
@@ -650,20 +646,9 @@
   ],
   "priority_summary": {
     "blocking_contract_gap_count": 0,
-    "surface_decision_required_family_count": 2,
+    "surface_decision_required_family_count": 0,
     "documentation_only_detail_gap_count": 315,
-    "top_surface_decision_families": [
-      {
-        "family_key": "deployment-info.developer",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 0
-      },
-      {
-        "family_key": "deployment-info.public",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 0
-      }
-    ]
+    "top_surface_decision_families": []
   },
   "scope_boundary": {
     "route_wiring": false,

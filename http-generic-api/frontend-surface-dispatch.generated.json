@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": null,
-    "source_digest": "a679f28efe9469f08ba9127bc871aa791af6ffcf234c47d7db1806dc8cb0f536",
+    "source_digest": "2182aa5ddeb5ea2f13648f1dbfe6b374053ac424ec74776d43d8472a767e0f11",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "e82598a9028181e5c36f02c22413e8b89e81b4af455c758899b563f1c691dd02",
+        "sha256": "a4b6a414be08a11eec54fe8c942f7d4a55f3f05fca80af8c862bef44bf1ed510",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "55cd4cf658195011219fbe135db11b7613b830b9c8b6614f9648854d108a3669",
+        "sha256": "3602f3e2ab9ee3ae5b270f9216e1a24264decc171bbe1007a027c8d69b02a58a",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "1b055b2c47c7cbf62363e081c58fd09815c311db347988d03af9ffa90f96d804",
+        "sha256": "fb3388d3238f7291b6afb56ce6a244098ca048a3c2239d78c76126f1cb287ea2",
         "present": true
       },
       {
@@ -541,7 +541,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "92dd3f9760c9269ff0d1d4decda8d216a63890a7af07b5b01c967292ca2136b8",
+        "sha256": "870ffd358c979059eac0aaa95b4a5b8434cc40f088e5b53b68612307bc48dd74",
         "present": true
       },
       {
@@ -1056,12 +1056,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "62110c87dce7fe4f7e12345a79f9556dedf1fac6aaad57ff9372505a87bee872",
+        "sha256": "d4ea97449ca702d6382b71188882f1f63d251ffb410deeea2e17af2ca7a76086",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "72afc5be2a6a866c367a9ad69068feeb4dc3fc141d771078a8419ac6e31e205e",
+        "sha256": "d8414681941c395d86db3674a48083f438f01241b63575f42af8044647c7a759",
         "present": true
       },
       {
@@ -1082,6 +1082,11 @@
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
         "sha256": "6ce06b89da09d363e22584593098276604c994c38ec5b98b0fb546df4f0b79a7",
+        "present": true
+      },
+      {
+        "file": "test-runtime-gate-deployment-info-parity.mjs",
+        "sha256": "09123d1499030cadcac2aafe97af7955fca39c97dad15fa8a4f87bebc17ce64f",
         "present": true
       },
       {
@@ -1134,18 +1139,18 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 633,
-    "unresolved_operation_class_count": 1,
+    "unresolved_operation_class_count": 0,
     "classified_mutation_count": 13,
     "governed_mutation_operation_count": 13,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 2,
-    "test_owned_family_count": 168,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1041,
-    "untested_operation_count": 2,
-    "ready_task_count": 167,
-    "blocked_task_count": 2,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "test_owned_family_count": 169,
+    "untested_family_count": 0,
+    "test_owned_operation_count": 1043,
+    "untested_operation_count": 0,
+    "ready_task_count": 169,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -1812,7 +1817,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "92dd3f9760c9269ff0d1d4decda8d216a63890a7af07b5b01c967292ca2136b8",
+      "source_digest": "870ffd358c979059eac0aaa95b4a5b8434cc40f088e5b53b68612307bc48dd74",
       "mount_prefix": "/",
       "mount_order": 12450,
       "split_from_mixed_scope_file": true,
@@ -1829,25 +1834,22 @@
           "scope": "developer",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "backend_api_key_surface",
             "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
+            "principal": "admin",
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
+            ],
+            "guard_chain": [],
+            "evidence": [
+              "openapi.yaml",
+              "routes/deploymentInfoRoutes.js",
+              "runtimeGuards.js",
+              "test-runtime-gate-deployment-info-parity.mjs"
             ]
           },
           "openapi_auth": {
@@ -1856,9 +1858,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -1875,17 +1874,26 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-gate-deployment-info-parity.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "hostinger-runtime-bootstrap-dry-run-read-action",
+            "owner": "runtime-operations",
+            "rationale": "The Hostinger runtime bootstrap endpoint is a protected, bounded dry-run read path: it derives hash-only binding evidence and verifies migration readiness without authorizing database mutation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/deploymentInfoRoutes.js",
+              "runtimeBootstrapContract.js",
+              "test-runtime-gate-deployment-info-parity.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -1898,25 +1906,22 @@
           "scope": "developer",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "backend_api_key_surface",
             "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
+            "principal": "admin",
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
+            ],
+            "guard_chain": [],
+            "evidence": [
+              "openapi.yaml",
+              "routes/deploymentInfoRoutes.js",
+              "runtimeGuards.js",
+              "test-runtime-gate-deployment-info-parity.mjs"
             ]
           },
           "openapi_auth": {
@@ -1925,9 +1930,6 @@
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -1944,7 +1946,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-runtime-gate-deployment-info-parity.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -1963,11 +1967,10 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /deployment-info/runtime-bootstrap-dry-run",
-        "GET /deployment-info/runtime-binding"
+      "tests": [
+        "test-runtime-gate-deployment-info-parity.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -1991,24 +1994,25 @@
         "resource-api-coverage.manifest.json",
         "routes/deploymentInfoRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-runtime-gate-deployment-info-parity.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "internal_only",
+        "rationale": "Hash-only runtime binding and Hostinger bootstrap dry-run evidence are protected internal operational APIs, not browser navigation surfaces. They remain read-only and service-key-only, and the dry-run cannot authorize migrations, grants, deployment, or restart.",
+        "owner": "runtime-operations",
+        "rule_id": "hostinger-runtime-bootstrap-developer-surface",
+        "evidence_refs": [
+          ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
+          "openapi.yaml",
+          "routes/deploymentInfoRoutes.js",
+          "test-runtime-gate-deployment-info-parity.mjs"
+        ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /deployment-info/runtime-bootstrap-dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 6,
-        "class": "high"
+        "score": 2,
+        "class": "low"
       },
       "wave": "F5-developer-evidence"
     },
@@ -2016,7 +2020,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "92dd3f9760c9269ff0d1d4decda8d216a63890a7af07b5b01c967292ca2136b8",
+      "source_digest": "870ffd358c979059eac0aaa95b4a5b8434cc40f088e5b53b68612307bc48dd74",
       "mount_prefix": "/",
       "mount_order": 12450,
       "split_from_mixed_scope_file": true,
@@ -2115,13 +2119,21 @@
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "This exact discovered route family is an API/internal contract and is not authorized as a new browser navigation surface by this pre-promotion policy. The rule is generated from the clean route-dispatch baseline and does not enable write scopes or live mutations.",
+        "owner": "infrastructure-platform",
+        "rule_id": "generated-gap-deployment-info-routes-deploymentinforoutes-js",
+        "evidence_refs": [
+          "frontend-surface-dispatch.generated.json",
+          "openapi.yaml",
+          "routes/deploymentInfoRoutes.js",
+          "routes/index.js",
+          "test-frontend-surface-coverage-claims.mjs"
+        ]
       },
       "operation_blockers": [],
       "risk": {
-        "score": 2,
+        "score": 0,
         "class": "low"
       },
       "wave": "F1-tenant-shell"
@@ -90556,6 +90568,52 @@
       ]
     },
     {
+      "task_key": "frontend.deployment-info.public",
+      "title": "Resolve and deliver deployment info (public)",
+      "wave": "F1-tenant-shell",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.gpt-action.dev-dispatcher.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/deploymentInfoRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.dynamic-container-authority.tenant",
       "title": "Resolve and deliver dynamic container authority (tenant)",
       "wave": "F1-tenant-shell",
@@ -92122,54 +92180,6 @@
         "tests_registered",
         "operation_classification_explicit",
         "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.deployment-info.public",
-      "title": "Resolve and deliver deployment info (public)",
-      "wave": "F1-tenant-shell",
-      "state": "blocked",
-      "blockers": [
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/openapi.gpt-action.dev-dispatcher.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/deploymentInfoRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -96689,6 +96699,54 @@
       ]
     },
     {
+      "task_key": "frontend.deployment-info.developer",
+      "title": "Resolve and deliver deployment info (developer)",
+      "wave": "F5-developer-evidence",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/deploymentInfoRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-runtime-gate-deployment-info-parity.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-runtime-gate-deployment-info-parity.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.dev-agent",
       "title": "Resolve and deliver dev agent",
       "wave": "F5-developer-evidence",
@@ -98156,56 +98214,6 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.deployment-info.developer",
-      "title": "Resolve and deliver deployment info (developer)",
-      "wave": "F5-developer-evidence",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/deploymentInfoRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     }
   ],

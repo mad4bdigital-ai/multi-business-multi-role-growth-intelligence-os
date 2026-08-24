@@ -132,7 +132,7 @@
     },
     {
       "rule_id": "generated-gap-deployment-info-routes-deploymentinforoutes-js",
-      "family_key": "deployment-info",
+      "family_key": "deployment-info.public",
       "source_file": "routes/deploymentInfoRoutes.js",
       "scope": "public",
       "decision": "api_only",
@@ -144,6 +144,21 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-developer-surface",
+      "family_key": "deployment-info.developer",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "scope": "developer",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "Hash-only runtime binding and Hostinger bootstrap dry-run evidence are protected internal operational APIs, not browser navigation surfaces. They remain read-only and service-key-only, and the dry-run cannot authorize migrations, grants, deployment, or restart.",
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "openapi.yaml",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json"
       ]
     },
     {
@@ -2877,6 +2892,24 @@
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "test-frontend-auth-openapi-parity.mjs",
         "test-governed-autopilot-production-deployment.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-backend-api-key-auth",
+      "operations": [
+        "GET /deployment-info/runtime-binding",
+        "POST /deployment-info/runtime-bootstrap-dry-run"
+      ],
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "profile": "backend_api_key_surface",
+      "runtime_compatibility": "backend_api_key_guard",
+      "owner": "runtime-operations",
+      "rationale": "Runtime database binding and Hostinger bootstrap dry-run evidence are service-only operational endpoints. The generic backend guard keeps compatibility parsing for user JWTs, but these routes explicitly reject non-service auth modes before reading runtime binding or invoking bootstrap logic.",
+      "evidence_refs": [
+        "runtimeGuards.js",
+        "routes/deploymentInfoRoutes.js",
+        "openapi.yaml",
+        "test-runtime-gate-deployment-info-parity.mjs"
       ]
     }
   ],
@@ -11538,6 +11571,20 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-dry-run-read-action",
+      "operation": "POST /deployment-info/runtime-bootstrap-dry-run",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The Hostinger runtime bootstrap endpoint is a protected, bounded dry-run read path: it derives hash-only binding evidence and verifies migration readiness without authorizing database mutation.",
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "runtimeBootstrapContract.js",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        "openapi.yaml"
       ]
     }
   ],

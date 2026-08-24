@@ -7,6 +7,9 @@ import { loadHostingerSshGate } from "./hostingerSshDeployExecutor.js";
 import { buildDeploymentInfoRoutes } from "./routes/deploymentInfoRoutes.js";
 import { buildVersionPayload } from "./deploymentManifest.js";
 
+// frontend-surface-operation: GET /deployment-info/runtime-binding
+// frontend-surface-operation: POST /deployment-info/runtime-bootstrap-dry-run
+
 function fakePool(row) {
   return {
     async query() {
@@ -116,8 +119,15 @@ try {
     });
     },
     requireBackendApiKey: (req, res, next) => {
-      if (req.headers["x-api-key"] !== "test-backend-key") return res.status(401).json({ ok: false, error: { code: "missing_backend_api_key" } });
-      return next();
+      if (req.headers["x-api-key"] === "test-backend-key") {
+        req.auth = { mode: "backend_api_key", principal_type: "admin", is_admin: true };
+        return next();
+      }
+      if (req.headers.authorization === "Bearer simulated-user-jwt") {
+        req.auth = { mode: "user_jwt", principal_type: "user", is_admin: false, user_id: "user-1" };
+        return next();
+      }
+      return res.status(401).json({ ok: false, error: { code: "missing_backend_api_key" } });
     },
     runtimeBootstrapStatusReader: async () => ({
       contract: "mad4b.hostinger.runtime-bootstrap-status.v1",
@@ -194,6 +204,10 @@ try {
 
   const bindingUnauthorizedResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`);
   assert.equal(bindingUnauthorizedResponse.status, 401);
+  const bindingUserJwtResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`, { headers: { authorization: "Bearer simulated-user-jwt" } });
+  assert.equal(bindingUserJwtResponse.status, 403);
+  const bindingUserJwtInfo = await bindingUserJwtResponse.json();
+  assert.equal(bindingUserJwtInfo.error.code, "backend_service_api_key_required");
   const bindingResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`, { headers: { "x-api-key": "test-backend-key" } });
   assert.equal(bindingResponse.status, 200);
   const bindingInfo = await bindingResponse.json();
@@ -210,6 +224,28 @@ try {
   process.env.DEPLOYMENT_MANIFEST_PATH = join(dir, "missing-deployment-manifest.json");
   process.env.GITHUB_SHA = commitSha;
   process.env.GITHUB_REF_NAME = "Production";
+  const dryRunUserJwtResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-bootstrap-dry-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer simulated-user-jwt" },
+    body: JSON.stringify({ expected_sha: commitSha }),
+  });
+  assert.equal(dryRunUserJwtResponse.status, 403);
+  const dryRunUserJwtInfo = await dryRunUserJwtResponse.json();
+  assert.equal(dryRunUserJwtInfo.error.code, "backend_service_api_key_required");
+
+  const mismatchResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-bootstrap-dry-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "test-backend-key" },
+    body: JSON.stringify({ expected_sha: "fedcba9876543210fedcba9876543210fedcba98" }),
+  });
+  assert.equal(mismatchResponse.status, 412);
+  const mismatchInfo = await mismatchResponse.json();
+  assert.equal(mismatchInfo.error.code, "runtime_bootstrap_deployment_identity_mismatch");
+  assert.equal(mismatchInfo.database_connection_performed, false);
+  assert.equal(mismatchInfo.database_mutation_performed, false);
+  assert.equal(mismatchInfo.migration_apply_performed, false);
+  assert.equal(mismatchInfo.grant_mutation_performed, false);
+
   const dryRunResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-bootstrap-dry-run`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": "test-backend-key" },

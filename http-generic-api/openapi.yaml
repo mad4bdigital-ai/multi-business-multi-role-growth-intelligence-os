@@ -6133,7 +6133,6 @@ paths:
     post:
       tags: [dev-diagnostics]
       security:
-        - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: runRuntimeBootstrapDryRunFromHostEnv
       summary: Run hash-bound runtime bootstrap dry-run from Hostinger environment
@@ -6180,7 +6179,6 @@ paths:
     get:
       tags: [dev-diagnostics]
       security:
-        - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getRuntimeDeploymentBinding
       summary: Read hash-only runtime database binding evidence

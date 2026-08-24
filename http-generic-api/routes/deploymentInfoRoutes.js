@@ -244,16 +244,9 @@ export function buildDeploymentInfoRoutes({
 } = {}) {
   const router = Router();
 
-  router.post("/deployment-info/runtime-bootstrap-dry-run", async (req, res, next) => {
-    if (typeof requireBackendApiKey === "function") {
-      let guardCompleted = false;
-      const proceed = () => {
-        guardCompleted = true;
-      };
-      const guardResult = await requireBackendApiKey(req, res, proceed);
-      if (!guardCompleted || res.headersSent) return guardResult;
-    } else {
-      return res.status(503).json({
+  async function requireBackendServiceApiKey(req, res) {
+    if (typeof requireBackendApiKey !== "function") {
+      res.status(503).json({
         ok: false,
         error: {
           code: "runtime_bootstrap_auth_unconfigured",
@@ -262,7 +255,31 @@ export function buildDeploymentInfoRoutes({
         },
         secrets_included: false,
       });
+      return false;
     }
+    let guardCompleted = false;
+    const proceed = () => {
+      guardCompleted = true;
+    };
+    await requireBackendApiKey(req, res, proceed);
+    if (!guardCompleted || res.headersSent) return false;
+    if (req.auth?.mode !== "backend_api_key" || req.auth?.is_admin !== true) {
+      res.status(403).json({
+        ok: false,
+        error: {
+          code: "backend_service_api_key_required",
+          message: "This runtime bootstrap read path requires the dedicated backend service API key.",
+          status: 403,
+        },
+        secrets_included: false,
+      });
+      return false;
+    }
+    return true;
+  }
+
+  router.post("/deployment-info/runtime-bootstrap-dry-run", async (req, res, next) => {
+    if (!(await requireBackendServiceApiKey(req, res))) return;
     try {
       const body = req.body && typeof req.body === "object" ? req.body : {};
       const expectedSha = String(body.expected_sha || "").trim().toLowerCase();
@@ -325,16 +342,8 @@ export function buildDeploymentInfoRoutes({
   });
 
   router.get("/deployment-info/runtime-binding", async (req, res, next) => {
-    if (typeof requireBackendApiKey === "function") return requireBackendApiKey(req, res, next);
-    return res.status(503).json({
-      ok: false,
-      error: {
-        code: "runtime_binding_auth_unconfigured",
-        message: "Runtime binding discovery requires the backend API-key guard.",
-        status: 503,
-      },
-      secrets_included: false,
-    });
+    if (!(await requireBackendServiceApiKey(req, res))) return;
+    return next();
   }, (req, res) => {
     res.status(200).json({ ok: true, runtime_binding: buildRuntimeBindingEvidence(process.env), secrets_included: false });
   });

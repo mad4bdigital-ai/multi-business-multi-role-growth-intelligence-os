@@ -2551,8 +2551,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
-      "source_line": 247,
-      "source_offset": 7941,
+      "source_line": 281,
+      "source_offset": 8990,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2560,8 +2560,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:1",
-      "source_line": 327,
-      "source_offset": 12996,
+      "source_line": 344,
+      "source_offset": 13503,
       "method": "GET",
       "path": "/deployment-info/runtime-binding",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2569,8 +2569,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:2",
-      "source_line": 342,
-      "source_offset": 13590,
+      "source_line": 351,
+      "source_offset": 13815,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -20639,10 +20639,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 247,
+        "source_line": 281,
         "handler_window_lines": [
-          247,
-          325
+          281,
+          342
         ],
         "evidence_flags": {
           "handler_window_present": true,

@@ -881,6 +881,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "admin_backend") return "admin";
     if (runtimeAuth.profile === "user_jwt") return "tenant";
     if (runtimeAuth.profile === "local_manager" || runtimeAuth.profile === "connector_bearer") return "local_device";
+    if (runtimeAuth.profile === "backend_api_key_surface") return /^\/admin(?:\/|$)/.test(routePath) ? "admin" : "developer";
     if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
     if (runtimeAuth.profile === "backend_or_user") {
       if (/^\/(?:activation(?:\/|$)|gpt\/sessions(?:\/|$)|container-context-resolutions(?:\/|$))/.test(routePath)) return "tenant";
