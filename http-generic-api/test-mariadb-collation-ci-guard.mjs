@@ -6,6 +6,7 @@ import {
   resolveSqlFiles,
 } from "./scripts/mariadb-collation-ci-guard.mjs";
 import { inspectOrderedMigrationChainEnumSeeds } from "./databaseEnumSeedPolicyGuard.js";
+import { inspectOrderedMigrationChainTextWidths } from "./databaseTextWidthPolicyGuard.js";
 
 const policy = {
   policy_key: "test-policy",
@@ -66,6 +67,9 @@ assert.match(
 assert.match(ciWorkflow, /ordered_enum_seed_chain\.ok == true/);
 assert.match(ciWorkflow, /enum_seed_chain\.ok == true/);
 assert.match(ciWorkflow, /enum_seed_chain\.database_connection_performed == false/);
+assert.match(ciWorkflow, /ordered_text_width_chain\.ok == true/);
+assert.match(ciWorkflow, /text_width_chain\.ok == true/);
+assert.match(ciWorkflow, /text_width_chain\.database_connection_performed == false/);
 
 const valid = evaluateSqlFiles(validFiles, {
   policy,
@@ -169,4 +173,52 @@ assert.equal(enumGood.data_export_performed, false);
 assert.equal(enumGood.runtime_mutation_performed, false);
 assert.equal(enumGood.secrets_included, false);
 
-console.log("MariaDB collation and enum CI guard tests passed");
+const textWidthPolicy = {
+  text_width_chain_contract: {
+    enabled: true,
+    static_only: true,
+    database_connection_allowed: false,
+    sql_mutation_allowed: false,
+    provider_access_allowed: false,
+    credential_access_allowed: false,
+    data_export_allowed: false,
+    runtime_mutation_allowed: false,
+    secrets_included: false,
+    policy_key: "test-text-width-chain",
+  },
+};
+const textWidthFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE runtime_dispatch_certification_registry (certification_key VARCHAR(64) PRIMARY KEY, certification_status VARCHAR(8) NOT NULL, smoke_strategy VARCHAR(16) NOT NULL);",
+  "http-generic-api/migrations/001_overflow.sql": "INSERT INTO runtime_dispatch_certification_registry (certification_key, certification_status, smoke_strategy) VALUES ('bad','too_long_status','this smoke strategy is longer than sixteen');",
+  "http-generic-api/migrations/000_alignment.sql": "ALTER TABLE runtime_dispatch_certification_registry MODIFY COLUMN smoke_strategy TEXT NOT NULL, MODIFY COLUMN certification_status VARCHAR(128) NOT NULL DEFAULT 'baseline';",
+  "http-generic-api/migrations/002_update.sql": "UPDATE runtime_dispatch_certification_registry SET certification_status='this status is now safely widened', smoke_strategy='this update is safely widened' WHERE certification_key='bad';",
+  "http-generic-api/migrations/003_replace.sql": "REPLACE INTO runtime_dispatch_certification_registry (certification_key, certification_status, smoke_strategy) VALUES ('good','ok','read_only_smoke');",
+};
+const readTextWidthFixture = (file) => textWidthFiles[file];
+const textWidthBad = inspectOrderedMigrationChainTextWidths({
+  files: ["http-generic-api/migrations/001_overflow.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: readTextWidthFixture,
+});
+assert.equal(textWidthBad.ok, false, JSON.stringify(textWidthBad));
+assert.equal(textWidthBad.findings.length, 2);
+assert(textWidthBad.findings.some((finding) => finding.column === "certification_status"));
+assert(textWidthBad.findings.some((finding) => finding.column === "smoke_strategy"));
+const textWidthGood = inspectOrderedMigrationChainTextWidths({
+  files: Object.keys(textWidthFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: readTextWidthFixture,
+});
+assert.equal(textWidthGood.ok, true, JSON.stringify(textWidthGood));
+assert.equal(textWidthGood.findings.length, 0);
+assert.equal(textWidthGood.database_connection_performed, false);
+assert.equal(textWidthGood.sql_mutation_performed, false);
+assert.equal(textWidthGood.provider_mutation_performed, false);
+assert.equal(textWidthGood.credential_access_performed, false);
+assert.equal(textWidthGood.data_export_performed, false);
+assert.equal(textWidthGood.runtime_mutation_performed, false);
+assert.equal(textWidthGood.secrets_included, false);
+
+console.log("MariaDB collation, enum, and text-width CI guard tests passed");

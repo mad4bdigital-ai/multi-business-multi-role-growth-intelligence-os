@@ -13,6 +13,7 @@ const parserPath = path.join(apiRoot, "scripts", "staging-sql-parser.mjs");
 const { splitStatements } = await import(pathToFileURL(parserPath).href);
 const { inspectOrderedMigrationChainCollations } = await import(pathToFileURL(path.join(apiRoot, "databaseCollationPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainEnumSeeds } = await import(pathToFileURL(path.join(apiRoot, "databaseEnumSeedPolicyGuard.js")).href);
+const { inspectOrderedMigrationChainTextWidths } = await import(pathToFileURL(path.join(apiRoot, "databaseTextWidthPolicyGuard.js")).href);
 
 function parseArgs(argv) {
   const options = { root: defaultRepoRoot, expectedCommit: "", output: "" };
@@ -104,7 +105,8 @@ function hasWidening(statement, table, column, types) {
   const escapedColumn = column.replace(/[.*+?^${}()|[\[\]\\]/gu, "\\$&");
   const tablePattern = new RegExp(`\\bALTER\\s+TABLE\\s+${escapedTable}`, "iu");
   if (!tablePattern.test(statement.replaceAll("`", ""))) return false;
-  const columnPattern = new RegExp(`\\b(?:MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?${escapedColumn}\\s+(${types.join("|")})\\b`, "iu");
+  const escapedTypes = types.map((type) => String(type).replace(/[.*+?^${}()|[\[\]\\]/gu, "\\$&"));
+  const columnPattern = new RegExp(`\\b(?:MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?${escapedColumn}\\s+(${escapedTypes.join("|")})(?=\\s|$)`, "iu");
   return columnPattern.test(statement.replaceAll("`", ""));
 }
 function inspectForbidden(report, policy, file, statement) {
@@ -137,6 +139,7 @@ const report = {
   preuse_contract: policy.preuse_contract || null,
   collation_chain_contract: policy.collation_chain_contract || null,
   enum_seed_chain_contract: policy.enum_seed_chain_contract || null,
+  text_width_chain_contract: policy.text_width_chain_contract || null,
   environment_profiles: {},
   database_role_topology: policy.database_role_topology || null,
   migration_history: policy.migration_history || null,
@@ -196,6 +199,10 @@ if (!collationContract || collationContract.enabled !== true || collationContrac
 const enumSeedContract = policy.enum_seed_chain_contract;
 if (!enumSeedContract || enumSeedContract.enabled !== true || enumSeedContract.engine !== "mariadb" || enumSeedContract.fail_on_unsupported_literal !== true || enumSeedContract.inspect_create_alter_enum_domains !== true || enumSeedContract.inspect_insert_replace_update_literals !== true || enumSeedContract.static_only !== true || enumSeedContract.database_connection_allowed !== false || enumSeedContract.sql_mutation_allowed !== false || enumSeedContract.provider_access_allowed !== false || enumSeedContract.credential_access_allowed !== false || enumSeedContract.data_export_allowed !== false || enumSeedContract.runtime_mutation_allowed !== false || enumSeedContract.secrets_included !== false) {
   pushFinding(report, "enum_seed_chain", "blocker", "staging-migration-contract-policy.json", "enum_seed_chain_contract must enable the MariaDB static ordered enum-domain/seed gate and fail on unsupported literals");
+}
+const textWidthContract = policy.text_width_chain_contract;
+if (!textWidthContract || textWidthContract.enabled !== true || textWidthContract.engine !== "mariadb" || textWidthContract.fail_on_literal_overflow !== true || textWidthContract.inspect_create_alter_text_domains !== true || textWidthContract.inspect_insert_replace_update_literals !== true || textWidthContract.static_only !== true || textWidthContract.database_connection_allowed !== false || textWidthContract.sql_mutation_allowed !== false || textWidthContract.provider_access_allowed !== false || textWidthContract.credential_access_allowed !== false || textWidthContract.data_export_allowed !== false || textWidthContract.runtime_mutation_allowed !== false || textWidthContract.secrets_included !== false) {
+  pushFinding(report, "text_width_chain", "blocker", "staging-migration-contract-policy.json", "text_width_chain_contract must enable the MariaDB static ordered text-domain/width gate and fail on literal overflow");
 }
 
 const files = migrationFiles();
@@ -358,6 +365,49 @@ if (enumSeedContract?.enabled === true) {
   }
 }
 
+if (textWidthContract?.enabled === true) {
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const textWidthChain = inspectOrderedMigrationChainTextWidths({
+    files: orderedFiles,
+    baselineFile: textWidthContract.baseline_file || "http-generic-api/schema.sql",
+    engine: textWidthContract.engine || "mariadb",
+    policy,
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  report.text_width_chain = {
+    contract: textWidthChain.contract,
+    engine: textWidthChain.engine,
+    policy_key: textWidthChain.policy_key,
+    baseline_file: textWidthChain.baseline_file,
+    files_checked: textWidthChain.files_checked,
+    migration_files_checked: textWidthChain.migration_files_checked,
+    statements_checked: textWidthChain.statements_checked,
+    bounded_text_columns: textWidthChain.bounded_text_columns,
+    definitions_applied: textWidthChain.definitions_applied,
+    findings: textWidthChain.findings,
+    warnings: textWidthChain.warnings,
+    ok: textWidthChain.ok,
+    ready: textWidthChain.ready,
+    database_connection_performed: textWidthChain.database_connection_performed,
+    sql_mutation_performed: textWidthChain.sql_mutation_performed,
+    provider_mutation_performed: textWidthChain.provider_mutation_performed,
+    credential_access_performed: textWidthChain.credential_access_performed,
+    data_export_performed: textWidthChain.data_export_performed,
+    runtime_mutation_performed: textWidthChain.runtime_mutation_performed,
+    secrets_included: textWidthChain.secrets_included,
+  };
+  if (textWidthChain.findings.length > 0) {
+    pushFinding(report, "text_width_chain", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB text-width guard reports literal overflow before widening", "", {
+      text_width_findings: textWidthChain.findings.length,
+      text_width_files_checked: textWidthChain.files_checked,
+      text_width_statements_checked: textWidthChain.statements_checked,
+    });
+  }
+  if (textWidthChain.database_connection_performed !== false || textWidthChain.sql_mutation_performed !== false || textWidthChain.provider_mutation_performed !== false || textWidthChain.credential_access_performed !== false || textWidthChain.data_export_performed !== false || textWidthChain.runtime_mutation_performed !== false || textWidthChain.secrets_included !== false) {
+    pushFinding(report, "safety_boundary", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB text-width evidence violates static-only safety");
+  }
+}
+
 report.migration_catalog = {
   contract: "mad4b.cross-environment.migration-discovery.v1",
   source_commit: expectedCommit,
@@ -375,7 +425,7 @@ else if (planResult.status !== 0) pushFinding(report, "canonical_plan", "blocker
 else {
   try {
     const plan = JSON.parse(planResult.stdout);
-    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
+    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
     if (plan.plan_only !== true) pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", "canonical builder did not return plan_only=true");
     if (plan.production_access_forbidden !== true || plan.provider_access_forbidden !== true) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical plan safety flags are incomplete");
     if (plan.ordered_preuse_audit?.missing_table_gaps > 0 || plan.ordered_preuse_audit?.missing_column_gaps > 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical ordered pre-use audit reports unresolved gaps", plan.ordered_preuse_audit);
@@ -384,6 +434,8 @@ else {
     if (plan.ordered_collation_chain?.database_connection_performed !== false || plan.ordered_collation_chain?.sql_mutation_performed !== false || plan.ordered_collation_chain?.provider_mutation_performed !== false || plan.ordered_collation_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered collation evidence violates static-only safety", plan.ordered_collation_chain || {});
     if (plan.ordered_enum_seed_chain?.ok !== true || plan.ordered_enum_seed_chain?.finding_count !== 0 || plan.ordered_enum_seed_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_enum_seed_chain?.statements_checked <= plan.statement_count) pushFinding(report, "enum_seed_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered enum-seed evidence is incomplete or reports unsupported literals", plan.ordered_enum_seed_chain || {});
     if (plan.ordered_enum_seed_chain?.database_connection_performed !== false || plan.ordered_enum_seed_chain?.sql_mutation_performed !== false || plan.ordered_enum_seed_chain?.provider_mutation_performed !== false || plan.ordered_enum_seed_chain?.credential_access_performed !== false || plan.ordered_enum_seed_chain?.data_export_performed !== false || plan.ordered_enum_seed_chain?.runtime_mutation_performed !== false || plan.ordered_enum_seed_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered enum-seed evidence violates static-only safety", plan.ordered_enum_seed_chain || {});
+    if (plan.ordered_text_width_chain?.ok !== true || plan.ordered_text_width_chain?.ready !== true || plan.ordered_text_width_chain?.finding_count !== 0 || plan.ordered_text_width_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_text_width_chain?.statements_checked <= plan.statement_count) pushFinding(report, "text_width_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered text-width evidence is incomplete or reports literal overflows", plan.ordered_text_width_chain || {});
+    if (plan.ordered_text_width_chain?.database_connection_performed !== false || plan.ordered_text_width_chain?.sql_mutation_performed !== false || plan.ordered_text_width_chain?.provider_mutation_performed !== false || plan.ordered_text_width_chain?.credential_access_performed !== false || plan.ordered_text_width_chain?.data_export_performed !== false || plan.ordered_text_width_chain?.runtime_mutation_performed !== false || plan.ordered_text_width_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered text-width evidence violates static-only safety", plan.ordered_text_width_chain || {});
   } catch (error) { pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", `canonical builder plan was not valid JSON: ${error.message}`); }
 }
 
