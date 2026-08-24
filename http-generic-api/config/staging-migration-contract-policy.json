@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.staging.migration-contract-policy.v1",
+  "engine": "mariadb-11.4",
+  "scope": "all numerically ordered http-generic-api migrations plus schema.sql",
+  "governance_scope": "cross_environment_static_analysis_only",
+  "environment_profiles": {
+    "staging_local_windows_docker": {
+      "environment": "staging",
+      "source_branch": "main",
+      "execution_transport": "local_cli",
+      "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
+      "target_key_prefix": "staging-",
+      "hostinger_access_allowed": false,
+      "production_access_allowed": false,
+      "automatic_mutation_allowed": false
+    },
+    "production_hostinger_autodeploy": {
+      "environment": "production",
+      "source_branch": "Production",
+      "execution_transport": "github_workflow",
+      "credential_namespace": "MYSQL_BOOTSTRAP_*",
+      "target_key_prefix": "production-",
+      "hostinger_access_allowed": true,
+      "local_docker_access_allowed": false,
+      "automatic_mutation_allowed": false,
+      "exact_source_sha_required": true,
+      "typed_approval_required": true
+    }
+  },
+  "database_role_topology": {
+    "runtime": { "required": true, "database_env": "DB_NAME" },
+    "governance": { "required": true, "database_env": "GOVERNANCE_DB_NAME", "owns_migration_ledger": true },
+    "runtime_persistence": { "required": true, "database_env": "RUNTIME_PERSISTENCE_DB_NAME", "owns_tables": ["governed_tool_response_chunks"] }
+  },
+  "migration_history": {
+    "published_checksum_verification_required": true,
+    "silent_ledger_reconciliation_allowed": false,
+    "historical_replay_amendment_requires_explicit_contract": true,
+    "production_apply_requires_ledger_compatibility": true
+  },
+  "execution_authority": {
+    "discovery_grants_execution": false,
+    "production_auto_apply_allowed": false,
+    "separate_grants_approval_required": true,
+    "same_cycle_postcondition_readback_required": true,
+    "nonempty_destructive_rebuild_allowed": false
+  },
+  "safety": {
+    "database_connection_allowed": false,
+    "database_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "credential_access_allowed": false,
+    "data_export_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false
+  },
+  "required_insert_columns": [
+    {
+      "table": "local_connector_shell_allowlists",
+      "columns": ["allowlist_id"]
+    },
+    {
+      "table": "local_connector_file_access_rules",
+      "columns": ["rule_id"]
+    }
+  ],
+  "preuse_contract": {
+    "check_create_index_table_and_columns": true,
+    "check_alter_add_index_table_and_columns": true,
+    "check_foreign_key_parent_tables": true,
+    "check_table_source_operations": true,
+    "check_rename_and_drop_targets": true,
+    "fail_on_unresolved_gaps": true
+  },
+  "canonical_unique_guard_contracts": [
+    {
+      "table": "secret_references",
+      "key": ["tenant_id", "secret_key"],
+      "required_guard_tokens": ["secret_key"],
+      "forbidden_guard_tokens": ["system_id"]
+    }
+  ],
+  "width_contracts": [
+    {
+      "table": "admin_platform_endpoint_tools",
+      "column": "tags",
+      "initial_max_length": 255,
+      "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
+    },
+    {
+      "table": "tenant_platform_endpoint_tools",
+      "column": "tags",
+      "initial_max_length": 255,
+      "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
+    },
+    {
+      "table": "local_gateway_tools",
+      "column": "tags",
+      "initial_max_length": 255,
+      "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
+    }
+  ],
+  "forbidden_sql_patterns": [
+    {"id": "grant", "pattern": "^\\s*GRANT\\b"},
+    {"id": "revoke", "pattern": "^\\s*REVOKE\\b"},
+    {"id": "user_ddl", "pattern": "^\\s*(?:CREATE|ALTER)\\s+USER\\b"},
+    {"id": "database_ddl", "pattern": "^\\s*(?:DROP|CREATE)\\s+DATABASE\\b"},
+    {"id": "external_file_export", "pattern": "\\bSELECT\\b[\\s\\S]*\\bINTO\\s+(?:OUTFILE|DUMPFILE)\\b"},
+    {"id": "load_data", "pattern": "^\\s*LOAD\\s+DATA\\b"},
+    {"id": "mariadb_unsupported_cast_json", "pattern": "\\bCAST\\s*\\([^)]*\\bAS\\s+JSON\\s*\\)"}
+  ]
+}

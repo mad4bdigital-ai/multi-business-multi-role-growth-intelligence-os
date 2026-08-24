@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7320,
+  "file_count": 7322,
   "route_count": 1082,
   "write_route_count": 657,
   "classified_write_surface_count": 39,
@@ -54623,6 +54623,7 @@
     {
       "path": "http-generic-api/migrations/195_sprint66_connected_execution_read_only_tool_execution.sql",
       "tables": [
+        "below",
         "runtime_dispatch_certification_registry",
         "surface_key",
         "admin_platform_endpoint_tools"

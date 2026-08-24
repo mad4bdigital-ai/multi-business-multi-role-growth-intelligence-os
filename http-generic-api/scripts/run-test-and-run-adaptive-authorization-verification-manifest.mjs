@@ -12,6 +12,7 @@ const phases = Object.freeze([
   }),
   Object.freeze({ id: "brand-skill-migration-preflight", script: "test-brand-skill-migration-preflight.mjs" }),
   Object.freeze({ id: "brand-skill-mariadb-certification", script: "test-brand-skill-mariadb-certification-contract.mjs" }),
+  Object.freeze({ id: "staging-migration-contract-governance", script: "scripts/migration-contract-governance.mjs" }),
   Object.freeze({ id: "canonical-test-manifest", script: "scripts/run-test-manifest.mjs" }),
   Object.freeze({ id: "managed-git-remote-transport", script: "test-managed-git-remote-transport.mjs" }),
   Object.freeze({ id: "operation-orchestrator-managed-git-transport", script: "test-operation-orchestrator-managed-git-transport.mjs" }),

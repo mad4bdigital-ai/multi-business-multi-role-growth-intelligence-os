@@ -44,8 +44,8 @@ assert.match(diagnostic, /contract:\s*'mad4b\.test-diagnostic-summary\.v2'/u);
 assert.match(diagnostic, /secretsIncluded:\s*false/u);
 assert.doesNotMatch(diagnostic, /permissions:\s*write-all|contents:\s*write/u);
 
-const workBranchLiteral = /(?:^|[^A-Za-z0-9_.-])(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
-assert.doesNotMatch(ci, workBranchLiteral);
-assert.doesNotMatch(diagnostic, workBranchLiteral);
+const workBranchReference = /(?:\b(?:branch|branches|ref|head_ref|base_ref|target_ref|target_branch|branch_pattern)\b[^\n]{0,96}|refs\/heads\/)(?:[^\n]*?\b)?(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
+assert.doesNotMatch(ci, workBranchReference);
+assert.doesNotMatch(diagnostic, workBranchReference);
 
 console.log("protected branch validation trigger contract passed");

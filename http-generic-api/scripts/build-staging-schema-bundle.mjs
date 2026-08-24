@@ -406,7 +406,40 @@ function validateSecretReferenceIdempotencyStatement(file, statement) {
   if (/\b(?:sr\s*\.\s*)?system_id\b/iu.test(guard)) fail(`migration ${file} secret_references NOT EXISTS guard must not narrow canonical uq_tenant_key uniqueness by system_id`);
 }
 
-function migrationSafetyCheck(file, sql) {
+function validateCatalogTagWidthStatement(file, statement, state) {
+  const widthTables = ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "local_gateway_tools"];
+  const sql = statement.trimStart().replaceAll(String.fromCharCode(96), "");
+  for (const table of widthTables) {
+    const widening = new RegExp("^\\s*ALTER\\s+TABLE\\s+" + table + "\\s+(MODIFY|CHANGE)\\s+(COLUMN\\s+)?tags\\s+(TEXT|VARCHAR\\s*[(]\\s*(512|1024)\\s*[)])", "i");
+    if (widening.test(sql)) {
+      state.widenedTagTables.add(table);
+      continue;
+    }
+    const update = sql.match(new RegExp("^\\s*UPDATE\\s+" + table + "\\s+SET\\s+", "i"));
+    if (update) {
+      const tag = sql.match(/tags\\s*=\\s*'((?:''|[^'])*)'/i);
+      if (tag && !state.widenedTagTables.has(table) && tag[1].replaceAll("''", "'").length > 255) fail("migration " + file + " " + table + ".tags writer exceeds VARCHAR(255) before widening");
+      continue;
+    }
+    const insert = sql.match(new RegExp("^\\s*INSERT\\s+(?:IGNORE\\s+)?INTO\\s+" + table + "\\s*", "i"));
+    if (!insert) continue;
+    const columns = parenthesizedSql(sql, insert[0].length);
+    if (!columns) continue;
+    const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll(String.fromCharCode(96), "").replace(/\\s/gu, "").toLowerCase());
+    const tagIndex = columnNames.indexOf("tags");
+    if (tagIndex === -1 || state.widenedTagTables.has(table)) continue;
+    const valuesSource = sql.slice(columns.end).trimStart();
+    if (!valuesSource.toUpperCase().startsWith("VALUES")) continue;
+    const open = valuesSource.indexOf("(");
+    const close = valuesSource.lastIndexOf(")");
+    const values = open >= 0 && close > open ? valuesSource.slice(open + 1, close) : "";
+    const rowValues = splitTopLevelSql(values);
+    const literal = sqlStringValue(rowValues[tagIndex] || "");
+    if (literal !== null && literal.length > 255) fail("migration " + file + " " + table + ".tags writer exceeds VARCHAR(255) before widening");
+  }
+}
+
+function migrationSafetyCheck(file, sql, state = { widenedTagTables: new Set() }) {
   const statements = splitStatements(sql);
   const normalizedSql = statements.join("\n");
   for (const statement of statements) {
@@ -414,6 +447,7 @@ function migrationSafetyCheck(file, sql) {
     validateLocalConnectorAllowlistStatement(file, statement);
     validateLocalConnectorFileAccessRuleStatement(file, statement);
     validateSecretReferenceIdempotencyStatement(file, statement);
+    validateCatalogTagWidthStatement(file, statement, state);
   }
   const forbidden = [
     /^\s*GRANT\b/imu,
@@ -429,9 +463,10 @@ function migrationSafetyCheck(file, sql) {
 }
 
 function migrationPlan(files) {
+  const state = { widenedTagTables: new Set() };
   return files.map((file) => {
     const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
-    migrationSafetyCheck(file, sql);
+    migrationSafetyCheck(file, sql, state);
     return { file, sha256: sha256(sql), statement_count: splitStatements(sql).length, bytes: Buffer.byteLength(sql) };
   });
 }
