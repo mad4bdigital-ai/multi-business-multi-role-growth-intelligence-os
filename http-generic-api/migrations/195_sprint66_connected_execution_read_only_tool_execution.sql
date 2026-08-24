@@ -5,6 +5,11 @@
 -- and still forbids repo mutation, provider calls, local-device calls, apply
 -- operations, and secret exposure.
 
+-- Widen the catalog metadata column before the long tags update below. The
+-- later compatibility migration remains idempotent for fresh and rerun paths.
+ALTER TABLE admin_platform_endpoint_tools
+  MODIFY COLUMN tags TEXT NULL;
+
 INSERT INTO runtime_dispatch_certification_registry
   (certification_key, surface_key, surface_family, tool_or_action_key, risk_class, certification_status,
    smoke_strategy, dispatch_allowed, apply_allowed, requires_resource_authority, requires_dry_run,

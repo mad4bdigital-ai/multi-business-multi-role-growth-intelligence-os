@@ -2305,6 +2305,12 @@
       "expires_at": "2026-11-30T23:59:59.000Z"
     },
     {
+      "fingerprint": "http-generic-api/scripts/migration-contract-governance.mjs|outputPath|environment_reference|migration.contract.governance.output",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #7609: outputPath is a caller-supplied report destination for the Staging-local, plan-only migration contract governance gate; it writes non-secret evidence only and cannot authorize migration generation, runtime mutation, Production activation, provider access, or credential use.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
       "fingerprint": "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs|BOOTSTRAP_MODE|environment_reference|bootstrap.mode",
       "owner": "platform-team",
       "reason": "Reviewed in the schema-less runtime bootstrap control-plane PR: BOOTSTRAP_MODE selects plan, dry-run, or an independently confirmed allowlisted apply mode; plan is the default, no runtime credential fallback is allowed, and the selector contains no secret or automatic deployment authority.",

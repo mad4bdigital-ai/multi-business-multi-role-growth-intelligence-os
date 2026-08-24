@@ -44,26 +44,33 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_FORCE_TTY: "0"
           SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
           MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
         run: |
           set -euo pipefail
+          trap 'rc=$?; printf "resolve_failure rc=%s line=%s command=%q\\n" "$rc" "${BASH_LINENO[0]:-unknown}" "$BASH_COMMAND" >&2' ERR
+          normalize_github_json() {
+            local file="$1"
+            perl -0pi -e 's/\e\[[0-9;]*[A-Za-z]//g; s/^\x{FEFF}//' "$file"
+          }
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           run="$RUNNER_TEMP/source-run.json"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$run"
+          normalize_github_json "$run"
           test "$(jq -r '.path' "$run")" = ".github/workflows/derived-state-closure.yml"
           test "$(jq -r '.conclusion' "$run")" = "failure"
           artifacts="$RUNNER_TEMP/artifacts.json"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$artifacts"
-          artifact_id="$(jq -r '[.artifacts[] | select((.name|startswith("derived-state-closure-")) and (.expired==false))][0].id // empty' "$artifacts")"
-          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          normalize_github_json "$artifacts"
+          artifact_name="$(jq -r --arg run_id "$SOURCE_RUN_ID" '[.artifacts[] | select((.name == ("derived-state-closure-" + $run_id)) and (.expired==false))][0].name // empty' "$artifacts")"
+          test "$artifact_name" = "derived-state-closure-$SOURCE_RUN_ID"
           mkdir -p "$RUNNER_TEMP/closure"
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$RUNNER_TEMP/closure.zip"
-          unzip -q "$RUNNER_TEMP/closure.zip" -d "$RUNNER_TEMP/closure"
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$RUNNER_TEMP/closure"
           report="$(find "$RUNNER_TEMP/closure" -type f -name report.json | head -n1)"
           objections="$(find "$RUNNER_TEMP/closure" -type f -name policy-objections.json | head -n1)"
           test -f "$report"
-          test "$(jq -r '.contract' "$report")" = "mad4b.repository-derived-state-closure.v1"
+          test "$(jq -r '.contract' "$report")" = "mad4b.repository-derived-state-closure.v2"
           test "$(jq -r '.candidate.kind' "$report")" = "github_merge_candidate"
           test "$(jq -r '.converged' "$report")" = "false"
           pr_number="$(jq -r '.candidate.pr_number // 0' "$report")"
@@ -73,48 +80,99 @@ jobs:
           if [[ -n "$MANUAL_EXPECTED_HEAD_SHA" ]]; then test "$head_sha" = "$MANUAL_EXPECTED_HEAD_SHA"; fi
           pr="$RUNNER_TEMP/pr.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr"
-          test "$(jq -r '.state' "$pr")" = "open"
-          test "$(jq -r '.base.ref' "$pr")" = "main"
-          test "$(jq -r '.head.repo.full_name' "$pr")" = "$GITHUB_REPOSITORY"
-          test "$(jq -r '.head.sha' "$pr")" = "$head_sha"
-          target_ref="$(jq -r '.head.ref' "$pr")"
+          normalize_github_json "$pr"
+          pr_state="$(jq -er '.state' "$pr" | tr -d '\r')"
+          base_ref="$(jq -er '.base.ref' "$pr" | tr -d '\r')"
+          head_repo_full_name="$(jq -er '.head.repo.full_name' "$pr" | tr -d '\r')"
+          base_repo_full_name="$(jq -er '.base.repo.full_name' "$pr" | tr -d '\r')"
+          head_repo_fork="$(jq -r '.head.repo.fork' "$pr" | tr -d '\r')"
+          pr_head_sha="$(jq -er '.head.sha' "$pr" | tr -d '\r')"
+          expected_repo="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          normalized_head_repo="$(printf '%s' "$head_repo_full_name" | tr '[:upper:]' '[:lower:]')"
+          normalized_base_repo="$(printf '%s' "$base_repo_full_name" | tr '[:upper:]' '[:lower:]')"
+          [[ "$expected_repo" =~ ^[a-z0-9_.-]+/[a-z0-9_.-]+$ ]]
+          [[ "$head_repo_fork" == "true" || "$head_repo_fork" == "false" ]]
+          printf 'validated_pr_state=%s\nvalidated_base_ref=%s\nvalidated_head_repo=%s\nvalidated_base_repo=%s\nvalidated_expected_repo=%s\nvalidated_head_repo_fork=%s\nvalidated_pr_head_sha=%s\nvalidated_report_head_sha=%s\n' "$pr_state" "$base_ref" "$normalized_head_repo" "$normalized_base_repo" "$expected_repo" "$head_repo_fork" "$pr_head_sha" "$head_sha"
+          test "$pr_state" = "open"
+          test "$base_ref" = "main"
+          case "$head_repo_fork" in
+            false) ;;
+            *) echo "Fork PR head is forbidden: $normalized_head_repo" >&2; exit 1 ;;
+          esac
+          test "$pr_head_sha" = "$head_sha"
+          target_ref="$(jq -er '.head.ref' "$pr" | tr -d '\r')"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           case "$target_ref" in
             main|Production) echo "Protected branch mutation target is forbidden: $target_ref" >&2; exit 1 ;;
           esac
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$base_sha"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${head_sha}" --jq '.behind_by')" = "0"
+          main_ref_json="$RUNNER_TEMP/main-ref.json"
+          compare_json="$RUNNER_TEMP/compare.json"
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" > "$main_ref_json"
+          normalize_github_json "$main_ref_json"
+          jq -e 'type == "object" and (.object.sha | type == "string")' "$main_ref_json" >/dev/null
+          main_sha="$(jq -er '.object.sha' "$main_ref_json")"
+          gh api "repos/${GITHUB_REPOSITORY}/compare/${main_sha}...${head_sha}" > "$compare_json"
+          normalize_github_json "$compare_json"
+          jq -e 'type == "object" and (.behind_by | type == "number")' "$compare_json" >/dev/null
+          compare_behind="$(jq -r '.behind_by // empty' "$compare_json")"
+          [[ "$compare_behind" =~ ^[0-9]+$ ]]
+          printf 'validated_main_sha=%s\nvalidated_report_base_sha=%s\nvalidated_source_head_sha=%s\nvalidated_compare_behind=%s\n' "$main_sha" "$base_sha" "$head_sha" "$compare_behind"
+          test "$main_sha" = "$base_sha"
+          test "$compare_behind" = "0"
           authority="$(jq -c '.repair_authorities[0] // null' "$report")"
+          state_file="$RUNNER_TEMP/repair-target.env"
           if [[ "$authority" == "null" ]]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=no_blocking_repair_authority" >> "$GITHUB_OUTPUT"
+            printf 'eligible=false\nreason=no_blocking_repair_authority\n' > "$state_file"
+            chmod 600 "$state_file"
             exit 0
           fi
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
-          echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "authority_b64=$(printf '%s' "$authority" | base64 -w0)" >> "$GITHUB_OUTPUT"
+          authority_kind="$(jq -er '.kind' <<<"$authority")"
+          authority_id="$(jq -er '.id' <<<"$authority")"
+          authority_recipe="$(jq -r '.recipe // empty' <<<"$authority")"
+          [[ "$authority_kind" =~ ^[a-z0-9_]+$ ]]
+          [[ "$authority_id" =~ ^[a-z0-9_.-]+$ ]]
+          [[ -z "$authority_recipe" || "$authority_recipe" =~ ^[a-z0-9_.-]+$ ]]
+          authority_file="$RUNNER_TEMP/repair-authority.json"
+          printf '%s' "$authority" > "$authority_file"
+          chmod 600 "$authority_file"
+          test -s "$authority_file"
+          printf 'eligible=true\npr_number=%s\ntarget_ref=%s\nhead_sha=%s\n' "$pr_number" "$target_ref" "$head_sha" > "$state_file"
+          chmod 600 "$state_file"
+          test -s "$state_file"
+          printf 'target_resolution_state_ready=1\n'
+          true
 
       - name: Dispatch registered authority
-        if: steps.target.outputs.eligible == 'true'
+        if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          TARGET_REF: ${{ steps.target.outputs.target_ref }}
-          HEAD_SHA: ${{ steps.target.outputs.head_sha }}
-          AUTHORITY_B64: ${{ steps.target.outputs.authority_b64 }}
+          GH_FORCE_TTY: "0"
         run: |
           set -euo pipefail
-          case "$TARGET_REF" in
-            main|Production) echo "Protected branch mutation target is forbidden: $TARGET_REF" >&2; exit 1 ;;
+          state_file="$RUNNER_TEMP/repair-target.env"
+          test -s "$state_file"
+          source "$state_file"
+          if [[ "$eligible" != "true" ]]; then
+            printf 'eligible=%s\nreason=%s\n' "$eligible" "${reason:-unknown}"
+            exit 0
+          fi
+          case "$target_ref" in
+            main|Production) echo "Protected branch mutation target is forbidden: $target_ref" >&2; exit 1 ;;
           esac
-          authority="$(printf '%s' "$AUTHORITY_B64" | base64 -d)"
-          kind="$(jq -r '.kind' <<<"$authority")"
-          id="$(jq -r '.id' <<<"$authority")"
+          authority_file="$RUNNER_TEMP/repair-authority.json"
+          test -s "$authority_file"
+          authority="$(cat "$authority_file")"
+          PR_NUMBER="$pr_number"
+          TARGET_REF="$target_ref"
+          HEAD_SHA="$head_sha"
+          kind="$(jq -er '.kind' <<<"$authority")"
+          id="$(jq -er '.id' <<<"$authority")"
+          recipe="$(jq -r '.recipe // empty' <<<"$authority")"
+          [[ "$kind" =~ ^[a-z0-9_]+$ ]]
+          [[ "$id" =~ ^[a-z0-9_.-]+$ ]]
+          [[ -z "$recipe" || "$recipe" =~ ^[a-z0-9_.-]+$ ]]
           if [[ "$kind" == "generated_artifact_recipe" ]]; then
-            recipe="$(jq -r '.recipe' <<<"$authority")"
             payload="$(jq -cn --arg ref main --arg target_ref "$TARGET_REF" --arg head "$HEAD_SHA" --arg recipe "$recipe" '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$head,recipe:$recipe,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",source_main_sha:""}}')"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" --input - <<<"$payload"
             state="dispatched"
