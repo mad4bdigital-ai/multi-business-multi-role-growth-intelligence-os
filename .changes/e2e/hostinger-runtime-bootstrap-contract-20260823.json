@@ -55,7 +55,24 @@
       "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
       "http-generic-api/test-custom-gpt-schemas.mjs",
       "http-generic-api/test-frontend-surface-coverage-claims.mjs",
-      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/config/staging-migration-contract-policy.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/migrations/195_sprint66_connected_execution_read_only_tool_execution.sql",
+      "http-generic-api/migrations/196_sprint66_admin_tool_registry_tags_text.sql",
+      "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
+      "http-generic-api/scripts/frontend-surface-dispatch.mjs",
+      "http-generic-api/scripts/migration-contract-governance.mjs",
+      "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
+      "http-generic-api/test-openapi-detail-closure-batch.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
   "merge_contract": {
