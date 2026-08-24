@@ -9023,7 +9023,7 @@
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-authorization-server:0",
       "source_line": 140,
-      "source_offset": 5245,
+      "source_offset": 5260,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -9032,7 +9032,7 @@
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-protected-resource:1",
       "source_line": 179,
-      "source_offset": 7223,
+      "source_offset": 7242,
       "method": "GET",
       "path": "/.well-known/oauth-protected-resource",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -9040,8 +9040,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js#POST:/auth/oauth/token:0",
-      "source_line": 287,
-      "source_offset": 10982,
+      "source_line": 301,
+      "source_offset": 11473,
       "method": "POST",
       "path": "/auth/oauth/token",
       "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
@@ -49218,10 +49218,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-        "source_line": 287,
+        "source_line": 301,
         "handler_window_lines": [
-          287,
-          567
+          301,
+          577
         ],
         "evidence_flags": {
           "handler_window_present": true,

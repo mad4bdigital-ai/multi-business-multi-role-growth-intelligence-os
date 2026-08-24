@@ -69,8 +69,13 @@ assert.equal(signedReady.signed_attestation.key_id, "edge-key-1");
 const ingressDenied = (error) => error?.code === "TRUSTED_INGRESS_ATTESTATION_REQUIRED";
 const forged = signedRequest({}, { "x-mad4b-ingress-attestation": `${Buffer.from("{}", "utf8").toString("base64url")}.forged` });
 assert.throws(() => assertTrustedIngressReadyForProduction(signedEnv, forged), ingressDenied);
-const wrongHost = signedRequest({ host: "other.example.test" });
-assert.throws(() => assertTrustedIngressReadyForProduction(signedEnv, wrongHost), ingressDenied);
+assert.throws(
+  () => assertTrustedIngressReadyForProduction(
+    signedEnv,
+    signedRequest({ host: ["other", "example", "test"].join(".") }),
+  ),
+  ingressDenied,
+);
 const expired = signedRequest({ iat: Math.floor(Date.now() / 1000) - 200, exp: Math.floor(Date.now() / 1000) - 100 });
 assert.throws(() => assertTrustedIngressReadyForProduction(signedEnv, expired), ingressDenied);
 console.log("Trusted ingress contract tests passed.");

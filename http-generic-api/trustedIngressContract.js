@@ -1,7 +1,6 @@
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { resolveTrustedRequestHost } from "./trustedRequestHost.js";
 
-const SIGNED_ATTESTATION_MODE = "signature";
 const DEFAULT_ATTESTATION_HEADER = "x-mad4b-ingress-attestation";
 const DEFAULT_MAX_CLOCK_SKEW_SECONDS = 30;
 const DEFAULT_MAX_ATTESTATION_TTL_SECONDS = 90;
@@ -32,16 +31,16 @@ function baseReadiness(env = process.env) {
     production_like: productionLike,
     attestation_mode: mode,
     proxy_headers_enabled: proxyHeadersEnabled,
-    ingress_attested: mode === SIGNED_ATTESTATION_MODE ? false : legacyAttested,
+    ingress_attested: mode === "signature" ? false : legacyAttested,
     caller_headers_stripped: stripCallerHeaders,
     required_for_production: true,
-    signed_attestation_configured: mode === SIGNED_ATTESTATION_MODE
+    signed_attestation_configured: mode === "signature"
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY, 8192))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST, 256))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE, 256))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_ISSUER, 256))
       && Boolean(text(env?.REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA || env?.GIT_COMMIT_FULL, 64)),
-    replay_protection: mode === SIGNED_ATTESTATION_MODE ? "bounded_ttl_only" : "legacy_flag_assertion",
+    replay_protection: mode === "signature" ? "bounded_ttl_only" : "legacy_flag_assertion",
     secrets_included: false,
   };
 }
@@ -144,7 +143,7 @@ export function buildTrustedIngressReadiness(env = process.env) {
 export function assertTrustedIngressReadyForProduction(env = process.env, request = null) {
   const base = baseReadiness(env);
   let readiness = buildTrustedIngressReadiness(env);
-  if (base.attestation_mode === SIGNED_ATTESTATION_MODE && request) {
+  if (base.attestation_mode === "signature" && request) {
     const attestation = verifySignedAttestation(env, request);
     readiness = {
       ...readiness,
