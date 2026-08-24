@@ -49,6 +49,7 @@ jobs:
           MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
         run: |
           set -euo pipefail
+          trap 'rc=$?; printf "target_resolution_failed line=%s rc=%s\\n" "$LINENO" "$rc" >&2; exit "$rc"' ERR
           normalize_github_json() {
             local file="$1"
             perl -0pi -e 's/\e\[[0-9;]*[A-Za-z]//g; s/^\x{FEFF}//' "$file"
@@ -122,6 +123,8 @@ jobs:
           printf 'eligible=true\npr_number=%s\ntarget_ref=%s\nhead_sha=%s\n' "$pr_number" "$target_ref" "$head_sha" > "$state_file"
           chmod 600 "$state_file"
           test -s "$state_file"
+          printf 'target_resolution_state_ready=1\\n'
+          exit 0
 
       - name: Dispatch registered authority
         if: success()
