@@ -25,6 +25,9 @@ on:
       - "http-generic-api/test-pipeline-connectivity-check.mjs"
       - ".specify/pipeline-connectivity-contract.json"
       - ".github/workflows/openapi-auto-sync.yml"
+      - ".github/governance/generated-artifact-registry.json"
+      - ".github/ops/generated-artifact-governance.mjs"
+      - ".github/ops/github-followup-automerge-readiness.mjs"
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
       - "docs/**/*.md"
@@ -134,7 +137,7 @@ jobs:
           if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
             echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
           else
-            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
+            echo "Auto-sync PR credential mode: trusted writer unavailable; PR creation will fail closed if changes are generated."
           fi
 
       - name: Run repository contract maintenance sync without Work Map ownership
@@ -186,19 +189,19 @@ jobs:
           AUTO_MERGE=true
           for file in "${changed_files[@]}"; do
             printf '%s\n' "$file"
-            case "$file" in
-              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md|\
-              docs/surface-contract-discovery-status.json|\
-              docs/surface-contract-gap-queue.json|\
-              docs/surface-contract-gap-trends.json|\
-              docs/surface-contract-gap-triage.json|\
-              docs/surface-contract-governance-compact.json|\
-              docs/surface-contract-governance-dashboard.json)
-                ;;
-              *)
+            if classification="$(
+              node .github/ops/generated-artifact-governance.mjs \
+                classify \
+                --owner openapi_auto_sync \
+                --path "$file" \
+                2>/dev/null
+            )"; then
+              if [[ "$(jq -r '.auto_merge_allowed' <<<"$classification")" != "true" ]]; then
                 AUTO_MERGE=false
-                ;;
-            esac
+              fi
+            else
+              AUTO_MERGE=false
+            fi
           done
 
           if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
@@ -225,10 +228,21 @@ jobs:
           fi
           echo "current=true" >> "$GITHUB_OUTPUT"
 
+      - name: Require trusted follow-up writer identity
+        if: steps.diff.outputs.changed == 'true' && steps.freshness.outputs.current == 'true'
+        env:
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" ]]; then
+            echo "::error::REPO_AUTOSYNC_TOKEN is required before creating a repository auto-sync follow-up."
+            exit 1
+          fi
+
       - name: Create repository contract sync PR
         id: cpr
         if: steps.diff.outputs.changed == 'true' && steps.freshness.outputs.current == 'true'
-        continue-on-error: true
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
         with:
           base: main
@@ -240,7 +254,7 @@ jobs:
             openapi
             docs
             automated
-          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           body: |
             <!-- openapi-auto-sync-source:${{ steps.target.outputs.expected_head_sha }} -->
 
@@ -255,7 +269,7 @@ jobs:
 
             Work Maps are intentionally excluded. Their sole remote writer is the governed Spec Kit Work Map Autofix workflow.
 
-            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or an unapproved generated artifact; those require human/GPT review. Safe Markdown and the six explicitly allowlisted surface-evidence JSON artifacts may be auto-merged only after required checks pass. Any later main movement causes this writer to fail closed; the next main push dispatches a fresh exact-head synchronization.
+            Auto-merge is permitted only when every changed path is registered to `openapi_auto_sync`, the generated-artifact registry explicitly allows auto-merge, `main` is protected server-side, and `Derived State Closure` is enforced by GitHub. Any runtime/schema/unknown output remains open for governed review.
 
             Review checklist:
             - Replace any `TODO document ...` summaries with precise contracts.
@@ -265,28 +279,23 @@ jobs:
             - Confirm each Custom GPT schema stays within its operation budget.
             - Confirm canonical and generated artifacts remain byte-for-byte aligned.
 
-      - name: Enable guarded auto-merge for safe documentation and evidence sync PRs
+      - name: Enable guarded auto-merge for registered safe generated artifacts
         if: steps.diff.outputs.auto_merge == 'true' && steps.freshness.outputs.current == 'true' && steps.cpr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
-          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
           EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
+          TARGET_BRANCH: main
+          REQUIRED_CHECK_CONTEXT: Derived State Closure
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" || -z "$GH_TOKEN" ]]; then
-            echo "REPO_AUTOSYNC_TOKEN is required for guarded auto-merge so GitHub emits the full post-merge push CI cycle. Leaving PR ${PR_NUMBER} open."
-            exit 0
-          fi
-          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.allow_auto_merge')" != "true" ]]; then
-            echo "::warning::Repository Allow auto-merge is disabled; enable Settings > General > Pull Requests > Allow auto-merge. Leaving PR ${PR_NUMBER} open."
-            exit 0
-          fi
+          node .github/ops/github-followup-automerge-readiness.mjs
+
           latest_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           if [[ "${latest_main_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
             gh pr close "${PR_NUMBER}" --comment "Closing stale docs-only auto-sync PR: main moved from ${EXPECTED_HEAD_SHA} to ${latest_main_sha} before auto-merge registration. A newer run owns regeneration."
-            echo "Refused stale docs-only auto-merge."
+            echo "Refused stale generated-artifact auto-merge."
             exit 0
           fi
 
@@ -294,7 +303,7 @@ jobs:
           changed_files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')"
           if [[ "${changed_files}" == "0" ]]; then
             gh pr close "${PR_NUMBER}" --comment "Closing empty repository auto-sync PR; generated changes are already present on main."
-            echo "Refused empty docs-only auto-merge."
+            echo "Refused empty generated-artifact auto-merge."
             exit 0
           fi
 
