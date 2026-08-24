@@ -55,7 +55,7 @@
   "database_role_topology": {
     "runtime": { "required": true, "rebuild_executor_available": true },
     "governance": { "required": true, "owns_migration_ledger": true, "rebuild_executor_available": true },
-    "runtime_persistence": { "required": true, "owns_tables": ["governed_tool_response_chunks"], "rebuild_executor_available": false, "blocking_reason": "role_specific_persistence_executor_not_configured" }
+    "runtime_persistence": { "required": true, "owns_tables": ["governed_tool_response_chunks"], "rebuild_executor_available": true, "executor": "hostinger-runtime-bootstrap", "repository_bundle_file": "persistence.schema.sql.gz", "same_cycle_postcondition_readback_required": true }
   },
   "tools": [
     { "key": "migration_catalog.inspect", "mutation": false, "database_required": false },

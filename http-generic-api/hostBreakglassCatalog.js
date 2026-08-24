@@ -34,6 +34,35 @@ function stableFileHash(filePath) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology }) {
+  if (runbookKey !== "database.empty_rebuild") return null;
+  const mutating = action === "apply_migration";
+  const steps = [
+    { key: "target.classify", mutation: false, zero_table_required: true },
+    { key: "schema_bundle.inspect", mutation: false, exact_sha_required: true },
+    ...Object.keys(databaseRoleTopology).filter((role) => databaseRoleTopology[role]?.required === true).map((role) => ({
+      key: `schema_bundle.rebuild_empty.${role}`,
+      role,
+      mutation: mutating,
+      executor_available: databaseRoleTopology[role]?.rebuild_executor_available === true,
+      zero_table_required: true,
+      same_cycle_readback_required: role === "runtime_persistence",
+    })),
+    { key: "canonical_seeds.apply", mutation: mutating, repository_owned: true },
+    { key: "migration_contract.apply", mutation: mutating, execution_allowlist_required: true },
+    { key: "database.postconditions.read", mutation: false, same_cycle_readback_required: true },
+    { key: "ledger.readback", mutation: false, same_cycle_readback_required: true },
+  ];
+  if (mutating && (!toolChain.includes("schema_bundle.rebuild_empty") || !toolChain.includes("schema_bundle.rebuild_runtime_persistence") || !toolChain.includes("migration_contract.apply"))) {
+    fail(403, "host_breakglass_runbook_execution_denied", "Runbook graph does not grant both repository-owned reconstruction and migration capabilities.");
+  }
+  if (mutating && steps.some((step) => step.executor_available === false)) {
+    fail(409, "host_breakglass_runbook_executor_missing", "A required database role has no reconstruction executor.");
+  }
+  const graph = { contract: "mad4b.host-breakglass-runbook-graph.v1", runbook_key: runbookKey, execution_mode: mutating ? "apply_runbook" : "inspect_runbook", grants_included: false, arbitrary_sql_allowed: false, destructive_nonempty_rebuild_allowed: false, steps };
+  return { ...graph, graph_sha256: stableHash(graph) };
+}
+
 function validateRepositoryBackupEvidence(relativePath, { expectedSha, targetKey }) {
   const absolute = path.resolve(HERE, "..", relativePath);
   const repositoryRoot = path.resolve(HERE, "..");
@@ -154,6 +183,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
   if (!targetKey.startsWith(environment.target_key_prefix || `${environment.environment}-`)) fail(403, "host_breakglass_environment_target_mismatch", "Target key does not belong to the selected environment.", { environment_key: environmentKey, target_key: targetKey });
   const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
+  const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {} });
   const migration = String(input.migration || "").trim();
   if (["dry_run", "apply_migration"].includes(action) && !migrationFiles(bootstrapContract).has(migration)) {
     fail(400, "host_breakglass_migration_not_cataloged", "Migration is not present in the repository-owned bootstrap contract.", { migration });
@@ -211,6 +241,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     target_key: targetKey,
     migration_governance: governanceEvidence,
     database_role_topology: catalog.database_role_topology,
+    runbook_execution_graph: executionGraph,
     migration: migration || null,
     capsule_path: capsulePath || null,
     capsule_sha256: capsuleSha256 || null,
@@ -251,6 +282,16 @@ export async function dispatchHostBreakglassPlan(plan, { fetchImpl = fetch, toke
   const [owner, repo] = plan.repository.split("/");
   const token = await tokenResolver({ action: {} , fetchImpl });
   const prior = await githubRequest({ token, pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(plan.dispatch_ref)}&per_page=20`, fetchImpl });
+  const durableTitle = `Host Breakglass ${plan.correlation_id}`;
+  const durableMatches = (prior.payload?.workflow_runs || []).filter((run) => run?.head_branch === plan.dispatch_ref && String(run.display_title || "") === durableTitle);
+  if (durableMatches.length > 1) fail(409, "host_breakglass_idempotency_ambiguous", "More than one workflow run is already bound to this correlation_id.");
+  if (durableMatches.length === 1) {
+    const run = durableMatches[0];
+    const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "recovered_from_github", workflow_run_id: String(run.id), workflow_dispatch_performed: false, database_mutation_performed: false, dispatched_at: run.created_at || null, prior_run_ids: [], durable_github_readback: true, secrets_included: false };
+    RUNS.set(plan.correlation_id, receipt);
+    const { prior_run_ids, ...publicReceipt } = receipt;
+    return { ...publicReceipt, replayed: true };
+  }
   const priorRunIds = (prior.payload?.workflow_runs || []).map((item) => String(item.id));
   const dispatchedAt = new Date().toISOString();
   await githubRequest({ token, method: "POST", pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/dispatches`, fetchImpl, body: { ref: plan.dispatch_ref, inputs: {

@@ -594,8 +594,17 @@ function readBundleManifest(manifestPath, expectedSha, contract, role = "runtime
     throw bootstrapError("bootstrap_bundle_safety_invalid", "Schema bundle safety declarations are incomplete");
   }
   const roleConfig = manifest.roles?.[role];
-  const expectedFile = role === "runtime" ? contract.baseline_bundle.runtime_role_file : contract.baseline_bundle.governance_role_file;
-  const requiredTables = role === "runtime" ? contract.baseline_bundle.required_runtime_tables : contract.baseline_bundle.required_governance_tables;
+  const roleContracts = {
+    runtime: { file: contract.baseline_bundle.runtime_role_file, tables: contract.baseline_bundle.required_runtime_tables },
+    governance: { file: contract.baseline_bundle.governance_role_file, tables: contract.baseline_bundle.required_governance_tables },
+    runtime_persistence: { file: contract.baseline_bundle.runtime_persistence_role_file, tables: contract.baseline_bundle.required_runtime_persistence_tables },
+  };
+  const roleContract = roleContracts[role];
+  if (!roleContract?.file || !Array.isArray(roleContract.tables) || roleContract.tables.length === 0) {
+    throw bootstrapError("bootstrap_bundle_role_contract_invalid", "Schema bundle role has no repository-owned execution contract", { role });
+  }
+  const expectedFile = roleContract.file;
+  const requiredTables = roleContract.tables;
   const bundleFile = roleConfig?.bundle_file || roleConfig?.file;
   if (!roleConfig || bundleFile !== expectedFile || !Array.isArray(roleConfig.tables) || roleConfig.tables.length === 0 || !Number.isInteger(Number(roleConfig.table_count)) || Number(roleConfig.table_count) !== roleConfig.tables.length) throw bootstrapError("bootstrap_bundle_role_invalid", "Schema bundle role is incomplete", { role });
   for (const table of requiredTables) if (!roleConfig.tables.includes(table)) throw bootstrapError("bootstrap_bundle_required_table_missing", "Schema bundle does not declare a required table", { role, table });
@@ -606,8 +615,8 @@ function readBundleManifest(manifestPath, expectedSha, contract, role = "runtime
   return { manifest, bundlePath, role: { ...roleConfig, file: bundleFile } };
 }
 
-export function validateSchemaBundleManifest(manifestPath, expectedSha, contract = readRuntimeBootstrapContract()) {
-  return readBundleManifest(manifestPath, expectedSha, contract, "runtime");
+export function validateSchemaBundleManifest(manifestPath, expectedSha, contract = readRuntimeBootstrapContract(), role = "runtime") {
+  return readBundleManifest(manifestPath, expectedSha, contract, role);
 }
 
 async function applyRoleBundle(connection, database, manifestPath, expectedSha, contract, role, mutationEvidence) {
@@ -634,6 +643,19 @@ async function applyRuntimeBundle(connection, database, manifestPath, expectedSh
 
 async function applyGovernanceBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence) {
   return applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "governance", mutationEvidence);
+}
+
+async function applyRuntimePersistenceBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence) {
+  const applied = await applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "runtime_persistence", mutationEvidence);
+  const recoveryMigration = contract.baseline_bundle.runtime_persistence_readback_migration;
+  if (!contract.postconditions?.[recoveryMigration]) {
+    throw bootstrapError("bootstrap_persistence_postcondition_contract_missing", "Runtime persistence has no repository-owned same-cycle readback contract");
+  }
+  const postconditions = await readIncidentPostconditions(connection, database, contract, recoveryMigration);
+  if (!postconditions.ready) {
+    throw bootstrapError("bootstrap_persistence_postcondition_failed", "Runtime persistence schema or required indexes are not ready after baseline application", { role: "runtime_persistence" });
+  }
+  return { ...applied, same_cycle_postconditions_ready: true, postcondition_migration: recoveryMigration };
 }
 
 async function applySeedFile(connection, repoRoot, entry, mutationEvidence) {
@@ -915,6 +937,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       const manifestPath = resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
       migrationResults.push(await applyRuntimeBundle(connection, target.database, manifestPath, source.sha, contract, mutationEvidence));
       migrationResults.push(await applyGovernanceBundle(ledgerConnection, target.governance_database || target.database, manifestPath, source.sha, contract, mutationEvidence));
+      migrationResults.push(await applyRuntimePersistenceBundle(connection, target.database, manifestPath, source.sha, contract, mutationEvidence));
       for (const seed of contract.baseline_bundle.required_seed_files) {
         migrationResults.push(await applySeedFile(connection, repoRoot, seed, mutationEvidence));
       }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -508,6 +509,34 @@ test("empty-database bundle is blocked when manifest or pinned artifact is absen
     roles: { runtime: { bundle_file: "runtime.schema.sql.gz", tables, table_count: tables.length, sha256: "0".repeat(64) } },
   }));
   assert.throws(() => validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract), (error) => error.code === "bootstrap_bundle_checksum_mismatch");
+});
+
+test("runtime persistence rebuild requires its exact-SHA repository bundle, required table, and pinned checksum", () => {
+  const directory = fs.mkdtempSync(path.join("/tmp", "runtime-persistence-bootstrap-test-"));
+  const bundlePath = path.join(directory, "persistence.schema.sql.gz");
+  const bundle = zlib.gzipSync("CREATE TABLE `governed_tool_response_chunks` (`chunk_id` VARCHAR(128));\n");
+  fs.writeFileSync(bundlePath, bundle);
+  const tables = contract.baseline_bundle.required_runtime_persistence_tables;
+  const manifestPath = path.join(directory, "staging-schema-bundle-manifest.json");
+  const manifest = {
+    contract: "mad4b.staging.schema-bundle-output.v1",
+    source_commit: EXPECTED_SHA,
+    schema_only: true,
+    production_accessed: false,
+    provider_accessed: false,
+    data_exported: false,
+    secrets_included: false,
+    roles: { runtime_persistence: { bundle_file: "persistence.schema.sql.gz", tables, table_count: tables.length, sha256: createHash("sha256").update(bundle).digest("hex") } },
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  const validated = validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, "runtime_persistence");
+  assert.equal(validated.role.file, "persistence.schema.sql.gz");
+  assert.equal(validated.role.tables.includes("governed_tool_response_chunks"), true);
+  assert.throws(() => validateSchemaBundleManifest(manifestPath, "a".repeat(40), contract, "runtime_persistence"), (error) => error.code === "bootstrap_bundle_source_mismatch");
+  manifest.roles.runtime_persistence.sha256 = "0".repeat(64);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  assert.throws(() => validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, "runtime_persistence"), (error) => error.code === "bootstrap_bundle_checksum_mismatch");
+  fs.rmSync(directory, { recursive: true, force: true });
 });
 
 test("error taxonomy separates missing schema from privilege denied", () => {

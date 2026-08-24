@@ -88,9 +88,10 @@
     "provider_accessed_required": false,
     "data_exported_required": false,
     "secrets_included_required": false,
-    "required_roles": ["runtime", "governance"],
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
     "runtime_role_file": "runtime.schema.sql.gz",
     "governance_role_file": "governance.schema.sql.gz",
+    "runtime_persistence_role_file": "persistence.schema.sql.gz",
     "required_runtime_tables": [
       "admin_platform_endpoint_tools",
       "tenant_platform_endpoint_tools",
@@ -102,6 +103,8 @@
       "json_assets"
     ],
     "required_governance_tables": ["governed_migration_ledger"],
+    "required_runtime_persistence_tables": ["governed_tool_response_chunks"],
+    "runtime_persistence_readback_migration": "1048_transport_response_chunk_schema_recovery.sql",
     "governance_database_optional": true,
     "governance_database_must_be_allowlisted_when_present": true,
     "role_split_baseline_requires_no_partial_pair": true,

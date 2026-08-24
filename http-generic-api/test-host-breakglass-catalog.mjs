@@ -3,7 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { buildHostBreakglassPlan, publicHostBreakglassCatalog, readHostBreakglassRun, readHostBreakglassToolContract, __hostBreakglassTest } from "./hostBreakglassCatalog.js";
+import { buildHostBreakglassPlan, dispatchHostBreakglassPlan, publicHostBreakglassCatalog, readHostBreakglassRun, readHostBreakglassToolContract, __hostBreakglassTest } from "./hostBreakglassCatalog.js";
 const SHA = "a".repeat(40);
 const MIGRATION = "20260815_custom_gpt_mcp_catalog_levels.sql";
 const REPO_ROOT = path.resolve(process.cwd(), "..");
@@ -32,6 +32,7 @@ test("tool contract exposes governed platform capabilities with capsule-only raw
   assert.equal(contract.tools["migration_catalog.inspect"].mutation, false);
   assert.equal(contract.tools["database_role_topology.inspect"].mutation, false);
   assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("zero_table_proof"), true);
+  assert.equal(contract.tools["schema_bundle.rebuild_runtime_persistence"].requires.includes("same_cycle_postcondition_readback"), true);
   assert.equal(Object.hasOwn(contract.tools, "shell.execute"), false);
 });
 test("full migration discovery never expands the Production execution allowlist", () => {
@@ -41,7 +42,8 @@ test("full migration discovery never expands the Production execution allowlist"
   assert.equal(catalog.migration_catalog.discovery_grants_execution, false);
   assert.equal(catalog.migration_catalog.production_auto_apply_allowed, false);
   assert.equal(catalog.migration_catalog.required_database_roles.includes("runtime_persistence"), true);
-  assert.equal(catalog.migration_catalog.missing_rebuild_role_executors.includes("runtime_persistence"), true);
+  assert.equal(catalog.migration_catalog.missing_rebuild_role_executors.includes("runtime_persistence"), false);
+  assert.equal(catalog.database_role_topology.runtime_persistence.rebuild_executor_available, true);
 });
 test("empty database rebuild is exact-sha and repository-contract bound", () => {
   const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "dry_run", expected_sha: SHA, migration: MIGRATION });
@@ -52,6 +54,9 @@ test("empty database rebuild is exact-sha and repository-contract bound", () => 
   assert.equal(plan.runbook_key, "database.empty_rebuild");
   assert.equal(plan.capability_grants.includes("schema_bundle.rebuild_empty"), false);
   assert.equal(plan.capability_grants.includes("schema_bundle.inspect"), true);
+  assert.equal(plan.runbook_execution_graph.steps.some((step) => step.key === "schema_bundle.rebuild_empty.runtime_persistence"), true);
+  assert.equal(plan.runbook_execution_graph.grants_included, false);
+  assert.match(plan.runbook_execution_graph.graph_sha256, /^[0-9a-f]{64}$/u);
 });
 test("apply plans receive only runbook-scoped mutation capabilities", () => {
   const repair = buildHostBreakglassPlan({ operation_key: "database.repair", runbook_key: "database.schema_repair", action: "apply_migration", expected_sha: SHA, migration: MIGRATION, confirmation: `APPLY_HOSTINGER_RUNTIME_MIGRATION:${SHA}:production-runtime:${MIGRATION}` });
@@ -60,6 +65,17 @@ test("apply plans receive only runbook-scoped mutation capabilities", () => {
   assert.equal(repair.denied_capabilities.includes("credential.export"), true);
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.inspect", runbook_key: "database.schema_repair", action: "plan", expected_sha: SHA }), /not allowed/u);
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", runbook_key: "database.schema_repair", action: "apply_grants", expected_sha: SHA, confirmation: `APPLY_HOSTINGER_RUNTIME_GRANTS:${SHA}:production-runtime:user:localhost` }), /does not grant/u);
+});
+test("empty rebuild exposes a hashed role-by-role execution graph without granting grants or arbitrary SQL", () => {
+  const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_migration", expected_sha: SHA, migration: MIGRATION, confirmation: `APPLY_HOSTINGER_RUNTIME_MIGRATION:${SHA}:production-runtime:${MIGRATION}` });
+  const graph = plan.runbook_execution_graph;
+  assert.equal(graph.execution_mode, "apply_runbook");
+  assert.deepEqual(graph.steps.filter((step) => step.role).map((step) => step.role), ["runtime", "governance", "runtime_persistence"]);
+  assert.equal(graph.steps.find((step) => step.role === "runtime_persistence").same_cycle_readback_required, true);
+  assert.equal(graph.grants_included, false);
+  assert.equal(graph.arbitrary_sql_allowed, false);
+  assert.equal(plan.capability_grants.includes("grant_contract.apply"), false);
+  assert.equal(plan.capability_grants.includes("schema_bundle.rebuild_runtime_persistence"), true);
 });
 test("runtime_env mutation and uncataloged migration fail closed", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", action: "apply_migration", expected_sha: SHA, target_source: "runtime_env", migration: MIGRATION }), /Target source is not allowed/u);
@@ -100,5 +116,28 @@ test("Production correlation status survives process-local receipt loss through 
   assert.equal(result.dispatch_status, "recovered_from_github");
   assert.equal(result.workflow_run_id, "77");
   assert.equal(result.durable_github_readback, true);
+});
+test("Production dispatch recovers an existing exact-correlation GitHub run after process restart without a second POST", async () => {
+  const correlation = "durable-dispatch-test";
+  __hostBreakglassTest.RUNS.clear();
+  const plan = buildHostBreakglassPlan({ operation_key: "database.inspect", action: "dry_run", expected_sha: SHA, migration: MIGRATION, correlation_id: correlation });
+  let postCount = 0;
+  const fetchImpl = async (_url, options = {}) => {
+    if (options.method === "POST") postCount += 1;
+    return { ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 91, head_branch: "main", display_title: `Host Breakglass ${correlation}`, created_at: new Date().toISOString() }] }) };
+  };
+  const receipt = await dispatchHostBreakglassPlan(plan, { fetchImpl, tokenResolver: async () => "token" });
+  assert.equal(postCount, 0);
+  assert.equal(receipt.replayed, true);
+  assert.equal(receipt.workflow_run_id, "91");
+  assert.equal(receipt.workflow_dispatch_performed, false);
+  assert.equal(receipt.durable_github_readback, true);
+});
+test("Production dispatch rejects ambiguous durable correlation matches without another dispatch", async () => {
+  const correlation = "ambiguous-dispatch-test";
+  __hostBreakglassTest.RUNS.clear();
+  const plan = buildHostBreakglassPlan({ operation_key: "database.inspect", action: "dry_run", expected_sha: SHA, migration: MIGRATION, correlation_id: correlation });
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [1, 2].map((id) => ({ id, head_branch: "main", display_title: `Host Breakglass ${correlation}` })) }) });
+  await assert.rejects(dispatchHostBreakglassPlan(plan, { fetchImpl, tokenResolver: async () => "token" }), (error) => error.code === "host_breakglass_idempotency_ambiguous");
 });
 test.after(() => { __hostBreakglassTest.RUNS.clear(); __hostBreakglassTest.MIGRATION_DISCOVERY_CACHE.clear(); fs.rmSync(SQL_PATH, { force: true }); fs.rmSync(SHELL_PATH, { force: true }); fs.rmSync(BACKUP_PATH, { force: true }); });

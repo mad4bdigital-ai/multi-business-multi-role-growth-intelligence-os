@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
+      "autopilot-portable-staging/manifest.json",
       "http-generic-api/config/runtime-bootstrap-contract.json",
       "http-generic-api/config/host-breakglass-catalog.json",
       "http-generic-api/config/host-breakglass-staging-contract.json",
@@ -100,11 +101,12 @@
             "Classify zero-table and nonempty databases before any baseline decision.",
             "Allow 225 and 1048 only in dry-run/verification mode and read back their canonical schema/readiness postconditions.",
             "Allow 20260815 only in apply_migration/apply_grants operation scopes; migration apply requires catalog prerequisite tables, checksum, statement count, ledger conflict checks, and declared postconditions, while grants require migration readiness and a separate confirmation.",
-            "For zero-table apply, require a same-SHA schema-only bundle manifest and runtime table-count/checksum pins; do not execute a generic migration directory.",
+            "For zero-table apply, require a same-SHA schema-only bundle manifest and separate runtime, governance, and runtime_persistence role table-count/checksum pins; execute the bounded runbook graph and read back governed_tool_response_chunks in the same cycle without executing a generic migration directory.",
             "Preflight all six grant tables before the first GRANT, apply only SELECT/INSERT/UPDATE, record completed tables, and require same-cycle readback without GRANT OPTION or schema/global write privileges.",
             "Expose typed bootstrap_not_configured/bootstrap_required status from startup and /deployment-info without opening a database connection.",
             "Keep the normal GPT tool and session-context routes DB-backed and protected.",
             "Resolve a repository-owned capability runbook and bind its exact tool contract SHA-256 before dispatch.",
+            "Before Production dispatch, recover any exact-correlation GitHub workflow run after process restart and reject ambiguous matches without issuing another POST.",
             "For command exceptions, accept repository capsules only; require exact capsule hash and typed confirmation, plus Production backup/restore evidence.",
             "Execute Production shell capsules through pinned known-hosts and key-only SSH, and return only bounded output hashes."
           ],
