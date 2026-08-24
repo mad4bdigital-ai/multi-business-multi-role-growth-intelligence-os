@@ -18,6 +18,12 @@ Production SQL ينفذ من GitHub Environment بحساب `MYSQL_BOOTSTRAP_*` �
 
 Shell يعمل في Staging داخل خدمة Docker Compose المحددة في عقد Staging، ويعمل في Production عبر SSH adapter مستقل عن DB يستخدم نفس credential roles الحاكمة الموجودة في المنصة. Production يحتاج private key وknown-hosts مثبتًا وbackup/restore evidence. لا يعاد stdout أو stderr إلى API؛ تعاد بصماتهما وأحجامهما وحالة الخروج فقط. التنفيذ يستخدم argv مع `shell:false` و`BatchMode=yes` و`StrictHostKeyChecking=yes` وtimeout محدود، ولا يستخدم `ssh-keyscan` وقت التنفيذ.
 
+### Trusted ingress في Production
+
+مسار OAuth/MCP في Production لا يُعتبر جاهزًا بمجرد وجود `x-forwarded-host` أو تفعيل `REMOTE_MCP_TRUSTED_INGRESS_ATTESTED`. هذه flags assertions انتقالية فقط. المسار الدائم الاختياري يستخدم `REMOTE_MCP_TRUSTED_INGRESS_MODE=signature` مع attestation موقّعة بـEd25519 من الـedge، ويثبت `issuer` و`audience` و`canonical_host` و`iat` و`exp` و`request_id` و`jti` و`key_id` و`deployment_sha`. يحفظ Origin المفتاح العام فقط، وتبقى private key في secret store الخاص بالـedge، مع تدوير مفاتيح وTTL قصير وسياسة replay واضحة. أي header غير موقّع أو host غير canonical أو signature منتهية أو SHA غير مطابقة تُرفض بـ`503` دون كشف payload أو سر.
+
+لا تُفعّل signature mode في Production قبل إثبات أن Cloudflare/الـedge قابل للبرمجة وأن Origin معزول عن direct-origin bypass. يجب اختبار التوقيع الصحيح، التزوير، expiry، clock skew، key rotation، unknown key، SHA mismatch، وcaller-supplied forwarded headers في Staging أولًا. إذا لم توجد طبقة Edge قابلة للتحكم، يبقى المسار fail-closed بدل تحويل flag إلى دليل ثقة.
+
 الكتالوج يفصل بيئتين: `staging_local_windows_docker` يعمل من Windows checkout محلي عبر Docker وlocal CLI ولا يملك Hostinger أو GitHub workflow authority، بينما `production_hostinger_autodeploy` يستخدم GitHub dispatch على `main` ثم يثبت رأس `Production` وHostinger Auto Deploy parity. أسماء credentials ووسيلة التنفيذ وbranch bindings منفصلة، وأي cross-environment dispatch مرفوض.
 
 هذا العقد يضيف مسارًا مستقلًا ومحدودًا لمعالجة قواعد runtime التي تكون ناقصة schema أو غير جاهزة للصلاحيات. وهو لا يضعف `/gpt/tools` أو `/gpt/tools/call` أو مسارات session-context؛ هذه المسارات تظل DB-backed ومحمية بطبقات authorization المعتادة.
