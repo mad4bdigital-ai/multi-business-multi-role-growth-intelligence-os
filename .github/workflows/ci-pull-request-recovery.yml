@@ -262,6 +262,17 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Verify pull-request event ref binding
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test -n "$PULL_REQUEST_HEAD_REF"
+          test -n "$PULL_REQUEST_BASE_REF"
+
       - name: Determine context-kernel hardcoding ratchet scope
         shell: bash
         env:
