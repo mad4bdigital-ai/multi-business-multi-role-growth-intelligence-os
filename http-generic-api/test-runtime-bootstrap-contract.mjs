@@ -193,6 +193,33 @@ test("runtime_env target discovery derives a no-secret binding for dry_run witho
   assert.equal(result.database_connection_performed, false);
 });
 
+test("runtime_env read-only dry-run reuses centralized DB credentials without granting mutation authority", () => {
+  const env = envFor();
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_PORT = "3307";
+  env.DB_USER = TARGET.principal;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.MYSQL_BOOTSTRAP_HOST;
+  delete env.MYSQL_BOOTSTRAP_PORT;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_USER;
+  delete env.MYSQL_BOOTSTRAP_PASSWORD;
+  const result = buildPlan(env, contract);
+  assert.equal(result.operation, "read_only");
+  assert.equal(result.credentials.credential_source, "runtime_read_only");
+  assert.equal(result.credentials.separate_from_runtime, false);
+  assert.equal(result.database_connection_performed, false);
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(result.migration_apply_performed, false);
+  assert.equal(result.grant_mutation_performed, false);
+
+  env.BOOTSTRAP_MODE = "apply_migration";
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
+});
+
 test("runtime_env target discovery is denied for apply modes", () => {
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
   env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";

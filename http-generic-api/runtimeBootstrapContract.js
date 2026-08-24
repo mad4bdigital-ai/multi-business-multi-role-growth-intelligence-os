@@ -182,6 +182,14 @@ function normalizeRuntimeEnvironmentInputs(env = {}) {
     if (!String(normalized.MYSQL_BOOTSTRAP_DATABASE || "").trim() && String(normalized.DB_NAME || "").trim()) {
       normalized.MYSQL_BOOTSTRAP_DATABASE = String(normalized.DB_NAME).trim();
     }
+    if (!String(normalized.MYSQL_BOOTSTRAP_PORT || "").trim() && String(normalized.DB_PORT || "").trim()) {
+      normalized.MYSQL_BOOTSTRAP_PORT = String(normalized.DB_PORT).trim();
+    }
+    if (!String(normalized.MYSQL_BOOTSTRAP_USER || "").trim() && String(normalized.DB_USER || "").trim()) {
+      normalized.MYSQL_BOOTSTRAP_USER = String(normalized.DB_USER).trim();
+      normalized.MYSQL_BOOTSTRAP_PASSWORD = String(normalized.DB_PASSWORD || "");
+      normalized.BOOTSTRAP_RUNTIME_READ_ONLY_IDENTITY = "true";
+    }
   }
   return normalized;
 }
@@ -351,18 +359,21 @@ export function validateBootstrapCredentials(env, { requirePassword = true, targ
   const bootstrapUser = String(env.MYSQL_BOOTSTRAP_USER).trim();
   const runtimeUser = String(env.DB_USER || "").trim();
   const runtimePassword = String(env.DB_PASSWORD || "");
-  if (runtimeUser && bootstrapUser === runtimeUser) {
+  const runtimeReadOnlyIdentity = env.BOOTSTRAP_RUNTIME_READ_ONLY_IDENTITY === "true"
+    && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === RUNTIME_ENV_TARGET_SOURCE
+    && String(env.BOOTSTRAP_MODE || "").trim().toLowerCase() === "dry_run";
+  if (runtimeUser && bootstrapUser === runtimeUser && !runtimeReadOnlyIdentity) {
     throw bootstrapError("bootstrap_credential_reuse_denied", "MYSQL_BOOTSTRAP_USER must be separate from DB_USER");
   }
-  if (target?.principal && bootstrapUser === String(target.principal).trim()) {
+  if (target?.principal && bootstrapUser === String(target.principal).trim() && !runtimeReadOnlyIdentity) {
     throw bootstrapError("bootstrap_principal_collision_denied", "MYSQL_BOOTSTRAP_USER must be separate from the target runtime principal");
   }
-  if (runtimePassword && String(env.MYSQL_BOOTSTRAP_PASSWORD) === runtimePassword) {
+  if (runtimePassword && String(env.MYSQL_BOOTSTRAP_PASSWORD) === runtimePassword && !runtimeReadOnlyIdentity) {
     throw bootstrapError("bootstrap_credential_reuse_denied", "MYSQL_BOOTSTRAP_PASSWORD must be separate from DB_PASSWORD");
   }
   const port = Number(env.MYSQL_BOOTSTRAP_PORT || 3306);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw bootstrapError("bootstrap_port_invalid", "MYSQL_BOOTSTRAP_PORT is invalid");
-  return { host_configured: true, user_configured: true, password_configured: requirePassword, port, separate_from_target_principal: target?.principal ? bootstrapUser !== String(target.principal).trim() : null };
+  return { host_configured: true, user_configured: true, password_configured: requirePassword, port, separate_from_runtime: !runtimeReadOnlyIdentity, credential_source: runtimeReadOnlyIdentity ? "runtime_read_only" : "dedicated_bootstrap", separate_from_target_principal: target?.principal ? bootstrapUser !== String(target.principal).trim() : null };
 }
 
 export function selectMigration(contract, migration, mode) {
@@ -790,7 +801,7 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   const credentials = validateBootstrapCredentials(env, { requirePassword: false, target });
   if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration: migration.file }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: true, separate_from_target_principal: credentials.separate_from_target_principal }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
 }
 
 export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory } = {}) {

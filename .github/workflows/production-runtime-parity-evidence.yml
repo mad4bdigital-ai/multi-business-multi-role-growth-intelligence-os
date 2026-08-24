@@ -266,6 +266,19 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve database from the existing governed target allowlist
+        if: inputs.bootstrap_target_source == 'repository_allowlist'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          selected_database="$(jq -er --arg key "${BOOTSTRAP_TARGET_KEY}" '[.[] | select(.key == $key)] | if length == 1 then .[0].database else error("exactly one governed target is required") end' <<< "${RUNTIME_BOOTSTRAP_TARGETS_JSON}")"
+          [[ "${selected_database}" =~ ^[A-Za-z0-9_-]{1,128}$ ]]
+          if [[ -n "${BOOTSTRAP_TARGET_DATABASE}" && "${BOOTSTRAP_TARGET_DATABASE}" != "${selected_database}" ]]; then
+            echo '{"ok":false,"code":"bootstrap_target_database_mismatch","secrets_included":false}' >&2
+            exit 1
+          fi
+          printf 'BOOTSTRAP_TARGET_DATABASE=%s\n' "${selected_database}" >> "${GITHUB_ENV}"
+
       - name: Validate Host Breakglass catalog binding
         if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
         env:
@@ -383,6 +396,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          export MYSQL_BOOTSTRAP_DATABASE="${BOOTSTRAP_TARGET_DATABASE}"
           node http-generic-api/scripts/hostinger-runtime-bootstrap.mjs
       - name: Execute repository-owned raw SQL capsule exception
         if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'execute_sql_capsule'
@@ -398,6 +412,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          export MYSQL_BOOTSTRAP_DATABASE="${BOOTSTRAP_TARGET_DATABASE}"
           node http-generic-api/scripts/host-breakglass-capsule-executor.mjs > "${BOOTSTRAP_RESULT_PATH}"
       - name: Execute repository-owned Hostinger shell capsule exception
         if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'execute_shell_capsule'
