@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "feature_key": "collation-governance-runtime-persistence-wiring",
-  "title": "Engine-aware collation governance and dedicated runtime persistence wiring",
+  "title": "Engine-aware collation, ENUM, and text-width governance with dedicated runtime persistence wiring",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -26,7 +26,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Block unsupported or conflicting database collations and enum seed literals before migration apply, while preserving governed response chunk persistence through an independently configured runtime persistence pool.",
+      "objective": "Block unsupported or conflicting database collations, enum seed literals, and text-width overflows before migration apply, while preserving governed response chunk persistence through an independently configured runtime persistence pool.",
       "e2e_journeys": [
         {
           "id": "governance-preflight-to-dedicated-chunk-readback",
@@ -42,6 +42,7 @@
             "When a syntactically valid base SHA is unavailable after a force-push or non-ancestor update, retry the collation diff against the exact head parent rather than failing open or blocking unrelated work.",
             "Reject unknown engines, implicit defaults, or mixed join-key collations before apply.",
             "Project MariaDB ENUM domains across the complete ordered migration chain and reject unsupported INSERT, REPLACE, or UPDATE literals before apply.",
+            "Project MariaDB bounded text widths across the complete ordered migration chain and reject literal INSERT, REPLACE, or UPDATE overflow before apply.",
             "Resolve the dedicated runtime persistence pool for governed response chunks.",
             "Verify least-privilege readiness and same-source chunk readback or fail closed when configuration is absent."
           ],
@@ -52,7 +53,8 @@
             "An unavailable but syntactically valid CI base SHA fails closed only if the exact head-parent fallback also fails; otherwise the collation guard evaluates that bounded parent diff.",
             "Runtime persistence uses RUNTIME_PERSISTENCE_DB_* identity rather than DB_USER fallback.",
             "Missing dedicated runtime persistence configuration returns a bounded 503 and no durable mutation.",
-            "ENUM-domain/seed mismatches fail closed before Docker or any database connection."
+            "ENUM-domain/seed mismatches fail closed before Docker or any database connection.",
+            "Text-width/literal overflow mismatches fail closed before Docker or any database connection."
           ],
           "tests": [
             {
@@ -64,6 +66,13 @@
             },
             {
               "id": "mariadb-collation-ci-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "ordered-text-width-chain-guard",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-mariadb-collation-ci-guard.mjs",
@@ -95,10 +104,13 @@
             "http-generic-api/config/database-engine-collation-policy.json",
             "http-generic-api/databaseCollationPolicyGuard.js",
             "http-generic-api/databaseEnumSeedPolicyGuard.js",
+            "http-generic-api/databaseTextWidthPolicyGuard.js",
+            "http-generic-api/migrations/204_sprint67_z_mariadb_runtime_dispatch_text_width_alignment.sql",
             "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-contract-governance.mjs",
             "http-generic-api/config/staging-migration-contract-policy.json",
+            "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/test-mariadb-collation-ci-guard.mjs",
             ".github/workflows/ci.yml",
             "http-generic-api/scripts/governed-migration-runner.mjs",
