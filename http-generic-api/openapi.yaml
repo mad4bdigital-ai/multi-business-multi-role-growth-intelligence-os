@@ -6131,11 +6131,10 @@ paths:
 
   /deployment-info/runtime-bootstrap-dry-run:
     post:
-      tags: [dev-diagnostics, admin-control]
+      tags: [dev-diagnostics]
       security:
         - backendApiKeyAuth: []
       operationId: runRuntimeBootstrapDryRunFromHostEnv
-      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Run hash-bound runtime bootstrap dry-run from Hostinger environment
       description: Authenticated read-only bootstrap preflight that derives DB_NAME/DB_USER from the running Hostinger process environment. It never accepts a database name from the request, never permits apply, and fails closed before database connection when bootstrap credentials or runtime binding are incomplete.
@@ -6179,11 +6178,10 @@ paths:
 
   /deployment-info/runtime-binding:
     get:
-      tags: [dev-diagnostics, admin-control]
+      tags: [dev-diagnostics]
       security:
         - backendApiKeyAuth: []
       operationId: getRuntimeDeploymentBinding
-      x-custom-gpt-surfaces: [admin_core]
       summary: Read hash-only runtime database binding evidence
       description: Authenticated read-only evidence of DB_NAME/GOVERNANCE_DB_NAME/DB_USER binding hashes from the running process environment. Never exposes raw names, credentials, or SQL and never opens a database connection.
       responses:

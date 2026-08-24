@@ -6,11 +6,11 @@
     "openapi/openapi.tenant-gpt.auth.yaml",
     "openapi/openapi.tenant-gpt.activation.yaml"
   ],
-  "operation_count": 35,
-  "unbound_operation_count": 35,
+  "operation_count": 34,
+  "unbound_operation_count": 34,
   "all_operations_accounted_for": true,
   "write_activation_allowed": false,
-  "source_fingerprint_sha256": "2b48b1c42325a6630954b95bd76c8c961eb0de77ef9758f4348cac1b021eb698",
+  "source_fingerprint_sha256": "1ad131c4934e6159af801c94fa8d2b57b1a67b32767244d9b0ab16893c46f591",
   "operations": [
     {
       "surface": "openapi.tenant-gpt.auth",
@@ -156,20 +156,6 @@
       "method": "POST",
       "path": "/admin/system/tools/call",
       "operation_id": "callAdminSystemTool",
-      "effect_class": "internal_write",
-      "declared_security_scopes": [],
-      "policy_status": "unbound",
-      "required_scope": null,
-      "reason": "No write scope is promoted; operation remains explicitly denied until independent resource-operation approval, capability, lease, and readback policy is reviewed.",
-      "owner": "platform-governance",
-      "review_after": "2026-09-30"
-    },
-    {
-      "surface": "openapi.custom-gpt.auth-dispatcher",
-      "artifact": "openapi/openapi.custom-gpt.auth-dispatcher.yaml",
-      "method": "POST",
-      "path": "/deployment-info/runtime-bootstrap-dry-run",
-      "operation_id": "runRuntimeBootstrapDryRunFromHostEnv",
       "effect_class": "internal_write",
       "declared_security_scopes": [],
       "policy_status": "unbound",

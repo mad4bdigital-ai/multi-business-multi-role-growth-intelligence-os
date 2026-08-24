@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7300,
-    "bytes": 71343961,
-    "lines": 1669650,
+    "bytes": 71319717,
+    "lines": 1669028,
     "directories": 266,
     "categories": 13
   },
@@ -13536,7 +13536,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "726671eb2770cecdabdc6b5294d793b94af37cccd41cb8c1046644ddbaecb67d",
+      "sha256": "b88b1ed2c6492a721542689f8e4b851bc29d37b9cd68d4ebf74f55bd0320af16",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13930,9 +13930,9 @@
       "path": "canonicals/openapi/custom-gpt-surfaces.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 59941,
-      "lines": 1049,
-      "sha256": "7c331ff14d63738ff43f32453f4a2b520f1a3d8195a0c19c42e5904df03867a0",
+      "bytes": 59421,
+      "lines": 1041,
+      "sha256": "866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34370,7 +34370,7 @@
       "extension": ".json",
       "bytes": 15158,
       "lines": 615,
-      "sha256": "17fe9ed3a78a94ca3d275eff2609fbb8ad615d93c0e8a73378c14527772430e5",
+      "sha256": "1d526b1f28c2de11daae0966a5451b144e8faf6ace6de14f08d485efc159f834",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34733,7 +34733,7 @@
       "extension": ".json",
       "bytes": 743,
       "lines": 26,
-      "sha256": "efc8372456ee4ac9de8172b39d8ca5fed0281fb672534712658f407956c70205",
+      "sha256": "d78d24d148c5d89a4d23147b453f901fe424d1e68e36e5c87dbd71e746e09a2d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34744,7 +34744,7 @@
       "extension": ".json",
       "bytes": 15158,
       "lines": 615,
-      "sha256": "17fe9ed3a78a94ca3d275eff2609fbb8ad615d93c0e8a73378c14527772430e5",
+      "sha256": "1d526b1f28c2de11daae0966a5451b144e8faf6ace6de14f08d485efc159f834",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -40134,7 +40134,7 @@
       "extension": ".json",
       "bytes": 3483708,
       "lines": 98228,
-      "sha256": "bb8ffb681eb3129b313815d9d07ec6a6a1f905727605dd55ce6ae8a0fb731406",
+      "sha256": "8e8e5b2a2a68c16f1cc4f1ae43415934ee2baae7c1674058cf6d560f38dfb7b2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50505,9 +50505,9 @@
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 997202,
-      "lines": 23115,
-      "sha256": "21be5ccf848adb8bec4356b78747c1ec9093125edf8bdd3dcc3ed99b1ac3627d",
+      "bytes": 997088,
+      "lines": 23113,
+      "sha256": "35568019a8e9009c4d1632186570be27d14173757bbd3e56a535cfeaa36d7449",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50714,9 +50714,9 @@
       "path": "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "category": "api-contracts",
       "extension": ".json",
-      "bytes": 26481,
-      "lines": 639,
-      "sha256": "568f1da37d38e7f8e5ea4b1e34188f4d106f3bd45411f24a8c3e60cd4b6269b2",
+      "bytes": 25801,
+      "lines": 625,
+      "sha256": "e7cef7c490f3cfe57e21a1357c992424d7b3c491f9bb48e117a1dbdad7701038",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50738,7 +50738,7 @@
       "extension": ".yaml",
       "bytes": 57101,
       "lines": 1832,
-      "sha256": "e0e13cf4e46bc6283be7662abb74e5692ade6749fc43db98c4c98604318a2883",
+      "sha256": "2be33bbd067ab51802ae98d5f5411585041ef6906e1c84a72e6c5060e78adaef",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50749,7 +50749,7 @@
       "extension": ".yaml",
       "bytes": 57092,
       "lines": 1832,
-      "sha256": "1abc5fe27c99a8ea9824bd75aacaf4b763b0a9be5cd83e8bd1e7ca70c90e3bcd",
+      "sha256": "deecd4e3260239a892b923764ff00fe3f7bff5e2cbcb67c3cfb53ba4543a147d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50760,7 +50760,7 @@
       "extension": ".yaml",
       "bytes": 56997,
       "lines": 1832,
-      "sha256": "63a83f8d900620993521146fd3951381623922e49be69e55524dcaa543c70504",
+      "sha256": "a7d7df5b3d74c8b55793c35c0f10776bb8a197924bc760720941f983dbdcacdf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50769,9 +50769,9 @@
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 81088,
-      "lines": 2272,
-      "sha256": "86151603b69003797e9711d553636486282028c26eafbfdd17da5baceaffb41f",
+      "bytes": 73390,
+      "lines": 2072,
+      "sha256": "e2a26ada49391966dd8f03c7babf1a4786e314929b0618d958e5597f41cb7a6a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50780,9 +50780,9 @@
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 81073,
-      "lines": 2272,
-      "sha256": "c39273587a166640876993ed94adfb5fecca96e785d54901a5b1471d33a6ace8",
+      "bytes": 73375,
+      "lines": 2072,
+      "sha256": "041947599b39b9701118b9947c78f8d00115ebda0d9f76574f77224d940f059b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50791,9 +50791,9 @@
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 80988,
-      "lines": 2272,
-      "sha256": "00efa1fd9e44a95af6f16901cccf8b37f54103b53a790e38b81118375e794a04",
+      "bytes": 73290,
+      "lines": 2072,
+      "sha256": "3438c24eae82b9dbaff8676a50b353071575d6eab466d3c74c4baa0fb3303999",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50870,7 +50870,7 @@
       "extension": ".yaml",
       "bytes": 111868,
       "lines": 3399,
-      "sha256": "de98a37c0ffb91c431d71b08ce404c436905b5e72440588e4a629ee566f12b48",
+      "sha256": "3077486624a0380716292e304ae85adcaaae429a467025b57727b43a8b66ef0c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50881,7 +50881,7 @@
       "extension": ".yaml",
       "bytes": 111878,
       "lines": 3399,
-      "sha256": "0f5d912bfc824c1a9d6a8c3be825b5bb2f693725b0eb71dcac12354e11cf0621",
+      "sha256": "02a5420dd9c026e981ecc494a67626405386298cea36ea68fe7912f80acf8258",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50892,7 +50892,7 @@
       "extension": ".yaml",
       "bytes": 111764,
       "lines": 3399,
-      "sha256": "b4a2449c87ed33e1ee5497d86cfdb2db0f70469fbdaaf546f1cba556d9e5566e",
+      "sha256": "1803439c5ea14fb73e529110e2906716925cb2e17bd3b08922861d982fc2773d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50903,7 +50903,7 @@
       "extension": ".yaml",
       "bytes": 142240,
       "lines": 3805,
-      "sha256": "ebd41994bb069d00a17e2fdc6594eb6e63c4996cd239497083b523addce996c9",
+      "sha256": "0300e5623a59ef8cbaed0cc6adda8032dfe721e446527bd930562f05ac6306c1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50914,7 +50914,7 @@
       "extension": ".yaml",
       "bytes": 142226,
       "lines": 3805,
-      "sha256": "d322326a34eef5aa2573c01a2819aa153da5db5577aba095c0111eec5cbbc46b",
+      "sha256": "e930d43f033f16a3b1bb0e99b1b64acf0d540e7b8ff11bbb3b5ad220c4399e08",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50925,7 +50925,7 @@
       "extension": ".yaml",
       "bytes": 142198,
       "lines": 3805,
-      "sha256": "a64676609554a928088f6f60376ae23166cf9ea6eea08e7d48efe190cc7fe49e",
+      "sha256": "9465280c8caed93a0790852b3434ac165912b6107ecd86dd22f1012e6fd1c047",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51121,9 +51121,9 @@
       "path": "http-generic-api/openapi/source-operation-coverage.baseline.json",
       "category": "api-contracts",
       "extension": ".json",
-      "bytes": 26177,
-      "lines": 393,
-      "sha256": "73a02826da160de0193e3fcb847fa8b0ce058ee5b8d2b1519b1b07ade9256e90",
+      "bytes": 26341,
+      "lines": 395,
+      "sha256": "a12446eeba8dac4a91e85a5297ffbf9dfc5b34e986c0e9ee4d0474a3cfeb281c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85894,7 +85894,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "d45944d201e6ffc1b0c6262ac069648112f265bfc8c01fa5a060b4b7896e4f35",
+      "sha256": "f58e664c260f9964c01feed68d924ae9b7c3a69d2d19ad13ea9d9fb383a819fc",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -85905,7 +85905,7 @@
       "extension": ".json",
       "bytes": 270767,
       "lines": 6428,
-      "sha256": "1db0a7d68a628418f9f8685370d04c690205f6e67709be450f9be6d8394c5733",
+      "sha256": "1232aa28015c269555a19d8fecc0b4ae412712167bbc8cb25b9113e016cd1724",
       "mode": "644",
       "executable": false,
       "generated": false
