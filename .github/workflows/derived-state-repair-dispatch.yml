@@ -82,8 +82,11 @@ jobs:
           case "$target_ref" in
             main|Production) echo "Protected branch mutation target is forbidden: $target_ref" >&2; exit 1 ;;
           esac
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$base_sha"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${head_sha}" --jq '.behind_by')" = "0"
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          compare_behind="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${head_sha}" --jq '.behind_by')"
+          printf 'validated_main_sha=%s\nvalidated_report_base_sha=%s\nvalidated_source_head_sha=%s\nvalidated_compare_behind=%s\n' "$main_sha" "$base_sha" "$head_sha" "$compare_behind"
+          test "$main_sha" = "$base_sha"
+          test "$compare_behind" = "0"
           authority="$(jq -c '.repair_authorities[0] // null' "$report")"
           if [[ "$authority" == "null" ]]; then
             echo "eligible=false" >> "$GITHUB_OUTPUT"
