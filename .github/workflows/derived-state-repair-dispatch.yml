@@ -96,7 +96,7 @@ jobs:
           printf 'validated_pr_state=%s\nvalidated_base_ref=%s\nvalidated_head_repo=%s\nvalidated_base_repo=%s\nvalidated_expected_repo=%s\nvalidated_head_repo_fork=%s\nvalidated_pr_head_sha=%s\nvalidated_report_head_sha=%s\n' "$pr_state" "$base_ref" "$normalized_head_repo" "$normalized_base_repo" "$expected_repo" "$head_repo_fork" "$pr_head_sha" "$head_sha"
           test "$pr_state" = "open"
           test "$base_ref" = "main"
-          test "$head_repo_fork" = "false"
+          test "$normalized_head_repo" = "$normalized_base_repo"
           test "$pr_head_sha" = "$head_sha"
           target_ref="$(jq -er '.head.ref' "$pr" | tr -d '\r')"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
