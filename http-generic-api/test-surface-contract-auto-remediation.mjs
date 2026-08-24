@@ -8,6 +8,10 @@ import {
   upsertGeneratedBlock,
   validateManualAttestation,
 } from "./scripts/surface-contract-auto-remediator.mjs";
+import {
+  assertOwnerCanWrite,
+  loadGeneratedArtifactRegistry,
+} from "../.github/ops/generated-artifact-governance.mjs";
 
 const safeItem = {
   migration_file: "9999_safe_surface.sql",
@@ -168,18 +172,35 @@ assert(discovery.includes("canonicalizeChecksumText"), "discovery and remediator
 assert(discovery.includes("utf8_lf_v1"), "discovery must expose the checksum canonicalization contract");
 assert(discovery.includes("verified_static_no_external_side_effects"));
 
+const registry = loadGeneratedArtifactRegistry();
+for (const allowedPath of [
+  "Updating Registry Patch Index.md",
+  "deployment_parity_checklist.md",
+  "docs/ai-docs-agent-governance.md",
+  "docs/change-documentation-governance.md",
+  "docs/surface-contract-governance-dashboard.json",
+  "docs/surface-contract-governance-dashboard.md",
+]) {
+  assertOwnerCanWrite("surface_contract_remediator", allowedPath, registry);
+}
+assert.throws(
+  () => assertOwnerCanWrite("surface_contract_remediator", "specs/014-example/manifest.json", registry),
+  /unknown|unregistered/i,
+  "Spec manifests must remain outside generic repository-only auto-remediation authority",
+);
+
 const workflow = readFileSync("../.github/workflows/surface-contract-auto-remediation.yml", "utf8");
 assert(workflow.includes("schedule:"), "automation must run on a schedule");
 assert(workflow.includes('gh workflow run surface-contract-auto-remediation.yml \\\n            --repo "${GITHUB_REPOSITORY}"'), "dispatch must bind the repository explicitly when no checkout exists");
-assert(workflow.includes("Enforce documentation and generated-evidence mutation boundary"));
-assert(workflow.includes("git status --porcelain=v1 -z"), "workflow must parse changed paths with NUL delimiters");
+assert(workflow.includes("Enforce registered documentation and generated-evidence mutation boundary"));
+assert(workflow.includes("git status --porcelain=v1 -z --untracked-files=all"), "workflow must parse tracked and untracked paths with NUL delimiters");
 assert(workflow.includes('changed+=("${entry:3}")'), "workflow must preserve spaces in repository paths");
 assert(!workflow.includes("git status --porcelain | sed"), "quoted porcelain paths must not be parsed with sed");
-assert(workflow.includes("specs/[0-9][0-9][0-9]-*/manifest.json"), "workflow must allow only numbered Spec Kit manifest evidence");
-assert(workflow.includes("':(glob)specs/[0-9][0-9][0-9]-*/manifest.json'"), "workflow must stage the same narrow Spec Kit manifest pathspec");
+assert(!workflow.includes("specs/[0-9][0-9][0-9]-*/manifest.json"), "generic Surface remediation must not mutate Spec manifests with inconsistent environment impact");
 assert(!workflow.includes("specs/*/manifest.json"), "workflow must not allow broad single-level Spec Kit manifests");
 assert(!workflow.includes("specs/**/manifest.json"), "workflow must not allow recursive Spec Kit manifests");
 assert(workflow.includes("git add --"), "workflow must terminate git options before governed pathspecs");
+assert(workflow.includes("generated-artifact-governance.mjs"), "every generated Surface path must be authorized by the central registry");
 assert(workflow.includes("auto_merge_eligible"));
 assert(workflow.includes("id: gap_gate"), "workflow must evaluate the new-gap gate separately from generated-state validation");
 assert(workflow.includes("node scripts/surface-contract-gap-triage.mjs --check\n"), "generated triage outputs must remain a blocking consistency check");
@@ -188,15 +209,16 @@ assert(workflow.includes('grep -Fq "surface-contract-gap-triage: blocking new hi
 assert(workflow.includes('NEW_GAP_BLOCKING: ${{ steps.gap_gate.outputs.blocking }}'), "new-gap evidence must be carried into PR and merge decisions");
 assert(workflow.includes('[ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]'), "new gaps must prevent automated merge");
 assert(workflow.includes('exit "$status"'), "unexpected triage failures must remain blocking");
-assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}'), "surface remediation must prefer the trusted dedicated identity for PR creation");
-assert(workflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}'), "surface remediation branch pushes must use the same trusted identity as PR creation");
-assert(workflow.includes("REPO_AUTOSYNC_TOKEN is required for trusted follow-up CI"), "safe remediation must explain why a default-token PR cannot auto-merge");
-assert(workflow.includes("--jq '.allow_auto_merge'"), "surface remediation must read back the repository auto-merge setting");
+assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "surface remediation must require the trusted dedicated identity for PR creation");
+assert(workflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "surface remediation checkout must use the trusted identity");
+assert(!workflow.includes("REPO_AUTOSYNC_TOKEN || github.token"), "surface remediation must never fall back to GITHUB_TOKEN for writes");
+assert(workflow.includes("github-followup-automerge-readiness.mjs"), "safe remediation must verify protected main and server-side required checks before auto-merge");
 assert(workflow.includes("Skipping stale surface remediation before branch creation"), "surface remediation must reject stale main before branch mutation");
 assert(workflow.includes("Closing stale surface remediation PR"), "surface remediation must close an exact-head PR if main advances before registration");
-assert(workflow.includes('if gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then'), "surface remediation must register auto-merge against the exact reviewed head");
+assert(workflow.includes('if ! gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then'), "surface remediation must fail closed when exact-head auto-merge registration fails");
+assert(workflow.includes("::error::Failed to register exact-head governed auto-merge."), "auto-merge registration failure must be an error rather than a warning");
+assert(!workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "unexpected registration failure must not be downgraded to a warning");
 assert(!workflow.includes('gh workflow run ci.yml --ref "$BRANCH" || true'), "surface remediation must not mask a missing trusted pull-request CI event with an ignored manual dispatch");
-assert(workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "workflow must leave a clear governed-review fallback warning");
 assert(!workflow.includes("http-generic-api/migrations/*.sql\n          git add"), "workflow must not stage migration SQL");
 
 console.log("surface contract auto remediation tests passed");
