@@ -18,6 +18,7 @@
       ".github/workflows/surface-contract-auto-remediation.yml",
       "docs/automation-overlap-governance.md",
       "docs/repo-autosync-permissions.md",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
       "http-generic-api/test-automation-overlap-analyzer.mjs",
