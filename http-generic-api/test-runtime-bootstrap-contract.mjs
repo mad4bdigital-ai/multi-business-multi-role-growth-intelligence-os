@@ -12,6 +12,7 @@ import {
   classifyMysqlError,
   runBootstrap,
   normalizeMode,
+  resolveRoleBootstrapCredentials,
   sanitizeBootstrapError,
   selectMigration,
   validateSchemaBundleManifest,
@@ -241,6 +242,191 @@ test("runtime_env target discovery is denied for apply modes", () => {
   delete env.BOOTSTRAP_TARGET_DATABASE;
   delete env.MYSQL_BOOTSTRAP_DATABASE;
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
+});
+
+
+function hostLocalRoleEnv(mode = "dry_run", operation = "database.repair") {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", mode);
+  for (const key of ["RUNTIME_BOOTSTRAP_TARGETS_JSON", "BOOTSTRAP_TARGET_DATABASE", "MYSQL_BOOTSTRAP_HOST", "MYSQL_BOOTSTRAP_PORT", "MYSQL_BOOTSTRAP_USER", "MYSQL_BOOTSTRAP_PASSWORD", "MYSQL_BOOTSTRAP_DATABASE"]) delete env[key];
+  return {
+    ...env,
+    BOOTSTRAP_TARGET_SOURCE: "host_local_role_env",
+    HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: "true",
+    HOST_BREAKGLASS_OPERATION: operation,
+    DB_NAME: TARGET_DATABASE,
+    DB_HOST: "db.internal",
+    DB_PORT: "3306",
+    DB_USER: TARGET.principal,
+    DB_PASSWORD: "runtime-secret-for-test-only",
+    GOVERNANCE_DB_NAME: "growth_governance",
+    GOVERNANCE_DB_USER: "governance_user",
+    GOVERNANCE_DB_PASSWORD: "governance-secret-for-test-only",
+    RUNTIME_PERSISTENCE_DB_NAME: "growth_persistence",
+    RUNTIME_PERSISTENCE_DB_USER: "persistence_user",
+    RUNTIME_PERSISTENCE_DB_PASSWORD: "persistence-secret-for-test-only",
+  };
+}
+
+test("host-local role discovery binds three existing Hostinger identities without copying secrets to GitHub", () => {
+  const env = hostLocalRoleEnv();
+  const result = buildPlan(env, contract);
+  assert.equal(result.target_binding.source, "host_local_role_env");
+  assert.equal(result.credentials.credential_source, "host_local_role_scoped");
+  assert.deepEqual(result.credentials.role_credentials.map((entry) => entry.role), ["runtime", "governance", "runtime_persistence"]);
+  assert.equal(result.target_binding.governance_database_sha256, sha256Hex("growth_governance"));
+  assert.equal(result.target_binding.runtime_persistence_database_sha256, sha256Hex("growth_persistence"));
+  const evidence = JSON.stringify(result);
+  for (const value of [env.DB_USER, env.GOVERNANCE_DB_USER, env.RUNTIME_PERSISTENCE_DB_USER, env.DB_PASSWORD, env.GOVERNANCE_DB_PASSWORD, env.RUNTIME_PERSISTENCE_DB_PASSWORD]) assert.equal(evidence.includes(value), false);
+});
+
+test("host-local role recovery requires explicit authorization, a bounded operation, and host-side execution", () => {
+  const unauthorized = hostLocalRoleEnv();
+  delete unauthorized.HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS;
+  assert.throws(() => buildPlan(unauthorized, contract), (error) => error.code === "bootstrap_host_local_role_authorization_missing");
+  const arbitrary = hostLocalRoleEnv("dry_run", "host.command_capsule");
+  assert.throws(() => buildPlan(arbitrary, contract), (error) => error.code === "bootstrap_host_local_role_operation_denied");
+  const github = hostLocalRoleEnv();
+  github.GITHUB_ACTIONS = "true";
+  assert.throws(() => buildPlan(github, contract), (error) => error.code === "bootstrap_host_local_role_transport_denied");
+});
+
+test("host-local access repair allows grants only with an independent typed grant confirmation", () => {
+  const env = hostLocalRoleEnv("apply_grants");
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_confirmation_mismatch");
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:${TARGET.principal}:localhost`;
+  const plan = buildPlan(env, contract);
+  assert.equal(plan.operation, "grants");
+  assert.equal(plan.credentials.credential_source, "host_local_role_scoped");
+  const rebuild = hostLocalRoleEnv("apply_grants", "database.rebuild_empty");
+  rebuild.BOOTSTRAP_GRANTS_CONFIRMATION = env.BOOTSTRAP_GRANTS_CONFIRMATION;
+  assert.throws(() => buildPlan(rebuild, contract), (error) => error.code === "bootstrap_host_local_grant_operation_denied");
+});
+
+
+test("host-local grant exception executes only repository-allowlisted privileges under separate approval", async () => {
+  const env = hostLocalRoleEnv("apply_grants");
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:${TARGET.principal}:localhost`;
+  const opened = new Map();
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => {
+    const connection = fakeConnection({ ledgerFound: true });
+    opened.set(role, connection);
+    return connection;
+  } });
+  assert.equal(result.status, "apply_grants_complete");
+  assert.equal(result.grant_mutation_performed, true);
+  assert.equal(result.migration_apply_performed, false);
+  const grants = opened.get("runtime").queryCalls.filter((sql) => /^GRANT /i.test(sql));
+  assert.equal(grants.length, contract.grant_policy.required_tables.length);
+  for (const statement of grants) {
+    assert.match(statement, /^GRANT SELECT, INSERT, UPDATE ON /i);
+    assert.doesNotMatch(statement, /GRANT OPTION|ALL PRIVILEGES/i);
+  }
+  assert.equal(opened.get("governance").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+  assert.equal(opened.get("runtime_persistence").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+});
+
+test("host-local role credentials fail closed before the first connection when an identity is incomplete or shared", async () => {
+  const missing = hostLocalRoleEnv();
+  delete missing.GOVERNANCE_DB_PASSWORD;
+  let opened = false;
+  await assert.rejects(() => runBootstrap({ env: missing, contract, connectionFactory: async () => { opened = true; return fakeConnection(); } }), (error) => error.code === "bootstrap_role_credentials_missing" && error.details.role === "governance");
+  assert.equal(opened, false);
+  const reused = hostLocalRoleEnv();
+  reused.RUNTIME_PERSISTENCE_DB_USER = reused.GOVERNANCE_DB_USER;
+  assert.throws(() => buildPlan(reused, contract), (error) => error.code === "bootstrap_role_identity_reuse_denied");
+});
+
+test("host-local dry-run opens each database only with its own existing role credentials", async () => {
+  const env = hostLocalRoleEnv();
+  const opened = [];
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role, database, credentials }) => {
+    opened.push({ role, database, user: credentials.user });
+    return fakeConnection();
+  } });
+  assert.equal(result.status, "dry_run_complete");
+  assert.deepEqual(opened, [
+    { role: "runtime", database: TARGET_DATABASE, user: TARGET.principal },
+    { role: "governance", database: "growth_governance", user: "governance_user" },
+    { role: "runtime_persistence", database: "growth_persistence", user: "persistence_user" },
+  ]);
+  assert.equal(result.database_mutation_performed, false);
+});
+
+test("role credential resolution never substitutes a different role database", () => {
+  const env = hostLocalRoleEnv();
+  const target = { database: TARGET_DATABASE, governance_database: "growth_governance", runtime_persistence_database: "growth_persistence" };
+  env.RUNTIME_PERSISTENCE_DB_NAME = "other_database";
+  assert.throws(() => resolveRoleBootstrapCredentials(env, "runtime_persistence", target), (error) => error.code === "bootstrap_role_database_mismatch");
+});
+
+
+function stagingRoleContract() {
+  const configured = structuredClone(contract);
+  configured.source_binding.branch = "main";
+  configured.target_binding.required_branch = "main";
+  configured.target_binding.required_environment = "staging";
+  configured.target_binding.default_target_key = "staging-runtime";
+  configured.execution_policy.apply_migration_confirmation_prefix = "APPLY_STAGING_RUNTIME_MIGRATION";
+  configured.execution_policy.apply_grants_confirmation_prefix = "APPLY_STAGING_RUNTIME_GRANTS";
+  return configured;
+}
+
+function stagingRoleEnv(mode = "dry_run", operation = "database.repair") {
+  return {
+    ...hostLocalRoleEnv(mode, operation),
+    BOOTSTRAP_EXPECTED_BRANCH: "main",
+    BOOTSTRAP_TARGET_KEY: "staging-runtime",
+    BOOTSTRAP_TARGET_SOURCE: "staging_local_role_env",
+    HOST_BREAKGLASS_ENVIRONMENT_KEY: "staging_local_windows_docker",
+  };
+}
+
+test("Staging Windows/Docker binds all three existing role identities with an environment-specific target", async () => {
+  const env = stagingRoleEnv();
+  const configured = stagingRoleContract();
+  const opened = [];
+  const result = await runBootstrap({ env, contract: configured, connectionFactory: async ({ role, database, credentials }) => {
+    opened.push({ role, database, user: credentials.user });
+    return fakeConnection();
+  } });
+  assert.equal(result.target_binding.source, "staging_local_role_env");
+  assert.equal(result.target_key, "staging-runtime");
+  assert.deepEqual(opened, [
+    { role: "runtime", database: TARGET_DATABASE, user: TARGET.principal },
+    { role: "governance", database: "growth_governance", user: "governance_user" },
+    { role: "runtime_persistence", database: "growth_persistence", user: "persistence_user" },
+  ]);
+  assert.equal(result.database_mutation_performed, false);
+});
+
+test("Staging grants require their own approval and reject Production grant confirmation", async () => {
+  const env = stagingRoleEnv("apply_grants");
+  const configured = stagingRoleContract();
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${TARGET.principal}:localhost`;
+  assert.throws(() => buildPlan(env, configured), (error) => error.code === "bootstrap_confirmation_mismatch");
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_STAGING_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${TARGET.principal}:localhost`;
+  const connections = new Map();
+  const result = await runBootstrap({ env, contract: configured, connectionFactory: async ({ role }) => {
+    const connection = fakeConnection({ ledgerFound: true });
+    connections.set(role, connection);
+    return connection;
+  } });
+  assert.equal(result.status, "apply_grants_complete");
+  assert.equal(connections.get("runtime").queryCalls.filter((sql) => /^GRANT /i.test(sql)).length, contract.grant_policy.required_tables.length);
+  assert.equal(connections.get("governance").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+  assert.equal(connections.get("runtime_persistence").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+});
+
+test("role-bound credentials reject cross-environment target keys and execution identities", () => {
+  const production = hostLocalRoleEnv();
+  production.HOST_BREAKGLASS_ENVIRONMENT_KEY = "staging_local_windows_docker";
+  assert.throws(() => buildPlan(production, contract), (error) => error.code === "bootstrap_role_environment_mismatch");
+  const staging = stagingRoleEnv();
+  staging.BOOTSTRAP_TARGET_KEY = "production-runtime";
+  assert.throws(() => buildPlan(staging, stagingRoleContract()), (error) => error.code === "bootstrap_role_target_environment_mismatch");
+  const github = stagingRoleEnv();
+  github.GITHUB_ACTIONS = "true";
+  assert.throws(() => buildPlan(github, stagingRoleContract()), (error) => error.code === "bootstrap_host_local_role_transport_denied");
 });
 
 test("Host Breakglass empty rebuild contract is represented as a zero-table-only capability", () => {
