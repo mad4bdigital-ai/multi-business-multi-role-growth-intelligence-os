@@ -65,7 +65,7 @@ jobs:
           artifact_id="$(jq -r '[.artifacts[] | select((.name|startswith("derived-state-closure-")) and (.expired==false))][0].id // empty' "$artifacts")"
           [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
           mkdir -p "$RUNNER_TEMP/closure"
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$RUNNER_TEMP/closure.zip"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" --output "$RUNNER_TEMP/closure.zip"
           unzip -q "$RUNNER_TEMP/closure.zip" -d "$RUNNER_TEMP/closure"
           report="$(find "$RUNNER_TEMP/closure" -type f -name report.json | head -n1)"
           objections="$(find "$RUNNER_TEMP/closure" -type f -name policy-objections.json | head -n1)"
