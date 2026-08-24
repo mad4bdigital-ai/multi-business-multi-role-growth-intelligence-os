@@ -253,14 +253,15 @@ export function parseTargetAllowlist(env, contract) {
   const targets = parseJsonArray(raw, "RUNTIME_BOOTSTRAP_TARGETS_JSON");
   const requiredRepository = contract.target_binding.required_repository;
   const requiredBranch = contract.target_binding.required_branch;
+  const requiredEnvironment = String(contract.target_binding.required_environment || "production").toLowerCase();
   return targets.map((target) => {
     const key = assertIdentifier(target?.key, "target.key");
     const database = assertDatabase(target?.database, "target.database");
     const repository = requireString(target?.repository, "bootstrap_target_repository_missing", "target.repository");
     const branch = requireString(target?.branch, "bootstrap_target_branch_missing", "target.branch");
     const environment = requireString(target?.environment, "bootstrap_target_environment_missing", "target.environment").toLowerCase();
-    if (repository !== requiredRepository || branch !== requiredBranch || environment !== "production") {
-      throw bootstrapError("bootstrap_target_scope_denied", "Target is outside the production bootstrap contract", { key, environment, branch });
+    if (repository !== requiredRepository || branch !== requiredBranch || environment !== requiredEnvironment) {
+      throw bootstrapError("bootstrap_target_scope_denied", "Target is outside the bootstrap environment contract", { key, environment, branch, required_environment: requiredEnvironment });
     }
     const databaseSha = requireSha256(target?.database_sha256, "target.database_sha256");
     if (databaseSha !== sha256Hex(database)) {

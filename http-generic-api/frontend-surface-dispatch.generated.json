@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "ad7b870315783b3f600b115ae236f47c261805d4",
-    "source_digest": "92cf4b4b69f9457776eef57360db4e70ebfab8fc15c181d28cac89e19a639e6b",
+    "ref": null,
+    "source_digest": "2b8844f7c2914717a6316bc8ffa2cc91963408796ca2ccb1195eebec8591d12e",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dad4c70524d9934fbfb3e23217da9fb4ca8bd52a54990af07d8535f107a9b78c",
+        "sha256": "9bd7621bd6fdb03a0fee4db311d7ae1cb545ba4c62f4413dff8cd9010e6d21ac",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "16e7fbaa7484802f4d777b1f8a5cbe61a3d5f8bdfb869a52ee8357603836763a",
+        "sha256": "04484af603d8acd19225d2a3127e8de69939231d057fae0b116ea5951e70a2b8",
         "present": true
       },
       {
@@ -1066,7 +1066,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "0902a3515cc9e709b492448a4bb9400c544f02a81006dcb68cd185b5a8351036",
+        "sha256": "de103a9f45246afa39e3a555d582a4d24681fd542a278417783a2eec963afac1",
         "present": true
       },
       {
@@ -1091,7 +1091,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "6ce06b89da09d363e22584593098276604c994c38ec5b98b0fb546df4f0b79a7",
+        "sha256": "47e6f394729d686a813248ec66fbc5899037183c44d5dddaf69a922ef28c8b52",
         "present": true
       },
       {

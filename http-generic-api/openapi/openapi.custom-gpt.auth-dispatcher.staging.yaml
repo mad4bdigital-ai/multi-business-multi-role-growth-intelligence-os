@@ -442,6 +442,17 @@ paths:
                     - database.inspect
                     - database.repair
                     - database.rebuild_empty
+                    - host.command_capsule
+                runbook_key:
+                  type: string
+                  enum:
+                    - database.full_inspection
+                    - database.schema_repair
+                    - database.access_repair
+                    - database.empty_rebuild
+                    - host.sql_capsule_exception
+                    - host.shell_capsule_exception
+                  description: Repository-owned capability runbook; incompatible operation/runbook pairs fail closed.
                 action:
                   type: string
                   enum:
@@ -449,6 +460,8 @@ paths:
                     - dry_run
                     - apply_migration
                     - apply_grants
+                    - execute_sql_capsule
+                    - execute_shell_capsule
                 expected_sha:
                   type: string
                   pattern: ^[0-9a-f]{40}$
@@ -466,6 +479,17 @@ paths:
                   type: string
                   maxLength: 191
                   description: Repository migration selected from the bootstrap contract at runtime.
+                capsule_path:
+                  type: string
+                  pattern: ^\.github/breakglass/(sql/[A-Za-z0-9._-]+\.sql|shell/[A-Za-z0-9._-]+\.sh)$
+                  description: Exact repository path; inline SQL and shell text are not accepted.
+                capsule_sha256:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+                backup_evidence_path:
+                  type: string
+                  pattern: ^\.github/breakglass/evidence/[A-Za-z0-9._-]+\.json$
+                  description: Required by the Production SQL capsule executor.
                 confirmation:
                   type: string
                   maxLength: 500
@@ -522,6 +546,17 @@ paths:
                     - database.inspect
                     - database.repair
                     - database.rebuild_empty
+                    - host.command_capsule
+                runbook_key:
+                  type: string
+                  enum:
+                    - database.full_inspection
+                    - database.schema_repair
+                    - database.access_repair
+                    - database.empty_rebuild
+                    - host.sql_capsule_exception
+                    - host.shell_capsule_exception
+                  description: Repository-owned capability runbook; incompatible operation/runbook pairs fail closed.
                 action:
                   type: string
                   enum:
@@ -529,6 +564,8 @@ paths:
                     - dry_run
                     - apply_migration
                     - apply_grants
+                    - execute_sql_capsule
+                    - execute_shell_capsule
                 expected_sha:
                   type: string
                   pattern: ^[0-9a-f]{40}$
@@ -546,6 +583,17 @@ paths:
                   type: string
                   maxLength: 191
                   description: Repository migration selected from the bootstrap contract at runtime.
+                capsule_path:
+                  type: string
+                  pattern: ^\.github/breakglass/(sql/[A-Za-z0-9._-]+\.sql|shell/[A-Za-z0-9._-]+\.sh)$
+                  description: Exact repository path; inline SQL and shell text are not accepted.
+                capsule_sha256:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+                backup_evidence_path:
+                  type: string
+                  pattern: ^\.github/breakglass/evidence/[A-Za-z0-9._-]+\.json$
+                  description: Required by the Production SQL capsule executor.
                 confirmation:
                   type: string
                   maxLength: 500
@@ -2222,7 +2270,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 16e7fbaa7484802f4d777b1f8a5cbe61a3d5f8bdfb869a52ee8357603836763a
+  source_openapi_sha256: 04484af603d8acd19225d2a3127e8de69939231d057fae0b116ea5951e70a2b8
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 866773288c33adc6792e4e9c9ebdf5dd3c9edc2b5e18fe7cc24d6842509081e6
   domain_family_policy: http-generic-api/config/domain-family-policy.json

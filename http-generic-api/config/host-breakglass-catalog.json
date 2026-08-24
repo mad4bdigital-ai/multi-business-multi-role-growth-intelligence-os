@@ -3,6 +3,9 @@
   "contract": "mad4b.host-breakglass-catalog.v1",
   "status": "repository_owned_fail_closed_catalog",
   "database_independent": true,
+  "tool_contract": "config/host-breakglass-tool-contracts.json",
+  "capsule_schema": "config/host-breakglass-capsule.schema.json",
+  "backup_evidence_schema": "config/host-breakglass-backup-evidence.schema.json",
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   "dispatch_ref": "main",
   "target_branch": "Production",
@@ -52,6 +55,7 @@
       "target_sources": ["repository_allowlist", "runtime_env"],
       "requires_exact_sha": true,
       "requires_confirmation": false,
+      "allowed_runbooks": ["database.full_inspection"],
       "purpose": "Classify database existence, table population, ledger, schema bundle eligibility, postconditions, and grants without mutation."
     },
     {
@@ -61,17 +65,29 @@
       "target_sources": ["repository_allowlist"],
       "requires_exact_sha": true,
       "requires_confirmation": true,
+      "allowed_runbooks": ["database.schema_repair", "database.access_repair"],
       "purpose": "Repair a database from repository-owned migration and grant contracts selected at runtime from the signed repository contract."
     },
     {
       "key": "database.rebuild_empty",
       "risk": "controlled_mutation",
-      "allowed_actions": ["plan", "dry_run", "apply_migration", "apply_grants"],
+      "allowed_actions": ["plan", "dry_run", "apply_migration"],
       "target_sources": ["repository_allowlist"],
       "requires_exact_sha": true,
       "requires_confirmation": true,
+      "allowed_runbooks": ["database.empty_rebuild"],
       "requires_zero_table_database": true,
-      "purpose": "Rebuild an empty database from the exact-SHA schema bundle, seeds, repository migrations, grants, and same-cycle readback."
+      "purpose": "Rebuild an empty database from the exact-SHA schema bundle, seeds, repository migrations, and same-cycle readback. Grants remain a separate database.access_repair approval after rebuild readback."
+    },
+    {
+      "key": "host.command_capsule",
+      "risk": "exception_mutation",
+      "allowed_actions": ["plan", "execute_sql_capsule", "execute_shell_capsule"],
+      "target_sources": ["repository_allowlist"],
+      "requires_exact_sha": true,
+      "requires_confirmation": true,
+      "allowed_runbooks": ["host.sql_capsule_exception", "host.shell_capsule_exception"],
+      "purpose": "Execute repository-owned raw SQL or Docker shell capsules as an explicit Host Breakglass exception. Inline commands are never accepted. Production shell remains unavailable without a governed Hostinger remote-exec transport."
     }
   ],
   "destructive_nonempty_rebuild": {

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.host-breakglass-tool-contracts.v1",
+  "database_independent": true,
+  "default_policy": "deny",
+  "tools": {
+    "catalog.resolve": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
+    "authority.validate": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
+    "target.classify": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
+    "connection.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
+    "schema_bundle.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration"] },
+    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+    "migration_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration"] },
+    "migration_contract.apply": { "mutation": true, "executor": "governedMigrationExecutionTool", "actions": ["apply_migration"], "requires": ["repository_catalog_entry", "exact_sha", "typed_confirmation"] },
+    "grant_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_grants"] },
+    "grant_contract.apply": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_grants"], "requires": ["postconditions_ready", "exact_sha", "typed_confirmation"] },
+    "database.postconditions.read": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
+    "ledger.readback": { "mutation": false, "executor": "governedMigrationExecutionTool", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] }
+    ,"raw_sql.execute_exception": { "mutation": true, "executor": "host-breakglass-capsule-executor", "actions": ["execute_sql_capsule"], "requires": ["repository_capsule", "capsule_sha256", "exact_sha", "typed_confirmation", "backup_evidence_production", "same_cycle_readback"] }
+    ,"shell.execute_exception": { "mutation": true, "executor": "host-breakglass-ssh-capsule-executor or docker_compose_exec", "actions": ["execute_shell_capsule"], "requires": ["repository_capsule", "capsule_sha256", "exact_sha", "typed_confirmation", "backup_evidence_production", "pinned_known_hosts_production"] }
+  },
+  "runbooks": {
+    "database.full_inspection": {
+      "operation": "database.inspect",
+      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "schema_bundle.inspect", "migration_contract.inspect", "grant_contract.inspect", "database.postconditions.read", "ledger.readback"]
+    },
+    "database.schema_repair": {
+      "operation": "database.repair",
+      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
+    },
+    "database.access_repair": {
+      "operation": "database.repair",
+      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "grant_contract.inspect", "grant_contract.apply", "database.postconditions.read", "ledger.readback"]
+    },
+    "database.empty_rebuild": {
+      "operation": "database.rebuild_empty",
+      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
+    },
+    "host.sql_capsule_exception": {
+      "operation": "host.command_capsule",
+      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "raw_sql.execute_exception", "database.postconditions.read", "ledger.readback"]
+    },
+    "host.shell_capsule_exception": {
+      "operation": "host.command_capsule",
+      "tools": ["catalog.resolve", "authority.validate", "shell.execute_exception"]
+    }
+  },
+  "denied_capabilities": ["raw_sql.inline", "shell.inline", "credential.export", "provider_console.execute", "database.drop_nonempty", "authorization.disable"],
+  "secrets_included": false
+}

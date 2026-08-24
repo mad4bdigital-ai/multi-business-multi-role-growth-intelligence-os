@@ -1,4 +1,5 @@
 name: Production Runtime Parity Evidence
+run-name: ${{ inputs.host_breakglass_correlation_id != '' && format('Host Breakglass {0}', inputs.host_breakglass_correlation_id) || format('Production Runtime Parity {0}', github.sha) }}
 
 on:
   pull_request:
@@ -21,6 +22,14 @@ on:
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
       - 'http-generic-api/config/deployment-branch-policy.json'
       - 'http-generic-api/config/runtime-bootstrap-contract.json'
+      - 'http-generic-api/config/host-breakglass-catalog.json'
+      - 'http-generic-api/config/host-breakglass-tool-contracts.json'
+      - 'http-generic-api/hostBreakglassCatalog.js'
+      - 'http-generic-api/test-host-breakglass-catalog.mjs'
+      - 'http-generic-api/scripts/host-breakglass-capsule-executor.mjs'
+      - 'http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs'
+      - 'http-generic-api/test-host-breakglass-capsule-executor.mjs'
+      - 'http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs'
       - 'http-generic-api/runtimeBootstrapContract.js'
       - 'http-generic-api/runtimeBootstrapStatus.js'
       - 'http-generic-api/scripts/hostinger-runtime-bootstrap.mjs'
@@ -74,6 +83,19 @@ on:
         description: Bounded broker correlation identifier; contains no credentials.
         required: false
         type: string
+      host_breakglass_runbook:
+        description: Repository-owned capability runbook compatible with the selected operation and action.
+        required: false
+        default: database.full_inspection
+        type: string
+      host_breakglass_tool_contract_sha256:
+        description: SHA-256 of the canonical database-independent tool contract.
+        required: false
+        type: string
+      host_breakglass_capsule:
+        description: JSON envelope containing repository path, SHA-256, confirmation, and Production backup evidence path. Inline commands are forbidden.
+        required: false
+        type: string
       strategy:
         description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
         required: false
@@ -120,6 +142,8 @@ on:
           - dry_run
           - apply_migration
           - apply_grants
+          - execute_sql_capsule
+          - execute_shell_capsule
       bootstrap_target_key:
         description: Repository-owned bootstrap target key; runtime-env discovery uses the same default key without reading target database input.
         required: false
@@ -243,10 +267,12 @@ jobs:
           fi
 
       - name: Validate Host Breakglass catalog binding
-        if: inputs.host_breakglass_correlation_id != ''
+        if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
         env:
           BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
           BREAKGLASS_CORRELATION_ID: ${{ inputs.host_breakglass_correlation_id }}
+          BREAKGLASS_RUNBOOK: ${{ inputs.host_breakglass_runbook }}
+          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
         shell: bash
@@ -254,8 +280,19 @@ jobs:
           set -Eeuo pipefail
           [[ "${BREAKGLASS_CORRELATION_ID}" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]
           case "${BREAKGLASS_OPERATION}" in
-            database.inspect) [[ "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" ]] ;;
-            database.repair|database.rebuild_empty) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]] ;;
+            database.inspect) [[ "${BREAKGLASS_RUNBOOK}" == "database.full_inspection" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" ) ]] ;;
+            database.repair)
+              [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]]
+              if [[ "${BREAKGLASS_RUNBOOK}" == "database.schema_repair" ]]; then
+                [[ "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ]]
+              elif [[ "${BREAKGLASS_RUNBOOK}" == "database.access_repair" ]]; then
+                [[ "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_grants" ]]
+              else
+                exit 1
+              fi
+              ;;
+            database.rebuild_empty) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && "${BREAKGLASS_RUNBOOK}" == "database.empty_rebuild" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ) ]] ;;
+            host.command_capsule) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && (( "${BREAKGLASS_RUNBOOK}" == "host.sql_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_sql_capsule" ) || ( "${BREAKGLASS_RUNBOOK}" == "host.shell_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_shell_capsule" )) ]] ;;
             *) exit 1 ;;
           esac
 
@@ -278,6 +315,16 @@ jobs:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
           persist-credentials: false
+      - name: Validate exact Production Host Breakglass tool contract
+        if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${BREAKGLASS_TOOL_CONTRACT_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          actual_contract_sha256="$(node -e 'const fs=require("fs"),c=require("crypto");const v=JSON.parse(fs.readFileSync("http-generic-api/config/host-breakglass-tool-contracts.json","utf8"));process.stdout.write(c.createHash("sha256").update(JSON.stringify(v)).digest("hex"))')"
+          [[ "${actual_contract_sha256}" == "${BREAKGLASS_TOOL_CONTRACT_SHA256}" ]]
       - name: Require live Hostinger runtime parity before bootstrap
         if: inputs.bootstrap_mode != 'plan'
         env:
@@ -324,7 +371,7 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
       - name: Run selected repository bootstrap contract mode
-        if: inputs.bootstrap_target_source == 'repository_allowlist'
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'execute_sql_capsule' && inputs.bootstrap_mode != 'execute_shell_capsule'
         env:
           HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
           MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
@@ -337,6 +384,58 @@ jobs:
           set -Eeuo pipefail
           mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
           node http-generic-api/scripts/hostinger-runtime-bootstrap.mjs
+      - name: Execute repository-owned raw SQL capsule exception
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'execute_sql_capsule'
+        env:
+          MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+          MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+          MYSQL_BOOTSTRAP_DATABASE: ${{ inputs.bootstrap_target_database }}
+          MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+          MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+          HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          node http-generic-api/scripts/host-breakglass-capsule-executor.mjs > "${BOOTSTRAP_RESULT_PATH}"
+      - name: Execute repository-owned Hostinger shell capsule exception
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          HOSTINGER_PROD_SSH_HOST: ${{ vars.HOSTINGER_PROD_SSH_HOST }}
+          HOSTINGER_PROD_SSH_PORT: ${{ vars.HOSTINGER_PROD_SSH_PORT }}
+          HOSTINGER_PROD_SSH_USER: ${{ vars.HOSTINGER_PROD_SSH_USER }}
+          HOSTINGER_PROD_SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_PROD_SSH_PRIVATE_KEY }}
+          HOSTINGER_PROD_SSH_KNOWN_HOSTS: ${{ secrets.HOSTINGER_PROD_SSH_KNOWN_HOSTS }}
+          HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          node http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs > "${BOOTSTRAP_RESULT_PATH}"
+      - name: Require live Hostinger parity after command capsule
+        if: inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          VERSION_URL: ${{ inputs.auth_url }}
+          DEPLOYMENT_INFO_URL: ${{ inputs.deployment_info_url }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for attempt in 1 2 3 4 5; do
+            version_sha="$(curl --proto '=https' --tlsv1.2 --fail --silent --show-error --connect-timeout 10 --max-time 30 "${VERSION_URL}" | jq -er '.gitCommitFull // .git_commit_full // .deployment.deployed_commit_sha // empty')" || true
+            deployment_json="$(curl --proto '=https' --tlsv1.2 --fail --silent --show-error --connect-timeout 10 --max-time 30 "${DEPLOYMENT_INFO_URL}")" || true
+            deployment_sha="$(jq -er '.gitCommitFull // .git_commit_full // .commit_sha // .deployment.deployed_commit_sha // empty' <<<"${deployment_json}")" || true
+            deployment_branch="$(jq -er '.gitBranch // .git_branch // .branch // .deployment.branch // empty' <<<"${deployment_json}")" || true
+            if [[ "${version_sha,,}" == "${EXPECTED_SHA,,}" && "${deployment_sha,,}" == "${EXPECTED_SHA,,}" && "${deployment_branch}" == "${EXPECTED_BRANCH}" ]]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo '{"ok":false,"code":"host_breakglass_post_capsule_parity_failed","secrets_included":false}' >&2
+          exit 1
       - name: Run Hostinger-side runtime environment dry-run
         if: inputs.bootstrap_target_source == 'hostinger_runtime_env'
         env:

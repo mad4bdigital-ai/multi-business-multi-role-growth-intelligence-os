@@ -162,12 +162,16 @@ components:
       required: [operation_key, action, expected_sha]
       properties:
         environment_key: { type: string, enum: [staging_local_windows_docker, production_hostinger_autodeploy], default: production_hostinger_autodeploy }
-        operation_key: { type: string, enum: [database.inspect, database.repair, database.rebuild_empty] }
-        action: { type: string, enum: [plan, dry_run, apply_migration, apply_grants] }
+        operation_key: { type: string, enum: [database.inspect, database.repair, database.rebuild_empty, host.command_capsule] }
+        runbook_key: { type: string, enum: [database.full_inspection, database.schema_repair, database.access_repair, database.empty_rebuild, host.sql_capsule_exception, host.shell_capsule_exception], description: Repository-owned capability runbook; incompatible operation/runbook pairs fail closed. }
+        action: { type: string, enum: [plan, dry_run, apply_migration, apply_grants, execute_sql_capsule, execute_shell_capsule] }
         expected_sha: { type: string, pattern: '^[0-9a-f]{40}$' }
         target_source: { type: string, enum: [repository_allowlist, runtime_env], default: repository_allowlist }
         target_key: { type: string, pattern: '^[A-Za-z0-9._:-]{1,128}$', default: production-runtime }
         migration: { type: string, maxLength: 191, description: Repository migration selected from the bootstrap contract at runtime. }
+        capsule_path: { type: string, pattern: '^\.github/breakglass/(sql/[A-Za-z0-9._-]+\.sql|shell/[A-Za-z0-9._-]+\.sh)$', description: Exact repository path; inline SQL and shell text are not accepted. }
+        capsule_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        backup_evidence_path: { type: string, pattern: '^\.github/breakglass/evidence/[A-Za-z0-9._-]+\.json$', description: Required by the Production SQL capsule executor. }
         confirmation: { type: string, maxLength: 500 }
         correlation_id: { type: string, pattern: '^[A-Za-z0-9._:-]{1,128}$' }
         idempotency_key: { type: string, pattern: '^[A-Za-z0-9._:-]{1,128}$' }
