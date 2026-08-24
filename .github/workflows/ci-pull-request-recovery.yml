@@ -266,14 +266,14 @@ jobs:
         shell: bash
         env:
           PULL_REQUEST_BASE_SHA: ${{ needs.syntax.outputs.base_sha }}
-          PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          FALLBACK_HEAD_REF: ${{ needs.syntax.outputs.head_ref }}
-          FALLBACK_BASE_REF: ${{ needs.syntax.outputs.base_ref }}
+          PULL_REQUEST_HEAD_REF: ${{ needs.syntax.outputs.head_ref }}
+          PULL_REQUEST_BASE_REF: ${{ needs.syntax.outputs.base_ref }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          PULL_REQUEST_HEAD_REF="${PULL_REQUEST_HEAD_REF:-$FALLBACK_HEAD_REF}"
-          PULL_REQUEST_BASE_REF="${PULL_REQUEST_BASE_REF:-$FALLBACK_BASE_REF}"
+          if [[ -n "$EVENT_HEAD_REF" ]]; then PULL_REQUEST_HEAD_REF="$EVENT_HEAD_REF"; fi
+          if [[ -n "$EVENT_BASE_REF" ]]; then PULL_REQUEST_BASE_REF="$EVENT_BASE_REF"; fi
           CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
           if [[ "$PULL_REQUEST_BASE_REF" == "Production" ]]; then
             PROMOTION_REPORT="$RUNNER_TEMP/context-kernel-production-promotion.json"
