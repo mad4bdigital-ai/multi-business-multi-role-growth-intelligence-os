@@ -220,7 +220,8 @@
         ".github/**",
         ".specify/**",
         "docs/governance/**",
-        ".changes/e2e/**"
+        ".changes/e2e/**",
+        "canonicals/openapi/**"
       ]
     },
     {

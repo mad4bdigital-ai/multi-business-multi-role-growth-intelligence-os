@@ -423,7 +423,7 @@ jobs:
       - name: Check wordpress barrel export floor
         working-directory: http-generic-api
         run: |
-          COUNT=$(node -e "import('./wordpress/index.js').then(m => { const n = Object.keys(m).length; console.log(n); if(n < 545) process.exit(1); })" 2>&1)
+          COUNT=$(node -e "import(process.cwd() + '/wordpress/index.js').then(m => { const n = Object.keys(m).length; console.log(n); if(n < 545) process.exit(1); })" 2>&1)
           echo "wordpress/index.js exports: $COUNT"
           if [ $? -ne 0 ]; then
             echo "DRIFT: wordpress/index.js exports dropped below 545 floor"
