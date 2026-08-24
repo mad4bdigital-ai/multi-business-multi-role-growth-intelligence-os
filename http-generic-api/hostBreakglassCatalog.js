@@ -178,6 +178,12 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (!operation) fail(400, "host_breakglass_operation_unknown", "Unknown Host Breakglass operation.", { operation_key: operationKey });
   if (!operation.allowed_actions.includes(action)) fail(400, "host_breakglass_action_denied", "Action is not allowed for this operation.", { operation_key: operationKey, action });
   if (!operation.target_sources.includes(targetSource)) fail(400, "host_breakglass_target_source_denied", "Target source is not allowed for this operation.", { target_source: targetSource });
+  if (targetSource === "host_local_role_env" && environmentKey !== "production_hostinger_autodeploy") {
+    fail(403, "host_breakglass_role_source_environment_mismatch", "Hostinger role credentials cannot be used for Staging.", { environment_key: environmentKey });
+  }
+  if (targetSource === "staging_local_role_env" && environmentKey !== "staging_local_windows_docker") {
+    fail(403, "host_breakglass_role_source_environment_mismatch", "Windows/Docker role credentials cannot be used for Production.", { environment_key: environmentKey });
+  }
   const { runbookKey, toolChain } = resolveToolChain({ operation, action, input, toolContract });
   if (!SHA_RE.test(expectedSha)) fail(400, "host_breakglass_expected_sha_invalid", "expected_sha must be a lowercase 40-character SHA.");
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
@@ -207,15 +213,17 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (capsuleAction && environmentKey === "production_hostinger_autodeploy" && !BACKUP_EVIDENCE_PATH_RE.test(backupEvidencePath)) fail(400, "host_breakglass_backup_evidence_required", "Production command capsule requires repository-owned backup evidence.");
   const backupEvidenceSha256 = capsuleAction && environmentKey === "production_hostinger_autodeploy" ? validateRepositoryBackupEvidence(backupEvidencePath, { expectedSha, targetKey }) : null;
   const confirmationRequired = operation.requires_confirmation === true && !["plan", "dry_run"].includes(action);
+  const migrationPrefix = targetSource === "staging_local_role_env" ? environment.apply_migration_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_MIGRATION";
+  const grantsPrefix = targetSource === "staging_local_role_env" ? environment.apply_grants_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_GRANTS";
   const expectedConfirmation = action === "apply_migration"
-    ? `APPLY_HOSTINGER_RUNTIME_MIGRATION:${expectedSha}:${targetKey}:${migration}`
+    ? `${migrationPrefix}:${expectedSha}:${targetKey}:${migration}`
     : "";
   const grantsConfirmationValid = action === "apply_grants"
-    && new RegExp(`^APPLY_HOSTINGER_RUNTIME_GRANTS:${expectedSha}:${targetKey}:[A-Za-z0-9_$.-]{1,128}:[A-Za-z0-9._%:-]{1,255}$`, "u").test(confirmation);
+    && new RegExp(`^${grantsPrefix}:${expectedSha}:${targetKey}:[A-Za-z0-9_$.-]{1,128}:[A-Za-z0-9._%:-]{1,255}$`, "u").test(confirmation);
   const capsuleConfirmation = `EXECUTE_HOST_BREAKGLASS_CAPSULE:${environmentKey}:${expectedSha}:${capsuleSha256}`;
   const capsuleConfirmationValid = capsuleAction && confirmation === capsuleConfirmation;
   if (confirmationRequired && ((action === "apply_migration" && confirmation !== expectedConfirmation) || (action === "apply_grants" && !grantsConfirmationValid) || (capsuleAction && !capsuleConfirmationValid))) {
-    fail(400, "host_breakglass_confirmation_required", "Exact typed confirmation is required.", { confirmation_formula: action === "apply_migration" ? "APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>" : "APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>" });
+    fail(400, "host_breakglass_confirmation_required", "Exact environment-bound typed confirmation is required.", { confirmation_formula: action === "apply_migration" ? `${migrationPrefix}:<sha>:<target-key>:<migration-file>` : `${grantsPrefix}:<sha>:<target-key>:<principal>:<principal-host>` });
   }
   const correlationId = String(input.correlation_id || input.idempotency_key || randomUUID()).trim();
   if (!SAFE_ID_RE.test(correlationId)) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");
@@ -308,6 +316,12 @@ function matchingHostBreakglassRuns(payload, plan) {
 }
 
 export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
+  if (plan.target_source === "host_local_role_env") {
+    if (plan.environment_key !== "production_hostinger_autodeploy") fail(403, "host_breakglass_host_local_environment_denied", "Host-local role credentials are restricted to the Hostinger Production environment.");
+    if (!["database.repair", "database.rebuild_empty"].includes(plan.operation_key)) fail(403, "host_breakglass_host_local_operation_denied", "Host-local role credentials require a bounded database recovery runbook.");
+    if (plan.action === "apply_grants" && plan.operation_key !== "database.repair") fail(403, "host_breakglass_host_local_grants_denied", "Host-local grants require the separately approved database access repair runbook.");
+    return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
+  }
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {
     return { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }

@@ -165,3 +165,52 @@ For runtime binding, catalog inspection, and backend-key-authenticated `runtime_
 Keep one centrally managed `.env` for each environment. The application runtime uses its existing `DB_*` settings; `GOVERNANCE_DB_NAME` and optional `RUNTIME_PERSISTENCE_DB_NAME` may describe separate topology for read-only runtime discovery. For explicit bootstrap apply, the repository-owned target entry is authoritative for the runtime, governance, and optional persistence database names and SHA-256 bindings, while the dedicated `MYSQL_BOOTSTRAP_*` identity is used for each opened role connection. The current executor does not support separate persistence user/password/host/port variables; it must not silently collapse an allowlisted isolated persistence database into the runtime database.
 
 `BACKEND_API_KEY` authorizes the existing internal read-only runtime binding and `runtime_env` dry-run transport. It is not a database privilege, SSH credential, Production approval, or substitute for the repository-owned target allowlist. If a privileged role identity, target binding, or separate persistence database is absent, report the missing prerequisite and fail closed rather than falling back to another role or inventing a new environment variable.
+
+## Explicit Hostinger single-user-per-database recovery
+
+Hostinger may bind exactly one existing user to each database. In that topology, the explicit host-local Host Breakglass transport reuses the deployment's existing role-specific environment values without copying passwords into GitHub:
+
+- `runtime` uses `DB_NAME`, `DB_USER`, `DB_PASSWORD`, and `DB_HOST`/`DB_PORT`.
+- `governance` uses `GOVERNANCE_DB_NAME`, `GOVERNANCE_DB_USER`, and `GOVERNANCE_DB_PASSWORD`, with optional `GOVERNANCE_DB_HOST`/`GOVERNANCE_DB_PORT`.
+- `runtime_persistence` uses `RUNTIME_PERSISTENCE_DB_NAME`, `RUNTIME_PERSISTENCE_DB_USER`, and `RUNTIME_PERSISTENCE_DB_PASSWORD`, with optional role-specific host/port.
+
+Enable this exception only with `--host-local-role-credentials --operation database.repair` or `--operation database.rebuild_empty`. It selects the distinct `host_local_role_env` target source, which never weakens `runtime_env`: that existing source remains read-only. The exception rejects GitHub Actions, shell capsules, SQL capsules, shared users across distinct databases, missing role credentials, database substitutions, missing exact Production source SHA, and missing typed migration confirmation. All role identities are validated before opening the first connection; evidence contains configured flags and role names, never users, passwords, or raw database identifiers.
+
+For an explicitly authorized host-side invocation, run the existing CLI from the deployed checkout:
+
+```bash
+node scripts/hostinger-runtime-bootstrap.mjs \\
+  --apply-migration \\
+  --host-local-role-credentials \\
+  --operation database.repair \\
+  --env-file .env \\
+  --expected-sha EXACT_DEPLOYED_PRODUCTION_SHA \\
+  --target-key production-runtime \\
+  --migration 20260815_custom_gpt_mcp_catalog_levels.sql \\
+  --migration-confirm APPLY_HOSTINGER_RUNTIME_MIGRATION:EXACT_DEPLOYED_PRODUCTION_SHA:production-runtime:20260815_custom_gpt_mcp_catalog_levels.sql
+```
+
+This remains an explicit host-side action. Repository merge, application startup, Hostinger Auto Deploy, and GitHub workflows never invoke it automatically. No additional database secrets are required in GitHub when all role credentials already exist on Hostinger.
+
+### Separately approved host-local grant exception
+
+The same role-bound Hostinger identity may execute `--apply-grants --operation database.repair` only after the separate typed `APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>` confirmation. This does not share or infer the migration approval. Grants remain limited to the six repository-allowlisted runtime tables and `SELECT`, `INSERT`, and `UPDATE`; database-global privileges, grant-option delegation, additional tables, arbitrary principals, and shell/SQL capsules remain denied. All required tables and migration readiness are checked before the first GRANT. Hostinger must actually grant the executing account the ability to issue those bounded GRANT statements; a provider-side denial fails closed with classified, secret-free evidence rather than claiming privilege escalation.
+
+## Dual-environment, role-local recovery
+
+The same three-database role mapping is available in both isolated environments, but the target source, target prefix, transport, checkout branch, and typed confirmations are intentionally different:
+
+| Environment | Role-bound target source | Target prefix | Execution authority | Migration approval | Grant approval |
+| --- | --- | --- | --- | --- | --- |
+| Production / Hostinger | `host_local_role_env` | `production-` | Explicit Hostinger host-side CLI | `APPLY_HOSTINGER_RUNTIME_MIGRATION` | `APPLY_HOSTINGER_RUNTIME_GRANTS` |
+| Staging / Windows Docker | `staging_local_role_env` | `staging-` | Existing Windows-only, Docker-verified local adapter | `APPLY_STAGING_RUNTIME_MIGRATION` | `APPLY_STAGING_RUNTIME_GRANTS` |
+
+Both use the existing environment-specific `DB_*`, `GOVERNANCE_DB_*`, and `RUNTIME_PERSISTENCE_DB_*` credentials, with three independent role-bound connections and preflight before the first connection. The Staging adapter explicitly loads its existing `.env.staging` file, falls back to the local `.env` if necessary, and never reads Hostinger credentials or dispatches GitHub workflows. The Production adapter never accepts a `staging-` target or Staging confirmation.
+
+In Staging, supply the approved request to the existing local adapter:
+
+```powershell
+npm run host-breakglass:local -- --request-file .\approved-staging-request.json
+```
+
+The request must select `environment_key=staging_local_windows_docker`, `target_source=staging_local_role_env`, a `staging-` target, and an environment-bound typed confirmation. Migration and grants remain separate operations. The grant exception stays limited to repository-approved runtime tables and `SELECT`, `INSERT`, and `UPDATE`; no cross-role or cross-environment grants are generated.

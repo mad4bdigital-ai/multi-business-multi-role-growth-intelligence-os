@@ -13,6 +13,9 @@
   "environments": {
     "staging_local_windows_docker": {
       "environment": "staging",
+      "role_target_source": "staging_local_role_env",
+      "apply_migration_confirmation_prefix": "APPLY_STAGING_RUNTIME_MIGRATION",
+      "apply_grants_confirmation_prefix": "APPLY_STAGING_RUNTIME_GRANTS",
       "host": "local_windows",
       "runtime": "docker_compose",
       "execution_transport": "local_cli",
@@ -26,6 +29,9 @@
     },
     "production_hostinger_autodeploy": {
       "environment": "production",
+      "role_target_source": "host_local_role_env",
+      "apply_migration_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_MIGRATION",
+      "apply_grants_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_GRANTS",
       "host": "hostinger_cloud_business",
       "runtime": "github_auto_deploy",
       "execution_transport": "github_workflow",
@@ -84,7 +90,7 @@
       "key": "database.repair",
       "risk": "controlled_mutation",
       "allowed_actions": ["plan", "dry_run", "apply_migration", "apply_grants"],
-      "target_sources": ["repository_allowlist"],
+      "target_sources": ["repository_allowlist", "host_local_role_env", "staging_local_role_env"],
       "requires_exact_sha": true,
       "requires_confirmation": true,
       "allowed_runbooks": ["database.schema_repair", "database.access_repair"],
@@ -94,7 +100,7 @@
       "key": "database.rebuild_empty",
       "risk": "controlled_mutation",
       "allowed_actions": ["plan", "dry_run", "apply_migration"],
-      "target_sources": ["repository_allowlist"],
+      "target_sources": ["repository_allowlist", "host_local_role_env", "staging_local_role_env"],
       "requires_exact_sha": true,
       "requires_confirmation": true,
       "allowed_runbooks": ["database.empty_rebuild"],

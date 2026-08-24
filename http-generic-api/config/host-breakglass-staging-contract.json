@@ -11,6 +11,16 @@
   "source_branch": "main",
   "target_environment": "staging",
   "default_target_key": "staging-runtime",
+  "role_target_source": "staging_local_role_env",
+  "role_credential_prefixes": {
+    "runtime": "DB",
+    "governance": "GOVERNANCE_DB",
+    "runtime_persistence": "RUNTIME_PERSISTENCE_DB"
+  },
+  "apply_migration_confirmation_prefix": "APPLY_STAGING_RUNTIME_MIGRATION",
+  "apply_grants_confirmation_prefix": "APPLY_STAGING_RUNTIME_GRANTS",
+  "role_credentials_require_windows_docker": true,
+  "cross_environment_credential_reuse": false,
   "credential_mapping": {
     "STAGING_MYSQL_BOOTSTRAP_HOST": "MYSQL_BOOTSTRAP_HOST",
     "STAGING_MYSQL_BOOTSTRAP_PORT": "MYSQL_BOOTSTRAP_PORT",
