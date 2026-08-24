@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7300,
-    "bytes": 71319146,
-    "lines": 1669019,
+    "bytes": 71319515,
+    "lines": 1669025,
     "directories": 266,
     "categories": 13
   },
@@ -7242,9 +7242,9 @@
       "path": ".changes/e2e/hostinger-runtime-bootstrap-contract-20260823.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8433,
-      "lines": 138,
-      "sha256": "7beab30a538e94defd4cd97d75740fc9d10c26a3de8001163d59cbc579320bf3",
+      "bytes": 8675,
+      "lines": 142,
+      "sha256": "3c0cf08e72537f6f03382c375ab605b9dbc0ce371408fd7f71dd05bffa7d7a42",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13536,7 +13536,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "43548827b4550ac5d62f28dff6c54450151ad66fcc6a2eb7a0c462538cbdccda",
+      "sha256": "79639f45a7050bc8ea764e6df344a64ad6fb15eb34fd240ae6394809fab7e325",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38042,9 +38042,9 @@
       "path": "http-generic-api/config/deployment-branch-policy.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 9190,
-      "lines": 230,
-      "sha256": "5d7bed7fdb94c826b748438e88745e5a3b78b2f64b07ad331b87cccd305ce14e",
+      "bytes": 9317,
+      "lines": 232,
+      "sha256": "0f2cc8f9267b2fa1f1652d08c3b063b3b6442600a75e7a9e323b25438b401943",
       "mode": "644",
       "executable": false,
       "generated": false
