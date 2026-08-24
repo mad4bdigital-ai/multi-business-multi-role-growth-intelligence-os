@@ -6,12 +6,12 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "75398e06aec4771d9df5d88df9877939b210eac1ebf1ac8b4fbd54c375514dfd",
-    "dispatch_artifact_sha256": "8e8e5b2a2a68c16f1cc4f1ae43415934ee2baae7c1674058cf6d560f38dfb7b2"
+    "dispatch_source_digest": "eaccc6dccc6d15a53489c06e748a2468e24457c3dc5a93c1a8a765dc1c67c750",
+    "dispatch_artifact_sha256": "708f973f4737400f3df2f95fafaf4e3380d79cd0d095d9694d502696a5e8becc"
   },
   "coverage": {
-    "operation_count": 1043,
-    "mounted_family_count": 169,
+    "operation_count": 1047,
+    "mounted_family_count": 170,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
@@ -28,10 +28,10 @@
     "priority_family_counts": {
       "P1_surface_decision": 0,
       "P2_detail_traceability": 74,
-      "P3_observe": 95
+      "P3_observe": 96
     },
     "surface_decision_family_counts": {
-      "api_only": 38,
+      "api_only": 39,
       "embedded_ui": 6,
       "internal_only": 118,
       "legacy_compatibility": 6,
@@ -3069,6 +3069,42 @@
         "routes/index.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "admin-host-breakglass",
+      "label": "admin host breakglass",
+      "scope": "admin",
+      "surface_decision": "api_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 4,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/adminHostBreakglassRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-admin-host-breakglass-routes.mjs"
       ]
     },
     {
