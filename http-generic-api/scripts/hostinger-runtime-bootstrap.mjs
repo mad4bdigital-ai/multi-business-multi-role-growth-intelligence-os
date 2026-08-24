@@ -35,7 +35,7 @@ function usage() {
     "--dry-run defaults to repository-owned target JSON and dedicated MYSQL_BOOTSTRAP_* credentials.",
     "--target-source runtime_env derives DB_NAME/DB_USER from the Hostinger runtime environment and is allowed only for --dry-run.",
     "--env-file <path> explicitly loads a local Hostinger .env file for runtime_env dry_run or explicitly authorized host-local role recovery; it is never loaded implicitly.",
-    "--host-local-role-credentials --operation database.repair|database.rebuild_empty binds existing DB_*, GOVERNANCE_DB_*, and RUNTIME_PERSISTENCE_DB_* users to their own databases only.",
+    "--host-local-role-credentials --operation database.inspect|database.repair|database.rebuild_empty binds existing DB_*, GOVERNANCE_DB_*, and RUNTIME_PERSISTENCE_DB_* users to their own databases only; database.inspect is dry-run-only.",
     "--apply-migration requires --migration-confirm APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>.",
     "--apply-grants requires --grants-confirm APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>.",
     "--apply is rejected because migration and grants approvals are independent.",
@@ -64,10 +64,11 @@ function loadExplicitEnvFile() {
   const readOnlyRuntime = mode === "dry_run" && source === "runtime_env";
   const operation = String(valueAfter("--operation") || "").trim();
   const eligibleInvocation = hostLocal && ["dry_run", "apply_migration", "apply_grants"].includes(mode) && source === "host_local_role_env"
-    && ["database.repair", "database.rebuild_empty"].includes(operation)
+    && ["database.inspect", "database.repair", "database.rebuild_empty"].includes(operation)
+    && (operation !== "database.inspect" || mode === "dry_run")
     && (mode !== "apply_grants" || operation === "database.repair");
   if (!readOnlyRuntime && !eligibleInvocation) {
-    throw bootstrapError("bootstrap_env_file_mode_denied", "--env-file requires runtime_env dry_run or an explicitly scoped host-local database repair/rebuild");
+    throw bootstrapError("bootstrap_env_file_mode_denied", "--env-file requires runtime_env dry_run or an explicitly scoped host-local database inspection, repair, or rebuild");
   }
   const resolved = path.resolve(String(envFile || "").trim());
   if (!resolved || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {

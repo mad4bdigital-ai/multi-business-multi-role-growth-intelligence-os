@@ -40,7 +40,7 @@
       "target_key_prefix": "production-",
       "dispatch_ref": "main",
       "provider": "hostinger",
-      "credential_namespace": "MYSQL_BOOTSTRAP_*",
+      "credential_namespace": "DB_*, GOVERNANCE_DB_*, RUNTIME_PERSISTENCE_DB_* (host-local role source); repository_allowlist uses its separately governed bootstrap identity",
       "github_workflow_dispatch_allowed": true,
       "hostinger_access_allowed": true
     }
@@ -80,7 +80,7 @@
       "key": "database.inspect",
       "risk": "read_only",
       "allowed_actions": ["plan", "dry_run"],
-      "target_sources": ["repository_allowlist", "runtime_env"],
+      "target_sources": ["repository_allowlist", "runtime_env", "host_local_role_env"],
       "requires_exact_sha": true,
       "requires_confirmation": false,
       "allowed_runbooks": ["database.full_inspection"],

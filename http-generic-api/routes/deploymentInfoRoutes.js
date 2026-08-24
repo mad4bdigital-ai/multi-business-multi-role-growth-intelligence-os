@@ -240,6 +240,7 @@ export function buildDeploymentInfoRoutes({
   mcpCatalogSchemaReadinessReader = readMcpCatalogSchemaReadinessSafe,
   productionActivationReadinessReader = runProductionActivationReadiness,
   runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
+  runtimeBootstrapReader = runBootstrap,
   requireBackendApiKey,
 } = {}) {
   const router = Router();
@@ -286,11 +287,11 @@ export function buildDeploymentInfoRoutes({
       const expectedBranch = String(body.expected_branch || "Production").trim();
       const expectedRepository = String(body.expected_repository || "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os").trim();
       const targetKey = String(body.target_key || "production-runtime").trim();
-      const migration = String(body.migration || "20260815_custom_gpt_mcp_catalog_levels.sql").trim();
+      const migration = String(body.migration || "").trim();
       if (!/^[0-9a-f]{40}$/iu.test(expectedSha)) {
         return res.status(400).json({ ok: false, error: { code: "runtime_bootstrap_expected_sha_invalid", message: "expected_sha must be a full 40-character SHA", details: {}, secrets_included: false }, secrets_included: false });
       }
-      if (expectedBranch !== "Production" || expectedRepository !== "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" || !targetKey || !migration) {
+      if (expectedBranch !== "Production" || expectedRepository !== "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" || !targetKey) {
         return res.status(400).json({ ok: false, error: { code: "runtime_bootstrap_binding_invalid", message: "Runtime bootstrap binding is invalid", details: {}, secrets_included: false }, secrets_included: false });
       }
       const runtimeIdentity = readRuntimeSourceIdentity();
@@ -305,9 +306,10 @@ export function buildDeploymentInfoRoutes({
         BOOTSTRAP_EXPECTED_BRANCH: expectedBranch,
         BOOTSTRAP_EXPECTED_REPOSITORY: expectedRepository,
         BOOTSTRAP_TARGET_KEY: targetKey,
-        BOOTSTRAP_MIGRATION: migration,
+        HOST_BREAKGLASS_OPERATION: "database.inspect",
+        ...(migration ? { BOOTSTRAP_MIGRATION: migration } : {}),
       };
-      const result = await runBootstrap({ env, contract: readRuntimeBootstrapContract() });
+      const result = await runtimeBootstrapReader({ env, contract: readRuntimeBootstrapContract() });
       if (result.database_mutation_performed || result.migration_apply_performed || result.grant_mutation_performed) {
         return res.status(500).json({ ok: false, error: { code: "runtime_bootstrap_dry_run_mutation_flagged", message: "Dry-run returned an unsafe mutation flag", details: {}, secrets_included: false }, database_connection_performed: result.database_connection_performed === true, database_mutation_performed: false, migration_apply_performed: false, grant_mutation_performed: false, mutation_evidence: result.mutation_evidence, secrets_included: false });
       }

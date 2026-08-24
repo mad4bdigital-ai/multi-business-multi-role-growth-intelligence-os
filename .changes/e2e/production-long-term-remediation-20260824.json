@@ -10,12 +10,25 @@
     "include": [
       ".changes/e2e/production-long-term-remediation-20260824.json",
       "docs/governance/hostinger-runtime-bootstrap.md",
+      "docs/governance/runtime-breakglass-environments.md",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
       "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
       "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
       "http-generic-api/tenantGptOperationalReadiness.js",
       "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/config/host-breakglass-catalog.json",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/runtimeBootstrapContract.js",
+      "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
       "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
       "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
       "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
@@ -29,7 +42,26 @@
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "docs/remote-mcp-write-scope-inventory.md",
-      "docs/write-scope-shadow-evidence-2026-08-15.json"
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "docs/repository-inventory-summary.json",
+      "edge/activation-gateway/generated/route-policy.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/test-staging-independent-schema-contract.mjs"
     ]
   },
   "merge_contract": {
@@ -49,7 +81,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Harden the shared OAuth/MCP runtime so token diagnostics never persist token material, dependency and schema failures return bounded structured 503 responses, and trusted ingress can be upgraded from transitional flags to request-bound Ed25519 attestation without enabling it implicitly.",
+      "objective": "Harden the shared OAuth/MCP runtime and Hostinger Breakglass contracts so token diagnostics never persist token material, dependency and schema failures return bounded structured 503 responses, trusted ingress can be upgraded from transitional flags to request-bound Ed25519 attestation without enabling it implicitly, and three independent Hostinger database roles can be inspected read-only without a migration selector.",
       "e2e_journeys": [
         {
           "id": "oauth-diagnostic-redaction",
@@ -195,6 +227,63 @@
             "http-generic-api/tenantGptOperationalReadiness.js",
             "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
             ".changes/e2e/production-long-term-remediation-20260824.json"
+          ]
+        },
+        {
+          "id": "hostinger-role-local-full-inspection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Hostinger Admin Host Breakglass",
+          "entrypoint": "POST /admin/runtime-breakglass/plan plus hostinger-runtime-bootstrap CLI",
+          "terminal_outcome": "A Production full inspection may omit migration, selects host_local_role_env, and preserves the existing runtime, governance, and runtime_persistence identities without sending credentials to GitHub or performing mutation.",
+          "steps": [
+            "Build a Production database.inspect/database.full_inspection dry-run plan with target_source=host_local_role_env and no migration.",
+            "Return a host-side handoff without GitHub workflow dispatch or typed mutation confirmation.",
+            "Run the synthetic bootstrap executor with one distinct credential set per database role and collect bounded schema, ledger, grant, and table-count evidence.",
+            "Reject apply modes for database.inspect and reject the role-local source for Staging."
+          ],
+          "assertions": [
+            "migration_selected=false and migration_selection=full_inspection_catalog",
+            "runtime, governance, and runtime_persistence use independent existing role identities",
+            "database_mutation_performed=false and workflow_dispatch_performed=false",
+            "database.inspect is dry_run-only and Staging cannot select host_local_role_env",
+            "request and evidence contain no passwords, tokens, or raw credential values"
+          ],
+          "tests": [
+            {
+              "id": "host-breakglass-role-local-inspection-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-bootstrap-role-local-inspection-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-bootstrap-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-bootstrap-route-migration-optional-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/host-breakglass-catalog.json",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/runtimeBootstrapContract.js",
+            "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-host-breakglass-catalog.mjs",
+            "http-generic-api/test-runtime-bootstrap-contract.mjs",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "docs/governance/hostinger-runtime-bootstrap.md",
+            "docs/governance/runtime-breakglass-environments.md"
           ]
         }
       ]

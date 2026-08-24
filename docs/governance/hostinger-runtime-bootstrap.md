@@ -164,11 +164,11 @@ The reconstruction plan exposes a hashed, role-by-role `apply_runbook` execution
 
 Before issuing a Production workflow dispatch, the broker searches the repository-owned workflow for the exact correlation display title on its trusted dispatch branch. One existing run is returned as a durable replay after a process restart; multiple matches fail closed, and neither case issues a second dispatch. Process-local receipts remain a cache, not the sole replay authority.
 
-For runtime binding, catalog inspection, and backend-key-authenticated `runtime_env` dry-run, the required new environment-variable count remains **zero** when the existing application `.env` already contains `BACKEND_API_KEY` and `DB_*`. SSH and privileged database credentials remain necessary only for their separately authorized mutation transports.
+For runtime binding, catalog inspection, and backend-key-authenticated dry-run, the required new environment-variable count remains **zero** when the existing application `.env` already contains the current role bindings. A single-database deployment may use `runtime_env` with `DB_*`; a Hostinger deployment with distinct governance or persistence databases must use the explicit host-local role source so each role retains its existing `GOVERNANCE_DB_*` or `RUNTIME_PERSISTENCE_DB_*` identity. SSH and privileged database credentials remain necessary only for their separately authorized mutation transports.
 
 ### Existing environment bindings and reconstruction boundaries
 
-Keep one centrally managed `.env` for each environment. The application runtime uses its existing `DB_*` settings; `GOVERNANCE_DB_NAME` and optional `RUNTIME_PERSISTENCE_DB_NAME` may describe separate topology for read-only runtime discovery. For explicit bootstrap apply, the repository-owned target entry is authoritative for the runtime, governance, and optional persistence database names and SHA-256 bindings, while the dedicated `MYSQL_BOOTSTRAP_*` identity is used for each opened role connection. The current executor does not support separate persistence user/password/host/port variables; it must not silently collapse an allowlisted isolated persistence database into the runtime database.
+Keep one centrally managed `.env` for each environment. The application runtime uses its existing `DB_*` settings; `GOVERNANCE_DB_NAME` and optional `RUNTIME_PERSISTENCE_DB_NAME` may describe separate topology for read-only runtime discovery. For repository-allowlist bootstrap apply, the target entry is authoritative for the runtime, governance, and optional persistence database names and SHA-256 bindings, while the separately governed `MYSQL_BOOTSTRAP_*` identity remains the workflow-side mutation identity. That workflow path must not be treated as a way to copy one Hostinger user across independently bound databases. When Hostinger supplies one existing user per database, use the explicit `host_local_role_env` inspection/recovery path so each role retains its own `DB_*`, `GOVERNANCE_DB_*`, or `RUNTIME_PERSISTENCE_DB_*` identity; never silently collapse an isolated persistence or governance database into the runtime database.
 
 `BACKEND_API_KEY` authorizes the existing internal read-only runtime binding and `runtime_env` dry-run transport. It is not a database privilege, SSH credential, Production approval, or substitute for the repository-owned target allowlist. If a privileged role identity, target binding, or separate persistence database is absent, report the missing prerequisite and fail closed rather than falling back to another role or inventing a new environment variable.
 
@@ -180,9 +180,21 @@ Hostinger may bind exactly one existing user to each database. In that topology,
 - `governance` uses `GOVERNANCE_DB_NAME`, `GOVERNANCE_DB_USER`, and `GOVERNANCE_DB_PASSWORD`, with optional `GOVERNANCE_DB_HOST`/`GOVERNANCE_DB_PORT`.
 - `runtime_persistence` uses `RUNTIME_PERSISTENCE_DB_NAME`, `RUNTIME_PERSISTENCE_DB_USER`, and `RUNTIME_PERSISTENCE_DB_PASSWORD`, with optional role-specific host/port.
 
-Enable this exception only with `--host-local-role-credentials --operation database.repair` or `--operation database.rebuild_empty`. It selects the distinct `host_local_role_env` target source, which never weakens `runtime_env`: that existing source remains read-only. The exception rejects GitHub Actions, shell capsules, SQL capsules, shared users across distinct databases, missing role credentials, database substitutions, missing exact Production source SHA, and missing typed migration confirmation. All role identities are validated before opening the first connection; evidence contains configured flags and role names, never users, passwords, or raw database identifiers.
+Enable this exception with `--host-local-role-credentials --operation database.inspect` for a dry-run-only full inspection, or with `--operation database.repair`/`database.rebuild_empty` for their separately governed recovery paths. The `database.inspect` path does not require a migration selector or typed mutation confirmation and selects the distinct `host_local_role_env` target source; it never weakens `runtime_env`, which remains read-only. The exception rejects GitHub Actions, shell capsules, SQL capsules, shared users across distinct databases, missing role credentials, database substitutions, missing exact Production source SHA, and missing typed migration confirmation for mutation modes. All role identities are validated before opening the first connection; evidence contains configured flags and role names, never users, passwords, or raw database identifiers.
 
-For an explicitly authorized host-side invocation, run the existing CLI from the deployed checkout:
+For an explicitly authorized host-side full inspection, run the existing CLI from the deployed checkout. This is read-only and intentionally omits `--migration`:
+
+```bash
+node scripts/hostinger-runtime-bootstrap.mjs \\
+  --dry-run \\
+  --host-local-role-credentials \\
+  --operation database.inspect \\
+  --env-file .env \\
+  --expected-sha EXACT_DEPLOYED_PRODUCTION_SHA \\
+  --target-key production-runtime
+```
+
+For an explicitly authorized host-side mutation, use the existing CLI from the deployed checkout:
 
 ```bash
 node scripts/hostinger-runtime-bootstrap.mjs \\

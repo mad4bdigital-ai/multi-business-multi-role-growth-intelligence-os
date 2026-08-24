@@ -7,7 +7,7 @@ This document defines the repository-owned Runtime Breakglass boundary for the t
 | Environment | Source branch | Runtime and deployment authority | Fixed target source | Mutation authority | Readback authority |
 |---|---|---|---|---|---|
 | `staging` | `main` | Local Windows device running Docker Compose | `docker_local` | Local operator only; Admin route is read-only | Local Docker health, version, deployment manifest, and staging certification |
-| `production` | `Production` | Hostinger Cloud Business Plan with Hostinger Auto Deploy from the `Production` branch | `repository_allowlist` for apply; `runtime_env` for dry-run discovery only | Reviewed GitHub workflow only, with separate migration/grant confirmations | Hostinger parity plus bounded GitHub workflow evidence |
+| `production` | `Production` | Hostinger Cloud Business Plan with Hostinger Auto Deploy from the `Production` branch | `repository_allowlist` for apply; `runtime_env` for generic dry-run discovery; `host_local_role_env` for host-side full inspection only | Reviewed GitHub workflow for repository-bound apply; explicit Hostinger CLI for role-local inspection | Hostinger parity plus bounded GitHub workflow evidence or secret-free host-local evidence |
 
 The authoritative implementation is `http-generic-api/config/runtime-breakglass-catalog.json`. The existing environment authority is defined by `http-generic-api/config/deployment-branch-policy.json`, `http-generic-api/config/domain-family-policy.json`, and `autopilot-portable-staging/auto-deploy-policy.json`.
 
@@ -17,7 +17,7 @@ The catalog exposes separate contracts rather than a free-form executor:
 
 | Contract | Purpose | Staging | Production | Database requirement |
 |---|---|---|---|---|
-| `runtime_diagnose` | Read-only route, identity, schema, and readiness evidence | Plan or local dry-run | Plan or fixed workflow dry-run | No database access for plan; dry-run follows the selected environment authority |
+| `runtime_diagnose` | Read-only route, identity, schema, and readiness evidence | Plan or local dry-run | Plan, fixed workflow dry-run, or explicit host-local full inspection | No database access for plan; dry-run follows the selected environment authority and role topology |
 | `schema_repair` | Reviewed incident-schema repair | Local operator path only | GitHub workflow with repository allowlist and typed confirmation | Existing governed bootstrap prerequisites |
 | `grant_repair` | Reviewed least-privilege grant repair | Local operator path only | GitHub workflow with independent grant confirmation | Existing schema and same-cycle grant readback |
 | `empty_database_rebuild` | Baseline schema/bundle rebuild for a missing or zero-table database | Local operator path only | GitHub workflow with repository allowlist | `zero_tables` classification only |
