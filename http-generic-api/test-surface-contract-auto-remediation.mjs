@@ -188,7 +188,14 @@ assert(workflow.includes('grep -Fq "surface-contract-gap-triage: blocking new hi
 assert(workflow.includes('NEW_GAP_BLOCKING: ${{ steps.gap_gate.outputs.blocking }}'), "new-gap evidence must be carried into PR and merge decisions");
 assert(workflow.includes('[ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]'), "new gaps must prevent automated merge");
 assert(workflow.includes('exit "$status"'), "unexpected triage failures must remain blocking");
-assert(workflow.includes('if gh pr merge "$PR_URL" --auto --squash; then'), "auto-merge requests must not fail the workflow when repository auto-merge is disabled");
+assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}'), "surface remediation must prefer the trusted dedicated identity for PR creation");
+assert(workflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}'), "surface remediation branch pushes must use the same trusted identity as PR creation");
+assert(workflow.includes("REPO_AUTOSYNC_TOKEN is required for trusted follow-up CI"), "safe remediation must explain why a default-token PR cannot auto-merge");
+assert(workflow.includes("--jq '.allow_auto_merge'"), "surface remediation must read back the repository auto-merge setting");
+assert(workflow.includes("Skipping stale surface remediation before branch creation"), "surface remediation must reject stale main before branch mutation");
+assert(workflow.includes("Closing stale surface remediation PR"), "surface remediation must close an exact-head PR if main advances before registration");
+assert(workflow.includes('if gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then'), "surface remediation must register auto-merge against the exact reviewed head");
+assert(!workflow.includes('gh workflow run ci.yml --ref "$BRANCH" || true'), "surface remediation must not mask a missing trusted pull-request CI event with an ignored manual dispatch");
 assert(workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "workflow must leave a clear governed-review fallback warning");
 assert(!workflow.includes("http-generic-api/migrations/*.sql\n          git add"), "workflow must not stage migration SQL");
 

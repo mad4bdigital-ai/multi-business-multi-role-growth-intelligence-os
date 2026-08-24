@@ -168,17 +168,13 @@ jobs:
         id: diff
         shell: bash
         run: |
-          CHANGED_FILES="$(git diff --name-only -- \
-            http-generic-api/openapi.yaml \
-            http-generic-api/openapi.*.yaml \
-            http-generic-api/openapi/**/*.yaml \
-            canonicals/openapi/**/*.yaml \
-            edge/activation-gateway/** \
-            docs/**/*.md \
-            canonicals/**/*.md \
-            '*.md')"
+          set -euo pipefail
+          changed_files=()
+          while IFS= read -r -d '' entry; do
+            changed_files+=("${entry:3}")
+          done < <(git status --porcelain=v1 -z --untracked-files=all)
 
-          if [ -z "$CHANGED_FILES" ]; then
+          if (( ${#changed_files[@]} == 0 )); then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "auto_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -186,19 +182,24 @@ jobs:
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "Changed files:"
-          echo "$CHANGED_FILES"
 
           AUTO_MERGE=true
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
+          for file in "${changed_files[@]}"; do
+            printf '%s\n' "$file"
             case "$file" in
-              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md)
+              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md|\
+              docs/surface-contract-discovery-status.json|\
+              docs/surface-contract-gap-queue.json|\
+              docs/surface-contract-gap-trends.json|\
+              docs/surface-contract-gap-triage.json|\
+              docs/surface-contract-governance-compact.json|\
+              docs/surface-contract-governance-dashboard.json)
                 ;;
               *)
                 AUTO_MERGE=false
                 ;;
             esac
-          done <<< "$CHANGED_FILES"
+          done
 
           if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
             AUTO_MERGE=false
@@ -254,7 +255,7 @@ jobs:
 
             Work Maps are intentionally excluded. Their sole remote writer is the governed Spec Kit Work Map Autofix workflow.
 
-            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or non-Markdown changes; those require human/GPT review. Safe Markdown-only synchronization may be auto-merged only after required checks pass. Any later main movement causes this writer to fail closed; the next main push dispatches a fresh exact-head synchronization.
+            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or an unapproved generated artifact; those require human/GPT review. Safe Markdown and the six explicitly allowlisted surface-evidence JSON artifacts may be auto-merged only after required checks pass. Any later main movement causes this writer to fail closed; the next main push dispatches a fresh exact-head synchronization.
 
             Review checklist:
             - Replace any `TODO document ...` summaries with precise contracts.
@@ -264,7 +265,7 @@ jobs:
             - Confirm each Custom GPT schema stays within its operation budget.
             - Confirm canonical and generated artifacts remain byte-for-byte aligned.
 
-      - name: Enable guarded auto-merge for safe docs-only sync PRs
+      - name: Enable guarded auto-merge for safe documentation and evidence sync PRs
         if: steps.diff.outputs.auto_merge == 'true' && steps.freshness.outputs.current == 'true' && steps.cpr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
@@ -276,6 +277,10 @@ jobs:
           set -euo pipefail
           if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" || -z "$GH_TOKEN" ]]; then
             echo "REPO_AUTOSYNC_TOKEN is required for guarded auto-merge so GitHub emits the full post-merge push CI cycle. Leaving PR ${PR_NUMBER} open."
+            exit 0
+          fi
+          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.allow_auto_merge')" != "true" ]]; then
+            echo "::warning::Repository Allow auto-merge is disabled; enable Settings > General > Pull Requests > Allow auto-merge. Leaving PR ${PR_NUMBER} open."
             exit 0
           fi
           latest_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
