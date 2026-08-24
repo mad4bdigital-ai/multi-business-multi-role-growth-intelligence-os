@@ -7,6 +7,7 @@
   "scope": {
     "include": [
       "http-generic-api/**",
+      ".specify/work-map-schema-classification-registry.json",
       ".github/workflows/ci.yml",
       "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
       ".changes/e2e/collation-governance-runtime-persistence-wiring.json"
@@ -57,7 +58,8 @@
             "Missing dedicated runtime persistence configuration returns a bounded 503 and no durable mutation.",
             "ENUM-domain/seed mismatches fail closed before Docker or any database connection.",
             "Text-width/literal and static append-expression overflow mismatches fail closed before Docker or any database connection.",
-            "The platform runtime note and execution-policy scope domains are unbounded before their ordered writers; no later writer may rely on the historical VARCHAR(255) width."
+            "The platform runtime note and execution-policy scope domains are unbounded before their ordered writers; no later writer may rely on the historical VARCHAR(255) width.",
+            "Every schema object exposed to the Work Map coverage matrix is classified by the canonical registry before generated Work Map writing; unresolved objects remain fail-closed."
           ],
           "tests": [
             {
@@ -114,6 +116,9 @@
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-contract-governance.mjs",
             "http-generic-api/config/staging-migration-contract-policy.json",
+            ".specify/work-map-schema-classification-registry.json",
+            "http-generic-api/scripts/work-map-schema-classification.mjs",
+            "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/test-mariadb-collation-ci-guard.mjs",
             ".github/workflows/ci.yml",
