@@ -6399,6 +6399,55 @@ paths:
         "412": { description: Runtime target or dedicated bootstrap credentials are not ready. }
         "500": { description: Dry-run returned an unsafe mutation flag. }
 
+  /deployment-info/runtime-bootstrap-role-dry-run:
+    post:
+      tags: [dev-diagnostics, admin-control]
+      security:
+        - backendApiKeyAuth: []
+      operationId: runHostLocalRoleBootstrapDryRun
+      x-openai-isConsequential: false
+      summary: Run exact-SHA host-local role inspection on Hostinger
+      description: Authenticated read-only bridge for Admin Host Breakglass. It is Production-only, accepts only expected_sha and target_key, derives the three role-local database identities from the existing Hostinger process environment, validates exact repository/branch/SHA before the first database connection, omits migration selection, and never dispatches GitHub or permits migration, grant, SQL, shell, or other mutation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_sha]
+              properties:
+                expected_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+                target_key: { type: string, enum: [production-runtime], default: production-runtime }
+      responses:
+        "200":
+          description: Sanitized full-inspection evidence from the three independent role-local database bindings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, contract, mode, operation, target_source, migration_selected, migration_selection, database_connection_performed, database_mutation_performed, migration_apply_performed, grant_mutation_performed, workflow_dispatch_performed, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  contract: { type: string, enum: [mad4b.host-breakglass-host-local-inspection.v1] }
+                  mode: { type: string, enum: [dry_run] }
+                  operation: { type: string, enum: [read_only] }
+                  target_source: { type: string, enum: [host_local_role_env] }
+                  migration_selected: { type: boolean, enum: [false] }
+                  migration_selection: { type: string, enum: [full_inspection_catalog] }
+                  database_connection_performed: { type: boolean }
+                  database_mutation_performed: { type: boolean, enum: [false] }
+                  migration_apply_performed: { type: boolean, enum: [false] }
+                  grant_mutation_performed: { type: boolean, enum: [false] }
+                  workflow_dispatch_performed: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid request or forbidden caller-supplied control field. }
+        "401": { description: Missing backend API key. }
+        "403": { description: Non-admin or non-Production host-local access. }
+        "409": { description: Target or migration selection violates the read-only contract. }
+        "412": { description: "Exact deployed repository, branch, SHA, or host-local role preflight is not ready." }
+        "500": { description: The adapter detected an unsafe mutation flag or unavailable executor. }
+
   /deployment-info/runtime-binding:
     get:
       tags: [dev-diagnostics]

@@ -480,6 +480,24 @@
       "secrets_included": false
     },
     {
+      "config_key": "github.repository",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "github.ref.name",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",

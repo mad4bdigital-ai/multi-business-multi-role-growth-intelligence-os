@@ -194,6 +194,20 @@ node scripts/hostinger-runtime-bootstrap.mjs \\
   --target-key production-runtime
 ```
 
+### Admin-to-Hostinger read-only inspection bridge
+
+لإتاحة الفحص من Admin GPT دون Local Connector أو تشغيل يدوي، يمر طلب `database.inspect` مع `runbook_key=database.full_inspection` و`action=dry_run` عبر Admin Host Breakglass إلى adapter داخلي على Hostinger. يثبت الـadapter هوية النشر (`SHA` الكامل، فرع `Production`، والمستودع canonical) قبل استدعاء `runBootstrap` أو فتح أول اتصال بقاعدة البيانات، ثم يضبط داخليًا `BOOTSTRAP_TARGET_SOURCE=host_local_role_env` ويترك migration selector فارغًا.
+
+المسار الداخلي المحمي هو:
+
+```text
+POST /deployment-info/runtime-bootstrap-role-dry-run
+```
+
+ويقبل body محدودًا إلى `expected_sha` و`target_key` فقط. لا يقبل اسم قاعدة أو اسم مستخدم أو كلمة مرور أو repository/ref/workflow أو migration أو confirmation. يتطلب `BACKEND_API_KEY` مع `is_admin=true`، ويعيد evidence منظمًا ومحدودًا؛ عند فشل الهوية أو preflight يعيد `412` مع `secrets_included=false`، ولا ينفذ GitHub workflow أو SQL capsule أو shell capsule أو migration أو grant. نجاح المسار يجب أن يعلن `target_source=host_local_role_env` و`migration_selected=false` و`migration_selection=full_inspection_catalog` و`database_mutation_performed=false`.
+
+يستدعي Admin Host Breakglass هذا الـadapter تلقائيًا فقط لمسار الفحص المذكور. أما `database.repair` و`database.rebuild_empty` وتطبيق grants فتبقى مسارات منفصلة ومقيدة ولا تتحول إلى تنفيذ ضمن هذا الجسر.
+
 For an explicitly authorized host-side mutation, use the existing CLI from the deployed checkout:
 
 ```bash
