@@ -69,6 +69,14 @@ surfaces:
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: getRuntimeDeploymentBinding
+          reason: Internal Hostinger runtime binding evidence remains backend service-key-only and outside public Custom GPT surfaces.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runRuntimeBootstrapDryRunFromHostEnv
+          reason: Internal Hostinger bootstrap dry-run remains backend service-key-only and outside public Custom GPT surfaces.
+          owner: platform-governance
+          review_after: 2026-09-30
     selector:
       source_markers:
         - admin_core
