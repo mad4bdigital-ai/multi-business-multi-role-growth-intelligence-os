@@ -5,6 +5,7 @@ import {
   evaluateSqlFiles,
   resolveSqlFiles,
 } from "./scripts/mariadb-collation-ci-guard.mjs";
+import { inspectOrderedMigrationChainEnumSeeds } from "./databaseEnumSeedPolicyGuard.js";
 
 const policy = {
   policy_key: "test-policy",
@@ -62,6 +63,9 @@ assert.match(
   /COLLATION_BASE_SHA.*\^0\{40\}\$/,
   "CI must not pass an all-zero event.before SHA to the collation diff guard",
 );
+assert.match(ciWorkflow, /ordered_enum_seed_chain\.ok == true/);
+assert.match(ciWorkflow, /enum_seed_chain\.ok == true/);
+assert.match(ciWorkflow, /enum_seed_chain\.database_connection_performed == false/);
 
 const valid = evaluateSqlFiles(validFiles, {
   policy,
@@ -114,6 +118,55 @@ assert.equal(orderedGood.ok, true, JSON.stringify(orderedGood));
 assert(orderedGood.warnings.some((warning) => warning.code === "explicit_collation_join_boundary"));
 assert.equal(orderedGood.database_connection_performed, false);
 assert.equal(orderedGood.sql_mutation_performed, false);
-assert.equal(orderedGood.secrets_included, false);
+  assert.equal(orderedGood.secrets_included, false);
 
-console.log("MariaDB collation CI guard tests passed");
+const enumPolicy = {
+  enum_seed_chain_contract: {
+    enabled: true,
+    static_only: true,
+    database_connection_allowed: false,
+    sql_mutation_allowed: false,
+    provider_access_allowed: false,
+    credential_access_allowed: false,
+    data_export_allowed: false,
+    runtime_mutation_allowed: false,
+    secrets_included: false,
+    policy_key: "test-enum-seed-chain",
+  },
+};
+const enumFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE platform_engine_registry (engine_key VARCHAR(64) PRIMARY KEY, engine_type ENUM('generic') NOT NULL DEFAULT 'generic');",
+  "http-generic-api/migrations/002_seed.sql": "-- INSERT INTO platform_engine_registry (engine_key,engine_type) VALUES ('comment','comment_only');\nINSERT INTO platform_engine_registry (engine_key,engine_type) VALUES ('developer','developer_platform');",
+  "http-generic-api/migrations/001_alignment.sql": "ALTER TABLE platform_engine_registry MODIFY COLUMN engine_type ENUM('generic','developer_platform') NOT NULL DEFAULT 'generic';",
+  "http-generic-api/migrations/003_update.sql": "UPDATE platform_engine_registry SET engine_type='developer_platform' WHERE engine_key='developer';",
+  "http-generic-api/migrations/004_replace.sql": "REPLACE INTO platform_engine_registry (engine_key,engine_type) VALUES ('developer','generic');",
+};
+const readEnumFixture = (file) => enumFiles[file];
+const enumBad = inspectOrderedMigrationChainEnumSeeds({
+  files: ["http-generic-api/migrations/002_seed.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: enumPolicy,
+  readFile: readEnumFixture,
+});
+assert.equal(enumBad.ok, false, JSON.stringify(enumBad));
+assert.equal(enumBad.findings.length, 1);
+assert.equal(enumBad.findings[0].table, "platform_engine_registry");
+assert.equal(enumBad.findings[0].column, "engine_type");
+assert.equal(enumBad.findings[0].value, "developer_platform");
+const enumGood = inspectOrderedMigrationChainEnumSeeds({
+  files: Object.keys(enumFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: enumPolicy,
+  readFile: readEnumFixture,
+});
+assert.equal(enumGood.ok, true, JSON.stringify(enumGood));
+assert.equal(enumGood.findings.length, 0);
+assert.equal(enumGood.database_connection_performed, false);
+assert.equal(enumGood.sql_mutation_performed, false);
+assert.equal(enumGood.provider_mutation_performed, false);
+assert.equal(enumGood.credential_access_performed, false);
+assert.equal(enumGood.data_export_performed, false);
+assert.equal(enumGood.runtime_mutation_performed, false);
+assert.equal(enumGood.secrets_included, false);
+
+console.log("MariaDB collation and enum CI guard tests passed");
