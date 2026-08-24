@@ -166,6 +166,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
+      - name: Checkout governance readiness verifier
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.attest.outputs.source_head_sha }}
+          fetch-depth: 1
+
       - name: Register guarded auto-merge only for unchanged Ready PR
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
@@ -181,10 +187,13 @@ jobs:
             echo "REPO_AUTOSYNC_TOKEN is required so an auto-merge produces a normal push event and full post-merge CI." >&2
             exit 1
           fi
-          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.allow_auto_merge')" != "true" ]]; then
-            echo "Repository Allow auto-merge is disabled; enable Settings > General > Pull Requests > Allow auto-merge." >&2
-            exit 1
-          fi
+
+          TARGET_BRANCH=main \
+          REQUIRED_CHECK_CONTEXT="Derived State Closure" \
+          EXPECTED_HEAD_SHA="$BASE_SHA" \
+          PR_NUMBER="$PR_NUMBER" \
+          node .github/ops/github-followup-automerge-readiness.mjs
+
           pr="$RUNNER_TEMP/pr.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "$pr"
           test "$(jq -r '.state' "$pr")" = "open"
@@ -194,6 +203,6 @@ jobs:
           test "$(jq -r '.base.sha' "$pr")" = "$BASE_SHA"
           test "$(jq -r '.merge_commit_sha' "$pr")" = "$CANDIDATE_SHA"
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}" --jq '[.labels[].name]')"
-          jq -e 'index("do-not-auto-merge")==null and index("manual-merge")==null' <<<"$labels" >/dev/null
+          jq -e 'index("do-not-auto-merge")==null and index("manual-merge")==null and index("manual-review")==null and index("security-review")==null' <<<"$labels" >/dev/null
           gh pr merge "$PR_NUMBER" --auto --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA"
-          gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=registered candidate_sha=${CANDIDATE_SHA} source_head_sha=${EXPECTED_HEAD_SHA} exact_candidate=true blocking_objections=0 manual_objections=0" >/dev/null
+          gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=registered candidate_sha=${CANDIDATE_SHA} source_head_sha=${EXPECTED_HEAD_SHA} exact_candidate=true blocking_objections=0 manual_objections=0 server_protection_verified=true" >/dev/null
