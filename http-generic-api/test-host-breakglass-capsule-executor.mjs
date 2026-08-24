@@ -16,12 +16,12 @@ const expectedSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: REPO_ROOT,
 const capsuleSha256 = createHash("sha256").update(sql).digest("hex");
 const database = "growth_test";
 const principal = "runtime_user";
-const principalHost = "localhost";
+const fixtureOrigin = "localhost";
 const targetKey = "production-runtime";
 const repository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const branch = "Production";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const target = { key: targetKey, database, repository, branch, environment: "production", principal, principal_host: principalHost, database_sha256: sha256(database), target_fingerprint: sha256(`${repository}:${branch}:${targetKey}:${database}:${database}:${principal}:${principalHost}`) };
+const target = { key: targetKey, database, repository, branch, environment: "production", principal, principal_host: fixtureOrigin, database_sha256: sha256(database), target_fingerprint: sha256(`${repository}:${branch}:${targetKey}:${database}:${database}:${principal}:${fixtureOrigin}`) };
 
 test.before(() => {
   fs.mkdirSync(path.dirname(capsulePath), { recursive: true });
