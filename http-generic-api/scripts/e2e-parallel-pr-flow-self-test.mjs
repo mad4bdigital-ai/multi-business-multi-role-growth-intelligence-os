@@ -118,38 +118,38 @@ assert.notEqual(undeclaredBranch.status, 0);
 const undeclaredReport = JSON.parse(undeclaredBranch.stdout);
 assert(undeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
 
-const governanceOnlyBase = headSha;
-const governanceOnlyFeature = "014-generated-artifact";
-const governanceOnlyContractPath = `specs/${governanceOnlyFeature}/e2e-phases.json`;
-const governanceOnlyWorkMapPath = `specs/${governanceOnlyFeature}/work-map-integration.json`;
-const governanceOnlyContract = {
+const scenarioBase = headSha;
+const scenarioKey = "014-generated-artifact";
+const scenarioContractPath = `specs/${scenarioKey}/e2e-phases.json`;
+const scenarioMapPath = `specs/${scenarioKey}/work-map-integration.json`;
+const scenarioContract = {
   ...contract,
-  feature_key: governanceOnlyFeature,
+  feature_key: scenarioKey,
   title: "Generated artifact ownership-neutrality",
   scope: { include: ["http-generic-api/remote-mcp-write-scope-inventory.generated.json"] },
   parallel_work: {
     ...contract.parallel_work,
     workstreams: contract.parallel_work.workstreams.map((workstream) => ({
       ...workstream,
-      scope: { include: [`specs/${governanceOnlyFeature}/${workstream.id}/**`] }
+      scope: { include: [`specs/${scenarioKey}/${workstream.id}/**`] }
     }))
   }
 };
-fs.mkdirSync(path.dirname(path.join(root, governanceOnlyContractPath)), { recursive: true });
-fs.writeFileSync(path.join(root, governanceOnlyContractPath), `${JSON.stringify(governanceOnlyContract, null, 2)}\n`);
-const generatedArtifactFixture = `${JSON.stringify({ generated: true }, null, 2)}\n`;
-fs.writeFileSync(path.join(root, governanceOnlyWorkMapPath), generatedArtifactFixture);
+fs.mkdirSync(path.dirname(path.join(root, scenarioContractPath)), { recursive: true });
+fs.writeFileSync(path.join(root, scenarioContractPath), `${JSON.stringify(scenarioContract, null, 2)}\n`);
+const fixtureText = `${JSON.stringify({ value: true }, null, 2)}\n`;
+fs.writeFileSync(path.join(root, scenarioMapPath), fixtureText);
 fs.mkdirSync(path.join(root, "http-generic-api"), { recursive: true });
-fs.writeFileSync(path.join(root, "http-generic-api", "remote-mcp-write-scope-inventory.generated.json"), generatedArtifactFixture);
+fs.writeFileSync(path.join(root, "http-generic-api", "remote-mcp-write-scope-inventory.generated.json"), fixtureText);
 fs.mkdirSync(path.join(root, "http-generic-api", "scripts", "maintenance-tools"), { recursive: true });
-fs.writeFileSync(path.join(root, "http-generic-api", "scripts", "maintenance-tools", "configuration-candidate-discovery.mjs"), "export const generatedFixture = true;\n");
+fs.writeFileSync(path.join(root, "http-generic-api", "scripts", "maintenance-tools", "configuration-candidate-discovery.mjs"), "export const value = true;\n");
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "generated governance-only artifact refresh"], root);
-const governanceOnlyHead = run("git", ["rev-parse", "HEAD"], root).trim();
-const governanceOnlyReport = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", governanceOnlyBase, "--head", governanceOnlyHead, "--head-ref", "fix/staging-local-mariadb-enum-seed-chain", "--base-ref", "main"], root));
-assert.equal(governanceOnlyReport.ok, true, JSON.stringify(governanceOnlyReport.findings));
-assert.equal(governanceOnlyReport.pr_mode, "standard");
-assert.deepEqual(governanceOnlyReport.findings, []);
+const scenarioHead = run("git", ["rev-parse", "HEAD"], root).trim();
+const scenarioReport = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", scenarioBase, "--head", scenarioHead, "--head-ref", "fix/staging-local-mariadb-enum-seed-chain", "--base-ref", "main"], root));
+assert.equal(scenarioReport.ok, true, JSON.stringify(scenarioReport.findings));
+assert.equal(scenarioReport.pr_mode, "standard");
+assert.deepEqual(scenarioReport.findings, []);
 
 const directMain = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
 assert.notEqual(directMain.status, 0);
