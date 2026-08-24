@@ -3,14 +3,18 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import { splitStatements } from "./scripts/staging-sql-parser.mjs";
 import { compareMigrationFiles, isMigrationFilename } from "./scripts/migration-order.mjs";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
 const manifestPath = path.join(apiRoot, "config", "staging-database-role-migration-manifest.json");
+const migrationPolicyPath = path.join(apiRoot, "config", "staging-migration-contract-policy.json");
 const generatorPath = path.join(apiRoot, "scripts", "build-staging-schema-bundle.mjs");
+const preuseAuditPath = path.join(apiRoot, "scripts", "audit-staging-migration-preuse.mjs");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const migrationPolicy = JSON.parse(fs.readFileSync(migrationPolicyPath, "utf8"));
 const generator = fs.readFileSync(generatorPath, "utf8");
 const baselineSchema = fs.readFileSync(path.join(apiRoot, "schema.sql"), "utf8");
 const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
@@ -22,6 +26,22 @@ function runPlan() {
   });
 }
 
+function runPreuseAuditFixture({ baseline, migrations }) {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "staging-preuse-audit-"));
+  const fixtureApiRoot = path.join(fixtureRoot, "http-generic-api");
+  const fixtureMigrations = path.join(fixtureApiRoot, "migrations");
+  fs.mkdirSync(fixtureMigrations, { recursive: true });
+  fs.writeFileSync(path.join(fixtureApiRoot, "schema.sql"), baseline);
+  for (const [file, sql] of Object.entries(migrations)) fs.writeFileSync(path.join(fixtureMigrations, file), sql);
+  try {
+    const result = spawnSync(process.execPath, [preuseAuditPath, fixtureRoot], { cwd: repoRoot, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    return JSON.parse(result.stdout);
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+}
+
 test("SQL splitter preserves semicolons inside quoted literals and strips comments safely", () => {
   const sql = `-- Values are provisioned separately; this schema contains no secret payloads.\nCREATE TABLE IF NOT EXISTS \`tenant_secrets\` (\`id\` BIGINT UNSIGNED NOT NULL);\nINSERT INTO \`tenant_secrets\` (\`metadata_json\`) VALUES (JSON_OBJECT('note', 'a;b'));\n/* block comment; remains data-safe */\nUPDATE \`tenant_secrets\` SET \`metadata_json\` = '{"value":"x;y"}' WHERE \`id\` = 1;`;
   assert.deepEqual(splitStatements(sql), [
@@ -29,6 +49,23 @@ test("SQL splitter preserves semicolons inside quoted literals and strips commen
     "INSERT INTO `tenant_secrets` (`metadata_json`) VALUES (JSON_OBJECT('note', 'a;b'))",
     "/* block comment; remains data-safe */\nUPDATE `tenant_secrets` SET `metadata_json` = '{\"value\":\"x;y\"}' WHERE `id` = 1",
   ]);
+});
+
+test("migration contract policy enables comprehensive pre-use fail-closed guards", () => {
+  assert.equal(migrationPolicy.contract, "mad4b.staging.migration-contract-policy.v1");
+  assert.deepEqual(migrationPolicy.preuse_contract, {
+    check_create_index_table_and_columns: true,
+    check_alter_add_index_table_and_columns: true,
+    check_foreign_key_parent_tables: true,
+    check_table_source_operations: true,
+    check_rename_and_drop_targets: true,
+    fail_on_unresolved_gaps: true,
+  });
+  assert.equal(migrationPolicy.safety.database_connection_allowed, false);
+  assert.equal(migrationPolicy.safety.database_mutation_allowed, false);
+  assert.equal(migrationPolicy.safety.provider_access_allowed, false);
+  assert.equal(migrationPolicy.safety.credential_access_allowed, false);
+  assert.equal(migrationPolicy.safety.data_export_allowed, false);
 });
 
 test("schema bundle manifest declares exactly three isolated roles", () => {
@@ -166,6 +203,36 @@ test("numeric migration ordering runs dependencies before later indexes", () => 
       < orderedMigrations.indexOf("1042_sprint69_activation_session_context_indexes.sql"),
     "customer_sessions must be created before migration 1042 indexes it",
   );
+});
+
+test("expanded pre-use audit catches index and foreign-key dependency gaps", () => {
+  const baseline = "CREATE TABLE IF NOT EXISTS `parent_table` (`id` INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;\nCREATE TABLE IF NOT EXISTS `alter_target` (`id` INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;";
+  const report = runPreuseAuditFixture({
+    baseline,
+    migrations: {
+      "001_create_child.sql": "CREATE TABLE IF NOT EXISTS `child_table` (`id` INT NOT NULL, `parent_id` INT NOT NULL, FOREIGN KEY (`parent_id`) REFERENCES `parent_table` (`id`)) ENGINE=InnoDB;",
+      "1042_sprint69_activation_session_context_indexes.sql": "CREATE INDEX IF NOT EXISTS `idx_ar_context_reuse_session` ON `activation_runs` (`tenant_id`, `user_id`, `created_at`);",
+      "1043_alter_index_missing_column.sql": "ALTER TABLE `alter_target` ADD INDEX `idx_missing` (`missing_column`);",
+      "1044_fk_missing_parent.sql": "CREATE TABLE IF NOT EXISTS `orphan_table` (`id` INT NOT NULL, `parent_id` INT NOT NULL, FOREIGN KEY (`parent_id`) REFERENCES `missing_parent` (`id`)) ENGINE=InnoDB;",
+    },
+  });
+  assert.equal(report.counts.missing_table, 2);
+  assert.equal(report.counts.missing_column, 1);
+  assert.ok(report.gaps.some((gap) => gap.table === "activation_runs" && gap.kind === "missing_table"));
+  assert.ok(report.gaps.some((gap) => gap.table === "missing_parent" && gap.kind === "missing_table"));
+  assert.ok(report.gaps.some((gap) => gap.table === "alter_target" && gap.column === "missing_column" && gap.kind === "missing_column"));
+});
+
+test("expanded pre-use audit accepts same-statement column-and-index additions", () => {
+  const report = runPreuseAuditFixture({
+    baseline: "CREATE TABLE IF NOT EXISTS `alter_target` (`id` INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;",
+    migrations: {
+      "001_add_column_and_index.sql": "ALTER TABLE `alter_target` ADD COLUMN `new_column` VARCHAR(32) NULL, ADD INDEX `idx_new_column` (`new_column`);",
+    },
+  });
+  assert.equal(report.unique_true_preuse_gaps, 0);
+  assert.equal(report.counts.missing_column ?? 0, 0);
+  assert.equal(report.same_statement_false_positives >= 1, true);
 });
 
 test("binding identifier width is widened before every descriptive binding writer", () => {
@@ -397,6 +464,40 @@ test("migration 1030 widens catalog tags before append-only governance updates",
   assert.doesNotMatch(migration1030, /\b(?:LEFT|SUBSTRING|TRUNCATE)\s*\(/i, "migration 1030 must not truncate governance tags");
 });
 
+test("cross-environment migration governance keeps discovery, roles, and execution authority isolated", () => {
+  const policy = JSON.parse(fs.readFileSync(path.join(apiRoot, "config", "staging-migration-contract-policy.json"), "utf8"));
+  const staging = policy.environment_profiles.staging_local_windows_docker;
+  const production = policy.environment_profiles.production_hostinger_autodeploy;
+  assert.equal(staging.source_branch, "main");
+  assert.equal(staging.hostinger_access_allowed, false);
+  assert.equal(staging.production_access_allowed, false);
+  assert.equal(production.source_branch, "Production");
+  assert.equal(production.local_docker_access_allowed, false);
+  assert.equal(production.exact_source_sha_required, true);
+  assert.equal(production.typed_approval_required, true);
+  assert.equal(policy.execution_authority.discovery_grants_execution, false);
+  assert.equal(policy.execution_authority.production_auto_apply_allowed, false);
+  assert.equal(policy.migration_history.silent_ledger_reconciliation_allowed, false);
+  assert.equal(policy.database_role_topology.governance.owns_migration_ledger, true);
+  assert.equal(policy.database_role_topology.runtime_persistence.owns_tables.includes("governed_tool_response_chunks"), true);
+});
+
+test("migration 196 widens every catalog tags column before later long writers", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const migration195 = fs.readFileSync(path.join(migrationsDir, "195_sprint66_connected_execution_read_only_tool_execution.sql"), "utf8");
+  const migration196 = fs.readFileSync(path.join(migrationsDir, "196_sprint66_admin_tool_registry_tags_text.sql"), "utf8");
+  const migration202 = fs.readFileSync(path.join(migrationsDir, "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql"), "utf8");
+  const migration195Alter = /ALTER TABLE\s+admin_platform_endpoint_tools[\s\S]*?MODIFY COLUMN\s+tags\s+TEXT\s+NULL/i;
+  assert.match(migration195, migration195Alter, "migration 195 must widen admin tags before its long update");
+  const tables = ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "local_gateway_tools"];
+  for (const table of tables) {
+    const alter = new RegExp(`ALTER TABLE\\s+${table}\\s+MODIFY COLUMN\\s+tags\\s+TEXT\\s+NULL`, "i");
+    assert.match(migration196, alter, `${table}.tags must be widened by the shared compatibility migration`);
+  }
+  assert.ok(migration196.indexOf("ALTER TABLE tenant_platform_endpoint_tools") < migration196.indexOf("UPDATE admin_platform_endpoint_tools"));
+  assert.match(migration202, /INSERT INTO tenant_platform_endpoint_tools[\s\S]*tags[\s\S]*tenant,infrastructure,ssh,cli,execute/i);
+});
+
 test("migration 1037 uses only the canonical brand_core column contract", () => {
   const migration1037 = fs.readFileSync(path.join(apiRoot, "migrations", "1037_sprint69_dona_brand_core_readiness_data_repair.sql"), "utf8");
   const sql = migration1037.slice(migration1037.indexOf("UPDATE `brand_core`"));
@@ -486,6 +587,10 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260815_custom_gpt_mcp_catalog_levels.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
+  assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
+  assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
+  assert.equal(plan.ordered_preuse_audit.unique_true_preuse_gaps, 0);
+  assert.equal(plan.canonical_table_bootstrap.unresolved_missing_table_gaps, 0);
 });
 
 test("canonical table bootstrap resolves ordered migration pre-use inside disposable staging only", () => {
@@ -504,6 +609,8 @@ test("canonical table bootstrap resolves ordered migration pre-use inside dispos
   assert.ok(bootstrap.view_count >= 0);
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
+  assert.equal(plan.ordered_preuse_audit.unique_true_preuse_gaps, 0);
+  assert.ok(plan.ordered_preuse_audit.same_statement_false_positives >= 500);
   assert.match(generator, /canonical table bootstrap leaves/iu);
   const authorizationRegistry = bootstrap.entries.find((entry) => entry.table === "capability_apply_authorization_policy_registry");
   assert.equal(authorizationRegistry.file, "307_sprint69_hostinger_deploy_restart_option_support.sql");

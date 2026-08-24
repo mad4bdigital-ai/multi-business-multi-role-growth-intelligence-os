@@ -205,6 +205,9 @@ function buildRuntimeEnvironmentTarget(env, contract, mode) {
   const governanceDatabase = String(env.GOVERNANCE_DB_NAME || "").trim()
     ? assertDatabase(env.GOVERNANCE_DB_NAME, "GOVERNANCE_DB_NAME")
     : database;
+  const persistenceDatabase = String(env.RUNTIME_PERSISTENCE_DB_NAME || "").trim()
+    ? assertDatabase(env.RUNTIME_PERSISTENCE_DB_NAME, "RUNTIME_PERSISTENCE_DB_NAME")
+    : database;
   const principal = assertIdentifier(env.DB_USER, "DB_USER");
   // Hostinger's standard MySQL host is localhost. A deployment may override this
   // for a remote grant principal, but it must be explicit rather than inferred from DB_HOST.
@@ -221,6 +224,7 @@ function buildRuntimeEnvironmentTarget(env, contract, mode) {
     key,
     database,
     governance_database: governanceDatabase === database ? null : governanceDatabase,
+    runtime_persistence_database: persistenceDatabase === database ? null : persistenceDatabase,
     repository,
     branch,
     environment,
@@ -228,6 +232,7 @@ function buildRuntimeEnvironmentTarget(env, contract, mode) {
     principal_host: principalHost,
     database_sha256: databaseSha,
     governance_database_sha256: governanceDatabase === database ? null : governanceDatabaseSha,
+    runtime_persistence_database_sha256: persistenceDatabase === database ? null : sha256Hex(persistenceDatabase),
     target_fingerprint: targetFingerprint,
     target_source: RUNTIME_ENV_TARGET_SOURCE,
     target_source_runtime_env: true,
@@ -240,10 +245,12 @@ function describeTargetBinding(target, source) {
     target_key: target.key,
     database_configured: Boolean(target.database),
     governance_database_configured: Boolean(target.governance_database || target.database),
+    runtime_persistence_database_configured: Boolean(target.runtime_persistence_database || target.database),
     principal_configured: Boolean(target.principal),
     principal_host_configured: Boolean(target.principal_host),
     database_sha256: target.database_sha256 || sha256Hex(target.database),
     governance_database_sha256: target.governance_database_sha256 || sha256Hex(target.governance_database || target.database),
+    runtime_persistence_database_sha256: target.runtime_persistence_database_sha256 || sha256Hex(target.runtime_persistence_database || target.database),
     target_fingerprint: target.target_fingerprint || sha256Hex(`${target.repository}:${target.branch}:${target.key}:${target.database}:${target.governance_database || target.database}:${target.principal}:${target.principal_host}`),
     raw_values_exposed: false,
     secrets_included: false,
@@ -282,6 +289,13 @@ export function parseTargetAllowlist(env, contract) {
       const governanceSha = requireSha256(target.governance_database_sha256, "target.governance_database_sha256");
       if (governanceSha !== sha256Hex(governanceDatabase)) throw bootstrapError("bootstrap_governance_database_fingerprint_mismatch", "Governance database SHA does not match its database identifier", { key });
     }
+    const persistenceDatabase = target.runtime_persistence_database === undefined || String(target.runtime_persistence_database).trim() === ""
+      ? database
+      : assertDatabase(target.runtime_persistence_database, "target.runtime_persistence_database");
+    if (target.runtime_persistence_database !== undefined && String(target.runtime_persistence_database).trim() !== "") {
+      const persistenceSha = requireSha256(target.runtime_persistence_database_sha256, "target.runtime_persistence_database_sha256");
+      if (persistenceSha !== sha256Hex(persistenceDatabase)) throw bootstrapError("bootstrap_persistence_database_fingerprint_mismatch", "Runtime persistence database SHA does not match its database identifier", { key });
+    }
     const principal = assertIdentifier(target?.principal, "target.principal");
     const principalHost = assertAccountHost(target?.principal_host, "target.principal_host");
     const fingerprint = requireSha256(target?.target_fingerprint, "target.target_fingerprint");
@@ -289,7 +303,7 @@ export function parseTargetAllowlist(env, contract) {
     if (fingerprint !== expectedFingerprint) {
       throw bootstrapError("bootstrap_target_fingerprint_mismatch", "Target fingerprint does not match repository, branch, key, databases, and grant principal", { key });
     }
-    return { ...target, key, database, governance_database: target.governance_database ? governanceDatabase : null, principal, principal_host: principalHost, repository, branch, environment };
+    return { ...target, key, database, governance_database: target.governance_database ? governanceDatabase : null, runtime_persistence_database: target.runtime_persistence_database ? persistenceDatabase : null, principal, principal_host: principalHost, repository, branch, environment };
   });
 }
 
@@ -316,7 +330,15 @@ export function resolveBootstrapTarget(env, contract) {
   if (target.governance_database && governanceDatabase !== String(env.BOOTSTRAP_GOVERNANCE_DATABASE || target.governance_database).trim()) {
     throw bootstrapError("bootstrap_governance_database_mismatch", "BOOTSTRAP_GOVERNANCE_DATABASE does not match the allowlisted target", { key });
   }
-  return { ...target, governance_database: governanceDatabase, target_source: REPOSITORY_TARGET_SOURCE, target_source_runtime_env: false };
+  const configuredPersistence = String(env.RUNTIME_PERSISTENCE_DB_NAME || "").trim();
+  if (configuredPersistence && configuredPersistence !== target.database && !target.runtime_persistence_database) {
+    throw bootstrapError("bootstrap_persistence_database_not_allowlisted", "A separate runtime persistence database must be explicitly allowlisted in the target entry", { key });
+  }
+  const persistenceDatabase = String(target.runtime_persistence_database || target.database).trim();
+  if (configuredPersistence && configuredPersistence !== persistenceDatabase) {
+    throw bootstrapError("bootstrap_persistence_database_mismatch", "Runtime persistence database does not match the allowlisted target", { key });
+  }
+  return { ...target, governance_database: governanceDatabase, runtime_persistence_database: persistenceDatabase, target_source: REPOSITORY_TARGET_SOURCE, target_source_runtime_env: false };
 }
 
 export function validateSourceBinding(env, contract, mode) {
@@ -852,6 +874,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   });
   let connection;
   let governanceConnection;
+  let persistenceConnection;
   let ledgerConnection;
   try {
     connection = await createConnection({ target, env, mode, role: "runtime", database: target.database });
@@ -867,6 +890,19 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       if (!governanceExists) throw bootstrapError("bootstrap_database_missing", "Governance database does not exist; database creation is intentionally outside this contract", { target_key: target.key, role: "governance" });
       await governanceConnection.query(`USE \`${governanceDatabase}\``);
       ledgerConnection = governanceConnection;
+    }
+    const persistenceDatabase = target.runtime_persistence_database || target.database;
+    let persistenceExecutor = connection;
+    if (persistenceDatabase === governanceDatabase) {
+      persistenceExecutor = ledgerConnection;
+    } else if (persistenceDatabase !== target.database) {
+      persistenceConnection = await createConnection({ target, env, mode, role: "runtime_persistence", database: persistenceDatabase });
+      const persistenceExists = await databaseExists(persistenceConnection, persistenceDatabase);
+      if (!persistenceExists) throw bootstrapError("bootstrap_database_missing", "Runtime persistence database does not exist; database creation is intentionally outside this contract", { target_key: target.key, role: "runtime_persistence" });
+      await persistenceConnection.query(`USE \`${persistenceDatabase}\``);
+      if (mode === "apply_migration" && await tableCount(connection, target.database) === 0 && await tableCount(persistenceConnection, persistenceDatabase) !== 0) {
+        throw bootstrapError("bootstrap_persistence_rebuild_nonempty_denied", "Runtime persistence replacement must be empty before any role bundle is applied", { role: "runtime_persistence" });
+      }
     }
     const beforeTableCount = await tableCount(connection, target.database);
     const databaseClassification = classifyDatabaseTableCount(beforeTableCount);
@@ -937,7 +973,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       const manifestPath = resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
       migrationResults.push(await applyRuntimeBundle(connection, target.database, manifestPath, source.sha, contract, mutationEvidence));
       migrationResults.push(await applyGovernanceBundle(ledgerConnection, target.governance_database || target.database, manifestPath, source.sha, contract, mutationEvidence));
-      migrationResults.push(await applyRuntimePersistenceBundle(connection, target.database, manifestPath, source.sha, contract, mutationEvidence));
+      migrationResults.push(await applyRuntimePersistenceBundle(persistenceExecutor, persistenceDatabase, manifestPath, source.sha, contract, mutationEvidence));
       for (const seed of contract.baseline_bundle.required_seed_files) {
         migrationResults.push(await applySeedFile(connection, repoRoot, seed, mutationEvidence));
       }
@@ -998,7 +1034,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     const partial = mutationEvidence.mutation_state === "partial_possible";
     error.details = {
       ...(error.details && typeof error.details === "object" ? error.details : {}),
-      database_connection_performed: Boolean(connection || governanceConnection),
+      database_connection_performed: Boolean(connection || governanceConnection || persistenceConnection),
       database_mutation_performed: partial ? "unknown" : mutationEvidence.mutation_attempted,
       migration_apply_performed: mutationEvidence.migration.attempted ? (mutationEvidence.migration.state === "complete" ? true : "unknown") : false,
       grant_mutation_performed: mutationEvidence.grants.attempted ? (mutationEvidence.grants.state === "complete" ? true : "unknown") : false,
@@ -1006,6 +1042,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     };
     throw error;
   } finally {
+    if (persistenceConnection) await persistenceConnection.end().catch(() => {});
     if (governanceConnection) await governanceConnection.end().catch(() => {});
     if (connection) await connection.end().catch(() => {});
   }

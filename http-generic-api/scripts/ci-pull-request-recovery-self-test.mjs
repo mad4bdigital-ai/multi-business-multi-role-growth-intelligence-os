@@ -20,12 +20,13 @@ const requiredRecoveryTokens = [
   "permissions:\n  contents: read",
   "name: Syntax Check",
   "name: Unit & Integration Tests",
-  "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+  "ref: ${{ steps.candidate.outputs.candidate_sha }}",
+  "ref: ${{ needs.syntax.outputs.candidate_sha }}",
   "Verify exact candidate checkout",
   "test \"$(git rev-parse HEAD)\" = \"$EXPECTED_SHA\"",
   "node scripts/user-jwt-auth-governance.mjs",
-  "PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}",
-  "PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}",
+  "PULL_REQUEST_HEAD_REF: ${{ needs.syntax.outputs.head_ref }}",
+  "PULL_REQUEST_BASE_REF: ${{ needs.syntax.outputs.base_ref }}",
   "\"$PULL_REQUEST_BASE_REF\" == \"Production\"",
   "node http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
   "phase_evaluation_base",
@@ -61,11 +62,14 @@ for (const token of [
   assert(canonical.includes(token), "canonical CI missing production ratchet token: " + token);
 }
 
-const exactCheckoutCount = recovery.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
-assert.equal(exactCheckoutCount, 2, `expected two exact candidate checkouts, got ${exactCheckoutCount}`);
+const syntaxExactCheckoutCount = recovery.split("ref: ${{ steps.candidate.outputs.candidate_sha }}").length - 1;
+const testExactCheckoutCount = recovery.split("ref: ${{ needs.syntax.outputs.candidate_sha }}").length - 1;
+assert.equal(syntaxExactCheckoutCount, 1, `expected one syntax exact candidate checkout, got ${syntaxExactCheckoutCount}`);
+assert.equal(testExactCheckoutCount, 1, `expected one test exact candidate checkout, got ${testExactCheckoutCount}`);
+const exactCheckoutCount = syntaxExactCheckoutCount + testExactCheckoutCount;
 
 const canonicalExactCheckoutCount = canonical.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
-assert.equal(canonicalExactCheckoutCount, 4, `expected four canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
+assert.equal(canonicalExactCheckoutCount, 5, `expected five canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
 assert(canonical.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'), "canonical deployment evidence must bind to the exact pull-request head");
 
 const testJobNeedsSyntax = /test:\n\s+name: Unit & Integration Tests[\s\S]*?needs: syntax/.test(recovery);

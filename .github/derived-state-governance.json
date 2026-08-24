@@ -186,6 +186,8 @@
       ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".github/workflows/production-promotion-rehearsal.yml",
       ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/ci-pull-request-recovery.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/staging-live-certification.yml",
       ".github/workflows/staging-main-deploy-eligibility.yml",
