@@ -1,0 +1,113 @@
+{
+  "contract": "mad4b.generated-artifact-registry.v1",
+  "schema_version": 1,
+  "defaults": {
+    "unknown_output": "deny",
+    "unknown_owner": "deny",
+    "unknown_environment_impact": "deny",
+    "production_mutation_allowed": false
+  },
+  "owners": {
+    "openapi_auto_sync": {
+      "workflow": ".github/workflows/openapi-auto-sync.yml",
+      "writer_identity": "REPO_AUTOSYNC_TOKEN",
+      "target_branch": "main"
+    },
+    "surface_contract_remediator": {
+      "workflow": ".github/workflows/surface-contract-auto-remediation.yml",
+      "writer_identity": "REPO_AUTOSYNC_TOKEN",
+      "target_branch": "main"
+    },
+    "docs_agent": {
+      "workflow": ".github/workflows/docs-agent-main-followup.yml",
+      "writer_identity": "REPO_AUTOSYNC_TOKEN",
+      "target_branch": "main"
+    }
+  },
+  "artifacts": [
+    {
+      "id": "docs-agent-impact-notes",
+      "patterns": ["docs/auto-docs-agent/**"],
+      "owners": ["docs_agent"],
+      "surface_class": "documentation_evidence",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": true,
+        "requires_protected_main": true,
+        "required_check": "Derived State Closure",
+        "manual_review_when": ["high_risk_source_change"]
+      }
+    },
+    {
+      "id": "repository-maintenance-status",
+      "patterns": ["docs/repo-maintenance-status.md"],
+      "owners": ["openapi_auto_sync"],
+      "surface_class": "documentation_evidence",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": true,
+        "requires_protected_main": true,
+        "required_check": "Derived State Closure"
+      }
+    },
+    {
+      "id": "surface-contract-documents",
+      "patterns": ["docs/surface-contract-*.md", "docs/surface-contract-*.json"],
+      "owners": ["openapi_auto_sync", "surface_contract_remediator"],
+      "surface_class": "documentation_evidence",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": true,
+        "requires_protected_main": true,
+        "required_check": "Derived State Closure"
+      }
+    },
+    {
+      "id": "surface-contract-governance-documents",
+      "patterns": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "owners": ["surface_contract_remediator"],
+      "surface_class": "documentation_evidence",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": true,
+        "requires_protected_main": true,
+        "required_check": "Derived State Closure"
+      }
+    },
+    {
+      "id": "surface-contract-root-documents",
+      "patterns": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md"
+      ],
+      "owners": ["surface_contract_remediator"],
+      "surface_class": "documentation_evidence",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": true,
+        "requires_protected_main": true,
+        "required_check": "Derived State Closure"
+      }
+    },
+    {
+      "id": "canonical-markdown-generated-candidates",
+      "patterns": ["canonicals/**/*.md"],
+      "owners": ["openapi_auto_sync"],
+      "surface_class": "governance_control_plane",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": false,
+        "manual_review_when": ["always"]
+      }
+    }
+  ]
+}
