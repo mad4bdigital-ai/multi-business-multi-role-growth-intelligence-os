@@ -141,6 +141,8 @@ const generatedArtifactFixture = `${JSON.stringify({ generated: true }, null, 2)
 fs.writeFileSync(path.join(root, governanceOnlyWorkMapPath), generatedArtifactFixture);
 fs.mkdirSync(path.join(root, "http-generic-api"), { recursive: true });
 fs.writeFileSync(path.join(root, "http-generic-api", "remote-mcp-write-scope-inventory.generated.json"), generatedArtifactFixture);
+fs.mkdirSync(path.join(root, "http-generic-api", "scripts", "maintenance-tools"), { recursive: true });
+fs.writeFileSync(path.join(root, "http-generic-api", "scripts", "maintenance-tools", "configuration-candidate-discovery.mjs"), "export const generatedFixture = true;\n");
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "generated governance-only artifact refresh"], root);
 const governanceOnlyHead = run("git", ["rev-parse", "HEAD"], root).trim();

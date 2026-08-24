@@ -77,12 +77,13 @@ function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
-const PARALLEL_SHARED_GENERATED_ARTIFACTS = new Set([
-  "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+const PARALLEL_SHARED_GOVERNANCE_FILES = new Set([
+  "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+  "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs"
 ]);
 
-function isParallelSharedGeneratedArtifact(file) {
-  return PARALLEL_SHARED_GENERATED_ARTIFACTS.has(normalize(file));
+function isParallelSharedGovernanceFile(file) {
+  return PARALLEL_SHARED_GOVERNANCE_FILES.has(normalize(file));
 }
 
 export function resolveParallelMaintenanceScope(contract) {
@@ -495,7 +496,7 @@ function main() {
     const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
     const runtimeFiles = report.changed_files.filter((file) =>
       policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
-      && !isParallelSharedGeneratedArtifact(file)
+      && !isParallelSharedGovernanceFile(file)
     );
     const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
       root: options.root,
