@@ -278,7 +278,9 @@
         "docs/**",
         "README.md",
         "SECURITY.md",
-        "CONTRIBUTING.md"
+        "CONTRIBUTING.md",
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md"
       ]
     },
     {
