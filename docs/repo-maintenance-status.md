@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 635
-- Operations: 584
+- Paths: 636
+- Operations: 585
 - Top-level tags: 38
 
 ## Virtual Admin Tool Contract Notes
@@ -25,7 +25,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `platform-intelligence`: 36
 - `resource-api`: 34
 - `activation`: 31
-- `admin-control`: 25
+- `admin-control`: 26
 - `customers`: 24
 - `security`: 22
 - `connector-proxy`: 18
