@@ -224,4 +224,4 @@ jobs:
           steps.agent.outputs.auto_merge_candidate != 'true'
         shell: bash
         run: |
-          echo "Generated note requires manual review."
+          echo "Generated note requires manual review. Review is required."
