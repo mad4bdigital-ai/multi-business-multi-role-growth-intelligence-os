@@ -43,7 +43,7 @@
     {"id":"postmerge_observability_advisory","test_paths":["http-generic-api/test-postmerge-observability-advisory-contract.mjs",".github/workflows/repository-inventory.yml",".github/workflows/repository-evaluation.yml"]},
     {"id":"production_long_term_ingress_oauth_contract","test_paths":["http-generic-api/test-trusted-ingress-contract.mjs","http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs"]},
     {"id":"hostinger_storage_work_map_gate_scope","test_paths":["http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",".github/workflows/hostinger-storage-cleanup-guard.yml"]},
-    {"id":"postmerge_governance_delivery","test_paths":["http-generic-api/test-derived-state-converged-automerge-source-event.mjs","http-generic-api/test-repo-maintenance-sync.mjs","http-generic-api/test-surface-contract-auto-remediation.mjs",".github/workflows/derived-state-converged-automerge.yml",".github/workflows/openapi-auto-sync.yml",".github/workflows/surface-contract-auto-remediation.yml"]}
+    {"id":"postmerge_governance_delivery","test_paths":["http-generic-api/test-derived-state-converged-automerge-source-event.mjs","http-generic-api/test-repo-maintenance-sync.mjs","http-generic-api/test-supervisor-runtime-assurance-automation.mjs","http-generic-api/test-surface-contract-auto-remediation.mjs",".github/workflows/derived-state-converged-automerge.yml",".github/workflows/openapi-auto-sync.yml",".github/workflows/surface-contract-auto-remediation.yml"]}
   ],
   "discovery": {
     "extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx"],
