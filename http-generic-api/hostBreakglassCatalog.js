@@ -8,12 +8,15 @@ import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = path.join(HERE, "config", "host-breakglass-catalog.json");
 const TOOL_CONTRACT_PATH = path.join(HERE, "config", "host-breakglass-tool-contracts.json");
+const MIGRATIONS_PATH = path.join(HERE, "migrations");
+const SHARED_MIGRATION_POLICY_PATH = path.join(HERE, "config", "staging-migration-contract-policy.json");
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/u;
 const CAPSULE_SHA_RE = /^[0-9a-f]{64}$/u;
 const CAPSULE_PATH_RE = /^\.github\/breakglass\/(sql\/[A-Za-z0-9._-]+\.sql|shell\/[A-Za-z0-9._-]+\.sh)$/u;
 const BACKUP_EVIDENCE_PATH_RE = /^\.github\/breakglass\/evidence\/[A-Za-z0-9._-]+\.json$/u;
 const RUNS = new Map();
+const MIGRATION_DISCOVERY_CACHE = new Map();
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -50,7 +53,8 @@ export function readHostBreakglassCatalog(catalogPath = CATALOG_PATH) {
 
 export function publicHostBreakglassCatalog(catalog = readHostBreakglassCatalog()) {
   const toolContract = readHostBreakglassToolContract();
-  return { ...catalog, tool_contract: publicToolContract(toolContract), catalog_sha256: stableHash(catalog), secrets_included: false };
+  const bootstrapContract = readRuntimeBootstrapContract();
+  return { ...catalog, tool_contract: publicToolContract(toolContract), migration_catalog: migrationGovernanceEvidence(catalog, bootstrapContract), catalog_sha256: stableHash(catalog), secrets_included: false };
 }
 
 export function readHostBreakglassToolContract(contractPath = TOOL_CONTRACT_PATH) {
@@ -90,6 +94,48 @@ function migrationFiles(contract) {
   return new Set(Object.keys(contract?.migrations || {}));
 }
 
+function migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey = null) {
+  const governance = catalog.migration_governance;
+  if (!governance || governance.discovery_grants_execution !== false || governance.production_auto_apply_allowed !== false || governance.silent_ledger_reconciliation_allowed !== false) {
+    fail(500, "host_breakglass_migration_governance_invalid", "Migration discovery must remain separate from execution authority and silent reconciliation.");
+  }
+  const files = fs.readdirSync(MIGRATIONS_PATH).filter((file) => /^\d[^/\\]*\.sql$/u.test(file)).sort((left, right) => Number(left.match(/^\d+/u)?.[0] || 0) - Number(right.match(/^\d+/u)?.[0] || 0) || left.localeCompare(right));
+  const cacheKey = `${environmentKey || "all"}:${stableHash(bootstrapContract.migrations || {})}:${files.join("|")}`;
+  const cached = MIGRATION_DISCOVERY_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const digest = createHash("sha256");
+  for (const file of files) digest.update(`${file}:${stableFileHash(path.join(MIGRATIONS_PATH, file))}\n`);
+  const allowlisted = Object.entries(bootstrapContract.migrations || {});
+  const applyEligible = allowlisted.filter(([, rule]) => Array.isArray(rule.allowed_modes) && rule.allowed_modes.includes("apply_migration"));
+  let sharedPolicy = { available: false, compatible: false };
+  if (fs.existsSync(SHARED_MIGRATION_POLICY_PATH)) {
+    const policy = JSON.parse(fs.readFileSync(SHARED_MIGRATION_POLICY_PATH, "utf8"));
+    sharedPolicy = {
+      available: true,
+      compatible: policy.execution_authority?.discovery_grants_execution === false && policy.execution_authority?.production_auto_apply_allowed === false,
+      environment_profile_declared: environmentKey ? Boolean(policy.environment_profiles?.[environmentKey]) : null,
+      sha256: stableFileHash(SHARED_MIGRATION_POLICY_PATH)
+    };
+    if (!sharedPolicy.compatible || (environmentKey && !sharedPolicy.environment_profile_declared)) fail(500, "host_breakglass_shared_migration_policy_invalid", "Shared migration policy does not isolate discovery, environment, and execution authority.");
+  }
+  const evidence = {
+    contract: governance.contract,
+    environment_key: environmentKey,
+    discovered_migration_count: files.length,
+    execution_allowlist_count: allowlisted.length,
+    execution_eligible_count: applyEligible.length,
+    migration_catalog_sha256: digest.digest("hex"),
+    discovery_grants_execution: false,
+    production_auto_apply_allowed: false,
+    shared_policy: sharedPolicy,
+    required_database_roles: Object.entries(catalog.database_role_topology || {}).filter(([, role]) => role.required === true).map(([role]) => role).sort(),
+    missing_rebuild_role_executors: Object.entries(catalog.database_role_topology || {}).filter(([, role]) => role.required === true && role.rebuild_executor_available !== true).map(([role]) => role).sort(),
+    secrets_included: false
+  };
+  MIGRATION_DISCOVERY_CACHE.set(cacheKey, evidence);
+  return evidence;
+}
+
 export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakglassCatalog(), bootstrapContract = readRuntimeBootstrapContract(), toolContract = readHostBreakglassToolContract() } = {}) {
   const environmentKey = String(input.environment_key || "production_hostinger_autodeploy").trim();
   const environment = catalog.environments?.[environmentKey];
@@ -106,6 +152,8 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   const { runbookKey, toolChain } = resolveToolChain({ operation, action, input, toolContract });
   if (!SHA_RE.test(expectedSha)) fail(400, "host_breakglass_expected_sha_invalid", "expected_sha must be a lowercase 40-character SHA.");
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
+  if (!targetKey.startsWith(environment.target_key_prefix || `${environment.environment}-`)) fail(403, "host_breakglass_environment_target_mismatch", "Target key does not belong to the selected environment.", { environment_key: environmentKey, target_key: targetKey });
+  const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
   const migration = String(input.migration || "").trim();
   if (["dry_run", "apply_migration"].includes(action) && !migrationFiles(bootstrapContract).has(migration)) {
     fail(400, "host_breakglass_migration_not_cataloged", "Migration is not present in the repository-owned bootstrap contract.", { migration });
@@ -161,6 +209,8 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     workflow: environment.execution_transport === "github_workflow" ? catalog.workflow : null,
     target_source: targetSource,
     target_key: targetKey,
+    migration_governance: governanceEvidence,
+    database_role_topology: catalog.database_role_topology,
     migration: migration || null,
     capsule_path: capsulePath || null,
     capsule_sha256: capsuleSha256 || null,
@@ -238,4 +288,4 @@ export async function readHostBreakglassRun(correlationId, { catalog = readHostB
   return { ok: true, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, dispatch_status: receipt?.status || "recovered_from_github", workflow_run_id: run?.id ? String(run.id) : null, status: run?.status || "queued", conclusion: run?.conclusion || null, durable_github_readback: true, secrets_included: false };
 }
 
-export const __hostBreakglassTest = { RUNS };
+export const __hostBreakglassTest = { RUNS, MIGRATION_DISCOVERY_CACHE };

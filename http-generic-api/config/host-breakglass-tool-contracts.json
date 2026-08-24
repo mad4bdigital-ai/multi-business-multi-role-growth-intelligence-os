@@ -6,6 +6,8 @@
   "tools": {
     "catalog.resolve": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
     "authority.validate": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
+    "migration_catalog.inspect": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration"], "requires": ["repository_migration_catalog", "environment_profile", "execution_allowlist_separation"] },
+    "database_role_topology.inspect": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants"], "requires": ["runtime_role", "governance_role", "runtime_persistence_role"] },
     "target.classify": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "connection.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "schema_bundle.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration"] },
@@ -22,19 +24,19 @@
   "runbooks": {
     "database.full_inspection": {
       "operation": "database.inspect",
-      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "schema_bundle.inspect", "migration_contract.inspect", "grant_contract.inspect", "database.postconditions.read", "ledger.readback"]
+      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "schema_bundle.inspect", "migration_contract.inspect", "grant_contract.inspect", "database.postconditions.read", "ledger.readback"]
     },
     "database.schema_repair": {
       "operation": "database.repair",
-      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
+      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
     },
     "database.access_repair": {
       "operation": "database.repair",
-      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "grant_contract.inspect", "grant_contract.apply", "database.postconditions.read", "ledger.readback"]
+      "tools": ["catalog.resolve", "authority.validate", "database_role_topology.inspect", "target.classify", "connection.inspect", "grant_contract.inspect", "grant_contract.apply", "database.postconditions.read", "ledger.readback"]
     },
     "database.empty_rebuild": {
       "operation": "database.rebuild_empty",
-      "tools": ["catalog.resolve", "authority.validate", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
+      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
     },
     "host.sql_capsule_exception": {
       "operation": "host.command_capsule",

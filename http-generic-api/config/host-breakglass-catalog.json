@@ -18,6 +18,7 @@
       "execution_transport": "local_cli",
       "source_branch": "main",
       "default_target_key": "staging-runtime",
+      "target_key_prefix": "staging-",
       "provider": "local_docker",
       "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
       "github_workflow_dispatch_allowed": false,
@@ -30,6 +31,7 @@
       "execution_transport": "github_workflow",
       "source_branch": "Production",
       "default_target_key": "production-runtime",
+      "target_key_prefix": "production-",
       "dispatch_ref": "main",
       "provider": "hostinger",
       "credential_namespace": "MYSQL_BOOTSTRAP_*",
@@ -37,7 +39,27 @@
       "hostinger_access_allowed": true
     }
   },
+  "migration_governance": {
+    "contract": "mad4b.cross-environment.migration-discovery.v1",
+    "migration_directory": "http-generic-api/migrations",
+    "full_catalog_discovery": true,
+    "execution_catalog_source": "config/runtime-bootstrap-contract.json",
+    "discovery_grants_execution": false,
+    "production_auto_apply_allowed": false,
+    "historical_checksum_verification_required": true,
+    "silent_ledger_reconciliation_allowed": false,
+    "same_cycle_postcondition_readback_required": true,
+    "shared_policy_path": "config/staging-migration-contract-policy.json",
+    "shared_policy_optional_until_foundation_merge": true
+  },
+  "database_role_topology": {
+    "runtime": { "required": true, "rebuild_executor_available": true },
+    "governance": { "required": true, "owns_migration_ledger": true, "rebuild_executor_available": true },
+    "runtime_persistence": { "required": true, "owns_tables": ["governed_tool_response_chunks"], "rebuild_executor_available": false, "blocking_reason": "role_specific_persistence_executor_not_configured" }
+  },
   "tools": [
+    { "key": "migration_catalog.inspect", "mutation": false, "database_required": false },
+    { "key": "database_role_topology.inspect", "mutation": false, "database_required": false },
     { "key": "schema_bundle.inspect", "mutation": false, "database_required": false },
     { "key": "schema_bundle.rebuild_empty", "mutation": true, "zero_table_required": true },
     { "key": "migration_contract.inspect", "mutation": false, "catalog_source": "runtime-bootstrap-contract.json" },

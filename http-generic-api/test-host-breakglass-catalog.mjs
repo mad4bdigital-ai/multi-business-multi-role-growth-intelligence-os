@@ -29,8 +29,19 @@ test("catalog is repository-owned and database independent", () => {
 test("tool contract exposes governed platform capabilities with capsule-only raw exceptions", () => {
   const contract = readHostBreakglassToolContract();
   assert.equal(contract.tools["migration_contract.apply"].executor, "governedMigrationExecutionTool");
+  assert.equal(contract.tools["migration_catalog.inspect"].mutation, false);
+  assert.equal(contract.tools["database_role_topology.inspect"].mutation, false);
   assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("zero_table_proof"), true);
   assert.equal(Object.hasOwn(contract.tools, "shell.execute"), false);
+});
+test("full migration discovery never expands the Production execution allowlist", () => {
+  const catalog = publicHostBreakglassCatalog();
+  assert.equal(catalog.migration_catalog.discovered_migration_count > catalog.migration_catalog.execution_allowlist_count, true);
+  assert.equal(catalog.migration_catalog.execution_eligible_count <= catalog.migration_catalog.execution_allowlist_count, true);
+  assert.equal(catalog.migration_catalog.discovery_grants_execution, false);
+  assert.equal(catalog.migration_catalog.production_auto_apply_allowed, false);
+  assert.equal(catalog.migration_catalog.required_database_roles.includes("runtime_persistence"), true);
+  assert.equal(catalog.migration_catalog.missing_rebuild_role_executors.includes("runtime_persistence"), true);
 });
 test("empty database rebuild is exact-sha and repository-contract bound", () => {
   const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "dry_run", expected_sha: SHA, migration: MIGRATION });
@@ -76,6 +87,10 @@ test("Staging Windows Docker and Production Hostinger authorities cannot cross",
   assert.equal(production.execution_transport, "github_workflow");
   assert.equal(production.host, "hostinger_cloud_business");
   assert.equal(production.dispatch_ref, "main");
+  assert.equal(staging.migration_governance.environment_key, "staging_local_windows_docker");
+  assert.equal(production.migration_governance.environment_key, "production_hostinger_autodeploy");
+  assert.throws(() => buildHostBreakglassPlan({ environment_key: "staging_local_windows_docker", operation_key: "database.inspect", action: "plan", expected_sha: SHA, target_key: "production-runtime" }), /does not belong/u);
+  assert.throws(() => buildHostBreakglassPlan({ environment_key: "production_hostinger_autodeploy", operation_key: "database.inspect", action: "plan", expected_sha: SHA, target_key: "staging-runtime" }), /does not belong/u);
 });
 test("Production correlation status survives process-local receipt loss through GitHub run-name readback", async () => {
   const correlation = "durable-status-test";
@@ -86,4 +101,4 @@ test("Production correlation status survives process-local receipt loss through 
   assert.equal(result.workflow_run_id, "77");
   assert.equal(result.durable_github_readback, true);
 });
-test.after(() => { __hostBreakglassTest.RUNS.clear(); fs.rmSync(SQL_PATH, { force: true }); fs.rmSync(SHELL_PATH, { force: true }); fs.rmSync(BACKUP_PATH, { force: true }); });
+test.after(() => { __hostBreakglassTest.RUNS.clear(); __hostBreakglassTest.MIGRATION_DISCOVERY_CACHE.clear(); fs.rmSync(SQL_PATH, { force: true }); fs.rmSync(SHELL_PATH, { force: true }); fs.rmSync(BACKUP_PATH, { force: true }); });
