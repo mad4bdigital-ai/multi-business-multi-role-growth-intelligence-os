@@ -128,6 +128,55 @@ test("host-local role recovery plans retain independent migration and grant capa
   assert.doesNotMatch(JSON.stringify(grantReceipt), /PASSWORD|secret-for-test/i);
 });
 
+
+test("Windows/Docker role recovery uses Staging-only grant and migration approval prefixes", async () => {
+  const migration = buildHostBreakglassPlan({
+    environment_key: "staging_local_windows_docker",
+    operation_key: "database.repair",
+    runbook_key: "database.schema_repair",
+    action: "apply_migration",
+    expected_sha: SHA,
+    target_source: "staging_local_role_env",
+    target_key: "staging-runtime",
+    migration: MIGRATION,
+    confirmation: `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${MIGRATION}`,
+  });
+  assert.equal(migration.execution_transport, "local_cli");
+  assert.equal(migration.capability_grants.includes("grant_contract.apply"), false);
+  const receipt = await dispatchHostBreakglassPlan(migration, {
+    fetchImpl: async () => { throw new Error("Staging must never call GitHub"); },
+    tokenResolver: async () => { throw new Error("Staging must never request GitHub credentials"); },
+  });
+  assert.equal(receipt.required_platform, "win32");
+  assert.equal(receipt.required_runtime, "docker_compose");
+  assert.equal(receipt.workflow_dispatch_performed, false);
+
+  const grants = buildHostBreakglassPlan({
+    environment_key: "staging_local_windows_docker",
+    operation_key: "database.repair",
+    runbook_key: "database.access_repair",
+    action: "apply_grants",
+    expected_sha: SHA,
+    target_source: "staging_local_role_env",
+    target_key: "staging-runtime",
+    confirmation: `APPLY_STAGING_RUNTIME_GRANTS:${SHA}:staging-runtime:user:localhost`,
+  });
+  assert.equal(grants.capability_grants.includes("grant_contract.apply"), true);
+  assert.equal(grants.capability_grants.includes("migration_contract.apply"), false);
+});
+
+test("Staging and Production reject each other's role-bound source and typed approval", () => {
+  assert.throws(() => buildHostBreakglassPlan({
+    environment_key: "staging_local_windows_docker", operation_key: "database.repair", action: "dry_run", expected_sha: SHA, target_source: "host_local_role_env", migration: MIGRATION,
+  }), (error) => error.code === "host_breakglass_role_source_environment_mismatch");
+  assert.throws(() => buildHostBreakglassPlan({
+    environment_key: "production_hostinger_autodeploy", operation_key: "database.repair", action: "dry_run", expected_sha: SHA, target_source: "staging_local_role_env", migration: MIGRATION,
+  }), (error) => error.code === "host_breakglass_role_source_environment_mismatch");
+  assert.throws(() => buildHostBreakglassPlan({
+    environment_key: "staging_local_windows_docker", operation_key: "database.repair", runbook_key: "database.access_repair", action: "apply_grants", expected_sha: SHA, target_source: "staging_local_role_env", target_key: "staging-runtime", confirmation: `APPLY_HOSTINGER_RUNTIME_GRANTS:${SHA}:staging-runtime:user:localhost`,
+  }), (error) => error.code === "host_breakglass_confirmation_required");
+});
+
 test("empty rebuild and access repair remain separately approved lifecycles", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_grants", expected_sha: SHA, confirmation: `APPLY_HOSTINGER_RUNTIME_GRANTS:${SHA}:production-runtime:user:localhost` }), /not allowed/u);
 });

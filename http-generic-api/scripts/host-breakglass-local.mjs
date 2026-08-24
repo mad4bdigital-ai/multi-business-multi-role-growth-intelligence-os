@@ -25,10 +25,24 @@ function stagingContract() {
   base.target_binding.required_branch = overlay.source_branch;
   base.target_binding.required_environment = overlay.target_environment;
   base.target_binding.default_target_key = overlay.default_target_key;
+  if (plan.target_source === overlay.role_target_source) {
+    base.execution_policy.apply_migration_confirmation_prefix = overlay.apply_migration_confirmation_prefix;
+    base.execution_policy.apply_grants_confirmation_prefix = overlay.apply_grants_confirmation_prefix;
+  }
   return base;
 }
 
 function localEnv() {
+  if (plan.target_source === overlay.role_target_source) {
+    const requestedIndex = process.argv.indexOf("--env-file");
+    const requested = requestedIndex >= 0 ? process.argv[requestedIndex + 1] : null;
+    const candidates = requested ? [requested] : [overlay.compose_env_file, ".env"];
+    const selected = candidates.map((item) => path.resolve(API_ROOT, item)).find((item) => fs.existsSync(item) && fs.statSync(item).isFile());
+    if (!selected) throw Object.assign(new Error("Staging role-bound recovery requires an existing local Docker environment file."), { code: "host_breakglass_staging_env_file_missing", status: 409 });
+    if (fs.statSync(selected).size > 1024 * 1024) throw Object.assign(new Error("Staging role-bound environment file exceeds the bounded size limit."), { code: "host_breakglass_staging_env_file_too_large", status: 409 });
+    if (typeof process.loadEnvFile !== "function") throw Object.assign(new Error("This Node.js runtime cannot safely load the Staging environment file."), { code: "host_breakglass_staging_env_file_unsupported", status: 409 });
+    process.loadEnvFile(selected);
+  }
   const env = { ...process.env };
   for (const [source, target] of Object.entries(overlay.credential_mapping)) if (env[source]) env[target] = env[source];
   return {
@@ -43,6 +57,7 @@ function localEnv() {
     BOOTSTRAP_MIGRATION_CONFIRMATION: plan.action === "apply_migration" ? plan.confirmation || "" : "",
     BOOTSTRAP_GRANTS_CONFIRMATION: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     HOST_BREAKGLASS_OPERATION: plan.operation_key
+    ,HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: plan.target_source === overlay.role_target_source ? "true" : ""
     ,HOST_BREAKGLASS_ENVIRONMENT_KEY: plan.environment_key
     ,HOST_BREAKGLASS_CAPSULE_PATH: plan.capsule_path || ""
     ,HOST_BREAKGLASS_CAPSULE_SHA256: plan.capsule_sha256 || ""

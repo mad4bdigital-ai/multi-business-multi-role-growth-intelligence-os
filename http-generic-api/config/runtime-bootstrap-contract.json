@@ -77,6 +77,29 @@
         },
         "cross_role_credential_reuse": false,
         "raw_values_exposed": false
+      },
+      "staging_local_role_env": {
+        "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
+        "requires_explicit_host_breakglass_authorization": true,
+        "allowed_operations": ["database.repair", "database.rebuild_empty"],
+        "required_environment_key": "staging_local_windows_docker",
+        "required_transport": "local_cli",
+        "required_platform": "win32",
+        "required_runtime": "docker_compose",
+        "requires_exact_source_sha": true,
+        "requires_separate_environment_bound_confirmations": true,
+        "github_actions_allowed": false,
+        "hostinger_access_allowed": false,
+        "grants_allowed": true,
+        "grant_scope": "existing_repository_owned_least_privilege_table_allowlist_only",
+        "role_environment_prefixes": {
+          "runtime": "DB",
+          "governance": "GOVERNANCE_DB",
+          "runtime_persistence": "RUNTIME_PERSISTENCE_DB"
+        },
+        "cross_environment_credential_reuse": false,
+        "cross_role_credential_reuse": false,
+        "raw_values_exposed": false
       }
     },
     "target_role": "runtime",

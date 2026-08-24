@@ -178,6 +178,12 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (!operation) fail(400, "host_breakglass_operation_unknown", "Unknown Host Breakglass operation.", { operation_key: operationKey });
   if (!operation.allowed_actions.includes(action)) fail(400, "host_breakglass_action_denied", "Action is not allowed for this operation.", { operation_key: operationKey, action });
   if (!operation.target_sources.includes(targetSource)) fail(400, "host_breakglass_target_source_denied", "Target source is not allowed for this operation.", { target_source: targetSource });
+  if (targetSource === "host_local_role_env" && environmentKey !== "production_hostinger_autodeploy") {
+    fail(403, "host_breakglass_role_source_environment_mismatch", "Hostinger role credentials cannot be used for Staging.", { environment_key: environmentKey });
+  }
+  if (targetSource === "staging_local_role_env" && environmentKey !== "staging_local_windows_docker") {
+    fail(403, "host_breakglass_role_source_environment_mismatch", "Windows/Docker role credentials cannot be used for Production.", { environment_key: environmentKey });
+  }
   const { runbookKey, toolChain } = resolveToolChain({ operation, action, input, toolContract });
   if (!SHA_RE.test(expectedSha)) fail(400, "host_breakglass_expected_sha_invalid", "expected_sha must be a lowercase 40-character SHA.");
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
@@ -207,15 +213,17 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (capsuleAction && environmentKey === "production_hostinger_autodeploy" && !BACKUP_EVIDENCE_PATH_RE.test(backupEvidencePath)) fail(400, "host_breakglass_backup_evidence_required", "Production command capsule requires repository-owned backup evidence.");
   const backupEvidenceSha256 = capsuleAction && environmentKey === "production_hostinger_autodeploy" ? validateRepositoryBackupEvidence(backupEvidencePath, { expectedSha, targetKey }) : null;
   const confirmationRequired = operation.requires_confirmation === true && !["plan", "dry_run"].includes(action);
+  const migrationPrefix = targetSource === "staging_local_role_env" ? environment.apply_migration_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_MIGRATION";
+  const grantsPrefix = targetSource === "staging_local_role_env" ? environment.apply_grants_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_GRANTS";
   const expectedConfirmation = action === "apply_migration"
-    ? `APPLY_HOSTINGER_RUNTIME_MIGRATION:${expectedSha}:${targetKey}:${migration}`
+    ? `${migrationPrefix}:${expectedSha}:${targetKey}:${migration}`
     : "";
   const grantsConfirmationValid = action === "apply_grants"
-    && new RegExp(`^APPLY_HOSTINGER_RUNTIME_GRANTS:${expectedSha}:${targetKey}:[A-Za-z0-9_$.-]{1,128}:[A-Za-z0-9._%:-]{1,255}$`, "u").test(confirmation);
+    && new RegExp(`^${grantsPrefix}:${expectedSha}:${targetKey}:[A-Za-z0-9_$.-]{1,128}:[A-Za-z0-9._%:-]{1,255}$`, "u").test(confirmation);
   const capsuleConfirmation = `EXECUTE_HOST_BREAKGLASS_CAPSULE:${environmentKey}:${expectedSha}:${capsuleSha256}`;
   const capsuleConfirmationValid = capsuleAction && confirmation === capsuleConfirmation;
   if (confirmationRequired && ((action === "apply_migration" && confirmation !== expectedConfirmation) || (action === "apply_grants" && !grantsConfirmationValid) || (capsuleAction && !capsuleConfirmationValid))) {
-    fail(400, "host_breakglass_confirmation_required", "Exact typed confirmation is required.", { confirmation_formula: action === "apply_migration" ? "APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>" : "APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>" });
+    fail(400, "host_breakglass_confirmation_required", "Exact environment-bound typed confirmation is required.", { confirmation_formula: action === "apply_migration" ? `${migrationPrefix}:<sha>:<target-key>:<migration-file>` : `${grantsPrefix}:<sha>:<target-key>:<principal>:<principal-host>` });
   }
   const correlationId = String(input.correlation_id || input.idempotency_key || randomUUID()).trim();
   if (!SAFE_ID_RE.test(correlationId)) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");

@@ -359,6 +359,76 @@ test("role credential resolution never substitutes a different role database", (
   assert.throws(() => resolveRoleBootstrapCredentials(env, "runtime_persistence", target), (error) => error.code === "bootstrap_role_database_mismatch");
 });
 
+
+function stagingRoleContract() {
+  const configured = structuredClone(contract);
+  configured.source_binding.branch = "main";
+  configured.target_binding.required_branch = "main";
+  configured.target_binding.required_environment = "staging";
+  configured.target_binding.default_target_key = "staging-runtime";
+  configured.execution_policy.apply_migration_confirmation_prefix = "APPLY_STAGING_RUNTIME_MIGRATION";
+  configured.execution_policy.apply_grants_confirmation_prefix = "APPLY_STAGING_RUNTIME_GRANTS";
+  return configured;
+}
+
+function stagingRoleEnv(mode = "dry_run", operation = "database.repair") {
+  return {
+    ...hostLocalRoleEnv(mode, operation),
+    BOOTSTRAP_EXPECTED_BRANCH: "main",
+    BOOTSTRAP_TARGET_KEY: "staging-runtime",
+    BOOTSTRAP_TARGET_SOURCE: "staging_local_role_env",
+    HOST_BREAKGLASS_ENVIRONMENT_KEY: "staging_local_windows_docker",
+  };
+}
+
+test("Staging Windows/Docker binds all three existing role identities with an environment-specific target", async () => {
+  const env = stagingRoleEnv();
+  const configured = stagingRoleContract();
+  const opened = [];
+  const result = await runBootstrap({ env, contract: configured, connectionFactory: async ({ role, database, credentials }) => {
+    opened.push({ role, database, user: credentials.user });
+    return fakeConnection();
+  } });
+  assert.equal(result.target_binding.source, "staging_local_role_env");
+  assert.equal(result.target_key, "staging-runtime");
+  assert.deepEqual(opened, [
+    { role: "runtime", database: TARGET_DATABASE, user: TARGET.principal },
+    { role: "governance", database: "growth_governance", user: "governance_user" },
+    { role: "runtime_persistence", database: "growth_persistence", user: "persistence_user" },
+  ]);
+  assert.equal(result.database_mutation_performed, false);
+});
+
+test("Staging grants require their own approval and reject Production grant confirmation", async () => {
+  const env = stagingRoleEnv("apply_grants");
+  const configured = stagingRoleContract();
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${TARGET.principal}:localhost`;
+  assert.throws(() => buildPlan(env, configured), (error) => error.code === "bootstrap_confirmation_mismatch");
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_STAGING_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${TARGET.principal}:localhost`;
+  const connections = new Map();
+  const result = await runBootstrap({ env, contract: configured, connectionFactory: async ({ role }) => {
+    const connection = fakeConnection({ ledgerFound: true });
+    connections.set(role, connection);
+    return connection;
+  } });
+  assert.equal(result.status, "apply_grants_complete");
+  assert.equal(connections.get("runtime").queryCalls.filter((sql) => /^GRANT /i.test(sql)).length, contract.grant_policy.required_tables.length);
+  assert.equal(connections.get("governance").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+  assert.equal(connections.get("runtime_persistence").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+});
+
+test("role-bound credentials reject cross-environment target keys and execution identities", () => {
+  const production = hostLocalRoleEnv();
+  production.HOST_BREAKGLASS_ENVIRONMENT_KEY = "staging_local_windows_docker";
+  assert.throws(() => buildPlan(production, contract), (error) => error.code === "bootstrap_role_environment_mismatch");
+  const staging = stagingRoleEnv();
+  staging.BOOTSTRAP_TARGET_KEY = "production-runtime";
+  assert.throws(() => buildPlan(staging, stagingRoleContract()), (error) => error.code === "bootstrap_role_target_environment_mismatch");
+  const github = stagingRoleEnv();
+  github.GITHUB_ACTIONS = "true";
+  assert.throws(() => buildPlan(github, stagingRoleContract()), (error) => error.code === "bootstrap_host_local_role_transport_denied");
+});
+
 test("Host Breakglass empty rebuild contract is represented as a zero-table-only capability", () => {
   const catalog = JSON.parse(fs.readFileSync(new URL("./config/host-breakglass-catalog.json", import.meta.url), "utf8"));
   const rebuild = catalog.operations.find((entry) => entry.key === "database.rebuild_empty");

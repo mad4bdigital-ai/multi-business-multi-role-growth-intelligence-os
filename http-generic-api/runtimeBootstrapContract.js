@@ -162,15 +162,18 @@ function assertAccountHost(value, field) {
 
 const RUNTIME_ENV_TARGET_SOURCE = "runtime_env";
 const REPOSITORY_TARGET_SOURCE = "repository_allowlist";
-const HOST_LOCAL_ROLE_TARGET_SOURCE = "host_local_role_env";
 const HOST_LOCAL_ROLE_OPERATIONS = new Set(["database.repair", "database.rebuild_empty"]);
 
 function normalizeTargetSource(value) {
   const source = String(value || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
-  if (![REPOSITORY_TARGET_SOURCE, RUNTIME_ENV_TARGET_SOURCE, HOST_LOCAL_ROLE_TARGET_SOURCE].includes(source)) {
-    throw bootstrapError("bootstrap_target_source_invalid", "Bootstrap target source must be repository_allowlist, runtime_env, or explicitly authorized host_local_role_env", { source });
+  if (![REPOSITORY_TARGET_SOURCE, RUNTIME_ENV_TARGET_SOURCE, "host_local_role_env", "staging_local_role_env"].includes(source)) {
+    throw bootstrapError("bootstrap_target_source_invalid", "Bootstrap target source must be repository_allowlist, runtime_env, or an explicitly authorized environment-local role source", { source });
   }
   return source;
+}
+
+function usesLocalRoleIdentity(value) {
+  return ["host_local_role_env", "staging_local_role_env"].includes(String(value || "").trim().toLowerCase());
 }
 
 function assertHostLocalRoleAuthorization(env, mode) {
@@ -178,7 +181,17 @@ function assertHostLocalRoleAuthorization(env, mode) {
     throw bootstrapError("bootstrap_host_local_role_authorization_missing", "Host-local role credentials require an explicit Host Breakglass authorization");
   }
   if (String(env.GITHUB_ACTIONS || "").trim().toLowerCase() === "true") {
-    throw bootstrapError("bootstrap_host_local_role_transport_denied", "Host-local role credentials cannot be consumed inside GitHub Actions");
+    throw bootstrapError("bootstrap_host_local_role_transport_denied", "Environment-local role credentials cannot be consumed inside GitHub Actions");
+  }
+  const source = String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase();
+  const expected = source === "staging_local_role_env" ? "staging_local_windows_docker" : "production_hostinger_autodeploy";
+  const selected = String(env.HOST_BREAKGLASS_ENVIRONMENT_KEY || expected).trim();
+  if (selected !== expected) {
+    throw bootstrapError("bootstrap_role_environment_mismatch", "Environment-local role credentials cannot cross Staging and Production", { environment_key: selected });
+  }
+  const targetKey = String(env.BOOTSTRAP_TARGET_KEY || "").trim();
+  if (targetKey && !targetKey.startsWith(source === "staging_local_role_env" ? "staging-" : "production-")) {
+    throw bootstrapError("bootstrap_role_target_environment_mismatch", "Role-bound target key belongs to a different environment", { environment_key: expected });
   }
   if (!["dry_run", "apply_migration", "apply_grants"].includes(mode)) {
     throw bootstrapError("bootstrap_host_local_role_mode_denied", "Host-local role credentials never authorize shell or SQL capsules", { mode });
@@ -197,7 +210,7 @@ function normalizeRuntimeEnvironmentInputs(env = {}) {
   const normalized = { ...env };
   const source = String(normalized.BOOTSTRAP_TARGET_SOURCE || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
   const mode = String(normalized.BOOTSTRAP_MODE || "plan").trim().toLowerCase();
-  if (source === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+  if (usesLocalRoleIdentity(source)) {
     assertHostLocalRoleAuthorization(normalized, mode);
     normalized.MYSQL_BOOTSTRAP_HOST = String(normalized.DB_HOST || "").trim();
     normalized.MYSQL_BOOTSTRAP_PORT = String(normalized.DB_PORT || "3306").trim();
@@ -225,7 +238,7 @@ function normalizeRuntimeEnvironmentInputs(env = {}) {
 }
 
 function buildRuntimeEnvironmentTarget(env, contract, mode, source = RUNTIME_ENV_TARGET_SOURCE) {
-  if (source === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+  if (usesLocalRoleIdentity(source)) {
     assertHostLocalRoleAuthorization(env, mode);
   } else if (mode !== "dry_run") {
     throw bootstrapError("bootstrap_runtime_target_source_mode_denied", "runtime_env target discovery is restricted to dry_run", { mode });
@@ -248,7 +261,7 @@ function buildRuntimeEnvironmentTarget(env, contract, mode, source = RUNTIME_ENV
   if (bootstrapDatabase && bootstrapDatabase !== database) {
     throw bootstrapError("bootstrap_connection_database_mismatch", "MYSQL_BOOTSTRAP_DATABASE must match DB_NAME for runtime_env discovery", { source: RUNTIME_ENV_TARGET_SOURCE });
   }
-  const environment = "production";
+  const environment = String(contract.target_binding.required_environment || "production").trim().toLowerCase();
   const databaseSha = sha256Hex(database);
   const governanceDatabaseSha = sha256Hex(governanceDatabase);
   const targetFingerprint = sha256Hex(`${repository}:${branch}:${key}:${database}:${governanceDatabase}:${principal}:${principalHost}`);
@@ -268,7 +281,8 @@ function buildRuntimeEnvironmentTarget(env, contract, mode, source = RUNTIME_ENV
     target_fingerprint: targetFingerprint,
     target_source: source,
     target_source_runtime_env: source === RUNTIME_ENV_TARGET_SOURCE,
-    target_source_host_local_role_env: source === HOST_LOCAL_ROLE_TARGET_SOURCE,
+    target_source_host_local_role_env: source === "host_local_role_env",
+    target_source_staging_local_role_env: source === "staging_local_role_env",
   };
 }
 
@@ -343,7 +357,7 @@ export function parseTargetAllowlist(env, contract) {
 export function resolveBootstrapTarget(env, contract) {
   const mode = normalizeMode(env.BOOTSTRAP_MODE || "plan");
   const source = normalizeTargetSource(env.BOOTSTRAP_TARGET_SOURCE);
-  if (source === RUNTIME_ENV_TARGET_SOURCE || source === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+  if (source === RUNTIME_ENV_TARGET_SOURCE || usesLocalRoleIdentity(source)) {
     return buildRuntimeEnvironmentTarget(env, contract, mode, source);
   }
   const key = requireString(env.BOOTSTRAP_TARGET_KEY, "bootstrap_target_key_missing", "BOOTSTRAP_TARGET_KEY");
@@ -419,10 +433,10 @@ export function validateBootstrapCredentials(env, { requirePassword = true, targ
   const runtimeReadOnlyIdentity = env.BOOTSTRAP_RUNTIME_READ_ONLY_IDENTITY === "true"
     && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === RUNTIME_ENV_TARGET_SOURCE
     && String(env.BOOTSTRAP_MODE || "").trim().toLowerCase() === "dry_run";
-  const hostLocalRoleIdentity = env.BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY === "true"
-    && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === HOST_LOCAL_ROLE_TARGET_SOURCE;
-  if (hostLocalRoleIdentity) assertHostLocalRoleAuthorization(env, normalizeMode(env.BOOTSTRAP_MODE || "plan"));
-  const authorizedRuntimeIdentity = runtimeReadOnlyIdentity || hostLocalRoleIdentity;
+  const boundIdentity = env.BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY === "true"
+    && usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE);
+  if (boundIdentity) assertHostLocalRoleAuthorization(env, normalizeMode(env.BOOTSTRAP_MODE || "plan"));
+  const authorizedRuntimeIdentity = runtimeReadOnlyIdentity || boundIdentity;
   if (runtimeUser && bootstrapUser === runtimeUser && !authorizedRuntimeIdentity) {
     throw bootstrapError("bootstrap_credential_reuse_denied", "MYSQL_BOOTSTRAP_USER must be separate from DB_USER");
   }
@@ -434,7 +448,7 @@ export function validateBootstrapCredentials(env, { requirePassword = true, targ
   }
   const port = Number(env.MYSQL_BOOTSTRAP_PORT || 3306);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw bootstrapError("bootstrap_port_invalid", "MYSQL_BOOTSTRAP_PORT is invalid");
-  return { host_configured: true, user_configured: true, password_configured: requirePassword, port, separate_from_runtime: !authorizedRuntimeIdentity, credential_source: hostLocalRoleIdentity ? "host_local_role_scoped" : runtimeReadOnlyIdentity ? "runtime_read_only" : "dedicated_bootstrap", separate_from_target_principal: target?.principal ? bootstrapUser !== String(target.principal).trim() : null };
+  return { host_configured: true, user_configured: true, password_configured: requirePassword, port, separate_from_runtime: !authorizedRuntimeIdentity, credential_source: boundIdentity ? "host_local_role_scoped" : runtimeReadOnlyIdentity ? "runtime_read_only" : "dedicated_bootstrap", separate_from_target_principal: target?.principal ? bootstrapUser !== String(target.principal).trim() : null };
 }
 
 export function resolveRoleBootstrapCredentials(env, role, target, { requirePassword = true } = {}) {
@@ -445,8 +459,8 @@ export function resolveRoleBootstrapCredentials(env, role, target, { requirePass
   };
   const binding = roleBindings[role];
   if (!binding) throw bootstrapError("bootstrap_role_invalid", "Unknown database role", { role });
-  const hostLocal = String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === HOST_LOCAL_ROLE_TARGET_SOURCE;
-  if (!hostLocal) {
+  const localIdentity = usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE);
+  if (!localIdentity) {
     return { host: env.MYSQL_BOOTSTRAP_HOST, port: Number(env.MYSQL_BOOTSTRAP_PORT || 3306), user: env.MYSQL_BOOTSTRAP_USER, password: env.MYSQL_BOOTSTRAP_PASSWORD, database: binding.database, role, credential_source: "dedicated_bootstrap" };
   }
   assertHostLocalRoleAuthorization(env, normalizeMode(env.BOOTSTRAP_MODE || "plan"));
@@ -476,7 +490,7 @@ function preflightRoleBootstrapCredentials(env, target, { requirePassword = true
   const persistenceDatabase = target.runtime_persistence_database || target.database;
   if (persistenceDatabase !== target.database && persistenceDatabase !== (target.governance_database || target.database)) roles.push("runtime_persistence");
   const resolved = new Map(roles.map((role) => [role, resolveRoleBootstrapCredentials(env, role, target, { requirePassword })]));
-  if (String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === HOST_LOCAL_ROLE_TARGET_SOURCE) {
+  if (usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE)) {
     const identities = new Map();
     for (const [role, credentials] of resolved) {
       if (identities.has(credentials.user)) {

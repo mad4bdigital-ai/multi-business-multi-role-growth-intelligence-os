@@ -195,3 +195,22 @@ This remains an explicit host-side action. Repository merge, application startup
 ### Separately approved host-local grant exception
 
 The same role-bound Hostinger identity may execute `--apply-grants --operation database.repair` only after the separate typed `APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>` confirmation. This does not share or infer the migration approval. Grants remain limited to the six repository-allowlisted runtime tables and `SELECT`, `INSERT`, and `UPDATE`; database-global privileges, grant-option delegation, additional tables, arbitrary principals, and shell/SQL capsules remain denied. All required tables and migration readiness are checked before the first GRANT. Hostinger must actually grant the executing account the ability to issue those bounded GRANT statements; a provider-side denial fails closed with classified, secret-free evidence rather than claiming privilege escalation.
+
+## Dual-environment, role-local recovery
+
+The same three-database role mapping is available in both isolated environments, but the target source, target prefix, transport, checkout branch, and typed confirmations are intentionally different:
+
+| Environment | Role-bound target source | Target prefix | Execution authority | Migration approval | Grant approval |
+| --- | --- | --- | --- | --- | --- |
+| Production / Hostinger | `host_local_role_env` | `production-` | Explicit Hostinger host-side CLI | `APPLY_HOSTINGER_RUNTIME_MIGRATION` | `APPLY_HOSTINGER_RUNTIME_GRANTS` |
+| Staging / Windows Docker | `staging_local_role_env` | `staging-` | Existing Windows-only, Docker-verified local adapter | `APPLY_STAGING_RUNTIME_MIGRATION` | `APPLY_STAGING_RUNTIME_GRANTS` |
+
+Both use the existing environment-specific `DB_*`, `GOVERNANCE_DB_*`, and `RUNTIME_PERSISTENCE_DB_*` credentials, with three independent role-bound connections and preflight before the first connection. The Staging adapter explicitly loads its existing `.env.staging` file, falls back to the local `.env` if necessary, and never reads Hostinger credentials or dispatches GitHub workflows. The Production adapter never accepts a `staging-` target or Staging confirmation.
+
+In Staging, supply the approved request to the existing local adapter:
+
+```powershell
+npm run host-breakglass:local -- --request-file .\approved-staging-request.json
+```
+
+The request must select `environment_key=staging_local_windows_docker`, `target_source=staging_local_role_env`, a `staging-` target, and an environment-bound typed confirmation. Migration and grants remain separate operations. The grant exception stays limited to repository-approved runtime tables and `SELECT`, `INSERT`, and `UPDATE`; no cross-role or cross-environment grants are generated.

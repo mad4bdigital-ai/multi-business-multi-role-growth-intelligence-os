@@ -63,10 +63,10 @@ function loadExplicitEnvFile() {
   const source = String(valueAfter("--target-source") || (hostLocal ? "host_local_role_env" : process.env.BOOTSTRAP_TARGET_SOURCE || "repository_allowlist")).trim().toLowerCase();
   const readOnlyRuntime = mode === "dry_run" && source === "runtime_env";
   const operation = String(valueAfter("--operation") || "").trim();
-  const authorizedHostLocal = hostLocal && ["dry_run", "apply_migration", "apply_grants"].includes(mode) && source === "host_local_role_env"
+  const eligibleInvocation = hostLocal && ["dry_run", "apply_migration", "apply_grants"].includes(mode) && source === "host_local_role_env"
     && ["database.repair", "database.rebuild_empty"].includes(operation)
     && (mode !== "apply_grants" || operation === "database.repair");
-  if (!readOnlyRuntime && !authorizedHostLocal) {
+  if (!readOnlyRuntime && !eligibleInvocation) {
     throw bootstrapError("bootstrap_env_file_mode_denied", "--env-file requires runtime_env dry_run or an explicitly scoped host-local database repair/rebuild");
   }
   const resolved = path.resolve(String(envFile || "").trim());
