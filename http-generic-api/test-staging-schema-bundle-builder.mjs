@@ -209,6 +209,11 @@ test("numeric migration ordering runs dependencies before later indexes", () => 
     "MariaDB join-key alignment must run before migration 197 views",
   );
   assert.ok(
+    orderedMigrations.indexOf("20260721_z_mariadb_agent_skill_grant_request_precreation_collation.sql")
+      < orderedMigrations.indexOf("20260722_agent_skill_grant_approval_provenance.sql"),
+    "agent skill grant request pre-creation must precede the immutable provenance migration",
+  );
+  assert.ok(
     orderedMigrations.indexOf("20260724_mariadb_repository_authority_system_collation_alignment.sql")
       < orderedMigrations.indexOf("20260725_repository_authority_capability_readiness_repair.sql"),
     "repository authority system-key alignment must run before the 20260725 repair",
@@ -589,15 +594,15 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 786);
-  assert.equal(plan.statement_count, 3049);
+  assert.equal(plan.migration_count, 787);
+  assert.equal(plan.statement_count, 3051);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 787);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3076);
+  assert.equal(plan.ordered_collation_chain.files_checked, 788);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3078);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -744,8 +749,11 @@ test("MariaDB collation repairs are narrow and precede first risky JOIN use", ()
   assert.match(joinAlignmentSql, /MODIFY\s+tenant_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
   assert.doesNotMatch(joinAlignmentSql, /(?:credential|secret|payload|metadata_json)/iu);
   const provenance = fs.readFileSync(path.join(migrationsDir, "20260722_agent_skill_grant_approval_provenance.sql"), "utf8");
-  assert.match(provenance, /ENGINE=InnoDB\s+DEFAULT CHARSET=utf8mb4\s+COLLATE=utf8mb4_uca1400_ai_ci/iu);
-  assert.match(provenance, /approval_hold_id\s+VARCHAR\(36\)\s+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci/iu);
+  assert.match(provenance, /ENGINE=InnoDB\s+DEFAULT CHARSET=utf8mb4\s+COLLATE=utf8mb4_unicode_ci/iu);
+  assert.doesNotMatch(provenance, /approval_hold_id\s+VARCHAR\(36\)\s+CHARACTER SET utf8mb4 COLLATE/iu);
+  const precreation = fs.readFileSync(path.join(migrationsDir, "20260721_z_mariadb_agent_skill_grant_request_precreation_collation.sql"), "utf8");
+  assert.match(precreation, /ENGINE=InnoDB\s+DEFAULT CHARSET=utf8mb4\s+COLLATE=utf8mb4_uca1400_ai_ci/iu);
+  assert.match(precreation, /approval_hold_id\s+VARCHAR\(36\)\s+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci/iu);
   const repositoryAlignment = fs.readFileSync(path.join(migrationsDir, "20260724_mariadb_repository_authority_system_collation_alignment.sql"), "utf8");
   const repositoryAlignmentSql = repositoryAlignment.replace(/^\s*--[^\r\n]*(?:\r?\n|$)/gmu, "");
   assert.match(repositoryAlignmentSql, /MODIFY\s+system_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);

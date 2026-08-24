@@ -403,7 +403,9 @@ function applyProjectedDdlStatement(statement, schema, databaseDefaults) {
   }
 
   const localTables = projectedSchemaFromSql(normalized);
+  const createIfNotExists = /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/iu.test(normalized);
   for (const [table, entry] of localTables.entries()) {
+    if (createIfNotExists && schema.has(table)) continue;
     const tableCharset = entry.charset || databaseDefaults.charset || null;
     const tableCollation = entry.collation || databaseDefaults.collation || null;
     const columns = new Map([...entry.columns.entries()].map(([column, value]) => [column, {
