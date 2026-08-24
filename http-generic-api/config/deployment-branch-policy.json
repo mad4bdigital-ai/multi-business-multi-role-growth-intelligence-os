@@ -193,6 +193,7 @@
           "docs/repo-autosync-permissions.md",
           "docs/work-maps/**",
           "docs/remote-mcp-write-scope-inventory.md",
+          "docs/write-scope-shadow-evidence-2026-08-15.json",
           "http-generic-api/docs/remote-mcp-*.md",
           "http-generic-api/.env.example",
           "http-generic-api/package.json",
