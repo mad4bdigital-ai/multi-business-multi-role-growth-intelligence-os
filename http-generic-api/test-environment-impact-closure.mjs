@@ -59,6 +59,7 @@ assert.deepEqual(classifyPath("http-generic-api/scripts/github-main-review-polic
 assert.deepEqual(classifyPath("http-generic-api/scripts/github-review-policy-target.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/test-github-review-policy-target.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/migration-order.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/hostinger-runtime-bootstrap.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
