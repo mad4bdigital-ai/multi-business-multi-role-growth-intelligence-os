@@ -3,9 +3,9 @@
   "feature_key": "018-environment-promotion-runtime-integrity",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "185596112b6f0773677319f13434e2dbe2a164a5ae5b33cc9c68306c473c02ae",
-    "index_source_hash": "62b7d31fe39174a3afd25bcc97d803f65ea68d51c5128cac0abc5099eb5c36f4",
-    "coverage_source_hash": "e2a61196d57b31adab589cbcf0c6f1a7f6fbdfd901cd3754dd70d8b94cf8e906",
+    "fingerprint": "cb6c279f31041ad796019aac145a4cb8962b8d1bb508bdc101d7fd5cdb5d75fd",
+    "index_source_hash": "fbfc8486457e2d9f3a72f9efe5dcc98d273f3ed9fff575a3311856e9ba45b53d",
+    "coverage_source_hash": "52d4870eeb1e352d694e3a21fb42d0321cf9883a71b1901d1a72e18a583e3865",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
