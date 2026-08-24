@@ -91,6 +91,30 @@ test("runtime_env mutation and uncataloged migration fail closed", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", action: "dry_run", expected_sha: SHA, migration: "arbitrary.sql" }), /not present/u);
 });
 
+test("Production host-local full inspection allows omitted migration but remains read-only and host-side", async () => {
+  const plan = buildHostBreakglassPlan({
+    operation_key: "database.inspect",
+    runbook_key: "database.full_inspection",
+    action: "dry_run",
+    expected_sha: SHA,
+    target_source: "host_local_role_env",
+    target_key: "production-runtime",
+  });
+  assert.equal(plan.migration, null);
+  assert.equal(plan.migration_selected, false);
+  assert.equal(plan.migration_selection, "full_inspection_catalog");
+  assert.equal(plan.database_mutation_performed, false);
+  const receipt = await dispatchHostBreakglassPlan(plan, {
+    fetchImpl: async () => { throw new Error("host-local inspection must never call GitHub"); },
+    tokenResolver: async () => { throw new Error("host-local inspection must not require a GitHub token"); },
+  });
+  assert.equal(receipt.status, "host_local_execution_required");
+  assert.equal(receipt.separate_typed_confirmation_required, false);
+  assert.equal(receipt.github_secrets_required, false);
+  assert.equal(receipt.workflow_dispatch_performed, false);
+  assert.equal(receipt.database_mutation_performed, false);
+});
+
 test("host-local role recovery plans retain independent migration and grant capability boundaries", async () => {
   const migrationPlan = buildHostBreakglassPlan({
     operation_key: "database.repair",

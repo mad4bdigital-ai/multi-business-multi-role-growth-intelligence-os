@@ -2107,7 +2107,10 @@
     "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousGithubSha|environment_reference|github.sha",
     "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeDbName|environment_reference|db.name",
     "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeDbUser|environment_reference|db.user",
-    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeGovernanceDbName|environment_reference|governance.db.name"
+    "http-generic-api/test-runtime-gate-deployment-info-parity.mjs|previousRuntimeGovernanceDbName|environment_reference|governance.db.name",
+    "http-generic-api/trustedIngressContract.js|DEFAULT_ATTESTATION_HEADER|literal_declaration|attestation.header",
+    "http-generic-api/trustedIngressContract.js|DEFAULT_MAX_CLOCK_SKEW_SECONDS|literal_declaration|max.clock.skew.seconds",
+    "http-generic-api/trustedIngressContract.js|DEFAULT_MAX_ATTESTATION_TTL_SECONDS|literal_declaration|max.attestation.ttl.seconds"
   ],
   "max_existing_secret_candidates": 341,
   "fail_on_removed_candidates": false,

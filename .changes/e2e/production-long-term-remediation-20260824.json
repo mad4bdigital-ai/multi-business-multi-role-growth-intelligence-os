@@ -1,0 +1,305 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-long-term-remediation-20260824",
+  "title": "Long-term trusted ingress and readiness remediation",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-long-term-remediation-20260824.json",
+      "docs/governance/hostinger-runtime-bootstrap.md",
+      "docs/governance/runtime-breakglass-environments.md",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+      "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
+      "http-generic-api/tenantGptOperationalReadiness.js",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/config/host-breakglass-catalog.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/runtimeBootstrapContract.js",
+      "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-runtime-bootstrap-contract.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+      "http-generic-api/test-trusted-ingress-contract.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "docs/repository-inventory-summary.json",
+      "edge/activation-gateway/generated/route-policy.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/scripts/split-openapi.mjs",
+      "http-generic-api/test-staging-independent-schema-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Harden the shared OAuth/MCP runtime and Hostinger Breakglass contracts so token diagnostics never persist token material, dependency and schema failures return bounded structured 503 responses, trusted ingress can be upgraded from transitional flags to request-bound Ed25519 attestation without enabling it implicitly, and three independent Hostinger database roles can be inspected read-only without a migration selector.",
+      "e2e_journeys": [
+        {
+          "id": "oauth-diagnostic-redaction",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant GPT OAuth token exchange",
+          "entrypoint": "POST /auth/oauth/token",
+          "terminal_outcome": "A successful token response is returned while durable diagnostic evidence contains no access token, refresh token, authorization code, or client secret.",
+          "steps": [
+            "Issue a synthetic authorization-code exchange.",
+            "Record terminal evidence after the response is committed.",
+            "Assert that evidence contains only bounded metadata and secrets_included=false."
+          ],
+          "assertions": [
+            "access_token is absent from diagnostic evidence",
+            "token response behavior remains unchanged",
+            "secrets_included=false"
+          ],
+          "tests": [
+            {
+              "id": "oauth-diagnostic-redaction-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+            ".changes/e2e/production-long-term-remediation-20260824.json"
+          ]
+        },
+        {
+          "id": "dependency-failure-envelope",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant GPT OAuth token exchange",
+          "entrypoint": "POST /auth/oauth/token",
+          "terminal_outcome": "Schema or dependency failure is classified as a bounded 503 with retry metadata and a safe dependency category, without exposing database error text or credentials.",
+          "steps": [
+            "Simulate a pre-consumption connection failure.",
+            "Simulate schema-not-ready refresh readiness.",
+            "Return the governed OAuth error envelope before any code consumption."
+          ],
+          "assertions": [
+            "schema_not_ready and dependency_not_ready are the only exposed dependency categories",
+            "retry_same_code is true before code consumption",
+            "raw error messages and token material are absent"
+          ],
+          "tests": [
+            {
+              "id": "dependency-failure-envelope-routes-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "dependency-failure-envelope-policy-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs"
+          ]
+        },
+        {
+          "id": "signed-trusted-ingress",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Edge trusted-ingress verifier",
+          "entrypoint": "OAuth discovery metadata route",
+          "terminal_outcome": "A request-bound Ed25519 attestation is accepted only when issuer, audience, canonical host, bounded time window, key identity, deployment SHA, request ID, and JTI are valid; forged, expired, duplicated, or mismatched evidence fails closed.",
+          "steps": [
+            "Verify a synthetic Ed25519 attestation against an Origin-held public key.",
+            "Reject forged signature, wrong host, expired claims, duplicate header, and deployment SHA mismatch.",
+            "Keep legacy flag mode explicit and transitional rather than silently enabling signature mode."
+          ],
+          "assertions": [
+            "signature verification is request-bound",
+            "direct or caller-supplied forwarded-host evidence is insufficient",
+            "failure status is 503 and secrets_included=false",
+            "Production activation remains disabled until edge capability and direct-origin posture are separately proven"
+          ],
+          "tests": [
+            {
+              "id": "signed-trusted-ingress-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "production-trusted-ingress-route-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-production-trusted-ingress.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/trustedIngressContract.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/test-trusted-ingress-contract.mjs",
+            "http-generic-api/test-remote-mcp-production-trusted-ingress.mjs",
+            "docs/governance/hostinger-runtime-bootstrap.md"
+          ]
+        },
+        {
+          "id": "readiness-domain-separation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant GPT operational readiness",
+          "entrypoint": "buildTenantGptOperationalReadiness",
+          "terminal_outcome": "Discovery, data-plane, OAuth-token, mutation-governance, and external-acceptance readiness are reported separately while aggregate production readiness remains fail-closed.",
+          "steps": [
+            "Evaluate readiness with no database pool.",
+            "Evaluate readiness with a synthetic ready pool.",
+            "Assert domain-specific readiness and unchanged production_allowed behavior."
+          ],
+          "assertions": [
+            "mutation governance remains false until independent evidence exists",
+            "domain readiness does not imply production activation",
+            "aggregate blocking checks remain authoritative"
+          ],
+          "tests": [
+            {
+              "id": "readiness-domain-separation-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-operational-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/tenantGptOperationalReadiness.js",
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+            ".changes/e2e/production-long-term-remediation-20260824.json"
+          ]
+        },
+        {
+          "id": "hostinger-role-local-full-inspection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Hostinger Admin Host Breakglass",
+          "entrypoint": "POST /admin/runtime-breakglass/plan plus hostinger-runtime-bootstrap CLI",
+          "terminal_outcome": "A Production full inspection may omit migration, selects host_local_role_env, and preserves the existing runtime, governance, and runtime_persistence identities without sending credentials to GitHub or performing mutation.",
+          "steps": [
+            "Build a Production database.inspect/database.full_inspection dry-run plan with target_source=host_local_role_env and no migration.",
+            "Return a host-side handoff without GitHub workflow dispatch or typed mutation confirmation.",
+            "Run the synthetic bootstrap executor with one distinct credential set per database role and collect bounded schema, ledger, grant, and table-count evidence.",
+            "Reject apply modes for database.inspect and reject the role-local source for Staging."
+          ],
+          "assertions": [
+            "migration_selected=false and migration_selection=full_inspection_catalog",
+            "runtime, governance, and runtime_persistence use independent existing role identities",
+            "database_mutation_performed=false and workflow_dispatch_performed=false",
+            "database.inspect is dry_run-only and Staging cannot select host_local_role_env",
+            "request and evidence contain no passwords, tokens, or raw credential values"
+          ],
+          "tests": [
+            {
+              "id": "host-breakglass-role-local-inspection-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-bootstrap-role-local-inspection-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-bootstrap-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-bootstrap-route-migration-optional-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/host-breakglass-catalog.json",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/runtimeBootstrapContract.js",
+            "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-host-breakglass-catalog.mjs",
+            "http-generic-api/test-runtime-bootstrap-contract.mjs",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "docs/governance/hostinger-runtime-bootstrap.md",
+            "docs/governance/runtime-breakglass-environments.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "ssh_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "secrets_included": false
+  }
+}

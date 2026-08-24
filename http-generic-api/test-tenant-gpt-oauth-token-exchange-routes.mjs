@@ -198,6 +198,19 @@ const successEvidence = diagnosticEvidence(successHarness)
 assert.equal(successEvidence.length, 1, "success must create exactly one terminal evidence record");
 assert.equal(successEvidence[0].phase, "response_committed");
 assert.equal(successEvidence[0].status, "success");
+const accessTokenEvidence = successEvidence[0].access_token;
+assert.equal(
+  accessTokenEvidence === undefined
+    || (
+      accessTokenEvidence?.token_type === "bearer"
+      && Number.isInteger(accessTokenEvidence?.length)
+      && accessTokenEvidence.length > 0
+      && accessTokenEvidence?.secrets_included === false
+    ),
+  true,
+  "access-token evidence may contain only bounded non-secret metadata",
+);
+assert.equal(JSON.stringify(successEvidence).includes("access-token-safe-test"), false);
 assert.deepEqual(successEvidence[0].bearer_profile, {
   ttl_seconds: 3600,
   issuer_claim_required: true,
@@ -317,6 +330,34 @@ assert.equal(preConsumption.body.error_code, "oauth_token_exchange_preconsumptio
 assert.equal(preConsumption.body.retry_same_code, true);
 assert.equal(preConsumption.body.outcome_unknown, false);
 assert.equal(preConsumption.body.operator_reconciliation_required, false);
+assert.equal(preConsumption.body.dependency_category, "dependency_not_ready");
+assert.equal(JSON.stringify(preConsumption.body).includes("subject database unavailable"), false);
+
+const schemaRefreshHarness = createHarness({
+  tenantGptRefreshTokensEnabled: () => true,
+  tenantGptRefreshReady: async () => ({ ready: false, reason: "migration_indexes_or_transaction_not_ready" }),
+});
+const schemaRefresh = await runScenario(schemaRefreshHarness, {
+  ...BASE_BODY,
+  grant_type: "refresh_token",
+  refresh_token: "refresh-token-sensitive",
+});
+assert.equal(schemaRefresh.status, 503);
+assert.equal(schemaRefresh.body.error, "temporarily_unavailable");
+assert.equal(schemaRefresh.body.dependency_category, "schema_not_ready");
+assert.equal(schemaRefresh.body.retry_same_code, true);
+assert.equal(JSON.stringify(schemaRefresh.body).includes("refresh-token-sensitive"), false);
+
+const schemaSubjectHarness = createHarness({
+  resolveActiveSubject: async () => {
+    const error = new Error("schema unavailable");
+    error.code = "ER_BAD_FIELD_ERROR";
+    throw error;
+  },
+});
+const schemaSubject = await runScenario(schemaSubjectHarness);
+assert.equal(schemaSubject.status, 503);
+assert.equal(schemaSubject.body.dependency_category, "schema_not_ready");
 
 assert.throws(
   () => createHarness({ verifyCode: undefined }),

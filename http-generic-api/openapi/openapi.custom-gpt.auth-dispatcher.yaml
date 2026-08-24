@@ -470,7 +470,9 @@ paths:
                   enum:
                     - repository_allowlist
                     - runtime_env
+                    - host_local_role_env
                   default: repository_allowlist
+                  description: Production-only Hostinger role-local source for database.inspect dry_run; credentials remain host-side and are never accepted in the request.
                 target_key:
                   type: string
                   pattern: ^[A-Za-z0-9._:-]{1,128}$
@@ -478,7 +480,7 @@ paths:
                 migration:
                   type: string
                   maxLength: 191
-                  description: Repository migration selected from the bootstrap contract at runtime.
+                  description: Optional for database.full_inspection dry_run; required when a migration-specific dry_run or apply action is selected.
                 capsule_path:
                   type: string
                   pattern: ^\.github/breakglass/(sql/[A-Za-z0-9._-]+\.sql|shell/[A-Za-z0-9._-]+\.sh)$
@@ -574,7 +576,9 @@ paths:
                   enum:
                     - repository_allowlist
                     - runtime_env
+                    - host_local_role_env
                   default: repository_allowlist
+                  description: Production-only Hostinger role-local source for database.inspect dry_run; credentials remain host-side and are never accepted in the request.
                 target_key:
                   type: string
                   pattern: ^[A-Za-z0-9._:-]{1,128}$
@@ -582,7 +586,7 @@ paths:
                 migration:
                   type: string
                   maxLength: 191
-                  description: Repository migration selected from the bootstrap contract at runtime.
+                  description: Optional for database.full_inspection dry_run; required when a migration-specific dry_run or apply action is selected.
                 capsule_path:
                   type: string
                   pattern: ^\.github/breakglass/(sql/[A-Za-z0-9._-]+\.sql|shell/[A-Za-z0-9._-]+\.sh)$
@@ -2270,7 +2274,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 445d1d3e212fb1a3b5cba4271be8c04cca637d7265ca4febdb890d5e9b953953
+  source_openapi_sha256: f784d09bf7ab988e8ca4a98d7d6413ba8c96fed1398413a1905dcc27d7a30710
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 428e9b2c5e951246d7f9c1a1e98dc9d0bdc48e94095ec50a1b8253b7c704921c
   domain_family_policy: http-generic-api/config/domain-family-policy.json

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "90e62f7339b0729c2252ef2832d15a9540f0bcc7dcccf17e33d5e2d14119ccab",
+    "source_digest": "1d3451d44afea7775c0c6d823120e30d52cab9bd7d81aecb24a2f74645283d56",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "445d1d3e212fb1a3b5cba4271be8c04cca637d7265ca4febdb890d5e9b953953",
+        "sha256": "f784d09bf7ab988e8ca4a98d7d6413ba8c96fed1398413a1905dcc27d7a30710",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "119fd67a16dcd8d8ed35ed564c61b539c47e80deeb2a159998106c8ad443505f",
+        "sha256": "4dd519698e9eefabd75d6d8a00190a9e677e6725b2428ed1c6abb10437c4c0b0",
         "present": true
       },
       {
@@ -546,7 +546,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "870ffd358c979059eac0aaa95b4a5b8434cc40f088e5b53b68612307bc48dd74",
+        "sha256": "b7be7537f5edb753cc75358310efb417aadc29b4e41572414ed182d2bf9ffed8",
         "present": true
       },
       {
@@ -1011,7 +1011,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "4fd3acde807299e9dcd225f56161784e468f8c7b5d555b2f78031bd3d50dddb8",
+        "sha256": "74b01848fceaa71d3f4c7e6c302cc412061628cb5660c33291d9ac6166a76542",
         "present": true
       },
       {
@@ -1106,7 +1106,7 @@
       },
       {
         "file": "test-runtime-gate-deployment-info-parity.mjs",
-        "sha256": "09123d1499030cadcac2aafe97af7955fca39c97dad15fa8a4f87bebc17ce64f",
+        "sha256": "c4c5a6b681a9cebd3db757bb4341eb074232b1ee2c319fb23bc4d116df21ad32",
         "present": true
       },
       {
@@ -1664,7 +1664,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "4fd3acde807299e9dcd225f56161784e468f8c7b5d555b2f78031bd3d50dddb8",
+      "source_digest": "74b01848fceaa71d3f4c7e6c302cc412061628cb5660c33291d9ac6166a76542",
       "mount_prefix": "/",
       "mount_order": 12509,
       "split_from_mixed_scope_file": false,
@@ -1837,7 +1837,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "870ffd358c979059eac0aaa95b4a5b8434cc40f088e5b53b68612307bc48dd74",
+      "source_digest": "b7be7537f5edb753cc75358310efb417aadc29b4e41572414ed182d2bf9ffed8",
       "mount_prefix": "/",
       "mount_order": 12608,
       "split_from_mixed_scope_file": true,
@@ -2040,7 +2040,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "870ffd358c979059eac0aaa95b4a5b8434cc40f088e5b53b68612307bc48dd74",
+      "source_digest": "b7be7537f5edb753cc75358310efb417aadc29b4e41572414ed182d2bf9ffed8",
       "mount_prefix": "/",
       "mount_order": 12608,
       "split_from_mixed_scope_file": true,

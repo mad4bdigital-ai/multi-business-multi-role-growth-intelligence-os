@@ -57,6 +57,22 @@ function isMutationMode(mode) {
   return mode === "apply_migration" || mode === "apply_grants";
 }
 
+function isFullInspectionDryRun(env, mode) {
+  return mode === "dry_run"
+    && String(env.HOST_BREAKGLASS_OPERATION || "").trim() === "database.inspect"
+    && !String(env.BOOTSTRAP_MIGRATION || "").trim();
+}
+
+function migrationCatalogEvidence(contract) {
+  return Object.entries(contract.migrations || {}).map(([file, spec]) => ({
+    file,
+    sha256: String(spec?.sha256 || "").toLowerCase(),
+    statement_count: Number(spec?.statement_count || 0),
+    allowed_modes: Array.isArray(spec?.allowed_modes) ? [...spec.allowed_modes] : [],
+    role: spec?.role || null,
+  }));
+}
+
 function mutationEvidenceTemplate(migration, statementCount, grantsTotal = 0) {
   return {
     mutation_attempted: false,
@@ -162,7 +178,7 @@ function assertAccountHost(value, field) {
 
 const RUNTIME_ENV_TARGET_SOURCE = "runtime_env";
 const REPOSITORY_TARGET_SOURCE = "repository_allowlist";
-const HOST_LOCAL_ROLE_OPERATIONS = new Set(["database.repair", "database.rebuild_empty"]);
+const HOST_LOCAL_ROLE_OPERATIONS = new Set(["database.inspect", "database.repair", "database.rebuild_empty"]);
 
 function normalizeTargetSource(value) {
   const source = String(value || REPOSITORY_TARGET_SOURCE).trim().toLowerCase();
@@ -200,8 +216,11 @@ function assertHostLocalRoleAuthorization(env, mode) {
   if (mode === "apply_grants" && operation !== "database.repair") {
     throw bootstrapError("bootstrap_host_local_grant_operation_denied", "Host-local grants require the separately confirmed database.repair access runbook", { operation });
   }
+  if (operation === "database.inspect" && mode !== "dry_run") {
+    throw bootstrapError("bootstrap_host_local_inspection_mode_denied", "Host-local database inspection is restricted to dry_run", { operation, mode });
+  }
   if (!HOST_LOCAL_ROLE_OPERATIONS.has(operation)) {
-    throw bootstrapError("bootstrap_host_local_role_operation_denied", "Host-local role credentials require a bounded database repair or empty-rebuild runbook", { operation });
+    throw bootstrapError("bootstrap_host_local_role_operation_denied", "Host-local role credentials require a bounded database inspection, repair, or empty-rebuild runbook", { operation });
   }
   return operation;
 }
@@ -485,10 +504,16 @@ export function resolveRoleBootstrapCredentials(env, role, target, { requirePass
 }
 
 function preflightRoleBootstrapCredentials(env, target, { requirePassword = true } = {}) {
-  const roles = ["runtime"];
-  if ((target.governance_database || target.database) !== target.database) roles.push("governance");
+  const governanceDatabase = target.governance_database || target.database;
   const persistenceDatabase = target.runtime_persistence_database || target.database;
-  if (persistenceDatabase !== target.database && persistenceDatabase !== (target.governance_database || target.database)) roles.push("runtime_persistence");
+  const splitRoleTopology = governanceDatabase !== target.database || persistenceDatabase !== target.database;
+  const source = normalizeTargetSource(env.BOOTSTRAP_TARGET_SOURCE);
+  if (splitRoleTopology && source === RUNTIME_ENV_TARGET_SOURCE) {
+    throw bootstrapError("bootstrap_runtime_env_split_role_credentials_unsupported", "runtime_env cannot reuse the primary DB identity across distinct governance or runtime-persistence databases; use the explicit host-local role source", { source, required_source: "host_local_role_env", distinct_role_count: 1 + Number(governanceDatabase !== target.database) + Number(persistenceDatabase !== target.database) });
+  }
+  const roles = ["runtime"];
+  if (governanceDatabase !== target.database) roles.push("governance");
+  if (persistenceDatabase !== target.database && persistenceDatabase !== governanceDatabase) roles.push("runtime_persistence");
   const resolved = new Map(roles.map((role) => [role, resolveRoleBootstrapCredentials(env, role, target, { requirePassword })]));
   if (usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE)) {
     const identities = new Map();
@@ -655,6 +680,31 @@ export async function readIncidentPostconditions(connection, database, contract,
     }
   }
   return { ready: evidence.every((item) => item.ready), checks: evidence };
+}
+
+export async function readLedgerInspection(connection, database) {
+  const tableRows = await queryOne(connection, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'governed_migration_ledger'", [database]);
+  if (tableRows.length !== 1) {
+    return { available: false, required: true, reason_code: "bootstrap_ledger_missing", missing_columns: [], records: [] };
+  }
+  const columnRows = await queryOne(connection, `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'governed_migration_ledger' AND COLUMN_NAME IN (${LEDGER_COLUMNS.map(() => "?").join(",")})`, [database, ...LEDGER_COLUMNS]);
+  const present = new Set(columnRows.map((row) => String(row.COLUMN_NAME)));
+  const missing = LEDGER_COLUMNS.filter((column) => !present.has(column));
+  if (missing.length) {
+    return { available: false, required: true, reason_code: "bootstrap_ledger_contract_incomplete", missing_columns: missing, records: [] };
+  }
+  const rows = await queryOne(connection, "SELECT migration_file, migration_checksum_sha256, applied_at, mode FROM governed_migration_ledger ORDER BY applied_at DESC LIMIT 100");
+  return {
+    available: true,
+    required: true,
+    row_count: rows.length,
+    records: rows.map((row) => ({
+      migration_file: String(row.migration_file || ""),
+      migration_checksum_sha256: String(row.migration_checksum_sha256 || "").toLowerCase(),
+      applied_at: row.applied_at || null,
+      mode: String(row.mode || ""),
+    })),
+  };
 }
 
 export async function readLedgerApplyRecord(connection, database, migration, checksum) {
@@ -945,12 +995,15 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   };
   if (mode === "plan") return result;
   const target = resolveBootstrapTarget(env, contract);
-  const migration = selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
+  const fullInspection = isFullInspectionDryRun(env, mode);
+  const migrationSelection = fullInspection ? null : selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
+  const migration = migrationSelection?.file || null;
+  const spec = migrationSelection?.spec || null;
   const credentials = validateBootstrapCredentials(env, { requirePassword: false, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: false });
-  if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration: migration.file }, contract, "migration");
+  if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration: migration.file, migration_role: migration.spec.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, mutation_evidence: mutationEvidenceTemplate(migration.file, migration.spec.statement_count, contract.grant_policy.required_tables.length), secrets_included: false };
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection ? "full_inspection_catalog" : "explicit", full_inspection: fullInspection, migration_role: spec?.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length), secrets_included: false };
 }
 
 export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory } = {}) {
@@ -961,12 +1014,15 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   const target = resolveBootstrapTarget(env, contract);
   const source = validateSourceBinding(env, contract, mode);
   const localDeployment = validateLocalDeploymentEvidence(repoRoot, source, contract);
-  const { file: migration, spec } = selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
+  const fullInspection = isFullInspectionDryRun(env, mode);
+  const migrationSelection = fullInspection ? null : selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
+  const migration = migrationSelection?.file || null;
+  const spec = migrationSelection?.spec || null;
   validateBootstrapCredentials(env, { requirePassword: true, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: true });
   if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  const mutationEvidence = mutationEvidenceTemplate(migration, spec.statement_count, contract.grant_policy.required_tables.length);
+  const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length);
   const createConnection = connectionFactory || (async ({ credentials }) => {
     const { createConnection: connect } = await import("mysql2/promise");
     return connect({
@@ -1017,17 +1073,29 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     if (String(env.HOST_BREAKGLASS_OPERATION || "").trim() === "database.rebuild_empty" && databaseClassification !== "zero_tables") {
       throw bootstrapError("host_breakglass_rebuild_nonempty_denied", "database.rebuild_empty requires a zero-table target and never drops an existing schema", { table_count: beforeTableCount, database_classification: databaseClassification });
     }
-    const required = spec.requires_tables || [];
-    const requiredEvidence = await requiredTableEvidence(connection, target.database, required);
-    if (requiredEvidence.some((entry) => !entry.present) && beforeTableCount > 0) {
+    const roleDatabaseTableCounts = {
+      runtime: beforeTableCount,
+      governance: governanceDatabase === target.database ? beforeTableCount : await tableCount(ledgerConnection, governanceDatabase),
+      runtime_persistence: persistenceDatabase === target.database ? beforeTableCount : await tableCount(persistenceExecutor, persistenceDatabase),
+    };
+    const roleTableEvidence = {
+      runtime: await requiredTableEvidence(connection, target.database, contract.baseline_bundle?.required_runtime_tables || []),
+      governance: await requiredTableEvidence(ledgerConnection, target.governance_database || target.database, contract.baseline_bundle?.required_governance_tables || []),
+      runtime_persistence: await requiredTableEvidence(persistenceExecutor, persistenceDatabase, contract.baseline_bundle?.required_runtime_persistence_tables || []),
+    };
+    const required = fullInspection ? [] : (spec?.requires_tables || []);
+    const requiredEvidence = fullInspection ? roleTableEvidence.runtime : await requiredTableEvidence(connection, target.database, required);
+    if (!fullInspection && requiredEvidence.some((entry) => !entry.present) && beforeTableCount > 0) {
       throw bootstrapError("bootstrap_migration_prerequisite_missing", "Incident migration prerequisites are missing from a non-empty database", { migration, missing_tables: requiredEvidence.filter((entry) => !entry.present).map((entry) => entry.table), table_count: beforeTableCount });
     }
-    let ledger = beforeTableCount === 0
-      ? { found: false, run_id: null, applied_at: null, deferred_until_baseline: true }
-      : await readLedgerApplyRecord(ledgerConnection, target.governance_database || target.database, migration, spec.sha256);
-    const postconditionsBefore = databaseClassification !== "zero_tables"
-      ? await readIncidentPostconditions(connection, target.database, contract, migration)
-      : null;
+    let ledger = fullInspection
+      ? await readLedgerInspection(ledgerConnection, target.governance_database || target.database)
+      : beforeTableCount === 0
+        ? { found: false, run_id: null, applied_at: null, deferred_until_baseline: true }
+        : await readLedgerApplyRecord(ledgerConnection, target.governance_database || target.database, migration, spec.sha256);
+    const postconditionsBefore = fullInspection || databaseClassification === "zero_tables"
+      ? null
+      : await readIncidentPostconditions(connection, target.database, contract, migration);
     const grantReadbackBefore = await readGrantPostconditions(connection, target, target.database, contract);
     if (mode === "dry_run") {
       return {
@@ -1038,10 +1106,16 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         target_key: target.key,
         database_table_count: beforeTableCount,
         database_classification: databaseClassification,
+        role_database_table_counts: roleDatabaseTableCounts,
+        role_database_classifications: Object.fromEntries(Object.entries(roleDatabaseTableCounts).map(([role, count]) => [role, classifyDatabaseTableCount(count)])),
         required_table_evidence: requiredEvidence,
+        role_table_evidence: roleTableEvidence,
         ledger,
         postconditions: postconditionsBefore,
         grant_readback: grantReadbackBefore,
+        migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined,
+        migration_selected: Boolean(migration),
+        migration_selection: fullInspection ? "full_inspection_catalog" : "explicit",
         mutation_evidence: cloneMutationEvidence(mutationEvidence),
         database_connection_performed: true,
         secrets_included: false,

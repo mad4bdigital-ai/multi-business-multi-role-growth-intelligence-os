@@ -191,7 +191,8 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
   const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {} });
   const migration = String(input.migration || "").trim();
-  if (["dry_run", "apply_migration"].includes(action) && !migrationFiles(bootstrapContract).has(migration)) {
+  const migrationOptional = operationKey === "database.inspect" && runbookKey === "database.full_inspection" && action === "dry_run";
+  if (["dry_run", "apply_migration"].includes(action) && !migrationOptional && !migrationFiles(bootstrapContract).has(migration)) {
     fail(400, "host_breakglass_migration_not_cataloged", "Migration is not present in the repository-owned bootstrap contract.", { migration });
   }
   if (targetSource === "runtime_env" && !["plan", "dry_run"].includes(action)) {
@@ -251,6 +252,8 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     database_role_topology: catalog.database_role_topology,
     runbook_execution_graph: executionGraph,
     migration: migration || null,
+    migration_selected: Boolean(migration),
+    migration_selection: migration ? "explicit" : migrationOptional ? "full_inspection_catalog" : "required",
     capsule_path: capsulePath || null,
     capsule_sha256: capsuleSha256 || null,
     backup_evidence_path: backupEvidencePath || null,
@@ -318,7 +321,7 @@ function matchingHostBreakglassRuns(payload, plan) {
 export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
   if (plan.target_source === "host_local_role_env") {
     if (plan.environment_key !== "production_hostinger_autodeploy") fail(403, "host_breakglass_host_local_environment_denied", "Host-local role credentials are restricted to the Hostinger Production environment.");
-    if (!["database.repair", "database.rebuild_empty"].includes(plan.operation_key)) fail(403, "host_breakglass_host_local_operation_denied", "Host-local role credentials require a bounded database recovery runbook.");
+    if (!["database.inspect", "database.repair", "database.rebuild_empty"].includes(plan.operation_key)) fail(403, "host_breakglass_host_local_operation_denied", "Host-local role credentials require a bounded database inspection or recovery runbook.");
     if (plan.action === "apply_grants" && plan.operation_key !== "database.repair") fail(403, "host_breakglass_host_local_grants_denied", "Host-local grants require the separately approved database access repair runbook.");
     return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }

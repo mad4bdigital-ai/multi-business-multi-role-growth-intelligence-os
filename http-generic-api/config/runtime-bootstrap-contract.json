@@ -59,7 +59,9 @@
       "host_local_role_env": {
         "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
         "requires_explicit_host_breakglass_authorization": true,
-        "allowed_operations": ["database.repair", "database.rebuild_empty"],
+        "allowed_operations": ["database.inspect", "database.repair", "database.rebuild_empty"],
+        "inspection_requires_dry_run": true,
+        "inspection_migration_optional": true,
         "requires_exact_source_sha": true,
         "requires_typed_migration_confirmation_for_apply": true,
         "requires_separate_typed_grants_confirmation": true,

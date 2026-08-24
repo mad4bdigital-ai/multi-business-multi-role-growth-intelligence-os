@@ -83,9 +83,9 @@ function notFound(res, code) {
   });
 }
 
-function trustedIngressOrError(res, env) {
+function trustedIngressOrError(res, env, req) {
   try {
-    return { ok: true, readiness: assertTrustedIngressReadyForProduction(env) };
+    return { ok: true, readiness: assertTrustedIngressReadyForProduction(env, req) };
   } catch (error) {
     res.status(error.status || 503).json({
       ok: false,
@@ -118,7 +118,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
     if (req.method !== "GET" || req.path !== "/auth/mcp") return next();
     if (!remoteMcpOAuthEnabled(env)) return notFound(res, "MCP_OAUTH_DISABLED");
 
-    const trustedIngress = trustedIngressOrError(res, env);
+    const trustedIngress = trustedIngressOrError(res, env, req);
     if (!trustedIngress.ok) return undefined;
     if (trustedIngress.readiness.production_like) {
       const requestHost = resolveRemoteMcpEffectiveRequestHost(req, env);
@@ -137,8 +137,8 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
 
   // Existing Tenant GPT/Activation authorization-server metadata remains
   // unchanged for backwards compatibility.
-  router.get("/.well-known/oauth-authorization-server", async (_req, res) => {
-    const trustedIngress = trustedIngressOrError(res, env);
+  router.get("/.well-known/oauth-authorization-server", async (req, res) => {
+    const trustedIngress = trustedIngressOrError(res, env, req);
     if (!trustedIngress.ok) return undefined;
     const pool = typeof deps.getPool === "function" ? deps.getPool() : null;
     const refreshReady = await tenantGptRefreshReady(env, pool);
@@ -177,7 +177,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   });
 
   router.get("/.well-known/oauth-protected-resource", (req, res) => {
-    const trustedIngress = trustedIngressOrError(res, env);
+    const trustedIngress = trustedIngressOrError(res, env, req);
     if (!trustedIngress.ok) return undefined;
     const requestHost = resolveRemoteMcpEffectiveRequestHost(req, env);
     if (!requestHost) return notFound(res, "OAUTH_RESOURCE_NOT_FOUND");

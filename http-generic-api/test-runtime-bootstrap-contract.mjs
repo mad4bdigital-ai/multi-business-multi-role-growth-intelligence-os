@@ -244,6 +244,22 @@ test("runtime_env target discovery is denied for apply modes", () => {
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_target_source_mode_denied");
 });
 
+test("runtime_env split-role topology fails closed before any connection", () => {
+  const env = envFor(undefined, "dry_run");
+  env.BOOTSTRAP_TARGET_SOURCE = "runtime_env";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_USER = TARGET.principal;
+  env.GOVERNANCE_DB_NAME = "growth_governance";
+  env.GOVERNANCE_DB_USER = "governance_user";
+  env.RUNTIME_PERSISTENCE_DB_NAME = "growth_persistence";
+  env.RUNTIME_PERSISTENCE_DB_USER = "persistence_user";
+  delete env.RUNTIME_BOOTSTRAP_TARGETS_JSON;
+  delete env.BOOTSTRAP_TARGET_DATABASE;
+  delete env.MYSQL_BOOTSTRAP_DATABASE;
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_runtime_env_split_role_credentials_unsupported");
+});
+
 
 function hostLocalRoleEnv(mode = "dry_run", operation = "database.repair") {
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", mode);
@@ -334,6 +350,37 @@ test("host-local role credentials fail closed before the first connection when a
   const reused = hostLocalRoleEnv();
   reused.RUNTIME_PERSISTENCE_DB_USER = reused.GOVERNANCE_DB_USER;
   assert.throws(() => buildPlan(reused, contract), (error) => error.code === "bootstrap_role_identity_reuse_denied");
+});
+
+test("host-local full inspection uses all existing role credentials without selecting a migration", async () => {
+  const env = hostLocalRoleEnv();
+  delete env.BOOTSTRAP_MIGRATION;
+  env.HOST_BREAKGLASS_OPERATION = "database.inspect";
+  const opened = [];
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role, database, credentials }) => {
+    opened.push({ role, database, user: credentials.user });
+    return fakeConnection();
+  } });
+  assert.equal(result.status, "dry_run_complete");
+  assert.equal(result.migration, null);
+  assert.equal(result.migration_selected, false);
+  assert.equal(result.migration_selection, "full_inspection_catalog");
+  assert.equal(result.postconditions, null);
+  assert.equal(result.ledger.available, true);
+  assert.deepEqual(result.role_database_classifications, { runtime: "nonempty", governance: "nonempty", runtime_persistence: "nonempty" });
+  assert.deepEqual(opened, [
+    { role: "runtime", database: TARGET_DATABASE, user: TARGET.principal },
+    { role: "governance", database: "growth_governance", user: "governance_user" },
+    { role: "runtime_persistence", database: "growth_persistence", user: "persistence_user" },
+  ]);
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(result.migration_apply_performed, false);
+  assert.equal(result.grant_mutation_performed, false);
+});
+
+test("host-local database inspection is dry-run-only even when a migration is supplied", () => {
+  const env = hostLocalRoleEnv("apply_migration", "database.inspect");
+  assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_host_local_inspection_mode_denied");
 });
 
 test("host-local dry-run opens each database only with its own existing role credentials", async () => {

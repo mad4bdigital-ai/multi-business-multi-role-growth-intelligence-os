@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "23c3a39cb4c282081aa083ff63dfe049691658a8050af8776a076ea37f9a06e4"
+      "sha256": "0a2462e5e402aed2eec980adac16a38f090089c23c5bbbf626b667388411cfb8"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "62f293ae8ef745517cb9c99f00cf4314e5e5af64b9194ca5cacdd118bb10d100"
+      "sha256": "77d21fe14b36a424f9b7c338dbb5aeb478f0a19b5274b347fb3bda57e6db7659"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "119fd67a16dcd8d8ed35ed564c61b539c47e80deeb2a159998106c8ad443505f"
+      "sha256": "4dd519698e9eefabd75d6d8a00190a9e677e6725b2428ed1c6abb10437c4c0b0"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "7707dbf35ef4e770d4c3e257d37badd22b5b98d8658afe3b9cd02caec112ad31"
+      "sha256": "e8f428c3ec2c7a8ef42c1bbe435565ac52f440a5ca1409d7ca33206424b57ea6"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -214,7 +214,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "3e0a6f339eb3c53d32c1cf29e3193475e6c686dee99e4433349d69bab8058021"
+      "sha256": "a72a62ee8d090ed5e9d333f2af505e586e22696a408004be02485a98cd0c2ed6"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-build-context.mjs",
@@ -250,7 +250,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "d831047818de1444a9938b2ab3570ca754aa550257ef3e499791aa4d56129c70"
+      "sha256": "74bdb14b527519d994a737753889c79bc37140d0fd8637a095a7236a681fe26c"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",

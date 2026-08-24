@@ -485,6 +485,21 @@ function applySecurityProfile(doc, sourceDoc, surface) {
   throw new Error(`Unsupported generated auth profile: ${surface.auth_profile}`);
 }
 
+function stripProductionOnlyRequestCapabilities(doc, environment) {
+  if (environment !== "staging") return;
+  for (const item of Object.values(doc.paths || {})) {
+    for (const operation of Object.values(item || {})) {
+      const schema = operation?.requestBody?.content?.["application/json"]?.schema;
+      const targetSource = schema?.properties?.target_source;
+      if (!targetSource || !Array.isArray(targetSource.enum)) continue;
+      targetSource.enum = targetSource.enum.filter((value) => value !== "host_local_role_env");
+      if (targetSource.description?.includes("Production-only Hostinger role-local source")) {
+        targetSource.description = "Environment-scoped target source; Staging exposes only its repository and runtime read-only sources.";
+      }
+    }
+  }
+}
+
 function rewriteEnvironmentDomainReferences(value, environment, domainPolicy) {
   if (environment !== "staging") return value;
   const replacements = new Map([
@@ -563,6 +578,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     }
   }
   applySecurityProfile(doc, sourceDoc, surface);
+  stripProductionOnlyRequestCapabilities(doc, surface.environment);
   for (const item of Object.values(doc.paths || {})) {
     for (const [method, operation] of Object.entries(item || {})) {
       if (METHOD_NAMES.has(method)) delete operation["x-tenant-gpt-security"];
