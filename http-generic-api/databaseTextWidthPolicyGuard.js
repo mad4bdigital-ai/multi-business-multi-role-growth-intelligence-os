@@ -188,12 +188,69 @@ function insertInfo(statement) {
   return { table, columns, rows, duplicate: rest.slice(valuesToken[0].length).match(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b([\s\S]*)$/iu)?.[1] || "" };
 }
 function assignmentList(text) { return splitTopLevel(text); }
+function targetColumnReference(token, column) {
+  const value = TEXT(token).replaceAll("`", "");
+  return IDENTIFIER(value) === column && /^[A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)?$/u.test(value);
+}
+function targetColumnExpression(token, column) {
+  const value = TEXT(token);
+  if (targetColumnReference(value, column)) return true;
+  const wrapper = value.match(/^(?:COALESCE|IFNULL|NULLIF)\s*\(([\s\S]*)\)$/iu);
+  if (!wrapper) return false;
+  return targetColumnReference(splitTopLevel(wrapper[1])[0], column);
+}
+function staticConcatValue(token, column) {
+  const value = TEXT(token);
+  const match = value.match(/^(CONCAT|CONCAT_WS)\s*\(([\s\S]*)\)$/iu);
+  if (!match) return null;
+  const args = splitTopLevel(match[2]);
+  if (args.length < 1) return null;
+  const functionName = match[1].toUpperCase();
+  if (functionName === "CONCAT") {
+    const literals = args.map(quotedLiteral);
+    if (literals.every((item) => item !== null)) return { literal: literals.join(""), target_count: 0, append_length: null };
+    const targetIndexes = args.map((item, index) => targetColumnExpression(item, column) ? index : -1).filter((index) => index >= 0);
+    if (!targetIndexes.length || literals.some((item, index) => !targetIndexes.includes(index) && item === null)) return null;
+    return { literal: null, target_count: targetIndexes.length, append_length: literals.reduce((sum, item) => sum + (item || "").length, 0) };
+  }
+  const separator = quotedLiteral(args[0]);
+  if (separator === null || args.length < 2) return null;
+  const valueArgs = args.slice(1);
+  const literals = valueArgs.map(quotedLiteral);
+  if (literals.every((item) => item !== null)) return { literal: literals.join(separator), target_count: 0, append_length: null };
+  const targetIndexes = valueArgs.map((item, index) => targetColumnExpression(item, column) ? index : -1).filter((index) => index >= 0);
+  if (!targetIndexes.length || literals.some((item, index) => !targetIndexes.includes(index) && item === null)) return null;
+  return {
+    literal: null,
+    target_count: targetIndexes.length,
+    append_length: literals.reduce((sum, item) => sum + (item || "").length, 0) + separator.length * Math.max(0, valueArgs.length - 1),
+  };
+}
 function inspectLiteral(state, table, column, token, file, statementIndex, findings, statement, mode) {
   const domain = state.get(`${table}.${column}`);
-  if (!domain || !domain.bounded || acceptedNonLiteral(token)) return;
-  const value = quotedLiteral(token);
-  if (value === null) return;
-  if (value.length > domain.max_length) findings.push({ code: "text_width_literal_overflow", category: "text_width_domain", severity: "blocker", mode, file, statement_index: statementIndex, table, column, length: value.length, max_length: domain.max_length, value, definition_file: domain.file, definition_mode: domain.mode, statement: TEXT(statement).slice(0, 2400), applies_sql: false });
+  if (!domain || !domain.bounded) return;
+  const literal = quotedLiteral(token);
+  const concat = literal === null ? staticConcatValue(token, column) : null;
+  if (literal === null && concat === null) return;
+  const length = literal !== null ? literal.length : concat.literal !== null ? concat.literal.length : domain.max_length * concat.target_count + concat.append_length;
+  if (length <= domain.max_length) return;
+  findings.push({
+    code: literal !== null ? "text_width_literal_overflow" : "text_width_concat_overflow",
+    category: "text_width_domain",
+    severity: "blocker",
+    mode,
+    file,
+    statement_index: statementIndex,
+    table,
+    column,
+    length,
+    max_length: domain.max_length,
+    value: literal ?? TEXT(token),
+    definition_file: domain.file,
+    definition_mode: domain.mode,
+    statement: TEXT(statement).slice(0, 2400),
+    applies_sql: false,
+  });
 }
 function inspectAssignments(state, statement, file, statementIndex, findings) {
   const insert = insertInfo(statement);

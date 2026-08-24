@@ -188,9 +188,9 @@ const textWidthPolicy = {
   },
 };
 const textWidthFiles = {
-  "http-generic-api/schema.sql": "CREATE TABLE runtime_dispatch_certification_registry (certification_key VARCHAR(64) PRIMARY KEY, certification_status VARCHAR(8) NOT NULL, smoke_strategy VARCHAR(16) NOT NULL);",
-  "http-generic-api/migrations/001_overflow.sql": "INSERT INTO runtime_dispatch_certification_registry (certification_key, certification_status, smoke_strategy) VALUES ('bad','too_long_status','this smoke strategy is longer than sixteen');",
-  "http-generic-api/migrations/000_alignment.sql": "ALTER TABLE runtime_dispatch_certification_registry MODIFY COLUMN smoke_strategy TEXT NOT NULL, MODIFY COLUMN certification_status VARCHAR(128) NOT NULL DEFAULT 'baseline';",
+  "http-generic-api/schema.sql": "CREATE TABLE runtime_dispatch_certification_registry (certification_key VARCHAR(64) PRIMARY KEY, certification_status VARCHAR(8) NOT NULL, smoke_strategy VARCHAR(16) NOT NULL); CREATE TABLE platform_runtime_config (config_key VARCHAR(64) PRIMARY KEY, note VARCHAR(12) NULL);",
+  "http-generic-api/migrations/001_overflow.sql": "INSERT INTO runtime_dispatch_certification_registry (certification_key, certification_status, smoke_strategy) VALUES ('bad','too_long_status','this smoke strategy is longer than sixteen'); UPDATE platform_runtime_config SET note = CONCAT(note, ' appended note text exceeds twelve') WHERE config_key='policy';",
+  "http-generic-api/migrations/000_alignment.sql": "ALTER TABLE runtime_dispatch_certification_registry MODIFY COLUMN smoke_strategy TEXT NOT NULL, MODIFY COLUMN certification_status VARCHAR(128) NOT NULL DEFAULT 'baseline'; ALTER TABLE platform_runtime_config MODIFY COLUMN note TEXT NULL;",
   "http-generic-api/migrations/002_update.sql": "UPDATE runtime_dispatch_certification_registry SET certification_status='this status is now safely widened', smoke_strategy='this update is safely widened' WHERE certification_key='bad';",
   "http-generic-api/migrations/003_replace.sql": "REPLACE INTO runtime_dispatch_certification_registry (certification_key, certification_status, smoke_strategy) VALUES ('good','ok','read_only_smoke');",
 };
@@ -202,9 +202,10 @@ const textWidthBad = inspectOrderedMigrationChainTextWidths({
   readFile: readTextWidthFixture,
 });
 assert.equal(textWidthBad.ok, false, JSON.stringify(textWidthBad));
-assert.equal(textWidthBad.findings.length, 2);
+assert.equal(textWidthBad.findings.length, 3);
 assert(textWidthBad.findings.some((finding) => finding.column === "certification_status"));
 assert(textWidthBad.findings.some((finding) => finding.column === "smoke_strategy"));
+assert(textWidthBad.findings.some((finding) => finding.column === "note" && finding.code === "text_width_concat_overflow"));
 const textWidthGood = inspectOrderedMigrationChainTextWidths({
   files: Object.keys(textWidthFiles).filter((file) => file !== "http-generic-api/schema.sql"),
   baselineFile: "http-generic-api/schema.sql",

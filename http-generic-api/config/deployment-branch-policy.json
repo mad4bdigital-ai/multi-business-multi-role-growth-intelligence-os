@@ -162,6 +162,7 @@
           ".changes/e2e/**",
           ".specify/schemas/**",
           ".specify/spec-kit-work-map-integration-policy.json",
+          ".specify/work-map-schema-classification-registry.json",
           ".dockerignore",
           "docs/governance/**",
           "docs/surface-contract-**",
