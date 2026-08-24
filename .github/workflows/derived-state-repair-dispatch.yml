@@ -80,11 +80,16 @@ jobs:
           pr="$RUNNER_TEMP/pr.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr"
           normalize_github_json "$pr"
-          test "$(jq -r '.state' "$pr")" = "open"
-          test "$(jq -r '.base.ref' "$pr")" = "main"
-          test "$(jq -r '.head.repo.full_name' "$pr")" = "$GITHUB_REPOSITORY"
-          test "$(jq -r '.head.sha' "$pr")" = "$head_sha"
-          target_ref="$(jq -r '.head.ref' "$pr")"
+          pr_state="$(jq -er '.state' "$pr" | tr -d '\r')"
+          base_ref="$(jq -er '.base.ref' "$pr" | tr -d '\r')"
+          head_repo_full_name="$(jq -er '.head.repo.full_name' "$pr" | tr -d '\r')"
+          pr_head_sha="$(jq -er '.head.sha' "$pr" | tr -d '\r')"
+          printf 'validated_pr_state=%s\nvalidated_base_ref=%s\nvalidated_head_repo=%s\nvalidated_expected_repo=%s\nvalidated_pr_head_sha=%s\nvalidated_report_head_sha=%s\n' "$pr_state" "$base_ref" "$head_repo_full_name" "$GITHUB_REPOSITORY" "$pr_head_sha" "$head_sha"
+          test "$pr_state" = "open"
+          test "$base_ref" = "main"
+          test "$head_repo_full_name" = "$GITHUB_REPOSITORY"
+          test "$pr_head_sha" = "$head_sha"
+          target_ref="$(jq -er '.head.ref' "$pr" | tr -d '\r')"
           [[ "$target_ref" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           case "$target_ref" in
             main|Production) echo "Protected branch mutation target is forbidden: $target_ref" >&2; exit 1 ;;
