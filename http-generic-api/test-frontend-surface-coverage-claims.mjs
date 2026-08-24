@@ -1060,7 +1060,7 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 13, "the pre-existing governed mutation set must remain bounded");
+assert.equal(governedMutations.length, 14, "the governed mutation set must remain bounded after the reviewed Breakglass dispatch addition");
 assert.equal(plan.safety?.executes_provider_calls, false, "coverage claims must not execute provider calls");
 assert.equal(plan.safety?.writes_database, false, "coverage claims must not write the database");
 assert.equal(plan.safety?.deploys, false, "coverage claims must not deploy or enable Production mutation");
