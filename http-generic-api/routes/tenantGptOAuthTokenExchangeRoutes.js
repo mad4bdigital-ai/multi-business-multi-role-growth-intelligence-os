@@ -218,6 +218,7 @@ async function recordTokenExchangeDiagnostic(query, event = {}) {
       client_validation_source: event.client_validation_source || null,
       resource_profile: event.resource_profile || null,
       bearer_profile: event.bearer_profile || null,
+      access_token: event.access_token || null,
       subject_prevalidated: event.subject_prevalidated === true,
       access_token_prepared: event.access_token_prepared === true,
       requested_scope: event.requested_scope || null,
@@ -581,6 +582,11 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           scope: codePayload.scope,
         },
       );
+      tokenLogContext.access_token = {
+        token_type: "bearer",
+        length: String(accessToken || "").length,
+        secrets_included: false,
+      };
       tokenLogContext.access_token_prepared = true;
       tokenLogContext.requested_scope = {
         count: String(codePayload.scope || "").split(/\s+/u).filter(Boolean).length,

@@ -198,7 +198,18 @@ const successEvidence = diagnosticEvidence(successHarness)
 assert.equal(successEvidence.length, 1, "success must create exactly one terminal evidence record");
 assert.equal(successEvidence[0].phase, "response_committed");
 assert.equal(successEvidence[0].status, "success");
-assert.equal(Object.hasOwn(successEvidence[0], "access_token"), false);
+const accessTokenEvidence = successEvidence[0].access_token;
+assert.equal(
+  accessTokenEvidence === undefined
+    || (
+      accessTokenEvidence?.token_type === "bearer"
+      && Number.isInteger(accessTokenEvidence?.length)
+      && accessTokenEvidence.length > 0
+      && accessTokenEvidence?.secrets_included === false
+    ),
+  true,
+  "access-token evidence may contain only bounded non-secret metadata",
+);
 assert.equal(JSON.stringify(successEvidence).includes("access-token-safe-test"), false);
 assert.deepEqual(successEvidence[0].bearer_profile, {
   ttl_seconds: 3600,
