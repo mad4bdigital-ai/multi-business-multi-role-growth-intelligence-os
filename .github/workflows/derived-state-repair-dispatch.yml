@@ -84,7 +84,7 @@ jobs:
           base_ref="$(jq -er '.base.ref' "$pr" | tr -d '\r')"
           head_repo_full_name="$(jq -er '.head.repo.full_name' "$pr" | tr -d '\r')"
           base_repo_full_name="$(jq -er '.base.repo.full_name' "$pr" | tr -d '\r')"
-          head_repo_fork="$(jq -er '.head.repo.fork' "$pr" | tr -d '\r')"
+          head_repo_fork="$(jq -r '.head.repo.fork' "$pr" | tr -d '\r')"
           pr_head_sha="$(jq -er '.head.sha' "$pr" | tr -d '\r')"
           expected_repo="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
           normalized_head_repo="$(printf '%s' "$head_repo_full_name" | tr '[:upper:]' '[:lower:]')"
