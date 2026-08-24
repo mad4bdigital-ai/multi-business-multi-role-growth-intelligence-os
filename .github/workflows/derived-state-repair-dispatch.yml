@@ -49,6 +49,7 @@ jobs:
           MANUAL_EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || '' }}
         run: |
           set -euo pipefail
+          trap 'rc=$?; printf "resolve_failure rc=%s line=%s command=%q\\n" "$rc" "${BASH_LINENO[0]:-unknown}" "$BASH_COMMAND" >&2' ERR
           normalize_github_json() {
             local file="$1"
             perl -0pi -e 's/\e\[[0-9;]*[A-Za-z]//g; s/^\x{FEFF}//' "$file"
