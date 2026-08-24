@@ -43,7 +43,8 @@
       "binary_collation_allowlist": ["utf8mb4_bin"],
       "cross_engine_blocked_collations": ["utf8mb4_0900_ai_ci", "utf8mb4_0900_bin"],
       "join_key_collation_mode": "uniform",
-      "allow_implicit_collation_conversion": false
+      "allow_implicit_collation_conversion": false,
+      "allow_explicit_collation_boundary": true
     },
     "postgresql": {
       "profiles": [

@@ -203,6 +203,21 @@ test("numeric migration ordering runs dependencies before later indexes", () => 
       < orderedMigrations.indexOf("1042_sprint69_activation_session_context_indexes.sql"),
     "customer_sessions must be created before migration 1042 indexes it",
   );
+  assert.ok(
+    orderedMigrations.indexOf("196_sprint67_mariadb_join_key_collation_alignment.sql")
+      < orderedMigrations.indexOf("197_sprint67_workspace_authority_reconciliation_views.sql"),
+    "MariaDB join-key alignment must run before migration 197 views",
+  );
+  assert.ok(
+    orderedMigrations.indexOf("20260721_z_mariadb_agent_skill_grant_request_precreation_collation.sql")
+      < orderedMigrations.indexOf("20260722_agent_skill_grant_approval_provenance.sql"),
+    "agent skill grant request pre-creation must precede the immutable provenance migration",
+  );
+  assert.ok(
+    orderedMigrations.indexOf("20260724_mariadb_repository_authority_system_collation_alignment.sql")
+      < orderedMigrations.indexOf("20260725_repository_authority_capability_readiness_repair.sql"),
+    "repository authority system-key alignment must run before the 20260725 repair",
+  );
 });
 
 test("expanded pre-use audit catches index and foreign-key dependency gaps", () => {
@@ -579,8 +594,19 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 784);
+  assert.equal(plan.migration_count, 787);
+  assert.equal(plan.statement_count, 3051);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
+  assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
+  assert.equal(plan.ordered_collation_chain.ok, true);
+  assert.equal(plan.ordered_collation_chain.ready, true);
+  assert.equal(plan.ordered_collation_chain.finding_count, 0);
+  assert.equal(plan.ordered_collation_chain.files_checked, 788);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3078);
+  assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
+  assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
+  assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
+  assert.equal(plan.ordered_collation_chain.secrets_included, false);
   assert.deepEqual(plan.canonical_seed_lifecycle.seed_files.map((entry) => entry.file), [
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
@@ -704,12 +730,34 @@ test("batch baseline contracts include full lifecycle, governance, and memory co
   ]);
 });
 
-test("generator preflight emits batch baseline contract evidence", () => {
+test("generator preflight emits batch baseline and collation-chain contract evidence", () => {
   assert.match(generator, /function baselineColumnContracts/);
   assert.match(generator, /baseline_column_contract_sources/);
   assert.match(generator, /function createTableLikeSource/);
   assert.match(generator, /function baselineColumnExists/);
   assert.match(generator, /baseline_column_contracts: baseline\.baseline_column_contracts/);
+  assert.match(generator, /function orderedCollationAudit/);
+  assert.match(generator, /ordered_collation_chain: collationAuditMetadata/);
+  assert.match(generator, /ordered_collation_chain_checked: true/);
+});
+
+test("MariaDB collation repairs are narrow and precede first risky JOIN use", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const joinAlignment = fs.readFileSync(path.join(migrationsDir, "196_sprint67_mariadb_join_key_collation_alignment.sql"), "utf8");
+  const joinAlignmentSql = joinAlignment.replace(/^\s*--[^\r\n]*(?:\r?\n|$)/gmu, "");
+  assert.match(joinAlignmentSql, /MODIFY\s+user_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
+  assert.match(joinAlignmentSql, /MODIFY\s+tenant_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
+  assert.doesNotMatch(joinAlignmentSql, /(?:credential|secret|payload|metadata_json)/iu);
+  const provenance = fs.readFileSync(path.join(migrationsDir, "20260722_agent_skill_grant_approval_provenance.sql"), "utf8");
+  assert.match(provenance, /ENGINE=InnoDB\s+DEFAULT CHARSET=utf8mb4\s+COLLATE=utf8mb4_unicode_ci/iu);
+  assert.doesNotMatch(provenance, /approval_hold_id\s+VARCHAR\(36\)\s+CHARACTER SET utf8mb4 COLLATE/iu);
+  const precreation = fs.readFileSync(path.join(migrationsDir, "20260721_z_mariadb_agent_skill_grant_request_precreation_collation.sql"), "utf8");
+  assert.match(precreation, /ENGINE=InnoDB\s+DEFAULT CHARSET=utf8mb4\s+COLLATE=utf8mb4_uca1400_ai_ci/iu);
+  assert.match(precreation, /approval_hold_id\s+VARCHAR\(36\)\s+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci/iu);
+  const repositoryAlignment = fs.readFileSync(path.join(migrationsDir, "20260724_mariadb_repository_authority_system_collation_alignment.sql"), "utf8");
+  const repositoryAlignmentSql = repositoryAlignment.replace(/^\s*--[^\r\n]*(?:\r?\n|$)/gmu, "");
+  assert.match(repositoryAlignmentSql, /MODIFY\s+system_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
+  assert.doesNotMatch(repositoryAlignmentSql, /(?:credential_ref|metadata_json|provider)/iu);
 });
 
 test("migration 1041 widens the runtime-config audit note before writing it", () => {

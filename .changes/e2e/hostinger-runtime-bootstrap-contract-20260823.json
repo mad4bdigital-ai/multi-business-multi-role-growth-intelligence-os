@@ -72,7 +72,15 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
       "http-generic-api/test-openapi-detail-closure-batch.mjs",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      ".github/workflows/ci.yml",
+      "http-generic-api/config/database-engine-collation-policy.json",
+      "http-generic-api/databaseCollationPolicyGuard.js",
+      "http-generic-api/migrations/196_sprint67_mariadb_join_key_collation_alignment.sql",
+      "http-generic-api/migrations/20260721_z_mariadb_agent_skill_grant_request_precreation_collation.sql",
+      "http-generic-api/migrations/20260724_mariadb_repository_authority_system_collation_alignment.sql",
+      "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs"
     ]
   },
   "merge_contract": {
@@ -124,7 +132,8 @@
             "Resolve a repository-owned capability runbook and bind its exact tool contract SHA-256 before dispatch.",
             "Before Production dispatch, recover any exact-correlation GitHub workflow run after process restart and reject ambiguous matches without issuing another POST.",
             "For command exceptions, accept repository capsules only; require exact capsule hash and typed confirmation, plus Production backup/restore evidence.",
-            "Execute Production shell capsules through pinned known-hosts and key-only SSH, and return only bounded output hashes."
+            "Execute Production shell capsules through pinned known-hosts and key-only SSH, and return only bounded output hashes.",
+            "Validate the complete ordered MariaDB migration collation chain and disposable Staging schema before role-isolated runtime, governance, or persistence recovery, without provider dispatch, live SQL, Production access, or credential export."
           ],
           "assertions": [
             "No plan/default startup/prestart/Docker start path performs database connection or mutation.",
@@ -140,7 +149,8 @@
             "The host-local grant exception allows only separately approved SELECT/INSERT/UPDATE on the six allowlisted runtime tables and never issues governance, persistence, global, schema, or GRANT OPTION privileges.",
             "Inline SQL and shell payloads are rejected; only exact-SHA repository capsules can execute.",
             "Production SQL rejects global, cross-schema, or grantable bootstrap identities before capsule execution.",
-            "Production SSH never disables host-key checking and never serializes command output or credentials."
+            "Production SSH never disables host-key checking and never serializes command output or credentials.",
+            "Staging collation alignment remains bounded to declared relational keys, and the ordered-chain governance and role-isolated Host Breakglass regression suites pass together without database connections, provider mutation, or secret disclosure."
           ],
           "tests": [
             {
@@ -198,6 +208,20 @@
               "working_directory": "http-generic-api",
               "path": "test-host-breakglass-ssh-capsule-executor.mjs",
               "args": []
+            },
+            {
+              "id": "staging-mariadb-ordered-collation-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-role-isolated-collation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -231,7 +255,14 @@
             "http-generic-api/config/host-breakglass-capsule.schema.json",
             "http-generic-api/config/host-breakglass-backup-evidence.schema.json",
             "http-generic-api/test-custom-gpt-schemas.mjs",
-            "http-generic-api/test-tenant-gpt-operational-readiness.mjs"
+            "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+            "http-generic-api/config/database-engine-collation-policy.json",
+            "http-generic-api/databaseCollationPolicyGuard.js",
+            "http-generic-api/migrations/196_sprint67_mariadb_join_key_collation_alignment.sql",
+            "http-generic-api/migrations/20260721_z_mariadb_agent_skill_grant_request_precreation_collation.sql",
+            "http-generic-api/migrations/20260724_mariadb_repository_authority_system_collation_alignment.sql",
+            "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs"
           ]
         }
       ]
