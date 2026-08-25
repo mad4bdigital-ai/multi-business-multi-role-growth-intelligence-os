@@ -47,6 +47,19 @@ assert.match(migrationWorkflow, /VERIFY_GOVERNED_MIGRATION_1051_GITHUB_REPOSITOR
 assert.match(migrationWorkflow, /SOURCE_PR: '6631'/);
 assert.match(migrationWorkflow, /persist-credentials: false/);
 
+const metadataDiagnosticIndex = migrationWorkflow.indexOf("Capture bounded Migration 1051 metadata diagnostic without Apply");
+const ledgerVerifyIndex = migrationWorkflow.indexOf("Verify exact ledger and authority metadata without Apply");
+assert.ok(metadataDiagnosticIndex >= 0, "Migration 1051 VERIFY must capture bounded metadata diagnostics");
+assert.ok(ledgerVerifyIndex > metadataDiagnosticIndex, "Metadata diagnostics must run before the exact ledger gate");
+assert.match(migrationWorkflow, /metadata-diagnostic-readback\.json/);
+assert.match(migrationWorkflow, /operation_mode: 'read_only_readiness_probe'/);
+assert.match(migrationWorkflow, /metadata_grants_apply_authority: false/);
+assert.match(migrationWorkflow, /exact_apply_ledger_verified: false/);
+assert.match(migrationWorkflow, /provider_call_executed: false/);
+assert.match(migrationWorkflow, /external_write_executed: false/);
+assert.match(migrationWorkflow, /freeform_sql_accepted: false/);
+assert.match(migrationWorkflow, /secrets_included: false/);
+
 assert.match(liveWorkflow, /^name: Governed GitHub Review Policy Live Activation/m);
 assert.match(liveWorkflow, /permissions:\n  contents: read/);
 assert.doesNotMatch(liveWorkflow, /issues:\s*write/);
@@ -75,6 +88,7 @@ assert.match(migrationRunner, /live_github_policy_apply: false/);
 assert.match(migrationRunner, /provider_call_executed: false/);
 assert.match(migrationRunner, /external_write_executed: false/);
 assert.match(migrationRunner, /SOURCE_PR must identify the merged source PR/);
+assert.match(migrationRunner, /assert\.ok\(result\.transport_ok && ledgerPass\(readback\), 'Exact Migration 1051 apply ledger is not proven'\)/);
 assert.ok(migrationRunner.includes("headers: { 'x-api-key': KEY, Accept: 'application/json', 'Content-Type': 'application/json' }"));
 assert.doesNotMatch(migrationRunner, /Authorization: `Bearer \$\{KEY\}/);
 
