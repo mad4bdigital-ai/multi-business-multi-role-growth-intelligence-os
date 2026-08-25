@@ -116,6 +116,7 @@
     "fail_on_literal_overflow": true,
     "inspect_create_alter_text_domains": true,
     "inspect_insert_replace_update_literals": true,
+    "inspect_insert_select_source_domains": true,
     "allow_null_default_and_dynamic_expressions": true,
     "static_only": true,
     "database_connection_allowed": false,
