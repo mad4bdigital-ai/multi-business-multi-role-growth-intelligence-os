@@ -11,6 +11,7 @@
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/repository-tool-lifecycle-governance.yml",
       "docs/governance/configuration-drift-policy.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-drift-guard.mjs"
@@ -19,11 +20,21 @@
   "merge_contract": {
     "minimum_phase": "mvp"
   },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Reject unapproved configuration candidate drift and guard authority, contract, baseline, suppression, and safety invariants without mutation.",
+      "objective": "Reject unapproved configuration candidate drift and guard authority, canonical baseline, permanent baseline-extension, suppression, scope, and safety invariants without mutation.",
       "e2e_journeys": [
         {
           "id": "reject-configuration-drift-safely",
@@ -31,17 +42,20 @@
           "level": "synthetic_runtime",
           "actor": "Central configuration drift guard",
           "entrypoint": "configuration-drift-guard.mjs fail-on-drift CLI",
-          "terminal_outcome": "An unchanged baseline passes; a new unsuppressed candidate fails; a valid future-dated suppression passes; an expired suppression fails; and safety flags cannot authorize mutation.",
+          "terminal_outcome": "An unchanged baseline passes; a reviewed permanent CI-governance baseline extension passes; an unsafe, duplicate, redundant, or suppression-conflicting extension fails; a new unsuppressed candidate fails; a valid future-dated suppression passes; an expired suppression fails; and safety flags cannot authorize mutation.",
           "steps": [
-            "Load the deterministic baseline and current candidate inventory.",
-            "Compare candidate fingerprints and classify new, suppressed, and removed entries.",
-            "Verify read-only authority registration and E2E scope coverage.",
-            "Reject invalid or expired suppressions and unsuppressed new candidates.",
+            "Load the deterministic canonical baseline, governed permanent baseline extension, and current candidate inventory.",
+            "Validate every extension entry as permanent ci_governance_input with owner and rationale, no embedded secret value, and no runtime or Production mutation authority.",
+            "Merge exact canonical and extension fingerprints, then classify new, suppressed, and removed entries.",
+            "Verify read-only authority registration and E2E scope coverage including the baseline extension authority.",
+            "Reject invalid or expired suppressions, unsafe or conflicting extensions, and unsuppressed new candidates.",
             "Verify report-only, no-migration, no-runtime-mutation, no-Production-activation, and no-secret invariants."
           ],
           "assertions": [
             "The baseline comparison is deterministic and does not select a first candidate on ambiguity.",
-            "New candidates fail closed unless covered by a non-expired owner-scoped suppression.",
+            "Permanent baseline extensions are exact-fingerprint additions, are E2E-scoped, and cannot contain secret values or grant runtime or Production mutation authority.",
+            "A permanent extension cannot duplicate the canonical baseline or coexist with a temporary suppression for the same fingerprint.",
+            "New candidates fail closed unless covered by the canonical baseline, a valid governed permanent extension, or a non-expired owner-scoped suppression.",
             "Expired suppressions fail closed and cannot silently become accepted baseline entries.",
             "The guard never writes repository files, database rows, protected refs, or Production state.",
             "No raw secret value is included in drift evidence."
@@ -60,6 +74,7 @@
             ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/repository-tool-lifecycle-governance.yml",
             "docs/governance/configuration-drift-policy.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
             "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
             "http-generic-api/scripts/test-configuration-drift-guard.mjs"
@@ -70,12 +85,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Require reviewed baseline refreshes and bounded suppression lifecycle changes through exact-head governance and independent Owner evidence."
+      "objective": "Require reviewed canonical/extension baseline refreshes and bounded suppression lifecycle changes through exact-head governance and independent Owner evidence."
     },
     {
       "id": "production",
       "status": "blocked",
-      "objective": "The Drift Guard cannot authorize write scopes, Production activation, or external mutations.",
+      "objective": "The Drift Guard and its baseline extension authority cannot authorize write scopes, Production activation, or external mutations.",
       "blockers": [
         "independent_production_approval",
         "successful_canary",

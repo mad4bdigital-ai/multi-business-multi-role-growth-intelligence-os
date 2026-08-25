@@ -69,7 +69,25 @@ assert.match(docsAgentMainFollowup, /stale=true/);
 assert.match(docsAgentMainFollowup, /steps\.target\.outputs\.stale != 'true'/);
 assert.match(docsAgentMainFollowup, /main\|Production\)/);
 assert.doesNotMatch(docsAgentMainFollowup, /docs\/work-maps/);
-assert.doesNotMatch(docsAgentMainFollowup, /gh pr merge/);
+for (const marker of [
+  "Register governed auto-merge for safe impact notes",
+  "GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}",
+  "TARGET_BRANCH: main",
+  "REQUIRED_CHECK_CONTEXT: Derived State Closure",
+  "node .github/ops/github-followup-automerge-readiness.mjs",
+  "gh pr merge \"$PR_NUMBER\"",
+  "--auto",
+  "--squash",
+  "--delete-branch",
+  "--match-head-commit \"$pr_head_sha\"",
+]) {
+  assert.ok(docsAgentMainFollowup.includes(marker), `Docs Agent guarded auto-merge contract missing ${marker}`);
+}
+const docsReadinessIndex = docsAgentMainFollowup.indexOf("node .github/ops/github-followup-automerge-readiness.mjs");
+const docsAutoMergeIndex = docsAgentMainFollowup.indexOf("gh pr merge \"$PR_NUMBER\"");
+assert.ok(docsReadinessIndex >= 0, "Docs Agent follow-up must invoke the central auto-merge readiness verifier");
+assert.ok(docsAutoMergeIndex > docsReadinessIndex, "Docs Agent follow-up must prove readiness before registering auto-merge");
+assert.doesNotMatch(docsAgentMainFollowup, /secrets\.REPO_AUTOSYNC_TOKEN\s*\|\|\s*github\.token/);
 assert.doesNotMatch(docsAgentMainFollowup, /--force(?:-with-lease)?/);
 
 for (const marker of [

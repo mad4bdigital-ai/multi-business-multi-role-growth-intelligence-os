@@ -109,6 +109,11 @@ assert.match(dispatcherWorkflow, /pull_request_branch_mismatch/u);
 assert.match(dispatcherWorkflow, /generated_artifact_refresh_label_absent/u);
 assert.match(dispatcherWorkflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u);
 assert.match(dispatcherWorkflow, /governed-generated-artifact-refresh\.yml\/dispatches/u, "dispatcher must delegate only to the registered writer");
+assert.match(dispatcherWorkflow, /--arg ref "\$\{TARGET_REF\}"/u, "writer workflow_dispatch must execute from the exact governed target ref");
+assert.doesNotMatch(dispatcherWorkflow, /--arg ref "main"/u, "writer workflow_dispatch must never silently fall back to default-branch writer code");
+assert.match(dispatcherWorkflow, /branch=\$\{TARGET_REF\}/u, "delegated run observation must be scoped to the exact target branch");
+assert.doesNotMatch(dispatcherWorkflow, /branch=main&per_page/u, "delegated run observation must not search the default branch");
+assert.match(dispatcherWorkflow, /Governed Generated Artifact Refresh · auto · \$\{TARGET_REF\} · \$\{EXPECTED_HEAD_SHA\}/u, "observed writer title must bind the branch workflow run-name including the resolved auto recipe");
 assert.match(dispatcherWorkflow, /display_title == \$title/u, "run observation must bind the exact writer run title");
 assert.match(dispatcherWorkflow, /for attempt in \$\(seq 1 20\)/u, "writer observation must remain bounded");
 assert.match(dispatcherWorkflow, /delegated_workflow_run_not_observed/u);
@@ -117,7 +122,7 @@ assert.match(dispatcherWorkflow, /delegated_run_id:\$delegated_run_id/u);
 assert.doesNotMatch(dispatcherWorkflow, /delegated_run_conclusion:\(\$delegated_run_conclusion\|select\(length>0\)\)/u, "unfinished delegated writer runs must not filter the dispatcher report object");
 assert.match(dispatcherWorkflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusion\|length\)>0 then \$delegated_run_conclusion else null end\)/u, "queued or in-progress delegated writer conclusions must be encoded as JSON null");
 assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5/u);
-assert.match(dispatcherWorkflow, /ref:\s*main/u, "publisher code must be loaded from trusted main only");
+assert.match(dispatcherWorkflow, /Checkout trusted default branch publisher[\s\S]*?ref:\s*main/u, "publisher code must still be loaded from trusted main only");
 assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
 assert.doesNotMatch(dispatcherWorkflow, /github\.event\.pull_request\.head/u, "dispatcher must not checkout or trust pull-request event code");
 assert.doesNotMatch(dispatcherWorkflow, /\bgit\s+push\b/u);
@@ -141,7 +146,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 98,
+  tests: 103,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
@@ -149,6 +154,7 @@ console.log(JSON.stringify({
   retired_request_workflow_absent: true,
   pull_request_stage_read_only: true,
   trusted_workflow_run_dispatcher: true,
+  delegated_writer_ref_bound_to_target: true,
   candidate_checkout: false,
   same_repository_only: true,
   exact_head_bound: true,

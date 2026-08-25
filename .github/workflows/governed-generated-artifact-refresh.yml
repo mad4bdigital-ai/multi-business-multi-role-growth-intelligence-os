@@ -43,6 +43,7 @@ on:
 
 # This is the sole registered generated-artifact maintenance writer; all inputs remain exact-head and branch-scoped.
 # Bounded post-merge Repository State or Work Map repair may create a governed work branch from exact main, but never mutates main or Production.
+# Every repository write and verification dispatch uses the same scoped REPO_AUTOSYNC_TOKEN identity; github.token is not a writer fallback.
 # Contracts: mad4b.repository-inventory-self-hosting.v2 and mad4b.work-map-main-self-convergence.v1.
 env:
   GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
@@ -83,6 +84,17 @@ jobs:
             --arg source_main_sha "$SOURCE_MAIN_SHA" \
             '{contract:$contract,target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:$recipe,create_from_main:$create_from_main,source_main_sha:(if ($source_main_sha|length)>0 then $source_main_sha else null end),remote_write_executed:false,secrets_included:false}' \
             > "$OUTPUT_DIR/generated-artifact-refresh-preflight.json"
+
+      - name: Require trusted repository writer identity
+        shell: bash
+        env:
+          REPO_AUTOSYNC_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${REPO_AUTOSYNC_TOKEN:-}" ]]; then
+            echo "REPO_AUTOSYNC_TOKEN is required for governed generated-artifact repository writes." >&2
+            exit 1
+          fi
 
       - name: Validate dispatch identity
         shell: bash
@@ -125,7 +137,7 @@ jobs:
         if: inputs.create_from_main == 'true'
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           TARGET_REF: ${{ inputs.target_ref }}
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
           SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
@@ -204,6 +216,7 @@ jobs:
         with:
           ref: ${{ inputs.expected_head_sha }}
           fetch-depth: 0
+          token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           persist-credentials: true
 
       - name: Setup Node
@@ -227,7 +240,7 @@ jobs:
       - name: Dispatch recipe-specific read-only verification on resulting exact head
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           TARGET_REF: ${{ inputs.target_ref }}
         run: |
           set -euo pipefail

@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { discoverConfigurationCandidates } from "./configuration-candidate-discovery.mjs";
 
 const CONTRACT = "mad4b.configuration-drift-guard.v1";
+const BASELINE_EXTENSION_CONTRACT = "mad4b.configuration-drift-baseline-extension.v1";
 const DEFAULT_POLICY = "docs/governance/configuration-drift-policy.json";
+const DEFAULT_BASELINE_EXTENSION = "docs/governance/configuration-drift-baseline-extensions.json";
 const DEFAULT_OUTPUT_DIR = ".artifacts/configuration-drift-guard";
 
 function parseArgs(argv) {
@@ -44,6 +46,46 @@ async function loadJson(path, fallback = null) {
   catch { return fallback; }
 }
 
+function validateBaselineExtension(extension) {
+  const findings = [];
+  if (!extension || extension.contract !== BASELINE_EXTENSION_CONTRACT || extension.schema_version !== 1) {
+    findings.push(finding("BASELINE_EXTENSION_INVALID", "critical", `Baseline extension must use ${BASELINE_EXTENSION_CONTRACT} schema_version=1.`));
+    return { findings, fingerprints: [] };
+  }
+  if (!Array.isArray(extension.entries)) {
+    findings.push(finding("BASELINE_EXTENSION_ENTRIES_INVALID", "critical", "Baseline extension entries must be an array."));
+    return { findings, fingerprints: [] };
+  }
+  if (extension.safety?.report_only !== true
+      || extension.safety?.runtime_mutation_allowed !== false
+      || extension.safety?.production_activation_allowed !== false
+      || extension.safety?.secrets_included !== false) {
+    findings.push(finding("BASELINE_EXTENSION_SAFETY_DRIFT", "critical", "Baseline extension safety must remain report-only, mutation-denying, Production-denying, and secret-free."));
+  }
+  const seen = new Set();
+  const fingerprints = [];
+  for (const [index, entry] of extension.entries.entries()) {
+    const path = `entries[${index}]`;
+    if (!entry || typeof entry !== "object" || !entry.fingerprint || !entry.owner || !entry.reason) {
+      findings.push(finding("BASELINE_EXTENSION_ENTRY_INVALID", "critical", "Every baseline extension entry requires fingerprint, owner, and reason.", { path }));
+      continue;
+    }
+    if (entry.lifecycle !== "permanent" || entry.configuration_class !== "ci_governance_input") {
+      findings.push(finding("BASELINE_EXTENSION_CLASSIFICATION_INVALID", "critical", "Baseline extension entries must be permanent ci_governance_input entries.", { path, fingerprint: entry.fingerprint }));
+    }
+    if (entry.contains_secret_value !== false || entry.grants_runtime_mutation !== false || entry.grants_production_activation !== false) {
+      findings.push(finding("BASELINE_EXTENSION_ENTRY_UNSAFE", "critical", "Baseline extension entries cannot contain secret values or grant runtime/Production mutation authority.", { path, fingerprint: entry.fingerprint }));
+    }
+    if (seen.has(entry.fingerprint)) {
+      findings.push(finding("BASELINE_EXTENSION_DUPLICATE", "high", "Baseline extension fingerprints must be unique.", { path, fingerprint: entry.fingerprint }));
+      continue;
+    }
+    seen.add(entry.fingerprint);
+    fingerprints.push(entry.fingerprint);
+  }
+  return { findings, fingerprints };
+}
+
 function checkAuthority(policy, repositoryPolicy) {
   const findings = [];
   if (repositoryPolicy?.contract !== "mad4b.repository-maintenance-tool-governance.v1") {
@@ -68,11 +110,12 @@ function checkAuthority(policy, repositoryPolicy) {
   return findings;
 }
 
-function checkContractScope(policy, e2eContracts = []) {
+function checkContractScope(policy, e2eContracts = [], additionalRequiredPaths = []) {
   const findings = [];
   const contracts = e2eContracts.filter(Boolean);
   const include = new Set(contracts.flatMap((contract) => Array.isArray(contract?.scope?.include) ? contract.scope.include : []));
-  for (const requiredPath of policy.required_contract_paths || []) {
+  const requiredPaths = [...new Set([...(policy.required_contract_paths || []), ...additionalRequiredPaths])];
+  for (const requiredPath of requiredPaths) {
     if (!include.has(requiredPath)) findings.push(finding("E2E_SCOPE_DRIFT", "critical", `No E2E contract covers required path ${requiredPath}.`, { path: requiredPath }));
   }
   for (const contract of contracts) {
@@ -88,7 +131,7 @@ function checkSafety(report, manifest, policy) {
   const falseFlags = ["repository_mutation_executed", "database_mutation_executed", "protected_ref_mutation_executed", "secrets_included"];
   for (const flag of falseFlags) if (report?.[flag] !== false) findings.push(finding("REPORT_SAFETY_FLAG_DRIFT", "critical", `${flag} must remain false.`));
   for (const flag of ["migration_generation_allowed", "runtime_mutation_allowed", "secrets_included"]) {
-    if (manifest?.[flag] !== (flag === "secrets_included" ? false : false)) findings.push(finding("MANIFEST_SAFETY_FLAG_DRIFT", "critical", `${flag} must remain false.`));
+    if (manifest?.[flag] !== false) findings.push(finding("MANIFEST_SAFETY_FLAG_DRIFT", "critical", `${flag} must remain false.`));
   }
   if (report?.mode !== "report-only") findings.push(finding("DISCOVERY_MODE_DRIFT", "critical", "Discovery report mode must remain report-only."));
   if (report?.summary?.secret_candidates > (policy.max_existing_secret_candidates ?? Number.MAX_SAFE_INTEGER)) findings.push(finding("SECRET_CANDIDATE_COUNT_DRIFT", "high", "Existing secret candidate count exceeded governed baseline ceiling.", { actual: report.summary.secret_candidates, maximum: policy.max_existing_secret_candidates }));
@@ -99,14 +142,16 @@ function renderMarkdown(result) {
   const rows = result.findings.length
     ? result.findings.map((item) => `| ${item.severity} | ${item.code} | ${item.path || "—"} | ${item.message} |`).join("\n")
     : "| none | — | — | No configuration drift detected. |";
-  return `# Configuration Drift Guard\n\n- Contract: \`${result.contract}\`\n- Result: **${result.ok ? "PASS" : "FAIL"}**\n- Current candidates: ${result.current_candidate_count}\n- Baseline candidates: ${result.baseline_candidate_count}\n- New candidates: ${result.new_candidate_count}\n- Suppressed new candidates: ${result.suppressed_candidate_count}\n- Removed candidates: ${result.removed_candidate_count}\n- Repository mutation: no\n- Database mutation: no\n- Production activation: no\n- Secrets included: no\n\n| Severity | Code | Path | Finding |\n|---|---|---|---|\n${rows}\n`;
+  return `# Configuration Drift Guard\n\n- Contract: \`${result.contract}\`\n- Result: **${result.ok ? "PASS" : "FAIL"}**\n- Current candidates: ${result.current_candidate_count}\n- Baseline candidates: ${result.baseline_candidate_count}\n- Baseline extension candidates: ${result.baseline_extension_count}\n- New candidates: ${result.new_candidate_count}\n- Suppressed new candidates: ${result.suppressed_candidate_count}\n- Removed candidates: ${result.removed_candidate_count}\n- Repository mutation: no\n- Database mutation: no\n- Production activation: no\n- Secrets included: no\n\n| Severity | Code | Path | Finding |\n|---|---|---|---|---|\n${rows}\n`;
 }
 
-export async function runConfigurationDriftGuard({ repositoryRoot = process.cwd(), policyPath = DEFAULT_POLICY, outputDir = DEFAULT_OUTPUT_DIR, failOnDrift = false } = {}) {
+export async function runConfigurationDriftGuard({ repositoryRoot = process.cwd(), policyPath = DEFAULT_POLICY, baselineExtensionPath = DEFAULT_BASELINE_EXTENSION, outputDir = DEFAULT_OUTPUT_DIR, failOnDrift = false } = {}) {
   const originalCwd = process.cwd();
   process.chdir(repositoryRoot);
   try {
     const policy = await loadJson(policyPath, null);
+    const baselineExtension = await loadJson(baselineExtensionPath, null);
+    const baselineExtensionValidation = validateBaselineExtension(baselineExtension);
     const repositoryPolicy = await loadJson(".github/repository-maintenance-tool-governance.json", null);
     const e2eContracts = await Promise.all([
       loadJson(".changes/e2e/configuration-drift-guard-20260815.json", null),
@@ -115,7 +160,9 @@ export async function runConfigurationDriftGuard({ repositoryRoot = process.cwd(
     const reportDir = resolve(outputDir, "discovery");
     const report = await discoverConfigurationCandidates({ repositoryRoot, inventoryPath: policy?.inventory_path || "docs/repository-inventory.json", outputDir: reportDir });
     const manifest = await loadJson(resolve(reportDir, "configuration-candidates-manifest.json"), null);
-    const baseline = new Set(policy?.baseline_fingerprints || []);
+    const policyBaseline = new Set(policy?.baseline_fingerprints || []);
+    const extensionBaseline = new Set(baselineExtensionValidation.fingerprints);
+    const baseline = new Set([...policyBaseline, ...extensionBaseline]);
     const current = new Set((report.candidates || []).map(fingerprint));
     const allSuppressions = Array.isArray(policy?.suppressions) ? policy.suppressions : [];
     const validSuppressions = allSuppressions.filter((item) => validSuppression(item));
@@ -124,21 +171,27 @@ export async function runConfigurationDriftGuard({ repositoryRoot = process.cwd(
     const suppressed = newCandidates.filter((item) => suppressions.has(item));
     const unsuppressed = newCandidates.filter((item) => !suppressions.has(item));
     const removed = [...baseline].filter((item) => !current.has(item)).sort();
-    const findings = [];
+    const findings = [...baselineExtensionValidation.findings];
     if (!policy || policy.contract !== CONTRACT) findings.push(finding("DRIFT_POLICY_INVALID", "critical", `Drift policy must use ${CONTRACT}.`));
+    for (const extensionFingerprint of extensionBaseline) {
+      if (policyBaseline.has(extensionFingerprint)) findings.push(finding("BASELINE_EXTENSION_REDUNDANT", "medium", "Baseline extension fingerprint already exists in the canonical baseline.", { fingerprint: extensionFingerprint }));
+      if (allSuppressions.some((item) => item?.fingerprint === extensionFingerprint)) findings.push(finding("BASELINE_EXTENSION_SUPPRESSION_CONFLICT", "high", "A permanent baseline extension cannot also be represented as a temporary suppression.", { fingerprint: extensionFingerprint }));
+    }
     for (const suppression of allSuppressions) if (!validSuppression(suppression)) findings.push(finding("INVALID_OR_EXPIRED_SUPPRESSION", "high", "Every suppression must have an owner, reason, fingerprint, and future expiry.", { fingerprint: suppression?.fingerprint || null }));
     findings.push(...checkAuthority(policy || {}, repositoryPolicy));
-    findings.push(...checkContractScope(policy || {}, e2eContracts));
+    findings.push(...checkContractScope(policy || {}, e2eContracts, [baselineExtensionPath]));
     findings.push(...checkSafety(report, manifest, policy || {}));
-    for (const item of unsuppressed) findings.push(finding("NEW_CONFIGURATION_CANDIDATE_DRIFT", "high", "A new configuration candidate is not in the approved baseline or a valid suppression.", { fingerprint: item }));
+    for (const item of unsuppressed) findings.push(finding("NEW_CONFIGURATION_CANDIDATE_DRIFT", "high", "A new configuration candidate is not in the approved baseline, governed permanent baseline extension, or a valid suppression.", { fingerprint: item }));
     if ((policy?.fail_on_removed_candidates === true) && removed.length) findings.push(finding("REMOVED_CONFIGURATION_CANDIDATE_DRIFT", "medium", "A baseline candidate disappeared without an explicit baseline update.", { fingerprints: removed.slice(0, 50) }));
     const result = {
       contract: CONTRACT,
       schema_version: 1,
       ok: findings.length === 0,
       policy_path: policyPath,
+      baseline_extension_path: baselineExtensionPath,
       current_candidate_count: current.size,
       baseline_candidate_count: baseline.size,
+      baseline_extension_count: extensionBaseline.size,
       new_candidate_count: newCandidates.length,
       suppressed_candidate_count: suppressed.length,
       removed_candidate_count: removed.length,
@@ -167,8 +220,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const result = await runConfigurationDriftGuard({
     repositoryRoot: args.root || process.cwd(),
     policyPath: args.policy || DEFAULT_POLICY,
+    baselineExtensionPath: args.baseline_extension || DEFAULT_BASELINE_EXTENSION,
     outputDir: args.output_dir || DEFAULT_OUTPUT_DIR,
     failOnDrift: Boolean(args.fail_on_drift),
   });
-  process.stdout.write(`${JSON.stringify({ contract: result.contract, ok: result.ok, findings: result.findings.length, new_candidate_count: result.new_candidate_count, secrets_included: false }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ contract: result.contract, ok: result.ok, findings: result.findings.length, new_candidate_count: result.new_candidate_count, baseline_extension_count: result.baseline_extension_count, secrets_included: false }, null, 2)}\n`);
 }

@@ -23,7 +23,18 @@ assert.doesNotMatch(
   "finalizer auto-merge must not fall back to GITHUB_TOKEN",
 );
 assert.match(workflow, /REPO_AUTOSYNC_TOKEN is required so an auto-merge produces a normal push event/, "missing dedicated token must block automated merge");
-assert.match(workflow, /--jq '\.allow_auto_merge'/, "finalizer must verify repository auto-merge is enabled before registration");
-assert.match(workflow, /Repository Allow auto-merge is disabled/, "disabled repository auto-merge must produce an actionable diagnosis");
+assert.match(workflow, /Checkout governance readiness verifier/, "finalizer must checkout the exact-source readiness verifier before registration");
+assert.match(workflow, /ref: \$\{\{ needs\.attest\.outputs\.source_head_sha \}\}/, "readiness verifier must come from the exact attested source head");
+assert.match(workflow, /TARGET_BRANCH=main/, "main auto-merge readiness must be branch-bound");
+assert.match(workflow, /REQUIRED_CHECK_CONTEXT="Derived State Closure"/, "main auto-merge readiness must require Derived State Closure");
+assert.match(workflow, /EXPECTED_HEAD_SHA="\$BASE_SHA"/, "server readiness must be bound to the exact attested main base SHA");
+assert.match(workflow, /node \.github\/ops\/github-followup-automerge-readiness\.mjs/, "finalizer must delegate live repository protection checks to the central verifier");
+assert.match(workflow, /gh pr merge "\$PR_NUMBER" --auto --squash --delete-branch --match-head-commit "\$EXPECTED_HEAD_SHA"/, "auto-merge registration must stay bound to the exact unchanged PR head");
+assert.match(workflow, /server_protection_verified=true/, "final attestation must record successful server protection verification");
+
+const readinessIndex = workflow.indexOf("node .github/ops/github-followup-automerge-readiness.mjs");
+const mergeIndex = workflow.indexOf('gh pr merge "$PR_NUMBER" --auto');
+assert.ok(readinessIndex >= 0, "central readiness verifier invocation is required");
+assert.ok(mergeIndex > readinessIndex, "server readiness must be proven before auto-merge registration");
 
 console.log("derived state converged auto-merge source event tests passed");

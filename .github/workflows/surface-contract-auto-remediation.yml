@@ -21,6 +21,9 @@ on:
       - "docs/ai-docs-agent-governance.md"
       - "docs/auto-docs-agent/README.md"
       - "docs/change-documentation-governance.md"
+      - ".github/governance/generated-artifact-registry.json"
+      - ".github/ops/generated-artifact-governance.mjs"
+      - ".github/ops/github-followup-automerge-readiness.mjs"
 
 permissions:
   actions: write
@@ -68,11 +71,22 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - name: Require trusted follow-up writer identity
+        env:
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" ]]; then
+            echo "::error::REPO_AUTOSYNC_TOKEN is required before creating a Surface Contract follow-up."
+            exit 1
+          fi
+
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.expected_head_sha }}
-          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
 
       - name: Pin exact source and safe target branch
         id: target
@@ -141,7 +155,7 @@ jobs:
           echo "surface-contract-gap-triage failed unexpectedly with exit code $status" >&2
           exit "$status"
 
-      - name: Enforce documentation and generated-evidence mutation boundary
+      - name: Enforce registered documentation and generated-evidence mutation boundary
         id: changes
         shell: bash
         run: |
@@ -149,7 +163,7 @@ jobs:
           changed=()
           while IFS= read -r -d '' entry; do
             changed+=("${entry:3}")
-          done < <(git status --porcelain=v1 -z)
+          done < <(git status --porcelain=v1 -z --untracked-files=all)
           if [ "${#changed[@]}" -eq 0 ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -159,14 +173,16 @@ jobs:
               "Updating Registry Patch Index.md"|\
               "deployment_parity_checklist.md"|\
               "docs/ai-docs-agent-governance.md"|\
-              "docs/auto-docs-agent/README.md"|\
               "docs/change-documentation-governance.md"|\
-              specs/[0-9][0-9][0-9]-*/manifest.json|\
               docs/surface-contract-*.json|\
               docs/surface-contract-*.md)
+                node .github/ops/generated-artifact-governance.mjs \
+                  classify \
+                  --owner surface_contract_remediator \
+                  --path "$file" >/dev/null
                 ;;
               *)
-                echo "Unexpected auto-remediation mutation: $file" >&2
+                echo "Unexpected or unregistered auto-remediation mutation: $file" >&2
                 exit 1
                 ;;
             esac
@@ -177,8 +193,7 @@ jobs:
         if: steps.changes.outputs.has_changes == 'true'
         id: pr
         env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           BRANCH: ${{ steps.target.outputs.target_branch }}
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
           AUTO_MERGE_ELIGIBLE: ${{ steps.remediation.outputs.auto_merge_eligible }}
@@ -200,9 +215,7 @@ jobs:
             "Updating Registry Patch Index.md" \
             "deployment_parity_checklist.md" \
             "docs/ai-docs-agent-governance.md" \
-            "docs/auto-docs-agent/README.md" \
             "docs/change-documentation-governance.md" \
-            ':(glob)specs/[0-9][0-9][0-9]-*/manifest.json' \
             docs/surface-contract-*.json \
             docs/surface-contract-*.md
           git commit -m "Surface contract agent: remediate documentation and safety evidence"
@@ -211,28 +224,31 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "Surface contract agent: automated remediation" \
-            --body "Automated, checksum-bound surface-contract remediation. Scope is documentation and generated evidence only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Remediator auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
+            --body "<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->
+
+Automated, checksum-bound surface-contract remediation from exact main ${EXPECTED_HEAD_SHA}. Scope is registered documentation and generated evidence only. Spec manifests are intentionally excluded because their environment impact is not uniformly repository-only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Remediator auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
           echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+          PR_NUMBER="$(gh pr view "$PR_URL" --json number --jq '.number')"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
           if [ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]; then
-            if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" ]]; then
-              echo "::warning::REPO_AUTOSYNC_TOKEN is required for trusted follow-up CI and governed auto-merge; remediation PR remains open."
-              exit 0
-            fi
-            if [[ "$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.allow_auto_merge')" != "true" ]]; then
-              echo "::warning::Repository Allow auto-merge is disabled; the remediation PR remains open for governed review."
-              exit 0
-            fi
+            TARGET_BRANCH=main \
+            REQUIRED_CHECK_CONTEXT="Derived State Closure" \
+            EXPECTED_HEAD_SHA="$EXPECTED_HEAD_SHA" \
+            PR_NUMBER="$PR_NUMBER" \
+            node .github/ops/github-followup-automerge-readiness.mjs
+
             current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
             if [[ "$current_main_sha" != "$EXPECTED_HEAD_SHA" ]]; then
               gh pr close "$PR_URL" --comment "Closing stale surface remediation PR: main moved from ${EXPECTED_HEAD_SHA} to ${current_main_sha}. A newer exact-head run owns regeneration."
               exit 0
             fi
             pr_head_sha="$(gh pr view "$PR_URL" --json headRefOid --jq '.headRefOid')"
-            if gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then
-              echo "Auto-merge requested successfully."
-            else
-              echo "::warning::Repository auto-merge is unavailable; the remediation PR remains open for governed review."
+            if ! gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then
+              echo "::error::Failed to register exact-head governed auto-merge."
+              exit 1
             fi
+            echo "Registered exact-head governed auto-merge for ${PR_URL}."
           else
             echo "PR remains open because manual review or new-gap review is required."
           fi

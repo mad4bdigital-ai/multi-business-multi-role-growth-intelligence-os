@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11.v11",
+  "version": "2026-08-24.v12",
   "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
   "enforcement": {
     "fail_severity": "critical",
@@ -26,11 +26,15 @@
         "canonicals/openapi/**/*.yaml",
         "edge/activation-gateway/**",
         "docs/auto-docs-agent/**",
+        "docs/repo-maintenance-status.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/change-documentation-governance.md",
         "docs/work-maps/**",
         "docs/surface-contract-*.json",
         "docs/surface-contract-*.md",
         "canonicals/**/*.md",
-        "*.md"
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md"
       ]
     },
     {

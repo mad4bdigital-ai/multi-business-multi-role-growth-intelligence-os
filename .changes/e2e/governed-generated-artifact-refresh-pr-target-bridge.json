@@ -17,11 +17,21 @@
   "merge_contract": {
     "minimum_phase": "mvp"
   },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Maintain an observable exact-head path to the registered generated-artifact writer through the re-registered V2 workflow path, a strictly read-only pull-request request artifact, and a separately trusted workflow-run dispatcher, without candidate checkout, pull-request write authority, direct contents mutation, protected-branch mutation, or secrets.",
+      "objective": "Maintain an observable exact-head path to the registered generated-artifact writer through the re-registered V2 workflow path, a strictly read-only pull-request request artifact, and a separately trusted workflow-run dispatcher that keeps publisher code on main while dispatching writer code from the exact governed target ref, without candidate checkout by the dispatcher, direct contents mutation, protected-branch mutation, or secrets.",
       "e2e_journeys": [
         {
           "id": "evaluate-read-only-request-then-dispatch-writer",
@@ -29,7 +39,7 @@
           "level": "synthetic_runtime",
           "actor": "trusted default-branch request workflow, trusted workflow-run dispatcher, and registered generated-artifact writer",
           "entrypoint": "A synchronize event on an open ready-for-review same-repository PR targeting main and carrying the generated-artifact-refresh label, or an explicit exact-head manual request",
-          "terminal_outcome": "The pull-request stage emits a read-only exact-head request artifact; the independent workflow-run dispatcher downloads that exact run-bound artifact, revalidates the current PR, dispatches the registered writer with typed confirmation, observes the exact delegated run ID, and directly publishes canonical structured evidence.",
+          "terminal_outcome": "The pull-request stage emits a read-only exact-head request artifact; the independent workflow-run dispatcher downloads that exact run-bound artifact, revalidates the current PR, dispatches the registered writer from the exact target ref with typed confirmation, observes the exact target-ref delegated run ID, and directly publishes canonical structured evidence.",
           "steps": [
             "Run Governed Generated Artifact Refresh PR Target Request from the re-registered bridge-v2 workflow path and protected default-branch workflow code on pull_request_target synchronize or explicit workflow_dispatch.",
             "Ignore github-actions[bot] synchronization so a generated writer commit cannot recursively request another writer run.",
@@ -41,10 +51,10 @@
             "Download the exact request artifact using the triggering workflow run ID and reject source-run substitution.",
             "Re-read and revalidate PR state, repository identity, branch, label, and exact current head before checkout or API mutation.",
             "Reject main and Production through an explicit target_branch guard that emits blocked evidence and exits non-zero.",
-            "Dispatch governed-generated-artifact-refresh.yml on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
-            "Observe only the workflow_dispatch run whose exact display title contains the same target ref and SHA.",
+            "Dispatch governed-generated-artifact-refresh.yml with workflow ref equal to the exact validated target_ref, while passing target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
+            "Observe only the workflow_dispatch run on that same target_ref whose exact display title contains auto, the target ref, and the same SHA.",
             "Encode an absent delegated-run conclusion as JSON null while the exact writer is queued or in progress, preserving a non-empty canonical dispatch report.",
-            "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled.",
+            "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled; this checkout is independent from the writer workflow ref.",
             "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result.",
             "Verify the read-only PR generated-artifact evaluator remains pinned to the explicit ubuntu-24.04 runner after post-allocation report-path initialization.",
             "Run the focused bridge contract through this E2E journey."
@@ -59,13 +69,15 @@
             "The dispatcher validates an exact run-bound request artifact and current PR identity before checkout or API mutation.",
             "Only same-repository ready-for-review PRs targeting main and carrying the explicit refresh label may dispatch.",
             "Forks, drafts, stale heads, substituted artifacts, invalid branches, main, and Production fail closed.",
-            "The dispatcher checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
+            "The dispatcher checks out trusted main publisher code only and never checks out the PR head, merge ref, or candidate SHA itself.",
+            "The delegated writer workflow_dispatch ref is the validated target_ref, never main, so candidate writer code and its trusted credential contract are exercised before merge.",
+            "Delegated run observation is scoped to the same target_ref and exact run title rather than searching branch main.",
             "The writer remains the only workflow with repository contents-write authority.",
             "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
             "A queued or in-progress delegated writer with no conclusion still emits a valid non-empty dispatch report and represents delegated_run_conclusion as null.",
             "The read-only PR generated-artifact evaluator uses explicit ubuntu-24.04 rather than the mutable ubuntu-latest alias.",
             "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
-            "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in either bridge stage."
+            "No migration, SQL, deployment, Production mutation, provider call, credential access by the dispatcher, external send, direct protected-branch update, or force push occurs in either bridge stage."
           ],
           "tests": [
             {
@@ -88,12 +100,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe one labeled human synchronization produce an eligible request artifact, a canonical dispatcher decision, an exact delegated writer run ID, and a bounded generated commit."
+      "objective": "Observe one labeled human synchronization produce an eligible request artifact, a canonical dispatcher decision, an exact target-ref delegated writer run ID, a trusted-identity generated commit, and a normal pull-request verification cycle."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise fork, draft, stale head, source-run substitution, missing label, invalid branch, inactive writer, rejected dispatch, unobserved exact run, and bot-generated synchronization without candidate checkout or direct repository mutation."
+      "objective": "Exercise fork, draft, stale head, source-run substitution, missing label, invalid branch, inactive writer, default-branch writer-ref regression, rejected dispatch, unobserved exact run, and bot-generated synchronization without candidate checkout or direct repository mutation."
     },
     {
       "id": "canary",
@@ -103,7 +115,7 @@
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "The bridge rejects protected branches and grants no migration, deployment, runtime, provider, credential, or Production authority."
+      "objective": "The bridge rejects protected branches and grants no migration, deployment, runtime, provider, database, or Production authority."
     }
   ],
   "secrets_included": false

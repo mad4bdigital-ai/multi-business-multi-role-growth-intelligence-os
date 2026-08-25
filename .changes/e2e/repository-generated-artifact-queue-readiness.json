@@ -9,7 +9,10 @@
     "include": [
       ".changes/e2e/repository-generated-artifact-queue-readiness.json",
       ".github/derived-state-governance.json",
+      ".github/governance/generated-artifact-registry.json",
       ".github/governance/test-authority-registry.json",
+      ".github/ops/generated-artifact-governance.mjs",
+      ".github/ops/github-followup-automerge-readiness.mjs",
       ".github/workflows/docs-agent.yml",
       ".github/workflows/docs-agent-main-followup.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
@@ -126,6 +129,7 @@
             "Assert every repository writer uses workflow_dispatch, expected_head_sha, exact checkout/readback, and protected-target rejection.",
             "Classify every tracked and untracked follow-up mutation, permit only explicit documentation evidence, prefer a trusted scoped repository identity, and verify repository auto-merge capability before exact-head registration.",
             "Require the Recovery-delegated Work Map sole writer to publish its bounded exact-head commit with the same trusted repository identity so all required pull-request checks actually execute.",
+            "Require generated-artifact auto-merge registration to pass the shared registry and server-readiness verifier before any follow-up can become mergeable.",
             "Run the real-repository automation overlap analysis and lifecycle guard against the candidate tree."
           ],
           "assertions": [
@@ -134,7 +138,7 @@
             "The existing Work Map writer queue=max ratchet remains intact.",
             "Pull-request preview and repository mutation remain separated.",
             "Generated JSON evidence is auto-merge eligible only through an explicit filename allowlist; schemas, runtime changes, arbitrary JSON, manual-review findings, blocking gaps, stale heads, and missing trusted identity remain fail-closed.",
-            "Disabled repository auto-merge and approval-blocked action_required runs are diagnosed without direct merge, protection bypass, Production access, SSH, provider calls, database mutation, or credential disclosure.",
+            "Disabled repository auto-merge, absent server-side main protection, missing Derived State Closure, manual-review labels, and approval-blocked action_required runs block auto-merge registration rather than degrading to warnings.",
             "The Work Map writer fails before checkout when its trusted credential is absent and preserves bot-authored one-time delegation, exact target binding, sole-writer authority, bounded files, and post-push readback.",
             "Evidence contains no secrets."
           ],
@@ -184,6 +188,9 @@
           ],
           "evidence_paths": [
             ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+            ".github/governance/generated-artifact-registry.json",
+            ".github/ops/generated-artifact-governance.mjs",
+            ".github/ops/github-followup-automerge-readiness.mjs",
             "http-generic-api/test-automation-overlap-analyzer.mjs"
           ]
         }
