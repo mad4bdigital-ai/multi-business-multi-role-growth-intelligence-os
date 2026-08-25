@@ -79,6 +79,8 @@ function createRoleBundleFixture() {
 }
 
 const ROLE_BUNDLE_FIXTURE = createRoleBundleFixture();
+const ROLE_BUNDLE_FIXTURE_ROOT = path.dirname(path.resolve(path.resolve(process.cwd(), ".."), ROLE_BUNDLE_FIXTURE));
+test.after(() => fs.rmSync(ROLE_BUNDLE_FIXTURE_ROOT, { recursive: true, force: true }));
 
 function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode = "dry_run") {
   return {
