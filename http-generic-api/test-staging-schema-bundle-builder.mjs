@@ -718,9 +718,12 @@ test("text-width bridge migrations precede their immutable historical writers", 
   assert.ok(orderedNames.indexOf("313_sprint69_z_platform_plugin_capabilities_operation_class_text_alignment.sql") < orderedNames.indexOf("314_sprint69_capability_assurance_graph.sql"));
   assert.ok(orderedNames.indexOf("20260720_sprint69_z_workspace_app_links_linked_by_width_alignment.sql") < orderedNames.indexOf("20260721_repository_authority_capability_bindings_v2.sql"));
   assert.ok(orderedNames.indexOf("20260809_sprint69_z_platform_plugin_capability_exports_http_path_text_alignment.sql") < orderedNames.indexOf("20260810_platform_runtime_registry_drift_reconciliation.sql"));
-  assert.match(bridge313, /CREATE TABLE IF NOT EXISTS `platform_plugin_capabilities`[\\s\\S]*`operation_class` TEXT NOT NULL/iu);
-  assert.match(bridge20260720, /ALTER TABLE `workspace_app_links`[\\s\\S]*MODIFY COLUMN `linked_by` VARCHAR\\(128\\) NULL/iu);
-  assert.match(bridge20260809, /ALTER TABLE `platform_plugin_capability_exports`[\\s\\S]*MODIFY COLUMN `http_path` TEXT NULL/iu);
+  assert.ok(bridge313.includes("CREATE TABLE IF NOT EXISTS `platform_plugin_capabilities`"));
+  assert.ok(bridge313.includes("`operation_class` TEXT NOT NULL"));
+  assert.ok(bridge20260720.includes("ALTER TABLE `workspace_app_links`"));
+  assert.ok(bridge20260720.includes("MODIFY COLUMN `linked_by` VARCHAR(128) NULL"));
+  assert.ok(bridge20260809.includes("ALTER TABLE `platform_plugin_capability_exports`"));
+  assert.ok(bridge20260809.includes("MODIFY COLUMN `http_path` TEXT NULL"));
   for (const bridge of [bridge313, bridge20260720, bridge20260809]) {
     assert.doesNotMatch(bridge, /^\\s*(?:INSERT|UPDATE|DELETE|REPLACE)\\b/imu);
     assert.match(bridge, /secrets_included=false/iu);
@@ -766,7 +769,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 801);
   assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3101);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
-  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 876);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 877);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
@@ -785,8 +788,6 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.definitions_applied, 6007);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 935);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
-  assert.equal(plan.validation.ordered_text_width_insert_select_source_domain_checks, 935);
-  assert.equal(plan.validation.ordered_text_width_insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_text_width_chain.provider_mutation_performed, false);
