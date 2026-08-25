@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7366,
-    "bytes": 72622432,
-    "lines": 1691635,
+    "files": 7386,
+    "bytes": 72691506,
+    "lines": 1692887,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2187,
+      "tests-and-specs": 2189,
       "documentation": 1913,
-      "api-runtime": 1500,
-      "database-migrations": 801,
-      "root-and-other": 330,
+      "api-runtime": 1506,
+      "database-migrations": 811,
+      "root-and-other": 332,
       "api-contracts": 192,
       "ci-workflows": 170,
       "ci-config": 134,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2514,
-      ".mjs": 1758,
-      ".js": 1012,
-      ".json": 874,
-      ".sql": 816,
+      ".mjs": 1760,
+      ".js": 1013,
+      ".json": 881,
+      ".sql": 826,
       ".yml": 173,
       ".yaml": 120,
       ".ps1": 20,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3811,
+      "http-generic-api": 3829,
       "docs": 1817,
       "specs": 880,
       ".github": 304,
-      ".changes": 299,
+      ".changes": 301,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -256,9 +256,9 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 801,
+    "migrations": 811,
     "apiContracts": 192,
-    "testSpecFiles": 2277
+    "testSpecFiles": 2279
   },
   "largestFiles": [
     {
@@ -276,8 +276,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1960585,
-      "lines": 59291
+      "bytes": 1960983,
+      "lines": 59303
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",

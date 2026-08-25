@@ -220,6 +220,7 @@
           "docs/repo-autosync-permissions.md",
           "docs/work-maps/**",
           "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
+          "http-generic-api/scripts/work-map-schema-classification-*.mjs",
           "http-generic-api/scripts/test-platform-work-map-schema-intelligence.mjs",
           "docs/remote-mcp-write-scope-inventory.md",
           "docs/write-scope-shadow-evidence-2026-08-15.json",

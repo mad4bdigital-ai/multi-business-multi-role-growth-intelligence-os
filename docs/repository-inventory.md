@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,366 |
-| Total bytes | 72,622,432 |
-| Counted text lines | 1,691,635 |
+| Tracked files | 7,386 |
+| Total bytes | 72,691,506 |
+| Counted text lines | 1,692,887 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -17,11 +17,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,187 |
+| `tests-and-specs` | 2,189 |
 | `documentation` | 1,913 |
-| `api-runtime` | 1,500 |
-| `database-migrations` | 801 |
-| `root-and-other` | 330 |
+| `api-runtime` | 1,506 |
+| `database-migrations` | 811 |
+| `root-and-other` | 332 |
 | `api-contracts` | 192 |
 | `ci-workflows` | 170 |
 | `ci-config` | 134 |
@@ -36,10 +36,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,514 |
-| `.mjs` | 1,758 |
-| `.js` | 1,012 |
-| `.json` | 874 |
-| `.sql` | 816 |
+| `.mjs` | 1,760 |
+| `.js` | 1,013 |
+| `.json` | 881 |
+| `.sql` | 826 |
 | `.yml` | 173 |
 | `.yaml` | 120 |
 | `.ps1` | 20 |
@@ -74,9 +74,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Surface | Count |
 |---|---:|
 | GitHub Actions workflows | 170 |
-| Database migrations | 801 |
+| Database migrations | 811 |
 | API/OpenAPI contracts | 192 |
-| Test/spec files (paths) | 2,277 |
+| Test/spec files (paths) | 2,279 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -93,7 +93,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,404 | 99740 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,585 | 59291 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,983 | 59303 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 1,028,304 | 23576 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 624,343 | 11828 |

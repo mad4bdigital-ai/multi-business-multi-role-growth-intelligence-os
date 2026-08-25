@@ -1,0 +1,5 @@
+{
+  "source_table": "external_delivery_provider_adapter_contract_registry",
+  "owner": "staging-migration-governance",
+  "reason": "This table is an additive adapter-key width compatibility bridge for historical DDL; it is not an activation surface and grants no outbound provider delivery authority."
+}
