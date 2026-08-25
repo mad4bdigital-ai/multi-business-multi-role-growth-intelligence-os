@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7364,
-    "bytes": 72521452,
-    "lines": 1690428,
+    "files": 7366,
+    "bytes": 72528412,
+    "lines": 1690569,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2186,
+      "tests-and-specs": 2187,
       "documentation": 1913,
-      "api-runtime": 1499,
+      "api-runtime": 1500,
       "database-migrations": 801,
       "root-and-other": 330,
       "api-contracts": 192,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2514,
-      ".mjs": 1757,
-      ".js": 1011,
+      ".mjs": 1758,
+      ".js": 1012,
       ".json": 874,
       ".sql": 816,
       ".yml": 173,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3809,
+      "http-generic-api": 3811,
       "docs": 1817,
       "specs": 880,
       ".github": 304,
@@ -2691,6 +2691,7 @@
       "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
       "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs",
       "http-generic-api/test-retail-commerce-specification-baseline.mjs",
+      "http-generic-api/test-role-selection-proof-contract.mjs",
       "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
       "http-generic-api/test-routes.mjs",
       "http-generic-api/test-run-test-manifest-sharding.mjs",
@@ -4969,6 +4970,7 @@
       "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
       "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs",
       "http-generic-api/test-retail-commerce-specification-baseline.mjs",
+      "http-generic-api/test-role-selection-proof-contract.mjs",
       "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
       "http-generic-api/test-routes.mjs",
       "http-generic-api/test-run-test-manifest-sharding.mjs",
@@ -32788,7 +32790,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "8d6512f7adec37d535edd07e5d7b19e68de97da54317007d493ea18319df88d2",
+      "sha256": "044c80d7407d4583e5015bb3240b07a0cc7644f91796d42b4f0c524fcf5de236",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53083,7 +53085,7 @@
       "extension": ".json",
       "bytes": 1960584,
       "lines": 59291,
-      "sha256": "852ef8cbc5491366e284330dfb452e5e96790738828e4962b59d5af4e08acc21",
+      "sha256": "bf28fc07d2897379c25507fa4238fba4dc94aa3e78721714e4eaba9b2507b633",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53656,6 +53658,17 @@
       "bytes": 8976,
       "lines": 205,
       "sha256": "3f2e2251e589826f250bc4f2872f35249cf093716a7c7b90fb03d7c5c3603594",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/roleSelectionProof.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 1857,
+      "lines": 42,
+      "sha256": "9032db58eaad82d4968305daf9a15a1ed764c10da1c2963657985d2d68a073ac",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -71817,6 +71830,17 @@
       "bytes": 7410,
       "lines": 155,
       "sha256": "8b59ab7677c6ad11d3a10db734a28c4671f16c9c215e5362b392b13e3df25fd0",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-role-selection-proof-contract.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 5103,
+      "lines": 99,
+      "sha256": "30c63503b5df7583a9c6cabb6c830cfdfa907a3bb9ea4b8bd354c4f7a19a7be1",
       "mode": "644",
       "executable": false,
       "generated": false
