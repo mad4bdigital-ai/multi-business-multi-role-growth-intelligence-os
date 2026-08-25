@@ -617,6 +617,7 @@ function orderedPreuseAudit(bootstrapEntries = []) {
     missing_column_gaps: missingColumns,
     missing_table_gaps: Number(audit.counts?.missing_table || 0),
     same_statement_false_positives: Number(audit.same_statement_false_positives || 0),
+    view_column_references_checked: Number(audit.view_column_references_checked || 0),
     gaps: audit.gaps || [],
   };
 }

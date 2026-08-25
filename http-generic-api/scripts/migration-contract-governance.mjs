@@ -181,6 +181,7 @@ const requiredPreuseContractFlags = [
   "check_alter_add_index_table_and_columns",
   "check_foreign_key_parent_tables",
   "check_table_source_operations",
+  "check_view_source_columns",
   "check_rename_and_drop_targets",
   "fail_on_unresolved_gaps",
 ];
@@ -429,6 +430,7 @@ else {
     if (plan.plan_only !== true) pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", "canonical builder did not return plan_only=true");
     if (plan.production_access_forbidden !== true || plan.provider_access_forbidden !== true) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical plan safety flags are incomplete");
     if (plan.ordered_preuse_audit?.missing_table_gaps > 0 || plan.ordered_preuse_audit?.missing_column_gaps > 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical ordered pre-use audit reports unresolved gaps", plan.ordered_preuse_audit);
+    if (!Number.isInteger(plan.ordered_preuse_audit?.view_column_references_checked) || plan.ordered_preuse_audit.view_column_references_checked <= 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical ordered pre-use audit did not check qualified view columns", plan.ordered_preuse_audit || {});
     if (plan.canonical_table_bootstrap?.unresolved_missing_table_gaps > 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical bootstrap reports unresolved missing tables", plan.canonical_table_bootstrap);
     if (plan.ordered_collation_chain?.ok !== true || plan.ordered_collation_chain?.finding_count !== 0 || plan.ordered_collation_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_collation_chain?.statements_checked <= plan.statement_count) pushFinding(report, "collation_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered collation evidence is incomplete or reports findings", plan.ordered_collation_chain || {});
     if (plan.ordered_collation_chain?.database_connection_performed !== false || plan.ordered_collation_chain?.sql_mutation_performed !== false || plan.ordered_collation_chain?.provider_mutation_performed !== false || plan.ordered_collation_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered collation evidence violates static-only safety", plan.ordered_collation_chain || {});

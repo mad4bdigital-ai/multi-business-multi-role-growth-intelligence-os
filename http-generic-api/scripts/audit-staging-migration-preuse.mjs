@@ -21,6 +21,8 @@ for (const entry of canonicalBootstrap) {
 }
 
 const tables = new Map();
+const viewNames = new Set();
+let viewColumnReferencesChecked = 0;
 const events = [];
 const ignoredFalsePositives = [];
 const normalize = (value) => String(value ?? "").replace(/^[`\"']|[`\"']$/g, "").trim().toLowerCase();
@@ -199,6 +201,72 @@ const parseCreateAsSelect = (sql, file, line) => {
   parseFromJoins(sql, file, line);
   return true;
 };
+const sqlKeywords = new Set([
+  "as", "on", "where", "group", "order", "limit", "union", "having", "left", "right", "inner", "outer", "cross", "full", "join",
+]);
+const viewSourceAliases = (sql) => {
+  const clean = stripStringLiterals(stripComments(sql));
+  const sources = new Map();
+  const systemSchemas = new Set(["information_schema", "performance_schema", "mysql", "sys"]);
+  const assign = (key, table) => {
+    if (!key) return;
+    if (!sources.has(key)) sources.set(key, table);
+    else if (sources.get(key) !== table) sources.set(key, null);
+  };
+  for (const match of clean.matchAll(/(?:\bFROM|\bJOIN)\s+(?:(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\.\s*)?(?:`([^`]+)`|([A-Za-z0-9_$]+))(?:\s+(?:AS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+)))?/ig)) {
+    const schema = normalize(match[1] ?? match[2]);
+    const table = tableName(match[3] ?? match[4]);
+    if (!table || systemSchemas.has(schema)) continue;
+    const aliasCandidate = normalize(match[5] ?? match[6]);
+    const alias = aliasCandidate && !sqlKeywords.has(aliasCandidate) ? aliasCandidate : table;
+    assign(alias, table);
+    assign(table, table);
+  }
+  return sources;
+};
+const viewOutputColumns = (sql) => {
+  const clean = stripStringLiterals(stripComments(sql));
+  const outputs = new Set();
+  for (const select of clean.matchAll(/\bSELECT\b([\s\S]*?)(?=\bFROM\b)/ig)) {
+    for (const expression of splitTopLevel(select[1])) {
+      const alias = expression.match(/\bAS\s+(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*$/i);
+      if (alias) {
+        outputs.add(columnName(alias[1] ?? alias[2]));
+        continue;
+      }
+      const direct = expression.trim().match(/(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_$]*)\s*\.\s*(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*$/i);
+      if (direct) outputs.add(columnName(direct[1] ?? direct[2]));
+    }
+  }
+  return [...outputs];
+};
+const recordViewColumnReferences = (sql, file, line) => {
+  const sources = viewSourceAliases(sql);
+  const clean = stripStringLiterals(stripComments(sql));
+  for (const match of clean.matchAll(/(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*\.\s*(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))/g)) {
+    const alias = normalize(match[1] ?? match[2]);
+    const column = match[3] ?? match[4];
+    const table = sources.get(alias);
+    if (!table || !column) continue;
+    const state = ensureTable(table);
+    if (!state || viewNames.has(tableName(table))) continue;
+    viewColumnReferencesChecked += 1;
+    if (!state.has(columnName(column))) {
+      record({ kind: "missing_column", table, column, file, line, statement: sql, detail: "VIEW qualified column reference is absent before view operation" });
+    }
+  }
+};
+const parseCreateView = (sql, file, line) => {
+  const clean = stripComments(sql);
+  const match = clean.match(/^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:ALGORITHM\s*=\s*[^\s]+\s+)?(?:DEFINER\s*=\s*[^\s]+\s+)?(?:SQL\s+SECURITY\s+[^\s]+\s+)?VIEW\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\s+SELECT\b/i);
+  if (!match) return false;
+  recordViewColumnReferences(sql, file, line);
+  parseFromJoins(sql, file, line);
+  const viewName = match[1] ?? match[2];
+  viewNames.add(tableName(viewName));
+  addTable(viewName, viewOutputColumns(sql));
+  return true;
+};
 const parseDrop = (sql, file, line) => {
   const clean = stripComments(sql);
   for (const match of clean.matchAll(/DROP\s+TABLE\s+(IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
@@ -206,12 +274,14 @@ const parseDrop = (sql, file, line) => {
     const target = match[2] ?? match[3];
     if (!safe && !ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP TABLE target is absent without IF EXISTS" });
     tables.delete(tableName(target));
+    viewNames.delete(tableName(target));
   }
   for (const match of clean.matchAll(/DROP\s+VIEW\s+(IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
     const safe = Boolean(match[1]);
     const target = match[2] ?? match[3];
     if (!safe && !ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP VIEW target is absent without IF EXISTS" });
     tables.delete(tableName(target));
+    viewNames.delete(tableName(target));
   }
 };
 const parseDropIndex = (sql, file, line) => {
@@ -384,6 +454,7 @@ const parseFromJoins = (sql, file, line) => {
 const processStatement = (sql, file, line) => {
   const clean = stripComments(sql);
   if (!clean.trim()) return;
+  if (parseCreateView(sql, file, line)) return;
   if (parseCreate(sql, file, line)) return;
   if (parseCreateIndex(sql, file, line)) return;
   if (parseCreateAsSelect(sql, file, line)) return;
@@ -443,6 +514,7 @@ const out = {
   counts,
   gaps: unique,
   same_statement_false_positives: ignoredFalsePositives.length,
+  view_column_references_checked: viewColumnReferencesChecked,
   sample_false_positives: ignoredFalsePositives.slice(0, 20),
   final_tables: [...tables.entries()].map(([table, columns]) => ({ table, column_count: columns.size }))
 };

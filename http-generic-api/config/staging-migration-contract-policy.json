@@ -70,6 +70,7 @@
     "check_alter_add_index_table_and_columns": true,
     "check_foreign_key_parent_tables": true,
     "check_table_source_operations": true,
+    "check_view_source_columns": true,
     "check_rename_and_drop_targets": true,
     "fail_on_unresolved_gaps": true
   },
