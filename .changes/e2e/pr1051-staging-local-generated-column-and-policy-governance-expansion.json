@@ -1,0 +1,146 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr1051-staging-local-generated-column-and-policy-governance-expansion",
+  "title": "PR1051 Staging-local generated-column writer safety and repository-policy governance expansion",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr1051-staging-local-generated-column-and-policy-governance-expansion.json",
+      "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+      "http-generic-api/config/staging-migration-contract-policy.json",
+      "http-generic-api/migrations/1050_sprint69_zzzz_platform_capability_readback_generated_column_writer_compatibility.sql",
+      "http-generic-api/migrations/20260814_zzzz_platform_capability_readback_restore_generated_column.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/migration-contract-governance.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/policy-objection-ci.yml",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+      "http-generic-api/test-repo-maintenance-sync.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/repo-autosync-permissions.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent MariaDB generated-column writer failures before disposable Staging replay, preserve the canonical generated shape after historical writers, and carry forward only the safe repository-policy governance surfaces from PR #7657.",
+      "e2e_journeys": [
+        {
+          "id": "pr1051-generated-column-and-policy-governance-closure",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed CI and Staging-local migration operator",
+          "entrypoint": "Exact-head static governance followed by explicitly authorized Windows disposable MariaDB replay",
+          "terminal_outcome": "The generated-column ordered-chain guard reports zero writer violations, the pre-1051 compatibility bridge and post-writer restore preserve the final generated invariant, policy-governance tests pass, and replay remains blocked before downstream automation on any first MariaDB error.",
+          "steps": [
+            "Classify the exact base-to-head changes across Staging, governance, generated state, and workflow surfaces.",
+            "Verify the generated-column guard projects baseline, canonical bootstrap, CREATE/ALTER changes, and INSERT/REPLACE/UPDATE writers in effective replay order.",
+            "Verify the ordinary compatibility bridge precedes migration 1051 and the generated restore follows the last known explicit writer.",
+            "Verify PR #7657 repository-policy governance and refresh-context tests remain within registered CI boundaries.",
+            "Verify enum, text-width, collation, pre-use, INSERT arity, and UPDATE target guards remain clean with zero static safety violations.",
+            "Bind any later Windows replay to the exact merged main SHA and stop before AutoPilot, importer, or readback on failure."
+          ],
+          "assertions": [
+            "The generated-column chain is static-only and fails closed on any explicit writer against a generated column.",
+            "The historical migration 1051 writer remains immutable; compatibility is provided by additive schema bridges only.",
+            "The final current_contract_key shape is STORED GENERATED ALWAYS and its unique-key contract is preserved.",
+            "No database, provider, credential, export, runtime, Production, Hostinger, Cloudflare, deployment, AutoPilot, importer, or readback mutation is introduced by static governance.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr1051-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "pr1051-migration-contract-governance",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "pr1051-generated-column-and-domain-guards",
+              "runner": "node",
+              "path": "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "pr1051-builder-bridge-and-plan-contracts",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "pr7657-repository-policy-live-activation-contract",
+              "runner": "node",
+              "path": "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "pr7657-generated-refresh-apply-context",
+              "runner": "node",
+              "path": "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+              "args": []
+            },
+            {
+              "id": "pr7657-repository-maintenance-sync",
+              "runner": "node",
+              "path": "http-generic-api/test-repo-maintenance-sync.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+            "http-generic-api/migrations/1050_sprint69_zzzz_platform_capability_readback_generated_column_writer_compatibility.sql",
+            "http-generic-api/migrations/20260814_zzzz_platform_capability_readback_restore_generated_column.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
