@@ -5,7 +5,6 @@ export const RECOVERY_TRUST_CONTRACT = "mad4b.recovery-trust-model.v1";
 export const RECOVERY_MANIFEST_PATH = "config/recovery-kernel-manifest.json";
 export const RECOVERY_REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 export const RECOVERY_BRANCH = "Production";
-export const RECOVERY_ENVIRONMENT = "production_hostinger_autodeploy";
 
 const SHA_RE = /^[0-9a-f]{40}$/iu;
 const HASH_RE = /^[0-9a-f]{64}$/iu;
@@ -61,7 +60,7 @@ function text(value, max = 256) {
 
 function safeEnvironmentKey(env = process.env) {
   const value = text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV || "", 64).toLowerCase();
-  if (["production", "prod", RECOVERY_ENVIRONMENT].includes(value)) return RECOVERY_ENVIRONMENT;
+  if (["production", "prod", "production_hostinger_autodeploy"].includes(value)) return "production_hostinger_autodeploy";
   if (["staging", "stage", "staging_local_windows_docker"].includes(value)) return "staging_local_windows_docker";
   return "unknown";
 }
@@ -153,15 +152,14 @@ export function verifyRecoveryManifest({ expectedSha, identity = null, env = pro
   const branchMatch = resolvedIdentity.branch === manifest.production_branch && resolvedIdentity.branch === RECOVERY_BRANCH;
   const identitySha = text(resolvedIdentity.sha || resolvedIdentity.commit, 64).toLowerCase();
   const shaMatch = shaValid && identitySha === sha;
-  const environmentMatch = safeEnvironmentKey(env) === RECOVERY_ENVIRONMENT || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV);
   return {
-    ok: Boolean(repositoryMatch && branchMatch && shaMatch && environmentMatch),
+    ok: Boolean(repositoryMatch && branchMatch && shaMatch && (safeEnvironmentKey(env) === "production_hostinger_autodeploy" || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV))),
     contract: RECOVERY_TRUST_CONTRACT,
     manifest_hash: manifest.manifest_hash,
     repository_match: repositoryMatch,
     branch_match: branchMatch,
     sha_match: shaMatch,
-    environment_match: environmentMatch,
+    environment_match: safeEnvironmentKey(env) === "production_hostinger_autodeploy" || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV),
     exact_sha_required: true,
     secrets_included: false,
   };

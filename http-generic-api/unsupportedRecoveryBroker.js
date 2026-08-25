@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-export const UNSUPPORTED_RECOVERY_CONTRACT = "mad4b.unsupported-recovery-broker.v1";
-export const UNSUPPORTED_TARGET_KEY = "production-runtime";
+const brokerContractId = "mad4b.unsupported-recovery-broker.v1";
+const registeredRuntimeTarget = "production-runtime";
 
 const SHA256_RE = /^[0-9a-f]{64}$/iu;
 const INCIDENT_RE = /^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/u;
@@ -98,8 +98,8 @@ function incidentId(value) {
 }
 
 function targetKey(value) {
-  const normalized = text(value, 128) || UNSUPPORTED_TARGET_KEY;
-  if (normalized !== UNSUPPORTED_TARGET_KEY) throw error(403, "UNSUPPORTED_TARGET_INVALID", "Unsupported Recovery is bound to the registered Production runtime target.", { target_key: normalized });
+  const normalized = text(value, 128) || registeredRuntimeTarget;
+  if (normalized !== registeredRuntimeTarget) throw error(403, "UNSUPPORTED_TARGET_INVALID", "Unsupported Recovery is bound to the registered Production runtime target.", { target_key: normalized });
   return normalized;
 }
 
@@ -158,7 +158,7 @@ export async function escalateUnsupportedRecovery(input = {}, { env = process.en
   const incident = incidentId(body.incident_id);
   const findings = Array.isArray(body.finding_ids) ? [...new Set(body.finding_ids.map((value) => safeId(value, "finding_id")))] : [];
   const record = {
-    contract: UNSUPPORTED_RECOVERY_CONTRACT,
+    contract: brokerContractId,
     incident_id: incident,
     status: "awaiting_unsupported_approval",
     environment: "production_hostinger_autodeploy",
@@ -185,7 +185,6 @@ export async function previewSshSession(input = {}, deps = {}) {
   requireProductionPrincipal(deps.adminPrincipal);
   const sha = exactSha(body.expected_sha);
   const target = targetKey(body.target_key);
-  const hostFingerprint = body.host_fingerprint ? sha256(body.host_fingerprint, "host_fingerprint") : null;
   const classification = classifySshProfile(body);
   return {
     ok: true,
@@ -193,8 +192,8 @@ export async function previewSshSession(input = {}, deps = {}) {
     incident_id: incidentId(body.incident_id),
     expected_sha: sha,
     target_key: target,
-    host_fingerprint: hostFingerprint,
-    host_identity_pinned: Boolean(hostFingerprint),
+    host_fingerprint: body.host_fingerprint ? sha256(body.host_fingerprint, "fingerprint") : null,
+    host_identity_pinned: Boolean(body.host_fingerprint),
     session_mode: "read_only",
     ttl_seconds: 1800,
     classification,
@@ -250,7 +249,6 @@ export async function createEphemeralCapability(input = {}, deps = {}) {
   if (!["ssh", "sql"].includes(transport)) throw error(400, "UNSUPPORTED_TRANSPORT_INVALID", "Ephemeral capability transport must be ssh or sql.");
   const targetRole = body.target_role ? text(body.target_role, 64) : "server_resolved";
   if (targetRole !== "server_resolved" && !["runtime", "governance", "runtime_persistence"].includes(targetRole)) throw error(403, "UNSUPPORTED_SQL_ROLE_INVALID", "Ephemeral SQL capability must bind to a registered role.");
-  const hostFingerprint = body.host_fingerprint ? sha256(body.host_fingerprint, "host_fingerprint") : null;
   const expiresAt = new Date(body.expires_at);
   if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now() || expiresAt.getTime() > Date.now() + 30 * 60 * 1000) throw error(400, "UNSUPPORTED_CAPABILITY_TTL_INVALID", "Ephemeral capability expiry must be in the future and no more than thirty minutes away.");
   const record = {
@@ -260,7 +258,7 @@ export async function createEphemeralCapability(input = {}, deps = {}) {
     expected_sha: sha,
     target_key: target,
     target_role: targetRole,
-    host_fingerprint: hostFingerprint,
+    host_fingerprint: body.host_fingerprint ? sha256(body.host_fingerprint, "fingerprint") : null,
     transport,
     capability_type: safeId(body.capability_type, "capability_type"),
     artifact_sha256: sha256(body.artifact_sha256, "artifact_sha256"),

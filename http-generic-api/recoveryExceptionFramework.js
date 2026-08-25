@@ -248,8 +248,8 @@ export function buildPrivilegedLeasePreview(input = {}, { adminPrincipal } = {})
   assertProductionTarget(input);
   const transport = text(input.transport, 16).toLowerCase();
   if (!["ssh", "sql"].includes(transport)) fail(400, "RECOVERY_TRANSPORT_INVALID", "A privileged lease must be SSH or SQL.");
-  const maxTtl = transport === "ssh" ? 1800 : 1800;
-  const expiresAt = boundedTtl(input.expires_at || new Date(Date.now() + 5 * 60 * 1000).toISOString(), maxTtl);
+  const leaseExpiryWindow = 1800;
+  const expiresAt = boundedTtl(input.expires_at || new Date(Date.now() + 5 * 60 * 1000).toISOString(), leaseExpiryWindow);
   const lease = {
     contract: "mad4b.privileged-recovery-lease-preview.v1",
     lease_id: `lease:${hash({ incident_id: input.incident_id, transport, expires_at: expiresAt }).slice(0, 32)}`,
