@@ -101,8 +101,8 @@ const orderedFiles = {
   "http-generic-api/schema.sql": "CREATE TABLE users (user_id VARCHAR(36) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;",
   "http-generic-api/migrations/001_sprint02_tenancy.sql": "CREATE TABLE user_app_connections (user_id VARCHAR(36) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
   "http-generic-api/migrations/196_sprint67_mariadb_join_key_collation_alignment.sql": "ALTER TABLE user_app_connections DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci, MODIFY user_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL;",
-  "http-generic-api/migrations/197_sprint67_view.sql": "-- view boundary\nCREATE OR REPLACE VIEW v_join AS SELECT u.user_id FROM users u JOIN user_app_connections c ON u.user_id = c.user_id;",
-  "http-generic-api/migrations/198_sprint67_explicit_view.sql": "CREATE OR REPLACE VIEW v_explicit_join AS SELECT u.user_id FROM users u JOIN user_app_connections c ON u.user_id = c.user_id COLLATE utf8mb4_unicode_ci;",
+  "http-generic-api/migrations/197_sprint67_view.sql": "-- view boundary\nCREATE OR REPLACE VIEW `v_join` AS SELECT `u`.`user_id` FROM `users` AS `u` JOIN `user_app_connections` AS `c` ON `u`.`user_id` = `c`.`user_id`;",
+  "http-generic-api/migrations/198_sprint67_explicit_view.sql": "CREATE OR REPLACE VIEW `v_explicit_join` AS SELECT `u`.`user_id` FROM `users` AS `u` JOIN `user_app_connections` AS `c` ON `u`.`user_id` = `c`.`user_id` COLLATE utf8mb4_unicode_ci;",
 };
 const readOrderedFixture = (file) => orderedFiles[file];
 const orderedBad = evaluateOrderedSqlChain([

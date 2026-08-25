@@ -134,6 +134,88 @@ function esc(value) {
   return String(value ?? "").replaceAll("|", "\\|").replaceAll("\n", " ");
 }
 
+function stripSqlComments(text, { maskLiterals = false } = {}) {
+  let output = "";
+  let state = "code";
+  const mask = (char) => char === "\n" ? "\n" : " ";
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1] || "";
+    if (state === "line_comment") {
+      if (char === "\n") {
+        output += "\n";
+        state = "code";
+      } else {
+        output += " ";
+      }
+      continue;
+    }
+    if (state === "block_comment") {
+      if (char === "*" && next === "/") {
+        output += "  ";
+        index += 1;
+        state = "code";
+      } else {
+        output += mask(char);
+      }
+      continue;
+    }
+    if (state === "single_quote" || state === "double_quote") {
+      const quote = state === "single_quote" ? "'" : '"';
+      if (char === "\\") {
+        output += maskLiterals ? mask(char) : char;
+        if (next) {
+          output += maskLiterals ? mask(next) : next;
+          index += 1;
+        }
+      } else if (char === quote && next === quote) {
+        output += maskLiterals ? "  " : `${char}${next}`;
+        index += 1;
+      } else if (char === quote) {
+        output += maskLiterals ? " " : char;
+        state = "code";
+      } else {
+        output += maskLiterals ? mask(char) : char;
+      }
+      continue;
+    }
+    if (state === "backtick_identifier") {
+      output += char;
+      if (char === "`" && next === "`") {
+        output += next;
+        index += 1;
+      } else if (char === "`") {
+        state = "code";
+      }
+      continue;
+    }
+    if (char === "-" && next === "-" && /[\s\0]/.test(text[index + 2] || "")) {
+      output += "  ";
+      index += 1;
+      state = "line_comment";
+    } else if (char === "#") {
+      output += " ";
+      state = "line_comment";
+    } else if (char === "/" && next === "*") {
+      output += "  ";
+      index += 1;
+      state = "block_comment";
+    } else if (char === "'") {
+      output += maskLiterals ? " " : char;
+      state = "single_quote";
+    } else if (char === '"') {
+      output += maskLiterals ? " " : char;
+      state = "double_quote";
+    } else if (char === "`") {
+      output += char;
+      state = "backtick_identifier";
+    } else {
+      output += char;
+    }
+  }
+  return output;
+}
+
 function tableBlocks(text) {
   const blocks = [];
   const re = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?\s*\(/gi;
@@ -182,15 +264,17 @@ function parseCatalog(repoRoot, classificationRegistry) {
   };
 
   for (const file of files) {
-    const text = readText(file);
-    for (const block of tableBlocks(text)) {
+    const source = readText(file);
+    const text = stripSqlComments(source);
+    const ddlText = stripSqlComments(source, { maskLiterals: true });
+    for (const block of tableBlocks(ddlText)) {
       const table = ensure(tables, block.name, "table");
       table.sources.add(file);
       for (const column of block.body.matchAll(/^\s*`([^`]+)`\s+/gm)) table.columns.add(column[1]);
       for (const ref of block.body.matchAll(/REFERENCES\s+`?([A-Za-z0-9_]+)`?/gi)) table.refs.add(ref[1]);
     }
-    for (const match of text.matchAll(/ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(tables, match[1], "table").sources.add(file);
-    for (const match of text.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(views, match[1], "view").sources.add(file);
+    for (const match of ddlText.matchAll(/ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(tables, match[1], "table").sources.add(file);
+    for (const match of ddlText.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(views, match[1], "view").sources.add(file);
     for (const match of text.matchAll(/['"]([A-Za-z0-9_.:-]+_policy_v\d+)['"]/gi)) {
       if (!policies.has(match[1])) policies.set(match[1], new Set());
       policies.get(match[1]).add(file);
@@ -309,6 +393,8 @@ function renderCoverage(repoRoot, catalog, mapNames, sources) {
   const intentional = all.filter((object) => object.domain === "Other / intentionally unclassified");
   return `# Work Map Coverage Matrix\n\n${header(repoRoot, sources)}\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n${rows}\n\n## Generated map inventory\n\n${mapNames.sort().map((name) => `- \`${name}\``).join("\n")}\n\n## Unresolved schema objects\n\n${unresolved.length ? unresolved.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n\n## Intentionally unclassified schema objects\n\n${intentional.length ? intentional.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n`;
 }
+
+export { stripSqlComments };
 
 export function buildSchemaIntelligenceMaps({ repoRoot }) {
   const classificationRegistry = loadClassificationRegistry(repoRoot);

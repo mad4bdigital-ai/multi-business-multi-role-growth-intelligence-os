@@ -155,7 +155,7 @@ export function extractJoinColumnPairs(sql) {
   const normalizedSql = stripLeadingSqlComments(sql);
   const aliases = relationAliases(normalizedSql);
   const pairs = [];
-  for (const match of normalizedSql.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\.([A-Za-z][A-Za-z0-9_]*)(?:\s+COLLATE\s+([A-Za-z0-9_]+))?\s*(=|<=>)\s*([A-Za-z][A-Za-z0-9_]*)\.([A-Za-z][A-Za-z0-9_]*)(?:\s+COLLATE\s+([A-Za-z0-9_]+))?/giu)) {
+  for (const match of normalizedSql.matchAll(/(?<![A-Za-z0-9_])`?([A-Za-z][A-Za-z0-9_]*)`?\s*\.\s*`?([A-Za-z][A-Za-z0-9_]*)`?(?:\s+COLLATE\s+([A-Za-z0-9_]+))?\s*(=|<=>)\s*`?([A-Za-z][A-Za-z0-9_]*)`?\s*\.\s*`?([A-Za-z][A-Za-z0-9_]*)`?(?:\s+COLLATE\s+([A-Za-z0-9_]+))?/giu)) {
     if (!isPredicateComparison(normalizedSql, match.index || 0)) continue;
     const leftAlias = canonicalIdentifier(match[1]);
     const rightAlias = canonicalIdentifier(match[5]);
