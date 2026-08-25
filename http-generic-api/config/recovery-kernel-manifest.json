@@ -273,7 +273,36 @@
     "consequential_mutation_requires_injected_durable_store": true,
     "required_methods": ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt"],
     "exception_lifecycle_methods": ["putException", "getException", "appendExceptionEvent"],
-    "ephemeral_capability_methods": ["putEphemeralCapability", "getEphemeralCapability"]
+    "ephemeral_capability_methods": ["putEphemeralCapability", "getEphemeralCapability"],
+    "store_independence": {
+      "contract": "mad4b.recovery-durable-store.v1",
+      "independent_of_target_databases": true,
+      "target_database_binding": "forbidden",
+      "provider_accessed": false,
+      "enforced_before_consequential_mutation": true
+    }
+  },
+  "empty_database_reconstruction": {
+    "contract": "mad4b.host-breakglass-empty-object-reconstruction.v1",
+    "control_plane": "repository_owned_host_breakglass_catalog",
+    "scope": "existing_zero_object_set_only",
+    "object_kinds": ["tables", "views", "triggers", "routines", "events"],
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
+    "all_roles_must_be_zero_objects": true,
+    "partial_role_rebuild_allowed": false,
+    "standalone_migration_first_allowed": false,
+    "execution_order": ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    "behavioral_probes": [
+      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+    ],
+    "grants_included": false,
+    "grants_require_separate_approval": true,
+    "database_creation_included": false,
+    "drop_nonempty_database_included": false,
+    "provider_accessed_by_contract": false,
+    "secrets_included": false
   },
   "safety": {
     "secrets_included": false,

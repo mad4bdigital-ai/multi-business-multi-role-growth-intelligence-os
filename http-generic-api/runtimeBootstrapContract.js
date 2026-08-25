@@ -105,6 +105,17 @@ function cloneMutationEvidence(evidence) {
   return JSON.parse(JSON.stringify(evidence));
 }
 
+function declaredBehavioralProbeEvidence(contract) {
+  return (Array.isArray(contract?.baseline_bundle?.behavioral_probes) ? contract.baseline_bundle.behavioral_probes : []).map((probe) => ({
+    ...probe,
+    execution_status: "declared_not_executed_in_bootstrap_contract",
+    probe_authority_required: true,
+    provider_accessed: false,
+    runtime_mutation_performed: false,
+    secrets_included: false,
+  }));
+}
+
 function markMutationAttempt(evidence, kind) {
   evidence.mutation_attempted = true;
   evidence.mutation_state = "partial_possible";
@@ -613,9 +624,52 @@ export async function databaseExists(connection, database) {
 }
 
 export async function tableCount(connection, database) {
-  const rows = await queryOne(connection, "SELECT COUNT(*) AS table_count FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [database]);
+  const rows = await queryOne(connection, "SELECT COUNT(*) AS table_count FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'", [database]);
   const countRow = rows.find((row) => Object.prototype.hasOwnProperty.call(row, "table_count"));
   return Number(countRow?.table_count || 0);
+}
+
+function countFromRows(rows, key) {
+  const countRow = rows.find((row) => Object.prototype.hasOwnProperty.call(row, key));
+  const count = Number(countRow?.[key] || 0);
+  if (!Number.isInteger(count) || count < 0) throw bootstrapError("bootstrap_object_count_invalid", "Database object count is invalid", { object_kind: key.replace(/_count$/u, "") });
+  return count;
+}
+
+export async function databaseObjectCounts(connection, database) {
+  const [tables, views, triggers, routines, events] = await Promise.all([
+    queryOne(connection, "SELECT COUNT(*) AS table_count FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'", [database]),
+    queryOne(connection, "SELECT COUNT(*) AS view_count FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ?", [database]),
+    queryOne(connection, "SELECT COUNT(*) AS trigger_count FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ?", [database]),
+    queryOne(connection, "SELECT COUNT(*) AS routine_count FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ?", [database]),
+    queryOne(connection, "SELECT COUNT(*) AS event_count FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ?", [database]),
+  ]);
+  const counts = {
+    tables: countFromRows(tables, "table_count"),
+    views: countFromRows(views, "view_count"),
+    triggers: countFromRows(triggers, "trigger_count"),
+    routines: countFromRows(routines, "routine_count"),
+    events: countFromRows(events, "event_count"),
+  };
+  return { ...counts, total: Object.values(counts).reduce((sum, count) => sum + count, 0), secrets_included: false };
+}
+
+function normalizeObjectCounts(value) {
+  if (typeof value === "number") {
+    const count = Number(value);
+    if (!Number.isInteger(count) || count < 0) throw bootstrapError("bootstrap_object_count_invalid", "Database object count is invalid");
+    return { tables: count, views: 0, triggers: 0, routines: 0, events: 0, total: count, legacy_table_only: true, secrets_included: false };
+  }
+  if (!value || typeof value !== "object") throw bootstrapError("bootstrap_object_count_invalid", "Database object count evidence is required");
+  const counts = { tables: 0, views: 0, triggers: 0, routines: 0, events: 0 };
+  for (const key of Object.keys(counts)) {
+    const count = Number(value[key]);
+    if (!Number.isInteger(count) || count < 0) throw bootstrapError("bootstrap_object_count_invalid", "Database object count is invalid", { object_kind: key });
+    counts[key] = count;
+  }
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  if (value.total !== undefined && Number(value.total) !== total) throw bootstrapError("bootstrap_object_count_mismatch", "Database object count total does not match its components");
+  return { ...counts, total, legacy_table_only: false, secrets_included: false };
 }
 
 export function classifyDatabaseTableCount(value) {
@@ -624,10 +678,21 @@ export function classifyDatabaseTableCount(value) {
   return count === 0 ? "zero_tables" : "nonempty";
 }
 
+export function classifyDatabaseObjectCount(value) {
+  const counts = normalizeObjectCounts(value);
+  return counts.total === 0 ? "zero_objects" : "nonempty_objects";
+}
+
+export function assertZeroObjectDatabase(value) {
+  const counts = normalizeObjectCounts(value);
+  if (counts.total !== 0) throw bootstrapError("bootstrap_baseline_nonempty_denied", "Schema bundle reconstruction is permitted only when tables, views, triggers, routines, and events are all absent", { object_counts: counts });
+  return true;
+}
+
 export function assertBaselineDatabaseEligible(value) {
-  const classification = classifyDatabaseTableCount(value);
-  if (classification !== "zero_tables") {
-    throw bootstrapError("bootstrap_baseline_nonempty_denied", "Baseline schema bundle is permitted only for a zero-table database", { table_count: Number(value) });
+  const counts = normalizeObjectCounts(value);
+  if (counts.total !== 0) {
+    throw bootstrapError("bootstrap_baseline_nonempty_denied", "Baseline schema bundle is permitted only for a zero-object database", { table_count: counts.tables, object_counts: counts });
   }
   return true;
 }
@@ -1070,8 +1135,22 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     }
     const beforeTableCount = await tableCount(connection, target.database);
     const databaseClassification = classifyDatabaseTableCount(beforeTableCount);
-    if (String(env.HOST_BREAKGLASS_OPERATION || "").trim() === "database.rebuild_empty" && databaseClassification !== "zero_tables") {
-      throw bootstrapError("host_breakglass_rebuild_nonempty_denied", "database.rebuild_empty requires a zero-table target and never drops an existing schema", { table_count: beforeTableCount, database_classification: databaseClassification });
+    const roleDatabaseObjectCounts = {
+      runtime: await databaseObjectCounts(connection, target.database),
+      governance: governanceDatabase === target.database ? null : await databaseObjectCounts(ledgerConnection, governanceDatabase),
+      runtime_persistence: persistenceDatabase === target.database ? null : await databaseObjectCounts(persistenceExecutor, persistenceDatabase),
+    };
+    if (roleDatabaseObjectCounts.governance === null) roleDatabaseObjectCounts.governance = roleDatabaseObjectCounts.runtime;
+    if (roleDatabaseObjectCounts.runtime_persistence === null) roleDatabaseObjectCounts.runtime_persistence = roleDatabaseObjectCounts.runtime;
+    const databaseObjectClassification = classifyDatabaseObjectCount(roleDatabaseObjectCounts.runtime);
+    const roleDatabaseObjectClassifications = Object.fromEntries(Object.entries(roleDatabaseObjectCounts).map(([role, counts]) => [role, classifyDatabaseObjectCount(counts)]));
+    const populatedRoles = Object.entries(roleDatabaseObjectClassifications).filter(([, classification]) => classification !== "zero_objects").map(([role]) => role);
+    const hostBreakglassOperation = String(env.HOST_BREAKGLASS_OPERATION || "").trim();
+    if (hostBreakglassOperation === "database.rebuild_empty" && populatedRoles.length) {
+      throw bootstrapError("host_breakglass_rebuild_nonempty_denied", "database.rebuild_empty requires zero tables, views, triggers, routines, and events in every role database and never drops an existing schema", { table_count: beforeTableCount, database_classification: databaseClassification, object_classification: databaseObjectClassification, object_counts: roleDatabaseObjectCounts, populated_roles: populatedRoles });
+    }
+    if (mode === "apply_migration" && databaseObjectClassification === "zero_objects" && hostBreakglassOperation !== "database.rebuild_empty") {
+      throw bootstrapError("bootstrap_empty_requires_rebuild_operation", "An empty database must enter through database.rebuild_empty; standalone migration apply is denied before the reconstruction chain.", { object_counts: roleDatabaseObjectCounts.runtime });
     }
     const roleDatabaseTableCounts = {
       runtime: beforeTableCount,
@@ -1085,18 +1164,19 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     };
     const required = fullInspection ? [] : (spec?.requires_tables || []);
     const requiredEvidence = fullInspection ? roleTableEvidence.runtime : await requiredTableEvidence(connection, target.database, required);
-    if (!fullInspection && requiredEvidence.some((entry) => !entry.present) && beforeTableCount > 0) {
+    if (!fullInspection && requiredEvidence.some((entry) => !entry.present) && databaseObjectClassification !== "zero_objects") {
       throw bootstrapError("bootstrap_migration_prerequisite_missing", "Incident migration prerequisites are missing from a non-empty database", { migration, missing_tables: requiredEvidence.filter((entry) => !entry.present).map((entry) => entry.table), table_count: beforeTableCount });
     }
     let ledger = fullInspection
       ? await readLedgerInspection(ledgerConnection, target.governance_database || target.database)
-      : beforeTableCount === 0
+      : databaseObjectClassification === "zero_objects"
         ? { found: false, run_id: null, applied_at: null, deferred_until_baseline: true }
         : await readLedgerApplyRecord(ledgerConnection, target.governance_database || target.database, migration, spec.sha256);
-    const postconditionsBefore = fullInspection || databaseClassification === "zero_tables"
+    const postconditionsBefore = fullInspection || databaseObjectClassification === "zero_objects"
       ? null
       : await readIncidentPostconditions(connection, target.database, contract, migration);
     const grantReadbackBefore = await readGrantPostconditions(connection, target, target.database, contract);
+    const behavioralProbes = declaredBehavioralProbeEvidence(contract);
     if (mode === "dry_run") {
       return {
         ...plan,
@@ -1108,6 +1188,11 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         database_classification: databaseClassification,
         role_database_table_counts: roleDatabaseTableCounts,
         role_database_classifications: Object.fromEntries(Object.entries(roleDatabaseTableCounts).map(([role, count]) => [role, classifyDatabaseTableCount(count)])),
+        database_object_counts: roleDatabaseObjectCounts.runtime,
+        database_object_classification: databaseObjectClassification,
+        role_database_object_counts: roleDatabaseObjectCounts,
+        role_database_object_classifications: roleDatabaseObjectClassifications,
+        behavioral_probes: behavioralProbes,
         required_table_evidence: requiredEvidence,
         role_table_evidence: roleTableEvidence,
         ledger,
@@ -1122,7 +1207,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       };
     }
     if (mode === "apply_grants") {
-      if (databaseClassification === "zero_tables") throw bootstrapError("bootstrap_grants_zero_table_denied", "Grant apply requires an existing non-empty schema; baseline is a separate operation");
+      if (databaseObjectClassification === "zero_objects") throw bootstrapError("bootstrap_grants_zero_table_denied", "Grant apply requires an existing non-empty schema; baseline is a separate operation");
       if (contract.execution_policy.apply_grants_requires_migration_ready && (!ledger.found || !postconditionsBefore?.ready)) {
         throw bootstrapError("bootstrap_grants_requires_migration_ready", "Grant apply requires a matching migration ledger record and ready migration postconditions", { migration, ledger_found: ledger.found, postconditions_ready: Boolean(postconditionsBefore?.ready) });
       }
@@ -1137,6 +1222,8 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         target_key: target.key,
         database_table_count_before: beforeTableCount,
         database_classification: databaseClassification,
+        database_object_counts_before: roleDatabaseObjectCounts,
+        database_object_classifications_before: roleDatabaseObjectClassifications,
         ledger,
         postconditions: postconditionsBefore,
         grant_readback_before: grantReadbackBefore,
@@ -1150,18 +1237,17 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       };
     }
     const migrationResults = [];
-    if (databaseClassification === "zero_tables") {
-      assertBaselineDatabaseEligible(beforeTableCount);
+    if (databaseObjectClassification === "zero_objects") {
+      assertZeroObjectDatabase(roleDatabaseObjectCounts.runtime);
+      if (Object.values(roleDatabaseObjectClassifications).some((classification) => classification !== "zero_objects")) {
+        throw bootstrapError("bootstrap_role_rebuild_nonempty_denied", "Every role database must have zero tables, views, triggers, routines, and events before reconstruction begins", { role_database_object_counts: roleDatabaseObjectCounts, role_database_object_classifications: roleDatabaseObjectClassifications });
+      }
       const manifestPath = resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
       migrationResults.push(await applyRuntimeBundle(connection, target.database, manifestPath, source.sha, contract, mutationEvidence));
       migrationResults.push(await applyGovernanceBundle(ledgerConnection, target.governance_database || target.database, manifestPath, source.sha, contract, mutationEvidence));
       migrationResults.push(await applyRuntimePersistenceBundle(persistenceExecutor, persistenceDatabase, manifestPath, source.sha, contract, mutationEvidence));
-      for (const seed of contract.baseline_bundle.required_seed_files) {
-        migrationResults.push(await applySeedFile(connection, repoRoot, seed, mutationEvidence));
-      }
-      ledger = await readLedgerApplyRecord(ledgerConnection, target.governance_database || target.database, migration, spec.sha256);
     }
-    const postconditionsAfterBaseline = databaseClassification === "zero_tables"
+    const postconditionsAfterBaseline = databaseObjectClassification === "zero_objects"
       ? await readIncidentPostconditions(connection, target.database, contract, migration)
       : postconditionsBefore;
     if (ledger.found && !postconditionsAfterBaseline?.ready) {
@@ -1190,6 +1276,11 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         throw withMutationEvidence(bootstrapError("bootstrap_ledger_readback_failed", "Migration ledger record was not visible in the same cycle", { migration }), mutationEvidence);
       }
     }
+    if (databaseObjectClassification === "zero_objects") {
+      for (const seed of contract.baseline_bundle.required_seed_files) {
+        migrationResults.push(await applySeedFile(connection, repoRoot, seed, mutationEvidence));
+      }
+    }
     if (mutationEvidence.migration.attempted || mutationEvidence.baseline.attempted) markMutationComplete(mutationEvidence, "migration");
     const postconditions = await readIncidentPostconditions(connection, target.database, contract, migration);
     if (!postconditions.ready) throw bootstrapError("bootstrap_postcondition_failed", "Migration readback is not ready after operation", { migration });
@@ -1201,6 +1292,9 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       target_key: target.key,
       database_table_count_before: beforeTableCount,
       database_classification: databaseClassification,
+      database_object_counts_before: roleDatabaseObjectCounts,
+      database_object_classifications_before: roleDatabaseObjectClassifications,
+      behavioral_probes: behavioralProbes,
       migration_results: migrationResults,
       ledger,
       postconditions,

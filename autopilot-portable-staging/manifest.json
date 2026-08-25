@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "bdb9c0f3ea8eeffec631286b9ffb95f57023ac3008419c18d1a1f4952c47c907"
+      "sha256": "396013f41d68277c08e96cf5ab65cd53696badbc47b87a988f03aec23c2dde94"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "ab01ce9c015602cb0e78870df6bbaee240d911fdd612d8e8aadd405812c14ef3"
+      "sha256": "dc8cd04c08d5b895f6aace36ddc1ee3987e53502662cdfa1542e6bafca0065fe"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "e22f1f428577ebc48e801c17cc398f01d5abfee04f09d5c1c28f36ab22fc85a1"
+      "sha256": "13ff521649d49f5679b9ff6d6b141d839ba9ce7a5eedd11953e6a26f28ba5fe7"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "7224d9f2e0b6c9ce648435a5fcd706fe1c25e304554a7b3a5815a46ee3c5c461"
+      "sha256": "79b5218b00475ab6e82f4d600ce10ba1f3d28c3133c636da7e7838907d23bfe5"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "6efe8e1551fb946c5d88f99c4d93f0d26a4e5ede31c977f79d72589e36bbe5b1"
+      "sha256": "d32d8ad996a8dbda8954dd3ca867bc9c20258596ce8e1db2f92959a5ab0ad9af"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -214,7 +214,7 @@
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
-      "sha256": "a72a62ee8d090ed5e9d333f2af505e586e22696a408004be02485a98cd0c2ed6"
+      "sha256": "191ed52a044696819eb6eaa0dab237f0ae82218bb4fa60f1ad360fc9fd8bd6a6"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-build-context.mjs",
@@ -250,7 +250,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "74bdb14b527519d994a737753889c79bc37140d0fd8637a095a7236a681fe26c"
+      "sha256": "d75aa9d69525651e6a85a32ed3691a8e5a41a2d0faedd18fac0925fe85799cee"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",

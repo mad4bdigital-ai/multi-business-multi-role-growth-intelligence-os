@@ -21,6 +21,20 @@
   "apply_grants_confirmation_prefix": "APPLY_STAGING_RUNTIME_GRANTS",
   "role_credentials_require_windows_docker": true,
   "cross_environment_credential_reuse": false,
+  "empty_database_reconstruction": {
+    "scope": "existing_zero_object_set_only",
+    "object_kinds": ["tables", "views", "triggers", "routines", "events"],
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
+    "all_roles_must_be_zero_objects": true,
+    "partial_role_rebuild_allowed": false,
+    "standalone_migration_first_allowed": false,
+    "execution_order": ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    "behavioral_probes": [
+      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+    ]
+  },
   "credential_mapping": {
     "STAGING_MYSQL_BOOTSTRAP_HOST": "MYSQL_BOOTSTRAP_HOST",
     "STAGING_MYSQL_BOOTSTRAP_PORT": "MYSQL_BOOTSTRAP_PORT",

@@ -11,7 +11,7 @@
     "target.classify": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "connection.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "schema_bundle.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration"] },
-    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "zero_object_proof", "exact_sha", "typed_confirmation"] },
     "schema_bundle.rebuild_runtime_persistence": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "exact_sha", "repository_persistence_bundle", "pinned_bundle_sha256", "same_cycle_postcondition_readback"] },
     "migration_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration"] },
     "migration_contract.apply": { "mutation": true, "executor": "governedMigrationExecutionTool", "actions": ["apply_migration"], "requires": ["repository_catalog_entry", "exact_sha", "typed_confirmation"] },

@@ -104,8 +104,8 @@ function boundedBudget(input = {}) {
   return budget;
 }
 function requireStore(exceptionStore) {
-  if (!exceptionStore || typeof exceptionStore.putException !== "function" || typeof exceptionStore.getException !== "function" || typeof exceptionStore.appendExceptionEvent !== "function") {
-    fail(503, "EXCEPTION_STORE_UNAVAILABLE", "Stateful exception lifecycle requires an injected durable exception store; preview-only mode cannot activate authority.");
+  if (!exceptionStore || exceptionStore.recovery_store_contract !== "mad4b.recovery-durable-store.v1" || exceptionStore.independent_of_target_databases !== true || exceptionStore.target_database_binding !== "forbidden" || exceptionStore.provider_accessed !== false || typeof exceptionStore.putException !== "function" || typeof exceptionStore.getException !== "function" || typeof exceptionStore.appendExceptionEvent !== "function") {
+    fail(503, "EXCEPTION_STORE_UNAVAILABLE", "Stateful exception lifecycle requires an injected independent durable exception store; preview-only mode cannot activate authority.");
   }
   return exceptionStore;
 }

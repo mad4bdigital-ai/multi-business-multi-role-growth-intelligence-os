@@ -8,6 +8,8 @@ import test from "node:test";
 import zlib from "node:zlib";
 import {
   assertBaselineDatabaseEligible,
+  assertZeroObjectDatabase,
+  classifyDatabaseObjectCount,
   buildPlan,
   classifyMysqlError,
   runBootstrap,
@@ -78,7 +80,7 @@ function grantRows() {
   ] : [];
 }
 
-function fakeConnection({ tableCount = 7, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null } = {}) {
+function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null } = {}) {
   const queryCalls = [];
   const executeCalls = [];
   let mutationQueries = 0;
@@ -94,6 +96,7 @@ function fakeConnection({ tableCount = 7, missingTables = [], ledgerFound = fals
     ...contract.grant_policy.required_tables,
   ]);
   const currentGrantRows = grantRows();
+  const nonTableObjectCounts = { views: 0, triggers: 0, routines: 0, events: 0, ...objectCounts };
   const connection = {
     query: async (sql) => {
       const text = String(sql).trim();
@@ -120,6 +123,10 @@ function fakeConnection({ tableCount = 7, missingTables = [], ledgerFound = fals
       const text = String(sql);
       if (text.includes("SCHEMATA")) return [[{ SCHEMA_NAME: TARGET_DATABASE }]];
       if (text.includes("COUNT(*) AS table_count")) return [[{ table_count: String(tableCount) }]];
+      if (text.includes("COUNT(*) AS view_count")) return [[{ view_count: String(nonTableObjectCounts.views) }]];
+      if (text.includes("COUNT(*) AS trigger_count")) return [[{ trigger_count: String(nonTableObjectCounts.triggers) }]];
+      if (text.includes("COUNT(*) AS routine_count")) return [[{ routine_count: String(nonTableObjectCounts.routines) }]];
+      if (text.includes("COUNT(*) AS event_count")) return [[{ event_count: String(nonTableObjectCounts.events) }]];
       if (text.includes("TABLE_NAME = 'governed_migration_ledger'") && text.includes("information_schema.TABLES")) return [[{ TABLE_NAME: "governed_migration_ledger" }]];
       if (text.includes("TABLE_NAME = ?") && text.includes("information_schema.TABLES")) {
         const table = String(params[1] || "");
@@ -476,11 +483,15 @@ test("role-bound credentials reject cross-environment target keys and execution 
   assert.throws(() => buildPlan(github, stagingRoleContract()), (error) => error.code === "bootstrap_host_local_role_transport_denied");
 });
 
-test("Host Breakglass empty rebuild contract is represented as a zero-table-only capability", () => {
+test("Host Breakglass empty rebuild contract is represented as a zero-object-only capability", () => {
   const catalog = JSON.parse(fs.readFileSync(new URL("./config/host-breakglass-catalog.json", import.meta.url), "utf8"));
   const rebuild = catalog.operations.find((entry) => entry.key === "database.rebuild_empty");
   assert.equal(catalog.database_independent, true);
   assert.equal(rebuild.requires_zero_table_database, true);
+  assert.equal(rebuild.requires_zero_object_database, true);
+  assert.equal(rebuild.requires_zero_object_proof_for_all_roles, true);
+  assert.deepEqual(contract.baseline_bundle.empty_database_object_kinds, ["tables", "views", "triggers", "routines", "events"]);
+  assert.equal(contract.baseline_bundle.empty_database_requires_all_roles_zero_objects, true);
   assert.equal(catalog.destructive_nonempty_rebuild.supported, false);
 });
 
@@ -568,9 +579,47 @@ test("verification-only migrations cannot be applied", () => {
   }
 });
 
-test("baseline eligibility is zero-table-only", () => {
+test("baseline eligibility is zero-object-only while legacy numeric evidence remains table-compatible", () => {
   assert.equal(assertBaselineDatabaseEligible(0), true);
+  assert.equal(assertZeroObjectDatabase({ tables: 0, views: 0, triggers: 0, routines: 0, events: 0 }), true);
+  assert.equal(classifyDatabaseObjectCount({ tables: 0, views: 0, triggers: 0, routines: 0, events: 0 }), "zero_objects");
   assert.throws(() => assertBaselineDatabaseEligible(1), (error) => error.code === "bootstrap_baseline_nonempty_denied");
+  for (const kind of ["tables", "views", "triggers", "routines", "events"]) {
+    assert.throws(() => assertZeroObjectDatabase({ tables: 0, views: 0, triggers: 0, routines: 0, events: 0, [kind]: 1 }), (error) => error.code === "bootstrap_baseline_nonempty_denied");
+  }
+});
+
+test("standalone migration apply is denied for an empty target before the reconstruction chain", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  const connection = fakeConnection({ tableCount: 0 });
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async () => connection }),
+    (error) => error.code === "bootstrap_empty_requires_rebuild_operation" && error.details.database_mutation_performed === false,
+  );
+  assert.equal(connection.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+});
+
+test("empty rebuild rejects a non-table object in any role before mutation", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  const splitTarget = {
+    ...TARGET,
+    governance_database: "growth_governance",
+    governance_database_sha256: sha256Hex("growth_governance"),
+    target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}:growth_governance:runtime_user:localhost`),
+  };
+  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
+  env.BOOTSTRAP_GOVERNANCE_DATABASE = "growth_governance";
+  const runtime = fakeConnection({ tableCount: 0 });
+  const governance = fakeConnection({ tableCount: 0, objectCounts: { views: 1 } });
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : runtime }),
+    (error) => error.code === "host_breakglass_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
+  );
+  assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+  assert.equal(governance.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
 });
 
 test("20260815 requires both catalog prerequisite tables on a nonempty database", async () => {
@@ -589,6 +638,12 @@ test("dry-run returns structured schema, ledger, and grant evidence without muta
   const result = await runBootstrap({ env, contract, connectionFactory: async () => connection });
   assert.equal(result.status, "dry_run_complete");
   assert.equal(result.database_connection_performed, true);
+  assert.equal(result.database_object_counts.tables, 7);
+  assert.equal(result.database_object_classification, "nonempty_objects");
+  assert.equal(result.role_database_object_counts.runtime.total, 7);
+  assert.equal(result.role_database_object_classifications.runtime, "nonempty_objects");
+  assert.deepEqual(result.behavioral_probes.map((probe) => probe.role), ["governance", "runtime_persistence", "runtime"]);
+  assert.ok(result.behavioral_probes.every((probe) => probe.execution_status === "declared_not_executed_in_bootstrap_contract" && probe.provider_accessed === false));
   assert.equal(result.database_mutation_performed, false);
   assert.equal(result.migration_apply_performed, false);
   assert.equal(result.grant_mutation_performed, false);
@@ -790,8 +845,9 @@ test("migration confirmation is exact and blocks before opening a connection", a
   assert.equal(connectionOpened, false);
 });
 
-test("zero-table migration apply stops before mutation when canonical bundle is absent", async () => {
+test("empty rebuild apply stops before mutation when canonical bundle is absent", async () => {
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
   env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
   const connection = fakeConnection({ tableCount: 0 });
   await assert.rejects(

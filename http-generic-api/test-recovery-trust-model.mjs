@@ -28,6 +28,10 @@ test("manifest is repository-owned, hash-addressed, and contains no secret mater
   assert.equal(manifest.safety.raw_commands_allowed, false);
   assert.equal(manifest.safety.raw_sql_allowed, false);
   assert.equal(manifest.durability.consequential_mutation_requires_injected_durable_store, true);
+  assert.equal(manifest.durability.store_independence.independent_of_target_databases, true);
+  assert.equal(manifest.durability.store_independence.target_database_binding, "forbidden");
+  assert.equal(manifest.empty_database_reconstruction.all_roles_must_be_zero_objects, true);
+  assert.deepEqual(manifest.empty_database_reconstruction.object_kinds, ["tables", "views", "triggers", "routines", "events"]);
 });
 
 test("manifest verification requires exact runtime SHA and production binding", () => {

@@ -26,10 +26,11 @@ test("catalog is repository-owned and database independent", () => {
   assert.equal(catalog.tool_contract.default_policy, "deny");
   assert.equal(catalog.tool_contract.denied_capabilities.includes("raw_sql.inline"), true);
 });
-test("reconstruction graph binds all roles to explicit zero-table execution while nonempty rebuild stays denied", () => {
+test("reconstruction graph binds all roles to explicit zero-object execution while nonempty rebuild stays denied", () => {
   const catalog = publicHostBreakglassCatalog();
   assert.equal(catalog.reconstruction_plan.mode, "plan_and_explicit_apply");
-  assert.equal(catalog.reconstruction_plan.scope, "existing_zero_table_only");
+  assert.equal(catalog.reconstruction_plan.scope, "existing_zero_object_set_only");
+  assert.equal(catalog.reconstruction_plan.requires_zero_object_proof, true);
   assert.equal(catalog.reconstruction_plan.execution_allowed, true);
   assert.equal(catalog.reconstruction_plan.steps.some((step) => step.key === "rebuild_runtime_persistence_schema" && step.executor_available === true && step.executor === "hostinger-runtime-bootstrap"), true);
   assert.equal(catalog.reconstruction_plan.complete, true);
@@ -41,6 +42,7 @@ test("tool contract exposes governed platform capabilities with capsule-only raw
   assert.equal(contract.tools["migration_catalog.inspect"].mutation, false);
   assert.equal(contract.tools["database_role_topology.inspect"].mutation, false);
   assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("zero_table_proof"), true);
+  assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("zero_object_proof"), true);
   assert.equal(contract.tools["schema_bundle.rebuild_runtime_persistence"].requires.includes("same_cycle_postcondition_readback"), true);
   assert.equal(Object.hasOwn(contract.tools, "shell.execute"), false);
 });
@@ -57,6 +59,8 @@ test("full migration discovery never expands the Production execution allowlist"
 test("empty database rebuild is exact-sha and repository-contract bound", () => {
   const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "dry_run", expected_sha: SHA, migration: MIGRATION });
   assert.equal(plan.requires_zero_table_database, true);
+  assert.equal(plan.requires_zero_object_database, true);
+  assert.equal(plan.requires_zero_object_proof_for_all_roles, true);
   assert.equal(plan.dispatch_ref, "main");
   assert.equal(plan.target_branch, "Production");
   assert.equal(plan.destructive_nonempty_rebuild_allowed, false);
@@ -79,6 +83,13 @@ test("empty rebuild exposes a hashed role-by-role execution graph without granti
   const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_migration", expected_sha: SHA, migration: MIGRATION, confirmation: `APPLY_HOSTINGER_RUNTIME_MIGRATION:${SHA}:production-runtime:${MIGRATION}` });
   const graph = plan.runbook_execution_graph;
   assert.equal(graph.execution_mode, "apply_runbook");
+  assert.equal(graph.zero_object_proof_required, true);
+  assert.deepEqual(graph.zero_object_kinds, ["tables", "views", "triggers", "routines", "events"]);
+  assert.deepEqual(graph.execution_order, ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"]);
+  assert.deepEqual(graph.migration_sequence.map((entry) => entry.file), [MIGRATION]);
+  assert.deepEqual(graph.behavioral_probes.map((probe) => probe.role), ["governance", "runtime_persistence", "runtime"]);
+  assert.ok(graph.behavioral_probes.every((probe) => probe.execution_status === "declared_not_executed_in_preview" && probe.provider_accessed === false));
+  assert.equal(graph.partial_role_rebuild_allowed, false);
   assert.deepEqual(graph.steps.filter((step) => step.role).map((step) => step.role), ["runtime", "governance", "runtime_persistence"]);
   assert.equal(graph.steps.find((step) => step.role === "runtime_persistence").same_cycle_readback_required, true);
   assert.equal(graph.grants_included, false);

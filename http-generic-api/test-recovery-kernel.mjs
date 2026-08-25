@@ -60,6 +60,10 @@ function makeDurableStore() {
   const events = [];
   const clone = (value) => structuredClone(value);
   return {
+    recovery_store_contract: "mad4b.recovery-durable-store.v1",
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    provider_accessed: false,
     runs,
     plans,
     findings,
@@ -451,6 +455,32 @@ test("durable execution follows the explicit state machine and cannot replay an 
     () => executeRemediationStep({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, approval_token: "bound-approval-token-for-test-001", idempotency_key: "test-idempotency-durable-002" }, { env: { ...ENV, RECOVERY_MUTATIONS_ENABLED: "true" }, adminPrincipal: { verified: true }, approvalVerifier: { verify: async () => true }, recoveryLock: { acquire: async () => true }, recoveryStore: durable, mutationExecutor: { execute: async () => ({}) } }),
     (error) => error?.code === "RECOVERY_APPROVAL_INVALID",
   );
+});
+
+test("consequential execution rejects a durable store coupled to a target database", async () => {
+  const plan = [..._testingRecoveryKernel.PLANS.values()].at(-1);
+  const step = plan.steps.find((entry) => entry.consequential);
+  const coupled = makeDurableStore();
+  coupled.independent_of_target_databases = false;
+  let executed = false;
+  await assert.rejects(
+    () => executeRemediationStep({
+      plan_id: plan.plan_id,
+      plan_hash: plan.plan_hash,
+      step_id: step.step_id,
+      approval_token: "bound-approval-token-for-test-coupled-store",
+      idempotency_key: "test-idempotency-coupled-store-001",
+    }, {
+      env: { ...ENV, RECOVERY_MUTATIONS_ENABLED: "true" },
+      adminPrincipal: { verified: true },
+      approvalVerifier: { verify: async () => true },
+      recoveryLock: { acquire: async () => true },
+      recoveryStore: coupled,
+      mutationExecutor: { execute: async () => { executed = true; } },
+    }),
+    (error) => error?.code === "RECOVERY_STORE_UNAVAILABLE" && error?.status === 503,
+  );
+  assert.equal(executed, false);
 });
 
 test("fixed dispatcher never synthesizes an admin principal", async () => {

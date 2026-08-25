@@ -35,22 +35,67 @@ function stableFileHash(filePath) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
-function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology }) {
+function reconstructionRoleEvidence(role, baseline = {}) {
+  const roleConfig = {
+    runtime: { bundle_file: baseline.runtime_role_file, required_tables: baseline.required_runtime_tables },
+    governance: { bundle_file: baseline.governance_role_file, required_tables: baseline.required_governance_tables },
+    runtime_persistence: { bundle_file: baseline.runtime_persistence_role_file, required_tables: baseline.required_runtime_persistence_tables },
+  }[role];
+  return roleConfig ? { role, bundle_file: roleConfig.bundle_file || null, required_tables: Array.isArray(roleConfig.required_tables) ? [...roleConfig.required_tables] : [], object_kinds: ["tables", "views", "triggers", "routines", "events"] } : { role, bundle_file: null, required_tables: [], object_kinds: ["tables", "views", "triggers", "routines", "events"] };
+}
+
+function reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology) {
+  const baseline = bootstrapContract?.baseline_bundle || {};
+  const migrationCatalog = Object.entries(bootstrapContract?.migrations || {}).map(([file, spec]) => ({ file, sha256: String(spec?.sha256 || "").toLowerCase(), statement_count: Number(spec?.statement_count || 0), role: spec?.role || null, allowed_modes: Array.isArray(spec?.allowed_modes) ? [...spec.allowed_modes] : [] }));
+  const migrationSequence = migrationCatalog.filter((entry) => entry.allowed_modes.includes("apply_migration"));
+  const roles = Object.entries(databaseRoleTopology || {}).filter(([, config]) => config?.required === true).map(([role]) => reconstructionRoleEvidence(role, baseline));
+  return {
+    zero_object_proof_required: true,
+    zero_object_proof_roles: roles.map((entry) => entry.role),
+    zero_object_kinds: ["tables", "views", "triggers", "routines", "events"],
+    baseline_bundle: {
+      manifest_contract: baseline.manifest_contract || null,
+      manifest_path: baseline.default_manifest_path || null,
+      schema_only_required: baseline.schema_only_required === true,
+      roles,
+    },
+    execution_order: ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    migration_catalog: migrationCatalog,
+    migration_sequence: migrationSequence,
+    seed_set: (Array.isArray(baseline.required_seed_files) ? baseline.required_seed_files : []).map((entry) => ({ file: entry.file || null, sha256: String(entry.sha256 || "").toLowerCase(), statement_count: Number(entry.statement_count || 0) })),
+    grant_manifest: {
+      tables: Array.isArray(bootstrapContract?.grant_policy?.required_tables) ? [...bootstrapContract.grant_policy.required_tables] : [],
+      operations: Array.isArray(bootstrapContract?.grant_policy?.required_operations) ? [...bootstrapContract.grant_policy.required_operations] : [],
+      separate_approval_required: true,
+      grant_option_allowed: bootstrapContract?.grant_policy?.allow_grant_option === true,
+    },
+    postcondition_migration_keys: Object.keys(bootstrapContract?.postconditions || {}).sort(),
+    behavioral_probes: (Array.isArray(baseline.behavioral_probes) ? baseline.behavioral_probes : []).map((probe) => ({ ...probe, execution_status: "declared_not_executed_in_preview", provider_accessed: false, runtime_mutation_performed: false, secrets_included: false })),
+  };
+}
+
+function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology, bootstrapContract }) {
   if (runbookKey !== "database.empty_rebuild") return null;
   const mutating = action === "apply_migration";
+  const preview = reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology);
   const steps = [
-    { key: "target.classify", mutation: false, zero_table_required: true },
+    { key: "target.classify", mutation: false, zero_table_required: true, zero_object_required: true, object_kinds: ["tables", "views", "triggers", "routines", "events"], readback_required: true },
     { key: "schema_bundle.inspect", mutation: false, exact_sha_required: true },
     ...Object.keys(databaseRoleTopology).filter((role) => databaseRoleTopology[role]?.required === true).map((role) => ({
       key: `schema_bundle.rebuild_empty.${role}`,
       role,
       mutation: mutating,
       executor_available: databaseRoleTopology[role]?.rebuild_executor_available === true,
+      bundle_file: preview.baseline_bundle.roles.find((entry) => entry.role === role)?.bundle_file || null,
+      required_tables: preview.baseline_bundle.roles.find((entry) => entry.role === role)?.required_tables || [],
       zero_table_required: true,
+      zero_object_required: true,
+      object_kinds: ["tables", "views", "triggers", "routines", "events"],
       same_cycle_readback_required: role === "runtime_persistence",
     })),
-    { key: "canonical_seeds.apply", mutation: mutating, repository_owned: true },
     { key: "migration_contract.apply", mutation: mutating, execution_allowlist_required: true },
+    { key: "canonical_seeds.apply", mutation: mutating, repository_owned: true },
+    { key: "grant_contract.apply", mutation: true, execution_included: false, separate_runbook: "database.access_repair", separate_approval_required: true },
     { key: "database.postconditions.read", mutation: false, same_cycle_readback_required: true },
     { key: "ledger.readback", mutation: false, same_cycle_readback_required: true },
   ];
@@ -60,7 +105,7 @@ function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRol
   if (mutating && steps.some((step) => step.executor_available === false)) {
     fail(409, "host_breakglass_runbook_executor_missing", "A required database role has no reconstruction executor.");
   }
-  const graph = { contract: "mad4b.host-breakglass-runbook-graph.v1", runbook_key: runbookKey, execution_mode: mutating ? "apply_runbook" : "inspect_runbook", grants_included: false, arbitrary_sql_allowed: false, destructive_nonempty_rebuild_allowed: false, steps };
+  const graph = { contract: "mad4b.host-breakglass-runbook-graph.v1", runbook_key: runbookKey, execution_mode: mutating ? "apply_runbook" : "inspect_runbook", grants_included: false, arbitrary_sql_allowed: false, destructive_nonempty_rebuild_allowed: false, partial_role_rebuild_allowed: false, ...preview, steps };
   return { ...graph, graph_sha256: stableHash(graph) };
 }
 
@@ -190,7 +235,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
   if (!targetKey.startsWith(environment.target_key_prefix || `${environment.environment}-`)) fail(403, "host_breakglass_environment_target_mismatch", "Target key does not belong to the selected environment.", { environment_key: environmentKey, target_key: targetKey });
   const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
-  const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {} });
+  const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {}, bootstrapContract });
   const migration = String(input.migration || "").trim();
   const migrationOptional = operationKey === "database.inspect" && runbookKey === "database.full_inspection" && action === "dry_run";
   if (["dry_run", "apply_migration"].includes(action) && !migrationOptional && !migrationFiles(bootstrapContract).has(migration)) {
@@ -262,6 +307,8 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     confirmation: confirmation || null,
     correlation_id: correlationId,
     requires_zero_table_database: operation.requires_zero_table_database === true,
+    requires_zero_object_database: operation.requires_zero_object_database === true,
+    requires_zero_object_proof_for_all_roles: operation.requires_zero_object_proof_for_all_roles === true,
     destructive_nonempty_rebuild_allowed: false,
     database_independent_control_plane: true,
     database_mutation_performed: false,

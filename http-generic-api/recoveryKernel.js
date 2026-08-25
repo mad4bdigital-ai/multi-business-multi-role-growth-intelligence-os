@@ -742,9 +742,16 @@ async function releaseLock(lockHandle, targetKey, planHash, { recoveryLock } = {
   await recoveryLock.release({ target_key: targetKey, plan_hash: planHash, lock: lockHandle });
 }
 
+function hasIndependentRecoveryStoreBoundary(recoveryStore) {
+  return recoveryStore?.recovery_store_contract === "mad4b.recovery-durable-store.v1"
+    && recoveryStore?.independent_of_target_databases === true
+    && recoveryStore?.target_database_binding === "forbidden"
+    && recoveryStore?.provider_accessed === false;
+}
+
 function isDurableRecoveryStore(recoveryStore) {
   return Boolean(
-    recoveryStore
+    hasIndependentRecoveryStoreBoundary(recoveryStore)
     && typeof recoveryStore.putRun === "function"
     && typeof recoveryStore.getRun === "function"
     && typeof recoveryStore.putPlan === "function"

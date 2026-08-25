@@ -133,7 +133,7 @@
     "manifest_env": "BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST",
     "default_manifest_path": "autopilot-portable-staging/staging-db-dumps/staging-schema-bundle-manifest.json",
     "manifest_contract": "mad4b.staging.schema-bundle-output.v1",
-    "when_allowed": "existing_zero_tables_only; database_creation_is_outside_this_contract",
+    "when_allowed": "existing_zero_objects_only; database_creation_is_outside_this_contract",
     "schema_only_required": true,
     "production_accessed_required": false,
     "provider_accessed_required": false,
@@ -159,6 +159,17 @@
     "governance_database_optional": true,
     "governance_database_must_be_allowlisted_when_present": true,
     "role_split_baseline_requires_no_partial_pair": true,
+    "empty_database_classification": "EMPTY_UNINITIALIZED_DATABASE",
+    "empty_database_object_kinds": ["tables", "views", "triggers", "routines", "events"],
+    "empty_database_requires_all_roles_zero_objects": true,
+    "empty_database_standalone_migration_first_denied": true,
+    "empty_database_execution_order": ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    "behavioral_probes": [
+      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+    ],
+    "recovery_store_must_be_independent_of_target_role_databases": true,
     "required_seed_files": [
       {
         "file": "039_sprint43_data_integrity_and_missing_tables.sql",

@@ -105,7 +105,9 @@
       "requires_confirmation": true,
       "allowed_runbooks": ["database.empty_rebuild"],
       "requires_zero_table_database": true,
-      "purpose": "Rebuild an empty database from the exact-SHA schema bundle, seeds, repository migrations, and same-cycle readback. Grants remain a separate database.access_repair approval after rebuild readback."
+      "requires_zero_object_database": true,
+      "requires_zero_object_proof_for_all_roles": true,
+      "purpose": "Rebuild only a database role set with zero tables, views, triggers, routines, and events from the exact-SHA role-specific schema bundles, seeds, repository migrations, and same-cycle readback. Grants remain a separate database.access_repair approval after rebuild readback."
     },
     {
       "key": "host.command_capsule",
@@ -121,13 +123,14 @@
   "reconstruction_plan": {
     "contract": "mad4b.host-breakglass-reconstruction-plan.v1",
     "mode": "plan_and_explicit_apply",
-    "scope": "existing_zero_table_only",
+    "scope": "existing_zero_object_set_only",
+    "requires_zero_object_proof": true,
     "execution_allowed": true,
     "steps": [
-      { "key": "classify_target", "mutation": false, "readback": true },
+      { "key": "classify_target", "mutation": false, "readback": true, "object_kinds": ["tables", "views", "triggers", "routines", "events"] },
       { "key": "inspect_schema_bundle", "mutation": false, "readback": true },
-      { "key": "rebuild_runtime_schema", "role": "runtime", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
-      { "key": "rebuild_governance_schema", "role": "governance", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
+      { "key": "rebuild_runtime_schema", "role": "runtime", "mutation": true, "requires": ["zero_table_proof", "zero_object_proof", "exact_sha", "typed_confirmation"] },
+      { "key": "rebuild_governance_schema", "role": "governance", "mutation": true, "requires": ["zero_table_proof", "zero_object_proof", "exact_sha", "typed_confirmation"] },
       { "key": "rebuild_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "executor_available": true, "executor": "hostinger-runtime-bootstrap", "bundle_file": "persistence.schema.sql.gz", "same_cycle_readback_required": true },
       { "key": "apply_canonical_seeds", "mutation": true, "requires": ["exact_sha", "typed_confirmation"] },
       { "key": "reconcile_reviewed_migrations", "mutation": true, "requires": ["repository_allowlist", "exact_sha", "typed_confirmation"] },
@@ -136,7 +139,8 @@
     ],
     "complete": true,
     "blocking_reason": null,
-    "destructive_nonempty_rebuild_allowed": false
+    "destructive_nonempty_rebuild_allowed": false,
+    "partial_role_rebuild_allowed": false
   },
   "destructive_nonempty_rebuild": {
     "supported": false,
