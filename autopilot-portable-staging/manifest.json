@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "cf035f3c2a7b229a740a8ae9397fb31efceb2407894d5e65ac8f6278d115f0d1"
+      "sha256": "9e7754d88df925427c931ec4ba53c9ccce3e2e21e32c95dab21f99fe96f8fffe"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "da451901a789c5ef647d6fd86253aedf104967b1d15c61644940a5c500491ffa"
+      "sha256": "dc8cd04c08d5b895f6aace36ddc1ee3987e53502662cdfa1542e6bafca0065fe"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "88b286b6a34d17598c662bac59976d6b8138156dc40b895fc740f4bd6f559aa7"
+      "sha256": "2bc3b477e3a88c1c3f4439ce3a01fc0d495dbed3e80754fd482770c0ad35da55"
     },
     {
       "path": "http-generic-api/governanceDb.js",
