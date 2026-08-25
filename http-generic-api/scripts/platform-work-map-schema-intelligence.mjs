@@ -273,7 +273,7 @@ function parseCatalog(repoRoot, classificationRegistry) {
       for (const column of block.body.matchAll(/^\s*`([^`]+)`\s+/gm)) table.columns.add(column[1]);
       for (const ref of block.body.matchAll(/REFERENCES\s+`?([A-Za-z0-9_]+)`?/gi)) table.refs.add(ref[1]);
     }
-    for (const match of ddlText.matchAll(/ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(tables, match[1], "table").sources.add(file);
+    for (const match of ddlText.matchAll(/ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi)) ensure(tables, match[1], "table").sources.add(file);
     for (const match of ddlText.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(views, match[1], "view").sources.add(file);
     for (const match of text.matchAll(/['"]([A-Za-z0-9_.:-]+_policy_v\d+)['"]/gi)) {
       if (!policies.has(match[1])) policies.set(match[1], new Set());
