@@ -138,6 +138,7 @@ export function buildRecoveryKernelRoutes({
   recoveryLock,
   mutationExecutor,
   readbackVerifier,
+  executionTicketSigner,
   productionActivationReadinessExecutor,
   systemToolLookup,
 } = {}) {
@@ -191,6 +192,7 @@ export function buildRecoveryKernelRoutes({
         recoveryLock,
         mutationExecutor,
         readbackVerifier,
+        executionTicketSigner,
         productionActivationReadinessExecutor,
         systemToolLookup: fixedSystemToolLookup,
         adminPrincipal: requestAdminPrincipal(req),

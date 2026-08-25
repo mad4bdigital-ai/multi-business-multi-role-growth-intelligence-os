@@ -318,6 +318,11 @@ import {
 import { getRuntimePersistencePool, testConnection } from "./db.js";
 import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js";
 import { getRuntimeBootstrapStatus } from "./runtimeBootstrapStatus.js";
+import { runBootstrap } from "./runtimeBootstrapContract.js";
+import {
+  createRecoveryComposition,
+  getRecoveryCompositionRouteDependencies,
+} from "./recoveryComposition.js";
 import {
   toJobSummary,
   inferLocalDispatchHttpStatus,
@@ -3164,7 +3169,16 @@ const executionFacade = createExecutionFacade({
   ACTIVE_JOB_STATUSES
 });
 
+const recoveryComposition = createRecoveryComposition({
+  source: "server_composition_root",
+});
+const recoveryCompositionDependencies = getRecoveryCompositionRouteDependencies(recoveryComposition);
+const runtimeBootstrapReader = (options = {}) => runBootstrap({
+  ...options,
+  ...recoveryComposition.runtimeBootstrapDependencies,
+});
 registerRoutes(app, {
+  ...recoveryCompositionDependencies,
   // --- health ---
   jobRepository,
   executeSingleQueuedJob,
@@ -3175,6 +3189,7 @@ registerRoutes(app, {
   getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
   runtimePersistencePoolFactory: getRuntimePersistencePool,
+  runtimeBootstrapReader,
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,
   // --- mcp ---

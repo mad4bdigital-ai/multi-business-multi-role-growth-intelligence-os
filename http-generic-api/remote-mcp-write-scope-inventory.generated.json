@@ -6205,8 +6205,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
-      "source_line": 172,
-      "source_offset": 5982,
+      "source_line": 173,
+      "source_offset": 6007,
       "method": "POST",
       "path": "/admin/recovery/kernel/call",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6214,8 +6214,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute:1",
-      "source_line": 204,
-      "source_offset": 7466,
+      "source_line": 206,
+      "source_offset": 7522,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6223,8 +6223,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:2",
-      "source_line": 224,
-      "source_offset": 8366,
+      "source_line": 226,
+      "source_offset": 8422,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6232,8 +6232,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:3",
-      "source_line": 233,
-      "source_offset": 8714,
+      "source_line": 235,
+      "source_offset": 8770,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -37014,10 +37014,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 172,
+        "source_line": 173,
         "handler_window_lines": [
-          172,
-          202
+          173,
+          204
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37084,10 +37084,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 204,
+        "source_line": 206,
         "handler_window_lines": [
-          204,
-          222
+          206,
+          224
         ],
         "evidence_flags": {
           "handler_window_present": true,
