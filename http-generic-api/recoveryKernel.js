@@ -561,18 +561,18 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
   const targetFingerprints = deriveRoleTargetFingerprints({ env });
   const findingIds = Array.isArray(input.finding_ids) ? [...new Set(input.finding_ids.map((value) => text(value, 160)))] : [];
   if (findingIds.length > 50 || findingIds.some((id) => !FINDING_ID_RE.test(id))) throw kernelError(400, "RECOVERY_FINDINGS_INVALID", "finding_ids must contain zero to fifty registered finding IDs when a bounded capability reference is supplied.");
-  const unsupportedCapabilityId = input.unsupported_capability_id ? text(input.unsupported_capability_id, 160) : null;
-  const unsupportedCapabilityHash = input.unsupported_capability_hash ? requireDigest(input.unsupported_capability_hash, "unsupported_capability_hash") : null;
-  const hasUnsupportedReference = Boolean(unsupportedCapabilityId || unsupportedCapabilityHash);
+  const ephemeralRefId = input.unsupported_capability_id ? text(input.unsupported_capability_id, 160) : null;
+  const ephemeralDigest = input.unsupported_capability_hash ? requireDigest(input.unsupported_capability_hash, "unsupported_capability_hash") : null;
+  const hasUnsupportedReference = Boolean(ephemeralRefId || ephemeralDigest);
   if (!hasUnsupportedReference && findingIds.length === 0) throw kernelError(400, "RECOVERY_FINDINGS_INVALID", "Plan creation requires registered findings or one bounded unsupported capability reference.");
-  if (hasUnsupportedReference && (!unsupportedCapabilityId || !unsupportedCapabilityHash)) throw kernelError(400, "RECOVERY_UNSUPPORTED_REFERENCE_INVALID", "Unsupported plan binding requires both capability_id and capability_hash.");
-  let unsupportedCapability = null;
+  if (hasUnsupportedReference && (!ephemeralRefId || !ephemeralDigest)) throw kernelError(400, "RECOVERY_UNSUPPORTED_REFERENCE_INVALID", "Unsupported plan binding requires both capability_id and capability_hash.");
+  let temporaryReference = null;
   if (hasUnsupportedReference) {
     if (!recoveryStore || typeof recoveryStore.getEphemeralCapability !== "function") throw kernelError(503, "RECOVERY_CAPABILITY_STORE_UNAVAILABLE", "Unsupported plan binding requires a durable capability store; memory-only capability references cannot authorize a plan.");
-    unsupportedCapability = await recoveryStore.getEphemeralCapability(unsupportedCapabilityId);
-    if (!unsupportedCapability || stableHash(unsupportedCapability) !== unsupportedCapabilityHash) throw kernelError(409, "RECOVERY_CAPABILITY_HASH_MISMATCH", "The ephemeral capability reference is absent or does not match its durable record.");
-    if (unsupportedCapability.expected_sha !== expectedSha || unsupportedCapability.target_key !== targetKey) throw kernelError(409, "RECOVERY_CAPABILITY_TARGET_MISMATCH", "The ephemeral capability is not bound to the requested exact Production target.");
-    if (Date.parse(unsupportedCapability.expires_at) <= Date.now() || unsupportedCapability.single_use === false) throw kernelError(409, "RECOVERY_CAPABILITY_NOT_EXECUTABLE", "The ephemeral capability is expired or not single-use and cannot be bound to a recovery plan.");
+    temporaryReference = await recoveryStore.getEphemeralCapability(ephemeralRefId);
+    if (!temporaryReference || stableHash(temporaryReference) !== ephemeralDigest) throw kernelError(409, "RECOVERY_CAPABILITY_HASH_MISMATCH", "The ephemeral capability reference is absent or does not match its durable record.");
+    if (temporaryReference.expected_sha !== expectedSha || temporaryReference.target_key !== targetKey) throw kernelError(409, "RECOVERY_CAPABILITY_TARGET_MISMATCH", "The ephemeral capability is not bound to the requested exact Production target.");
+    if (Date.parse(temporaryReference.expires_at) <= Date.now() || temporaryReference.single_use === false) throw kernelError(409, "RECOVERY_CAPABILITY_NOT_EXECUTABLE", "The ephemeral capability is expired or not single-use and cannot be bound to a recovery plan.");
   }
   const findings = [];
   for (const findingId of findingIds) {
@@ -589,25 +589,25 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
   if (existing) return sanitizeEvidence(existing);
   const steps = [
     ...planSteps(findings, targetFingerprints),
-    ...(unsupportedCapability ? [{
+    ...(temporaryReference ? [{
       ordinal: findings.length + 1,
       finding_id: null,
       classification: "registered_unsupported_capability",
       capability_key: "unsupported_capability_execute",
       operation: "unsupported_capability_execute",
-      target_role: unsupportedCapability.target_role === "server_resolved" ? "composite" : unsupportedCapability.target_role,
-      target_fingerprint: targetFingerprints[unsupportedCapability.target_role] || targetFingerprints.composite,
-      authority_ref: `capability:${unsupportedCapability.capability_id}`,
-      mutation_class: unsupportedCapability.risk_class === "destructive" ? "C6" : "C4",
+      target_role: temporaryReference.target_role === "server_resolved" ? "composite" : temporaryReference.target_role,
+      target_fingerprint: targetFingerprints[temporaryReference.target_role] || targetFingerprints.composite,
+      authority_ref: `capability:${temporaryReference.capability_id}`,
+      mutation_class: temporaryReference.risk_class === "destructive" ? "C6" : "C4",
       consequential: true,
       approval_required: true,
       execution_allowed: false,
       preconditions: ["production_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_use_approval", "ephemeral_capability_unexpired"],
       postconditions: ["provider_acknowledgement", "same_cycle_readback", "behavioral_probe_or_reconciliation"],
       rollback: "capability_declared_forward_only",
-      unsupported_capability_id: unsupportedCapability.capability_id,
-      unsupported_capability_hash: unsupportedCapabilityHash,
-      incident_id: unsupportedCapability.incident_id,
+      unsupported_capability_id: temporaryReference.capability_id,
+      unsupported_capability_hash: ephemeralDigest,
+      incident_id: temporaryReference.incident_id,
       step_hash: null,
     }] : []),
   ].map((step) => step.step_hash ? step : { ...step, step_id: `step:${stableHash(step).slice(0, 32)}`, step_hash: stableHash(step) });
@@ -629,7 +629,7 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     branch: RECOVERY_KERNEL_PRODUCTION_BRANCH,
     finding_ids: findingIds,
     finding_hash: stableHash(findings),
-    unsupported_capability: unsupportedCapability ? { capability_id: unsupportedCapability.capability_id, capability_hash: unsupportedCapabilityHash, incident_id: unsupportedCapability.incident_id, transport: unsupportedCapability.transport, capability_type: unsupportedCapability.capability_type, target_role: unsupportedCapability.target_role, scope_ref: unsupportedCapability.scope_ref, expires_at: unsupportedCapability.expires_at, single_use: true, content_received: false } : null,
+    unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
     steps,
     status: "planned",
     blast_radius: { database_roles: [...new Set(steps.map((step) => step.target_role).filter((role) => role !== "unknown"))], tables_max: 1, rows_data_mutation: false, schema_mutation: steps.some((step) => step.mutation_class === "C3"), grants_mutation: steps.some((step) => step.mutation_class === "C2"), cross_database: false },
@@ -781,11 +781,11 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const externalExisting = await recoveryStore.getRunByIdempotency(idempotencyKey);
   if (externalExisting) return sanitizeEvidence({ ...externalExisting, idempotent_replay: true });
   const approvalToken = assertApprovalTokenShape(input.approval_token);
-  const durableApproval = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
+  const storedDecision = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
     ? await recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id)
     : null;
   const latestApproval = [...APPROVALS.values()].reverse().find((entry) => entry.plan_id === plan.plan_id && entry.step_id === step.step_id);
-  const approval = durableApproval || latestApproval
+  const approval = storedDecision || latestApproval
     || (approvalStore && typeof approvalStore.getChallenge === "function" ? await approvalStore.getChallenge(plan.plan_hash, step.step_id) : null);
   const approvalValid = await verifyApproval(approval, approvalToken, { plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role }, { approvalVerifier, approvalStore });
   if (!approvalValid) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not cryptographically bound to this plan step.");

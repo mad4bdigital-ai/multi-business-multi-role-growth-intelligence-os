@@ -38,8 +38,8 @@ const SHA256_RE = /^[0-9a-f]{64}$/iu;
 const SAFE_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/u;
 const INCIDENT_RE = /^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/u;
 const EXCEPTION_CLASSES = new Set(["E0", "E1", "E2", "E3", "E4", "E5", "E6"]);
-const MAX_APPROVALS = Object.freeze({ E0: 0, E1: 1, E2: 1, E3: 1, E4: 1, E5: 1, E6: 2 });
-const MAX_TTL_SECONDS = Object.freeze({ E0: 1800, E1: 1800, E2: 1800, E3: 900, E4: 600, E5: 600, E6: 300 });
+const REQUIRED_REVIEWER_COUNTS = Object.freeze({ E0: 0, E1: 1, E2: 1, E3: 1, E4: 1, E5: 1, E6: 2 });
+const CLASS_EXPIRY_WINDOWS = Object.freeze({ E0: 1800, E1: 1800, E2: 1800, E3: 900, E4: 600, E5: 600, E6: 300 });
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -81,7 +81,7 @@ function assertTarget(input = {}) {
 function ttl(expiresAt, exceptionClass, now = Date.now()) {
   const date = new Date(expiresAt);
   const delta = date.getTime() - now;
-  const max = MAX_TTL_SECONDS[exceptionClass] * 1000;
+  const max = CLASS_EXPIRY_WINDOWS[exceptionClass] * 1000;
   if (!Number.isFinite(date.getTime()) || delta <= 0 || delta > max) fail(400, "EXCEPTION_TTL_INVALID", "Exception expiry is outside its registered bounded TTL.");
   return date.toISOString();
 }
@@ -160,7 +160,7 @@ export function createExceptionLifecycleRecord(input = {}, { adminPrincipal, now
     max_uses: 1,
     uses: 0,
     budget: boundedBudget(input.budget),
-    required_approvals: MAX_APPROVALS[exceptionClass],
+    required_approvals: REQUIRED_REVIEWER_COUNTS[exceptionClass],
     approvals: [],
     state: "draft",
     execution_allowed: false,
@@ -195,12 +195,12 @@ export async function approveExceptionLifecycle(recordInput, approvalInput = {},
   const principalFingerprint = exactHash(approvalInput.principal_fingerprint, "principal_fingerprint");
   const approvalHash = exactHash(approvalInput.approval_hash, "approval_hash");
   if ((record.approvals || []).some((approval) => approval.principal_fingerprint === principalFingerprint)) fail(409, "EXCEPTION_DUPLICATE_APPROVAL", "A principal cannot provide more than one approval for the same exception.");
-  const approval = { approval_id: safeRef(approvalInput.approval_id, "approval_id"), approval_hash: approvalHash, principal_fingerprint: principalFingerprint, approved_at: new Date(now).toISOString(), secrets_included: false };
-  const approvals = [...(record.approvals || []), approval];
-  if (approvals.length > record.required_approvals) fail(409, "EXCEPTION_APPROVAL_OVERFLOW", "The exception approval count exceeds its policy.");
-  const nextState = approvals.length >= record.required_approvals ? "approved" : "awaiting_approval";
-  const event = nextState === "approved" ? lifecycleEvent(record, "exception_approved", nextState, { approval_count: approvals.length, dual_control_satisfied: record.required_approvals === 2 ? new Set(approvals.map((entry) => entry.principal_fingerprint)).size === 2 : true }, new Date(now).toISOString()) : { ...lifecycleEvent(record, "exception_approval_recorded", nextState, { approval_count: approvals.length }, new Date(now).toISOString()), state: nextState };
-  const next = sanitizeRecord({ ...record, state: nextState, approvals, events: [...(record.events || []), event], record_hash: hash({ ...record, state: nextState, approvals, events: [...(record.events || []), event] }) });
+  const decision = { approval_id: safeRef(approvalInput.approval_id, "approval_id"), approval_hash: approvalHash, principal_fingerprint: principalFingerprint, approved_at: new Date(now).toISOString(), secrets_included: false };
+  const decisions = [...(record.approvals || []), decision];
+  if (decisions.length > record.required_approvals) fail(409, "EXCEPTION_APPROVAL_OVERFLOW", "The exception approval count exceeds its policy.");
+  const nextState = decisions.length >= record.required_approvals ? "approved" : "awaiting_approval";
+  const event = nextState === "approved" ? lifecycleEvent(record, "exception_approved", nextState, { approval_count: decisions.length, dual_control_satisfied: record.required_approvals === 2 ? new Set(decisions.map((entry) => entry.principal_fingerprint)).size === 2 : true }, new Date(now).toISOString()) : { ...lifecycleEvent(record, "exception_approval_recorded", nextState, { approval_count: decisions.length }, new Date(now).toISOString()), state: nextState };
+  const next = sanitizeRecord({ ...record, state: nextState, approvals: decisions, events: [...(record.events || []), event], record_hash: hash({ ...record, state: nextState, approvals: decisions, events: [...(record.events || []), event] }) });
   if (exceptionStore) await persist(next, event, { exceptionStore });
   return { ok: true, ...next, execution_allowed: false, persistence: { durable: Boolean(exceptionStore), mode: exceptionStore ? "injected_exception_store" : "contract_preview_only" } };
 }
@@ -281,4 +281,4 @@ export function buildDisasterRecoveryPreview(input = {}, { adminPrincipal } = {}
   return { ok: true, ...preview, preview_hash: hash(preview), read_only_probe: true };
 }
 
-export const _testingRecoveryExceptionLifecycle = Object.freeze({ hash, stable, exactHash, exactSha, boundedBudget, MAX_APPROVALS, MAX_TTL_SECONDS });
+export const _testingRecoveryExceptionLifecycle = Object.freeze({ hash, stable, exactHash, exactSha, boundedBudget, REQUIRED_REVIEWER_COUNTS, CLASS_EXPIRY_WINDOWS });
