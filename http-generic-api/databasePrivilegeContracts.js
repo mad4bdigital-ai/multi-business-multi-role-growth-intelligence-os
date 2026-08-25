@@ -1,4 +1,4 @@
-const freezePolicy = (required_tables, required_operations, apply_when = "always") => Object.freeze({
+const buildGrantSpec = (required_tables, required_operations, apply_when = "always") => Object.freeze({
   required_tables: Object.freeze([...required_tables]),
   required_operations: Object.freeze([...required_operations]),
   apply_when,
@@ -25,12 +25,12 @@ export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
 });
 
 export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
-  runtime: freezePolicy(
+  runtime: buildGrantSpec(
     ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
     ["SELECT", "INSERT", "UPDATE"],
   ),
-  governance: freezePolicy(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always"),
-  runtime_persistence: freezePolicy(["governed_tool_response_chunks"], ["SELECT", "INSERT", "UPDATE", "DELETE"]),
+  governance: buildGrantSpec(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always"),
+  runtime_persistence: buildGrantSpec(["governed_tool_response_chunks"], ["SELECT", "INSERT", "UPDATE", "DELETE"], "always"),
 });
 
 export const ROLE_GRANT_PRIVILEGE_ALLOWLIST = Object.freeze({

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7390,
-    "bytes": 72710003,
-    "lines": 1693162,
+    "bytes": 72710322,
+    "lines": 1693165,
     "directories": 266,
     "categories": 13
   },
@@ -13699,7 +13699,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "670bdad3f451ab68d4e8f9974b0efda59396af610df13ada59b4264872f0052b",
+      "sha256": "3a16b859aac2e3dd321a8eeda949dce155e4fff876b03a53e6189ecf7928d318",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -39547,9 +39547,9 @@
       "path": "http-generic-api/databasePrivilegeContracts.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 2514,
+      "bytes": 2532,
       "lines": 47,
-      "sha256": "6e4c4686e04bf2f20175d2e4e2feb41c8402f3f9de9957aff1bf90f55759bafc",
+      "sha256": "9765639b4b0592da04c54c5fe1f41819b3337b23efe5edd66c15fc731562351d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -40493,9 +40493,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3537404,
+      "bytes": 3537406,
       "lines": 99740,
-      "sha256": "ac32b513833cc412169a216ae4ee2bc28d652a2300d80410b3b99b6692f70f87",
+      "sha256": "f36be39c8e17d8f7d43f222d858db2b07de3159583cc76ec0bc36058ee37ac95",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51441,7 +51441,7 @@
       "bytes": 57216,
       "lines": 1832,
       "sha256": "ab6bc18229cedcfd7763deb6d9e0028cfe3fc9c20ffe3f1d8cebacbc9b944e51",
-      "mode": "600",
+      "mode": "644",
       "executable": false,
       "generated": false
     },
@@ -51452,7 +51452,7 @@
       "bytes": 57207,
       "lines": 1832,
       "sha256": "5bd4546f11bc442b87f7793e7d50dc738d3228edacec74d393be4b7549c28d60",
-      "mode": "600",
+      "mode": "644",
       "executable": false,
       "generated": false
     },
@@ -51474,7 +51474,7 @@
       "bytes": 91106,
       "lines": 2494,
       "sha256": "559e529c52f159a9aafb89540eb5b2d899974bf675fac5e7cc85fd239673bb66",
-      "mode": "600",
+      "mode": "644",
       "executable": false,
       "generated": false
     },
@@ -64462,9 +64462,9 @@
       "path": "http-generic-api/test-consolidated-governance-runtime-contracts.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7030,
-      "lines": 124,
-      "sha256": "1c1b6e709efa981c79a6832f436af2bfcb0ee731829c4cd1ae16dfeec46d69ed",
+      "bytes": 7329,
+      "lines": 127,
+      "sha256": "aa51d2eef01bcfe26480ee01abb3eb22739f84470d0d6bbca741ff8a2a3d5416",
       "mode": "644",
       "executable": false,
       "generated": false
