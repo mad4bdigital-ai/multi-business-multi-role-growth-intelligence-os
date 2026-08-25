@@ -410,6 +410,22 @@ test("binding identifier width is widened before every descriptive binding write
   assert.match(compatibilitySql, /ALTER TABLE `credential_bindings`[\s\S]*MODIFY COLUMN `binding_id` VARCHAR\(128\) NOT NULL/i);
 });
 
+test("platform plugin binding status domain is pre-created before migration 314", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  const bridge = "313_sprint69_zzzz_platform_plugin_bindings_binding_status_width_alignment.sql";
+  const writer = "314_sprint69_capability_assurance_graph.sql";
+  assert.notEqual(orderedMigrations.indexOf(bridge), -1, "binding_status bridge must exist");
+  assert.notEqual(orderedMigrations.indexOf(writer), -1, "migration 314 must exist");
+  assert.ok(orderedMigrations.indexOf(bridge) < orderedMigrations.indexOf(writer), "binding_status bridge must precede migration 314");
+  const bridgeSql = fs.readFileSync(path.join(migrationsDir, bridge), "utf8");
+  assert.match(bridgeSql, /CREATE TABLE IF NOT EXISTS `platform_plugin_bindings`/i);
+  assert.match(bridgeSql, /`binding_status` VARCHAR\(256\) NOT NULL/i);
+  assert.match(bridgeSql, /KEY `idx_ppb_capability_status` \(`capability_key`, `binding_status`\)/i);
+  const ddl = bridgeSql.replace(/--[^\n]*(?:\n|$)/g, "");
+  assert.doesNotMatch(ddl, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE)\b/im);
+});
+
 test("baseline validation_repair schema covers the pre-use migration 040 contract", () => {
   const quote = String.fromCharCode(96);
   for (const column of manifest.validation.required_validation_repair_baseline_columns) {
@@ -779,16 +795,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 810);
-  assert.equal(plan.statement_count, 3097);
+  assert.equal(plan.migration_count, 811);
+  assert.equal(plan.statement_count, 3098);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 811);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 810);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3124);
+  assert.equal(plan.ordered_collation_chain.files_checked, 812);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 811);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3125);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -797,9 +813,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 811);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 810);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3124);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 812);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 811);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3125);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
   assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 887);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
@@ -813,9 +829,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 811);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 810);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3124);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 812);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 811);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3125);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5200);
   assert.equal(plan.ordered_text_width_chain.definitions_applied, 6032);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
