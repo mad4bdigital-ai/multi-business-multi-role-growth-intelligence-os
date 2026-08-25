@@ -1,10 +1,10 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.91,
+  "docs_completion_percent": 97.7,
   "docs_complete_count": 468,
-  "docs_gap_count": 10,
-  "queue_items": 10,
+  "docs_gap_count": 11,
+  "queue_items": 11,
   "blocking_new_item_count": 7,
   "gate_ok": false,
   "top_actionable": [
@@ -17,13 +17,13 @@
     {
       "migration_file": "20260810_github_issue_comment_exact_response_parity.sql",
       "queue_class": "critical_review",
-      "score": 907,
+      "score": 906,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
       "migration_file": "20260812_repository_reconciliation_admin_apply_activation.sql",
       "queue_class": "critical_review",
-      "score": 862,
+      "score": 861,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
