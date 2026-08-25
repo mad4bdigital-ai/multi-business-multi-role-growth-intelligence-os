@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7390,
-    "bytes": 72709849,
-    "lines": 1693156,
+    "bytes": 72710003,
+    "lines": 1693162,
     "directories": 266,
     "categories": 13
   },
@@ -13699,7 +13699,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "fb7e350f1bd8f1ca2062cb4b28bef3491b789e1b8b065d5c841f89cceecbdab6",
+      "sha256": "670bdad3f451ab68d4e8f9974b0efda59396af610df13ada59b4264872f0052b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32839,7 +32839,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "8426ca0319a811217c65e41163415caa55a35f3b2b02d7cbd61354da6895ee7a",
+      "sha256": "3108ad388703d2a0feb00abbbe07aa9d48de704c3f03fc73d209a20861e6b152",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53341,9 +53341,9 @@
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 1960826,
-      "lines": 59297,
-      "sha256": "ddadcc824a926f2ff1a7d0e477b7890efa29a9fd0e94a8edfb16f8172252a314",
+      "bytes": 1960980,
+      "lines": 59303,
+      "sha256": "eecedeaf772569593b7a7dbc26b1e76094bcd2d00ac215fba8025ddaa9d582bc",
       "mode": "644",
       "executable": false,
       "generated": false

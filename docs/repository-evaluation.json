@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "94a36624814df8b64edc97ba0f30e8696bb6cffc6a293f133e897835b7355925",
+  "inputFingerprint": "3eeb54fe4bfcfb391f181190b518fbf1f8cf8d15d536627938f63c9fd40317e9",
   "inventory": {
     "files": 7390,
-    "bytes": 72709849,
+    "bytes": 72710003,
     "directories": 266,
     "categories": 13
   },
@@ -208,7 +208,7 @@
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1960826
+            "bytes": 1960980
           },
           {
             "path": "docs/staging-write-route-partition-2026-08-14.json",
