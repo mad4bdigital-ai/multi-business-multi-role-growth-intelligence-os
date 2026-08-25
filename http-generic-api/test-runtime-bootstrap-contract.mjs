@@ -174,11 +174,27 @@ function roleBoundRebuildEnv(selectedRoles, roleCounts) {
   return env;
 }
 
-test("role grant contracts match activation readiness, with DELETE scoped to runtime persistence", () => {
+test("role grant contracts match activation readiness, with per-table Governance operations and DELETE scoped to runtime persistence", () => {
   const policies = contract.grant_policy.role_policies;
   assert.deepEqual(policies.governance.required_tables, Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX));
   assert.deepEqual(policies.governance.required_operations, ["SELECT"]);
+  assert.deepEqual(policies.governance.required_operations_by_table, GOVERNANCE_DB_PRIVILEGE_MATRIX);
+  assert.deepEqual(recoveryContract.grant_policy.role_policies.governance.required_operations_by_table, GOVERNANCE_DB_PRIVILEGE_MATRIX);
   assert.deepEqual(policies.runtime_persistence.required_operations, ["SELECT", "INSERT", "UPDATE", "DELETE"]);
+
+  const governanceTarget = {
+    role_identity_bindings: {
+      governance: { database: "growth_governance", principal: "governance_user", principal_host: "localhost" },
+    },
+    grants: policies.governance.required_tables.map((table) => ({ table, privileges: policies.governance.required_operations_by_table[table] })),
+  };
+  const governancePlan = validateRoleGrantPlan(governanceTarget, "governance", contract);
+  assert.deepEqual(Object.fromEntries(governancePlan.grants.map((entry) => [entry.table, entry.privileges])), GOVERNANCE_DB_PRIVILEGE_MATRIX);
+  const governanceReadOnlyTarget = { ...governanceTarget, grants: governanceTarget.grants.map((entry) => ({ ...entry, privileges: ["SELECT"] })) };
+  assert.throws(
+    () => validateRoleGrantPlan(governanceReadOnlyTarget, "governance", contract),
+    (error) => error.code === "bootstrap_grant_operation_set_denied",
+  );
 
   const persistenceTarget = {
     role_identity_bindings: {
@@ -214,7 +230,7 @@ test("repository allowlist derives database binding from target key without call
 function grantRows(database = TARGET_DATABASE, role = null) {
   const rolePolicies = contract.grant_policy.role_policies || { runtime: { required_tables: contract.grant_policy.required_tables, required_operations: contract.grant_policy.required_operations } };
   const selectedPolicies = role ? { [role]: rolePolicies[role] } : rolePolicies;
-  return TARGET ? Object.values(selectedPolicies).filter(Boolean).flatMap((policy) => (policy.required_tables || []).flatMap((table) => (policy.required_operations || []).map((privilege) => ({ TABLE_SCHEMA: database, TABLE_NAME: table, PRIVILEGE_TYPE: privilege, IS_GRANTABLE: "NO" })))) : [];
+  return TARGET ? Object.values(selectedPolicies).filter(Boolean).flatMap((policy) => (policy.required_tables || []).flatMap((table) => (policy.required_operations_by_table?.[table] || policy.required_operations || []).map((privilege) => ({ TABLE_SCHEMA: database, TABLE_NAME: table, PRIVILEGE_TYPE: privilege, IS_GRANTABLE: "NO" })))) : [];
 }
 
 function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null, afterMutationTableCount = null, afterMutationObjectCounts = {}, verificationStaysZero = false, staleAfterCountReads = null, grantDatabase = TARGET_DATABASE, grantRole = null } = {}) {
@@ -293,6 +309,9 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
       if (text.includes("FROM `platform_runtime_config`")) return [[{ observed_value: String(params[0] || "capability_resolution_envelope_ledger_policy_v1") }]];
       if (text.includes("FROM `admin_platform_endpoint_tools`")) return [[{ observed_value: "capability_resolution_envelope_create" }]];
       if (text.includes("SELECT `mcp_catalog_level` AS observed_value")) return [[{ observed_value: "growth_feedback" }]];
+      if (text.includes("GRANTEE = CURRENT_USER()") && text.includes("USER_PRIVILEGES")) return [[{ PRIVILEGE_TYPE: "CREATE", IS_GRANTABLE: "NO" }]];
+      if (text.includes("GRANTEE = CURRENT_USER()") && text.includes("SCHEMA_PRIVILEGES")) return [[{ PRIVILEGE_TYPE: "ALTER", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "INDEX", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "TRIGGER", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "CREATE VIEW", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "CREATE ROUTINE", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "ALTER ROUTINE", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "EVENT", IS_GRANTABLE: "NO" }, { PRIVILEGE_TYPE: "DROP", IS_GRANTABLE: "NO" }]];
+      if (text.includes("GRANTEE = CURRENT_USER()") && text.includes("TABLE_PRIVILEGES")) return (params.slice(1).flatMap((table) => ["REFERENCES", "ALTER", "INDEX", "TRIGGER", "DROP"].map((PRIVILEGE_TYPE) => ({ TABLE_NAME: table, PRIVILEGE_TYPE, IS_GRANTABLE: "NO" }))));
       if (text.includes("USER_PRIVILEGES")) return [[]];
       if (text.includes("SCHEMA_PRIVILEGES")) return [[]];
       if (text.includes("TABLE_PRIVILEGES")) return [currentGrantRows];
@@ -492,12 +511,15 @@ test("host-local grant exception executes only repository-allowlisted privileges
   assert.equal(result.grant_mutation_performed, true);
   assert.equal(result.migration_apply_performed, false);
   const grantsByRole = Object.fromEntries([...opened.entries()].map(([role, connection]) => [role, connection.queryCalls.filter((sql) => /^GRANT /i.test(sql))]));
-  assert.equal(grantsByRole.runtime.length, contract.grant_policy.role_policies.runtime.required_tables.length);
-  assert.equal(grantsByRole.governance.length, contract.grant_policy.role_policies.governance.required_tables.length);
-  assert.equal(grantsByRole.runtime_persistence.length, contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
-  assert.equal(grantsByRole.runtime.every((statement) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(statement)), true);
-  assert.equal(grantsByRole.governance.every((statement) => /^GRANT SELECT ON /i.test(statement)), true);
-  assert.equal(grantsByRole.runtime_persistence.every((statement) => /^GRANT SELECT, INSERT, UPDATE, DELETE ON /i.test(statement)), true);
+  for (const [role, statements] of Object.entries(grantsByRole)) {
+    const policy = contract.grant_policy.role_policies[role];
+    const expectedEntries = policy.required_tables.map((table) => ({ table, privileges: policy.required_operations_by_table?.[table] || policy.required_operations }));
+    assert.equal(statements.length, expectedEntries.length);
+    for (const expected of expectedEntries) {
+      const prefix = `GRANT ${expected.privileges.join(", ")} ON \`${role === "runtime" ? TARGET_DATABASE : role === "governance" ? "growth_governance" : "growth_persistence"}\`.\`${expected.table}\``;
+      assert.equal(statements.filter((statement) => statement.startsWith(prefix)).length, 1, `missing exact ${role} grant for ${expected.table}`);
+    }
+  }
   assert.equal(Object.values(grantsByRole).flat().every((statement) => !/GRANT OPTION|ALL PRIVILEGES/i.test(statement)), true);
 });
 
@@ -899,9 +921,12 @@ test("dry-run supports an explicitly allowlisted separate governance database", 
   env.MYSQL_BOOTSTRAP_GOVERNANCE_USER = "governance_bootstrap";
   env.MYSQL_BOOTSTRAP_GOVERNANCE_PASSWORD = "governance-bootstrap-secret-for-test-only";
   env.MYSQL_BOOTSTRAP_GOVERNANCE_DATABASE = "growth_governance";
-  const connections = [fakeConnection(), fakeConnection()];
+  const connections = [fakeConnection({ grantRole: "runtime" }), fakeConnection({ grantRole: "governance" })];
   let opened = 0;
-  const result = await runBootstrap({ env, contract, connectionFactory: async () => connections[opened++] });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => {
+    assert.equal(role, opened === 0 ? "runtime" : "governance");
+    return connections[opened++];
+  } });
   assert.equal(opened, 2);
   assert.equal(result.status, "dry_run_complete");
   assert.equal(result.grant_readback.ready, true);
@@ -1029,11 +1054,29 @@ test("grants apply requires independent confirmation and migration readiness", a
   assert.equal(result.grants.grant_readback.ready, true);
   assert.equal(result.mutation_evidence.migration.attempted, false);
   const grants = connection.queryCalls.filter((sql) => /^GRANT /i.test(sql));
-  const expectedGrantCount = Object.values(contract.grant_policy.role_policies).reduce((sum, policy) => sum + policy.required_tables.length, 0);
-  assert.equal(grants.length, expectedGrantCount);
-  assert.equal(grants.filter((sql) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(sql)).length, contract.grant_policy.role_policies.runtime.required_tables.length);
-  assert.equal(grants.filter((sql) => /^GRANT SELECT, INSERT, UPDATE, DELETE ON /i.test(sql)).length, contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
-  assert.equal(grants.filter((sql) => /^GRANT SELECT ON /i.test(sql)).length, contract.grant_policy.role_policies.governance.required_tables.length);
+  const rolePolicies = contract.grant_policy.role_policies;
+  const expectedGrantEntries = Object.values(rolePolicies).flatMap((policy) => (policy.required_tables || []).map((table) => ({
+    table,
+    privileges: policy.required_operations_by_table?.[table] || policy.required_operations,
+  })));
+  assert.equal(grants.length, expectedGrantEntries.length);
+  for (const expected of expectedGrantEntries) {
+    const prefix = `GRANT ${expected.privileges.join(", ")} ON \`${TARGET_DATABASE}\`.\`${expected.table}\``;
+    assert.equal(grants.filter((sql) => sql.startsWith(prefix)).length, 1, `missing exact grant for ${expected.table}`);
+  }
+});
+
+test("DDL privilege preflight blocks migration before the first schema mutation", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  const connection = fakeConnection({ tableCount: 7 });
+  const execute = connection.execute.bind(connection);
+  connection.execute = async (sql, params = []) => String(sql).includes("GRANTEE = CURRENT_USER()") ? [[]] : execute(sql, params);
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async () => connection, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }),
+    (error) => error.code === "bootstrap_ddl_privilege_preflight_failed" && error.details.database_mutation_performed === false,
+  );
+  assert.equal(connection.queryCalls.some((sql) => /^(?:ALTER|CREATE|DROP)\\b/i.test(sql)), false);
 });
 
 test("grant preflight checks every table before the first GRANT", async () => {

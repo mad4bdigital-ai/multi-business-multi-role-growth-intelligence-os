@@ -1,6 +1,14 @@
-const buildGrantSpec = (required_tables, required_operations, apply_when = "always") => Object.freeze({
+const normalizeOperationsByTable = (value) => Object.freeze(Object.fromEntries(
+  Object.entries(value || {}).map(([table, operations]) => [
+    table,
+    Object.freeze([...new Set((operations || []).map((operation) => String(operation).toUpperCase()))]),
+  ]),
+));
+
+const buildGrantSpec = (required_tables, required_operations, apply_when = "always", required_operations_by_table = null) => Object.freeze({
   required_tables: Object.freeze([...required_tables]),
   required_operations: Object.freeze([...required_operations]),
+  ...(required_operations_by_table ? { required_operations_by_table: normalizeOperationsByTable(required_operations_by_table) } : {}),
   apply_when,
 });
 
@@ -29,7 +37,7 @@ export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
     ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
     ["SELECT", "INSERT", "UPDATE"],
   ),
-  governance: buildGrantSpec(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always"),
+  governance: buildGrantSpec(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always", GOVERNANCE_DB_PRIVILEGE_MATRIX),
   runtime_persistence: buildGrantSpec(["governed_tool_response_chunks"], ["SELECT", "INSERT", "UPDATE", "DELETE"], "always"),
 });
 

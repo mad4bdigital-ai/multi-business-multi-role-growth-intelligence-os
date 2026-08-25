@@ -197,6 +197,7 @@ function mutationEvidenceTemplate(migration, statementCount, grantsTotal = 0) {
       operations_completed: [],
       failed_operation: null,
     },
+    ddl_privilege_preflight: [],
     secrets_included: false,
   };
 }
@@ -735,7 +736,21 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
   return { confirmation: expected, plan_hash: planHash, selection_hash: selectionHash, selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints };
 }
 
-function validateGrantEntries(entries, expectedTables, expectedOps, { role = "runtime" } = {}) {
+function normalizeOperationsByTable(policy, expectedTables, role) {
+  const declared = policy?.required_operations_by_table;
+  if (!declared) return null;
+  const declaredTables = Object.keys(declared);
+  if (declaredTables.length !== expectedTables.length || declaredTables.some((table) => !expectedTables.includes(table))) {
+    throw bootstrapError("bootstrap_grant_operation_table_map_denied", "Per-table grant operations must exactly match the repository role table contract", { role });
+  }
+  return Object.fromEntries(expectedTables.map((table) => {
+    const operations = [...new Set((declared[table] || []).map((item) => String(item).toUpperCase()))];
+    if (!operations.length) throw bootstrapError("bootstrap_grant_operation_table_map_invalid", "Every contracted grant table must declare a non-empty operation set", { role, table });
+    return [table, operations];
+  }));
+}
+
+function validateGrantEntries(entries, expectedTables, expectedOps, { role = "runtime", expectedOpsByTable = null } = {}) {
   const tables = entries.map((entry) => String(entry.table || ""));
   const roleAllowedPrivileges = allowedGrantPrivilegesForRole(role);
   if (tables.length !== expectedTables.length || new Set(tables).size !== expectedTables.length || tables.some((table) => !expectedTables.includes(table))) {
@@ -743,8 +758,9 @@ function validateGrantEntries(entries, expectedTables, expectedOps, { role = "ru
   }
   return entries.map((entry) => {
     const table = assertIdentifier(entry.table, "grant.table");
+    const expectedForTable = expectedOpsByTable?.[table] || expectedOps;
     const privileges = [...new Set((entry.privileges || []).map((item) => String(item).toUpperCase()))];
-    if (privileges.length !== expectedOps.length || privileges.some((item) => !SAFE_GRANT_PRIVILEGES.has(item) || !roleAllowedPrivileges.has(item)) || expectedOps.some((item) => !privileges.includes(item))) {
+    if (privileges.length !== expectedForTable.length || privileges.some((item) => !SAFE_GRANT_PRIVILEGES.has(item) || !roleAllowedPrivileges.has(item)) || expectedForTable.some((item) => !privileges.includes(item))) {
       throw bootstrapError("bootstrap_grant_operation_set_denied", "Grant operations must exactly match the selected role policy and its bounded privilege allowlist", { role, table });
     }
     return { table, privileges };
@@ -755,10 +771,11 @@ export function validateGrantPlan(target, contract) {
   const policy = contract.grant_policy;
   const expectedTables = [...(policy.required_tables || [])];
   const expectedOps = [...(policy.required_operations || [])].map((item) => String(item).toUpperCase());
+  const expectedOpsByTable = normalizeOperationsByTable(policy, expectedTables, "runtime");
   const entries = Array.isArray(target.grants) && target.grants.length
     ? target.grants.map(normalizeEntry)
-    : expectedTables.map((table) => ({ table, privileges: expectedOps }));
-  return validateGrantEntries(entries, expectedTables, expectedOps, { role: "runtime" });
+    : expectedTables.map((table) => ({ table, privileges: expectedOpsByTable?.[table] || expectedOps }));
+  return validateGrantEntries(entries, expectedTables, expectedOps, { role: "runtime", expectedOpsByTable });
 }
 
 function roleGrantPolicy(contract, role) {
@@ -772,11 +789,12 @@ export function validateRoleGrantPlan(target, role, contract) {
   const policy = roleGrantPolicy(contract, role);
   const expectedTables = [...(policy.required_tables || [])];
   const expectedOps = [...(policy.required_operations || contract.grant_policy?.required_operations || [])].map((item) => String(item).toUpperCase());
+  const expectedOpsByTable = normalizeOperationsByTable(policy, expectedTables, role);
   if (!expectedTables.length || !expectedOps.length) throw bootstrapError("bootstrap_role_grant_policy_invalid", "A role grant policy must declare an exact non-empty table and operation set", { role });
   const entries = Array.isArray(target.grants) && target.grants.length
     ? target.grants.map(normalizeEntry)
-    : expectedTables.map((table) => ({ table, privileges: expectedOps }));
-  const grants = validateGrantEntries(entries, expectedTables, expectedOps, { role });
+    : expectedTables.map((table) => ({ table, privileges: expectedOpsByTable?.[table] || expectedOps }));
+  const grants = validateGrantEntries(entries, expectedTables, expectedOps, { role, expectedOpsByTable });
   const binding = targetRoleIdentityBindings(target)?.[role];
   if (!binding?.database || !binding?.principal || !binding?.principal_host) throw bootstrapError("bootstrap_role_grant_identity_missing", "Role-specific grants require an explicit database, principal, and principal host binding", { role });
   return { role, database: binding.database, principal: binding.principal, principal_host: binding.principal_host, apply_when: policy.apply_when || "always", grants };
@@ -809,7 +827,7 @@ export function computeGrantBindingHash(target, contract) {
   const bindings = resolveGrantRoles(target, contract).map((role) => {
     const policy = roleGrantPolicy(contract, role);
     const binding = targetRoleIdentityBindings(target)?.[role];
-    return { role, database: binding?.database || null, principal: binding?.principal || null, principal_host: binding?.principal_host || null, required_tables: [...(policy.required_tables || [])], required_operations: [...(policy.required_operations || [])].map((item) => String(item).toUpperCase()) };
+    return { role, database: binding?.database || null, principal: binding?.principal || null, principal_host: binding?.principal_host || null, required_tables: [...(policy.required_tables || [])], required_operations: [...(policy.required_operations || [])].map((item) => String(item).toUpperCase()), required_operations_by_table: policy.required_operations_by_table ? Object.fromEntries((policy.required_tables || []).map((table) => [table, [...(policy.required_operations_by_table[table] || [])].map((item) => String(item).toUpperCase())])) : null };
   });
   return sha256Hex(JSON.stringify(bindings));
 }
@@ -1068,6 +1086,63 @@ function assertSqlArtifactSafe(sql, { allowData = false } = {}) {
   const hit = statements.find((statement) => forbidden.some((pattern) => pattern.test(statement)));
   if (hit) throw bootstrapError("bootstrap_sql_safety_denied", "SQL artifact contains an unapproved authority or data statement");
   return statements;
+}
+
+const TABLE_SCOPED_DDL_PRIVILEGES = new Set(["ALTER", "INDEX", "TRIGGER", "REFERENCES", "DROP"]);
+
+export function deriveDdlPrivilegeRequirements(sql) {
+  const statements = splitMigrationSqlStatements(String(sql)).map((item) => String(item).trim()).filter(Boolean);
+  const required = new Set();
+  for (const rawStatement of statements) {
+    const statement = rawStatement.replace(/^\/\*[\s\S]*?\*\//u, "").trim().toUpperCase();
+    if (/^CREATE\s+(?:TEMPORARY\s+)?TABLE\b/u.test(statement)) required.add("CREATE");
+    if (/^ALTER\s+TABLE\b/u.test(statement)) required.add("ALTER");
+    if (/^(?:CREATE\s+(?:UNIQUE\s+)?INDEX\b|ALTER\s+TABLE[\s\S]*\b(?:ADD|DROP|RENAME)\s+(?:UNIQUE\s+)?(?:INDEX|KEY)\b)/u.test(statement)) required.add("INDEX");
+    if (/^CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\b/u.test(statement)) required.add("CREATE VIEW");
+    if (/^CREATE\s+TRIGGER\b/u.test(statement)) required.add("TRIGGER");
+    if (/^CREATE\s+(?:OR\s+REPLACE\s+)?(?:PROCEDURE|FUNCTION)\b/u.test(statement)) required.add("CREATE ROUTINE");
+    if (/^ALTER\s+(?:PROCEDURE|FUNCTION)\b/u.test(statement)) required.add("ALTER ROUTINE");
+    if (/^CREATE\s+EVENT\b/u.test(statement)) required.add("EVENT");
+    if (/^DROP\s+(?:TABLE|VIEW|TRIGGER|PROCEDURE|FUNCTION|EVENT)\b/u.test(statement)) required.add("DROP");
+    if (/\bREFERENCES\b/u.test(statement)) required.add("REFERENCES");
+  }
+  return { required_privileges: [...required].sort(), statement_count: statements.length };
+}
+
+export async function readDdlPrivilegePreconditions(connection, database, requiredPrivileges, requiredTables = []) {
+  const privileges = [...new Set((requiredPrivileges || []).map((item) => String(item).toUpperCase()))];
+  const tables = [...new Set((requiredTables || []).map((item) => String(item)))];
+  if (!privileges.length) return { ready: true, required_privileges: [], scope_tables: tables, missing_privileges: [], missing_table_privileges: [], secrets_included: false };
+  const userRows = await queryOne(connection, "SELECT PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = CURRENT_USER()");
+  const schemaRows = await queryOne(connection, "SELECT PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = CURRENT_USER() AND TABLE_SCHEMA = ?", [database]);
+  const tableRows = tables.length
+    ? await queryOne(connection, `SELECT TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = CURRENT_USER() AND TABLE_SCHEMA = ? AND TABLE_NAME IN (${tables.map(() => "?").join(",")})`, [database, ...tables])
+    : [];
+  const allScopeRows = [...userRows, ...schemaRows, ...tableRows];
+  const broad = new Set([...userRows, ...schemaRows].map((row) => String(row.PRIVILEGE_TYPE || "").toUpperCase()));
+  const grantOptionRows = allScopeRows.filter((row) => String(row.IS_GRANTABLE || "NO").toUpperCase() === "YES");
+  const missingPrivileges = [];
+  const missingTablePrivileges = [];
+  for (const privilege of privileges) {
+    if (broad.has(privilege)) continue;
+    if (TABLE_SCOPED_DDL_PRIVILEGES.has(privilege) && tables.length) {
+      const missingTables = tables.filter((table) => !tableRows.some((row) => String(row.TABLE_NAME || "") === table && String(row.PRIVILEGE_TYPE || "").toUpperCase() === privilege));
+      if (!missingTables.length) continue;
+      missingTablePrivileges.push({ privilege, tables: missingTables });
+      continue;
+    }
+    missingPrivileges.push(privilege);
+  }
+  return { ready: missingPrivileges.length === 0 && missingTablePrivileges.length === 0 && grantOptionRows.length === 0, required_privileges: privileges, scope_tables: tables, missing_privileges: missingPrivileges, missing_table_privileges: missingTablePrivileges, grant_option_count: grantOptionRows.length, secrets_included: false };
+}
+
+export async function assertDdlPrivilegePreflight(connection, database, sql, requiredTables = [], context = {}) {
+  const requirements = deriveDdlPrivilegeRequirements(sql);
+  const evidence = await readDdlPrivilegePreconditions(connection, database, requirements.required_privileges, requiredTables);
+  if (!evidence.ready) {
+    throw bootstrapError("bootstrap_ddl_privilege_preflight_failed", "Required DDL privileges were not proven before the first schema mutation.", { ...context, required_privileges: evidence.required_privileges, scope_tables: evidence.scope_tables, missing_privileges: evidence.missing_privileges, missing_table_privileges: evidence.missing_table_privileges, grant_option_count: evidence.grant_option_count, preflight_complete: true, database_mutation_performed: false });
+  }
+  return { ...evidence, statement_count: requirements.statement_count, context: { ...context }, database_mutation_performed: false };
 }
 
 function resolveBundleManifestPath(repoRoot, configuredPath, contract) {
@@ -1587,6 +1662,10 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
           throw bootstrapError("bootstrap_role_rebuild_stale_zero_object_proof", "Selected role changed after inspection; baseline reconstruction is denied and the next role will not be attempted.", { role, expected_object_count_fingerprint: roleFingerprintsBefore[role], observed_object_count_fingerprint: beforeRoleFingerprint, observed_classification: classifyDatabaseObjectCount(beforeRoleCounts), selected_roles: selectedRebuildRoles });
         }
         manifestPath ||= resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
+        const bundle = readBundleManifest(manifestPath, source.sha, contract, role);
+        const bundleSql = zlib.gunzipSync(fs.readFileSync(bundle.bundlePath)).toString("utf8");
+        const ddlPreflight = await assertDdlPrivilegePreflight(binding.connection, binding.database, bundleSql, bundle.role.tables, { kind: "baseline_bundle", role });
+        mutationEvidence.ddl_privilege_preflight.push(ddlPreflight);
         const applied = role === "runtime"
           ? await applyRuntimeBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence)
           : role === "governance"
@@ -1640,6 +1719,9 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     }
     let sqlApplied = false;
     if (!ledger.found) {
+      const migrationSql = fs.readFileSync(migrationFilePath(repoRoot, migration), "utf8");
+      const ddlPreflight = await assertDdlPrivilegePreflight(connection, target.database, migrationSql, spec.requires_tables || [], { kind: "incident_migration", migration });
+      mutationEvidence.ddl_privilege_preflight.push(ddlPreflight);
       mutationEvidence.migration.statement_count = spec.statement_count;
       migrationResults.push(await applyIncidentMigration(connection, repoRoot, migration, spec, target.database, mutationEvidence));
       sqlApplied = true;

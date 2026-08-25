@@ -327,6 +327,25 @@
         "principal_binding": "governance",
         "required_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
         "required_operations": ["SELECT"],
+        "required_operations_by_table": {
+          "capability_resolution_envelope_ledger": ["SELECT", "INSERT", "UPDATE"],
+          "approval_holds": ["SELECT", "INSERT"],
+          "governed_migration_authorization_registry": ["SELECT", "INSERT", "UPDATE"],
+          "capability_apply_authorization_policy_registry": ["SELECT", "INSERT", "UPDATE"],
+          "runtime_dispatch_certification_registry": ["SELECT", "INSERT", "UPDATE"],
+          "governed_migration_ledger": ["SELECT"],
+          "platform_resource_authority_bindings": ["SELECT", "INSERT"],
+          "platform_resource_recipes": ["SELECT"],
+          "platform_resource_recipe_steps": ["SELECT"],
+          "repository_operation_leases": ["SELECT", "INSERT", "UPDATE"],
+          "repository_mutation_plans_v6": ["SELECT", "INSERT", "UPDATE"],
+          "repository_mutation_runs_v6": ["SELECT", "INSERT", "UPDATE"],
+          "runtime_break_glass_incidents": ["SELECT", "INSERT", "UPDATE"],
+          "runtime_break_glass_audit_events": ["SELECT", "INSERT"],
+          "runtime_verification_runs": ["SELECT"],
+          "runtime_verification_evidence_chunks": ["SELECT", "INSERT"],
+          "deployment_attestations": ["SELECT", "INSERT", "UPDATE"]
+        },
         "apply_when": "always"
       },
       "runtime_persistence": {
