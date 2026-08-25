@@ -12433,6 +12433,144 @@ paths:
                       additionalProperties: true
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /admin/recovery/kernel/call:
+    post:
+      tags: [admin-control, recovery-kernel]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: callAdminRecoveryKernel
+      x-custom-gpt-surfaces: [admin_recovery_production]
+      x-openai-isConsequential: false
+      summary: Call a fixed Production Recovery Kernel capability
+      description: >-
+        Production-only fixed Recovery Kernel call surface. It is independent of the database-backed MCP catalog and is intended for bounded identity, readiness, host-local inspection, findings, planning, approval-challenge creation, verification, and sanitized readback. The capability key is repository-controlled; inputs are server-validated and may never contain SQL, shell, credentials, database identifiers, migration selection, provider controls, arbitrary workflow/ref, or target-source fields. database_full_inspection is exact-SHA dry-run only and uses the three independent Hostinger role bindings from the server environment. No mutation is performed by this call operation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [capability_key]
+              properties:
+                capability_key:
+                  type: string
+                  enum: [production_identity, system_tool_get, system_tools_search, recovery_capabilities, production_activation_readiness, production_activation_readiness_probe, database_full_inspection, production_host_local_database_inspect, finding_details, remediation_plan_create, host_breakglass_plan, remediation_plan_preview, host_breakglass_preview, approval_challenge_create, remediation_step_verify, host_breakglass_verify, recovery_run_get, host_breakglass_run_get, recovery_evidence_get, recovery_evidence_export]
+                input:
+                  type: object
+                  additionalProperties: false
+                  description: Capability-specific bounded input. Only the listed references and bounded query fields are permitted; the server applies a stricter per-capability allowlist and rejects raw commands, secrets, database identifiers, migration/grant selection, workflow/ref controls, and arbitrary target sources.
+                  properties:
+                    expected_sha: { type: string, pattern: "^[0-9a-fA-F]{40}$" }
+                    target_key: { type: string, enum: [production-runtime] }
+                    tool_name: { type: string, minLength: 1, maxLength: 191 }
+                    q: { type: string, maxLength: 256 }
+                    tag: { type: string, maxLength: 96 }
+                    capability_key: { type: string, maxLength: 191 }
+                    limit: { type: integer, minimum: 1, maximum: 50 }
+                    finding_ids: { type: array, minItems: 1, maxItems: 50, items: { type: string, pattern: "^finding:[0-9a-f]{16,64}$" } }
+                    plan_id: { type: string, pattern: "^plan:[0-9a-f]{16,64}$" }
+                    plan_hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                    step_id: { type: string, pattern: "^step:[0-9a-f]{16,64}$" }
+                    run_id: { type: string, pattern: "^run:[0-9a-f]{16,64}$" }
+      responses:
+        "200":
+          description: Fixed Recovery Kernel result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  capability_key: { type: string }
+                  result: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, const: false }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/recovery/kernel/execute:
+    post:
+      tags: [admin-control, recovery-kernel]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: executeAdminRecoveryKernelStep
+      x-custom-gpt-surfaces: [admin_recovery_production]
+      x-openai-isConsequential: true
+      summary: Execute one approved Production Recovery Kernel plan step
+      description: >-
+        Production-only consequential Recovery Kernel execution. The server accepts only a registered plan_id, plan_hash, step_id, single-use approval token, and idempotency key. Execution fails closed unless exact Production identity, immutable plan and step hashes, durable recovery lock, single-use approval, server-owned capability mapping, and same-cycle readback authority are available. The caller cannot provide SQL, shell, credentials, database identifiers, migration/grant contents, repository/workflow/ref, or target-source values. Unknown provider outcomes require readback and are never replayed automatically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plan_id, plan_hash, step_id, approval_token, idempotency_key]
+              properties:
+                plan_id: { type: string, pattern: "^plan:[0-9a-f]{16,64}$" }
+                plan_hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                step_id: { type: string, pattern: "^step:[0-9a-f]{16,64}$" }
+                approval_token: { type: string, minLength: 16, maxLength: 512 }
+                idempotency_key: { type: string, minLength: 8, maxLength: 160 }
+      responses:
+        "202":
+          description: Execution receipt; final success requires readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  result: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, const: false }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/recovery/kernel/runs/{run_id}:
+    get:
+      tags: [admin-control, recovery-kernel]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAdminRecoveryKernelRun
+      x-custom-gpt-surfaces: [admin_recovery_production]
+      summary: Read a sanitized Recovery Kernel run
+      description: Returns bounded resumable run state and never returns raw logs, secrets, credentials, or database identifiers.
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string, pattern: "^run:[0-9a-f]{16,64}$" }
+      responses:
+        "200":
+          description: Sanitized Recovery Kernel run
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/recovery/kernel/evidence/{run_id}:
+    get:
+      tags: [admin-control, recovery-kernel]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAdminRecoveryKernelEvidence
+      x-custom-gpt-surfaces: [admin_recovery_production]
+      summary: Read sanitized Recovery Kernel evidence
+      description: Returns sanitized evidence, mutation attestations, and verification state without raw logs, secrets, credentials, or database identifiers.
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string, pattern: "^run:[0-9a-f]{16,64}$" }
+      responses:
+        "200":
+          description: Sanitized Recovery Kernel evidence
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /admin/system/tools/call:
     post:
       tags: [admin-control]
@@ -12454,7 +12592,7 @@ paths:
               properties:
                 name:
                   type: string
-                  enum: [connector_registry_list, connector_registry_get, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, production_activation_readiness_probe, host_local_role_inspection_dry_run]
+                  enum: [connector_registry_list, connector_registry_get, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, recovery_kernel_capabilities, system_tool_get, system_tools_search, recovery_kernel_call]
                 arguments:
                   type: object
                   additionalProperties: true
@@ -12463,7 +12601,7 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. `production_activation_readiness_probe` accepts no arguments. For host_local_role_inspection_dry_run, include only expected_sha and optional target_key=production-runtime; it is Production-only read-only inspection and never accepts migration, grant, SQL, shell, workflow, or credential fields. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Repository webhook V2 status and dry-run prefer binding_key; apply also requires binding_sha256, capability_sha256, expected_commit_sha, capability_envelope_id, typed confirmation, and a review reason.
+                  description: Tool arguments for the shared Admin Core fixed surface are limited to repository-owned non-Production-specific system capabilities. Production Recovery Kernel inspection, readiness, planning, approval, execution, and readback use the private Production-only `admin_recovery_production` surface and must not be advertised through this shared surface. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Repository webhook V2 status and dry-run prefer binding_key; apply also requires binding_sha256, capability_sha256, expected_commit_sha, capability_envelope_id, typed confirmation, and a review reason.
             examples:
               repositoryWebhookDryRun:
                 summary: Resolve the governed repository and produce review-bound fingerprints without a provider write

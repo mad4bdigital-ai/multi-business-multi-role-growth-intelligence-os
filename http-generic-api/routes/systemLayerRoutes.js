@@ -93,8 +93,7 @@ import {
   buildPlatformEndpointToolDescriptors,
   selectPlatformEndpointToolBinding,
 } from "../platformEndpointToolFacade.js";
-import { executeHostLocalRoleInspection } from "../hostLocalRuntimeInspection.js";
-import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
+import { getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -152,27 +151,67 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
-    name: "host_local_role_inspection_dry_run",
-    description: "Admin-only Production Hostinger read-only inspection. Binds exact SHA and invokes database.full_inspection with dry_run through the host-local role adapter. It accepts only expected_sha and target_key, omits migration selection, reads three independent role identities from the Hostinger process environment, and never dispatches GitHub or performs migration, grant, SQL, shell, or other mutation.",
+    name: "recovery_kernel_capabilities",
+    description: "Admin-only fixed, repository-owned Recovery Kernel capability matrix. Returns bounded risk, dependency, approval, rollback, and mutation metadata without loading a dynamic catalog or connecting to a database.",
+    requires_admin: true,
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
+    name: "system_tool_get",
+    description: "Admin-only exact lookup of one fixed system-tool descriptor from the repository-owned static registry. It does not load the large database-backed catalog.",
     requires_admin: true,
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["expected_sha"],
+      required: ["tool_name"],
+      properties: { tool_name: { type: "string", minLength: 1, maxLength: 191 } },
+    },
+  },
+  {
+    name: "system_tools_search",
+    description: "Admin-only bounded search over fixed system-tool descriptors from the repository-owned static registry. It does not load the large database-backed catalog.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
       properties: {
-        expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
-        target_key: { type: "string", enum: ["production-runtime"], default: "production-runtime" },
+        q: { type: "string", maxLength: 256 },
+        tag: { type: "string", maxLength: 96 },
+        capability_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
       },
     },
   },
   {
-    name: "production_activation_readiness_probe",
-    description: "Admin-only read-only Production activation readiness probe. Reads the three bounded readiness dimensions without catalog pagination or mutation: MCP catalog schema, governance DB privilege, and runtime persistence. It never applies migrations, grants, SQL, shell, provider changes, or deployment.",
+    name: "recovery_kernel_call",
+    description: "Admin-only fixed dispatcher for the repository-owned Recovery Kernel. The capability key is server-allowlisted and the request never accepts SQL, shell, credentials, database identifiers, migration/grant selection, workflow/ref, or arbitrary target-source controls. Production-only capabilities are rejected by the runtime when the environment is not Production; Staging may use only database-independent discovery capabilities.",
     requires_admin: true,
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      properties: {},
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        input: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+            target_key: { type: "string", enum: ["production-runtime"] },
+            tool_name: { type: "string", minLength: 1, maxLength: 191 },
+            q: { type: "string", maxLength: 256 },
+            tag: { type: "string", maxLength: 96 },
+            capability_key: { type: "string", maxLength: 191 },
+            limit: { type: "integer", minimum: 1, maximum: 50 },
+            finding_id: { type: "string", pattern: "^finding:[0-9a-f]{16,64}$" },
+            finding_ids: { type: "array", minItems: 1, maxItems: 50, items: { type: "string", pattern: "^finding:[0-9a-f]{16,64}$" } },
+            plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+            plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+            step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
+            run_id: { type: "string", pattern: "^run:[0-9a-f]{16,64}$" },
+          },
+        },
+      },
     },
   },
   {
@@ -2240,6 +2279,20 @@ async function inspectGoogleDriveFolder(args = {}, auth = null, deps = {}) {
   };
 }
 
+function recoveryEnvironmentIsProduction(env = process.env) {
+  const signals = [
+    ["NODE_ENV", env.NODE_ENV],
+    ["REMOTE_MCP_ENVIRONMENT", env.REMOTE_MCP_ENVIRONMENT],
+    ["DEPLOYMENT_ENVIRONMENT", env.DEPLOYMENT_ENVIRONMENT],
+    ["GITHUB_REF_NAME", env.GITHUB_REF_NAME],
+  ].filter(([, value]) => String(value || "").trim());
+  if (!signals.length) return false;
+  return signals.every(([name, value]) => {
+    const normalized = String(value).trim().toLowerCase();
+    return name === "GITHUB_REF_NAME" ? normalized === "production" : ["production", "prod"].includes(normalized);
+  });
+}
+
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
     const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
@@ -2261,22 +2314,84 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
-    case "production_activation_readiness_probe": {
-      if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length > 0) {
-        const error = new Error("Production activation readiness probe does not accept arguments.");
+    case "recovery_kernel_call": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_call requires a JSON object.");
         error.status = 400;
-        error.code = "production_activation_readiness_arguments_forbidden";
+        error.code = "recovery_kernel_call_input_invalid";
         throw error;
       }
-      const reader = deps.productionActivationReadinessExecutor || runProductionActivationReadiness;
-      return await reader();
-    }
-    case "host_local_role_inspection_dry_run": {
-      const executor = deps.hostLocalInspectionExecutor || executeHostLocalRoleInspection;
-      return await executor(args || {}, {
-        env: deps.hostLocalInspectionEnv || process.env,
+      const allowedKeys = new Set(["capability_key", "input"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length || typeof args.capability_key !== "string" || !args.capability_key.trim()) {
+        const error = new Error("recovery_kernel_call accepts only capability_key and bounded input.");
+        error.status = 400;
+        error.code = "recovery_kernel_call_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const capabilityKey = args.capability_key.trim();
+      const stagingSafe = new Set(["recovery_capabilities", "system_tool_get", "system_tools_search"]);
+      const env = deps.recoveryKernelEnv || deps.env || process.env;
+      if (!stagingSafe.has(capabilityKey) && !recoveryEnvironmentIsProduction(env)) {
+        const error = new Error("Production-only Recovery Kernel capability requested outside Production.");
+        error.status = 404;
+        error.code = "recovery_kernel_production_only";
+        error.details = { capability_key: capabilityKey, secrets_included: false };
+        throw error;
+      }
+      return await callRecoveryKernelCapability(capabilityKey, args.input || {}, {
+        env,
         repoRoot: deps.hostLocalInspectionRepoRoot,
+        hostLocalExecutor: deps.hostLocalInspectionExecutor,
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalVerifier: deps.approvalVerifier,
+        approvalStore: deps.approvalStore,
+        recoveryLock: deps.recoveryLock,
+        mutationExecutor: deps.mutationExecutor,
+        readbackVerifier: deps.readbackVerifier,
+        productionActivationReadinessExecutor: deps.productionActivationReadinessExecutor,
+        systemToolLookup: deps.systemToolLookup,
       });
+    }
+    case "recovery_kernel_capabilities":
+      return getRecoveryCapabilities();
+    case "system_tool_get": {
+      if (!args || typeof args !== "object" || Array.isArray(args) || typeof args.tool_name !== "string" || !args.tool_name.trim()) {
+        const error = new Error("system_tool_get requires tool_name and accepts no other control fields.");
+        error.status = 400;
+        error.code = "system_tool_get_input_invalid";
+        throw error;
+      }
+      const { getSystemToolDescriptorByName } = await import("../systemToolCatalogV2.js");
+      return getSystemToolDescriptorByName(toolsForPrincipal(auth), args.tool_name.trim());
+    }
+    case "system_tools_search": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("system_tools_search requires a JSON object.");
+        error.status = 400;
+        error.code = "system_tools_search_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["q", "tag", "capability_key", "limit"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length) {
+        const error = new Error("system_tools_search accepts only bounded query fields.");
+        error.status = 400;
+        error.code = "system_tools_search_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const { listSystemToolCatalog } = await import("../systemToolCatalogV2.js");
+      return {
+        ok: true,
+        protocol: "openapi-mcp-facade",
+        catalog_mode: "repository_static_system_layer",
+        ...listSystemToolCatalog(toolsForPrincipal(auth), { ...args, limit: Math.min(Number(args.limit || 20), 50) }),
+        database_query_performed: false,
+        secrets_included: false,
+      };
     }
     case "response_chunk_read":
       return await readCachedToolResponseChunk({
@@ -2450,6 +2565,16 @@ export function buildSystemLayerRoutes(deps) {
     hostLocalInspectionEnv,
     hostLocalInspectionRepoRoot,
     productionActivationReadinessExecutor,
+    recoveryKernelEnv,
+    recoveryStore,
+    approvalIssuer,
+    approvalVerifier,
+    approvalStore,
+    recoveryLock,
+    mutationExecutor,
+    readbackVerifier,
+    systemToolLookup,
+    env,
   } = deps;
   const router = Router();
   const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
@@ -2534,6 +2659,16 @@ export function buildSystemLayerRoutes(deps) {
           hostLocalInspectionEnv,
           hostLocalInspectionRepoRoot,
           productionActivationReadinessExecutor,
+          recoveryKernelEnv,
+          recoveryStore,
+          approvalIssuer,
+          approvalVerifier,
+          approvalStore,
+          recoveryLock,
+          mutationExecutor,
+          readbackVerifier,
+          systemToolLookup,
+          env,
         }),
         deadline
       ]);
@@ -2628,6 +2763,16 @@ export function buildSystemLayerRoutes(deps) {
           hostLocalInspectionEnv,
           hostLocalInspectionRepoRoot,
           productionActivationReadinessExecutor,
+          recoveryKernelEnv,
+          recoveryStore,
+          approvalIssuer,
+          approvalVerifier,
+          approvalStore,
+          recoveryLock,
+          mutationExecutor,
+          readbackVerifier,
+          systemToolLookup,
+          env,
         }),
         deadline
       ]);

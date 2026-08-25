@@ -1268,8 +1268,10 @@ paths:
                     - activation_github_validate
                     - activation_provider_bootstrap_validate
                     - activation_bootstrap_config_upsert
-                    - production_activation_readiness_probe
-                    - host_local_role_inspection_dry_run
+                    - recovery_kernel_capabilities
+                    - system_tool_get
+                    - system_tools_search
+                    - recovery_kernel_call
                 arguments:
                   type: object
                   additionalProperties: true
@@ -1279,7 +1281,7 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. `production_activation_readiness_probe` accepts no arguments. For host_local_role_inspection_dry_run, include only expected_sha and optional target_key=production-runtime; it is Production-only read-only inspection and never accepts migration, grant, SQL, shell, workflow, or credent.
+                  description: Tool arguments for the shared Admin Core fixed surface are limited to repository-owned non-Production-specific system capabilities. Production Recovery Kernel inspection, readiness, planning, approval, execution, and readback use the private Production-only `admin_recovery_production` surface and m.
                   properties: {}
             examples:
               repositoryWebhookDryRun:
@@ -2276,9 +2278,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 633538a5671fc838873097c999e0a3665e1fe723788b900b22d52324e5d8b365
+  source_openapi_sha256: 72966a58fc511adf658a84156609e64e43897bd8a98100a89f2b5f8866f9db06
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: b7a1370a9719da6c576e0d3c7a496a21f320e8069e94add2dc3be9fc79319b5b
+  registry_sha256: 6e5736c5596ba75c9ad9f7c15a17f8a16c48f0ac4b85426b2c376485173278ca
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: production
@@ -2319,6 +2321,22 @@ x-custom-gpt-generation:
         review_after: 2026-09-30
       - operation_id: runHostLocalRoleBootstrapDryRun
         reason: Hostinger role-local full inspection is an internal service-key route and must not be exposed as an Admin GPT operation.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: callAdminRecoveryKernel
+        reason: Production-only Recovery Kernel call surface is private and must not be advertised through shared Admin Core or Staging projections.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: executeAdminRecoveryKernelStep
+        reason: Consequential Recovery Kernel execution is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminRecoveryKernelRun
+        reason: Recovery Kernel run readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getAdminRecoveryKernelEvidence
+        reason: Recovery Kernel evidence readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
         owner: platform-governance
         review_after: 2026-09-30
       - operation_id: sessionInsightTargetWriteReadbackCreate

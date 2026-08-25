@@ -16,9 +16,12 @@ process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const stagingAuthDispatcher = read("http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml");
-assert.doesNotMatch(stagingAuthDispatcher, /host_local_role_env/u, "Staging OpenAPI must not advertise the Production host-local role source");
+assert.doesNotMatch(stagingAuthDispatcher, /host_local_role_env|host_local_role_inspection_dry_run|production_activation_readiness_probe|admin\/recovery\/kernel/u, "Staging OpenAPI must not advertise Production-only Recovery controls");
 const productionAuthDispatcher = read("http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml");
-assert.match(productionAuthDispatcher, /host_local_role_env/u, "Production OpenAPI must advertise the explicitly scoped host-local role source");
+assert.doesNotMatch(productionAuthDispatcher, /host_local_role_inspection_dry_run|production_activation_readiness_probe|admin\/recovery\/kernel/u, "Shared Production Admin Core must not advertise the private Recovery surface");
+const privateRecoveryProduction = read("http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml");
+assert.match(privateRecoveryProduction, /host_local_role_env|database_full_inspection|production_activation_readiness/u, "Private Production Recovery schema must expose the fixed read-only capabilities");
+assert.doesNotMatch(privateRecoveryProduction, /https:\/\/dev\.mad4b\.com/u, "Private Production Recovery schema must not use a Staging host");
 const schemaDefinitions = [
   {
     name: "tenant",
@@ -124,4 +127,6 @@ console.log(JSON.stringify({
   each_schema_has_one_server: true,
   discovery_isolation: true,
   production_hosts_included: false,
+  shared_admin_recovery_leakage: false,
+  private_production_recovery_surface: true,
 }));
