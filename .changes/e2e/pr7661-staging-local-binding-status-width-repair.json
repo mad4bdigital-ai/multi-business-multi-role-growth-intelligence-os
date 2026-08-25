@@ -59,13 +59,13 @@
               "id": "pr7661-environment-impact-closure",
               "runner": "node",
               "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+              "args": []
             },
             {
               "id": "pr7661-ordered-migration-contracts",
               "runner": "node",
               "path": "http-generic-api/scripts/migration-contract-governance.mjs",
-              "args": ["--expected-commit", "HEAD_SHA"]
+              "args": []
             }
           ],
           "evidence_paths": [
