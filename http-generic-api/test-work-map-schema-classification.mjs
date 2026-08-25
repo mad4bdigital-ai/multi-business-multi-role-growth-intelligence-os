@@ -57,6 +57,7 @@ function fixture(intentional = []) {
   write(root, ".specify/work-map-schema-classification-registry.json", JSON.stringify(registry(intentional), null, 2));
   write(root, "http-generic-api/migrations/001_fixture.sql", [
     "CREATE TABLE users (id BIGINT PRIMARY KEY);",
+    `ALTER TABLE IF EXISTS \`users\` MODIFY COLUMN id BIGINT NOT NULL;`,
     `CREATE TABLE ${REGISTRY_OBJECT} (id BIGINT PRIMARY KEY);`,
     `CREATE TABLE ${UNRESOLVED_OBJECT} (id BIGINT PRIMARY KEY);`,
   ].join("\n"));

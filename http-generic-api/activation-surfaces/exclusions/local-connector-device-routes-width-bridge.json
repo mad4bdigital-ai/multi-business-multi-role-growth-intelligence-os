@@ -1,0 +1,5 @@
+{
+  "source_table": "local_connector_device_routes",
+  "owner": "staging-migration-governance",
+  "reason": "This table is an additive Staging-local width compatibility bridge for an immutable migration writer; it exposes no activation surface, tenant-facing capability, or runtime dispatch contract."
+}

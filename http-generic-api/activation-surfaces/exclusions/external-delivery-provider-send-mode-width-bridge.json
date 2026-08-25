@@ -1,0 +1,5 @@
+{
+  "source_table": "external_delivery_provider_send_mode_policy_registry",
+  "owner": "staging-migration-governance",
+  "reason": "This table is a DDL-only send-mode policy width compatibility bridge; it is not an activation surface and does not enable provider dispatch or external sends."
+}

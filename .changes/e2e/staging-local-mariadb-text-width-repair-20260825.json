@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-local-mariadb-text-width-repair-20260825",
+  "title": "Fail-closed MariaDB text-width and INSERT SELECT source-domain repair for local Staging replay",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-local-mariadb-text-width-repair-20260825.json",
+      "http-generic-api/databaseTextWidthPolicyGuard.js",
+      "http-generic-api/migrations/097_sprint62h_zz_local_connector_device_routes_endpoint_width_alignment.sql",
+      "http-generic-api/migrations/1039_sprint69_zz_platform_tool_dispatch_binding_id_width_alignment.sql",
+      "http-generic-api/migrations/149_sprint65_zz_remote_runtime_targets_host_label_width_alignment.sql",
+      "http-generic-api/migrations/20260701_0z_platform_capability_readback_key_width_alignment.sql",
+      "http-generic-api/migrations/264_sprint68_zz_external_provider_policy_key_width_alignment.sql",
+      "http-generic-api/migrations/310_sprint69_zz_platform_endpoint_tool_exports_width_alignment.sql",
+      "http-generic-api/migrations/311_sprint69_zz_platform_tool_dispatch_binding_width_alignment.sql",
+      "http-generic-api/migrations/313_sprint69_zz_platform_plugin_capabilities_runtime_status_width_alignment.sql",
+      "http-generic-api/migrations/313_sprint69_zzz_capability_assurance_key_width_alignment.sql",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/activation-surfaces/exclusions/local-connector-device-routes-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/remote-runtime-targets-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-family-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-adapter-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-send-mode-width-bridge.json",
+      "http-generic-api/scripts/work-map-schema-classification-contract.mjs",
+      "http-generic-api/test-work-map-schema-classification-contract.mjs",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align all identified bounded source domains before historical Staging migration writers and fail closed on unresolved source-domain overflow.",
+      "e2e_journeys": [
+        {
+          "id": "static-width-contract-and-windows-replay-gate",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Staging-local migration operator",
+          "entrypoint": "Exact-SHA Windows preflight followed by disposable MariaDB replay",
+          "terminal_outcome": "Static guards pass with zero source-domain overflows; the Windows replay either completes or halts before downstream automation on the first MariaDB error.",
+          "steps": [
+            "Run the exact-SHA static preflight against the merged main commit.",
+            "Review all schema, arity, collation, enum, text-width, and source-domain counters.",
+            "Run the confirmed replay only against disposable local Docker MariaDB 11.4.",
+            "Stop immediately on any MariaDB error before AutoPilot, importer, or readback."
+          ],
+          "assertions": [
+            "The guard checks bounded source maxima even when known_exact is false.",
+            "Alternative expressions use maximum branch width rather than additive width.",
+            "All class-level width bridges are ordered before their historical writers.",
+            "Static execution performs no database, provider, credential, export, or runtime mutation.",
+            "Production mutation and external provider access remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "mariadb-width-and-builder-static-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseTextWidthPolicyGuard.js",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

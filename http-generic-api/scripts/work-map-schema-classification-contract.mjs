@@ -49,7 +49,7 @@ export function discoverSchemaObjects(root = REPO_ROOT) {
   for (const file of listFiles(path.join(root, "http-generic-api", "migrations"), (candidate) => candidate.endsWith(".sql"))) {
     const text = readText(file);
     for (const match of text.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi)) ensure(match[1], "table", file);
-    for (const match of text.matchAll(/ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(match[1], "table", file);
+    for (const match of text.matchAll(/ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi)) ensure(match[1], "table", file);
     for (const match of text.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+`?([A-Za-z0-9_]+)`?/gi)) ensure(match[1], "view", file);
   }
   return [...objects.values()]
