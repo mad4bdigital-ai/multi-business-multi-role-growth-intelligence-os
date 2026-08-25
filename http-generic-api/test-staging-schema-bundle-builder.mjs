@@ -61,6 +61,7 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
     check_foreign_key_parent_tables: true,
     check_table_source_operations: true,
     check_view_source_columns: true,
+    check_insert_column_value_arity: true,
     check_rename_and_drop_targets: true,
     fail_on_unresolved_gaps: true,
   });
@@ -301,6 +302,31 @@ test("expanded pre-use audit catches qualified view columns before CREATE VIEW",
   assert.equal(report.counts.missing_column, 1);
   assert.equal(report.view_column_references_checked, 2);
   assert.ok(report.gaps.some((gap) => gap.table === "source_table" && gap.column === "missing_column" && gap.kind === "missing_column"));
+});
+
+test("expanded pre-use audit catches INSERT column/value arity before disposable DB apply", () => {
+  const report = runPreuseAuditFixture({
+    baseline: "CREATE TABLE IF NOT EXISTS `target_table` (`a` INT NULL, `b` INT NULL, `c` INT NULL) ENGINE=InnoDB;",
+    migrations: {
+      "001_bad_insert_select_arity.sql": "INSERT INTO `target_table` (`a`, `b`, `c`) SELECT 1, 2 WHERE 1 = 1;",
+    },
+  });
+  assert.equal(report.insert_arity_checks, 1);
+  assert.equal(report.insert_arity_mismatches, 1);
+  assert.equal(report.insert_arity_findings[0].table, "target_table");
+  assert.match(report.insert_arity_findings[0].detail, /3 target columns, 2 projected values/iu);
+});
+
+test("expanded pre-use audit accepts matching INSERT VALUES and INSERT SELECT arity", () => {
+  const report = runPreuseAuditFixture({
+    baseline: "CREATE TABLE IF NOT EXISTS `target_table` (`a` INT NULL, `b` INT NULL, `c` INT NULL) ENGINE=InnoDB;",
+    migrations: {
+      "001_matching_insert_values.sql": "INSERT INTO `target_table` (`a`, `b`, `c`) VALUES (1, 2, 3), (4, 5, 6);",
+      "002_matching_insert_select.sql": "INSERT INTO `target_table` (`a`, `b`, `c`) SELECT 7, 8, 9;",
+    },
+  });
+  assert.equal(report.insert_arity_checks, 3);
+  assert.equal(report.insert_arity_mismatches, 0);
 });
 
 test("memory scope shape alignments precede historical views and preserve the legacy migrations", () => {
@@ -721,6 +747,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.unique_true_preuse_gaps, 0);
   assert.ok(plan.ordered_preuse_audit.view_column_references_checked > 0);
+  assert.ok(plan.ordered_preuse_audit.insert_arity_checks > 0);
+  assert.equal(plan.ordered_preuse_audit.insert_arity_mismatches, 0);
   assert.equal(plan.canonical_table_bootstrap.unresolved_missing_table_gaps, 0);
 });
 
@@ -741,6 +769,8 @@ test("canonical table bootstrap resolves ordered migration pre-use inside dispos
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.unique_true_preuse_gaps, 0);
+  assert.ok(plan.ordered_preuse_audit.insert_arity_checks > 0);
+  assert.equal(plan.ordered_preuse_audit.insert_arity_mismatches, 0);
   assert.ok(plan.ordered_preuse_audit.same_statement_false_positives >= 500);
   assert.match(generator, /canonical table bootstrap leaves/iu);
   const authorizationRegistry = bootstrap.entries.find((entry) => entry.table === "capability_apply_authorization_policy_registry");

@@ -130,6 +130,7 @@ SELECT 'Session Memory Governance', 'session_insight_promotion_apply_request_ske
          'raw_transcript_included',false,
          'secrets_included',false
        ),
+       'TRUE',
        'session_memory|promotion_apply_request|capability_gate_skeleton',
        'session_insight_promotion_apply_requests|session_insight_promotion_execution_previews|admin_platform_endpoint_tools',
        'TRUE',
