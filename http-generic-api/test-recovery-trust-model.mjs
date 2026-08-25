@@ -30,7 +30,12 @@ test("manifest is repository-owned, hash-addressed, and contains no secret mater
   assert.equal(manifest.durability.consequential_mutation_requires_injected_durable_store, true);
   assert.equal(manifest.durability.store_independence.independent_of_target_databases, true);
   assert.equal(manifest.durability.store_independence.target_database_binding, "forbidden");
-  assert.equal(manifest.empty_database_reconstruction.all_roles_must_be_zero_objects, true);
+  assert.equal(manifest.empty_database_reconstruction.all_roles_must_be_zero_objects, false);
+  assert.equal(manifest.empty_database_reconstruction.partial_role_rebuild_allowed, true);
+  assert.equal(manifest.empty_database_reconstruction.runtime_nonempty_preserved, true);
+  assert.equal(manifest.empty_database_reconstruction.pre_mutation_zero_object_recheck_required, true);
+  assert.equal(manifest.empty_database_reconstruction.sequential_role_execution, true);
+  assert.deepEqual(manifest.empty_database_reconstruction.selected_role_enum, ["runtime", "governance", "runtime_persistence"]);
   assert.deepEqual(manifest.empty_database_reconstruction.object_kinds, ["tables", "views", "triggers", "routines", "events"]);
 });
 
