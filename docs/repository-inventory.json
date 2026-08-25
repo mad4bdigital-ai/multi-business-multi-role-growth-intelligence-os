@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7390,
-    "bytes": 72710322,
+    "bytes": 72710392,
     "lines": 1693165,
     "directories": 266,
     "categories": 13
@@ -10309,9 +10309,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 16761,
+      "bytes": 16831,
       "lines": 113,
-      "sha256": "1f4696f559caf8ed853b6908648a935e7fb96145eaef7bf4a3351ff004a8819c",
+      "sha256": "91942dba776348e9cfb962559ac8a5a497ba8563adeac1513d7cadfc70b00d3a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86937,7 +86937,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "0011e56a86988d484322b74a73f58fcb3cb25cd84d0247706141bdf043e4a8e8",
+      "sha256": "02f431b6200d7efc5080376f7bb02adc395ecb4f048a9629f789279055cc91a1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86948,7 +86948,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "6a650197f1332baebc431c5a2ed4a04e52e6ba0047e6ed580371c840f73ae109",
+      "sha256": "a113aa2b138d2e27f8aa5f3a0932a128a1beef48818dbaf2ab4e79c7efd517d2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86959,7 +86959,7 @@
       "extension": ".json",
       "bytes": 275222,
       "lines": 6536,
-      "sha256": "cdf0b37d03b0b4237ae17fea5a4ca370a9fd7d9288e9dfca00bbbfc73afc915a",
+      "sha256": "a57c66596dc866e226318b7d1b02e1a0c2ab3f72f99fe64b942c7f312689f015",
       "mode": "644",
       "executable": false,
       "generated": false

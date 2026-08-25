@@ -15,7 +15,7 @@
     "tests/**/*.js"
   ],
   "invariant_authorities": [
-    {"id":"repository_governance_closure","test_paths":[".github/tests/repository-governance-closure.test.mjs","scripts/repository-governance-closure.mjs"]},
+    {"id":"repository_governance_closure","test_paths":[".github/tests/repository-governance-closure.test.mjs","scripts/repository-governance-closure.mjs","http-generic-api/test-consolidated-governance-runtime-contracts.mjs"]},
     {"id":"repository_governance_fixed_point","test_paths":[".github/tests/repository-governance-fixed-point.test.mjs",".github/tests/derived-state-closure.test.mjs","scripts/repository-governance-fixed-point.mjs"]},
     {"id":"repository_derived_state","test_paths":[".github/tests/derived-state-closure.test.mjs"]},
     {"id":"repository_evaluation_loop","test_paths":["scripts/test-repository-evaluation.mjs"]},
