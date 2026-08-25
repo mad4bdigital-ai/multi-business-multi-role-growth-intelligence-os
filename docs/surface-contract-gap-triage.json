@@ -325,7 +325,7 @@
     },
     {
       "migration_file": "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
-      "score": 358,
+      "score": 357,
       "queue_class": "medium_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "new_gap_gate_candidate",

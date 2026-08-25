@@ -21,6 +21,9 @@ for (const entry of canonicalBootstrap) {
 }
 
 const tables = new Map();
+const viewNames = new Set();
+let viewColumnReferencesChecked = 0;
+let insertArityChecks = 0;
 const events = [];
 const ignoredFalsePositives = [];
 const normalize = (value) => String(value ?? "").replace(/^[`\"']|[`\"']$/g, "").trim().toLowerCase();
@@ -136,6 +139,34 @@ const parenthesized = (text, offset) => {
   }
   return null;
 };
+const topLevelKeyword = (text, offset, keywords) => {
+  const wanted = keywords.map((word) => word.toUpperCase());
+  let depth = 0;
+  let quote = null;
+  for (let i = offset; i < text.length; i += 1) {
+    const current = text[i];
+    const next = text[i + 1] ?? "";
+    if (quote) {
+      if (current === "\\") i += 1;
+      else if (current === quote) {
+        if (next === quote) i += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (["'", '"', "`"].includes(current)) { quote = current; continue; }
+    if (current === "(") { depth += 1; continue; }
+    if (current === ")") { depth = Math.max(0, depth - 1); continue; }
+    if (depth !== 0 || !/[A-Za-z_]/u.test(current)) continue;
+    for (const keyword of wanted) {
+      const end = i + keyword.length;
+      if (text.slice(i, end).toUpperCase() === keyword
+        && !/[A-Za-z0-9_$]/u.test(text[i - 1] ?? "")
+        && !/[A-Za-z0-9_$]/u.test(text[end] ?? "")) return { index: i, keyword };
+    }
+  }
+  return null;
+};
 const indexColumns = (body) => splitTopLevel(body).map((part) => {
   const token = part.trim().replace(/\s+(?:ASC|DESC)\s*$/i, "").replace(/\s*\(\s*\d+\s*\)\s*$/u, "").trim();
   const match = token.match(/^(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))$/u);
@@ -199,6 +230,72 @@ const parseCreateAsSelect = (sql, file, line) => {
   parseFromJoins(sql, file, line);
   return true;
 };
+const sqlKeywords = new Set([
+  "as", "on", "where", "group", "order", "limit", "union", "having", "left", "right", "inner", "outer", "cross", "full", "join",
+]);
+const viewSourceAliases = (sql) => {
+  const clean = stripStringLiterals(stripComments(sql));
+  const sources = new Map();
+  const systemSchemas = new Set(["information_schema", "performance_schema", "mysql", "sys"]);
+  const assign = (key, table) => {
+    if (!key) return;
+    if (!sources.has(key)) sources.set(key, table);
+    else if (sources.get(key) !== table) sources.set(key, null);
+  };
+  for (const match of clean.matchAll(/(?:\bFROM|\bJOIN)\s+(?:(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\.\s*)?(?:`([^`]+)`|([A-Za-z0-9_$]+))(?:\s+(?:AS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+)))?/ig)) {
+    const schema = normalize(match[1] ?? match[2]);
+    const table = tableName(match[3] ?? match[4]);
+    if (!table || systemSchemas.has(schema)) continue;
+    const aliasCandidate = normalize(match[5] ?? match[6]);
+    const alias = aliasCandidate && !sqlKeywords.has(aliasCandidate) ? aliasCandidate : table;
+    assign(alias, table);
+    assign(table, table);
+  }
+  return sources;
+};
+const viewOutputColumns = (sql) => {
+  const clean = stripStringLiterals(stripComments(sql));
+  const outputs = new Set();
+  for (const select of clean.matchAll(/\bSELECT\b([\s\S]*?)(?=\bFROM\b)/ig)) {
+    for (const expression of splitTopLevel(select[1])) {
+      const alias = expression.match(/\bAS\s+(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*$/i);
+      if (alias) {
+        outputs.add(columnName(alias[1] ?? alias[2]));
+        continue;
+      }
+      const direct = expression.trim().match(/(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_$]*)\s*\.\s*(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*$/i);
+      if (direct) outputs.add(columnName(direct[1] ?? direct[2]));
+    }
+  }
+  return [...outputs];
+};
+const recordViewColumnReferences = (sql, file, line) => {
+  const sources = viewSourceAliases(sql);
+  const clean = stripStringLiterals(stripComments(sql));
+  for (const match of clean.matchAll(/(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*\.\s*(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))/g)) {
+    const alias = normalize(match[1] ?? match[2]);
+    const column = match[3] ?? match[4];
+    const table = sources.get(alias);
+    if (!table || !column) continue;
+    const state = ensureTable(table);
+    if (!state || viewNames.has(tableName(table))) continue;
+    viewColumnReferencesChecked += 1;
+    if (!state.has(columnName(column))) {
+      record({ kind: "missing_column", table, column, file, line, statement: sql, detail: "VIEW qualified column reference is absent before view operation" });
+    }
+  }
+};
+const parseCreateView = (sql, file, line) => {
+  const clean = stripComments(sql);
+  const match = clean.match(/^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:ALGORITHM\s*=\s*[^\s]+\s+)?(?:DEFINER\s*=\s*[^\s]+\s+)?(?:SQL\s+SECURITY\s+[^\s]+\s+)?VIEW\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s+AS\s+SELECT\b/i);
+  if (!match) return false;
+  recordViewColumnReferences(sql, file, line);
+  parseFromJoins(sql, file, line);
+  const viewName = match[1] ?? match[2];
+  viewNames.add(tableName(viewName));
+  addTable(viewName, viewOutputColumns(sql));
+  return true;
+};
 const parseDrop = (sql, file, line) => {
   const clean = stripComments(sql);
   for (const match of clean.matchAll(/DROP\s+TABLE\s+(IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
@@ -206,12 +303,14 @@ const parseDrop = (sql, file, line) => {
     const target = match[2] ?? match[3];
     if (!safe && !ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP TABLE target is absent without IF EXISTS" });
     tables.delete(tableName(target));
+    viewNames.delete(tableName(target));
   }
   for (const match of clean.matchAll(/DROP\s+VIEW\s+(IF\s+EXISTS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/ig)) {
     const safe = Boolean(match[1]);
     const target = match[2] ?? match[3];
     if (!safe && !ensureTable(target)) record({ kind: "missing_table", table: target, file, line, statement: sql, detail: "DROP VIEW target is absent without IF EXISTS" });
     tables.delete(tableName(target));
+    viewNames.delete(tableName(target));
   }
 };
 const parseDropIndex = (sql, file, line) => {
@@ -322,11 +421,50 @@ const recordTableColumns = ({ table, columns, file, line, statement, detail }) =
 };
 const parseInsert = (sql, file, line) => {
   const clean = stripStringLiterals(stripComments(sql));
+  const arityClean = stripComments(sql);
   const match = clean.match(/INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\(([^)]*)\)/i);
   if (!match) return false;
   const table = match[1] ?? match[2];
   const columns = [...match[3].matchAll(/`([^`]+)`|\b([A-Za-z_][A-Za-z0-9_]*)\b/g)].map((m) => m[1] ?? m[2]).filter((c) => !["values"].includes(c.toLowerCase()));
   recordTableColumns({ table, columns, file, line, statement: sql, detail: "INSERT column list" });
+  const columnOpen = match.index + match[0].indexOf("(");
+  const columnBlock = parenthesized(clean, columnOpen);
+  if (columnBlock) {
+    const mode = topLevelKeyword(arityClean, columnBlock.end, ["VALUES", "SELECT", "SET"]);
+    if (mode?.keyword === "SELECT") {
+      const selectStart = mode.index + mode.keyword.length;
+      const selectEnd = topLevelKeyword(arityClean, selectStart, ["FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "UNION", "RETURNING", "FOR"]);
+      const projection = arityClean.slice(selectStart, selectEnd?.index ?? arityClean.length).trim().replace(/^DISTINCT\s+/iu, "");
+      const values = splitTopLevel(projection).filter(Boolean);
+      insertArityChecks += 1;
+      if (columns.length !== values.length) record({
+        kind: "insert_arity_mismatch",
+        table,
+        file,
+        line,
+        statement: sql,
+        detail: `INSERT SELECT column/value arity mismatch: ${columns.length} target columns, ${values.length} projected values`,
+      });
+    } else if (mode?.keyword === "VALUES") {
+      let tupleCursor = mode.index + mode.keyword.length;
+      while (tupleCursor < arityClean.length) {
+        while (/\s|,/u.test(arityClean[tupleCursor] ?? "")) tupleCursor += 1;
+        const tuple = parenthesized(arityClean, tupleCursor);
+        if (!tuple) break;
+        const values = splitTopLevel(tuple.content).filter(Boolean);
+        insertArityChecks += 1;
+        if (columns.length !== values.length) record({
+          kind: "insert_arity_mismatch",
+          table,
+          file,
+          line,
+          statement: sql,
+          detail: `INSERT VALUES column/value arity mismatch: ${columns.length} target columns, ${values.length} tuple values`,
+        });
+        tupleCursor = tuple.end;
+      }
+    }
+  }
   const duplicate = clean.match(/ON\s+DUPLICATE\s+KEY\s+UPDATE\s+([\s\S]*)$/i)?.[1] ?? "";
   const updates = [...duplicate.matchAll(/(?:^|,)\s*(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_]*))\s*=/g)].map((m) => m[1] ?? m[2]);
   recordTableColumns({ table, columns: updates, file, line, statement: sql, detail: "ON DUPLICATE KEY UPDATE target columns" });
@@ -384,6 +522,7 @@ const parseFromJoins = (sql, file, line) => {
 const processStatement = (sql, file, line) => {
   const clean = stripComments(sql);
   if (!clean.trim()) return;
+  if (parseCreateView(sql, file, line)) return;
   if (parseCreate(sql, file, line)) return;
   if (parseCreateIndex(sql, file, line)) return;
   if (parseCreateAsSelect(sql, file, line)) return;
@@ -427,6 +566,7 @@ for (const file of migrations) {
 }
 for (const statement of deferredBaselineStatements) processStatement(statement, "schema.sql", lineOf(baselineSql, baselineSql.indexOf(statement)));
 
+const insertArityFindings = events.filter((event) => event.kind === "insert_arity_mismatch");
 const firstByKey = new Map();
 for (const event of events) {
   if (event.kind !== "missing_table" && event.kind !== "missing_column") continue;
@@ -443,6 +583,10 @@ const out = {
   counts,
   gaps: unique,
   same_statement_false_positives: ignoredFalsePositives.length,
+  view_column_references_checked: viewColumnReferencesChecked,
+  insert_arity_checks: insertArityChecks,
+  insert_arity_mismatches: insertArityFindings.length,
+  insert_arity_findings: insertArityFindings,
   sample_false_positives: ignoredFalsePositives.slice(0, 20),
   final_tables: [...tables.entries()].map(([table, columns]) => ({ table, column_count: columns.size }))
 };

@@ -617,6 +617,10 @@ function orderedPreuseAudit(bootstrapEntries = []) {
     missing_column_gaps: missingColumns,
     missing_table_gaps: Number(audit.counts?.missing_table || 0),
     same_statement_false_positives: Number(audit.same_statement_false_positives || 0),
+    view_column_references_checked: Number(audit.view_column_references_checked || 0),
+    insert_arity_checks: Number(audit.insert_arity_checks || 0),
+    insert_arity_mismatches: Number(audit.insert_arity_mismatches || 0),
+    insert_arity_findings: audit.insert_arity_findings || [],
     gaps: audit.gaps || [],
   };
 }
@@ -834,6 +838,9 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       three_role_partition_checked: true,
       ordered_preuse_audit_checked: true,
       missing_column_gaps_checked: true,
+      insert_arity_checked: true,
+      insert_arity_checks: orderedAudit.insert_arity_checks,
+      insert_arity_mismatches: orderedAudit.insert_arity_mismatches,
       canonical_table_bootstrap_checked: true,
       ordered_collation_chain_checked: true,
       ordered_collation_chain_findings: collationAudit.findings.length,
@@ -887,18 +894,20 @@ const collationAudit = orderedCollationAudit(files);
 const enumSeedAudit = orderedEnumSeedAudit(files);
 const textWidthAudit = orderedTextWidthAudit(files);
 const initialAudit = orderedPreuseAudit();
-if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
+  if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
+if (initialAudit.insert_arity_mismatches > 0) fail(`ordered pre-use audit found ${initialAudit.insert_arity_mismatches} INSERT column/value arity mismatches; repair migration writers before schema build`);
 const tableBootstrap = canonicalTableBootstrap(files, initialAudit);
 const orderedAudit = orderedPreuseAudit(tableBootstrap.entries.map(({ file, table, object_type, source_file }) => ({ file, table, object_type, source_file })));
 if (orderedAudit.missing_table_gaps > 0) {
   const missing = orderedAudit.gaps.filter((gap) => gap.kind === "missing_table").map((gap) => `${gap.table} in ${path.basename(gap.file)}`);
   fail(`canonical table bootstrap leaves ${orderedAudit.missing_table_gaps} unresolved schema-object pre-use gaps: ${missing.join(", ")}; add canonical idempotent DDL before schema build`);
 }
-if (orderedAudit.missing_column_gaps > 0) {
+  if (orderedAudit.missing_column_gaps > 0) {
   const missing = orderedAudit.gaps.filter((gap) => gap.kind === "missing_column").map((gap) => `${gap.table}.${gap.column} in ${path.basename(gap.file)}`);
   fail(`canonical table bootstrap exposes ${orderedAudit.missing_column_gaps} missing-column pre-use gaps: ${missing.join(", ")}; repair canonical DDL before schema build`);
-}
-const canonicalSeeds = canonicalSeedPlan(manifest, files);
+  }
+  if (orderedAudit.insert_arity_mismatches > 0) fail(`canonical ordered pre-use audit reports ${orderedAudit.insert_arity_mismatches} INSERT column/value arity mismatches; repair migration writers before schema build`);
+  const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
   printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, tableBootstrap);
   process.exit(0);
