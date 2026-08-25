@@ -12,6 +12,7 @@ const migrationRunner = read("../.github/ops/github-repository-policy-1051-gover
 const liveRunner = read("../.github/ops/github-main-review-policy-live-activation.mjs");
 const readbackDiagnostics = read("../.github/ops/lib/migration-readback-diagnostics.mjs");
 const publisher = read("./scripts/github-main-review-policy-readiness-issue-publisher.mjs");
+const failurePublisher = read("./scripts/github-main-review-policy-readiness-failure-publisher.mjs");
 const conflictFailure = classifyMigrationReadbackFailure(
   { transport_ok: true, status: 409, http_ok: false, payload: { ok: false } },
   { readback_status: "fail", ledger: { found: false }, expectations: { missing: { tables: ["x"], columns: [], indexes: [], rule_conditions: [] } } },
@@ -67,6 +68,13 @@ assert.match(publisherWorkflow, /contents: read/);
 assert.match(publisherWorkflow, /issues: write/);
 assert.match(publisherWorkflow, /const expected = `github-review-policy-readiness-\$\{context\.payload\.workflow_run\.id\}`;/);
 assert.match(publisherWorkflow, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+assert.match(publisherWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+assert.match(publisherWorkflow, /github\.event\.workflow_run\.conclusion != 'success'/);
+assert.match(publisherWorkflow, /Publish bounded no-secret readiness failure diagnostic/);
+assert.match(publisherWorkflow, /github-main-review-policy-readiness-failure-publisher\.mjs/);
+assert.match(publisherWorkflow, /SOURCE_CONCLUSION: \$\{\{ github\.event\.workflow_run\.conclusion \}\}/);
+assert.match(publisherWorkflow, /READINESS_FAILURE_PATH:/);
+assert.match(publisherWorkflow, /READINESS_STATE_PATH:/);
 assert.match(publisherWorkflow, /persist-credentials: false/);
 
 assert.equal((migrationRunner.match(/name: 'governed_migration_execute'/g) || []).length, 2, "Migration 1051 runner should contain one dry-run and one Apply transport call");
@@ -108,5 +116,18 @@ assert.match(publisher, /assert\.equal\(summary\?\.provider_call_executed, false
 assert.match(publisher, /assert\.equal\(summary\?\.external_write_executed, false\)/);
 assert.match(publisher, /assert\.equal\(summary\?\.secrets_included, false\)/);
 assert.match(publisher, /target_branch=\$\{targetBranch\} target_sha=\$\{targetSha\}/);
+
+assert.match(failurePublisher, /EXPECTED_WORKFLOW = "Governed GitHub Review Policy Live Activation"/);
+assert.match(failurePublisher, /DIAGNOSTIC_PREFIX = "GITHUB_REVIEW_POLICY_READINESS_DIAGNOSTIC result=fail"/);
+assert.doesNotMatch(failurePublisher, /GITHUB_MAIN_REVIEW_POLICY_READINESS result=pass/);
+assert.match(failurePublisher, /assert\.equal\(phase, "readiness"/);
+assert.match(failurePublisher, /assert\.notEqual\(failure\?\.apply_sent, true/);
+assert.match(failurePublisher, /assert\.notEqual\(failure\?\.provider_call_executed, true/);
+assert.match(failurePublisher, /assert\.notEqual\(failure\?\.external_write_executed, true/);
+assert.match(failurePublisher, /marker_grants_apply_authority: false/);
+assert.match(failurePublisher, /response_ledger_found/);
+assert.match(failurePublisher, /response_missing_counts/);
+assert.match(failurePublisher, /secrets_included: false/);
+assert.match(failurePublisher, /This is bounded no-secret failure evidence only\. It is not a readiness success marker and grants no Apply authority\./);
 
 console.log("github repository policy live activation contract tests passed");
