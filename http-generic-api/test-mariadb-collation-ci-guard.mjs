@@ -244,6 +244,57 @@ assert.equal(insertSelectBad.findings[0].table, "canonical_registry");
 assert.equal(insertSelectBad.findings[0].column, "operation_class");
 assert.equal(insertSelectBad.findings[0].source_domain.bounded, false);
 
+const boundedInsertSelectFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE source_registry (source_key VARCHAR(64) PRIMARY KEY, certification_status VARCHAR(256) NOT NULL); CREATE TABLE canonical_registry (source_key VARCHAR(64) PRIMARY KEY, runtime_status VARCHAR(64) NOT NULL);",
+  "http-generic-api/migrations/001_view.sql": "CREATE OR REPLACE VIEW v_runtime_status_source AS SELECT s.source_key, s.certification_status AS runtime_status FROM source_registry s;",
+  "http-generic-api/migrations/002_select.sql": "INSERT INTO canonical_registry (source_key, runtime_status) SELECT s.source_key, s.runtime_status FROM v_runtime_status_source s ON DUPLICATE KEY UPDATE runtime_status=VALUES(runtime_status);",
+};
+const boundedInsertSelect = inspectOrderedMigrationChainTextWidths({
+  files: Object.keys(boundedInsertSelectFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: (file) => boundedInsertSelectFiles[file],
+});
+assert.equal(boundedInsertSelect.ok, false, JSON.stringify(boundedInsertSelect));
+assert.equal(boundedInsertSelect.insert_select_source_domain_checks, 1);
+assert.equal(boundedInsertSelect.insert_select_source_domain_overflows, 1);
+assert.equal(boundedInsertSelect.findings.length, 1);
+assert.equal(boundedInsertSelect.findings[0].code, "text_width_source_domain_overflow");
+assert.equal(boundedInsertSelect.findings[0].table, "canonical_registry");
+assert.equal(boundedInsertSelect.findings[0].column, "runtime_status");
+assert.equal(boundedInsertSelect.findings[0].source_domain.bounded, true);
+assert.equal(boundedInsertSelect.findings[0].source_domain.max_length, 256);
+
+const alternativeSourceFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE source_registry (source_key VARCHAR(64) PRIMARY KEY, device_runtime_url VARCHAR(512) NULL, tunnel_url VARCHAR(512) NULL); CREATE TABLE canonical_registry (source_key VARCHAR(64) PRIMARY KEY, endpoint_url VARCHAR(512) NULL);",
+  "http-generic-api/migrations/001_select.sql": "INSERT INTO canonical_registry (source_key, endpoint_url) SELECT s.source_key, COALESCE(s.device_runtime_url, s.tunnel_url) FROM source_registry s;",
+};
+const alternativeSource = inspectOrderedMigrationChainTextWidths({
+  files: ["http-generic-api/migrations/001_select.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: (file) => alternativeSourceFiles[file],
+});
+assert.equal(alternativeSource.ok, true, JSON.stringify(alternativeSource));
+assert.equal(alternativeSource.insert_select_source_domain_checks, 2);
+assert.equal(alternativeSource.insert_select_source_domain_overflows, 0);
+assert.equal(alternativeSource.findings.length, 0);
+
+const filteredConcatFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE endpoint_registry (endpoint_key VARCHAR(255) PRIMARY KEY); CREATE TABLE export_registry (export_key VARCHAR(255) PRIMARY KEY);",
+  "http-generic-api/migrations/001_select.sql": "INSERT INTO export_registry (export_key) SELECT CONCAT('github_api_mcp__', e.endpoint_key) FROM endpoint_registry e WHERE e.endpoint_key IN ('github_get_pull_request','github_compare_commits');",
+};
+const filteredConcat = inspectOrderedMigrationChainTextWidths({
+  files: ["http-generic-api/migrations/001_select.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: (file) => filteredConcatFiles[file],
+});
+assert.equal(filteredConcat.ok, true, JSON.stringify(filteredConcat));
+assert.equal(filteredConcat.insert_select_source_domain_checks, 1);
+assert.equal(filteredConcat.insert_select_source_domain_overflows, 0);
+assert.equal(filteredConcat.findings.length, 0);
+
 const insertSelectGoodFiles = {
   ...insertSelectFiles,
   "http-generic-api/schema.sql": "CREATE TABLE source_registry (source_key VARCHAR(64) PRIMARY KEY, strategy VARCHAR(16) NOT NULL); CREATE TABLE canonical_registry (source_key VARCHAR(64) PRIMARY KEY, operation_class TEXT NOT NULL);",

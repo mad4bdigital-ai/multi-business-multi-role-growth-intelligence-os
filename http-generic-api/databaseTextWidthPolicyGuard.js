@@ -195,7 +195,14 @@ function mergeSourceDomains(domains) {
   if (domains.some((domain) => domain.bounded === false)) return { bounded: false, max_length: null, type: "TEXT", source_file: sourceFile, known_exact: knownExact };
   return { bounded: true, max_length: Math.max(...domains.map((domain) => Number(domain.max_length) || 0)), type: "VARCHAR", source_file: sourceFile, known_exact: knownExact };
 }
-function sourceColumnDomain(state, views, sources, reference, viewStack = []) {
+function maxAlternativeSourceDomains(domains) {
+  if (!domains.length || domains.some((domain) => !domain)) return null;
+  const sourceFile = domains.find((domain) => domain.file)?.file || domains.find((domain) => domain.source_file)?.source_file || null;
+  const knownExact = domains.every((domain) => domain.known_exact === true);
+  if (domains.some((domain) => domain.bounded === false)) return { bounded: false, max_length: null, type: "TEXT", source_file: sourceFile, known_exact: knownExact };
+  return { bounded: true, max_length: Math.max(...domains.map((domain) => Number(domain.max_length) || 0)), type: "VARCHAR", source_file: sourceFile, known_exact: knownExact };
+}
+function sourceColumnDomain(state, views, sources, reference, viewStack = [], overrides = new Map()) {
   const value = TEXT(reference).replaceAll("`", "");
   const match = value.match(/^([A-Za-z0-9_$-]+)(?:\.([A-Za-z0-9_$-]+))?$/u);
   if (!match) return null;
@@ -204,25 +211,26 @@ function sourceColumnDomain(state, views, sources, reference, viewStack = []) {
   const table = qualifier ? sources.get(qualifier) : sources.size === 1 ? [...sources.values()][0] : null;
   if (!table) return null;
   const direct = state.get(`${table}.${column}`);
-  if (direct) return direct;
-  return resolveViewColumnDomain(state, views, table, column, viewStack);
+  if (!direct) return resolveViewColumnDomain(state, views, table, column, viewStack, overrides);
+  const constrained = overrides.get(`${table}.${column}`);
+  return constrained ? { ...direct, max_length: constrained.max_length, type: "FILTER_LITERAL", known_exact: true } : direct;
 }
-function sourceExpressionDomain(state, views, expression, sources, viewStack = []) {
+function sourceExpressionDomain(state, views, expression, sources, viewStack = [], overrides = new Map()) {
   const value = TEXT(expression);
   const literal = quotedLiteral(value);
   if (literal !== null) return { bounded: true, max_length: literal.length, type: "LITERAL", known_exact: true };
-  const direct = sourceColumnDomain(state, views, sources, value, viewStack);
+  const direct = sourceColumnDomain(state, views, sources, value, viewStack, overrides);
   if (direct) return direct;
   const cast = value.match(/^CAST\s*\(([\s\S]*?)\s+AS\s+(?:CHAR|NCHAR|VARCHAR)\s*\(\s*(\d+)\s*\)\)$/iu);
   if (cast) return { bounded: true, max_length: Number(cast[2]), type: "CAST", known_exact: false };
   const wrapper = value.match(/^(?:LOWER|UPPER|TRIM|LTRIM|RTRIM|COALESCE|IFNULL|NULLIF)\s*\(([\s\S]*)\)$/iu);
-  if (wrapper) return mergeSourceDomains(splitTopLevel(wrapper[1]).map((item) => sourceExpressionDomain(state, views, item, sources, viewStack)));
+  if (wrapper) return maxAlternativeSourceDomains(splitTopLevel(wrapper[1]).map((item) => sourceExpressionDomain(state, views, item, sources, viewStack, overrides)));
   const concat = value.match(/^CONCAT(?:_WS)?\s*\(([\s\S]*)\)$/iu);
   if (concat) {
     const args = splitTopLevel(concat[1]);
     const separator = /^CONCAT_WS/iu.test(value) ? quotedLiteral(args.shift() || "") : "";
     if (separator === null) return null;
-    const domains = args.map((item) => sourceExpressionDomain(state, views, item, sources, viewStack));
+    const domains = args.map((item) => sourceExpressionDomain(state, views, item, sources, viewStack, overrides));
     if (domains.some((domain) => !domain)) return null;
     if (domains.some((domain) => domain.bounded === false)) return { bounded: false, max_length: null, type: "TEXT", source_file: domains.find((domain) => domain?.file)?.file || null, known_exact: domains.every((domain) => domain.known_exact === true) };
     return { bounded: true, max_length: domains.reduce((sum, domain) => sum + (Number(domain.max_length) || 0), separator.length * Math.max(0, args.length - 1)), type: "VARCHAR", known_exact: domains.every((domain) => domain.known_exact === true) };
@@ -234,7 +242,7 @@ function sourceExpressionDomain(state, views, expression, sources, viewStack = [
   }
   return null;
 }
-function resolveViewColumnDomain(state, views, viewName, column, viewStack = []) {
+function resolveViewColumnDomain(state, views, viewName, column, viewStack = [], overrides = new Map()) {
   const view = views.get(IDENTIFIER(viewName));
   if (!view) return null;
   const stackKey = `${view.view}.${IDENTIFIER(column)}`;
@@ -248,7 +256,7 @@ function resolveViewColumnDomain(state, views, viewName, column, viewStack = [])
   if (!parsed.length || parsed.some((branch) => !branch)) return null;
   const index = parsed[0].expressions.findIndex((item) => item.alias === IDENTIFIER(column));
   if (index < 0) return null;
-  const domains = parsed.map((branch) => sourceExpressionDomain(state, views, branch.expressions[index].expression, branch.sources, [...viewStack, stackKey]));
+  const domains = parsed.map((branch) => sourceExpressionDomain(state, views, branch.expressions[index].expression, branch.sources, [...viewStack, stackKey], overrides));
   return mergeSourceDomains(domains);
 }
 function projectCreate(statement, file, state, definitions) {
@@ -374,6 +382,31 @@ function inspectLiteral(state, table, column, token, file, statementIndex, findi
     applies_sql: false,
   });
 }
+function constrainedSourceDomains(selectSource, sources) {
+  const overrides = new Map();
+  const whereMatch = selectSource.match(/\bWHERE\b([\s\S]*?)(?=\b(?:GROUP|ORDER|HAVING|LIMIT|UNION|EXCEPT|INTERSECT)\b|$)/iu);
+  if (!whereMatch || /\bOR\b/iu.test(whereMatch[1])) return overrides;
+  for (const condition of splitTopLevelKeyword(whereMatch[1].trim(), "AND")) {
+    const match = condition.match(/^\s*(?:(?:`([^`]+)`|([A-Za-z0-9_$-]+))\s*\.\s*)?(?:`([^`]+)`|([A-Za-z0-9_$-]+))\s*(=|IN)\s*([\s\S]+?)\s*$/iu);
+    if (!match) continue;
+    const qualifier = IDENTIFIER(match[1] || match[2] || "");
+    const column = IDENTIFIER(match[3] || match[4]);
+    const table = qualifier ? sources.get(qualifier) : sources.size === 1 ? [...sources.values()][0] : null;
+    if (!table || !column) continue;
+    let literals = [];
+    if (match[5].toUpperCase() === "=") {
+      const literal = quotedLiteral(match[6]);
+      if (literal !== null) literals = [literal];
+    } else {
+      const inValue = TEXT(match[6]);
+      if (!inValue.startsWith("(") || !inValue.endsWith(")")) continue;
+      const values = splitTopLevel(inValue.slice(1, -1));
+      if (values.length && values.every((value) => quotedLiteral(value) !== null)) literals = values.map(quotedLiteral);
+    }
+    if (literals.length) overrides.set(`${table}.${column}`, { max_length: Math.max(...literals.map((value) => value.length)) });
+  }
+  return overrides;
+}
 function inspectInsertSelect(state, views, insert, file, statementIndex, findings, statement, metrics) {
   if (!insert.columns.length || !/^SELECT\b/iu.test(insert.rest)) return;
   const duplicateIndex = insert.rest.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/iu);
@@ -382,14 +415,15 @@ function inspectInsertSelect(state, views, insert, file, statementIndex, finding
   if (!match) return;
   const expressions = splitTopLevel(match[1]);
   const sources = parseViewSources(`FROM ${match[2]}`);
+  const constrainedDomains = constrainedSourceDomains(selectSource, sources);
   for (const [index, column] of insert.columns.entries()) {
     const targetDomain = state.get(`${insert.table}.${column}`);
     if (!targetDomain || !targetDomain.bounded || expressions[index] === undefined) continue;
-    const sourceDomain = sourceExpressionDomain(state, views, expressions[index], sources);
+    const sourceDomain = sourceExpressionDomain(state, views, expressions[index], sources, [], constrainedDomains);
     if (!sourceDomain) continue;
     metrics.insert_select_source_domain_checks += 1;
     const sourceMax = sourceDomain.bounded ? Number(sourceDomain.max_length) : null;
-    if (sourceDomain.bounded && (!sourceDomain.known_exact || sourceMax <= targetDomain.max_length)) continue;
+    if (sourceDomain.bounded && sourceMax <= targetDomain.max_length) continue;
     metrics.insert_select_source_domain_overflows += 1;
     findings.push({
       code: "text_width_source_domain_overflow",

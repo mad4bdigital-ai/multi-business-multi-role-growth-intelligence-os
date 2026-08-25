@@ -125,4 +125,19 @@ function fixture(sql, registry) {
   assert(result.findings.some((row) => row.type === "governed_family_rule_missing_boundary"));
 }
 
+{
+  const objectName = "growth_control_width_bridge";
+  const registry = {
+    rules: [exactRule(objectName)],
+    explicit_only_namespaces: [],
+  };
+  const root = fixture([
+    `CREATE TABLE ${objectName} (id BIGINT PRIMARY KEY);`,
+    `ALTER TABLE IF EXISTS \`${objectName}\` MODIFY COLUMN id BIGINT NOT NULL;`,
+  ].join("\n"), registry);
+  const result = validateRegistryContract({ root });
+  assert.equal(result.ok, true);
+  assert.equal(result.discovered_schema_objects, 1);
+}
+
 console.log("work map schema classification contract tests passed");
