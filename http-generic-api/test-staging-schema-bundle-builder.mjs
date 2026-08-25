@@ -410,6 +410,54 @@ test("binding identifier width is widened before every descriptive binding write
   assert.match(compatibilitySql, /ALTER TABLE `credential_bindings`[\s\S]*MODIFY COLUMN `binding_id` VARCHAR\(128\) NOT NULL/i);
 });
 
+test("platform plugin binding status domain is pre-created before migration 314", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  const bridge = "313_sprint69_zzzz_platform_plugin_bindings_binding_status_width_alignment.sql";
+  const writer = "314_sprint69_capability_assurance_graph.sql";
+  assert.notEqual(orderedMigrations.indexOf(bridge), -1, "binding_status bridge must exist");
+  assert.notEqual(orderedMigrations.indexOf(writer), -1, "migration 314 must exist");
+  assert.ok(orderedMigrations.indexOf(bridge) < orderedMigrations.indexOf(writer), "binding_status bridge must precede migration 314");
+  const bridgeSql = fs.readFileSync(path.join(migrationsDir, bridge), "utf8");
+  assert.match(bridgeSql, /CREATE TABLE IF NOT EXISTS `platform_plugin_bindings`/i);
+  assert.match(bridgeSql, /`binding_status` VARCHAR\(256\) NOT NULL/i);
+  assert.match(bridgeSql, /KEY `idx_ppb_capability_status` \(`capability_key`, `binding_status`\)/i);
+  const ddl = bridgeSql.replace(/--[^\n]*(?:\n|$)/g, "");
+  assert.doesNotMatch(ddl, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE)\b/im);
+});
+
+test("repo certification type enum alignment precedes migration 199 writer", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  const bridge = "198_sprint67_zzzz_repo_certification_runs_certification_type_enum_alignment.sql";
+  const writer = "199_sprint67_skillpack_draft_catalog_and_advisory_routes.sql";
+  assert.notEqual(orderedMigrations.indexOf(bridge), -1, "repo certification type enum bridge must exist");
+  assert.notEqual(orderedMigrations.indexOf(writer), -1, "migration 199 writer must exist");
+  assert.ok(orderedMigrations.indexOf(bridge) < orderedMigrations.indexOf(writer), "repo certification type enum bridge must precede migration 199 writer");
+  const bridgeSql = fs.readFileSync(path.join(migrationsDir, bridge), "utf8");
+  assert.match(bridgeSql, /ALTER TABLE repo_certification_runs/i);
+  assert.match(bridgeSql, /MODIFY COLUMN certification_type ENUM\([\s\S]*path_scope/i);
+  assert.match(bridgeSql, /CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci/i);
+  const ddl = bridgeSql.replace(/--[^\n]*(?:\n|$)/g, "");
+  assert.doesNotMatch(ddl, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE)\b/im);
+});
+
+test("workspace grant source enum alignment precedes migration 316 writer", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  const bridge = "316_sprint69_aaaa_workspace_resource_grants_source_enum_alignment.sql";
+  const writer = "316_sprint69_safe_branch_cleanup_support.sql";
+  assert.notEqual(orderedMigrations.indexOf(bridge), -1, "workspace grant source enum bridge must exist");
+  assert.notEqual(orderedMigrations.indexOf(writer), -1, "migration 316 writer must exist");
+  assert.ok(orderedMigrations.indexOf(bridge) < orderedMigrations.indexOf(writer), "workspace grant source enum bridge must precede migration 316 writer");
+  const bridgeSql = fs.readFileSync(path.join(migrationsDir, bridge), "utf8");
+  assert.match(bridgeSql, /ALTER TABLE workspace_resource_grants/i);
+  assert.match(bridgeSql, /MODIFY COLUMN source ENUM\([\s\S]*workspace_registry_membership_backfill/i);
+  assert.match(bridgeSql, /CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci/i);
+  const ddl = bridgeSql.replace(/--[^\n]*(?:\n|$)/g, "");
+  assert.doesNotMatch(ddl, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE)\b/im);
+});
+
 test("baseline validation_repair schema covers the pre-use migration 040 contract", () => {
   const quote = String.fromCharCode(96);
   for (const column of manifest.validation.required_validation_repair_baseline_columns) {
@@ -779,16 +827,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 810);
-  assert.equal(plan.statement_count, 3097);
+  assert.equal(plan.migration_count, 813);
+  assert.equal(plan.statement_count, 3100);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 811);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 810);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3124);
+  assert.equal(plan.ordered_collation_chain.files_checked, 814);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 813);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3127);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -797,11 +845,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 811);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 810);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3124);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 814);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 813);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3127);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
-  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 887);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 889);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
@@ -813,9 +861,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 811);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 810);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3124);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 814);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 813);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3127);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5200);
   assert.equal(plan.ordered_text_width_chain.definitions_applied, 6032);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);

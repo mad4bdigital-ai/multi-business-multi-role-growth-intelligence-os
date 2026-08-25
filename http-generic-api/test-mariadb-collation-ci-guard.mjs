@@ -173,6 +173,36 @@ assert.equal(enumGood.data_export_performed, false);
 assert.equal(enumGood.runtime_mutation_performed, false);
 assert.equal(enumGood.secrets_included, false);
 
+const workspaceGrantEnumFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE workspace_resource_grants (grant_id VARCHAR(36) PRIMARY KEY, source ENUM('membership_default','invitation_accept','access_request_approval','owner_assignment','admin_repair','system_sync') NOT NULL DEFAULT 'owner_assignment');",
+  "http-generic-api/migrations/001_writer.sql": "INSERT INTO workspace_resource_grants (grant_id, source) SELECT UUID(), 'workspace_registry_membership_backfill' FROM memberships;",
+  "http-generic-api/migrations/000_alignment.sql": "ALTER TABLE workspace_resource_grants MODIFY COLUMN source ENUM('membership_default','invitation_accept','access_request_approval','owner_assignment','admin_repair','system_sync','workspace_registry_membership_backfill') NOT NULL DEFAULT 'owner_assignment';",
+};
+const readWorkspaceGrantEnumFixture = (file) => workspaceGrantEnumFiles[file];
+const workspaceGrantEnumBad = inspectOrderedMigrationChainEnumSeeds({
+  files: ["http-generic-api/migrations/001_writer.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: enumPolicy,
+  readFile: readWorkspaceGrantEnumFixture,
+});
+assert.equal(workspaceGrantEnumBad.ok, false, JSON.stringify(workspaceGrantEnumBad));
+assert.equal(workspaceGrantEnumBad.findings.length, 1);
+assert.equal(workspaceGrantEnumBad.findings[0].code, "enum_seed_value_not_declared");
+assert.equal(workspaceGrantEnumBad.findings[0].table, "workspace_resource_grants");
+assert.equal(workspaceGrantEnumBad.findings[0].column, "source");
+assert.equal(workspaceGrantEnumBad.findings[0].value, "workspace_registry_membership_backfill");
+const workspaceGrantEnumGood = inspectOrderedMigrationChainEnumSeeds({
+  files: Object.keys(workspaceGrantEnumFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: enumPolicy,
+  readFile: readWorkspaceGrantEnumFixture,
+});
+assert.equal(workspaceGrantEnumGood.ok, true, JSON.stringify(workspaceGrantEnumGood));
+assert.equal(workspaceGrantEnumGood.findings.length, 0);
+assert.equal(workspaceGrantEnumGood.database_connection_performed, false);
+assert.equal(workspaceGrantEnumGood.sql_mutation_performed, false);
+assert.equal(workspaceGrantEnumGood.secrets_included, false);
+
 const textWidthPolicy = {
   text_width_chain_contract: {
     enabled: true,
@@ -264,6 +294,26 @@ assert.equal(boundedInsertSelect.findings[0].table, "canonical_registry");
 assert.equal(boundedInsertSelect.findings[0].column, "runtime_status");
 assert.equal(boundedInsertSelect.findings[0].source_domain.bounded, true);
 assert.equal(boundedInsertSelect.findings[0].source_domain.max_length, 256);
+
+const platformBindingsUnionFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE app_integration_tool_bindings (binding_key VARCHAR(64) PRIMARY KEY, status VARCHAR(64) NOT NULL); CREATE TABLE platform_engine_policy_registry (binding_key VARCHAR(64) PRIMARY KEY, status VARCHAR(64) NOT NULL); CREATE TABLE runtime_dispatch_certification_registry (binding_key VARCHAR(64) PRIMARY KEY, certification_status VARCHAR(256) NOT NULL); CREATE TABLE platform_plugin_bindings (binding_key VARCHAR(64) PRIMARY KEY, binding_status VARCHAR(64) NOT NULL);",
+  "http-generic-api/migrations/001_view.sql": "CREATE OR REPLACE VIEW v_platform_bindings_current AS SELECT b.binding_key AS binding_key, b.status AS binding_status FROM app_integration_tool_bindings b UNION ALL SELECT p.binding_key AS binding_key, p.status AS binding_status FROM platform_engine_policy_registry p UNION ALL SELECT r.binding_key AS binding_key, r.certification_status AS binding_status FROM runtime_dispatch_certification_registry r;",
+  "http-generic-api/migrations/002_select.sql": "INSERT INTO platform_plugin_bindings (binding_key, binding_status) SELECT b.binding_key, b.binding_status FROM v_platform_bindings_current b;",
+};
+const platformBindingsUnion = inspectOrderedMigrationChainTextWidths({
+  files: Object.keys(platformBindingsUnionFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: (file) => platformBindingsUnionFiles[file],
+});
+assert.equal(platformBindingsUnion.ok, false, JSON.stringify(platformBindingsUnion));
+assert.equal(platformBindingsUnion.insert_select_source_domain_checks, 2);
+assert.equal(platformBindingsUnion.insert_select_source_domain_overflows, 1);
+assert.equal(platformBindingsUnion.findings.length, 1);
+assert.equal(platformBindingsUnion.findings[0].code, "text_width_source_domain_overflow");
+assert.equal(platformBindingsUnion.findings[0].table, "platform_plugin_bindings");
+assert.equal(platformBindingsUnion.findings[0].column, "binding_status");
+assert.equal(platformBindingsUnion.findings[0].source_domain.max_length, 256);
 
 const alternativeSourceFiles = {
   "http-generic-api/schema.sql": "CREATE TABLE source_registry (source_key VARCHAR(64) PRIMARY KEY, device_runtime_url VARCHAR(512) NULL, tunnel_url VARCHAR(512) NULL); CREATE TABLE canonical_registry (source_key VARCHAR(64) PRIMARY KEY, endpoint_url VARCHAR(512) NULL);",
