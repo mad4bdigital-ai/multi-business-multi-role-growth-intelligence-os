@@ -621,6 +621,8 @@ function orderedPreuseAudit(bootstrapEntries = []) {
     insert_arity_checks: Number(audit.insert_arity_checks || 0),
     insert_arity_mismatches: Number(audit.insert_arity_mismatches || 0),
     insert_arity_findings: audit.insert_arity_findings || [],
+    update_target_column_checks: Number(audit.update_target_column_checks || 0),
+    update_target_column_missing_columns: Number(audit.update_target_column_missing_columns || 0),
     gaps: audit.gaps || [],
   };
 }
