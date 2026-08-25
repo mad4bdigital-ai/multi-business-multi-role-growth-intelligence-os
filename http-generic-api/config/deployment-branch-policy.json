@@ -76,6 +76,13 @@
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "edge/activation-gateway/generated/route-policy.staging.json"
     ],
+    "derived_outputs": {
+      "registry": ".github/derived-state-governance.json",
+      "contract": "mad4b.repository-derived-state-governance.v1",
+      "mode": "registered_outputs_are_not_independent_environment_sources",
+      "source_path_classification_remains_authoritative": true,
+      "unregistered_outputs_fail_closed": true
+    },
     "impact_declarations": {
       "patterns": [
         ".changes/e2e/*.json"

@@ -80,11 +80,23 @@ function classifyPath(filePath, pathClasses = []) {
   return matches;
 }
 
-function classifyChange(change, pathClasses = []) {
+function matchDerivedOutputs(filePath, derivedOutputs = []) {
+  const normalized = String(filePath || "").replaceAll("\\", "/");
+  return derivedOutputs.filter((entry) => globToRegExp(entry.pattern).test(normalized));
+}
+
+function classifyChange(change, pathClasses = [], derivedOutputs = []) {
   const current = classifyPath(change?.path, pathClasses);
   const previous = change?.previous_path ? classifyPath(change.previous_path, pathClasses) : [];
+  const currentDerived = matchDerivedOutputs(change?.path, derivedOutputs);
+  const previousDerived = change?.previous_path ? matchDerivedOutputs(change.previous_path, derivedOutputs) : [];
   const byId = new Map([...current, ...previous].map((entry) => [entry.id, entry]));
   const classes = [...byId.values()];
+  const environmentSourceById = new Map([
+    ...(currentDerived.length > 0 ? [] : current),
+    ...(previousDerived.length > 0 ? [] : previous),
+  ].map((entry) => [entry.id, entry]));
+  const environmentSourceClasses = [...environmentSourceById.values()];
   return {
     ...change,
     classes: stable(classes.map((entry) => entry.id)),
@@ -92,6 +104,13 @@ function classifyChange(change, pathClasses = []) {
     previous_path_classes: stable(previous.map((entry) => entry.id)),
     environments: stable(classes.flatMap((entry) => entry.environments || [])),
     requires_live_certification: classes.some((entry) => entry.requires_live_certification === true),
+    registered_derived_output: currentDerived.length > 0 || previousDerived.length > 0,
+    current_derived_artifact_ids: stable(currentDerived.map((entry) => entry.artifact_id)),
+    previous_derived_artifact_ids: stable(previousDerived.map((entry) => entry.artifact_id)),
+    derived_artifact_ids: stable([...currentDerived, ...previousDerived].map((entry) => entry.artifact_id)),
+    environment_source_classes: stable(environmentSourceClasses.map((entry) => entry.id)),
+    environment_source_environments: stable(environmentSourceClasses.flatMap((entry) => entry.environments || [])),
+    environment_source_requires_live_certification: environmentSourceClasses.some((entry) => entry.requires_live_certification === true),
   };
 }
 
@@ -196,6 +215,30 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
   expect(policy.fail_closed?.copy_previous_path === true, "environment_impact_copy_fail_closed_missing");
   expect((policy.impact_declarations?.patterns || []).length > 0, "environment_impact_declaration_patterns_missing");
 
+  const derivedOutputPolicy = policy.derived_outputs || {};
+  const derivedOutputRegistryPath = String(derivedOutputPolicy.registry || "").trim();
+  expect(Boolean(derivedOutputRegistryPath), "derived_output_registry_missing");
+  expect(derivedOutputPolicy.mode === "registered_outputs_are_not_independent_environment_sources", "derived_output_environment_source_mode_invalid");
+  expect(derivedOutputPolicy.source_path_classification_remains_authoritative === true, "derived_output_source_authority_not_preserved");
+  expect(derivedOutputPolicy.unregistered_outputs_fail_closed === true, "derived_output_unregistered_fail_closed_missing");
+  let derivedState = null;
+  if (derivedOutputRegistryPath) {
+    try { derivedState = readJson(derivedOutputRegistryPath); }
+    catch (error) {
+      addIssue("derived_output_registry_unreadable", { path: derivedOutputRegistryPath, error_code: String(error?.code || error?.name || "unreadable").slice(0, 128) });
+    }
+  }
+  expect(derivedState?.contract === derivedOutputPolicy.contract, "derived_output_registry_contract_mismatch", {
+    path: derivedOutputRegistryPath || null,
+    expected: derivedOutputPolicy.contract || null,
+    observed: derivedState?.contract || null,
+  });
+  const derivedOutputs = (derivedState?.artifacts || []).flatMap((artifact) =>
+    (artifact.outputs || []).map((pattern) => ({ artifact_id: artifact.artifact_id, pattern })),
+  );
+  expect(derivedOutputs.length > 0, "derived_output_registry_has_no_outputs");
+  expect(derivedOutputs.every((entry) => Boolean(entry.artifact_id) && Boolean(entry.pattern)), "derived_output_registry_contains_invalid_output");
+
   const domain = readJson(sourcePaths.domain_family_policy);
   const environment = readJson(sourcePaths.runtime_environment_invariant);
   const dbAuthority = readJson(sourcePaths.runtime_db_write_authority);
@@ -285,7 +328,7 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
 
   const pathChanges = changedPaths(baseSha, headSha);
   const pathClasses = policy.path_classes || [];
-  const classifiedChanges = pathChanges.map((change) => classifyChange(change, pathClasses));
+  const classifiedChanges = pathChanges.map((change) => classifyChange(change, pathClasses, derivedOutputs));
   const currentUnclassified = classifiedChanges.filter((change) => change.path_classes.length === 0);
   const renamePreviousUnclassified = classifiedChanges.filter((change) => change.status.startsWith("R") && change.previous_path_classes.length === 0);
   const copyPreviousUnclassified = classifiedChanges.filter((change) => change.status.startsWith("C") && change.previous_path_classes.length === 0);
@@ -299,12 +342,12 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
     expect(copyPreviousUnclassified.length === 0, "environment_impact_copy_previous_path_unclassified", copyPreviousUnclassified.map((change) => change.previous_path));
   }
 
-  const stagingOnly = classifiedChanges.filter((change) => change.classes.includes("staging_only"));
-  const productionOnly = classifiedChanges.filter((change) => change.classes.includes("production_only"));
-  const shared = classifiedChanges.filter((change) => change.classes.includes("shared_runtime"));
-  const environmentChanges = classifiedChanges.filter((change) => change.environments.some((environmentKey) => ["staging", "production"].includes(environmentKey)));
-  const requiredTargets = stable(environmentChanges.flatMap((change) => change.environments).filter((environmentKey) => ["staging", "production"].includes(environmentKey)));
-  const liveStagingRequired = environmentChanges.some((change) => change.requires_live_certification && change.environments.includes("staging"));
+  const stagingOnly = classifiedChanges.filter((change) => change.environment_source_classes.includes("staging_only"));
+  const productionOnly = classifiedChanges.filter((change) => change.environment_source_classes.includes("production_only"));
+  const shared = classifiedChanges.filter((change) => change.environment_source_classes.includes("shared_runtime"));
+  const environmentChanges = classifiedChanges.filter((change) => change.environment_source_environments.some((environmentKey) => ["staging", "production"].includes(environmentKey)));
+  const requiredTargets = stable(environmentChanges.flatMap((change) => change.environment_source_environments).filter((environmentKey) => ["staging", "production"].includes(environmentKey)));
+  const liveStagingRequired = environmentChanges.some((change) => change.environment_source_requires_live_certification && change.environment_source_environments.includes("staging"));
 
   const declarationPaths = findImpactDeclarationPaths(policy, pathChanges, impactDeclarationPath);
   const declarations = readImpactDeclarations(declarationPaths);
@@ -356,6 +399,13 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
     source_of_truth: sourcePaths,
     source_fingerprints: sourceFingerprints,
     impact_declaration_fingerprints: declarationFingerprints,
+    derived_output_registry: {
+      path: derivedOutputRegistryPath || null,
+      contract: derivedState?.contract || null,
+      sha256: derivedOutputRegistryPath && derivedState ? sha256(readText(derivedOutputRegistryPath)) : null,
+      mode: derivedOutputPolicy.mode || null,
+      output_pattern_count: derivedOutputs.length,
+    },
     environment_authority: {
       staging: { branch: deployment.staging?.source_branch || null, hosts: stagingHosts, credential_namespace: stagingDomain.credential_namespace || null },
       production: { branch: deployment.production?.source_branch || null, hosts: productionHosts, credential_namespace: productionDomain.credential_namespace || null },
@@ -379,6 +429,9 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
       staging_only: stagingOnly.map((change) => change.path),
       production_only: productionOnly.map((change) => change.path),
       shared_runtime: shared.map((change) => change.path),
+      registered_derived_outputs: classifiedChanges
+        .filter((change) => change.registered_derived_output)
+        .map((change) => ({ path: change.path, artifact_ids: change.derived_artifact_ids })),
       unclassified: currentUnclassified.map((change) => change.path),
       rename_previous_unclassified: renamePreviousUnclassified.map((change) => change.previous_path),
       copy_previous_unclassified: copyPreviousUnclassified.map((change) => change.previous_path),
@@ -408,7 +461,7 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
   };
 }
 
-export { buildReport, classifyChange, classifyPath, globToRegExp, parseNameStatusLine };
+export { buildReport, classifyChange, classifyPath, globToRegExp, matchDerivedOutputs, parseNameStatusLine };
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("environment-impact-closure.mjs")) {
   const baseSha = String(arg("base-sha", process.env.BASE_SHA || "")).trim().toLowerCase() || null;
