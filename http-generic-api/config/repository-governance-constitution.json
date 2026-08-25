@@ -386,6 +386,7 @@
     ".changes/e2e/pr7434-environment-impact-closure.json",
     ".changes/e2e/pr7661-staging-local-binding-status-width-repair.json",
     ".changes/e2e/pr316-staging-local-enum-domain-repair.json",
+    ".changes/e2e/pr1051-staging-local-generated-column-and-policy-governance-expansion.json",
     ".changes/e2e/main-policy-live-source-parity-pin-20260820.json",
     ".changes/e2e/runtime-admin-api-key-header-20260820.json",
     ".changes/e2e/readiness-transport-diagnostics-20260820.json",
