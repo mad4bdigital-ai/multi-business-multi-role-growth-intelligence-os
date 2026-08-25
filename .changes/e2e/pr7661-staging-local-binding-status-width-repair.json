@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7661-staging-local-binding-status-width-repair",
+  "title": "PR7661 staging-local platform plugin binding status width repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7661-staging-local-binding-status-width-repair.json",
+      "http-generic-api/migrations/313_sprint69_zzzz_platform_plugin_bindings_binding_status_width_alignment.sql",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair the immutable migration 314 staging-local MariaDB text-width dependency by pre-creating platform_plugin_bindings with the widest historical binding_status source domain, while preserving production and provider mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "pr7661-binding-status-width-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head against the ordered migration, text-width, environment, and governance contracts.",
+          "terminal_outcome": "The immutable migration 314 target is pre-created with binding_status VARCHAR(256), the UNION source-domain guard blocks an unaligned 256-to-64 projection, and no local Staging replay proceeds until a fresh exact-main preflight and approved replay.",
+          "steps": [
+            "Classify the exact base-to-head changes against the canonical environment path classes.",
+            "Verify the v_platform_bindings_current UNION resolves the widest binding_status source domain before migration 314.",
+            "Verify the additive bridge preserves the target key/index/collation contract and contains no data DML.",
+            "Verify the ordered static guards report zero source-domain overflows and zero database/provider/credential/runtime mutations.",
+            "Bind all evidence to the exact evaluated HEAD SHA before any future Windows-local replay is considered."
+          ],
+          "assertions": [
+            "The environment impact declaration source of truth is the canonical deployment branch policy.",
+            "Both staging and production are explicitly declared and cross-environment review is true.",
+            "Live staging certification remains required and is not silently waived.",
+            "production_mutation_allowed is false.",
+            "No migration DML, database mutation, provider mutation, credential payload read, deployment, AutoPilot, importer, or readback is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr7661-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            },
+            {
+              "id": "pr7661-ordered-migration-contracts",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": ["--expected-commit", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr7661-staging-local-binding-status-width-repair.json",
+            "http-generic-api/migrations/313_sprint69_zzzz_platform_plugin_bindings_binding_status_width_alignment.sql",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "binding-status-width-static-guard",
+          "runner": "node",
+          "path": "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+          "args": []
+        },
+        {
+          "id": "binding-status-width-builder-order",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-schema-bundle-builder.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
