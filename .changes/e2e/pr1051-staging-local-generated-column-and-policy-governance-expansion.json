@@ -110,19 +110,22 @@
             {
               "id": "pr7657-repository-policy-live-activation-contract",
               "runner": "node",
-              "path": "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
               "args": []
             },
             {
               "id": "pr7657-generated-refresh-apply-context",
               "runner": "node",
-              "path": "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-apply-context.mjs",
               "args": []
             },
             {
               "id": "pr7657-repository-maintenance-sync",
               "runner": "node",
-              "path": "http-generic-api/test-repo-maintenance-sync.mjs",
+              "working_directory": "http-generic-api",
+              "path": "test-repo-maintenance-sync.mjs",
               "args": []
             }
           ],
