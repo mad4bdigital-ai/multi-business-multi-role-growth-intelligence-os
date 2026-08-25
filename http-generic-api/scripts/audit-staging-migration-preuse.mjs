@@ -24,6 +24,7 @@ const tables = new Map();
 const viewNames = new Set();
 let viewColumnReferencesChecked = 0;
 let insertArityChecks = 0;
+let updateTargetColumnChecks = 0;
 const events = [];
 const ignoredFalsePositives = [];
 const normalize = (value) => String(value ?? "").replace(/^[`\"']|[`\"']$/g, "").trim().toLowerCase();
@@ -472,14 +473,35 @@ const parseInsert = (sql, file, line) => {
 };
 const parseUpdate = (sql, file, line) => {
   const clean = stripStringLiterals(stripComments(sql));
-  const match = clean.match(/UPDATE\s+(?:LOW_PRIORITY\s+|IGNORE\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))(?:\s+(?:AS\s+)?([A-Za-z0-9_$]+))?\s+SET\s+([\s\S]*?)(?=\s+WHERE\s|\s+ORDER\s+BY\s|\s+LIMIT\s|$)/i);
+  const match = clean.match(/^\s*UPDATE\s+(?:LOW_PRIORITY\s+|IGNORE\s+)?(?<targetTable>`[^`]+`|[A-Za-z0-9_$]+)(?<targetTail>[\s\S]*?)\s+SET\s+(?<assignmentText>[\s\S]*?)(?=\s+WHERE\s|\s+ORDER\s+BY\s|\s+LIMIT\s|$)/i);
   if (!match) return false;
-  const table = match[1] ?? match[2];
-  const targetAlias = match[3] ?? table;
-  const assignments = [...match[4].matchAll(/(?:^|,)\s*(?:(?:`[^`]+`|[A-Za-z0-9_$]+)\.)?(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_]*))\s*=/g)].map((m) => m[1] ?? m[2]);
-  recordTableColumns({ table, columns: assignments, file, line, statement: sql, detail: "UPDATE SET target columns" });
-  const qualified = [...clean.matchAll(new RegExp(`${targetAlias.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*\\.\\s*` + "([^`]+)" + "`|" + `${targetAlias.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*\\.\\s*([A-Za-z_][A-Za-z0-9_]*)`, "ig"))].map((m) => m[1] ?? m[2]);
-  recordTableColumns({ table, columns: qualified, file, line, statement: sql, detail: "qualified UPDATE target references" });
+  const table = match.groups.targetTable;
+  const targetSources = new Map([[tableName(table), table]]);
+  const addSource = (sourceTable, alias) => {
+    if (!sourceTable) return;
+    targetSources.set(tableName(sourceTable), sourceTable);
+    const normalizedAlias = normalize(alias);
+    if (normalizedAlias && !sqlKeywords.has(normalizedAlias)) targetSources.set(normalizedAlias, sourceTable);
+  };
+  const firstAlias = match.groups.targetTail.match(/^\s+(?:AS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+))/i);
+  addSource(table, firstAlias ? (firstAlias[1] ?? firstAlias[2]) : null);
+  for (const source of match.groups.targetTail.matchAll(/\b(?:JOIN|,)\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))(?:\s+(?:AS\s+)?(?:`([^`]+)`|([A-Za-z0-9_$]+)))?/ig)) {
+    addSource(source[1] ?? source[2], source[3] ?? source[4]);
+  }
+  const assignments = splitTopLevel(match.groups.assignmentText)
+    .map((part) => part.match(/^\s*(?:(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*\.\s*)?(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))\s*=/i))
+    .filter(Boolean);
+  for (const assignment of assignments) {
+    const qualifier = assignment[1] ?? assignment[2];
+    const column = assignment[3] ?? assignment[4];
+    updateTargetColumnChecks += 1;
+    const targetTable = qualifier ? targetSources.get(normalize(qualifier)) : table;
+    if (!targetTable) {
+      record({ kind: "missing_table", table: qualifier, file, line, statement: sql, detail: "UPDATE target qualifier is absent before assignment" });
+      continue;
+    }
+    recordTableColumns({ table: targetTable, columns: [column], file, line, statement: sql, detail: "UPDATE SET target columns" });
+  }
   return true;
 };
 const parseDelete = (sql, file, line) => {
@@ -587,6 +609,8 @@ const out = {
   insert_arity_checks: insertArityChecks,
   insert_arity_mismatches: insertArityFindings.length,
   insert_arity_findings: insertArityFindings,
+  update_target_column_checks: updateTargetColumnChecks,
+  update_target_column_missing_columns: events.filter((event) => event.detail === "UPDATE SET target columns" && event.kind === "missing_column").length,
   sample_false_positives: ignoredFalsePositives.slice(0, 20),
   final_tables: [...tables.entries()].map(([table, columns]) => ({ table, column_count: columns.size }))
 };
