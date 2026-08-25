@@ -1,3 +1,8 @@
+// frontend-surface-operation: post /admin/recovery/kernel/call
+// frontend-surface-operation: post /admin/recovery/kernel/execute
+// frontend-surface-operation: get /admin/recovery/kernel/runs/{run_id}
+// frontend-surface-operation: get /admin/recovery/kernel/evidence/{run_id}
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";

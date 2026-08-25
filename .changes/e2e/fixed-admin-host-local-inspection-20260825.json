@@ -18,6 +18,10 @@
       "http-generic-api/scripts/split-openapi.mjs",
       "http-generic-api/scripts/ci-path-format-guard.mjs",
       "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/frontend-operation-governance-tests.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
       "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
       "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
@@ -37,6 +41,7 @@
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
       "docs/governance/configuration-drift-policy.json",
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -48,6 +53,7 @@
       "http-generic-api/test-openapi-split-governance.mjs",
       "http-generic-api/test-staging-independent-schema-contract.mjs",
       "http-generic-api/test-custom-gpt-schemas.mjs",
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs",
       ".github/governance/test-authority-registry.json",
       ".github/derived-state-governance.json"
     ]

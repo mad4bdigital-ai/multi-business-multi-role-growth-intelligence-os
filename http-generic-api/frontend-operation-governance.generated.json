@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "cd7af394652be8b1851d3f176c26691d4141e188caf591cd5148b6d2105b4385",
+    "source_digest": "b3b12a5a3055b0fddc10baf441c83f8a53dc51c0320422b75ee948cb92853b7d",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "372ca5c067df67ee540da6ace98845a9b7b30a096411c562f270aaae196c2d41",
+      "sha256": "53cf5e9eff38d9c56b7553527cb15393fc199b748ccfceeedf32de3332ebd134",
       "present": true
     },
     {
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "bb5996f76121cc08a1510535b8ad10fef4dfbe9f1ad989f30f4a3f465a18147a",
+      "sha256": "02374a0c270807a3b818aa84c47c5f0c05ce2510d2a442e611f69ef8f23fd8ec",
       "present": true
     },
     {
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "887b8f61680ed5dc74bd09944323f55a46cd44a1ab81253103c092180b050915",
+        "source_digest": "f910e04cbbadcca279f3cd7c527df4f380b4ad52e2a262bbab9501995a2642ac",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "887b8f61680ed5dc74bd09944323f55a46cd44a1ab81253103c092180b050915",
+        "source_digest": "f910e04cbbadcca279f3cd7c527df4f380b4ad52e2a262bbab9501995a2642ac",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "887b8f61680ed5dc74bd09944323f55a46cd44a1ab81253103c092180b050915",
+        "source_digest": "f910e04cbbadcca279f3cd7c527df4f380b4ad52e2a262bbab9501995a2642ac",
         "fail_closed": true
       }
     },

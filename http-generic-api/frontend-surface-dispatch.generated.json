@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": null,
-    "source_digest": "ca7d1f059870d7142aa8764326bc9d6d3f83fd8bf5e43776a2ce7601a568f1f0",
+    "source_digest": "bccd8bad058ab31b70dc3ee4e16013cf1871e7b95ea7b2948b29d3b1461c3c92",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "ab01ce9c015602cb0e78870df6bbaee240d911fdd612d8e8aadd405812c14ef3",
+        "sha256": "dc8cd04c08d5b895f6aace36ddc1ee3987e53502662cdfa1542e6bafca0065fe",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "c6c8815251729c06a3ee2c5d5c41aa205ae4aa97f1298c6991e0ec73c98dc46d",
+        "sha256": "93cf9ce5becc7e9db6e11e0ccbec6ad531ce2f2b5bee1afc18d1a4a53ab9ff4d",
         "present": true
       },
       {
@@ -1076,7 +1076,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "bb5996f76121cc08a1510535b8ad10fef4dfbe9f1ad989f30f4a3f465a18147a",
+        "sha256": "02374a0c270807a3b818aa84c47c5f0c05ce2510d2a442e611f69ef8f23fd8ec",
         "present": true
       },
       {
@@ -1101,7 +1101,12 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "72399bfa4714d726db61a4787a1e6ff551c7a9094971ae6d26c12c5b0f27f1ed",
+        "sha256": "c60dc7937ea844253d194c9a3aa76cbd2adf9729937eb3762f210ad6451bde14",
+        "present": true
+      },
+      {
+        "file": "test-recovery-kernel.mjs",
+        "sha256": "fc58020b6927d2a4df53ce10e0c00a825bfcf211d6547575786f541b95b8da9e",
         "present": true
       },
       {
@@ -1164,18 +1169,18 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 640,
-    "unresolved_operation_class_count": 2,
-    "classified_mutation_count": 15,
-    "governed_mutation_operation_count": 15,
+    "unresolved_operation_class_count": 0,
+    "classified_mutation_count": 16,
+    "governed_mutation_operation_count": 16,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 1,
-    "test_owned_family_count": 171,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1053,
-    "untested_operation_count": 4,
-    "ready_task_count": 171,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "test_owned_family_count": 172,
+    "untested_family_count": 0,
+    "test_owned_operation_count": 1057,
+    "untested_operation_count": 0,
+    "ready_task_count": 172,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -3168,17 +3173,29 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-recovery-kernel.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "preflight",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": {
+              "capability_key": "request.body.capability_key",
+              "input": "request.body.input"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-call-preflight",
+            "owner": "runtime-operations",
+            "rationale": "The Recovery Kernel call endpoint is a bounded discovery, inspection, finding, planning, preview, and approval-challenge preflight. It does not execute a mutation and rejects raw SQL, shell, credentials, arbitrary targets, and migration or grant selection.",
+            "evidence_refs": [
+              "recoveryKernel.js",
+              "routes/recoveryKernelRoutes.js",
+              "test-fixed-host-local-system-tool.mjs",
+              "test-recovery-kernel.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -3238,20 +3255,49 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-recovery-kernel.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "exact_plan_hash_target_fingerprint_and_step_preflight"
+              },
+              "approval": {
+                "mode": "durable_single_use_plan_step_approval"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "No execution authority is present by default; any future injected executor must supply its own bounded compensation contract before activation."
+              }
+            },
+            "parameter_bindings": {
+              "plan_hash": "request.body.plan_hash",
+              "step_id": "request.body.step_id",
+              "approval_id": "request.body.approval_id",
+              "idempotency_key": "request.body.idempotency_key",
+              "target_fingerprint": "request.body.target_fingerprint"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-plan-bound-execute",
+            "owner": "runtime-operations",
+            "rationale": "Consequential Recovery Kernel execution is accepted only as an exact plan-hash, target-fingerprint, step, approval, lock, idempotency, executor, and same-cycle readback contract. The repository default has no durable authorities and therefore fails closed before mutation.",
+            "evidence_refs": [
+              "recoveryKernel.js",
+              "routes/recoveryKernelRoutes.js",
+              "test-recovery-kernel.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "GET",
@@ -3308,7 +3354,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-recovery-kernel.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -3376,7 +3424,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-recovery-kernel.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -3397,13 +3447,10 @@
       "evidence_routes": [
         "GET /admin/recovery/kernel/evidence/{run_id}"
       ],
-      "tests": [],
-      "untested_operations": [
-        "POST /admin/recovery/kernel/call",
-        "POST /admin/recovery/kernel/execute",
-        "GET /admin/recovery/kernel/runs/{run_id}",
-        "GET /admin/recovery/kernel/evidence/{run_id}"
+      "tests": [
+        "test-recovery-kernel.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -3427,29 +3474,25 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/recoveryKernelRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-recovery-kernel.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "internal_only",
+        "rationale": "The Recovery Kernel is a private, Production-only administrative API and fixed system dispatcher. It is not a browser navigation surface, never accepts raw commands or credentials, and keeps consequential execution behind plan, approval, lock, idempotency, and readback gates.",
+        "owner": "runtime-operations",
+        "rule_id": "recovery-kernel-private-admin-surface",
+        "evidence_refs": [
+          "openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+          "recoveryKernel.js",
+          "routes/recoveryKernelRoutes.js",
+          "test-fixed-host-local-system-tool.mjs",
+          "test-recovery-kernel.mjs"
+        ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /admin/recovery/kernel/call",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/recovery/kernel/execute",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 11,
+        "score": 9,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -95209,6 +95252,57 @@
       ]
     },
     {
+      "task_key": "frontend.recovery-kernel",
+      "title": "Resolve and deliver recovery kernel",
+      "wave": "F3-admin-workspaces",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/recoveryKernelRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-recovery-kernel.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-recovery-kernel.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.registry-data-management.admin",
       "title": "Resolve and deliver registry data management (admin)",
       "wave": "F3-admin-workspaces",
@@ -97030,56 +97124,6 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.recovery-kernel",
-      "title": "Resolve and deliver recovery kernel",
-      "wave": "F3-admin-workspaces",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/recoveryKernelRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
