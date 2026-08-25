@@ -62,6 +62,7 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
     check_table_source_operations: true,
     check_view_source_columns: true,
     check_insert_column_value_arity: true,
+    check_update_target_columns: true,
     check_rename_and_drop_targets: true,
     fail_on_unresolved_gaps: true,
   });
@@ -304,6 +305,19 @@ test("expanded pre-use audit catches qualified view columns before CREATE VIEW",
   assert.ok(report.gaps.some((gap) => gap.table === "source_table" && gap.column === "missing_column" && gap.kind === "missing_column"));
 });
 
+test("expanded pre-use audit catches multi-table UPDATE target columns before disposable DB apply", () => {
+  const report = runPreuseAuditFixture({
+    baseline: "CREATE TABLE IF NOT EXISTS `endpoints` (`id` INT NOT NULL PRIMARY KEY, `present_column` VARCHAR(32) NULL) ENGINE=InnoDB;",
+    migrations: {
+      "001_missing_update_target.sql": "UPDATE `endpoints` legacy JOIN `endpoints` canonical ON canonical.id = legacy.id SET legacy.present_column = canonical.present_column, legacy.missing_column = canonical.id WHERE legacy.id = canonical.id;",
+    },
+  });
+  assert.equal(report.update_target_column_checks, 2);
+  assert.equal(report.update_target_column_missing_columns, 1);
+  assert.equal(report.counts.missing_column, 1);
+  assert.ok(report.gaps.some((gap) => gap.table === "endpoints" && gap.column === "missing_column" && gap.kind === "missing_column"));
+});
+
 test("expanded pre-use audit catches INSERT column/value arity before disposable DB apply", () => {
   const report = runPreuseAuditFixture({
     baseline: "CREATE TABLE IF NOT EXISTS `target_table` (`a` INT NULL, `b` INT NULL, `c` INT NULL) ENGINE=InnoDB;",
@@ -327,6 +341,27 @@ test("expanded pre-use audit accepts matching INSERT VALUES and INSERT SELECT ar
   });
   assert.equal(report.insert_arity_checks, 3);
   assert.equal(report.insert_arity_mismatches, 0);
+});
+
+test("WordPress schema overlay prerequisite precedes the historical 284 writer", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  const prerequisite = "283_sprint68_z_wordpress_schema_overlay_contract_alignment.sql";
+  const writer = "284_sprint68_wordpress_schema_import_completion_registry.sql";
+  assert.ok(orderedMigrations.indexOf(prerequisite) !== -1);
+  assert.ok(orderedMigrations.indexOf(writer) !== -1);
+  assert.ok(orderedMigrations.indexOf(prerequisite) < orderedMigrations.indexOf(writer));
+  const sql = fs.readFileSync(path.join(migrationsDir, prerequisite), "utf8");
+  for (const pattern of [
+    /ADD COLUMN IF NOT EXISTS `required_variable_contracts` TEXT NULL/i,
+    /ADD COLUMN IF NOT EXISTS `schema_overlay_mode` VARCHAR\(100\) NULL/i,
+    /ADD COLUMN IF NOT EXISTS `schema_overlay_parent_action_key` VARCHAR\(255\) NULL/i,
+    /ADD COLUMN IF NOT EXISTS `provider_agnostic` VARCHAR\(20\) NULL/i,
+    /ADD COLUMN IF NOT EXISTS `allowed_actor_roles` TEXT NULL/i,
+    /ADD COLUMN IF NOT EXISTS `allowed_governance_levels` TEXT NULL/i,
+  ]) assert.match(sql, pattern);
+  const ddl = sql.replace(/--[^\n]*(?:\n|$)/g, "");
+  assert.doesNotMatch(ddl, /(?:JSON|TOKEN|SECRET|CREDENTIAL|PASSWORD)/i);
 });
 
 test("memory scope shape alignments precede historical views and preserve the legacy migrations", () => {
@@ -691,16 +726,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 797);
-  assert.equal(plan.statement_count, 3070);
+  assert.equal(plan.migration_count, 798);
+  assert.equal(plan.statement_count, 3071);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 798);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 797);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3097);
+  assert.equal(plan.ordered_collation_chain.files_checked, 799);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 798);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3098);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -709,9 +744,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 798);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 797);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3097);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 799);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 798);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3098);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
   assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 876);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
@@ -725,11 +760,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 798);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 797);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3097);
-  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5199);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 5999);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 799);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 798);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3098);
+  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5202);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6005);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_text_width_chain.provider_mutation_performed, false);
@@ -749,6 +784,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.ok(plan.ordered_preuse_audit.view_column_references_checked > 0);
   assert.ok(plan.ordered_preuse_audit.insert_arity_checks > 0);
   assert.equal(plan.ordered_preuse_audit.insert_arity_mismatches, 0);
+  assert.ok(plan.ordered_preuse_audit.update_target_column_checks > 0);
+  assert.equal(plan.ordered_preuse_audit.update_target_column_missing_columns, 0);
   assert.equal(plan.canonical_table_bootstrap.unresolved_missing_table_gaps, 0);
 });
 
