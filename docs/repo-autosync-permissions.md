@@ -42,14 +42,17 @@ REPO_AUTOSYNC_TOKEN
 
 The token is required for automated merge. A merge performed with the workflow's default `GITHUB_TOKEN` does not start the normal `push` workflows, which can leave the new `main` head without its full post-merge CI cycle. Without this secret, synchronization may still open a review PR, but the workflow leaves it open for a human or governed external actor to merge.
 
-The token should have the minimum repository permissions needed to create branches, pull requests, and register the merge:
+The same scoped identity is also the governed generated-artifact writer and the recipe-specific exact-head verifier dispatcher. A fine-grained token used as `REPO_AUTOSYNC_TOKEN` therefore needs only these repository permissions:
 
-- contents: write
-- pull requests: write
+- **Actions: Read and write** — required to dispatch the registered read-only verification workflows after a governed generated-artifact refresh.
+- **Contents: Read and write** — required for bounded branch/ref operations and authorized generated-artifact commits.
+- **Pull requests: Read and write** — required for governed follow-up pull-request lifecycle operations.
+
+A token without **Actions: Read and write** can still authenticate repository checkout/contents operations but GitHub rejects the verifier `workflow_dispatch` endpoint with `403 Resource not accessible by personal access token`. The writer remains fail-closed and records the bounded GitHub HTTP status/request ID in its canonical verification-dispatch evidence; do not work around this by falling back to `github.token` or `GITHUB_TOKEN`.
 
 Prefer a fine-grained GitHub token or GitHub App installation token over a broad personal access token.
 
-Store `REPO_AUTOSYNC_TOKEN` as a **repository Actions secret**, not a Production environment secret. Repository-maintenance workflows operate on `main` without entering the Production deployment environment. Prefer a dedicated fine-grained service identity restricted to this repository; grant no administrator, ruleset-bypass, Production, provider, SSH, or database permissions.
+Store `REPO_AUTOSYNC_TOKEN` as a **repository Actions secret**, not a Production environment secret. Repository-maintenance workflows operate on `main` without entering the Production deployment environment. Prefer a dedicated fine-grained service identity restricted to this repository; grant no administrator, ruleset-bypass, environment-management, secret-management, Production, provider, SSH, or database permissions.
 
 The trusted identity must create both the follow-up branch and pull request. Reusing the default `GITHUB_TOKEN` can otherwise create a `github-actions[bot]` PR whose validation runs end as `action_required` with zero jobs. That status is an authorization/approval problem, not a failed test, and it prevents required checks from ever becoming green. Do not weaken repository-wide approval rules to work around it.
 
@@ -93,10 +96,9 @@ node scripts/repo-maintenance-sync.mjs --write --write-split-schemas
 
 ## Verification
 
-After enabling PR creation permissions and adding `REPO_AUTOSYNC_TOKEN` when automated merge is desired, run **OpenAPI Auto Sync** manually from GitHub Actions or wait for the next push to `main`.
+After enabling PR creation permissions and provisioning `REPO_AUTOSYNC_TOKEN` with the scoped permissions above, run **OpenAPI Auto Sync** or the governed generated-artifact refresh path on an exact feature-branch head.
 
-A healthy no-diff run should complete successfully.
-A run with generated changes should create a PR titled:
+A healthy no-diff run should complete successfully. A generated-artifact refresh must also produce accepted exact-head verification-dispatch evidence. A run with generated changes should create a PR titled:
 
 ```text
 Auto-sync repository contracts

@@ -112,6 +112,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/github-repository-policy-1051-governed-rollout.yml|base|environment_reference|runtime.base.url",
+      "owner": "repository-governance",
+      "reason": "RUNTIME_BASE_URL is consumed only by the bounded Migration 1051 VERIFY metadata diagnostic to address the existing admin control read surface; the diagnostic remains read-only and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/github-repository-policy-1051-governed-rollout.yml|evidenceDir|environment_reference|evidence.dir",
+      "owner": "repository-governance",
+      "reason": "EVIDENCE_DIR selects only the ephemeral no-secret verification artifact directory for the bounded Migration 1051 metadata diagnostic and does not grant runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/github-repository-policy-1051-governed-rollout.yml|key|environment_reference|backend.api.key",
+      "owner": "repository-governance",
+      "reason": "BACKEND_API_KEY is a credential reference consumed only to authenticate the bounded read-only admin control metadata probe. No credential value is tracked or emitted, and the diagnostic cannot grant Apply, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

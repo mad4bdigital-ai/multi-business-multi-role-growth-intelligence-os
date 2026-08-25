@@ -245,6 +245,7 @@ jobs:
         run: |
           set -euo pipefail
           report="${OUTPUT_DIR}/generated-artifact-refresh-report.json"
+          dispatch_report="${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
           test -f "$report"
           resolved_recipe="$(jq -er '.recipe' "$report")"
           result_sha="$(jq -er '.result_head_sha // .commit_sha // .expected_head_sha' "$report")"
@@ -263,6 +264,13 @@ jobs:
             verifier_workflows=("pr-generated-artifact-refresh.yml")
             verifier_names=("PR Generated Artifact Refresh")
           else
+            jq -cn \
+              --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
+              --arg recipe "$resolved_recipe" \
+              --arg target_ref "$TARGET_REF" \
+              --arg candidate_sha "$result_sha" \
+              '{contract:$contract,outcome:"blocked",recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,requested:false,verifiers:[],first_failure:{code:"unregistered_verifier_route",diagnostic_tail:("No registered verifier route for recipe: " + $recipe)},secrets_included:false}' \
+              > "$dispatch_report"
             echo "No registered verifier route for recipe: $resolved_recipe" >&2
             exit 1
           fi
@@ -275,15 +283,65 @@ jobs:
               --arg target_ref "$TARGET_REF" \
               --arg expected_head_sha "$result_sha" \
               '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
-            gh api \
-              --method POST \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches" \
-              --input - <<<"$payload"
+            response_file="${RUNNER_TEMP}/generated-verifier-${index}-response.json"
+            headers_file="${RUNNER_TEMP}/generated-verifier-${index}-headers.txt"
+            : > "$response_file"
+            : > "$headers_file"
+
+            set +e
+            http_status="$(curl --silent --show-error \
+              --output "$response_file" \
+              --dump-header "$headers_file" \
+              --write-out '%{http_code}' \
+              --request POST \
+              --header 'Accept: application/vnd.github+json' \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              --header 'Content-Type: application/json' \
+              --data "$payload" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches")"
+            curl_status=$?
+            set -e
+
+            request_id="$(awk 'BEGIN{IGNORECASE=1} /^x-github-request-id:/ {gsub("\r", ""); print $2}' "$headers_file" | tail -1)"
+            response_body="$(head -c 1000 "$response_file" 2>/dev/null | tr '\r\n' '  ' || true)"
+            status_number=0
+            if [[ "$http_status" =~ ^[0-9]{3}$ ]]; then
+              status_number=$((10#$http_status))
+            fi
+
+            if (( curl_status != 0 )) || [[ "$http_status" != "204" ]]; then
+              diagnostic="workflow dispatch rejected: curl_status=${curl_status} http_status=${http_status} body=${response_body}"
+              verifier_records="$(jq -cn \
+                --argjson current "$verifier_records" \
+                --arg workflow "$verifier_name" \
+                --arg workflow_file "$verifier_workflow" \
+                --argjson http_status "$status_number" \
+                --arg request_id "$request_id" \
+                '$current + [{workflow:$workflow,workflow_file:$workflow_file,accepted:false,http_status:$http_status,github_request_id:(if ($request_id|length)>0 then $request_id else null end)}]')"
+              jq -cn \
+                --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
+                --arg recipe "$resolved_recipe" \
+                --arg target_ref "$TARGET_REF" \
+                --arg candidate_sha "$result_sha" \
+                --arg workflow "$verifier_name" \
+                --arg workflow_file "$verifier_workflow" \
+                --argjson http_status "$status_number" \
+                --arg request_id "$request_id" \
+                --arg diagnostic "$diagnostic" \
+                --argjson verifiers "$verifier_records" \
+                '{contract:$contract,outcome:"blocked",recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,verifiers:$verifiers,requested:false,http_status:$http_status,github_request_id:(if ($request_id|length)>0 then $request_id else null end),first_failure:{code:"workflow_dispatch_rejected",diagnostic_tail:$diagnostic},secrets_included:false}' \
+                > "$dispatch_report"
+              echo "::error::Recipe-specific verifier dispatch rejected with HTTP ${http_status}; inspect canonical dispatch evidence." >&2
+              exit 1
+            fi
+
             verifier_records="$(jq -cn \
               --argjson current "$verifier_records" \
               --arg workflow "$verifier_name" \
               --arg workflow_file "$verifier_workflow" \
-              '$current + [{workflow:$workflow,workflow_file:$workflow_file}]')"
+              --arg request_id "$request_id" \
+              '$current + [{workflow:$workflow,workflow_file:$workflow_file,accepted:true,http_status:204,github_request_id:(if ($request_id|length)>0 then $request_id else null end)}]')"
           done
 
           primary_verifier_name="${verifier_names[0]}"
@@ -296,8 +354,8 @@ jobs:
             --arg workflow "$primary_verifier_name" \
             --arg workflow_file "$primary_verifier_workflow" \
             --argjson verifiers "$verifier_records" \
-            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,verifiers:$verifiers,requested:true,secrets_included:false}' \
-            > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
+            '{contract:$contract,outcome:"passed",recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,verifiers:$verifiers,requested:true,secrets_included:false}' \
+            > "$dispatch_report"
 
       - name: Upload canonical refresh report
         if: always()
@@ -317,5 +375,5 @@ jobs:
           fi
           if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json" ]]; then
             echo >> "$GITHUB_STEP_SUMMARY"
-            echo "Recipe-specific exact-head read-only verification dispatch requested." >> "$GITHUB_STEP_SUMMARY"
+            echo "Recipe-specific exact-head read-only verification dispatch evidence captured." >> "$GITHUB_STEP_SUMMARY"
           fi
