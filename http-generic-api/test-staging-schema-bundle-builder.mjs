@@ -634,15 +634,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 793);
-  assert.equal(plan.statement_count, 3057);
+  assert.equal(plan.migration_count, 794);
+  assert.equal(plan.statement_count, 3059);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 794);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3084);
+  assert.equal(plan.ordered_collation_chain.files_checked, 795);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 794);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3086);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -651,8 +652,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 794);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3084);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 795);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 794);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3086);
+  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 874);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
@@ -664,8 +668,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 794);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3084);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 795);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 794);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3086);
+  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5198);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 5982);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_text_width_chain.provider_mutation_performed, false);
@@ -827,6 +834,26 @@ test("MariaDB collation repairs are narrow and precede first risky JOIN use", ()
   const repositoryAlignmentSql = repositoryAlignment.replace(/^\s*--[^\r\n]*(?:\r?\n|$)/gmu, "");
   assert.match(repositoryAlignmentSql, /MODIFY\s+system_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
   assert.doesNotMatch(repositoryAlignmentSql, /(?:credential_ref|metadata_json|provider)/iu);
+});
+
+test("platform note and execution-policy text domains widen before every descriptive writer", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  const alignmentFile = "204_sprint67_zz_mariadb_platform_runtime_config_note_text_width_alignment.sql";
+  const alignmentIndex = orderedMigrations.indexOf(alignmentFile);
+  assert.notEqual(alignmentIndex, -1, "platform note/scope width alignment migration must exist");
+  for (const writer of [
+    "241_sprint67_google_ads_budget_preflight_ledger.sql",
+    "243_sprint67_preflight_execution_gate_helper.sql",
+    "906_sprint68_ticket_external_delivery_completion_certification.sql",
+    "1040_sprint69_normalize_temporary_hostinger_gate_statuses.sql",
+    "1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql",
+  ]) {
+    assert.ok(orderedMigrations.indexOf(writer) > alignmentIndex, `${writer} must run after platform text-width alignment`);
+  }
+  const alignment = fs.readFileSync(path.join(migrationsDir, alignmentFile), "utf8");
+  assert.match(alignment, /ALTER TABLE platform_runtime_config[\s\S]*MODIFY COLUMN note TEXT NULL/iu);
+  assert.match(alignment, /ALTER TABLE execution_policies[\s\S]*MODIFY COLUMN execution_scope TEXT NULL[\s\S]*MODIFY COLUMN affects_layer TEXT NULL/iu);
 });
 
 test("migration 1041 widens the runtime-config audit note before writing it", () => {

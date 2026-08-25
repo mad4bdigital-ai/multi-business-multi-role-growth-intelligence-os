@@ -168,6 +168,18 @@
       "column": "note",
       "initial_max_length": 255,
       "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
+    },
+    {
+      "table": "execution_policies",
+      "column": "execution_scope",
+      "initial_max_length": 255,
+      "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
+    },
+    {
+      "table": "execution_policies",
+      "column": "affects_layer",
+      "initial_max_length": 255,
+      "widening_types": ["TEXT", "VARCHAR(512)", "VARCHAR(1024)"]
     }
   ],
   "forbidden_sql_patterns": [

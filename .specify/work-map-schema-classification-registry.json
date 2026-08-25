@@ -807,6 +807,23 @@
         "data-model-domain-map"
       ],
       "rationale": "Spec 014 classifies storage_targets before SQL creation within the existing Platform resources & graph domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "execution_policy_registry",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "execution_policies"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "observability-release-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "The execution policy registry is the canonical governance authority for bounded runtime scopes, affected layers, policy values, and fail-closed execution decisions."
     }
   ],
   "intentional_unclassified": [],
