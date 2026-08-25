@@ -80,4 +80,4 @@ jobs:
           CONTROL_ISSUE: '6625'
           READINESS_FAILURE_PATH: ${{ runner.temp }}/github-review-policy-readiness/failure.json
           READINESS_STATE_PATH: ${{ runner.temp }}/github-review-policy-readiness/state.json
-        run: node http-generic-api/scripts/github-main-review-policy-readiness-failure-publisher.mjs
+        run: node .github/ops/github-main-review-policy-readiness-failure-publisher.mjs
