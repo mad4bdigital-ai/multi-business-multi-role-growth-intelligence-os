@@ -189,6 +189,7 @@
           "http-generic-api/scripts/single-owner-review-gate.mjs",
           "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
           "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+          "http-generic-api/scripts/ci-path-format-guard.mjs",
           "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
           "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
           "http-generic-api/scripts/test-configuration-drift-guard.mjs",
