@@ -126,14 +126,15 @@ jobs:
       - name: Capture bounded Migration 1051 metadata diagnostic without Apply
         shell: bash
         run: |
+          cd .github/workflows
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
-          import { buildAdminControlDbReadRequest } from './.github/ops/lib/admin-control-db-request.mjs';
+          import { buildAdminControlDbReadRequest } from '../ops/lib/admin-control-db-request.mjs';
 
           const base = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
           const key = String(process.env.BACKEND_API_KEY || '');
-          const evidenceDir = String(process.env.EVIDENCE_DIR || '.artifacts/github-repository-policy-1051-verify');
+          const evidenceDir = path.resolve('../..', String(process.env.EVIDENCE_DIR || '.artifacts/github-repository-policy-1051-verify'));
           const reportPath = path.join(evidenceDir, 'metadata-diagnostic-readback.json');
           const sql = `SELECT
             (SELECT status FROM platform_resource_adapters WHERE adapter_key='github_repository_policy_v2' LIMIT 1) AS adapter_status,
