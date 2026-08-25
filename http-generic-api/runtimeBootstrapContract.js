@@ -4,6 +4,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
+import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONTRACT_PATH = path.join(HERE, "config", "runtime-bootstrap-contract.json");
@@ -595,16 +596,30 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
   const inspectionRunId = String(env.BOOTSTRAP_INSPECTION_RUN_ID || "").trim();
   const planHash = String(env.BOOTSTRAP_PLAN_SHA256 || "").trim().toLowerCase();
   const selectionHash = String(env.BOOTSTRAP_ROLE_SELECTION_HASH || "").trim().toLowerCase();
-  const roleFingerprintText = String(env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS || "").trim();
-  let roleFingerprints;
-  try { roleFingerprints = JSON.parse(roleFingerprintText); } catch { roleFingerprints = null; }
-  if (!inspectionRunId || !SAFE_ID_RE.test(inspectionRunId) || !SHA256_RE.test(planHash) || !roleFingerprints || typeof roleFingerprints !== "object" || Array.isArray(roleFingerprints)) {
-    throw bootstrapError("bootstrap_rebuild_inspection_binding_missing", "Role-selective baseline rebuild requires a bounded durable inspection run, exact plan hash, and per-role object-count fingerprints.", { required_fields: ["BOOTSTRAP_INSPECTION_RUN_ID", "BOOTSTRAP_PLAN_SHA256", "BOOTSTRAP_ROLE_SELECTION", "BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS"] });
+  const roleProofText = String(env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS || "").trim();
+  let roleProof;
+  try { roleProof = JSON.parse(roleProofText); } catch { roleProof = null; }
+  const roleFingerprints = roleProof?.role_object_count_fingerprints;
+  const requiredProofFields = ["source", "expected_sha", "inspection_evidence_hash", "finding_ids", "role_object_count_fingerprints", "composite_target_fingerprint"];
+  if (!inspectionRunId || !SAFE_ID_RE.test(inspectionRunId) || !SHA256_RE.test(planHash) || !roleProof || typeof roleProof !== "object" || Array.isArray(roleProof) || requiredProofFields.some((field) => !Object.hasOwn(roleProof, field)) || !Array.isArray(roleProof.finding_ids) || !roleFingerprints || typeof roleFingerprints !== "object" || Array.isArray(roleFingerprints)) {
+    throw bootstrapError("bootstrap_rebuild_inspection_binding_missing", "Role-selective baseline rebuild requires a bounded durable inspection run, exact plan hash, and a complete rich inspection proof envelope.", { required_fields: ["BOOTSTRAP_INSPECTION_RUN_ID", "BOOTSTRAP_PLAN_SHA256", "BOOTSTRAP_ROLE_SELECTION", "BOOTSTRAP_ROLE_SELECTION_HASH", "BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS.rich_proof_envelope"] });
   }
+  const proofExpectedSha = String(roleProof.expected_sha || "").trim().toLowerCase();
+  if (!SHA_RE.test(proofExpectedSha) || proofExpectedSha !== String(sha).trim().toLowerCase()) throw bootstrapError("bootstrap_rebuild_proof_sha_mismatch", "Role selection proof expected SHA must match the exact bootstrap source SHA.");
+  if (!SHA256_RE.test(String(roleProof.inspection_evidence_hash || "").trim().toLowerCase()) || !SHA256_RE.test(String(roleProof.composite_target_fingerprint || "").trim().toLowerCase())) throw bootstrapError("bootstrap_rebuild_role_selection_proof_invalid", "Role selection proof evidence and composite fingerprints must be full SHA-256 values.");
   for (const role of selected) if (!SHA256_RE.test(String(roleFingerprints[role] || "").toLowerCase())) throw bootstrapError("bootstrap_rebuild_role_fingerprint_missing", "Every selected role must carry a full object-count fingerprint from the inspection record.", { role });
   const normalizedRoleFingerprints = Object.fromEntries(selected.map((role) => [role, String(roleFingerprints[role]).toLowerCase()]));
-  const expectedSelectionHash = sha256Hex(JSON.stringify({ selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints }));
-  if (selectionHash !== expectedSelectionHash) throw bootstrapError("bootstrap_rebuild_role_selection_hash_mismatch", "Role selection proof hash does not match the selected roles, inspection run, and object-count fingerprints.", { selected_roles: selected });
+  const expectedSelectionHash = computeRoleSelectionProofHash({
+    source: roleProof.source,
+    expected_sha: proofExpectedSha,
+    selected_roles: selected,
+    inspection_run_id: inspectionRunId,
+    inspection_evidence_hash: roleProof.inspection_evidence_hash,
+    finding_ids: roleProof.finding_ids,
+    role_object_count_fingerprints: normalizedRoleFingerprints,
+    composite_target_fingerprint: roleProof.composite_target_fingerprint,
+  });
+  if (selectionHash !== expectedSelectionHash) throw bootstrapError("bootstrap_rebuild_role_selection_hash_mismatch", "Role selection proof hash does not match the complete selected-role inspection proof.", { selected_roles: selected });
   const roleBinding = selected.join(",");
   const prefix = contract.execution_policy.rebuild_confirmation_prefix || "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD";
   const expected = `${prefix}:${sha}:${target?.key}:${roleBinding}`;

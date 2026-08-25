@@ -21,6 +21,7 @@ import {
   sha256Hex,
 } from "./runtimeBootstrapContract.js";
 import { getRuntimeBootstrapStatus as readStartupStatus } from "./runtimeBootstrapStatus.js";
+import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 
 const contract = JSON.parse(fs.readFileSync(new URL("./config/runtime-bootstrap-contract.json", import.meta.url), "utf8"));
 const recoveryContract = JSON.parse(fs.readFileSync(new URL("../.github/ops/production-runtime-recovery-routes.json", import.meta.url), "utf8"));
@@ -137,8 +138,9 @@ function roleBoundRebuildEnv(selectedRoles, roleCounts) {
   env.BOOTSTRAP_INSPECTION_RUN_ID = "inspection-m48-role-proof";
   env.BOOTSTRAP_PLAN_SHA256 = "b".repeat(64);
   const fingerprints = Object.fromEntries(selectedRoles.map((role) => [role, canonicalObjectCountFingerprint(roleCounts[role])]));
-  env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS = JSON.stringify(fingerprints);
-  env.BOOTSTRAP_ROLE_SELECTION_HASH = sha256Hex(JSON.stringify({ selected_roles: selectedRoles, inspection_run_id: env.BOOTSTRAP_INSPECTION_RUN_ID, role_object_count_fingerprints: fingerprints }));
+  const roleProof = { source: "durable_full_inspection", expected_sha: EXPECTED_SHA, inspection_evidence_hash: "c".repeat(64), finding_ids: ["finding:0123456789abcdef0123456789abcdef"], role_object_count_fingerprints: fingerprints, composite_target_fingerprint: "d".repeat(64) };
+  env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS = JSON.stringify(roleProof);
+  env.BOOTSTRAP_ROLE_SELECTION_HASH = computeRoleSelectionProofHash({ ...roleProof, selected_roles: selectedRoles, inspection_run_id: env.BOOTSTRAP_INSPECTION_RUN_ID });
   env.BOOTSTRAP_REBUILD_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${EXPECTED_SHA}:${TARGET_KEY}:${selectedRoles.join(",")}`;
   return env;
 }

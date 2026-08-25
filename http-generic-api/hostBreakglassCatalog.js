@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
 import { executeHostLocalRoleInspection } from "./hostLocalRuntimeInspection.js";
+import { canonicalizeRoleSelection, computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = path.join(HERE, "config", "host-breakglass-catalog.json");
@@ -29,21 +30,6 @@ function fail(status, code, message, details = {}) {
 
 function stableHash(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function roleSelectionHash(proof) {
-  const selectedRoles = Array.isArray(proof?.selected_roles) ? [...new Set(proof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
-  const fingerprints = proof?.role_object_count_fingerprints && typeof proof.role_object_count_fingerprints === "object" ? Object.fromEntries(selectedRoles.map((role) => [role, String(proof.role_object_count_fingerprints[role] || "").toLowerCase()])) : {};
-  return stableHash({
-    source: String(proof?.source || ""),
-    expected_sha: String(proof?.expected_sha || "").toLowerCase(),
-    selected_roles: selectedRoles,
-    inspection_run_id: String(proof?.inspection_run_id || ""),
-    inspection_evidence_hash: String(proof?.inspection_evidence_hash || "").toLowerCase(),
-    finding_ids: Array.isArray(proof?.finding_ids) ? [...new Set(proof.finding_ids.map((id) => String(id).trim()))].sort() : [],
-    role_object_count_fingerprints: fingerprints,
-    composite_target_fingerprint: String(proof?.composite_target_fingerprint || "").toLowerCase(),
-  });
 }
 
 function stableFileHash(filePath) {
@@ -255,9 +241,10 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     fail(403, "host_breakglass_role_source_environment_mismatch", "Windows/Docker role credentials cannot be used for Production.", { environment_key: environmentKey });
   }
   const roleSelectionProof = input.role_selection_proof && typeof input.role_selection_proof === "object" ? input.role_selection_proof : null;
-  const selectedRoles = Array.isArray(roleSelectionProof?.selected_roles) ? [...new Set(roleSelectionProof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
+  const rawSelectedRoles = Array.isArray(roleSelectionProof?.selected_roles) ? [...new Set(roleSelectionProof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
   const allowedRoles = ["runtime", "governance", "runtime_persistence"];
-  if (selectedRoles.some((role) => !allowedRoles.includes(role))) fail(400, "host_breakglass_role_selection_invalid", "Role selection proof contains an unregistered role.", { allowed_roles: allowedRoles });
+  if (rawSelectedRoles.some((role) => !allowedRoles.includes(role))) fail(400, "host_breakglass_role_selection_invalid", "Role selection proof contains an unregistered role.", { allowed_roles: allowedRoles });
+  const selectedRoles = canonicalizeRoleSelection(rawSelectedRoles);
   if (operationKey === "database.rebuild_empty" && action === "apply_migration" && (!roleSelectionProof || roleSelectionProof.source !== "durable_full_inspection" || !roleSelectionProof.inspection_run_id || !roleSelectionProof.inspection_evidence_hash || !roleSelectionProof.composite_target_fingerprint || !Array.isArray(roleSelectionProof.finding_ids) || roleSelectionProof.finding_ids.length === 0 || !selectedRoles.length)) {
     fail(400, "host_breakglass_role_selection_proof_required", "Role-selective rebuild apply requires a bounded durable full-inspection proof, finding IDs, and selected zero-object roles.");
   }
@@ -346,7 +333,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     migration_selected: Boolean(migration),
     migration_selection: migration ? "explicit" : migrationOptional ? (operationKey === "database.rebuild_empty" ? "inspection_derived_role_selection" : "full_inspection_catalog") : "required",
     selected_rebuild_roles: selectedRoles,
-    role_selection_proof: roleSelectionProof ? { source: String(roleSelectionProof.source || ""), inspection_run_id: String(roleSelectionProof.inspection_run_id || ""), inspection_evidence_hash: String(roleSelectionProof.inspection_evidence_hash || "").toLowerCase(), expected_sha: String(roleSelectionProof.expected_sha || expectedSha).toLowerCase(), finding_ids: Array.isArray(roleSelectionProof.finding_ids) ? roleSelectionProof.finding_ids.map((id) => String(id)) : [], selected_roles: selectedRoles, role_object_count_fingerprints: roleSelectionProof.role_object_count_fingerprints && typeof roleSelectionProof.role_object_count_fingerprints === "object" ? Object.fromEntries(selectedRoles.map((role) => [role, String(roleSelectionProof.role_object_count_fingerprints[role] || "").toLowerCase()])) : {}, composite_target_fingerprint: String(roleSelectionProof.composite_target_fingerprint || "").toLowerCase(), selection_hash: roleSelectionHash({ ...roleSelectionProof, selected_roles: selectedRoles }), secrets_included: false } : null,
+    role_selection_proof: roleSelectionProof ? { source: String(roleSelectionProof.source || ""), inspection_run_id: String(roleSelectionProof.inspection_run_id || ""), inspection_evidence_hash: String(roleSelectionProof.inspection_evidence_hash || "").toLowerCase(), expected_sha: String(roleSelectionProof.expected_sha || expectedSha).toLowerCase(), finding_ids: Array.isArray(roleSelectionProof.finding_ids) ? roleSelectionProof.finding_ids.map((id) => String(id)) : [], selected_roles: selectedRoles, role_object_count_fingerprints: roleSelectionProof.role_object_count_fingerprints && typeof roleSelectionProof.role_object_count_fingerprints === "object" ? Object.fromEntries(selectedRoles.map((role) => [role, String(roleSelectionProof.role_object_count_fingerprints[role] || "").toLowerCase()])) : {}, composite_target_fingerprint: String(roleSelectionProof.composite_target_fingerprint || "").toLowerCase(), selection_hash: computeRoleSelectionProofHash({ ...roleSelectionProof, selected_roles: selectedRoles }), secrets_included: false } : null,
     capsule_path: capsulePath || null,
     capsule_sha256: capsuleSha256 || null,
     backup_evidence_path: backupEvidencePath || null,
@@ -480,7 +467,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     bootstrap_role_selection: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
     bootstrap_inspection_run_id: plan.role_selection_proof?.inspection_run_id || "",
     bootstrap_role_selection_hash: plan.role_selection_proof?.selection_hash || "",
-    bootstrap_role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints ? JSON.stringify(plan.role_selection_proof.role_object_count_fingerprints) : "",
+    bootstrap_role_object_count_fingerprints: plan.role_selection_proof ? JSON.stringify({ source: plan.role_selection_proof.source, expected_sha: plan.role_selection_proof.expected_sha, inspection_evidence_hash: plan.role_selection_proof.inspection_evidence_hash, finding_ids: plan.role_selection_proof.finding_ids, role_object_count_fingerprints: plan.role_selection_proof.role_object_count_fingerprints, composite_target_fingerprint: plan.role_selection_proof.composite_target_fingerprint }) : "",
     bootstrap_grants_confirmation: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     host_breakglass_operation: plan.operation_key,
     host_breakglass_runbook: plan.runbook_key,

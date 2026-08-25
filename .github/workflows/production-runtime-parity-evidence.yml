@@ -200,11 +200,11 @@ on:
         required: false
         type: string
       bootstrap_role_selection_hash:
-        description: SHA-256 binding selected roles, inspection run, and per-role object-count fingerprints.
+        description: SHA-256 of the canonical rich role-selection proof envelope, including source, exact SHA, inspection evidence, finding IDs, selected-role object-count fingerprints, and composite fingerprint.
         required: false
         type: string
       bootstrap_role_object_count_fingerprints:
-        description: JSON map of selected role to object-count fingerprint; contains no database names or credentials.
+        description: Canonical rich role-selection proof envelope containing source, exact SHA, inspection evidence, finding IDs, selected-role object-count fingerprints, and composite fingerprint; contains no database names or credentials.
         required: false
         type: string
 

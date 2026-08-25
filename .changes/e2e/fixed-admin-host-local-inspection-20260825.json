@@ -15,6 +15,9 @@
       "http-generic-api/recoveryKernel.js",
       "http-generic-api/runtimeBootstrapContract.js",
       "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/roleSelectionProof.js",
+      "http-generic-api/test-role-selection-proof-contract.mjs",
+      "http-generic-api/package.json",
       "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
       "http-generic-api/scripts/host-breakglass-local.mjs",
       ".github/workflows/production-runtime-parity-evidence.yml",
@@ -67,6 +70,7 @@
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-recovery-trust-model.mjs",
+
       "http-generic-api/test-unsupported-recovery-broker.mjs",
       "http-generic-api/test-recovery-exception-framework.mjs",
       "http-generic-api/test-openapi-split-governance.mjs",
@@ -305,6 +309,13 @@
               "args": []
             },
             {
+              "id": "role-selection-proof-cross-module-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-role-selection-proof-contract.mjs",
+              "args": []
+            },
+            {
               "id": "recovery-exception-lifecycle-and-dr-test",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -330,6 +341,7 @@
             "http-generic-api/recoveryKernel.js",
             "http-generic-api/runtimeBootstrapContract.js",
             "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/roleSelectionProof.js",
             "http-generic-api/config/runtime-bootstrap-contract.json",
             "http-generic-api/config/host-breakglass-catalog.json",
             "http-generic-api/config/host-breakglass-tool-contracts.json",
@@ -352,6 +364,7 @@
             "http-generic-api/test-recovery-kernel.mjs",
             "http-generic-api/test-runtime-bootstrap-contract.mjs",
             "http-generic-api/test-host-breakglass-catalog.mjs",
+            "http-generic-api/test-role-selection-proof-contract.mjs",
             "http-generic-api/test-recovery-trust-model.mjs",
             "http-generic-api/test-unsupported-recovery-broker.mjs",
             "http-generic-api/test-recovery-exception-framework.mjs",
