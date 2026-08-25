@@ -93,6 +93,8 @@ import {
   buildPlatformEndpointToolDescriptors,
   selectPlatformEndpointToolBinding,
 } from "../platformEndpointToolFacade.js";
+import { executeHostLocalRoleInspection } from "../hostLocalRuntimeInspection.js";
+import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -147,6 +149,30 @@ const SYSTEM_LAYER_TOOLS = [
         timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
       },
       required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
+    name: "host_local_role_inspection_dry_run",
+    description: "Admin-only Production Hostinger read-only inspection. Binds exact SHA and invokes database.full_inspection with dry_run through the host-local role adapter. It accepts only expected_sha and target_key, omits migration selection, reads three independent role identities from the Hostinger process environment, and never dispatches GitHub or performs migration, grant, SQL, shell, or other mutation.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["expected_sha"],
+      properties: {
+        expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        target_key: { type: "string", enum: ["production-runtime"], default: "production-runtime" },
+      },
+    },
+  },
+  {
+    name: "production_activation_readiness_probe",
+    description: "Admin-only read-only Production activation readiness probe. Reads the three bounded readiness dimensions without catalog pagination or mutation: MCP catalog schema, governance DB privilege, and runtime persistence. It never applies migrations, grants, SQL, shell, provider changes, or deployment.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {},
     },
   },
   {
@@ -2235,6 +2261,23 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "production_activation_readiness_probe": {
+      if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length > 0) {
+        const error = new Error("Production activation readiness probe does not accept arguments.");
+        error.status = 400;
+        error.code = "production_activation_readiness_arguments_forbidden";
+        throw error;
+      }
+      const reader = deps.productionActivationReadinessExecutor || runProductionActivationReadiness;
+      return await reader();
+    }
+    case "host_local_role_inspection_dry_run": {
+      const executor = deps.hostLocalInspectionExecutor || executeHostLocalRoleInspection;
+      return await executor(args || {}, {
+        env: deps.hostLocalInspectionEnv || process.env,
+        repoRoot: deps.hostLocalInspectionRepoRoot,
+      });
+    }
     case "response_chunk_read":
       return await readCachedToolResponseChunk({
         ...(args || {}),
@@ -2400,7 +2443,14 @@ function sendError(res, err, fallbackCode) {
 }
 
 export function buildSystemLayerRoutes(deps) {
-  const { requireBackendApiKey, executionFacade } = deps;
+  const {
+    requireBackendApiKey,
+    executionFacade,
+    hostLocalInspectionExecutor,
+    hostLocalInspectionEnv,
+    hostLocalInspectionRepoRoot,
+    productionActivationReadinessExecutor,
+  } = deps;
   const router = Router();
   const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
   const authenticated = [requireBackendApiKey];
@@ -2477,7 +2527,14 @@ export function buildSystemLayerRoutes(deps) {
         }, timeoutMs)
       );
       const result = await Promise.race([
-        callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
+        callSystemLayerTool(name, args, req.auth, {
+          executionFacade,
+          req,
+          hostLocalInspectionExecutor,
+          hostLocalInspectionEnv,
+          hostLocalInspectionRepoRoot,
+          productionActivationReadinessExecutor,
+        }),
         deadline
       ]);
       if (!shouldChunkDispatchedToolResponse(name, result)) {
@@ -2565,7 +2622,13 @@ export function buildSystemLayerRoutes(deps) {
         }, timeoutMs)
       );
       const result = await Promise.race([
-        callSystemLayerTool(name, args, req.auth, { executionFacade }),
+        callSystemLayerTool(name, args, req.auth, {
+          executionFacade,
+          hostLocalInspectionExecutor,
+          hostLocalInspectionEnv,
+          hostLocalInspectionRepoRoot,
+          productionActivationReadinessExecutor,
+        }),
         deadline
       ]);
       if (!shouldChunkDispatchedToolResponse(name, result)) {
