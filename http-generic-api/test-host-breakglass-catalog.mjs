@@ -379,6 +379,14 @@ test("Production dispatch maps each target source explicitly without downgrade",
   await dispatchHostBreakglassPlan(runtimeEnvPlan, options);
   await dispatchHostBreakglassPlan(repositoryPlan, options);
   assert.deepEqual(posted.map((entry) => entry.bootstrap_target_source), ["hostinger_runtime_env", "repository_allowlist"]);
+  assert.equal(posted.every((entry) => typeof entry.recovery_envelope === "string"), true);
+  const envelope = JSON.parse(posted[0].recovery_envelope);
+  assert.equal(envelope.contract, "mad4b.host-breakglass-recovery-envelope.v1");
+  assert.equal(envelope.secrets_included, false);
+  assert.equal(envelope.host_breakglass.operation, "database.inspect");
+  assert.equal(envelope.host_breakglass.correlation_id, "mapping-runtime-env");
+  assert.equal(envelope.host_breakglass.plan_sha256, runtimeEnvPlan.plan_sha256);
+  assert.equal(Object.keys(posted[0]).some((key) => key.startsWith("host_breakglass_")), false);
 });
 
 test("Production correlation status survives process-local receipt loss through GitHub run-name readback", async () => {

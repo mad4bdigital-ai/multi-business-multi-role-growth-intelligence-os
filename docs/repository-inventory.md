@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,386 |
-| Total bytes | 72,691,905 |
-| Counted text lines | 1,692,893 |
+| Tracked files | 7,389 |
+| Total bytes | 72,707,335 |
+| Counted text lines | 1,693,109 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -20,8 +20,8 @@ This report is generated deterministically from the Git index. It is intentional
 | `tests-and-specs` | 2,189 |
 | `documentation` | 1,913 |
 | `api-runtime` | 1,506 |
-| `database-migrations` | 811 |
-| `root-and-other` | 332 |
+| `database-migrations` | 813 |
+| `root-and-other` | 333 |
 | `api-contracts` | 192 |
 | `ci-workflows` | 170 |
 | `ci-config` | 134 |
@@ -38,8 +38,8 @@ This report is generated deterministically from the Git index. It is intentional
 | `.md` | 2,514 |
 | `.mjs` | 1,760 |
 | `.js` | 1,013 |
-| `.json` | 881 |
-| `.sql` | 826 |
+| `.json` | 882 |
+| `.sql` | 828 |
 | `.yml` | 173 |
 | `.yaml` | 120 |
 | `.ps1` | 20 |
@@ -74,7 +74,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Surface | Count |
 |---|---:|
 | GitHub Actions workflows | 170 |
-| Database migrations | 811 |
+| Database migrations | 813 |
 | API/OpenAPI contracts | 192 |
 | Test/spec files (paths) | 2,279 |
 | package.json manifests | 3 |
@@ -93,7 +93,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,404 | 99740 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,983 | 59303 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,826 | 59297 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 1,028,304 | 23576 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 624,343 | 11828 |

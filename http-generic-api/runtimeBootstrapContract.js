@@ -5,6 +5,7 @@ import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
+import { allowedGrantPrivilegesForRole } from "./databasePrivilegeContracts.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONTRACT_PATH = path.join(HERE, "config", "runtime-bootstrap-contract.json");
@@ -14,7 +15,7 @@ const DATABASE_RE = /^[A-Za-z0-9_$-]+$/u;
 const IDENTIFIER_RE = /^[A-Za-z0-9_$.-]+$/u;
 const ACCOUNT_HOST_RE = /^[A-Za-z0-9_$%.:-]+$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/u;
-const SAFE_GRANT_PRIVILEGES = new Set(["SELECT", "INSERT", "UPDATE"]);
+const SAFE_GRANT_PRIVILEGES = new Set(["SELECT", "INSERT", "UPDATE", "DELETE"]);
 const LEDGER_COLUMNS = [
   "run_id", "migration_file", "migration_checksum_sha256", "applied_at", "applied_by", "runner_version",
   "mode", "statement_count", "preflight_status", "preflight_risk_count", "requirements_json", "results_json",
@@ -736,14 +737,15 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
 
 function validateGrantEntries(entries, expectedTables, expectedOps, { role = "runtime" } = {}) {
   const tables = entries.map((entry) => String(entry.table || ""));
+  const roleAllowedPrivileges = allowedGrantPrivilegesForRole(role);
   if (tables.length !== expectedTables.length || new Set(tables).size !== expectedTables.length || tables.some((table) => !expectedTables.includes(table))) {
     throw bootstrapError("bootstrap_grant_table_set_denied", "Grant table set must exactly match the repository role contract", { role });
   }
   return entries.map((entry) => {
     const table = assertIdentifier(entry.table, "grant.table");
     const privileges = [...new Set((entry.privileges || []).map((item) => String(item).toUpperCase()))];
-    if (privileges.length !== expectedOps.length || privileges.some((item) => !SAFE_GRANT_PRIVILEGES.has(item)) || expectedOps.some((item) => !privileges.includes(item))) {
-      throw bootstrapError("bootstrap_grant_operation_set_denied", "Grant operations must exactly match SELECT, INSERT, UPDATE", { role, table });
+    if (privileges.length !== expectedOps.length || privileges.some((item) => !SAFE_GRANT_PRIVILEGES.has(item) || !roleAllowedPrivileges.has(item)) || expectedOps.some((item) => !privileges.includes(item))) {
+      throw bootstrapError("bootstrap_grant_operation_set_denied", "Grant operations must exactly match the selected role policy and its bounded privilege allowlist", { role, table });
     }
     return { table, privileges };
   });

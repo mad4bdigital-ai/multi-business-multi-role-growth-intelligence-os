@@ -227,7 +227,7 @@
       "execution_log",
       "json_assets"
     ],
-    "required_governance_tables": ["governed_migration_ledger"],
+    "required_governance_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
     "required_runtime_persistence_tables": ["governed_tool_response_chunks"],
     "runtime_persistence_readback_migration": "1048_transport_response_chunk_schema_recovery.sql",
     "governance_database_optional": true,
@@ -325,7 +325,7 @@
       "governance": {
         "database_binding": "governance",
         "principal_binding": "governance",
-        "required_tables": ["governed_migration_ledger"],
+        "required_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
         "required_operations": ["SELECT"],
         "apply_when": "always"
       },
@@ -333,10 +333,11 @@
         "database_binding": "runtime_persistence",
         "principal_binding": "runtime_persistence",
         "required_tables": ["governed_tool_response_chunks"],
-        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "required_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
         "apply_when": "always"
       }
-    }
+    },
+    "canonical_privilege_contract": "http-generic-api/databasePrivilegeContracts.js"
   },
   "postconditions": {
     "225_sprint67_capability_resolution_envelope_ledger.sql": [

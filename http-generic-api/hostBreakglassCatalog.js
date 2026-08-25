@@ -496,7 +496,6 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
   const dispatchedAt = new Date().toISOString();
   await githubRequest({ token, method: "POST", pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/dispatches`, fetchImpl, body: { ref: plan.dispatch_ref, inputs: {
     expected_sha: plan.expected_sha,
-    expected_branch: plan.target_branch,
     bootstrap_mode: plan.action,
     bootstrap_target_key: plan.target_key,
     bootstrap_target_source: bootstrapTargetSource,
@@ -509,17 +508,20 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     bootstrap_role_object_count_fingerprints: plan.role_selection_proof ? JSON.stringify({ source: plan.role_selection_proof.source, expected_sha: plan.role_selection_proof.expected_sha, inspection_evidence_hash: plan.role_selection_proof.inspection_evidence_hash, finding_ids: plan.role_selection_proof.finding_ids, role_object_count_fingerprints: plan.role_selection_proof.role_object_count_fingerprints, composite_target_fingerprint: plan.role_selection_proof.composite_target_fingerprint }) : "",
     bootstrap_grants_confirmation: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     bootstrap_grant_binding_hash: plan.grant_binding_hash || "",
-    host_breakglass_operation: plan.operation_key,
-    host_breakglass_runbook: plan.runbook_key,
-    host_breakglass_selected_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
-    host_breakglass_inspection_run_id: plan.role_selection_proof?.inspection_run_id || "",
-    host_breakglass_role_selection_hash: plan.role_selection_proof?.selection_hash || "",
-    host_breakglass_tool_contract_sha256: plan.tool_contract_sha256,
-    host_breakglass_capsule: plan.capsule_path ? JSON.stringify({ path: plan.capsule_path, sha256: plan.capsule_sha256, confirmation: plan.confirmation, backup_evidence_path: plan.backup_evidence_path }) : "",
-    host_breakglass_correlation_id: plan.correlation_id,
-    host_breakglass_plan_sha256: plan.plan_sha256,
     bootstrap_execution_ticket_id: plan.execution_ticket_id || "",
     bootstrap_execution_ticket_hash: plan.execution_ticket_hash || "",
+    recovery_envelope: JSON.stringify({
+      contract: "mad4b.host-breakglass-recovery-envelope.v1",
+      host_breakglass: {
+        operation: plan.operation_key,
+        runbook: plan.runbook_key,
+        tool_contract_sha256: plan.tool_contract_sha256,
+        capsule_json: plan.capsule_path ? JSON.stringify({ path: plan.capsule_path, sha256: plan.capsule_sha256, confirmation: plan.confirmation, backup_evidence_path: plan.backup_evidence_path }) : "",
+        correlation_id: plan.correlation_id,
+        plan_sha256: plan.plan_sha256,
+      },
+      secrets_included: false,
+    }),
   } } });
   const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "dispatched", workflow_run_id: null, execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, workflow_dispatch_performed: true, broker_auth_mode: auth_mode, database_mutation_performed: false, dispatched_at: dispatchedAt, secrets_included: false };
   RUNS.set(plan.correlation_id, receipt);

@@ -22,7 +22,9 @@ import {
   computeTargetBindingFingerprint,
   computeGrantBindingHash,
   resolveBootstrapTarget,
+  validateRoleGrantPlan,
 } from "./runtimeBootstrapContract.js";
+import { GOVERNANCE_DB_PRIVILEGE_MATRIX } from "./databasePrivilegeContracts.js";
 import { getRuntimeBootstrapStatus as readStartupStatus } from "./runtimeBootstrapStatus.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 
@@ -172,6 +174,32 @@ function roleBoundRebuildEnv(selectedRoles, roleCounts) {
   return env;
 }
 
+test("role grant contracts match activation readiness, with DELETE scoped to runtime persistence", () => {
+  const policies = contract.grant_policy.role_policies;
+  assert.deepEqual(policies.governance.required_tables, Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX));
+  assert.deepEqual(policies.governance.required_operations, ["SELECT"]);
+  assert.deepEqual(policies.runtime_persistence.required_operations, ["SELECT", "INSERT", "UPDATE", "DELETE"]);
+
+  const persistenceTarget = {
+    role_identity_bindings: {
+      runtime_persistence: { database: "growth_persistence", principal: "persistence_user", principal_host: "localhost" },
+    },
+    grants: [{ table: "governed_tool_response_chunks", privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"] }],
+  };
+  assert.deepEqual(validateRoleGrantPlan(persistenceTarget, "runtime_persistence", contract).grants[0].privileges, ["SELECT", "INSERT", "UPDATE", "DELETE"]);
+
+  const runtimeTarget = {
+    role_identity_bindings: {
+      runtime: { database: TARGET_DATABASE, principal: "runtime_user", principal_host: "localhost" },
+    },
+    grants: policies.runtime.required_tables.map((table) => ({ table, privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"] })),
+  };
+  assert.throws(
+    () => validateRoleGrantPlan(runtimeTarget, "runtime", contract),
+    (error) => error.code === "bootstrap_grant_operation_set_denied",
+  );
+});
+
 test("repository allowlist derives database binding from target key without caller database inputs", () => {
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "dry_run");
   delete env.BOOTSTRAP_TARGET_DATABASE;
@@ -204,7 +232,7 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
     "capability_resolution_envelope_ledger",
     "governed_tool_response_chunks",
     "platform_runtime_config",
-    ...contract.grant_policy.required_tables,
+    ...Object.values(contract.grant_policy.role_policies || {}).flatMap((policy) => policy.required_tables || []),
   ]);
   const currentGrantRows = grantRows(grantDatabase, grantRole);
   const nonTableObjectCounts = { views: 0, triggers: 0, routines: 0, events: 0, ...objectCounts };
@@ -295,6 +323,8 @@ test("Hostinger and GitHub recovery contracts share migration and grant pins", (
   }
   assert.deepEqual(contract.grant_policy.required_tables, recoveryContract.grant_policy.required_tables);
   assert.deepEqual(contract.grant_policy.required_operations, recoveryContract.grant_policy.required_operations);
+  assert.deepEqual(contract.grant_policy.role_policies, recoveryContract.grant_policy.role_policies);
+  assert.equal(contract.grant_policy.canonical_privilege_contract, "http-generic-api/databasePrivilegeContracts.js");
 });
 
 test("every non-plan bootstrap mode requires exact SHA metadata", () => {
@@ -467,7 +497,7 @@ test("host-local grant exception executes only repository-allowlisted privileges
   assert.equal(grantsByRole.runtime_persistence.length, contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
   assert.equal(grantsByRole.runtime.every((statement) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(statement)), true);
   assert.equal(grantsByRole.governance.every((statement) => /^GRANT SELECT ON /i.test(statement)), true);
-  assert.equal(grantsByRole.runtime_persistence.every((statement) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(statement)), true);
+  assert.equal(grantsByRole.runtime_persistence.every((statement) => /^GRANT SELECT, INSERT, UPDATE, DELETE ON /i.test(statement)), true);
   assert.equal(Object.values(grantsByRole).flat().every((statement) => !/GRANT OPTION|ALL PRIVILEGES/i.test(statement)), true);
 });
 
@@ -1001,7 +1031,8 @@ test("grants apply requires independent confirmation and migration readiness", a
   const grants = connection.queryCalls.filter((sql) => /^GRANT /i.test(sql));
   const expectedGrantCount = Object.values(contract.grant_policy.role_policies).reduce((sum, policy) => sum + policy.required_tables.length, 0);
   assert.equal(grants.length, expectedGrantCount);
-  assert.equal(grants.filter((sql) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(sql)).length, contract.grant_policy.role_policies.runtime.required_tables.length + contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
+  assert.equal(grants.filter((sql) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(sql)).length, contract.grant_policy.role_policies.runtime.required_tables.length);
+  assert.equal(grants.filter((sql) => /^GRANT SELECT, INSERT, UPDATE, DELETE ON /i.test(sql)).length, contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
   assert.equal(grants.filter((sql) => /^GRANT SELECT ON /i.test(sql)).length, contract.grant_policy.role_policies.governance.required_tables.length);
 });
 
