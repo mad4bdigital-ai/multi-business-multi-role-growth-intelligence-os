@@ -7,6 +7,7 @@ import {
 } from "./scripts/mariadb-collation-ci-guard.mjs";
 import { inspectOrderedMigrationChainEnumSeeds } from "./databaseEnumSeedPolicyGuard.js";
 import { inspectOrderedMigrationChainTextWidths } from "./databaseTextWidthPolicyGuard.js";
+import { inspectOrderedMigrationChainGeneratedColumns } from "./databaseGeneratedColumnPolicyGuard.js";
 
 const policy = {
   policy_key: "test-policy",
@@ -202,6 +203,69 @@ assert.equal(workspaceGrantEnumGood.findings.length, 0);
 assert.equal(workspaceGrantEnumGood.database_connection_performed, false);
 assert.equal(workspaceGrantEnumGood.sql_mutation_performed, false);
 assert.equal(workspaceGrantEnumGood.secrets_included, false);
+
+const generatedColumnPolicy = {
+  generated_column_chain_contract: {
+    enabled: true,
+    engine: "mariadb",
+    fail_on_generated_column_write: true,
+    inspect_create_alter_generated_columns: true,
+    inspect_insert_replace_update_writers: true,
+    include_canonical_table_bootstrap: true,
+    static_only: true,
+    database_connection_allowed: false,
+    sql_mutation_allowed: false,
+    provider_access_allowed: false,
+    credential_access_allowed: false,
+    data_export_allowed: false,
+    runtime_mutation_allowed: false,
+    secrets_included: false,
+    policy_key: "test-generated-column-chain",
+  },
+};
+const generatedColumnFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE platform_capability_readback_contracts (contract_id VARCHAR(36) PRIMARY KEY, contract_key VARCHAR(191) NOT NULL, is_current TINYINT(1) NOT NULL DEFAULT 1, current_contract_key VARCHAR(191) GENERATED ALWAYS AS (CASE WHEN is_current = 1 THEN contract_key ELSE NULL END) STORED);",
+  "http-generic-api/migrations/001_writer.sql": "INSERT INTO platform_capability_readback_contracts (contract_id, contract_key, is_current, current_contract_key) VALUES (UUID(), 'readback_v2', 1, 'readback_v2') ON DUPLICATE KEY UPDATE current_contract_key=VALUES(current_contract_key);",
+  "http-generic-api/migrations/000_bridge.sql": "ALTER TABLE platform_capability_readback_contracts MODIFY COLUMN current_contract_key VARCHAR(191) NULL;",
+  "http-generic-api/migrations/002_restore.sql": "ALTER TABLE platform_capability_readback_contracts MODIFY COLUMN current_contract_key VARCHAR(191) GENERATED ALWAYS AS (CASE WHEN is_current = 1 THEN contract_key ELSE NULL END) STORED;",
+};
+const readGeneratedColumnFixture = (file) => generatedColumnFiles[file];
+const generatedColumnBad = inspectOrderedMigrationChainGeneratedColumns({
+  files: ["http-generic-api/migrations/001_writer.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: generatedColumnPolicy,
+  readFile: readGeneratedColumnFixture,
+});
+assert.equal(generatedColumnBad.ok, false, JSON.stringify(generatedColumnBad));
+assert.equal(generatedColumnBad.findings.length, 2);
+assert(generatedColumnBad.findings.every((finding) => finding.code === "generated_column_write"));
+assert(generatedColumnBad.findings.every((finding) => finding.table === "platform_capability_readback_contracts"));
+assert(generatedColumnBad.findings.every((finding) => finding.column === "current_contract_key"));
+const generatedColumnGood = inspectOrderedMigrationChainGeneratedColumns({
+  files: [
+    "http-generic-api/migrations/000_bridge.sql",
+    "http-generic-api/migrations/001_writer.sql",
+    "http-generic-api/migrations/002_restore.sql",
+  ],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: generatedColumnPolicy,
+  readFile: readGeneratedColumnFixture,
+});
+assert.equal(generatedColumnGood.ok, true, JSON.stringify(generatedColumnGood));
+assert.equal(generatedColumnGood.findings.length, 0);
+assert.equal(generatedColumnGood.generated_columns, 1);
+assert.equal(generatedColumnGood.database_connection_performed, false);
+assert.equal(generatedColumnGood.sql_mutation_performed, false);
+assert.equal(generatedColumnGood.secrets_included, false);
+const generatedColumnBootstrap = inspectOrderedMigrationChainGeneratedColumns({
+  files: ["http-generic-api/migrations/001_writer.sql"],
+  baselineFile: "http-generic-api/schema.sql",
+  policy: generatedColumnPolicy,
+  bootstrapEntries: [{ file: "001_writer.sql", statement: generatedColumnFiles["http-generic-api/schema.sql"] }],
+  readFile: readGeneratedColumnFixture,
+});
+assert.equal(generatedColumnBootstrap.ok, false, JSON.stringify(generatedColumnBootstrap));
+assert.equal(generatedColumnBootstrap.findings.length, 2);
 
 const textWidthPolicy = {
   text_width_chain_contract: {

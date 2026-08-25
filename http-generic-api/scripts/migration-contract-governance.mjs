@@ -14,6 +14,7 @@ const { splitStatements } = await import(pathToFileURL(parserPath).href);
 const { inspectOrderedMigrationChainCollations } = await import(pathToFileURL(path.join(apiRoot, "databaseCollationPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainEnumSeeds } = await import(pathToFileURL(path.join(apiRoot, "databaseEnumSeedPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainTextWidths } = await import(pathToFileURL(path.join(apiRoot, "databaseTextWidthPolicyGuard.js")).href);
+const { inspectOrderedMigrationChainGeneratedColumns } = await import(pathToFileURL(path.join(apiRoot, "databaseGeneratedColumnPolicyGuard.js")).href);
 
 function parseArgs(argv) {
   const options = { root: defaultRepoRoot, expectedCommit: "", output: "" };
@@ -60,6 +61,15 @@ function migrationFiles() {
   return fs.readdirSync(migrationsDir)
     .filter((file) => file.endsWith(".sql"))
     .sort((left, right) => Number(left.match(/^\d+/u)?.[0] || 0) - Number(right.match(/^\d+/u)?.[0] || 0) || left.localeCompare(right));
+}
+function canonicalBootstrapEntries(plan) {
+  return (plan.canonical_table_bootstrap?.entries || []).map((entry) => {
+    const sourceFile = path.join(migrationsDir, String(entry.source_file || ""));
+    if (!fs.existsSync(sourceFile)) return null;
+    const table = tableName(entry.table);
+    const statement = splitStatements(fs.readFileSync(sourceFile, "utf8")).find((candidate) => new RegExp(`^\\s*CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\s+(?:` + "`" + `)?${table}(?:` + "`" + `)?\\s*\\(`, "iu").test(candidate));
+    return statement ? { ...entry, statement } : null;
+  }).filter(Boolean);
 }
 function insertInfo(statement) {
   const match = statement.match(/^\s*INSERT\s+(IGNORE\s+)?INTO\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/iu);
@@ -140,6 +150,7 @@ const report = {
   collation_chain_contract: policy.collation_chain_contract || null,
   enum_seed_chain_contract: policy.enum_seed_chain_contract || null,
   text_width_chain_contract: policy.text_width_chain_contract || null,
+  generated_column_chain_contract: policy.generated_column_chain_contract || null,
   environment_profiles: {},
   database_role_topology: policy.database_role_topology || null,
   migration_history: policy.migration_history || null,
@@ -206,6 +217,10 @@ if (!enumSeedContract || enumSeedContract.enabled !== true || enumSeedContract.e
 const textWidthContract = policy.text_width_chain_contract;
 if (!textWidthContract || textWidthContract.enabled !== true || textWidthContract.engine !== "mariadb" || textWidthContract.fail_on_literal_overflow !== true || textWidthContract.inspect_create_alter_text_domains !== true || textWidthContract.inspect_insert_replace_update_literals !== true || textWidthContract.inspect_insert_select_source_domains !== true || textWidthContract.static_only !== true || textWidthContract.database_connection_allowed !== false || textWidthContract.sql_mutation_allowed !== false || textWidthContract.provider_access_allowed !== false || textWidthContract.credential_access_allowed !== false || textWidthContract.data_export_allowed !== false || textWidthContract.runtime_mutation_allowed !== false || textWidthContract.secrets_included !== false) {
   pushFinding(report, "text_width_chain", "blocker", "staging-migration-contract-policy.json", "text_width_chain_contract must enable the MariaDB static ordered text-domain/width gate and fail on literal overflow");
+}
+const generatedColumnContract = policy.generated_column_chain_contract;
+if (!generatedColumnContract || generatedColumnContract.enabled !== true || generatedColumnContract.engine !== "mariadb" || generatedColumnContract.fail_on_generated_column_write !== true || generatedColumnContract.inspect_create_alter_generated_columns !== true || generatedColumnContract.inspect_insert_replace_update_writers !== true || generatedColumnContract.include_canonical_table_bootstrap !== true || generatedColumnContract.static_only !== true || generatedColumnContract.database_connection_allowed !== false || generatedColumnContract.sql_mutation_allowed !== false || generatedColumnContract.provider_access_allowed !== false || generatedColumnContract.credential_access_allowed !== false || generatedColumnContract.data_export_allowed !== false || generatedColumnContract.runtime_mutation_allowed !== false || generatedColumnContract.secrets_included !== false) {
+  pushFinding(report, "generated_column_chain", "blocker", "staging-migration-contract-policy.json", "generated_column_chain_contract must enable the MariaDB static ordered generated-column writer gate");
 }
 
 const files = migrationFiles();
@@ -436,7 +451,7 @@ else if (planResult.status !== 0) pushFinding(report, "canonical_plan", "blocker
 else {
   try {
     const plan = JSON.parse(planResult.stdout);
-    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
+    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, ordered_generated_column_chain: plan.ordered_generated_column_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
     if (plan.plan_only !== true) pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", "canonical builder did not return plan_only=true");
     if (plan.production_access_forbidden !== true || plan.provider_access_forbidden !== true) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical plan safety flags are incomplete");
     if (plan.ordered_preuse_audit?.missing_table_gaps > 0 || plan.ordered_preuse_audit?.missing_column_gaps > 0 || plan.ordered_preuse_audit?.unique_true_preuse_gaps > 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical ordered pre-use audit reports unresolved gaps", plan.ordered_preuse_audit);
@@ -452,7 +467,54 @@ else {
     if (plan.ordered_enum_seed_chain?.database_connection_performed !== false || plan.ordered_enum_seed_chain?.sql_mutation_performed !== false || plan.ordered_enum_seed_chain?.provider_mutation_performed !== false || plan.ordered_enum_seed_chain?.credential_access_performed !== false || plan.ordered_enum_seed_chain?.data_export_performed !== false || plan.ordered_enum_seed_chain?.runtime_mutation_performed !== false || plan.ordered_enum_seed_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered enum-seed evidence violates static-only safety", plan.ordered_enum_seed_chain || {});
     if (plan.ordered_text_width_chain?.ok !== true || plan.ordered_text_width_chain?.ready !== true || plan.ordered_text_width_chain?.finding_count !== 0 || plan.ordered_text_width_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_text_width_chain?.statements_checked <= plan.statement_count || !Number.isInteger(plan.ordered_text_width_chain?.insert_select_source_domain_checks) || plan.ordered_text_width_chain.insert_select_source_domain_checks <= 0 || (plan.ordered_text_width_chain?.insert_select_source_domain_overflows || 0) > 0) pushFinding(report, "text_width_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered text-width evidence is incomplete or reports literal/source-domain overflows", plan.ordered_text_width_chain || {});
     if (plan.ordered_text_width_chain?.database_connection_performed !== false || plan.ordered_text_width_chain?.sql_mutation_performed !== false || plan.ordered_text_width_chain?.provider_mutation_performed !== false || plan.ordered_text_width_chain?.credential_access_performed !== false || plan.ordered_text_width_chain?.data_export_performed !== false || plan.ordered_text_width_chain?.runtime_mutation_performed !== false || plan.ordered_text_width_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered text-width evidence violates static-only safety", plan.ordered_text_width_chain || {});
+    if (plan.ordered_generated_column_chain?.ok !== true || plan.ordered_generated_column_chain?.ready !== true || plan.ordered_generated_column_chain?.finding_count !== 0 || plan.ordered_generated_column_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_generated_column_chain?.statements_checked <= plan.statement_count) pushFinding(report, "generated_column_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered generated-column evidence is incomplete or reports generated-column writes", plan.ordered_generated_column_chain || {});
+    if (plan.ordered_generated_column_chain?.database_connection_performed !== false || plan.ordered_generated_column_chain?.sql_mutation_performed !== false || plan.ordered_generated_column_chain?.provider_mutation_performed !== false || plan.ordered_generated_column_chain?.credential_access_performed !== false || plan.ordered_generated_column_chain?.data_export_performed !== false || plan.ordered_generated_column_chain?.runtime_mutation_performed !== false || plan.ordered_generated_column_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered generated-column evidence violates static-only safety", plan.ordered_generated_column_chain || {});
   } catch (error) { pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", `canonical builder plan was not valid JSON: ${error.message}`); }
+}
+
+if (report.plan && generatedColumnContract?.enabled === true) {
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const generatedColumnChain = inspectOrderedMigrationChainGeneratedColumns({
+    files: orderedFiles,
+    baselineFile: generatedColumnContract.baseline_file || "http-generic-api/schema.sql",
+    engine: generatedColumnContract.engine || "mariadb",
+    policy,
+    bootstrapEntries: canonicalBootstrapEntries(report.plan),
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  report.generated_column_chain = {
+    contract: generatedColumnChain.contract,
+    engine: generatedColumnChain.engine,
+    policy_key: generatedColumnChain.policy_key,
+    baseline_file: generatedColumnChain.baseline_file,
+    files_checked: generatedColumnChain.files_checked,
+    migration_files_checked: generatedColumnChain.migration_files_checked,
+    statements_checked: generatedColumnChain.statements_checked,
+    generated_columns: generatedColumnChain.generated_columns,
+    definitions_applied: generatedColumnChain.definitions_applied,
+    writer_checks: generatedColumnChain.writer_checks,
+    findings: generatedColumnChain.findings,
+    warnings: generatedColumnChain.warnings,
+    ok: generatedColumnChain.ok,
+    ready: generatedColumnChain.ready,
+    database_connection_performed: generatedColumnChain.database_connection_performed,
+    sql_mutation_performed: generatedColumnChain.sql_mutation_performed,
+    provider_mutation_performed: generatedColumnChain.provider_mutation_performed,
+    credential_access_performed: generatedColumnChain.credential_access_performed,
+    data_export_performed: generatedColumnChain.data_export_performed,
+    runtime_mutation_performed: generatedColumnChain.runtime_mutation_performed,
+    secrets_included: generatedColumnChain.secrets_included,
+  };
+  if (generatedColumnChain.ok !== true || generatedColumnChain.ready !== true || generatedColumnChain.findings.length > 0) {
+    pushFinding(report, "generated_column_chain", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB generated-column guard reports a writer against a generated column", "", {
+      generated_column_findings: generatedColumnChain.findings.length,
+      generated_column_files_checked: generatedColumnChain.files_checked,
+      generated_column_statements_checked: generatedColumnChain.statements_checked,
+    });
+  }
+  if (generatedColumnChain.database_connection_performed !== false || generatedColumnChain.sql_mutation_performed !== false || generatedColumnChain.provider_mutation_performed !== false || generatedColumnChain.credential_access_performed !== false || generatedColumnChain.data_export_performed !== false || generatedColumnChain.runtime_mutation_performed !== false || generatedColumnChain.secrets_included !== false) {
+    pushFinding(report, "safety_boundary", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB generated-column evidence violates static-only safety");
+  }
 }
 
 report.summary = {
