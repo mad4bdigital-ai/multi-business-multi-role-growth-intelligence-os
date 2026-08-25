@@ -104,6 +104,13 @@
               "args": []
             },
             {
+              "id": "work-map-schema-intelligence-comment-safe",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-platform-work-map-schema-intelligence.mjs",
+              "args": []
+            },
+            {
               "id": "runtime-persistence-wiring-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -145,6 +152,8 @@
             "http-generic-api/config/staging-migration-contract-policy.json",
             ".specify/work-map-schema-classification-registry.json",
             "http-generic-api/scripts/work-map-schema-classification.mjs",
+            "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
+            "http-generic-api/scripts/test-platform-work-map-schema-intelligence.mjs",
             "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/test-mariadb-collation-ci-guard.mjs",
