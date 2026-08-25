@@ -1,0 +1,158 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "fixed-admin-host-local-inspection-20260825",
+  "title": "Fixed Admin host-local inspection and targeted Production readiness probe",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/fixed-admin-host-local-inspection-20260825.json",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "edge/activation-gateway/generated/route-policy.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/test-fixed-host-local-system-tool.mjs",
+      "http-generic-api/test-custom-gpt-schemas.mjs",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a fixed Admin-only system dispatcher for exact-SHA Hostinger role-local full inspection and a bounded read-only Production activation readiness probe, without accepting credentials, migration, provider, workflow, SQL, shell, or mutation controls.",
+      "e2e_journeys": [
+        {
+          "id": "fixed-admin-host-local-inspection-read-only",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Admin GPT through fixed system dispatcher",
+          "entrypoint": "POST /admin/system/tools/call with host_local_role_inspection_dry_run",
+          "terminal_outcome": "The fixed dispatcher invokes the existing host-local adapter directly after admin authorization, exact identity binding, and request allowlist validation; it returns bounded read-only evidence with migration omitted and all mutation flags false.",
+          "steps": [
+            "Submit only expected_sha and optional target_key=production-runtime through the Admin system-tool call.",
+            "Authorize the fixed tool for an admin/service principal before adapter invocation.",
+            "Bind the running Production repository, branch, and exact SHA before any database connection.",
+            "Read the three independent Hostinger role identities from the Hostinger process environment.",
+            "Run database.full_inspection in dry_run mode and return sanitized evidence without GitHub dispatch, migration, grant, SQL, shell, or workflow execution."
+          ],
+          "assertions": [
+            "non-admin principals are rejected before adapter invocation",
+            "the request schema accepts only expected_sha and target_key",
+            "identity mismatch fails closed before database connection",
+            "host_local_role_env is unavailable to Staging and is never accepted as a caller-controlled field",
+            "database.inspect/database.full_inspection is dry_run-only and migration_selected=false",
+            "database_mutation_performed, migration_apply_performed, grant_mutation_performed, and workflow_dispatch_performed are false",
+            "the fixed tool does not route through the generic endpoint facade"
+          ],
+          "tests": [
+            {
+              "id": "fixed-host-local-system-tool-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-fixed-host-local-system-tool.mjs",
+              "args": []
+            },
+            {
+              "id": "host-local-runtime-inspection-unit-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-local-runtime-inspection.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-isolation-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-independent-schema-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "custom-gpt-schema-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-custom-gpt-schemas.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/hostLocalRuntimeInspection.js",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+            "http-generic-api/test-fixed-host-local-system-tool.mjs",
+            ".changes/e2e/fixed-admin-host-local-inspection-20260825.json"
+          ]
+        },
+        {
+          "id": "targeted-production-readiness-diagnostics",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Admin GPT through fixed system dispatcher",
+          "entrypoint": "POST /admin/system/tools/call with production_activation_readiness_probe",
+          "terminal_outcome": "The dispatcher returns the bounded readiness contract for MCP catalog schema, governance DB privilege, and runtime persistence without loading the oversized catalog and without performing writes.",
+          "steps": [
+            "Submit an empty tool_args object as an admin/service principal.",
+            "Run the three existing readiness readers in read-only mode.",
+            "Return checks, bounded dimension status, mutation attestation, and sanitized error codes.",
+            "Reject non-empty arguments or non-admin principals before readiness readers execute."
+          ],
+          "assertions": [
+            "readiness probe accepts no arguments",
+            "the probe is admin-only",
+            "the result contains no secrets and reports mutation flags explicitly",
+            "the probe does not enumerate or depend on the oversized dynamic catalog response"
+          ],
+          "tests": [
+            {
+              "id": "fixed-readiness-probe-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-fixed-host-local-system-tool.mjs",
+              "args": []
+            },
+            {
+              "id": "production-activation-readiness-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-activation-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/productionActivationReadiness.js",
+            "http-generic-api/test-fixed-host-local-system-tool.mjs",
+            ".changes/e2e/fixed-admin-host-local-inspection-20260825.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

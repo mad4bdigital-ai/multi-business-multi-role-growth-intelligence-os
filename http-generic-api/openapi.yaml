@@ -12454,7 +12454,7 @@ paths:
               properties:
                 name:
                   type: string
-                  enum: [connector_registry_list, connector_registry_get, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert]
+                  enum: [connector_registry_list, connector_registry_get, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, production_activation_readiness_probe, host_local_role_inspection_dry_run]
                 arguments:
                   type: object
                   additionalProperties: true
@@ -12463,7 +12463,7 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Repository webhook V2 status and dry-run prefer binding_key; apply also requires binding_sha256, capability_sha256, expected_commit_sha, capability_envelope_id, typed confirmation, and a review reason.
+                  description: Tool arguments. `production_activation_readiness_probe` accepts no arguments. For host_local_role_inspection_dry_run, include only expected_sha and optional target_key=production-runtime; it is Production-only read-only inspection and never accepts migration, grant, SQL, shell, workflow, or credential fields. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Repository webhook V2 status and dry-run prefer binding_key; apply also requires binding_sha256, capability_sha256, expected_commit_sha, capability_envelope_id, typed confirmation, and a review reason.
             examples:
               repositoryWebhookDryRun:
                 summary: Resolve the governed repository and produce review-bound fingerprints without a provider write

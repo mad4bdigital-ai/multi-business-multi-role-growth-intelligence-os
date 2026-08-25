@@ -571,7 +571,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     connectRoutes.includes('should_call_connect_device_install: !hasRegisteredDevice') &&
     connectRoutes.includes('Do not call connect_device_install automatically after connect_status'));
   assert("system tools/call forwards the original request context for tenant registry tools",
-    systemLayerRoutes.includes('callSystemLayerTool(name, args, req.auth, { executionFacade, req })') &&
+    systemLayerRoutes.includes('callSystemLayerTool(name, args, req.auth, {') &&
+    systemLayerRoutes.includes('executionFacade,') &&
+    systemLayerRoutes.includes('req,') &&
     systemLayerRoutes.includes('const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };'));
   assert("local connector health/devices derive tenant user identity from auth context",
     localConnectorRoutes.includes('function resolveLocalConnectorIdentity') &&
