@@ -35,13 +35,26 @@ const DEPENDENCY_GRAPH = Object.freeze([
 ]);
 
 const CAUSAL_GRAPH = Object.freeze([
-  { from: "tool_surface_large_response_failure", to: "response_chunk_persistence_unavailable", relation: "caused_by" },
-  { from: "response_chunk_persistence_unavailable", to: "runtime_persistence_schema_not_ready", relation: "caused_by" },
-  { from: "runtime_persistence_schema_not_ready", to: "runtime_persistence_authority_or_adapter", relation: "caused_by" },
-  { from: "mcp_catalog_unavailable", to: "schema_contract_not_ready", relation: "caused_by" },
-  { from: "schema_contract_not_ready", to: "mcp_catalog_level_missing", relation: "caused_by" },
-  { from: "mcp_catalog_level_missing", to: "governance_catalog_authority", relation: "caused_by" },
-  { from: "session_context_insert_denied", to: "governance_or_session_authority_gap", relation: "caused_by" },
+  { from: "tool_surface_large_response_failure", to: "response_chunk_persistence_unavailable", relation: "caused_by", kind: "runtime" },
+  { from: "response_chunk_persistence_unavailable", to: "runtime_persistence_schema_not_ready", relation: "caused_by", kind: "schema" },
+  { from: "runtime_persistence_schema_not_ready", to: "runtime_persistence_authority_or_adapter", relation: "caused_by", kind: "authority" },
+  { from: "mcp_catalog_unavailable", to: "schema_contract_not_ready", relation: "caused_by", kind: "contract" },
+  { from: "schema_contract_not_ready", to: "mcp_catalog_level_missing", relation: "caused_by", kind: "schema" },
+  { from: "mcp_catalog_level_missing", to: "governance_catalog_authority", relation: "caused_by", kind: "authority" },
+  { from: "session_context_insert_denied", to: "governance_or_session_authority_gap", relation: "caused_by", kind: "privilege" },
+  { from: "session_persistence_unavailable", to: "session_context_insert_denied", relation: "caused_by", kind: "runtime" },
+  { from: "schema_semantic_drift", to: "schema_contract_not_ready", relation: "caused_by", kind: "schema" },
+  { from: "grant_semantic_drift", to: "governance_or_session_authority_gap", relation: "caused_by", kind: "privilege" },
+  { from: "migration_ledger_mismatch", to: "schema_contract_not_ready", relation: "caused_by", kind: "ledger" },
+  { from: "runtime_behavioral_mismatch", to: "tool_surface_large_response_failure", relation: "caused_by", kind: "behavior" },
+  { from: "metadata_lock_present", to: "runtime_persistence_schema_not_ready", relation: "blocked_by", kind: "lock" },
+  { from: "long_running_transaction", to: "metadata_lock_present", relation: "caused_by", kind: "transaction" },
+  { from: "deployment_runtime_drift", to: "schema_contract_not_ready", relation: "caused_by", kind: "deployment" },
+  { from: "filesystem_config_drift", to: "deployment_runtime_drift", relation: "caused_by", kind: "configuration" },
+  { from: "service_state_unready", to: "runtime_behavioral_mismatch", relation: "caused_by", kind: "service" },
+  { from: "network_state_unready", to: "runtime_behavioral_mismatch", relation: "caused_by", kind: "network" },
+  { from: "disk_pressure", to: "response_chunk_persistence_unavailable", relation: "caused_by", kind: "capacity" },
+  { from: "credential_readiness_anomaly", to: "governance_or_session_authority_gap", relation: "caused_by", kind: "credential_presence_only" },
 ]);
 
 function stableValue(value) {
@@ -106,16 +119,16 @@ function roleTargetMaterial(role, env) {
   };
 }
 
-export function deriveTargetFingerprint({ role = "composite", env = process.env, databaseIdentifier = null, principalIdentifier = null, hostIdentity = null } = {}) {
+export function deriveTargetFingerprint({ role = "composite", env = process.env, databaseIdentifier = null, principalIdentifier = null, hostIdentity = null, roleFingerprints = null } = {}) {
   const material = role === "composite"
-    ? { role, environment: safeEnvironmentKey(env), repository: RECOVERY_REPOSITORY, branch: RECOVERY_BRANCH, target_key: "production-runtime" }
+    ? { role, environment: safeEnvironmentKey(env), repository: RECOVERY_REPOSITORY, branch: RECOVERY_BRANCH, target_key: "production-runtime", role_fingerprints: roleFingerprints || Object.fromEntries(Object.keys(ROLE_ENVIRONMENTS).map((name) => [name, deriveTargetFingerprint({ role: name, env })])) }
     : { ...roleTargetMaterial(role, env), database_identifier: databaseIdentifier ?? roleTargetMaterial(role, env).database_identifier, principal_identifier: principalIdentifier ?? roleTargetMaterial(role, env).principal_identifier, host_identity: hostIdentity ?? roleTargetMaterial(role, env).host_identity };
   return stableHash(material);
 }
 
 export function deriveRoleTargetFingerprints({ env = process.env } = {}) {
   const roleFingerprints = Object.fromEntries(Object.keys(ROLE_ENVIRONMENTS).map((role) => [role, deriveTargetFingerprint({ role, env })]));
-  return { ...roleFingerprints, composite: deriveTargetFingerprint({ env }) };
+  return { ...roleFingerprints, composite: deriveTargetFingerprint({ env, roleFingerprints }) };
 }
 
 function roleIdentityUniqueness({ env = process.env } = {}) {
@@ -235,11 +248,12 @@ export function buildCausalFindingGraph(findings = []) {
   const nodes = findings.map((finding) => ({ node_id: finding.finding_id || `finding:${stableHash(finding).slice(0, 32)}`, kind: "finding", category: text(finding.category, 128), target_role: text(finding.subject?.target_role, 64) || "unknown", severity: text(finding.severity, 32) || "unknown" }));
   const edges = [];
   for (const finding of findings) {
-    const category = text(finding.category, 128);
-    const candidate = CAUSAL_GRAPH.find((edge) => edge.to.includes(category) || edge.from.includes(category));
-    if (candidate) edges.push({ from: finding.finding_id, to: candidate.to, relation: candidate.relation });
+    const signals = [finding.category, finding.subject?.resource, finding.subject?.target_role, finding.desired_state?.authority_ref].map((value) => text(value, 128).toLowerCase()).filter(Boolean);
+    const matches = CAUSAL_GRAPH.filter((edge) => signals.some((signal) => edge.from.includes(signal) || edge.to.includes(signal)));
+    for (const match of matches.slice(0, 8)) edges.push({ from: finding.finding_id, to: match.to, relation: match.relation, kind: match.kind, source_signal: signals.find((signal) => match.from.includes(signal) || match.to.includes(signal)) || "registered_graph" });
   }
-  return { contract: "mad4b.recovery-causal-finding-graph.v1", nodes, edges, root_cause_candidates: [...new Set(edges.map((edge) => edge.to))], unknown_drift: findings.some((finding) => finding.repairability === "unknown_fail_closed"), secrets_included: false };
+  const dedupedEdges = [...new Map(edges.map((edge) => [`${edge.from}:${edge.to}:${edge.relation}`, edge])).values()];
+  return { contract: "mad4b.recovery-causal-finding-graph.v1", graph_kind: "causal_dependency_dag", nodes, edges: dedupedEdges, root_cause_candidates: [...new Set(dedupedEdges.map((edge) => edge.to))], unknown_drift: findings.some((finding) => finding.repairability === "unknown_fail_closed"), secrets_included: false };
 }
 
 export function assertTrustForMutation({ expectedSha, identity = null, env = process.env, targetFingerprint, targetRole = null, adminPrincipal } = {}) {

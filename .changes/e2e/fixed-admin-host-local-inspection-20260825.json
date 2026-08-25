@@ -16,6 +16,7 @@
       "http-generic-api/recoveryTrustModel.js",
       "http-generic-api/unsupportedRecoveryBroker.js",
       "http-generic-api/recoveryExceptionFramework.js",
+      "http-generic-api/recoveryExceptionLifecycle.js",
       "http-generic-api/config/recovery-kernel-manifest.json",
       "http-generic-api/openapi.yaml",
       "canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -207,7 +208,9 @@
             "Register bounded sanitized findings and causal graph, then create a proof-carrying plan containing finding IDs, exact SHA, manifest/attestation hashes, role target fingerprints, preconditions, postconditions, rollback classification, and no execution authorization.",
             "Create a single-use plan/step approval challenge, transition through the named Recovery state machine with append-only evidence, then require verified admin principal, fresh trust/target checks, durable approval verifier, lock provider, idempotency state, mutation executor, and same-cycle readback before any consequential step.",
             "Read run/evidence state through bounded sanitized readback with explicit degraded-memory versus durable-store status and no raw logs, credentials, connection strings, database identifiers, or secrets.",
-            "For an unsupported gap, open a recorded escalation or preview S0-S5/Q0-Q6 contract using only incident IDs, profiles, hashes, scope references, and expiry; execution remains kill-switched and requires an injected managed broker plus separate approval."
+            "For an unsupported gap, open a recorded escalation or preview S0-S5/Q0-Q6 contract using only incident IDs, profiles, hashes, scope references, and expiry; execution remains kill-switched and requires an injected managed broker plus separate approval.",
+            "Model E0-E6 exception lifecycle as immutable, durable-store-backed create/approve/activate/heartbeat/consume/revoke/expire transitions; E6 requires two distinct principal fingerprints and no transition creates provider authority by itself.",
+            "Preview disaster-recovery backup, restore, replacement, validation, cutover, rollback, and post-cutover credential-rotation phases without connecting to a provider, copying data, changing credentials, or mutating runtime."
           ],
           "assertions": [
             "private Recovery operations and Production-only capability keys are absent from Staging schemas; the shared Admin Core exposes only the generic recovery_kernel_call name, with runtime capability isolation",
@@ -223,6 +226,9 @@
             "unsupported SSH/SQL contracts reject raw command, SQL, credentials, host, database, and local connector fields",
             "unsupported capability execution is denied without the kill-switch, injected broker, and separate approval",
             "privileged exception contracts remain scoped resources with bounded TTL, max uses, budget, and dual-control metadata",
+            "exception lifecycle transitions are append-only and require injected durable exception storage; missing storage is preview-only or fail-closed rather than memory-authorized",
+            "E6 exception activation requires two distinct approved principal fingerprints and cannot be self-approved by the requesting principal",
+            "disaster-recovery preview includes backup/restore/replacement/cutover/rollback phases, but provider_connected, execution_allowed, and runtime_mutation_performed remain false",
             "exception revocation, emergency approval, audit-store fallback, and response/session degradation remain explicit contracts rather than bypasses",
             "consequential execution fails closed without durable approval, lock, executor, and readback authorities",
             "unknown executor outcomes are recorded as failed_closed and are never replayed automatically",
@@ -265,6 +271,13 @@
               "args": []
             },
             {
+              "id": "recovery-exception-lifecycle-and-dr-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel.mjs",
+              "args": []
+            },
+            {
               "id": "openapi-split-governance-test",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -285,6 +298,7 @@
             "http-generic-api/recoveryTrustModel.js",
             "http-generic-api/unsupportedRecoveryBroker.js",
             "http-generic-api/recoveryExceptionFramework.js",
+            "http-generic-api/recoveryExceptionLifecycle.js",
             "http-generic-api/config/recovery-kernel-manifest.json",
             "http-generic-api/openapi.yaml",
 

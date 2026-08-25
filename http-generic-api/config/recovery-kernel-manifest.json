@@ -189,6 +189,18 @@
       "target_roles": ["server_resolved"],
       "authority_ref": "E0-E6_scoped_exception_preview_only"
     },
+    "recovery_exception_lifecycle": {
+      "level": "R4",
+      "mutation_class": "C4-C6",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "injected_exception_store_dual_control_revoke_expire"
+    },
+    "disaster_recovery_preview": {
+      "level": "R5",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "backup_restore_replacement_cutover_preview_only"
+    },
     "recovery_reconciliation_preview": {
       "level": "R1",
       "mutation_class": "C0",
@@ -218,14 +230,18 @@
     "exact_production_sha",
     "recovery_manifest_hash",
     "target_fingerprint",
-    "admin_principal_binding"
+    "admin_principal_binding",
+    "role_fingerprint_set"
   ],
   "dependency_kinds": [
     "hard_dependency",
     "soft_dependency",
     "authority_dependency",
     "observability_dependency",
-    "recovery_dependency"
+    "recovery_dependency",
+    "exception_lifecycle_dependency",
+    "backup_dependency",
+    "cutover_dependency"
   ],
   "state_machine": {
     "phases": [
@@ -247,12 +263,17 @@
       "recovered"
     ],
     "events": "append_only",
-    "replay_policy": "single_use_idempotency"
+    "replay_policy": "single_use_idempotency",
+    "exception_events": "append_only",
+    "unknown_outcome_policy": "readback_before_retry_or_compensation",
+    "cancel_policy": "stop_future_steps_without_automatic_rollback"
   },
   "durability": {
     "inspection_and_plans_may_use_memory_for_local_non_mutating_tests": true,
     "consequential_mutation_requires_injected_durable_store": true,
-    "required_methods": ["putRun", "getRun", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt"]
+    "required_methods": ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt"],
+    "exception_lifecycle_methods": ["putException", "getException", "appendExceptionEvent"],
+    "ephemeral_capability_methods": ["putEphemeralCapability", "getEphemeralCapability"]
   },
   "safety": {
     "secrets_included": false,
@@ -263,6 +284,9 @@
     "default_mutation_policy": "deny_until_exact_trust_and_approval",
     "target_roles_are_server_resolved": true,
     "ssh_sql_are_contract_only_by_default": true,
+    "managed_ssh_broker_required_before_live_execution": true,
+    "managed_sql_broker_ast_policy_required_before_live_execution": true,
+    "backup_restore_cutover_providers_not_injected": true,
     "unsupported_broker_live_connector_present": false,
     "exception_framework_does_not_bypass_kernel_invariants": true,
     "emergency_approval_not_self_issued_by_gpt": true,

@@ -24,6 +24,16 @@ import {
   _testingRecoveryKernel,
 } from "./recoveryKernel.js";
 import { buildRecoveryKernelRoutes } from "./routes/recoveryKernelRoutes.js";
+import {
+  activateExceptionLifecycle,
+  approveExceptionLifecycle,
+  buildDisasterRecoveryPreview,
+  consumeExceptionLifecycle,
+  createExceptionLifecycle,
+  expireExceptionLifecycle,
+  heartbeatExceptionLease,
+  revokeExceptionLifecycle,
+} from "./recoveryExceptionLifecycle.js";
 
 const SHA = "a".repeat(40);
 const ENV = {
@@ -41,15 +51,44 @@ const ENV = {
 
 function makeDurableStore() {
   const runs = new Map();
+  const plans = new Map();
+  const findings = new Map();
+  const approvals = new Map();
+  const exceptions = new Map();
+  const exceptionEvents = [];
   const receipts = new Map();
   const events = [];
   const clone = (value) => structuredClone(value);
   return {
     runs,
+    plans,
+    findings,
+    approvals,
+    exceptions,
+    exceptionEvents,
+    ephemeralCapabilities: new Map(),
     receipts,
     events,
     async putRun(run) { runs.set(run.run_id, clone(run)); },
     async getRun(runId) { return runs.get(runId) ? clone(runs.get(runId)) : null; },
+    async putPlan(plan) { plans.set(plan.plan_id, clone(plan)); },
+    async getPlan(planId) { return plans.get(planId) ? clone(plans.get(planId)) : null; },
+    async putFinding(finding) { findings.set(finding.finding_id, clone(finding)); },
+    async getFinding(findingId) { return findings.get(findingId) ? clone(findings.get(findingId)) : null; },
+    async putApproval(approval) { approvals.set(approval.approval_id, clone(approval)); },
+    async getApprovalByPlanStep(planId, stepId) {
+      const matches = [...approvals.values()].filter((approval) => approval.plan_id === planId && approval.step_id === stepId);
+      return matches.length ? clone(matches.at(-1)) : null;
+    },
+    async markApprovalUsed(approvalId) {
+      const approval = approvals.get(approvalId);
+      if (approval) approvals.set(approvalId, { ...approval, used: true });
+    },
+    async putException(exception) { exceptions.set(exception.exception_id, clone(exception)); },
+    async getException(exceptionId) { return exceptions.get(exceptionId) ? clone(exceptions.get(exceptionId)) : null; },
+    async appendExceptionEvent(exceptionId, event) { exceptionEvents.push(clone({ exception_id: exceptionId, ...event })); },
+    async putEphemeralCapability(capability) { this.ephemeralCapabilities.set(capability.capability_id, clone(capability)); },
+    async getEphemeralCapability(capabilityId) { return this.ephemeralCapabilities.get(capabilityId) ? clone(this.ephemeralCapabilities.get(capabilityId)) : null; },
     async getRunByIdempotency(idempotencyKey) {
       const receipt = receipts.get(idempotencyKey);
       if (receipt) return clone(receipt);
@@ -133,6 +172,104 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
   ]) assert.ok(result.capabilities.some((entry) => entry.capability_key === key), key);
   assert.deepEqual(result.mutation_capabilities, ["remediation_step_execute", "unsupported_capability_execute"]);
   assert.equal(result.database_independent_capabilities.includes("recovery_capabilities"), true);
+});
+
+test("Exception lifecycle is durable, dual-control bound, single-use, and providerless by default", async () => {
+  const store = makeDurableStore();
+  const admin = { verified: true };
+  const base = {
+    incident_id: "incident:exception-lifecycle-20260825",
+    exception_class: "E6",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    plan_hash: "b".repeat(64),
+    scope_ref: "scope:recovery-contract-test",
+    reason_ref: "reason:bounded-recovery-contract-test",
+    expires_at: new Date(Date.now() + 120000).toISOString(),
+    budget: { max_uses: 1, max_runtime_seconds: 10, max_rows: 2, max_bytes: 1024, max_commands: 1 },
+  };
+  const created = await createExceptionLifecycle(base, { adminPrincipal: admin, exceptionStore: store });
+  assert.equal(created.state, "awaiting_approval");
+  assert.equal(created.persistence.durable, true);
+  assert.equal(created.execution_allowed, false);
+  assert.equal(created.provider_connected, false);
+  assert.equal(store.exceptionEvents.length, 1);
+
+  const afterFirstApproval = await approveExceptionLifecycle(await store.getException(created.exception_id), {
+    approval_id: "approval:first-exception",
+    approval_hash: "c".repeat(64),
+    principal_fingerprint: "d".repeat(64),
+  }, { exceptionStore: store });
+  assert.equal(afterFirstApproval.state, "awaiting_approval");
+  const afterRestart = await store.getException(created.exception_id);
+  const approved = await approveExceptionLifecycle(afterRestart, {
+    approval_id: "approval:second-exception",
+    approval_hash: "e".repeat(64),
+    principal_fingerprint: "f".repeat(64),
+  }, { exceptionStore: store });
+  assert.equal(approved.state, "approved");
+  assert.equal(new Set(approved.approvals.map((approval) => approval.principal_fingerprint)).size, 2);
+
+  const active = await activateExceptionLifecycle(await store.getException(created.exception_id), { exceptionStore: store });
+  assert.equal(active.state, "active");
+  assert.equal(active.execution_allowed, false);
+  const heartbeat = await heartbeatExceptionLease(await store.getException(created.exception_id), {
+    exceptionStore: store,
+    heartbeatRef: "heartbeat:exception-1",
+  });
+  assert.equal(heartbeat.state, "active");
+  const consumed = await consumeExceptionLifecycle(await store.getException(created.exception_id), {
+    exceptionStore: store,
+    consumeRef: "consume:exception-1",
+  });
+  assert.equal(consumed.state, "consumed");
+  assert.equal(consumed.runtime_mutation_performed, false);
+  await assert.rejects(async () => consumeExceptionLifecycle(await store.getException(created.exception_id), {
+    exceptionStore: store,
+    consumeRef: "consume:exception-2",
+  }), (error) => error.code === "EXCEPTION_NOT_ACTIVE");
+  assert.ok(store.exceptionEvents.every((event) => event.secrets_included === false));
+});
+
+test("Disaster Recovery preview is phase-complete but cannot connect or mutate", () => {
+  const preview = buildDisasterRecoveryPreview({
+    incident_id: "incident:dr-preview-20260825",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    plan_hash: "1".repeat(64),
+  }, { adminPrincipal: { verified: true } });
+  assert.equal(preview.read_only_probe, true);
+  assert.equal(preview.execution_allowed, false);
+  assert.equal(preview.provider_connected, false);
+  assert.equal(preview.runtime_mutation_performed, false);
+  assert.deepEqual(preview.phases.map((phase) => phase.phase), [
+    "backup_create",
+    "backup_verify",
+    "restore_preview",
+    "replacement_build",
+    "schema_reconstruct",
+    "data_copy_policy",
+    "replacement_validation",
+    "cutover_preview",
+    "cutover_rollback_preview",
+  ]);
+  assert.equal(preview.cutover_requires_separate_approval, true);
+  assert.equal(preview.credential_rotation_required_after_cutover, true);
+  assert.equal(preview.secrets_included, false);
+});
+
+test("Disaster Recovery preview is exposed only through the fixed non-consequential call surface", async () => {
+  const result = await callRecoveryKernelCapability("disaster_recovery_preview", {
+    incident_id: "incident:dr-call-20260825",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    plan_hash: "2".repeat(64),
+  }, { env: ENV, adminPrincipal: { verified: true } });
+  assert.equal(result.read_only_probe, true);
+  assert.equal(result.execution_allowed, false);
+  assert.equal(result.provider_connected, false);
+  assert.equal(result.runtime_mutation_performed, false);
+  assert.equal(result.secrets_included, false);
 });
 
 test("Root of Trust manifest and runtime attestation are hash-only and exact-SHA bound", () => {
@@ -240,6 +377,10 @@ test("approval challenge is bound to plan/step and never returns an approval tok
   assert.equal(challenge.approval_token_not_returned, true);
   assert.equal(challenge.plan_hash, plan.plan_hash);
   assert.equal(challenge.step_hash.length, 64);
+  assert.equal(challenge.target_fingerprint.length, 64);
+  assert.equal(challenge.composite_target_fingerprint, plan.target_fingerprint);
+  assert.equal(challenge.step_target_fingerprint, step.target_fingerprint);
+  assert.equal(challenge.target_role, step.target_role);
   assert.equal(challenge.secrets_included, false);
 });
 
@@ -497,4 +638,72 @@ test("private Recovery Kernel route rejects Staging at runtime before dispatch",
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+
+test("durable plans and findings survive a process-memory restart boundary", async () => {
+  const durable = makeDurableStore();
+  const inspection = await inspectProductionDatabase({ expected_sha: SHA, target_key: "production-runtime" }, {
+    env: ENV,
+    hostLocalExecutor: async () => readinessFailure(),
+    recoveryStore: durable,
+  });
+  assert.equal(inspection.durability.durable, true);
+  assert.equal(durable.findings.size, 3);
+  const findingIds = [...durable.findings.keys()];
+  _testingRecoveryKernel.RUNS.clear();
+  _testingRecoveryKernel.PLANS.clear();
+  const plan = await createRemediationPlan({ expected_sha: SHA, target_key: "production-runtime", finding_ids: findingIds }, { env: ENV, recoveryStore: durable });
+  assert.equal(durable.plans.has(plan.plan_id), true);
+  _testingRecoveryKernel.RUNS.clear();
+  _testingRecoveryKernel.PLANS.clear();
+  const resumedPlan = await previewRemediationPlan({ plan_id: plan.plan_id, plan_hash: plan.plan_hash }, { recoveryStore: durable });
+  assert.equal(resumedPlan.plan_id, plan.plan_id);
+  assert.equal(resumedPlan.execution_allowed, false);
+  const step = plan.steps.find((entry) => entry.consequential);
+  const challenge = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id }, { recoveryStore: durable });
+  assert.equal(durable.approvals.has(challenge.approval_id), true);
+  assert.equal(challenge.step_hash.length, 64);
+  assert.equal(challenge.target_fingerprint.length, 64);
+});
+
+
+test("unsupported capability is plan-bound and brokerless execution fails closed", async () => {
+  const durable = makeDurableStore();
+  const capability = await callRecoveryKernelCapability("ephemeral_capability_create", {
+    incident_id: "incident:plan-bound-unsupported-001",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    transport: "sql",
+    capability_type: "registered_sql_repair",
+    artifact_sha256: "f".repeat(64),
+    scope_ref: "scope:bounded-repair",
+    expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    single_use: true,
+    risk_class: "reversible",
+  }, { env: ENV, adminPrincipal: { verified: true }, recoveryStore: durable });
+  const plan = await createRemediationPlan({
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    finding_ids: [],
+    unsupported_capability_id: capability.capability_id,
+    unsupported_capability_hash: capability.capability_hash,
+  }, { env: ENV, recoveryStore: durable });
+  const step = plan.steps.find((entry) => entry.capability_key === "unsupported_capability_execute");
+  assert.ok(step);
+  assert.equal(step.unsupported_capability_hash, capability.capability_hash);
+  const challenge = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id }, { recoveryStore: durable });
+  await assert.rejects(
+    () => executeRemediationStep({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, approval_token: "plan-bound-approval-token-001", idempotency_key: "plan-bound-unsupported-idempotency-001" }, {
+      env: { ...ENV, RECOVERY_MUTATIONS_ENABLED: "true" },
+      adminPrincipal: { verified: true, binding: "test_admin_guard" },
+      approvalVerifier: { verify: async ({ approval }) => approval.approval_id === challenge.approval_id },
+      recoveryLock: { acquire: async () => ({ acquired: true, lock_id: "unsupported-test-lock" }), release: async () => {} },
+      recoveryStore: durable,
+    }),
+    (error) => error?.code === "UNSUPPORTED_BROKER_UNAVAILABLE",
+  );
+  const run = [...durable.runs.values()].at(-1);
+  assert.ok(run.events.some((event) => event.phase === "executing"));
+  assert.equal(run.evidence.database_mutation_performed, undefined);
 });

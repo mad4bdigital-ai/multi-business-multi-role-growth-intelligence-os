@@ -28,8 +28,19 @@ import {
   buildReconciliationPreview,
   observeSecretSafely,
 } from "./recoveryExceptionFramework.js";
+import {
+  activateExceptionLifecycle,
+  approveExceptionLifecycle,
+  buildDisasterRecoveryPreview,
+  consumeExceptionLifecycle,
+  createExceptionLifecycle,
+  createExceptionLifecycleRecord,
+  expireExceptionLifecycle,
+  heartbeatExceptionLease,
+  revokeExceptionLifecycle,
+} from "./recoveryExceptionLifecycle.js";
 
-export { assertTrustForMutation, deriveRoleTargetFingerprints, getRecoveryTrustModel, readRuntimeAttestation, readRecoveryManifest };
+export { assertTrustForMutation, deriveRoleTargetFingerprints, getRecoveryTrustModel, readRuntimeAttestation, readRecoveryManifest, activateExceptionLifecycle, approveExceptionLifecycle, buildDisasterRecoveryPreview, consumeExceptionLifecycle, createExceptionLifecycle, createExceptionLifecycleRecord, expireExceptionLifecycle, heartbeatExceptionLease, revokeExceptionLifecycle };
 
 export const RECOVERY_KERNEL_CONTRACT = "mad4b.recovery-kernel.v1";
 export const RECOVERY_KERNEL_VERSION = 1;
@@ -164,6 +175,12 @@ function requireSha(value, field = "expected_sha") {
   return sha;
 }
 
+function requireDigest(value, field) {
+  const digest = text(value, 128).toLowerCase();
+  if (!/^[0-9a-f]{64}$/u.test(digest)) throw kernelError(400, "RECOVERY_DIGEST_INVALID", `${field} must be a 64-character SHA-256 digest.`);
+  return digest;
+}
+
 function requireTargetKey(value = RECOVERY_KERNEL_TARGET_KEY) {
   const targetKey = text(value, 128) || RECOVERY_KERNEL_TARGET_KEY;
   if (targetKey !== RECOVERY_KERNEL_TARGET_KEY) throw kernelError(403, "RECOVERY_TARGET_INVALID", "Recovery Kernel is bound to the registered Production runtime target.", { target_key: targetKey });
@@ -232,6 +249,7 @@ export const RECOVERY_KERNEL_CAPABILITIES = Object.freeze([
   capability("privileged_operation_preview", "C0", "Preview a bounded privileged operation with risk, exception, budget, target, TTL, and evidence requirements; never executes it.", { dependencies: ["incident_context", "risk_policy", "approval_policy"] }),
   capability("privileged_lease_preview", "C0", "Preview a short-lived SSH or SQL lease with owner, target, TTL, heartbeat, and bounded command/row limits; never opens a session.", { dependencies: ["incident_context", "target_fingerprint", "lease_policy"] }),
   capability("recovery_exception_preview", "C0", "Preview a scoped E0-E6 exception with approval policy, budget, non-bypassable invariants, and expiry; never grants authority.", { dependencies: ["incident_context", "exception_policy", "approval_policy"] }),
+  capability("disaster_recovery_preview", "C0", "Preview backup, restore, replacement, validation, cutover, rollback, and credential-rotation phases without connecting to a provider or mutating runtime.", { dependencies: ["backup_policy", "replacement_validation", "cutover_policy"] }),
   capability("recovery_reconciliation_preview", "C0", "Preview reconciliation-only actions after an unknown provider outcome; retries and compensating mutations remain denied.", { dependencies: ["execution_outcome", "same_cycle_readback"] }),
   capability("recovery_cancel_preview", "C0", "Preview cancellation of future recovery steps without automatic rollback; reconciliation remains required.", { dependencies: ["recovery_run_state", "reconciliation_policy"] }),
   capability("recovery_evidence_chain_preview", "C0", "Build one tamper-evident evidence-chain event from a previous hash and sanitized event metadata.", { dependencies: ["append_only_evidence_contract"] }),
@@ -416,8 +434,10 @@ function requireProductionRequest(input = {}, allowedKeys = []) {
   return { expected_sha: expectedSha, target_key: targetKey };
 }
 
-function ensurePlan(planId, planHash = null) {
-  const plan = PLANS.get(planId);
+async function ensurePlan(planId, planHash = null, { recoveryStore } = {}) {
+  let plan = null;
+  if (recoveryStore && typeof recoveryStore.getPlan === "function") plan = await recoveryStore.getPlan(planId);
+  if (!plan) plan = PLANS.get(planId);
   if (!plan) throw kernelError(404, "RECOVERY_PLAN_NOT_FOUND", "The requested recovery plan is not available.", { plan_id: planId });
   if (planHash && plan.plan_hash !== planHash) throw kernelError(409, "RECOVERY_PLAN_HASH_MISMATCH", "The requested recovery plan hash does not match the repository-bound plan.", { plan_id: planId });
   if (plan.expected_sha !== plan.expected_sha_at_creation) throw kernelError(409, "RECOVERY_PLAN_STALE", "The recovery plan is stale and must be recreated.");
@@ -500,7 +520,7 @@ function createRunId(plan) {
 }
 
 function createPlanId(input) {
-  return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids }).slice(0, 32)}`;
+  return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
 }
 
 function planSteps(findings, targetFingerprints = {}) {
@@ -530,7 +550,7 @@ function planSteps(findings, targetFingerprints = {}) {
 export async function createRemediationPlan(input = {}, { recoveryStore, env = process.env } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
-  const allowed = new Set(["expected_sha", "target_key", "finding_ids", "idempotency_key"]);
+  const allowed = new Set(["expected_sha", "target_key", "finding_ids", "idempotency_key", "unsupported_capability_id", "unsupported_capability_hash"]);
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
   if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Plan creation accepts only exact SHA, target, finding IDs, and an idempotency key.", { fields: unexpected });
   const expectedSha = requireSha(input.expected_sha);
@@ -540,17 +560,57 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
   if (!manifestVerification.ok) throw kernelError(412, "RECOVERY_TRUST_ROOT_INVALID", "Recovery planning requires exact Production identity and Recovery Manifest binding.", { manifest_verification: manifestVerification });
   const targetFingerprints = deriveRoleTargetFingerprints({ env });
   const findingIds = Array.isArray(input.finding_ids) ? [...new Set(input.finding_ids.map((value) => text(value, 160)))] : [];
-  if (findingIds.length === 0 || findingIds.length > 50 || findingIds.some((id) => !FINDING_ID_RE.test(id))) throw kernelError(400, "RECOVERY_FINDINGS_INVALID", "finding_ids must contain one to fifty registered finding IDs.");
+  if (findingIds.length > 50 || findingIds.some((id) => !FINDING_ID_RE.test(id))) throw kernelError(400, "RECOVERY_FINDINGS_INVALID", "finding_ids must contain zero to fifty registered finding IDs when a bounded capability reference is supplied.");
+  const unsupportedCapabilityId = input.unsupported_capability_id ? text(input.unsupported_capability_id, 160) : null;
+  const unsupportedCapabilityHash = input.unsupported_capability_hash ? requireDigest(input.unsupported_capability_hash, "unsupported_capability_hash") : null;
+  const hasUnsupportedReference = Boolean(unsupportedCapabilityId || unsupportedCapabilityHash);
+  if (!hasUnsupportedReference && findingIds.length === 0) throw kernelError(400, "RECOVERY_FINDINGS_INVALID", "Plan creation requires registered findings or one bounded unsupported capability reference.");
+  if (hasUnsupportedReference && (!unsupportedCapabilityId || !unsupportedCapabilityHash)) throw kernelError(400, "RECOVERY_UNSUPPORTED_REFERENCE_INVALID", "Unsupported plan binding requires both capability_id and capability_hash.");
+  let unsupportedCapability = null;
+  if (hasUnsupportedReference) {
+    if (!recoveryStore || typeof recoveryStore.getEphemeralCapability !== "function") throw kernelError(503, "RECOVERY_CAPABILITY_STORE_UNAVAILABLE", "Unsupported plan binding requires a durable capability store; memory-only capability references cannot authorize a plan.");
+    unsupportedCapability = await recoveryStore.getEphemeralCapability(unsupportedCapabilityId);
+    if (!unsupportedCapability || stableHash(unsupportedCapability) !== unsupportedCapabilityHash) throw kernelError(409, "RECOVERY_CAPABILITY_HASH_MISMATCH", "The ephemeral capability reference is absent or does not match its durable record.");
+    if (unsupportedCapability.expected_sha !== expectedSha || unsupportedCapability.target_key !== targetKey) throw kernelError(409, "RECOVERY_CAPABILITY_TARGET_MISMATCH", "The ephemeral capability is not bound to the requested exact Production target.");
+    if (Date.parse(unsupportedCapability.expires_at) <= Date.now() || unsupportedCapability.single_use === false) throw kernelError(409, "RECOVERY_CAPABILITY_NOT_EXECUTABLE", "The ephemeral capability is expired or not single-use and cannot be bound to a recovery plan.");
+  }
   const findings = [];
   for (const findingId of findingIds) {
-    const found = [...RUNS.values()].flatMap((run) => run.findings || []).find((finding) => finding.finding_id === findingId);
+    let found = null;
+    if (recoveryStore && typeof recoveryStore.getFinding === "function") found = await recoveryStore.getFinding(findingId);
+    if (!found) found = [...RUNS.values()].flatMap((run) => run.findings || []).find((finding) => finding.finding_id === findingId);
     if (!found) throw kernelError(404, "RECOVERY_FINDING_NOT_FOUND", "A requested finding is not registered in the Recovery Kernel state.", { finding_id: findingId });
     findings.push(sanitizeEvidence(found));
   }
   const planId = createPlanId({ expected_sha: expectedSha, target_key: targetKey, finding_ids: findingIds });
-  const existing = PLANS.get(planId);
+  let existing = null;
+  if (recoveryStore && typeof recoveryStore.getPlan === "function") existing = await recoveryStore.getPlan(planId);
+  if (!existing) existing = PLANS.get(planId);
   if (existing) return sanitizeEvidence(existing);
-  const steps = planSteps(findings, targetFingerprints);
+  const steps = [
+    ...planSteps(findings, targetFingerprints),
+    ...(unsupportedCapability ? [{
+      ordinal: findings.length + 1,
+      finding_id: null,
+      classification: "registered_unsupported_capability",
+      capability_key: "unsupported_capability_execute",
+      operation: "unsupported_capability_execute",
+      target_role: unsupportedCapability.target_role === "server_resolved" ? "composite" : unsupportedCapability.target_role,
+      target_fingerprint: targetFingerprints[unsupportedCapability.target_role] || targetFingerprints.composite,
+      authority_ref: `capability:${unsupportedCapability.capability_id}`,
+      mutation_class: unsupportedCapability.risk_class === "destructive" ? "C6" : "C4",
+      consequential: true,
+      approval_required: true,
+      execution_allowed: false,
+      preconditions: ["production_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_use_approval", "ephemeral_capability_unexpired"],
+      postconditions: ["provider_acknowledgement", "same_cycle_readback", "behavioral_probe_or_reconciliation"],
+      rollback: "capability_declared_forward_only",
+      unsupported_capability_id: unsupportedCapability.capability_id,
+      unsupported_capability_hash: unsupportedCapabilityHash,
+      incident_id: unsupportedCapability.incident_id,
+      step_hash: null,
+    }] : []),
+  ].map((step) => step.step_hash ? step : { ...step, step_id: `step:${stableHash(step).slice(0, 32)}`, step_hash: stableHash(step) });
   const causalGraph = buildCausalFindingGraph(findings);
   const planBase = {
     contract: "mad4b.recovery-remediation-plan.v1",
@@ -569,6 +629,7 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     branch: RECOVERY_KERNEL_PRODUCTION_BRANCH,
     finding_ids: findingIds,
     finding_hash: stableHash(findings),
+    unsupported_capability: unsupportedCapability ? { capability_id: unsupportedCapability.capability_id, capability_hash: unsupportedCapabilityHash, incident_id: unsupportedCapability.incident_id, transport: unsupportedCapability.transport, capability_type: unsupportedCapability.capability_type, target_role: unsupportedCapability.target_role, scope_ref: unsupportedCapability.scope_ref, expires_at: unsupportedCapability.expires_at, single_use: true, content_received: false } : null,
     steps,
     status: "planned",
     blast_radius: { database_roles: [...new Set(steps.map((step) => step.target_role).filter((role) => role !== "unknown"))], tables_max: 1, rows_data_mutation: false, schema_mutation: steps.some((step) => step.mutation_class === "C3"), grants_mutation: steps.some((step) => step.mutation_class === "C2"), cross_database: false },
@@ -594,17 +655,21 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
   };
   const plan = { ...planBase, plan_hash: stableHash(planBase) };
   PLANS.set(planId, plan);
+  if (recoveryStore && typeof recoveryStore.putFinding === "function") {
+    for (const finding of findings) await recoveryStore.putFinding(sanitizeEvidence(finding));
+  }
+  if (recoveryStore && typeof recoveryStore.putPlan === "function") await recoveryStore.putPlan(sanitizeEvidence(plan));
   return sanitizeEvidence(plan);
 }
 
-export async function previewRemediationPlan(input = {}) {
+export async function previewRemediationPlan(input = {}, { recoveryStore } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
   const allowed = new Set(["plan_id", "plan_hash", "step_id"]);
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
   if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Plan preview accepts only plan and optional step references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
-  const plan = ensurePlan(planId, text(input.plan_hash, 128) || null);
+  const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const stepId = input.step_id ? requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID") : null;
   const step = stepId ? ensureStep(plan, stepId) : null;
   return sanitizeEvidence({
@@ -622,7 +687,7 @@ export async function previewRemediationPlan(input = {}) {
   });
 }
 
-export async function createApprovalChallenge(input = {}, { approvalIssuer, approvalStore } = {}) {
+export async function createApprovalChallenge(input = {}, { approvalIssuer, approvalStore, recoveryStore } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
   const allowed = new Set(["plan_id", "plan_hash", "step_id"]);
@@ -630,16 +695,17 @@ export async function createApprovalChallenge(input = {}, { approvalIssuer, appr
   if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Approval challenge creation accepts only plan and step references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
   const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
-  const plan = ensurePlan(planId, text(input.plan_hash, 128) || null);
+  const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const step = ensureStep(plan, stepId);
   if (!step.approval_required) throw kernelError(409, "RECOVERY_APPROVAL_NOT_REQUIRED", "The selected step is read-only and does not require an approval challenge.");
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const approvalId = `approval:${stableHash({ plan_hash: plan.plan_hash, step_id: step.step_id, nonce: randomUUID() }).slice(0, 32)}`;
-  const challengeBase = { contract: "mad4b.recovery-approval-challenge.v1", approval_id: approvalId, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, approval_class: step.mutation_class, expires_at: expiresAt, single_use: true, non_transferable: true, secrets_included: false };
+  const challengeBase = { contract: "mad4b.recovery-approval-challenge.v1", approval_id: approvalId, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role, approval_class: step.mutation_class, expires_at: expiresAt, single_use: true, non_transferable: true, secrets_included: false };
   const issued = approvalIssuer && typeof approvalIssuer.createChallenge === "function" ? await approvalIssuer.createChallenge(sanitizeEvidence(challengeBase)) : null;
   if (approvalStore && typeof approvalStore.putChallenge === "function") await approvalStore.putChallenge(sanitizeEvidence(challengeBase));
   const challenge = { ...challengeBase, issuer: issued ? "injected_approval_issuer" : "repository_challenge_reference_only", challenge_hash: stableHash(challengeBase), execution_ready: Boolean(issued && approvalStore && typeof approvalStore.putChallenge === "function") };
   APPROVALS.set(approvalId, { ...challenge, used: false, issued });
+  if (recoveryStore && typeof recoveryStore.putApproval === "function") await recoveryStore.putApproval(sanitizeEvidence({ ...challenge, used: false }));
   return sanitizeEvidence({ ok: true, ...challenge, approval_token_required: true, approval_token_not_returned: true, read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
 }
 
@@ -654,6 +720,10 @@ async function verifyApproval(approval, token, context, { approvalVerifier, appr
     approval = await approvalStore.getChallenge(context.plan_hash, context.step_id) || null;
   }
   if (!approval || approval.used === true || Date.parse(approval.expires_at) <= Date.now()) return false;
+  if (approval.plan_hash !== context.plan_hash || approval.step_id !== context.step_id || approval.step_hash !== context.step_hash) return false;
+  if (approval.composite_target_fingerprint && approval.composite_target_fingerprint !== context.composite_target_fingerprint) return false;
+  if (approval.step_target_fingerprint && approval.step_target_fingerprint !== context.step_target_fingerprint) return false;
+  if (approval.target_role && approval.target_role !== context.target_role) return false;
   if (approvalVerifier && typeof approvalVerifier.verify === "function") {
     return (await approvalVerifier.verify({ token, approval: sanitizeEvidence(approval), context: sanitizeEvidence(context) })) === true;
   }
@@ -677,6 +747,10 @@ function isDurableRecoveryStore(recoveryStore) {
     recoveryStore
     && typeof recoveryStore.putRun === "function"
     && typeof recoveryStore.getRun === "function"
+    && typeof recoveryStore.putPlan === "function"
+    && typeof recoveryStore.getPlan === "function"
+    && typeof recoveryStore.putFinding === "function"
+    && typeof recoveryStore.getFinding === "function"
     && typeof recoveryStore.getRunByIdempotency === "function"
     && typeof recoveryStore.appendEvidenceEvent === "function"
     && typeof recoveryStore.putIdempotencyReceipt === "function"
@@ -690,14 +764,14 @@ function requireDurableRecoveryStore(recoveryStore) {
   return recoveryStore;
 }
 
-export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore } = {}) {
+export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
   const allowed = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
   if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Step execution accepts only plan, step, approval, and idempotency references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
-  const plan = ensurePlan(planId, text(input.plan_hash, 128) || null);
+  const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
   const step = ensureStep(plan, stepId);
   if (!step.consequential) throw kernelError(409, "RECOVERY_STEP_NOT_CONSEQUENTIAL", "Read-only or fail-closed steps cannot be executed as mutations.");
@@ -707,10 +781,13 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const externalExisting = await recoveryStore.getRunByIdempotency(idempotencyKey);
   if (externalExisting) return sanitizeEvidence({ ...externalExisting, idempotent_replay: true });
   const approvalToken = assertApprovalTokenShape(input.approval_token);
+  const durableApproval = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
+    ? await recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id)
+    : null;
   const latestApproval = [...APPROVALS.values()].reverse().find((entry) => entry.plan_id === plan.plan_id && entry.step_id === step.step_id);
-  const approval = latestApproval
+  const approval = durableApproval || latestApproval
     || (approvalStore && typeof approvalStore.getChallenge === "function" ? await approvalStore.getChallenge(plan.plan_hash, step.step_id) : null);
-  const approvalValid = await verifyApproval(approval, approvalToken, { plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint }, { approvalVerifier, approvalStore });
+  const approvalValid = await verifyApproval(approval, approvalToken, { plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role }, { approvalVerifier, approvalStore });
   if (!approvalValid) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not cryptographically bound to this plan step.");
   if (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift or unsatisfied preconditions; mutation is denied.");
   if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
@@ -743,10 +820,9 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     run.evidence.approval_verified = true;
     run.evidence.execution_started = true;
     await writeRun(run, { recoveryStore });
-    if (!mutationExecutor || typeof mutationExecutor.execute !== "function") throw kernelError(503, "RECOVERY_EXECUTOR_UNAVAILABLE", "No capability executor is configured; mutation was not attempted.");
     let result;
     try {
-      result = await mutationExecutor.execute({
+      const executionPayload = {
         capability_key: step.capability_key,
         operation: step.operation,
         target_role: step.target_role,
@@ -757,13 +833,22 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
         plan_hash: plan.plan_hash,
         step_id: step.step_id,
         idempotency_key: idempotencyKey,
-      });
+      };
+      if (step.capability_key === "unsupported_capability_execute") {
+        if (!plan.unsupported_capability || plan.unsupported_capability.capability_id !== step.unsupported_capability_id || plan.unsupported_capability.capability_hash !== step.unsupported_capability_hash) throw kernelError(409, "RECOVERY_UNSUPPORTED_PLAN_BINDING_INVALID", "The unsupported capability is not bound to the immutable recovery plan step.");
+        result = await executeUnsupportedCapability({ incident_id: plan.unsupported_capability.incident_id || `incident:${plan.plan_id.slice(-24)}`, expected_sha: plan.expected_sha, target_key: plan.target_key, capability_id: step.unsupported_capability_id, capability_hash: step.unsupported_capability_hash, approval_id: approval.approval_id, idempotency_key: idempotencyKey }, { env, adminPrincipal, unsupportedBroker, recoveryStore });
+      } else {
+        if (!mutationExecutor || typeof mutationExecutor.execute !== "function") throw kernelError(503, "RECOVERY_EXECUTOR_UNAVAILABLE", "No capability executor is configured; mutation was not attempted.");
+        result = await mutationExecutor.execute(executionPayload);
+      }
     } catch (error) {
       run.evidence.execution_error = { code: text(error?.code || "recovery_executor_failed", 128), message: "Recovery capability executor failed; final state requires readback.", secrets_included: false };
+      if (["RECOVERY_MUTATIONS_DISABLED", "UNSUPPORTED_BROKER_UNAVAILABLE", "UNSUPPORTED_ADMIN_PRINCIPAL_REQUIRED", "RECOVERY_UNSUPPORTED_PLAN_BINDING_INVALID", "RECOVERY_CAPABILITY_HASH_MISMATCH", "RECOVERY_CAPABILITY_TARGET_MISMATCH"].includes(error?.code)) throw error;
       throw kernelError(502, "RECOVERY_EXECUTOR_FAILED", "The capability executor failed; recovery remains unverified and must not be replayed automatically.", { run_id: run.run_id });
     }
     approval.used = true;
     if (approvalStore && typeof approvalStore.markUsed === "function") await approvalStore.markUsed(approval.approval_id);
+    if (recoveryStore && typeof recoveryStore.markApprovalUsed === "function") await recoveryStore.markApprovalUsed(approval.approval_id);
     run.evidence.provider_receipt = sanitizeEvidence(result);
     run.evidence.database_mutation_performed = result?.database_mutation_performed === true;
     run.evidence.verification_required = true;
@@ -789,7 +874,7 @@ export async function verifyRemediationStep(input = {}, { readbackVerifier, reco
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
   if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Step verification accepts only plan and step references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
-  const plan = ensurePlan(planId, text(input.plan_hash, 128) || null);
+  const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
   const step = ensureStep(plan, stepId);
   if (!readbackVerifier || typeof readbackVerifier.verify !== "function") throw kernelError(503, "RECOVERY_READBACK_UNAVAILABLE", "No same-cycle readback verifier is configured; recovery remains unverified.");
@@ -851,6 +936,9 @@ export async function inspectProductionDatabase(input = {}, { env = process.env,
   await appendStateEvent(run, "created", "recovery_inspection_created", { recoveryStore, details: { durable: Boolean(recoveryStore) } });
   await appendStateEvent(run, "inspecting", "inspection_started", { recoveryStore });
   await appendStateEvent(run, inspection?.ok === false ? "failed_closed" : "classified", inspection?.ok === false ? "inspection_failed_closed" : "findings_classified", { recoveryStore, details: { finding_count: findings.length } });
+  if (recoveryStore && typeof recoveryStore.putFinding === "function") {
+    for (const finding of findings) await recoveryStore.putFinding(sanitizeEvidence(finding));
+  }
   return sanitizeEvidence({ ok: inspection?.ok !== false, contract: "mad4b.recovery-production-inspection.v1", run_id: runId, status: run.status, phase: run.phase, identity, trust, attestation, causal_graph: causalGraph, finding_count: findings.length, findings, inspection: { ...inspection, findings }, next_actions: findings.length ? ["finding_details", "remediation_plan_create"] : ["recovery_evidence_get"], durability: { durable: Boolean(recoveryStore), mode: recoveryStore ? "injected_store" : "degraded_memory_only_test_state" }, read_only: true, ...noMutationAttestation({ database_connection_performed: inspection?.database_connection_performed === true, read_only_probe: true }) });
 }
 
@@ -887,6 +975,8 @@ export async function callRecoveryKernelCapability(capabilityKey, input = {}, de
       return sanitizeEvidence({ ...buildPrivilegedLeasePreview(input, { adminPrincipal: deps.adminPrincipal }), read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
     case "recovery_exception_preview":
       return sanitizeEvidence({ ...buildRecoveryExceptionPreview(input, { adminPrincipal: deps.adminPrincipal }), read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
+    case "disaster_recovery_preview":
+      return sanitizeEvidence({ ...buildDisasterRecoveryPreview(input, { adminPrincipal: deps.adminPrincipal }), read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
     case "recovery_reconciliation_preview":
       return sanitizeEvidence({ ...buildReconciliationPreview(input, { adminPrincipal: deps.adminPrincipal }), read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
     case "recovery_cancel_preview":
@@ -945,6 +1035,7 @@ export async function callRecoveryKernelCapability(capabilityKey, input = {}, de
     case "approval_challenge_create": return createApprovalChallenge(input, deps);
     case "remediation_step_execute": return executeRemediationStep(input, { ...deps, adminPrincipal: deps.adminPrincipal });
     case "unsupported_capability_execute": return executeUnsupportedCapability(input, { ...deps, adminPrincipal: deps.adminPrincipal });
+    case "recovery_exception_lifecycle": throw kernelError(501, "RECOVERY_EXCEPTION_LIFECYCLE_INTERNAL_ONLY", "Exception lifecycle transitions require a separately injected durable control-plane adapter and are not exposed through the read-only capability call surface.");
     case "remediation_step_verify": return verifyRemediationStep(input, deps);
     case "recovery_run_get": return getRecoveryRun(input, deps);
     case "recovery_evidence_get": return getRecoveryEvidence(input, deps);
