@@ -23,34 +23,39 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep generated-artifact-refresh as the sole exact-head mutating maintenance authority while adding a deterministic Remote MCP write-scope recipe bounded to its two generated outputs and preserving fail-closed schema/docs coverage for maintenance-tool changes.",
+      "objective": "Keep generated-artifact-refresh as the sole exact-head mutating maintenance authority, require one scoped trusted repository identity for branch APIs, checkout-persisted pushes, and verifier dispatch, and preserve deterministic bounded Remote MCP recovery plus fail-closed schema/docs coverage.",
       "e2e_journeys": [
         {
           "id": "dispatch-bounded-remote-mcp-generated-refresh",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "trusted generated-artifact dispatcher and repository governance reviewer",
-          "entrypoint": "workflow_dispatch of the registered generated-artifact writer with a governed feature branch, exact current SHA, registered recipe, and typed confirmation",
-          "terminal_outcome": "The writer rejects stale or protected targets, auto-selects Work Map self-hosting before Remote MCP recovery and frontend fallback, regenerates only the two Remote MCP write-scope artifacts when that canonical inventory is stale, proves two-pass determinism and currentness, commits with a normal fast-forward push, and dispatches the read-only Remote MCP verifier bound to the resulting exact head.",
+          "entrypoint": "workflow_dispatch of the registered generated-artifact writer with a governed feature branch, exact current SHA, registered recipe, typed confirmation, and REPO_AUTOSYNC_TOKEN repository identity",
+          "terminal_outcome": "The writer fails before checkout when the trusted credential is absent, rejects stale or protected targets, auto-selects Work Map self-hosting before Remote MCP recovery and frontend fallback, regenerates only its registered outputs, proves determinism and currentness, commits with one normal fast-forward push authenticated by the scoped repository writer identity, and dispatches read-only exact-head verification through that same identity so pull-request checks remain observable.",
           "steps": [
             "Validate target_ref, expected_head_sha, typed confirmation, protected-branch rejection, and workflow-dispatch-only authority before mutation.",
+            "Require REPO_AUTOSYNC_TOKEN before checkout and refuse github.token or GITHUB_TOKEN as a repository-writer fallback.",
+            "Use the same scoped repository identity for branch API operations, persisted checkout credentials used by the generated-artifact tool push, and recipe-specific verifier dispatch.",
             "Classify the recipe with Work Map self-hosting priority, canonical Remote MCP currentness probing, and frontend fallback without granting an alternate writer authority.",
             "For Remote MCP recovery, run the canonical generator twice and require identical SHA-256 output hashes.",
-            "Require the candidate write set to contain only http-generic-api/remote-mcp-write-scope-inventory.generated.json and docs/remote-mcp-write-scope-inventory.md.",
-            "Run canonical Remote MCP currentness and contract tests before committing.",
+            "Require the candidate write set to contain only the outputs registered for the resolved recipe.",
+            "Run canonical currentness and contract tests before committing.",
             "Re-read the remote branch against expected_head_sha immediately before one normal push and never force-push.",
-            "Dispatch Remote MCP OAuth Path Format Guard with target_ref and the resulting exact head SHA for read-only verification.",
+            "Dispatch the registered read-only verifier with target_ref and the resulting exact head SHA.",
             "Treat maintenance-tool source changes under http-generic-api/scripts as covered only when a real scripts/test-* or other accepted schema/docs/test companion exists."
           ],
           "assertions": [
             "generated-artifact-refresh remains the sole registered mutating maintenance tool for generated state in this flow.",
+            "The writer fails before checkout when REPO_AUTOSYNC_TOKEN is unavailable.",
+            "Branch API mutation, checkout-persisted repository push, and verifier dispatch all use REPO_AUTOSYNC_TOKEN; github.token and GITHUB_TOKEN are forbidden as writer fallbacks.",
+            "A generated follow-up commit must not depend on the default github-actions bot credential path that can suppress the pull-request workflow cycle needed for exact-head verification.",
             "remote_mcp_write_scope_refresh can write exactly the JSON inventory and Markdown inventory and no other repository path.",
             "auto routing preserves Work Map self-hosting priority, then canonical Remote MCP stale-state recovery, then frontend fallback.",
             "Remote MCP generation is executed twice and SHA-256 equality is required before currentness and contract verification.",
             "The Remote MCP verifier is read-only and workflow-dispatch verification is bound to target_ref plus expected_head_sha.",
             "main and Production remain forbidden mutation targets and force push remains forbidden.",
             "Schema/docs coverage recognizes http-generic-api/scripts/test-* companions without exempting maintenance tooling from coverage.",
-            "No provider call, live database access, migration apply, deployment, live UEACP capture, or secret read is authorized by this contract."
+            "No provider call, live database access, migration apply, deployment, live UEACP capture, or credential value in evidence is authorized; the scoped repository token is used only for the declared GitHub repository identity."
           ],
           "tests": [
             {
@@ -90,12 +95,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe one explicitly authorized feature-branch Remote MCP refresh converge the two bounded outputs and pass exact-head read-only verification."
+      "objective": "Observe one explicitly authorized feature-branch refresh produce a trusted-identity commit, trigger the expected pull-request verification cycle, converge its bounded outputs, and pass exact-head read-only verification."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale heads, protected refs, unexpected dirty paths, nondeterministic generation, currentness-probe failure, concurrent branch movement, and verification-dispatch failure while preserving fail-closed behavior."
+      "objective": "Exercise missing trusted identity, stale heads, protected refs, unexpected dirty paths, nondeterministic generation, currentness-probe failure, concurrent branch movement, and verification-dispatch failure while preserving fail-closed behavior."
     },
     {
       "id": "canary",
