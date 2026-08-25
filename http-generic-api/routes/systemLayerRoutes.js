@@ -198,6 +198,8 @@ const SYSTEM_LAYER_TOOLS = [
           properties: {
             expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
             target_key: { type: "string", enum: ["production-runtime"] },
+            target_role: { type: "string", enum: ["server_resolved", "runtime", "governance", "runtime_persistence"] },
+            host_fingerprint: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
             tool_name: { type: "string", minLength: 1, maxLength: 191 },
             q: { type: "string", maxLength: 256 },
             tag: { type: "string", maxLength: 96 },
@@ -209,6 +211,32 @@ const SYSTEM_LAYER_TOOLS = [
             plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
             step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
             run_id: { type: "string", pattern: "^run:[0-9a-f]{16,64}$" },
+            incident_id: { type: "string", pattern: "^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" },
+            reason: { type: "string", minLength: 12, maxLength: 1000 },
+            profile: { type: "string", enum: ["S0", "S1", "S2", "S3", "S4", "S5", "Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6"] },
+            risk_class: { type: "string", enum: ["read_only", "reversible", "service_impacting", "filesystem_mutation", "destructive", "unknown"] },
+            command_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            query_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            artifact_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            expires_at: { type: "string", format: "date-time" },
+            transport: { type: "string", enum: ["ssh", "sql"] },
+            capability_type: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            single_use: { type: "boolean", default: true },
+            backup_evidence_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            operation_type: { type: "string", enum: ["ssh_command", "sql_statement", "file_patch", "service_action", "process_action", "network_diagnostic", "backup_operation", "deployment_rollback"] },
+            scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            exception_class: { type: "string", enum: ["E0", "E1", "E2", "E3", "E4", "E5", "E6"] },
+            requested_scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            depends_on: { type: "array", maxItems: 5, items: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" } },
+            capability_budget: { type: "object", additionalProperties: false, properties: { max_statements: { type: "integer", minimum: 0, maximum: 1000000 }, max_rows: { type: "integer", minimum: 0, maximum: 1000000 }, max_files: { type: "integer", minimum: 0, maximum: 1000000 }, max_bytes: { type: "integer", minimum: 0, maximum: 67108864 }, max_runtime_seconds: { type: "integer", minimum: 0, maximum: 1000000 }, max_services: { type: "integer", minimum: 0, maximum: 1000000 }, max_commands: { type: "integer", minimum: 0, maximum: 1000000 } } },
+            max_commands: { type: "integer", minimum: 0, maximum: 50 },
+            max_rows: { type: "integer", minimum: 0, maximum: 100 },
+            previous_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            event: { type: "object", additionalProperties: true },
+            configured: { type: "boolean" },
+            value_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            age_seconds: { type: "integer", minimum: 0, maximum: 315360000 },
           },
         },
       },
@@ -2279,6 +2307,11 @@ async function inspectGoogleDriveFolder(args = {}, auth = null, deps = {}) {
   };
 }
 
+function recoveryAdminPrincipalFromAuth(auth) {
+  const verified = auth?.is_admin === true;
+  return { verified, binding: verified ? "admin_guard_auth_context" : "missing_admin_guard_binding" };
+}
+
 function recoveryEnvironmentIsProduction(env = process.env) {
   const signals = [
     ["NODE_ENV", env.NODE_ENV],
@@ -2353,10 +2386,11 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         readbackVerifier: deps.readbackVerifier,
         productionActivationReadinessExecutor: deps.productionActivationReadinessExecutor,
         systemToolLookup: deps.systemToolLookup,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
       });
     }
     case "recovery_kernel_capabilities":
-      return getRecoveryCapabilities();
+      return getRecoveryCapabilities({ env: deps.recoveryKernelEnv || deps.env || process.env });
     case "system_tool_get": {
       if (!args || typeof args !== "object" || Array.isArray(args) || typeof args.tool_name !== "string" || !args.tool_name.trim()) {
         const error = new Error("system_tool_get requires tool_name and accepts no other control fields.");

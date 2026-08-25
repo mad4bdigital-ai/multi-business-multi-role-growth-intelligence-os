@@ -9,9 +9,23 @@ import {
 
 const READ_ONLY_CAPABILITIES = new Set([
   "production_identity",
+  "recovery_manifest_get",
+  "recovery_manifest",
+  "recovery_trust_model",
+  "recovery_trust",
+  "runtime_attestation",
+  "tool_surface_parity",
   "system_tool_get",
   "system_tools_search",
   "recovery_capabilities",
+  "recovery_incident_create",
+  "privileged_operation_preview",
+  "privileged_lease_preview",
+  "recovery_exception_preview",
+  "recovery_reconciliation_preview",
+  "recovery_cancel_preview",
+  "recovery_evidence_chain_preview",
+  "secret_observation",
   "production_activation_readiness",
   "production_activation_readiness_probe",
   "database_full_inspection",
@@ -28,7 +42,16 @@ const READ_ONLY_CAPABILITIES = new Set([
   "host_breakglass_run_get",
   "recovery_evidence_get",
   "recovery_evidence_export",
+  "unsupported_recovery_escalate",
+  "ssh_session_preview",
+  "sql_session_preview",
+  "ephemeral_capability_create",
 ]);
+
+function requestAdminPrincipal(req) {
+  const verified = req?.auth?.is_admin === true;
+  return { verified, binding: verified ? "admin_guard_request_auth" : "missing_admin_guard_binding" };
+}
 
 function errorResponse(res, error, fallbackCode = "recovery_kernel_failed") {
   return res.status(Number(error?.status || 500)).json({
@@ -170,6 +193,7 @@ export function buildRecoveryKernelRoutes({
         readbackVerifier,
         productionActivationReadinessExecutor,
         systemToolLookup: fixedSystemToolLookup,
+        adminPrincipal: requestAdminPrincipal(req),
       });
       return res.status(200).json({ ok: true, contract: "mad4b.recovery-kernel-call-receipt.v1", capability_key: capabilityKey, result: sanitizeEvidence(result), database_mutation_performed: false, secrets_included: false });
     } catch (error) {
@@ -189,6 +213,7 @@ export function buildRecoveryKernelRoutes({
         recoveryLock,
         mutationExecutor,
         readbackVerifier,
+        adminPrincipal: requestAdminPrincipal(req),
       });
       return res.status(202).json({ ok: true, contract: "mad4b.recovery-kernel-execute-receipt.v1", result: sanitizeEvidence(result), secrets_included: false });
     } catch (error) {

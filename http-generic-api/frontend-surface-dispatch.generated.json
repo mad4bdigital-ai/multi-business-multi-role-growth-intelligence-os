@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": null,
-    "source_digest": "bccd8bad058ab31b70dc3ee4e16013cf1871e7b95ea7b2948b29d3b1461c3c92",
+    "source_digest": "c12f4005d256a6b615f56530d203529bf449a009a04c4181e7daa9226bc27736",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "72966a58fc511adf658a84156609e64e43897bd8a98100a89f2b5f8866f9db06",
+        "sha256": "83d9160e91f8f2e13897365315fce5c7ca489a486e5c792f76d7fa874b67af2d",
         "present": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "affd6fee6095645add665eb460e0ee666da39a0ae675aff580914315fc0e8d60",
+        "sha256": "6d2954af971dac3d6089fa3baacdd0c6bc329b8a1adfea002f08b9b33a1e408c",
         "present": true
       },
       {
@@ -991,7 +991,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "2999554642da6dd4ab65ed1bc9be36a66cccbab63c51a469a1e9e51b2b36d8e7",
+        "sha256": "3063611ad0112be3af7519caa9e333aeaa8e5122dc61f5a6a4701f59cd26b1c3",
         "present": true
       },
       {
@@ -1106,7 +1106,7 @@
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "fc58020b6927d2a4df53ce10e0c00a825bfcf211d6547575786f541b95b8da9e",
+        "sha256": "9bd6ea646a7a3c5f51902d1242beb4a744a0affe38e9363d877f438e1f5821dc",
         "present": true
       },
       {
@@ -3109,7 +3109,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "affd6fee6095645add665eb460e0ee666da39a0ae675aff580914315fc0e8d60",
+      "source_digest": "6d2954af971dac3d6089fa3baacdd0c6bc329b8a1adfea002f08b9b33a1e408c",
       "mount_prefix": "/",
       "mount_order": 12992,
       "split_from_mixed_scope_file": false,
@@ -11430,7 +11430,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "2999554642da6dd4ab65ed1bc9be36a66cccbab63c51a469a1e9e51b2b36d8e7",
+      "source_digest": "3063611ad0112be3af7519caa9e333aeaa8e5122dc61f5a6a4701f59cd26b1c3",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,
@@ -12206,7 +12206,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "2999554642da6dd4ab65ed1bc9be36a66cccbab63c51a469a1e9e51b2b36d8e7",
+      "source_digest": "3063611ad0112be3af7519caa9e333aeaa8e5122dc61f5a6a4701f59cd26b1c3",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,

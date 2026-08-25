@@ -98,7 +98,7 @@ paths:
       operationId: callAdminRecoveryKernel
       x-openai-isConsequential: false
       summary: Call a fixed Production Recovery Kernel capability
-      description: Production-only fixed Recovery Kernel call surface. It is independent of the database-backed MCP catalog and is intended for bounded identity, readiness, host-local inspection, findings, planning, approval-challenge creation, verification, and sanitized readback. The capability key is repository-co.
+      description: Production-only fixed Recovery Kernel call surface. It is independent of the database-backed MCP catalog and is intended for bounded identity, Root of Trust, runtime attestation, tool-surface parity, host-local inspection, findings, planning, approval-challenge creation, verification, and sanitized.
       requestBody:
         required: true
         content:
@@ -113,9 +113,23 @@ paths:
                   type: string
                   enum:
                     - production_identity
+                    - recovery_manifest_get
+                    - recovery_manifest
+                    - recovery_trust_model
+                    - recovery_trust
+                    - runtime_attestation
+                    - tool_surface_parity
                     - system_tool_get
                     - system_tools_search
                     - recovery_capabilities
+                    - recovery_incident_create
+                    - privileged_operation_preview
+                    - privileged_lease_preview
+                    - recovery_exception_preview
+                    - recovery_reconciliation_preview
+                    - recovery_cancel_preview
+                    - recovery_evidence_chain_preview
+                    - secret_observation
                     - production_activation_readiness
                     - production_activation_readiness_probe
                     - database_full_inspection
@@ -132,6 +146,12 @@ paths:
                     - host_breakglass_run_get
                     - recovery_evidence_get
                     - recovery_evidence_export
+                    - unsupported_recovery_escalate
+                    - ssh_session_preview
+                    - ssh_preview
+                    - sql_session_preview
+                    - sql_preview
+                    - ephemeral_capability_create
                 input:
                   type: object
                   additionalProperties: false
@@ -144,6 +164,16 @@ paths:
                       type: string
                       enum:
                         - production-runtime
+                    target_role:
+                      type: string
+                      enum:
+                        - server_resolved
+                        - runtime
+                        - governance
+                        - runtime_persistence
+                    host_fingerprint:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
                     tool_name:
                       type: string
                       minLength: 1
@@ -180,6 +210,153 @@ paths:
                     run_id:
                       type: string
                       pattern: ^run:[0-9a-f]{16,64}$
+                    incident_id:
+                      type: string
+                      pattern: ^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$
+                    reason:
+                      type: string
+                      minLength: 12
+                      maxLength: 1000
+                    profile:
+                      type: string
+                      enum:
+                        - S0
+                        - S1
+                        - S2
+                        - S3
+                        - S4
+                        - S5
+                        - Q0
+                        - Q1
+                        - Q2
+                        - Q3
+                        - Q4
+                        - Q5
+                        - Q6
+                    risk_class:
+                      type: string
+                      enum:
+                        - read_only
+                        - reversible
+                        - service_impacting
+                        - filesystem_mutation
+                        - destructive
+                        - unknown
+                    command_sha256:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    query_sha256:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    artifact_sha256:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    scope_ref:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    expires_at:
+                      type: string
+                      format: date-time
+                    transport:
+                      type: string
+                      enum:
+                        - ssh
+                        - sql
+                    capability_type:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    single_use:
+                      type: boolean
+                      default: true
+                    backup_evidence_ref:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    operation_type:
+                      type: string
+                      enum:
+                        - ssh_command
+                        - sql_statement
+                        - file_patch
+                        - service_action
+                        - process_action
+                        - network_diagnostic
+                        - backup_operation
+                        - deployment_rollback
+                    exception_class:
+                      type: string
+                      enum:
+                        - E0
+                        - E1
+                        - E2
+                        - E3
+                        - E4
+                        - E5
+                        - E6
+                    requested_scope_ref:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    depends_on:
+                      type: array
+                      maxItems: 5
+                      items:
+                        type: string
+                        pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    capability_budget:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        max_statements:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_rows:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_files:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_bytes:
+                          type: integer
+                          minimum: 0
+                          maximum: 67108864
+                        max_runtime_seconds:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_services:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_commands:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                    max_commands:
+                      type: integer
+                      minimum: 0
+                      maximum: 50
+                    max_rows:
+                      type: integer
+                      minimum: 0
+                      maximum: 100
+                    previous_hash:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    event:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+                    configured:
+                      type: boolean
+                    value_hash:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    age_seconds:
+                      type: integer
+                      minimum: 0
+                      maximum: 315360000
       responses:
         "200":
           description: Fixed Recovery Kernel result
@@ -337,7 +514,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 72966a58fc511adf658a84156609e64e43897bd8a98100a89f2b5f8866f9db06
+  source_openapi_sha256: 83d9160e91f8f2e13897365315fce5c7ca489a486e5c792f76d7fa874b67af2d
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 6e5736c5596ba75c9ad9f7c15a17f8a16c48f0ac4b85426b2c376485173278ca
   domain_family_policy: http-generic-api/config/domain-family-policy.json

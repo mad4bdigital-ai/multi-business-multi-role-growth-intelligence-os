@@ -6205,8 +6205,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
-      "source_line": 149,
-      "source_offset": 5272,
+      "source_line": 170,
+      "source_offset": 5916,
       "method": "POST",
       "path": "/admin/recovery/kernel/call",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6214,8 +6214,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute:1",
-      "source_line": 180,
-      "source_offset": 6704,
+      "source_line": 202,
+      "source_offset": 7400,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6223,8 +6223,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:2",
-      "source_line": 199,
-      "source_offset": 7506,
+      "source_line": 222,
+      "source_offset": 8254,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6232,8 +6232,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:3",
-      "source_line": 208,
-      "source_offset": 7854,
+      "source_line": 231,
+      "source_offset": 8602,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -8743,8 +8743,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools:0",
-      "source_line": 2583,
-      "source_offset": 103696,
+      "source_line": 2615,
+      "source_offset": 106834,
       "method": "GET",
       "path": "/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8752,8 +8752,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/catalog-observability:1",
-      "source_line": 2603,
-      "source_offset": 104338,
+      "source_line": 2635,
+      "source_offset": 107476,
       "method": "GET",
       "path": "/system/tools/catalog-observability",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8761,8 +8761,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/:toolName:2",
-      "source_line": 2614,
-      "source_offset": 104690,
+      "source_line": 2646,
+      "source_offset": 107828,
       "method": "GET",
       "path": "/system/tools/:toolName",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8770,8 +8770,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/capabilities/resolve:3",
-      "source_line": 2625,
-      "source_offset": 105051,
+      "source_line": 2657,
+      "source_offset": 108189,
       "method": "POST",
       "path": "/system/capabilities/resolve",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8779,8 +8779,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/tools/call:4",
-      "source_line": 2636,
-      "source_offset": 105415,
+      "source_line": 2668,
+      "source_offset": 108553,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8788,8 +8788,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors:5",
-      "source_line": 2690,
-      "source_offset": 107295,
+      "source_line": 2722,
+      "source_offset": 110433,
       "method": "GET",
       "path": "/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8797,8 +8797,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors/:system_id:6",
-      "source_line": 2699,
-      "source_offset": 107649,
+      "source_line": 2731,
+      "source_offset": 110787,
       "method": "GET",
       "path": "/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8806,8 +8806,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors:7",
-      "source_line": 2708,
-      "source_offset": 107995,
+      "source_line": 2740,
+      "source_offset": 111133,
       "method": "GET",
       "path": "/admin/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8815,8 +8815,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors/:system_id:8",
-      "source_line": 2717,
-      "source_offset": 108351,
+      "source_line": 2749,
+      "source_offset": 111489,
       "method": "GET",
       "path": "/admin/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8824,8 +8824,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/tools:9",
-      "source_line": 2726,
-      "source_offset": 108699,
+      "source_line": 2758,
+      "source_offset": 111837,
       "method": "GET",
       "path": "/admin/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8833,8 +8833,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/system/tools/call:10",
-      "source_line": 2741,
-      "source_offset": 109189,
+      "source_line": 2773,
+      "source_offset": 112327,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8842,8 +8842,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform:11",
-      "source_line": 2794,
-      "source_offset": 111062,
+      "source_line": 2826,
+      "source_offset": 114200,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8851,8 +8851,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform/:tab:12",
-      "source_line": 2803,
-      "source_offset": 111391,
+      "source_line": 2835,
+      "source_offset": 114529,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8860,8 +8860,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/google-auth-platform/:tab:13",
-      "source_line": 2812,
-      "source_offset": 111755,
+      "source_line": 2844,
+      "source_offset": 114893,
       "method": "POST",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8869,8 +8869,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/credentials:14",
-      "source_line": 2821,
-      "source_offset": 112125,
+      "source_line": 2853,
+      "source_offset": 115263,
       "method": "GET",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8878,8 +8878,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/credentials:15",
-      "source_line": 2830,
-      "source_offset": 112473,
+      "source_line": 2862,
+      "source_offset": 115611,
       "method": "POST",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -37014,10 +37014,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 149,
+        "source_line": 170,
         "handler_window_lines": [
-          149,
-          178
+          170,
+          200
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37034,7 +37034,8 @@
             "admin",
             "capability",
             "capability",
-            "approval"
+            "approval",
+            "admin"
           ],
           "readback": [
             "readback",
@@ -37083,10 +37084,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 180,
+        "source_line": 202,
         "handler_window_lines": [
-          180,
-          197
+          202,
+          220
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37101,7 +37102,8 @@
           "db_registry": [],
           "authority": [
             "admin",
-            "approval"
+            "approval",
+            "admin"
           ],
           "readback": [
             "readback",
@@ -48753,10 +48755,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2625,
+        "source_line": 2657,
         "handler_window_lines": [
-          2625,
-          2634
+          2657,
+          2666
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -48813,10 +48815,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2636,
+        "source_line": 2668,
         "handler_window_lines": [
-          2636,
-          2688
+          2668,
+          2720
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -48883,10 +48885,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2741,
+        "source_line": 2773,
         "handler_window_lines": [
-          2741,
-          2792
+          2773,
+          2824
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -48955,10 +48957,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2812,
+        "source_line": 2844,
         "handler_window_lines": [
-          2812,
-          2819
+          2844,
+          2851
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49015,10 +49017,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2830,
+        "source_line": 2862,
         "handler_window_lines": [
-          2830,
-          2852
+          2862,
+          2884
         ],
         "evidence_flags": {
           "handler_window_present": true,

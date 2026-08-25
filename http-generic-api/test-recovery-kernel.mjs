@@ -8,6 +8,8 @@ import test from "node:test";
 import express from "express";
 import {
   getRecoveryCapabilities,
+  getRecoveryTrustModel,
+  readRuntimeAttestation,
   readProductionIdentity,
   inspectProductionDatabase,
   createRemediationPlan,
@@ -15,6 +17,10 @@ import {
   createApprovalChallenge,
   executeRemediationStep,
   sanitizeEvidence,
+  callRecoveryKernelCapability,
+  RECOVERY_STATE_PHASES,
+  deriveRoleTargetFingerprints,
+  assertTrustForMutation,
   _testingRecoveryKernel,
 } from "./recoveryKernel.js";
 import { buildRecoveryKernelRoutes } from "./routes/recoveryKernelRoutes.js";
@@ -32,6 +38,31 @@ const ENV = {
     secrets_included: false,
   }),
 };
+
+function makeDurableStore() {
+  const runs = new Map();
+  const receipts = new Map();
+  const events = [];
+  const clone = (value) => structuredClone(value);
+  return {
+    runs,
+    receipts,
+    events,
+    async putRun(run) { runs.set(run.run_id, clone(run)); },
+    async getRun(runId) { return runs.get(runId) ? clone(runs.get(runId)) : null; },
+    async getRunByIdempotency(idempotencyKey) {
+      const receipt = receipts.get(idempotencyKey);
+      if (receipt) return clone(receipt);
+      return [...runs.values()].find((run) => run.idempotency_key === idempotencyKey) ? clone([...runs.values()].find((run) => run.idempotency_key === idempotencyKey)) : null;
+    },
+    async getRunByPlanStep(planId, stepId) {
+      const matches = [...runs.values()].filter((run) => run.plan_id === planId && run.step_id === stepId);
+      return matches.length ? clone(matches.at(-1)) : null;
+    },
+    async appendEvidenceEvent(runId, event) { events.push(clone({ run_id: runId, ...event })); },
+    async putIdempotencyReceipt(idempotencyKey, receipt) { receipts.set(idempotencyKey, clone(receipt)); },
+  };
+}
 
 function readinessFailure() {
   return {
@@ -63,8 +94,24 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
   assert.equal(result.secrets_included, false);
   assert.equal(result.fixed_aliases.production_host_local_database_inspect, "database_full_inspection");
   assert.equal(result.fixed_aliases.host_breakglass_plan, "remediation_plan_create");
+  assert.equal(result.fixed_aliases.ssh_preview, "ssh_session_preview");
+  assert.equal(result.manifest_hash.length, 64);
+  assert.equal(result.capability_levels.R0, "observe");
+  assert.equal(result.capability_levels.legacy_R0, "identity_and_readiness");
+  assert.equal(result.ssh_levels.S1, "read_only_shell");
+  assert.equal(result.sql_levels.Q0, "metadata_only");
   for (const key of [
     "production_identity",
+    "recovery_manifest_get",
+    "recovery_trust_model",
+    "recovery_incident_create",
+    "privileged_operation_preview",
+    "privileged_lease_preview",
+    "recovery_exception_preview",
+    "recovery_reconciliation_preview",
+    "recovery_cancel_preview",
+    "recovery_evidence_chain_preview",
+    "secret_observation",
     "system_tool_get",
     "system_tools_search",
     "production_activation_readiness",
@@ -76,9 +123,39 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "remediation_step_verify",
     "recovery_run_get",
     "recovery_evidence_get",
+    "runtime_attestation",
+    "tool_surface_parity",
+    "unsupported_recovery_escalate",
+    "ssh_session_preview",
+    "sql_session_preview",
+    "ephemeral_capability_create",
+    "unsupported_capability_execute",
   ]) assert.ok(result.capabilities.some((entry) => entry.capability_key === key), key);
-  assert.deepEqual(result.mutation_capabilities, ["remediation_step_execute"]);
+  assert.deepEqual(result.mutation_capabilities, ["remediation_step_execute", "unsupported_capability_execute"]);
   assert.equal(result.database_independent_capabilities.includes("recovery_capabilities"), true);
+});
+
+test("Root of Trust manifest and runtime attestation are hash-only and exact-SHA bound", () => {
+  const attestation = readRuntimeAttestation({ env: ENV, expectedSha: SHA });
+  assert.equal(attestation.parity, true);
+  assert.equal(attestation.manifest_bound, true);
+  assert.equal(attestation.recovery_manifest_hash.length, 64);
+  assert.equal(attestation.target_fingerprints.composite.length, 64);
+  assert.equal(attestation.role_credentials_ready.runtime.raw_values_exposed, false);
+  assert.equal(attestation.role_credentials_ready.runtime.secrets_included, false);
+  const trust = getRecoveryTrustModel({ env: ENV, expectedSha: SHA });
+  assert.equal(trust.ok, true);
+  assert.equal(trust.database_independent_control_plane, true);
+  assert.ok(trust.dependency_graph.some((edge) => edge.prohibited === true));
+});
+
+test("Root of Trust rejects wrong SHA, manifest mismatch, and changed role target", () => {
+  const wrongManifestEnv = { ...ENV, DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ ...JSON.parse(ENV.DEPLOYMENT_MANIFEST_JSON), commit_sha: "b".repeat(40) }) };
+  const wrongManifest = readRuntimeAttestation({ env: wrongManifestEnv, expectedSha: SHA });
+  assert.equal(wrongManifest.parity, false);
+  assert.equal(wrongManifest.manifest_verification.sha_match, false);
+  const plannedFingerprint = deriveRoleTargetFingerprints({ env: ENV }).governance;
+  assert.throws(() => assertTrustForMutation({ expectedSha: SHA, env: { ...ENV, GOVERNANCE_DB_NAME: "changed-only-in-test" }, targetRole: "governance", targetFingerprint: plannedFingerprint, adminPrincipal: { verified: true } }), (error) => error?.code === "TARGET_CHANGED" && error?.status === 409);
 });
 
 test("Production identity is exact-SHA and DB-independent", () => {
@@ -125,6 +202,8 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
   assert.equal(result.database_mutation_performed, false);
   assert.equal(result.finding_count, 3);
   assert.ok(result.findings.every((finding) => finding.finding_id.startsWith("finding:")));
+  assert.equal(result.causal_graph.contract, "mad4b.recovery-causal-finding-graph.v1");
+  assert.equal(result.attestation.manifest_bound, true);
   assert.equal(result.secrets_included, false);
   assert.ok(_testingRecoveryKernel.RUNS.has(result.run_id));
 });
@@ -136,7 +215,7 @@ test("plan and preview are deterministic and never execution-authorized", async 
     expected_sha: SHA,
     target_key: "production-runtime",
     finding_ids: run.findings.map((finding) => finding.finding_id),
-  });
+  }, { env: ENV });
   assert.equal(plan.database_independent_control_plane, true);
   assert.equal(plan.execution_allowed, false);
   assert.equal(plan.expected_sha, SHA);
@@ -180,9 +259,137 @@ test("consequential execution fails closed without durable approval, lock, or ex
       recoveryLock: { acquire: async () => true },
       approvalVerifier: { verify: async () => false },
     }),
-    (error) => error?.code === "RECOVERY_APPROVAL_INVALID" && error?.status === 401,
+    (error) => error?.code === "RECOVERY_STORE_UNAVAILABLE" && error?.status === 503,
   );
   assert.equal(executed, false);
+});
+
+test("durable execution follows the explicit state machine and cannot replay an approval", async () => {
+  const plan = [..._testingRecoveryKernel.PLANS.values()].at(-1);
+  const step = plan.steps.find((entry) => entry.consequential);
+  const durable = makeDurableStore();
+  const challenge = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id });
+  const receipt = await executeRemediationStep({
+    plan_id: plan.plan_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    approval_token: "bound-approval-token-for-test-001",
+    idempotency_key: "test-idempotency-durable-001",
+  }, {
+    env: { ...ENV, RECOVERY_MUTATIONS_ENABLED: "true" },
+    adminPrincipal: { verified: true, binding: "test_admin_guard" },
+    approvalVerifier: { verify: async ({ approval }) => approval.approval_id === challenge.approval_id },
+    recoveryLock: { acquire: async () => ({ acquired: true, lock_id: "test-lock" }), release: async () => {} },
+    mutationExecutor: { execute: async () => ({ database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false }) },
+    recoveryStore: durable,
+  });
+  assert.equal(receipt.status, "verifying");
+  assert.equal(receipt.phase, "verifying");
+  const executingRun = [...durable.runs.values()].at(-1);
+  assert.deepEqual(executingRun.events.map((event) => event.phase), ["created", "planned", "awaiting_approval", "approval_granted", "locked", "executing", "provider_acknowledged", "verifying"]);
+  assert.ok(executingRun.events.every((event) => event.evidence_hash.length === 64));
+  assert.deepEqual(RECOVERY_STATE_PHASES.slice(0, 5), ["created", "inspecting", "classified", "planned", "awaiting_approval"]);
+
+  const verification = await import("./recoveryKernel.js").then(({ verifyRemediationStep }) => verifyRemediationStep({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id }, {
+    recoveryStore: durable,
+    readbackVerifier: { verify: async () => ({ postconditions_passed: true, behavioral_probe_passed: true, secrets_included: false }) },
+  }));
+  assert.equal(verification.recovered, true);
+  assert.equal(verification.phase, "recovered");
+  assert.deepEqual([...durable.runs.values()].at(-1).events.map((event) => event.phase).slice(-3), ["verifying", "verified", "recovered"]);
+
+  const replay = await executeRemediationStep({
+    plan_id: plan.plan_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    approval_token: "bound-approval-token-for-test-001",
+    idempotency_key: "test-idempotency-durable-001",
+  }, { env: { ...ENV, RECOVERY_MUTATIONS_ENABLED: "true" }, adminPrincipal: { verified: true }, recoveryStore: durable });
+  assert.equal(replay.idempotent_replay, true);
+  await assert.rejects(
+    () => executeRemediationStep({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, approval_token: "bound-approval-token-for-test-001", idempotency_key: "test-idempotency-durable-002" }, { env: { ...ENV, RECOVERY_MUTATIONS_ENABLED: "true" }, adminPrincipal: { verified: true }, approvalVerifier: { verify: async () => true }, recoveryLock: { acquire: async () => true }, recoveryStore: durable, mutationExecutor: { execute: async () => ({}) } }),
+    (error) => error?.code === "RECOVERY_APPROVAL_INVALID",
+  );
+});
+
+test("fixed dispatcher never synthesizes an admin principal", async () => {
+  await assert.rejects(
+    () => callRecoveryKernelCapability("ssh_session_preview", {
+      incident_id: "incident:principal-binding-001",
+      expected_sha: SHA,
+      target_key: "production-runtime",
+      profile: "S1",
+      command_sha256: "e".repeat(64),
+    }, { env: ENV }),
+    (error) => error?.code === "UNSUPPORTED_ADMIN_PRINCIPAL_REQUIRED" && error?.status === 403,
+  );
+});
+
+test("fixed Unsupported Recovery previews are recorded, role-bound, and never open SSH or SQL", async () => {
+  const ssh = await callRecoveryKernelCapability("ssh_preview", {
+    incident_id: "incident:unsupported-test-001",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    profile: "S1",
+    risk_class: "read_only",
+    command_sha256: "b".repeat(64),
+  }, { env: ENV, adminPrincipal: { verified: true } });
+  assert.equal(ssh.session_opened, false);
+  assert.equal(ssh.execution_allowed, false);
+  assert.equal(ssh.classification.profile_name, "read_only_shell");
+  assert.equal(ssh.secrets_included, false);
+
+  const sql = await callRecoveryKernelCapability("sql_preview", {
+    incident_id: "incident:unsupported-test-001",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    profile: "Q0",
+    risk_class: "read_only",
+    query_sha256: "c".repeat(64),
+  }, { env: ENV, adminPrincipal: { verified: true } });
+  assert.equal(sql.session_opened, false);
+  assert.equal(sql.classification.profile_name, "metadata_only");
+  assert.equal(sql.role_bound, true);
+
+  const escalation = await callRecoveryKernelCapability("unsupported_recovery_escalate", {
+    incident_id: "incident:unsupported-test-001",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    reason: "No registered capability covers the observed runtime inconsistency.",
+  }, { env: ENV, adminPrincipal: { verified: true } });
+  assert.equal(escalation.status, "awaiting_unsupported_approval");
+  assert.equal(escalation.ssh_sql_execution_enabled, false);
+  assert.equal(escalation.temporary_authority_required, true);
+});
+
+test("ephemeral Unsupported Recovery capability is hash-only, expiring, and not executable by default", async () => {
+  const capability = await callRecoveryKernelCapability("ephemeral_capability_create", {
+    incident_id: "incident:unsupported-test-002",
+    expected_sha: SHA,
+    target_key: "production-runtime",
+    transport: "sql",
+    capability_type: "sql_patch",
+    artifact_sha256: "d".repeat(64),
+    scope_ref: "scope:metadata-only",
+    expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    single_use: true,
+    risk_class: "unknown",
+  }, { env: ENV, adminPrincipal: { verified: true } });
+  assert.equal(capability.content_received, false);
+  assert.equal(capability.execution_allowed, false);
+  assert.equal(capability.capability_hash.length, 64);
+  await assert.rejects(
+    () => callRecoveryKernelCapability("unsupported_capability_execute", {
+      incident_id: "incident:unsupported-test-002",
+      expected_sha: SHA,
+      target_key: "production-runtime",
+      capability_id: capability.capability_id,
+      capability_hash: capability.capability_hash,
+      approval_id: "approval:unsupported-test-001",
+      idempotency_key: "idempotency:unsupported-test-001",
+    }, { env: ENV, adminPrincipal: { verified: true } }),
+    (error) => error?.code === "RECOVERY_MUTATIONS_DISABLED",
+  );
 });
 
 test("evidence sanitization redacts sensitive keys and connection material", () => {
@@ -214,6 +421,51 @@ test("private Recovery Kernel route is admin-guarded and exposes no shared stagi
     const body = await response.json();
     assert.equal(body.result.catalog_source, "repository_static_contract");
     assert.equal(body.secrets_included, false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("private route exposes bounded Exception Framework previews only with auth-derived admin binding", async () => {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => { req.auth = { is_admin: true, mode: "test_admin" }; next(); });
+  app.use(buildRecoveryKernelRoutes({
+    requireBackendApiKey: (_req, _res, next) => next(),
+    requireAdminPrincipal: (_req, _res, next) => next(),
+    env: ENV,
+  }));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  try {
+    const port = server.address().port;
+    const incidentResponse = await fetch(`http://127.0.0.1:${port}/admin/recovery/kernel/call`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ capability_key: "recovery_incident_create", input: { incident_id: "incident:route-contract-001", expected_sha: SHA, target_key: "production-runtime", environment: "production", recovery_level: "R4", reason: "The normal catalog path is unavailable and requires bounded review." } }),
+    });
+    assert.equal(incidentResponse.status, 200);
+    const incidentBody = await incidentResponse.json();
+    assert.equal(incidentBody.result.recovery_mode, "RECOVERY_PRIVILEGED");
+    assert.equal(incidentBody.result.secrets_included, false);
+
+    const previewResponse = await fetch(`http://127.0.0.1:${port}/admin/recovery/kernel/call`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ capability_key: "privileged_operation_preview", input: { incident_id: "incident:route-contract-001", expected_sha: SHA, target_key: "production-runtime", operation_type: "sql_statement", transport: "sql", profile: "Q0", scope_ref: "scope:metadata", artifact_sha256: "b".repeat(64), risk_class: "read_only", expires_at: new Date(Date.now() + 60_000).toISOString() } }),
+    });
+    assert.equal(previewResponse.status, 200);
+    const previewBody = await previewResponse.json();
+    assert.equal(previewBody.result.execution_allowed, false);
+    assert.equal(previewBody.result.session_opened, false);
+    assert.equal(previewBody.result.secrets_included, false);
+
+    const rawResponse = await fetch(`http://127.0.0.1:${port}/admin/recovery/kernel/call`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ capability_key: "privileged_operation_preview", input: { incident_id: "incident:route-contract-001", expected_sha: SHA, target_key: "production-runtime", operation_type: "sql_statement", transport: "sql", scope_ref: "scope:metadata", artifact_sha256: "b".repeat(64), query: "SELECT 1" } }),
+    });
+    assert.equal(rawResponse.status, 400);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

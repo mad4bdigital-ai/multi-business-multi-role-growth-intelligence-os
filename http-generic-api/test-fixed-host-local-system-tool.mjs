@@ -79,6 +79,13 @@ test("shared dispatcher rejects the removed Production-specific names instead of
   }
 });
 
+test("Staging recovery capability view is discovery-only and omits Production private names", async () => {
+  const staging = await callSystemLayerTool("recovery_kernel_capabilities", {}, ADMIN, { recoveryKernelEnv: { NODE_ENV: "staging" } });
+  assert.equal(staging.environment_view, "staging_discovery_only");
+  assert.deepEqual(staging.capabilities.map((entry) => entry.capability_key).sort(), ["recovery_capabilities", "system_tool_get", "system_tools_search"]);
+  assert.equal(staging.secrets_included, false);
+});
+
 test("fixed recovery_kernel_call is available through the existing Admin dispatcher with environment fail-closed", async () => {
   const calls = [];
   const production = await callSystemLayerTool(

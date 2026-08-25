@@ -13,6 +13,10 @@
       "http-generic-api/routes/recoveryKernelRoutes.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/recoveryKernel.js",
+      "http-generic-api/recoveryTrustModel.js",
+      "http-generic-api/unsupportedRecoveryBroker.js",
+      "http-generic-api/recoveryExceptionFramework.js",
+      "http-generic-api/config/recovery-kernel-manifest.json",
       "http-generic-api/openapi.yaml",
       "canonicals/openapi/custom-gpt-surfaces.yaml",
       "http-generic-api/scripts/split-openapi.mjs",
@@ -50,6 +54,9 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "http-generic-api/test-fixed-host-local-system-tool.mjs",
       "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-recovery-trust-model.mjs",
+      "http-generic-api/test-unsupported-recovery-broker.mjs",
+      "http-generic-api/test-recovery-exception-framework.mjs",
       "http-generic-api/test-openapi-split-governance.mjs",
       "http-generic-api/test-staging-independent-schema-contract.mjs",
       "http-generic-api/test-custom-gpt-schemas.mjs",
@@ -184,7 +191,7 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Provide a repository-owned, Production-only Recovery Kernel that remains callable without the DB-backed MCP catalog, separates Staging, converts bounded inspection/readiness into sanitized findings, creates immutable target-bound plans, and fails closed before any consequential step unless durable approval, locking, idempotency, executor, and readback authorities are injected.",
+      "objective": "Provide a repository-owned, Production-only Recovery/Survival Plane that remains callable without the DB-backed MCP catalog, binds Root of Trust to the exact runtime SHA, manifest hash, role target fingerprints, and verified admin principal, emits hash-only runtime attestation and causal/proof-carrying plans, separates Staging, and fails closed before any consequential step unless durable append-only evidence, approval, locking, idempotency, executor, and readback authorities are injected. Unsupported SSH/SQL are contract-only, role-separated, hash-bound, deny-by-default escape-hatch references with no live connector.",
       "e2e_journeys": [
         {
           "id": "private-production-recovery-survival-plane",
@@ -192,14 +199,15 @@
           "level": "synthetic_runtime",
           "actor": "Production Admin GPT through private fixed Recovery Kernel surface",
           "entrypoint": "POST /admin/recovery/kernel/call",
-          "terminal_outcome": "The bounded Production-only surface returns static capability discovery, exact-SHA identity, targeted readiness, host-local database.full_inspection dry-run, sanitized findings, deterministic plan/preview, approval challenge, and resumable evidence references without requiring the oversized dynamic catalog; consequential execution remains fail-closed until separate injected authorities exist.",
+          "terminal_outcome": "The bounded Production-only surface returns static capability discovery, Root of Trust and hash-only runtime attestation, targeted readiness, host-local database.full_inspection dry-run, causal sanitized findings, proof-carrying deterministic plan/preview, approval challenge, explicit append-only recovery state, and durable evidence references without requiring the oversized dynamic catalog; consequential execution remains fail-closed until separate injected authorities exist. Unsupported SSH/SQL provide only audited previews and ephemeral hash references; no live session or command/SQL execution is implemented.",
           "steps": [
             "Use the private Production schema rather than shared Admin Core or Staging schemas.",
-            "Read recovery_capabilities, production_identity, and production_activation_readiness without catalog enumeration.",
+            "Read recovery_capabilities, production_identity, recovery_manifest_get, recovery_trust_model, runtime_attestation, tool_surface_parity, and production_activation_readiness without catalog enumeration.",
             "Run database_full_inspection only with expected_sha and server-default target_key=production-runtime; the adapter binds database.inspect/database.full_inspection/dry_run and host_local_role_env internally.",
-            "Register bounded sanitized findings and create a plan containing finding IDs, exact SHA, target fingerprint, preconditions, postconditions, rollback classification, and no execution authorization.",
-            "Create a single-use plan/step approval challenge, then require durable approval verifier, lock provider, idempotency state, mutation executor, and same-cycle readback before any consequential step.",
-            "Read run/evidence state through bounded sanitized readback with no raw logs, credentials, connection strings, database identifiers, or secrets."
+            "Register bounded sanitized findings and causal graph, then create a proof-carrying plan containing finding IDs, exact SHA, manifest/attestation hashes, role target fingerprints, preconditions, postconditions, rollback classification, and no execution authorization.",
+            "Create a single-use plan/step approval challenge, transition through the named Recovery state machine with append-only evidence, then require verified admin principal, fresh trust/target checks, durable approval verifier, lock provider, idempotency state, mutation executor, and same-cycle readback before any consequential step.",
+            "Read run/evidence state through bounded sanitized readback with explicit degraded-memory versus durable-store status and no raw logs, credentials, connection strings, database identifiers, or secrets.",
+            "For an unsupported gap, open a recorded escalation or preview S0-S5/Q0-Q6 contract using only incident IDs, profiles, hashes, scope references, and expiry; execution remains kill-switched and requires an injected managed broker plus separate approval."
           ],
           "assertions": [
             "private Recovery operations and Production-only capability keys are absent from Staging schemas; the shared Admin Core exposes only the generic recovery_kernel_call name, with runtime capability isolation",
@@ -208,6 +216,14 @@
             "inspection and readiness paths report explicit read-only and mutation attestations",
             "plan and step hashes include the exact SHA and target fingerprint",
             "approval challenge never returns an approval token",
+            "runtime attestation exposes hashes/presence flags only and never raw credentials",
+            "manifest, exact SHA, role target fingerprint, and verified admin principal are independently required for mutation",
+            "the Recovery state machine accepts only declared transitions and append-only evidence",
+            "durable recovery store and durable idempotency are required before consequential execution",
+            "unsupported SSH/SQL contracts reject raw command, SQL, credentials, host, database, and local connector fields",
+            "unsupported capability execution is denied without the kill-switch, injected broker, and separate approval",
+            "privileged exception contracts remain scoped resources with bounded TTL, max uses, budget, and dual-control metadata",
+            "exception revocation, emergency approval, audit-store fallback, and response/session degradation remain explicit contracts rather than bypasses",
             "consequential execution fails closed without durable approval, lock, executor, and readback authorities",
             "unknown executor outcomes are recorded as failed_closed and are never replayed automatically",
             "all evidence is sanitized and secrets_included=false"
@@ -228,6 +244,27 @@
               "args": []
             },
             {
+              "id": "recovery-trust-model-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-trust-model.mjs",
+              "args": []
+            },
+            {
+              "id": "unsupported-recovery-broker-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-unsupported-recovery-broker.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-exception-framework-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-exception-framework.mjs",
+              "args": []
+            },
+            {
               "id": "openapi-split-governance-test",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -245,10 +282,18 @@
           "evidence_paths": [
             "http-generic-api/recoveryKernel.js",
             "http-generic-api/routes/recoveryKernelRoutes.js",
+            "http-generic-api/recoveryTrustModel.js",
+            "http-generic-api/unsupportedRecoveryBroker.js",
+            "http-generic-api/recoveryExceptionFramework.js",
+            "http-generic-api/config/recovery-kernel-manifest.json",
             "http-generic-api/openapi.yaml",
+
             "canonicals/openapi/custom-gpt-surfaces.yaml",
             "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
             "http-generic-api/test-recovery-kernel.mjs",
+            "http-generic-api/test-recovery-trust-model.mjs",
+            "http-generic-api/test-unsupported-recovery-broker.mjs",
+            "http-generic-api/test-recovery-exception-framework.mjs",
             ".changes/e2e/fixed-admin-host-local-inspection-20260825.json"
           ]
         }
