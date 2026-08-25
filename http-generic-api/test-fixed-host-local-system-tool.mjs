@@ -86,6 +86,26 @@ test("Staging recovery capability view is discovery-only and omits Production pr
   assert.equal(staging.secrets_included, false);
 });
 
+test("shared Admin Recovery bridge rejects consequential mutation capabilities", async () => {
+  for (const capabilityKey of ["remediation_step_execute", "unsupported_capability_execute", "recovery_execute"]) {
+    let invoked = false;
+    await assert.rejects(
+      () => callSystemLayerTool(
+        "recovery_kernel_call",
+        { capability_key: capabilityKey, input: {} },
+        ADMIN,
+        {
+          recoveryKernelEnv: { NODE_ENV: "production", GITHUB_REF_NAME: "Production" },
+          mutationExecutor: { execute: async () => { invoked = true; } },
+          executionFacade: { execute: async () => { invoked = true; } },
+        },
+      ),
+      (error) => error?.code === "recovery_kernel_private_surface_required" && error?.status === 404,
+    );
+    assert.equal(invoked, false);
+  }
+});
+
 test("fixed recovery_kernel_call is available through the existing Admin dispatcher with environment fail-closed", async () => {
   const calls = [];
   const production = await callSystemLayerTool(

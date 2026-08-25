@@ -95,6 +95,42 @@ import {
 } from "../platformEndpointToolFacade.js";
 import { getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
 
+// Auth Admin Actions already have a bounded fixed dispatcher. Keep Recovery reachable
+// through that single operation without allowing a non-consequential Action to invoke
+// plan-step or unsupported/provider mutations. Consequential work remains on the
+// explicitly consequential Host Breakglass/Recovery routes with their own approvals.
+const SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES = new Set([
+  "production_identity",
+  "recovery_manifest_get",
+  "recovery_trust_model",
+  "runtime_attestation",
+  "tool_surface_parity",
+  "recovery_capabilities",
+  "production_activation_readiness",
+  "database_full_inspection",
+  "finding_details",
+  "remediation_plan_create",
+  "remediation_plan_preview",
+  "approval_challenge_create",
+  "remediation_step_verify",
+  "recovery_run_get",
+  "recovery_evidence_get",
+  "privileged_operation_preview",
+  "privileged_lease_preview",
+  "recovery_exception_preview",
+  "disaster_recovery_preview",
+  "recovery_reconciliation_preview",
+  "recovery_cancel_preview",
+  "recovery_evidence_chain_preview",
+  "secret_observation",
+  "unsupported_recovery_escalate",
+  "ssh_session_preview",
+  "sql_session_preview",
+  "ephemeral_capability_create",
+  "system_tool_get",
+  "system_tools_search",
+]);
+
 const SYSTEM_LAYER_TOOLS = [
   {
     name: "runtime_endpoint_preview",
@@ -2364,6 +2400,13 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         throw error;
       }
       const capabilityKey = args.capability_key.trim();
+      if (!SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES.has(capabilityKey)) {
+        const error = new Error("Consequential Recovery execution is not available through the shared non-consequential Admin System Action.");
+        error.status = 404;
+        error.code = "recovery_kernel_private_surface_required";
+        error.details = { capability_key: capabilityKey, required_surface: "admin_recovery_production_or_host_breakglass", secrets_included: false };
+        throw error;
+      }
       const stagingSafe = new Set(["recovery_capabilities", "system_tool_get", "system_tools_search"]);
       const env = deps.recoveryKernelEnv || deps.env || process.env;
       if (!stagingSafe.has(capabilityKey) && !recoveryEnvironmentIsProduction(env)) {

@@ -2,11 +2,11 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "833655a4d75ed6dd91705799284f59f7b07a133942b2a5d344ae4a2df32c99d3",
+    "source_digest": "059e5c35fd7b2012acbb895b8377c075dc538f9cd8036f90235f44fd942f68bf",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "6e5736c5596ba75c9ad9f7c15a17f8a16c48f0ac4b85426b2c376485173278ca",
+        "sha256": "a6e2cb0aa6b4ea4dd045c5ca87d17885c2d9eaaf06f691cb26d0675e4dcf48e1",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "b99f5e11db384ee3b32af98f4805ddc7412fe80c0af823634fc5aaed9ab318eb",
+        "sha256": "dd0d68e4929a15e5f7634e4aaf2b4cbf0ce47aaf6b81c51227790ca15acb4c79",
         "present": true
       },
       {
@@ -991,7 +991,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "3063611ad0112be3af7519caa9e333aeaa8e5122dc61f5a6a4701f59cd26b1c3",
+        "sha256": "838c58760e3bf5d401ff062acc5be99b831ba4711f0759ec3e3dd9497aea49e0",
         "present": true
       },
       {
@@ -11430,7 +11430,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "3063611ad0112be3af7519caa9e333aeaa8e5122dc61f5a6a4701f59cd26b1c3",
+      "source_digest": "838c58760e3bf5d401ff062acc5be99b831ba4711f0759ec3e3dd9497aea49e0",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,
@@ -12206,7 +12206,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "3063611ad0112be3af7519caa9e333aeaa8e5122dc61f5a6a4701f59cd26b1c3",
+      "source_digest": "838c58760e3bf5d401ff062acc5be99b831ba4711f0759ec3e3dd9497aea49e0",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,

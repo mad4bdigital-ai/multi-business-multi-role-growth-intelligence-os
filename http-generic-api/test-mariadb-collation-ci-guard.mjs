@@ -176,6 +176,7 @@ assert.equal(enumGood.secrets_included, false);
 const textWidthPolicy = {
   text_width_chain_contract: {
     enabled: true,
+    inspect_insert_select_source_domains: true,
     static_only: true,
     database_connection_allowed: false,
     sql_mutation_allowed: false,
@@ -221,5 +222,44 @@ assert.equal(textWidthGood.credential_access_performed, false);
 assert.equal(textWidthGood.data_export_performed, false);
 assert.equal(textWidthGood.runtime_mutation_performed, false);
 assert.equal(textWidthGood.secrets_included, false);
+
+const insertSelectFiles = {
+  "http-generic-api/schema.sql": "CREATE TABLE source_registry (source_key VARCHAR(64) PRIMARY KEY, strategy VARCHAR(16) NOT NULL); CREATE TABLE canonical_registry (source_key VARCHAR(64) PRIMARY KEY, operation_class VARCHAR(8) NOT NULL);",
+  "http-generic-api/migrations/000_source_alignment.sql": "ALTER TABLE source_registry MODIFY COLUMN strategy TEXT NOT NULL;",
+  "http-generic-api/migrations/001_view.sql": "CREATE OR REPLACE VIEW v_source AS SELECT s.source_key, s.strategy AS operation_class FROM source_registry s;",
+  "http-generic-api/migrations/002_select.sql": "INSERT INTO canonical_registry (source_key, operation_class) SELECT s.source_key, s.operation_class FROM v_source s ON DUPLICATE KEY UPDATE operation_class=VALUES(operation_class);",
+};
+const insertSelectBad = inspectOrderedMigrationChainTextWidths({
+  files: Object.keys(insertSelectFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: (file) => insertSelectFiles[file],
+});
+assert.equal(insertSelectBad.ok, false, JSON.stringify(insertSelectBad));
+assert.equal(insertSelectBad.insert_select_source_domain_checks, 1);
+assert.equal(insertSelectBad.insert_select_source_domain_overflows, 1);
+assert.equal(insertSelectBad.findings.length, 1);
+assert.equal(insertSelectBad.findings[0].code, "text_width_source_domain_overflow");
+assert.equal(insertSelectBad.findings[0].table, "canonical_registry");
+assert.equal(insertSelectBad.findings[0].column, "operation_class");
+assert.equal(insertSelectBad.findings[0].source_domain.bounded, false);
+
+const insertSelectGoodFiles = {
+  ...insertSelectFiles,
+  "http-generic-api/schema.sql": "CREATE TABLE source_registry (source_key VARCHAR(64) PRIMARY KEY, strategy VARCHAR(16) NOT NULL); CREATE TABLE canonical_registry (source_key VARCHAR(64) PRIMARY KEY, operation_class TEXT NOT NULL);",
+};
+const insertSelectGood = inspectOrderedMigrationChainTextWidths({
+  files: Object.keys(insertSelectGoodFiles).filter((file) => file !== "http-generic-api/schema.sql"),
+  baselineFile: "http-generic-api/schema.sql",
+  policy: textWidthPolicy,
+  readFile: (file) => insertSelectGoodFiles[file],
+});
+assert.equal(insertSelectGood.ok, true, JSON.stringify(insertSelectGood));
+assert.equal(insertSelectGood.insert_select_source_domain_checks, 0);
+assert.equal(insertSelectGood.insert_select_source_domain_overflows, 0);
+assert.equal(insertSelectGood.findings.length, 0);
+assert.equal(insertSelectGood.database_connection_performed, false);
+assert.equal(insertSelectGood.sql_mutation_performed, false);
+assert.equal(insertSelectGood.secrets_included, false);
 
 console.log("MariaDB collation, enum, and text-width CI guard tests passed");

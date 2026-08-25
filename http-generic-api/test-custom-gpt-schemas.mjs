@@ -411,6 +411,11 @@ section("dispatcher contracts");
     assert(`admin dispatcher hides direct ${operationId}`,
       !adminOps.some((op) => op.operation.operationId === operationId));
   }
+  assert("admin dispatcher remains within the Custom GPT hard operation limit", adminOps.length === 30);
+  const adminSystemBridge = adminOps.find((op) => op.operation.operationId === "callAdminSystemTool")?.operation;
+  assert("admin dispatcher exposes the fixed Recovery bridge without a new operation", adminSystemBridge?.requestBody?.content?.["application/json"]?.schema?.properties?.name?.enum?.includes("recovery_kernel_call") === true);
+  assert("admin Recovery bridge documents bounded non-consequential semantics", /bounded Recovery bridge/u.test(parentSchema) && /plan-step mutation.*rejected/u.test(parentSchema));
+  assert("private Recovery operation remains outside Auth Action surface", !adminOps.some((op) => ["callAdminRecoveryKernel", "executeAdminRecoveryKernelStep", "getAdminRecoveryKernelRun", "getAdminRecoveryKernelEvidence"].includes(op.operation.operationId)));
   const adminMutatingOps = adminOps.filter((op) => ["post", "put", "patch", "delete"].includes(op.method));
   const adminAllowedConsequentialOps = new Set(["executeAdminOperation", "createAdminRuntimeBootstrapRun"]);
   assert("admin dispatcher mutations are non-consequential except bounded execute and Host Breakglass dispatch",
