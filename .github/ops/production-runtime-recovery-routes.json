@@ -182,7 +182,33 @@
     "allow_schema_write_privileges": false,
     "allow_global_write_privileges": false,
     "allow_grant_option": false,
-    "same_cycle_readback_required": true
+    "same_cycle_readback_required": true,
+    "preflight_all_role_tables_before_first_grant": true,
+    "split_database_grant_binding_hash_required": true,
+    "grant_binding_hash_contract": "sha256(canonical role policies plus role database/principal/principal-host bindings)",
+    "role_policies": {
+      "runtime": {
+        "database_binding": "runtime",
+        "principal_binding": "runtime",
+        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
+        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "apply_when": "always"
+      },
+      "governance": {
+        "database_binding": "governance",
+        "principal_binding": "governance",
+        "required_tables": ["governed_migration_ledger"],
+        "required_operations": ["SELECT"],
+        "apply_when": "always"
+      },
+      "runtime_persistence": {
+        "database_binding": "runtime_persistence",
+        "principal_binding": "runtime_persistence",
+        "required_tables": ["governed_tool_response_chunks"],
+        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "apply_when": "always"
+      }
+    }
   },
   "readiness_dimensions": [
     "deployment_identity_ready",

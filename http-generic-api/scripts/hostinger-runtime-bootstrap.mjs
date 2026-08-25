@@ -38,7 +38,7 @@ function usage() {
     "--host-local-role-credentials --operation database.inspect|database.repair|database.rebuild_empty binds existing DB_*, GOVERNANCE_DB_*, and RUNTIME_PERSISTENCE_DB_* users to their own databases only; database.inspect is dry-run-only.",
     "--apply-migration requires --migration-confirm APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>, or the role-bound baseline confirmation for database.rebuild_empty.",
     "--rebuild-role-set <runtime,governance,runtime_persistence> is accepted only with a durable inspection run, plan hash, role selection hash, and per-role object-count fingerprints.",
-    "--apply-grants requires --grants-confirm APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>.",
+    "--apply-grants requires --grants-confirm bound to the exact target identity, or to the canonical split-DB grant-binding hash.",
     "--apply is rejected because migration and grants approvals are independent.",
     "Only explicit host-local role recovery may reuse existing role-bound credentials; grants require their own typed confirmation and GitHub Actions, shell, and SQL capsules remain denied.",
     "",
@@ -108,6 +108,7 @@ function buildEnvironment() {
     ["--role-selection-hash", "BOOTSTRAP_ROLE_SELECTION_HASH"],
     ["--role-object-count-fingerprints", "BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS"],
     ["--grants-confirm", "BOOTSTRAP_GRANTS_CONFIRMATION"],
+    ["--grant-binding-hash", "BOOTSTRAP_GRANT_BINDING_HASH"],
     ["--bundle-manifest", "BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST"],
   ];
   for (const [flag, variable] of mappings) {

@@ -221,7 +221,7 @@ function migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey 
   return evidence;
 }
 
-export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakglassCatalog(), bootstrapContract = readRuntimeBootstrapContract(), toolContract = readHostBreakglassToolContract() } = {}) {
+export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakglassCatalog(), bootstrapContract = readRuntimeBootstrapContract(), toolContract = readHostBreakglassToolContract(), proofResolver = null } = {}) {
   const environmentKey = String(input.environment_key || "production_hostinger_autodeploy").trim();
   const environment = catalog.environments?.[environmentKey];
   if (!environment) fail(400, "host_breakglass_environment_unknown", "Unknown Host Breakglass environment.", { environment_key: environmentKey });
@@ -240,19 +240,33 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (targetSource === "staging_local_role_env" && environmentKey !== "staging_local_windows_docker") {
     fail(403, "host_breakglass_role_source_environment_mismatch", "Windows/Docker role credentials cannot be used for Production.", { environment_key: environmentKey });
   }
-  const roleSelectionProof = input.role_selection_proof && typeof input.role_selection_proof === "object" ? input.role_selection_proof : null;
-  const rawSelectedRoles = Array.isArray(roleSelectionProof?.selected_roles) ? [...new Set(roleSelectionProof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
+  const callerRoleSelectionProof = input.role_selection_proof && typeof input.role_selection_proof === "object" ? input.role_selection_proof : null;
+  let roleSelectionProof = callerRoleSelectionProof;
   const allowedRoles = ["runtime", "governance", "runtime_persistence"];
+  let rawSelectedRoles = Array.isArray(roleSelectionProof?.selected_roles) ? [...new Set(roleSelectionProof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
   if (rawSelectedRoles.some((role) => !allowedRoles.includes(role))) fail(400, "host_breakglass_role_selection_invalid", "Role selection proof contains an unregistered role.", { allowed_roles: allowedRoles });
-  const selectedRoles = canonicalizeRoleSelection(rawSelectedRoles);
-  if (operationKey === "database.rebuild_empty" && action === "apply_migration" && (!roleSelectionProof || roleSelectionProof.source !== "durable_full_inspection" || !roleSelectionProof.inspection_run_id || !roleSelectionProof.inspection_evidence_hash || !roleSelectionProof.composite_target_fingerprint || !Array.isArray(roleSelectionProof.finding_ids) || roleSelectionProof.finding_ids.length === 0 || !selectedRoles.length)) {
-    fail(400, "host_breakglass_role_selection_proof_required", "Role-selective rebuild apply requires a bounded durable full-inspection proof, finding IDs, and selected zero-object roles.");
-  }
-  if (operationKey === "database.rebuild_empty" && action === "apply_migration") {
+  let selectedRoles = canonicalizeRoleSelection(rawSelectedRoles);
+  const roleSelectiveApply = operationKey === "database.rebuild_empty" && action === "apply_migration";
+  if (roleSelectiveApply) {
+    if (typeof proofResolver !== "function") fail(503, "host_breakglass_role_selection_provenance_unavailable", "Role-selective apply requires a server-resolved durable inspection proof; caller-supplied proof is never authoritative.");
+    const resolvedProof = proofResolver({ expected_sha: expectedSha, target_key: targetKey, operation_key: operationKey });
+    if (resolvedProof && typeof resolvedProof.then === "function") fail(500, "host_breakglass_role_selection_resolver_async", "The synchronous plan builder requires a pre-resolved durable proof reference.");
+    if (!resolvedProof || typeof resolvedProof !== "object" || resolvedProof.source !== "durable_full_inspection") fail(503, "host_breakglass_role_selection_provenance_unavailable", "No durable full-inspection proof was resolved for this exact target.");
+    const resolvedRoles = canonicalizeRoleSelection(resolvedProof.selected_roles);
+    const resolvedHash = computeRoleSelectionProofHash({ ...resolvedProof, selected_roles: resolvedRoles });
+    if (resolvedProof.selection_hash && String(resolvedProof.selection_hash).toLowerCase() !== resolvedHash) fail(409, "host_breakglass_role_selection_hash_invalid", "Resolved role-selection proof hash is not canonical.");
+    if (callerRoleSelectionProof) {
+      const callerHash = computeRoleSelectionProofHash({ ...callerRoleSelectionProof, selected_roles: canonicalizeRoleSelection(callerRoleSelectionProof.selected_roles) });
+      if (callerHash !== resolvedHash) fail(409, "host_breakglass_role_selection_provenance_mismatch", "Caller-supplied role proof does not match the durable server-resolved proof.");
+    }
+    roleSelectionProof = { ...resolvedProof, selected_roles: resolvedRoles, selection_hash: resolvedHash };
+    rawSelectedRoles = resolvedRoles;
+    selectedRoles = resolvedRoles;
+    if (!roleSelectionProof.inspection_run_id || !roleSelectionProof.inspection_evidence_hash || !roleSelectionProof.composite_target_fingerprint || !Array.isArray(roleSelectionProof.finding_ids) || roleSelectionProof.finding_ids.length === 0 || !selectedRoles.length) fail(400, "host_breakglass_role_selection_proof_required", "Role-selective rebuild apply requires a bounded durable full-inspection proof, finding IDs, and selected zero-object roles.");
+    if (String(roleSelectionProof.expected_sha || "").toLowerCase() !== expectedSha) fail(409, "host_breakglass_role_selection_sha_mismatch", "Role selection proof is bound to a different exact source SHA.");
     if (!CAPSULE_SHA_RE.test(String(roleSelectionProof.inspection_evidence_hash).toLowerCase()) || !CAPSULE_SHA_RE.test(String(roleSelectionProof.composite_target_fingerprint).toLowerCase())) fail(400, "host_breakglass_role_selection_proof_invalid", "Role selection proof hashes must be full SHA-256 values.");
     for (const role of selectedRoles) if (!CAPSULE_SHA_RE.test(String(roleSelectionProof.role_object_count_fingerprints?.[role] || "").toLowerCase())) fail(400, "host_breakglass_role_selection_fingerprint_invalid", "Every selected role requires a full object-count fingerprint.", { role });
     if (roleSelectionProof.finding_ids.some((id) => !/^finding:[0-9a-f]{16,64}$/u.test(String(id)))) fail(400, "host_breakglass_role_selection_finding_invalid", "Role selection proof finding IDs must be bounded durable finding references.");
-    if (!roleSelectionProof.expected_sha || String(roleSelectionProof.expected_sha).toLowerCase() !== expectedSha) fail(409, "host_breakglass_role_selection_sha_mismatch", "Role selection proof is bound to a different exact source SHA.");
   }
   const { runbookKey, toolChain } = resolveToolChain({ operation, action, input, toolContract });
   if (!SHA_RE.test(expectedSha)) fail(400, "host_breakglass_expected_sha_invalid", "expected_sha must be a lowercase 40-character SHA.");
@@ -284,6 +298,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (capsuleAction && environmentKey === "production_hostinger_autodeploy" && !BACKUP_EVIDENCE_PATH_RE.test(backupEvidencePath)) fail(400, "host_breakglass_backup_evidence_required", "Production command capsule requires repository-owned backup evidence.");
   const backupEvidenceSha256 = capsuleAction && environmentKey === "production_hostinger_autodeploy" ? validateRepositoryBackupEvidence(backupEvidencePath, { expectedSha, targetKey }) : null;
   const confirmationRequired = operation.requires_confirmation === true && !["plan", "dry_run"].includes(action);
+  const grantBindingHash = String(input.grant_binding_hash || "").trim().toLowerCase();
   const migrationPrefix = targetSource === "staging_local_role_env" ? environment.apply_migration_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_MIGRATION";
   const grantsPrefix = targetSource === "staging_local_role_env" ? environment.apply_grants_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_GRANTS";
   const rebuildConfirmationPrefix = targetSource === "staging_local_role_env" ? environment.rebuild_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD";
@@ -293,12 +308,21 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
       : `${migrationPrefix}:${expectedSha}:${targetKey}:${migration}`
     : "";
   const grantsConfirmationValid = action === "apply_grants"
-    && new RegExp(`^${grantsPrefix}:${expectedSha}:${targetKey}:[A-Za-z0-9_$.-]{1,128}:[A-Za-z0-9._%:-]{1,255}$`, "u").test(confirmation);
+    && confirmation === `${grantsPrefix}:${expectedSha}:${targetKey}:${grantBindingHash}`;
   const capsuleConfirmation = `EXECUTE_HOST_BREAKGLASS_CAPSULE:${environmentKey}:${expectedSha}:${capsuleSha256}`;
   const capsuleConfirmationValid = capsuleAction && confirmation === capsuleConfirmation;
   if (confirmationRequired && ((action === "apply_migration" && confirmation !== expectedConfirmation) || (action === "apply_grants" && !grantsConfirmationValid) || (capsuleAction && !capsuleConfirmationValid))) {
-    fail(400, "host_breakglass_confirmation_required", "Exact environment-bound typed confirmation is required.", { confirmation_formula: action === "apply_migration" ? `${migrationPrefix}:<sha>:<target-key>:<migration-file>` : `${grantsPrefix}:<sha>:<target-key>:<principal>:<principal-host>` });
+    const confirmationFormula = action === "apply_migration" && operationKey === "database.rebuild_empty" && !migration
+      ? `${rebuildConfirmationPrefix}:<sha>:<target-key>:<selected-roles>`
+      : action === "apply_migration" ? `${migrationPrefix}:<sha>:<target-key>:<migration-file>` : `${grantsPrefix}:<sha>:<target-key>:<grant-binding-hash>`;
+    fail(400, "host_breakglass_confirmation_required", "Exact environment-bound typed confirmation is required.", { confirmation_formula: confirmationFormula });
   }
+  const executionTicketId = String(input.execution_ticket_id || "").trim();
+  const executionTicketHash = String(input.execution_ticket_hash || "").trim().toLowerCase();
+  if (executionTicketId && !SAFE_ID_RE.test(executionTicketId)) fail(400, "host_breakglass_execution_ticket_invalid", "execution_ticket_id is invalid.");
+  if (executionTicketHash && !CAPSULE_SHA_RE.test(executionTicketHash)) fail(400, "host_breakglass_execution_ticket_hash_invalid", "execution_ticket_hash must be a full SHA-256 value.");
+  if (!['plan', 'dry_run'].includes(action) && (!executionTicketId || !executionTicketHash)) fail(503, "host_breakglass_execution_ticket_required", "Every Host Breakglass mutation requires a server-issued execution ticket ID and hash reference.");
+  if (action === "apply_grants" && !CAPSULE_SHA_RE.test(grantBindingHash)) fail(503, "host_breakglass_grant_binding_hash_required", "Grant repair requires a canonical hash binding every role database, principal, host, table set, and operation set.");
   const correlationId = String(input.correlation_id || input.idempotency_key || randomUUID()).trim();
   if (!SAFE_ID_RE.test(correlationId)) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");
   const plan = {
@@ -325,6 +349,9 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     target_branch: environment.source_branch,
     workflow: environment.execution_transport === "github_workflow" ? catalog.workflow : null,
     target_source: targetSource,
+    execution_ticket_id: executionTicketId || null,
+    execution_ticket_hash: executionTicketHash || null,
+    grant_binding_hash: grantBindingHash || null,
     target_key: targetKey,
     migration_governance: governanceEvidence,
     database_role_topology: catalog.database_role_topology,
@@ -403,7 +430,7 @@ function matchingHostBreakglassRuns(payload, plan) {
   );
 }
 
-export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken, hostLocalExecutor = executeHostLocalRoleInspection } = {}) {
+export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken, hostLocalExecutor = executeHostLocalRoleInspection, hostLocalMutationExecutor = null } = {}) {
   if (plan.environment_key === "production_hostinger_autodeploy" && (plan.execution_authority !== "existing_admin_governed_execution" || plan.local_connector_required || plan.local_connector_fallback_allowed)) {
     fail(403, "host_breakglass_production_admin_authority_invalid", "Production reconstruction requires the existing Admin governed execution path and cannot depend on or fall back to the Local Connector.");
   }
@@ -436,11 +463,23 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
         secrets_included: false,
       };
     }
-    return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof ? stableHash(plan.role_selection_proof) : null, command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --role-set " + (Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "inspection-derived") + " --plan-hash " + plan.plan_sha256 + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
+    if (["apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"].includes(plan.action)) {
+      if (!plan.execution_ticket_id || !plan.execution_ticket_hash) fail(503, "host_breakglass_execution_ticket_required", "Host-local mutation requires a server-issued execution ticket ID and hash reference.");
+      if (typeof hostLocalMutationExecutor !== "function") fail(503, "host_breakglass_host_local_mutation_executor_unavailable", "No governed Hostinger role-specific mutation executor is configured; no database operation was attempted.");
+      const execution = await hostLocalMutationExecutor({ execution_ticket_id: plan.execution_ticket_id, execution_ticket_hash: plan.execution_ticket_hash, plan_hash: plan.plan_sha256, expected_sha: plan.expected_sha, target_key: plan.target_key, operation_key: plan.operation_key, runbook_key: plan.runbook_key, action: plan.action, migration: plan.migration, selected_roles: Array.isArray(plan.selected_rebuild_roles) ? [...plan.selected_rebuild_roles] : [], role_selection_proof_hash: plan.role_selection_proof?.selection_hash || null, grant_binding_hash: plan.grant_binding_hash || null, correlation_id: plan.correlation_id }, { env });
+      return { ok: execution?.ok !== false, contract: "mad4b.host-breakglass-host-local-mutation-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: execution?.status || "host_local_mutation_submitted", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host,         execution_ticket_id: plan.execution_ticket_id,
+        execution_ticket_hash: plan.execution_ticket_hash,
+        selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof?.selection_hash || null, grant_binding_hash: plan.grant_binding_hash || null, workflow_dispatch_performed: false, database_mutation_performed: execution?.database_mutation_performed === true, migration_apply_performed: execution?.migration_apply_performed === true, grant_mutation_performed: execution?.grant_mutation_performed === true, readback_required: true, secrets_included: false };
+    }
+    return { ok: true, contract: "mad4.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof?.selection_hash || null, separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {
     return { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
+  if (plan.target_source === "host_local_role_env") fail(403, "host_breakglass_host_local_github_workflow_denied", "host_local_role_env cannot be downgraded into a GitHub workflow source.");
+  const targetSourceMap = Object.freeze({ runtime_env: "hostinger_runtime_env", repository_allowlist: "repository_allowlist" });
+  const bootstrapTargetSource = targetSourceMap[plan.target_source];
+  if (!bootstrapTargetSource) fail(403, "host_breakglass_target_source_mapping_denied", "Unknown or unsupported target source cannot be dispatched to GitHub.");
   const existing = RUNS.get(plan.correlation_id);
   if (existing && existing.plan_sha256 !== plan.plan_sha256) fail(409, "host_breakglass_idempotency_conflict", "correlation_id is already bound to a different plan.");
   const [owner, repo] = plan.repository.split("/");
@@ -460,7 +499,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     expected_branch: plan.target_branch,
     bootstrap_mode: plan.action,
     bootstrap_target_key: plan.target_key,
-    bootstrap_target_source: plan.target_source === "runtime_env" ? "hostinger_runtime_env" : "repository_allowlist",
+    bootstrap_target_source: bootstrapTargetSource,
     bootstrap_migration: plan.migration || (plan.operation_key === "database.rebuild_empty" ? "" : "20260815_custom_gpt_mcp_catalog_levels.sql"),
     bootstrap_migration_confirmation: plan.action === "apply_migration" && plan.operation_key !== "database.rebuild_empty" ? plan.confirmation || "" : "",
     bootstrap_rebuild_confirmation: plan.action === "apply_migration" && plan.operation_key === "database.rebuild_empty" ? plan.confirmation || "" : "",
@@ -469,6 +508,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     bootstrap_role_selection_hash: plan.role_selection_proof?.selection_hash || "",
     bootstrap_role_object_count_fingerprints: plan.role_selection_proof ? JSON.stringify({ source: plan.role_selection_proof.source, expected_sha: plan.role_selection_proof.expected_sha, inspection_evidence_hash: plan.role_selection_proof.inspection_evidence_hash, finding_ids: plan.role_selection_proof.finding_ids, role_object_count_fingerprints: plan.role_selection_proof.role_object_count_fingerprints, composite_target_fingerprint: plan.role_selection_proof.composite_target_fingerprint }) : "",
     bootstrap_grants_confirmation: plan.action === "apply_grants" ? plan.confirmation || "" : "",
+    bootstrap_grant_binding_hash: plan.grant_binding_hash || "",
     host_breakglass_operation: plan.operation_key,
     host_breakglass_runbook: plan.runbook_key,
     host_breakglass_selected_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
@@ -477,7 +517,9 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     host_breakglass_tool_contract_sha256: plan.tool_contract_sha256,
     host_breakglass_capsule: plan.capsule_path ? JSON.stringify({ path: plan.capsule_path, sha256: plan.capsule_sha256, confirmation: plan.confirmation, backup_evidence_path: plan.backup_evidence_path }) : "",
     host_breakglass_correlation_id: plan.correlation_id,
-    host_breakglass_plan_sha256: plan.plan_sha256
+    host_breakglass_plan_sha256: plan.plan_sha256,
+    bootstrap_execution_ticket_id: plan.execution_ticket_id || "",
+    bootstrap_execution_ticket_hash: plan.execution_ticket_hash || "",
   } } });
   const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "dispatched", workflow_run_id: null, execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, workflow_dispatch_performed: true, broker_auth_mode: auth_mode, database_mutation_performed: false, dispatched_at: dispatchedAt, secrets_included: false };
   RUNS.set(plan.correlation_id, receipt);

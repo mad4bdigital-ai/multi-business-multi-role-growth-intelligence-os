@@ -508,8 +508,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
-      "source_line": 13,
-      "source_offset": 942,
+      "source_line": 14,
+      "source_offset": 1065,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/catalog",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -517,8 +517,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
-      "source_line": 14,
-      "source_offset": 1059,
+      "source_line": 15,
+      "source_offset": 1182,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/plan",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -526,8 +526,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
-      "source_line": 15,
-      "source_offset": 1306,
+      "source_line": 16,
+      "source_offset": 1439,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/runs",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -535,8 +535,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
-      "source_line": 16,
-      "source_offset": 1658,
+      "source_line": 17,
+      "source_offset": 1801,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/runs/:correlation_id",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -6224,7 +6224,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:2",
       "source_line": 224,
-      "source_offset": 8320,
+      "source_offset": 8366,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6233,7 +6233,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:3",
       "source_line": 233,
-      "source_offset": 8668,
+      "source_offset": 8714,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -11883,10 +11883,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 14,
+        "source_line": 15,
         "handler_window_lines": [
-          14,
-          14
+          15,
+          15
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11946,10 +11946,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 15,
+        "source_line": 16,
         "handler_window_lines": [
-          15,
-          15
+          16,
+          16
         ],
         "evidence_flags": {
           "handler_window_present": true,

@@ -5,6 +5,7 @@ import { readRuntimeBootstrapContract, validateRoleRebuildConfirmation } from ".
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 
 const SHA = "a".repeat(40);
+const TICKET_HASH = "f".repeat(64);
 const TARGET_KEY = "production-runtime";
 const CONTRACT = readRuntimeBootstrapContract();
 
@@ -26,8 +27,10 @@ const PLAN = buildHostBreakglassPlan({
   target_key: TARGET_KEY,
   migration: "",
   role_selection_proof: INPUT_PROOF,
+  execution_ticket_id: "ticket:cross-module-proof-001",
+  execution_ticket_hash: TICKET_HASH,
   confirmation: `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${SHA}:${TARGET_KEY}:governance,runtime_persistence`,
-});
+}, { proofResolver: () => INPUT_PROOF });
 
 function runtimeEnvironmentFromPlan(plan = PLAN) {
   const proof = plan.role_selection_proof;

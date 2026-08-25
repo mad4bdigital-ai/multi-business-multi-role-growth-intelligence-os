@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,366 |
-| Total bytes | 72,528,412 |
-| Counted text lines | 1,690,569 |
+| Total bytes | 72,622,432 |
+| Counted text lines | 1,691,635 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -92,8 +92,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,406 | 99740 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,584 | 59291 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,404 | 99740 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,585 | 59291 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 1,028,304 | 23576 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 624,343 | 11828 |

@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "bfecce212b0fed29a66d1aa3bc548edd995bdc7c2e09f856858d5d319501972a",
+    "ref": null,
+    "source_digest": "9a5bc30155330d273871fb404bf877c8dc71c3ee5c548e1f1955d078195868e6",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -391,7 +391,7 @@
       },
       {
         "file": "routes/adminHostBreakglassRoutes.js",
-        "sha256": "d3e29899272d466cdfec636cac37e3d5cc0b18c7813c7cec5db2ca4990364c22",
+        "sha256": "2018ba235c9b3df118bea12144118f38a64971ee8c6deb6f3a9ad7084a4bd2e7",
         "present": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "6d2954af971dac3d6089fa3baacdd0c6bc329b8a1adfea002f08b9b33a1e408c",
+        "sha256": "532745ec269e79f31904d54587d98159979f94dc2599604aa7dddd937588f8f4",
         "present": true
       },
       {
@@ -1106,7 +1106,7 @@
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "0c2a245950f5ffb0d9ee2e4f111bdefc9155717ecc4518b8ff64a0587c5b7523",
+        "sha256": "a19d33c210e5c606613e6c09f3d68406c14a5deaf131d6cfd169e186cea2ba3c",
         "present": true
       },
       {
@@ -2721,7 +2721,7 @@
       "family_key": "admin-host-breakglass",
       "label": "admin host breakglass",
       "source_file": "routes/adminHostBreakglassRoutes.js",
-      "source_digest": "d3e29899272d466cdfec636cac37e3d5cc0b18c7813c7cec5db2ca4990364c22",
+      "source_digest": "2018ba235c9b3df118bea12144118f38a64971ee8c6deb6f3a9ad7084a4bd2e7",
       "mount_prefix": "/",
       "mount_order": 12913,
       "split_from_mixed_scope_file": false,
@@ -3109,7 +3109,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "6d2954af971dac3d6089fa3baacdd0c6bc329b8a1adfea002f08b9b33a1e408c",
+      "source_digest": "532745ec269e79f31904d54587d98159979f94dc2599604aa7dddd937588f8f4",
       "mount_prefix": "/",
       "mount_order": 12992,
       "split_from_mixed_scope_file": false,

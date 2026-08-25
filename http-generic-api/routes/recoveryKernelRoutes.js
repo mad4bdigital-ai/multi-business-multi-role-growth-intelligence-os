@@ -203,7 +203,7 @@ export function buildRecoveryKernelRoutes({
 
   router.post("/admin/recovery/kernel/execute", async (req, res) => {
     try {
-      const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"], ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
+      const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"], ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"]);
       const result = await executeRemediationStep(body, {
         env,
         recoveryStore,

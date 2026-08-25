@@ -29,6 +29,16 @@ import {
   observeSecretSafely,
 } from "./recoveryExceptionFramework.js";
 import {
+  buildExecutionTicketPayload,
+  computeExecutionTicketHash,
+  issueExecutionTicket,
+  verifyExecutionTicket,
+} from "./recoveryExecutionTicket.js";
+import {
+  canonicalizeRoleSelection,
+  computeRoleSelectionProofHash,
+} from "./roleSelectionProof.js";
+import {
   activateExceptionLifecycle,
   approveExceptionLifecycle,
   buildDisasterRecoveryPreview,
@@ -96,6 +106,7 @@ export const RECOVERY_STATE_PHASES = Object.freeze([
   "locked",
   "executing",
   "provider_acknowledged",
+  "execution_outcome_unknown",
   "readback_pending",
   "verifying",
   "verified",
@@ -113,7 +124,8 @@ export const RECOVERY_STATE_TRANSITIONS = Object.freeze({
   awaiting_approval: ["approval_granted", "failed_closed"],
   approval_granted: ["locked", "failed_closed"],
   locked: ["executing", "failed_closed"],
-  executing: ["provider_acknowledged", "failed_closed"],
+  executing: ["provider_acknowledged", "execution_outcome_unknown", "failed_closed"],
+  execution_outcome_unknown: ["readback_pending", "verifying", "compensation_required", "failed_closed"],
   provider_acknowledged: ["readback_pending", "verifying", "failed_closed"],
   readback_pending: ["verifying", "partially_verified", "compensation_required", "failed_closed"],
   verifying: ["verified", "partially_verified", "failed_closed"],
@@ -463,6 +475,88 @@ function requireProductionRequest(input = {}, allowedKeys = []) {
   return { expected_sha: expectedSha, target_key: targetKey };
 }
 
+function isMutationRecoveryStore(recoveryStore) {
+  return Boolean(isDurableRecoveryStore(recoveryStore)
+    && typeof recoveryStore.claimExecution === "function"
+    && typeof recoveryStore.reserveApproval === "function"
+    && typeof recoveryStore.getExecutionTicket === "function"
+    && typeof recoveryStore.putExecutionTicket === "function"
+    && typeof recoveryStore.reserveExecutionTicket === "function"
+    && typeof recoveryStore.releaseExecutionTicket === "function"
+    && typeof recoveryStore.finalizeExecutionTicket === "function"
+    && typeof recoveryStore.releaseExecutionClaim === "function"
+    && (typeof recoveryStore.finalizeApproval === "function" || typeof recoveryStore.markApprovalUsed === "function")
+    && (typeof recoveryStore.releaseApprovalReservation === "function")
+    && recoveryStore.executionTicketVerifier
+    && typeof recoveryStore.executionTicketVerifier.verify === "function");
+}
+
+function requireMutationRecoveryStore(recoveryStore) {
+  if (!isMutationRecoveryStore(recoveryStore)) throw kernelError(503, "RECOVERY_MUTATION_STORE_UNAVAILABLE", "A mutation-grade durable store with atomic claims, approval reservation, and execution-ticket verification is required before any consequential step.");
+  return recoveryStore;
+}
+
+async function claimExecution(recoveryStore, context) {
+  if (!recoveryStore || typeof recoveryStore.claimExecution !== "function") throw kernelError(503, "RECOVERY_IDEMPOTENCY_CLAIM_UNAVAILABLE", "An atomic durable execution claim provider is required before any consequential step.");
+  const result = await recoveryStore.claimExecution(sanitizeEvidence(context));
+  if (result?.existing === true || result?.status === "reconciliation_required") return { existing: true, result: sanitizeEvidence(result) };
+  if (result !== true && result?.claimed !== true) throw kernelError(409, "RECOVERY_IDEMPOTENCY_CLAIM_DENIED", "The durable recovery store did not grant the single execution claim.");
+  return { existing: false, result: sanitizeEvidence(result) };
+}
+
+async function reserveApproval(recoveryStore, context) {
+  if (!recoveryStore || typeof recoveryStore.reserveApproval !== "function") throw kernelError(503, "RECOVERY_APPROVAL_RESERVATION_UNAVAILABLE", "An atomic durable approval reservation provider is required before any consequential step.");
+  const result = await recoveryStore.reserveApproval(sanitizeEvidence(context));
+  if (result !== true && result?.reserved !== true) throw kernelError(409, "RECOVERY_APPROVAL_RESERVATION_DENIED", "The approval is already reserved, consumed, expired, or bound to another execution claim.");
+  return result === true ? { reserved: true } : result;
+}
+
+async function reserveExecutionTicket(recoveryStore, context) {
+  if (!recoveryStore || typeof recoveryStore.reserveExecutionTicket !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_RESERVATION_UNAVAILABLE", "An atomic durable execution-ticket reservation provider is required before provider execution.");
+  const result = await recoveryStore.reserveExecutionTicket(sanitizeEvidence(context));
+  if (result !== true && result?.reserved !== true) throw kernelError(409, "RECOVERY_EXECUTION_TICKET_RESERVATION_DENIED", "The execution ticket is already reserved, finalized, expired, or bound to another execution claim.");
+  return result === true ? { reserved: true } : result;
+}
+
+async function releaseExecutionTicket(recoveryStore, context) {
+  if (!recoveryStore || typeof recoveryStore.releaseExecutionTicket !== "function") return;
+  await recoveryStore.releaseExecutionTicket(sanitizeEvidence(context));
+}
+
+async function finalizeExecutionTicket(recoveryStore, context) {
+  if (!recoveryStore || typeof recoveryStore.finalizeExecutionTicket !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_FINALIZATION_UNAVAILABLE", "Execution-ticket finalization could not be confirmed durably.");
+  const result = await recoveryStore.finalizeExecutionTicket(sanitizeEvidence(context));
+  if (result !== undefined && result !== true && result?.finalized !== true && result?.already_finalized !== true) throw kernelError(503, "RECOVERY_EXECUTION_TICKET_FINALIZATION_FAILED", "Execution-ticket finalization failed; reconciliation is required and replay is forbidden.");
+  return result === undefined || result === true ? { finalized: true } : result;
+}
+
+async function releaseApprovalReservation(recoveryStore, context) {
+  if (!recoveryStore || typeof recoveryStore.releaseApprovalReservation !== "function") return;
+  await recoveryStore.releaseApprovalReservation(sanitizeEvidence(context));
+}
+
+async function finalizeApproval(recoveryStore, context) {
+  const finalizer = typeof recoveryStore?.finalizeApproval === "function" ? recoveryStore.finalizeApproval.bind(recoveryStore) : typeof recoveryStore?.markApprovalUsed === "function" ? recoveryStore.markApprovalUsed.bind(recoveryStore) : null;
+  if (!finalizer) throw kernelError(503, "RECOVERY_APPROVAL_FINALIZATION_UNAVAILABLE", "An idempotent durable approval finalizer is required after provider acknowledgement.");
+  const result = typeof recoveryStore.finalizeApproval === "function" ? await finalizer(sanitizeEvidence(context)) : await finalizer(context.approval_id);
+  if (result !== undefined && result !== true && result?.finalized !== true && result?.already_finalized !== true) throw kernelError(503, "RECOVERY_APPROVAL_FINALIZATION_FAILED", "Approval finalization could not be durably recorded; reconciliation is required and replay is forbidden.");
+  return result === undefined || result === true ? { finalized: true } : result;
+}
+
+async function heartbeatLease(recoveryLock, lockHandle, context) {
+  if (!recoveryLock || typeof recoveryLock.heartbeat !== "function") throw kernelError(503, "RECOVERY_LOCK_HEARTBEAT_UNAVAILABLE", "A heartbeat-capable lease provider is required before every consequential mutation boundary.");
+  const result = await recoveryLock.heartbeat({ ...sanitizeEvidence(context), lease_id: lockHandle.lease_id, fencing_token: lockHandle.fencing_token });
+  if (result !== true && result?.renewed !== true && result?.valid !== true) throw kernelError(409, "RECOVERY_LOCK_HEARTBEAT_FAILED", "The recovery lease could not be renewed; execution stopped before the next mutation boundary.");
+  return result;
+}
+
+async function assertLeaseFence(recoveryLock, lockHandle, context) {
+  if (!recoveryLock || typeof recoveryLock.assertFence !== "function") throw kernelError(503, "RECOVERY_LOCK_FENCE_UNAVAILABLE", "A fenced lease provider is required before every consequential mutation boundary.");
+  const result = await recoveryLock.assertFence({ ...sanitizeEvidence(context), lease_id: lockHandle.lease_id, fencing_token: lockHandle.fencing_token });
+  if (result !== true && result?.valid !== true) throw kernelError(409, "RECOVERY_LOCK_FENCE_LOST", "The recovery lease fence is no longer valid; execution stopped before the next mutation boundary.");
+  return result;
+}
+
 async function ensurePlan(planId, planHash = null, { recoveryStore } = {}) {
   let plan = null;
   if (recoveryStore && typeof recoveryStore.getPlan === "function") plan = await recoveryStore.getPlan(planId);
@@ -549,10 +643,33 @@ function createRunId(plan) {
 }
 
 function createPlanId(input) {
-  return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, finding_hash: input.finding_hash || null, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
+  return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, finding_hash: input.finding_hash || null, role_selection_hash: input.role_selection_hash || null, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
 }
 
-function planSteps(findings, targetFingerprints = {}) {
+function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFingerprints = {}, { durable = false } = {}) {
+  const rebuildFindings = findings.filter((finding) => /^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u.test(text(finding.candidate_capability, 160)));
+  if (!rebuildFindings.length) return null;
+  const selectedRoles = canonicalizeRoleSelection(rebuildFindings.map((finding) => finding.subject?.target_role));
+  const inspectionRunIds = [...new Set(rebuildFindings.map((finding) => text(finding.inspection_run_id, 160)).filter(Boolean))];
+  const inspectionEvidenceHashes = [...new Set(rebuildFindings.map((finding) => text(finding.inspection_evidence_hash, 128)).filter(Boolean))];
+  const roleFingerprints = Object.fromEntries(selectedRoles.map((role) => [role, text(rebuildFindings.find((finding) => finding.subject?.target_role === role)?.observed_state?.actual?.object_count_fingerprint, 128)]));
+  if (inspectionRunIds.length !== 1 || inspectionEvidenceHashes.length !== 1 || selectedRoles.length !== rebuildFindings.length || Object.values(roleFingerprints).some((value) => !value)) {
+    throw kernelError(409, "RECOVERY_ROLE_SELECTION_PROVENANCE_UNAVAILABLE", "Role-selective Recovery planning requires one durable inspection run, one evidence hash, and a complete object-count fingerprint for every selected role.");
+  }
+  const proof = {
+    source: durable ? "durable_full_inspection" : "inspection_memory_only",
+    expected_sha: expectedSha,
+    selected_roles: selectedRoles,
+    inspection_run_id: inspectionRunIds[0],
+    inspection_evidence_hash: inspectionEvidenceHashes[0],
+    finding_ids: rebuildFindings.map((finding) => finding.finding_id).sort(),
+    role_object_count_fingerprints: roleFingerprints,
+    composite_target_fingerprint: text(targetFingerprints.composite, 128),
+  };
+  return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
+}
+
+function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null) {
   return findings.map((finding, index) => {
     const classified = classifyFinding(finding);
     const stepBase = {
@@ -575,6 +692,8 @@ function planSteps(findings, targetFingerprints = {}) {
       preconditions: ["production_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_use_approval"],
       postconditions: classified.capability_key ? ["schema_or_grant_readback", "ledger_or_privilege_readback", "behavioral_probe_or_readiness_pass"] : ["no_mutation", "fail_closed_record"],
       rollback: classified.capability_key === "governance.grant.repair" ? "exact_delta_revoke" : classified.capability_key ? "forward_only_or_capability_declared" : "not_applicable",
+      role_selection_proof_hash: roleSelectionProof?.selection_hash || null,
+      execution_ticket_required: Boolean(classified.capability_key),
     };
     return { ...stepBase, step_id: `step:${stableHash(stepBase).slice(0, 32)}`, step_hash: stableHash(stepBase) };
   });
@@ -616,13 +735,14 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     findings.push(sanitizeEvidence(found));
   }
   const findingHash = stableHash(findings);
-  const planId = createPlanId({ expected_sha: expectedSha, target_key: targetKey, finding_ids: findingIds, finding_hash: findingHash });
+  const roleSelectionProof = deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFingerprints, { durable: isDurableRecoveryStore(recoveryStore) });
+  const planId = createPlanId({ expected_sha: expectedSha, target_key: targetKey, finding_ids: findingIds, finding_hash: findingHash, role_selection_hash: roleSelectionProof?.selection_hash || null });
   let existing = null;
   if (recoveryStore && typeof recoveryStore.getPlan === "function") existing = await recoveryStore.getPlan(planId);
   if (!existing) existing = PLANS.get(planId);
   if (existing) return sanitizeEvidence(existing);
   const steps = [
-    ...planSteps(findings, targetFingerprints),
+    ...planSteps(findings, targetFingerprints, roleSelectionProof),
     ...(temporaryReference ? [{
       ordinal: findings.length + 1,
       finding_id: null,
@@ -666,10 +786,27 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     inspection_run_ids: [...new Set(findings.map((finding) => text(finding.inspection_run_id, 160)).filter(Boolean))],
     inspection_evidence_hashes: [...new Set(findings.map((finding) => text(finding.inspection_evidence_hash, 128)).filter(Boolean))],
     selected_rebuild_roles: [...new Set(steps.filter((step) => step.capability_key?.endsWith(".baseline.rebuild_empty")).map((step) => step.target_role))],
+    role_selection_proof: roleSelectionProof,
+    role_selection_hash: roleSelectionProof?.selection_hash || null,
     unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
     steps,
     status: "planned",
-    blast_radius: { database_roles: [...new Set(steps.map((step) => step.target_role).filter((role) => role !== "unknown"))], tables_max: 1, rows_data_mutation: false, schema_mutation: steps.some((step) => step.mutation_class === "C3"), grants_mutation: steps.some((step) => step.mutation_class === "C2"), cross_database: false },
+    blast_radius: (() => {
+      const databaseRoles = [...new Set(steps.map((step) => step.target_role).filter((role) => role !== "unknown"))];
+      const roleRebuild = steps.some((step) => step.mutation_class === "C5");
+      return {
+        database_roles: databaseRoles,
+        tables_max: roleRebuild ? null : 1,
+        schema_objects_max: roleRebuild ? "derived_from_role_bundle_manifests" : null,
+        rows_data_mutation: false,
+        schema_mutation: roleRebuild || steps.some((step) => step.mutation_class === "C3"),
+        grants_mutation: steps.some((step) => step.mutation_class === "C2"),
+        cross_database: new Set(databaseRoles).size > 1,
+        logical_owner_roles: databaseRoles,
+        mutation_target_roles: databaseRoles,
+        evidence_target_roles: databaseRoles,
+      };
+    })(),
     mutation_scope: steps.filter((step) => step.consequential).map((step) => ({ step_id: step.step_id, operation: step.operation, target_role: step.target_role, capability_key: step.capability_key })),
     rollback_strategy: steps.some((step) => step.rollback === "forward_only_or_capability_declared") ? "capability_declared_forward_only" : "exact_delta_or_none",
     required_approval: steps.some((step) => step.approval_required) ? "APPROVE_RECOVERY_STEP:<plan_hash>:<step_hash>:<expected_sha>:<target_key>" : null,
@@ -681,6 +818,7 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
       exact_production_sha: identity.git_sha === expectedSha,
       manifest_bound: manifestVerification.ok,
       target_fingerprint_bound: Boolean(targetFingerprints.composite),
+      role_selection_provenance_bound: Boolean(!roleSelectionProof || (roleSelectionProof.source === "durable_full_inspection" && roleSelectionProof.selection_hash && isDurableRecoveryStore(recoveryStore))),
       authority_resolved: steps.every((step) => Boolean(step.capability_key || step.classification === "unknown_fail_closed")),
       unknown_drift: findings.some((finding) => finding.repairability === "unknown_fail_closed"),
       preconditions_satisfied: findings.every((finding) => finding.repairability !== "unknown_fail_closed"),
@@ -746,6 +884,42 @@ export async function createApprovalChallenge(input = {}, { approvalIssuer, appr
   return sanitizeEvidence({ ok: true, ...challenge, approval_token_required: true, approval_token_not_returned: true, read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
 }
 
+export async function createExecutionTicket(input = {}, { recoveryStore, executionTicketSigner } = {}) {
+  assertObject(input);
+  assertNoForbiddenKeys(input);
+  const allowed = new Set(["plan_id", "plan_hash", "step_id", "idempotency_key"]);
+  const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
+  if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Execution-ticket issuance accepts only plan, step, and idempotency references.", { fields: unexpected });
+  const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
+  const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
+  const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
+  const step = ensureStep(plan, stepId);
+  if (!step.consequential) throw kernelError(409, "RECOVERY_TICKET_NOT_REQUIRED", "Execution tickets are reserved for consequential Recovery steps.");
+  requireMutationRecoveryStore(recoveryStore);
+  if (!executionTicketSigner || typeof executionTicketSigner.sign !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_SIGNER_UNAVAILABLE", "A server-side execution-ticket signer is required; tickets are never self-issued or synthesized.");
+  const ticket = await issueExecutionTicket({
+    inspection_run_id: plan.role_selection_proof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
+    inspection_evidence_hash: plan.role_selection_proof?.inspection_evidence_hash || plan.finding_hash,
+    finding_ids: plan.finding_ids,
+    selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+    role_selection_required: step.mutation_class === "C5",
+    role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints || {},
+    target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
+    role_selection_hash: plan.role_selection_hash || null,
+    production_sha: plan.expected_sha,
+    target_key: plan.target_key,
+    plan_hash: plan.plan_hash,
+    step_hash: step.step_hash,
+    step_id: step.step_id,
+    target_role: step.target_role,
+    idempotency_key: text(input.idempotency_key, 160),
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    nonce: randomUUID(),
+  }, { signer: executionTicketSigner });
+  await recoveryStore.putExecutionTicket(ticket);
+  return sanitizeEvidence({ ok: true, ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, expires_at: ticket.expires_at, single_use: true, signature_not_returned: true, secrets_included: false });
+}
+
 function assertApprovalTokenShape(value) {
   const token = text(value, 512);
   if (!token || token.length < 16) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "A bound single-use approval token is required.");
@@ -769,9 +943,12 @@ async function verifyApproval(approval, token, context, { approvalVerifier, appr
 
 async function acquireLock(targetKey, planHash, { recoveryLock } = {}) {
   if (!recoveryLock || typeof recoveryLock.acquire !== "function") throw kernelError(503, "RECOVERY_LOCK_UNAVAILABLE", "A durable recovery lock provider is required before any mutation step.");
-  const result = await recoveryLock.acquire({ target_key: targetKey, plan_hash: planHash, ttl_seconds: 600 });
+  const result = await recoveryLock.acquire({ target_key: targetKey, plan_hash: planHash, ttl_seconds: 600, fencing_required: true, heartbeat_required: true });
   if (result !== true && result?.acquired !== true) throw kernelError(409, "RECOVERY_LOCK_BUSY", "Another consequential recovery operation owns the target lock.");
-  return result === true ? { acquired: true } : result;
+  const handle = result === true ? { acquired: true } : result;
+  if (!handle.lease_id || !handle.fencing_token || !handle.expires_at) throw kernelError(503, "RECOVERY_LOCK_FENCE_UNAVAILABLE", "The lock provider did not return a lease ID, fencing token, and expiry.");
+  if (typeof recoveryLock.heartbeat !== "function" || typeof recoveryLock.assertFence !== "function") throw kernelError(503, "RECOVERY_LOCK_HEARTBEAT_UNAVAILABLE", "The lock provider did not expose heartbeat and fencing support for long-running recovery.");
+  return handle;
 }
 
 async function releaseLock(lockHandle, targetKey, planHash, { recoveryLock } = {}) {
@@ -808,10 +985,10 @@ function requireDurableRecoveryStore(recoveryStore) {
   return recoveryStore;
 }
 
-export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker } = {}) {
+export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker, readbackVerifier } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
-  const allowed = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
+  const allowed = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"]);
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
   if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Step execution accepts only plan, step, approval, and idempotency references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
@@ -821,23 +998,66 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   if (!step.consequential) throw kernelError(409, "RECOVERY_STEP_NOT_CONSEQUENTIAL", "Read-only or fail-closed steps cannot be executed as mutations.");
   const idempotencyKey = text(input.idempotency_key, 160);
   if (!idempotencyKey) throw kernelError(400, "RECOVERY_IDEMPOTENCY_KEY_REQUIRED", "A caller-supplied idempotency_key is required for every consequential recovery step.");
-  requireDurableRecoveryStore(recoveryStore);
+  requireMutationRecoveryStore(recoveryStore);
   const externalExisting = await recoveryStore.getRunByIdempotency(idempotencyKey);
-  if (externalExisting) return sanitizeEvidence({ ...externalExisting, idempotent_replay: true });
-  const approvalToken = assertApprovalTokenShape(input.approval_token);
-  const storedDecision = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
-    ? await recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id)
-    : null;
-  const latestApproval = [...APPROVALS.values()].reverse().find((entry) => entry.plan_id === plan.plan_id && entry.step_id === step.step_id);
-  const approval = storedDecision || latestApproval
-    || (approvalStore && typeof approvalStore.getChallenge === "function" ? await approvalStore.getChallenge(plan.plan_hash, step.step_id) : null);
-  const approvalValid = await verifyApproval(approval, approvalToken, { plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role }, { approvalVerifier, approvalStore });
-  if (!approvalValid) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not cryptographically bound to this plan step.");
-  if (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift or unsatisfied preconditions; mutation is denied.");
-  if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
-  assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
-  const lockHandle = await acquireLock(plan.target_key, plan.plan_hash, { recoveryLock });
+  if (externalExisting) {
+    if ((externalExisting.plan_hash && externalExisting.plan_hash !== plan.plan_hash) || (externalExisting.step_id && externalExisting.step_id !== step.step_id) || (externalExisting.execution_ticket_id && text(input.execution_ticket_id, 160) && externalExisting.execution_ticket_id !== text(input.execution_ticket_id, 160))) {
+      throw kernelError(409, "RECOVERY_IDEMPOTENCY_BINDING_MISMATCH", "The idempotency key is already bound to a different plan, step, or execution ticket.");
+    }
+    const unknown = externalExisting.phase === "execution_outcome_unknown" || externalExisting.status === "execution_outcome_unknown";
+    return sanitizeEvidence({ ...externalExisting, status: unknown ? "reconciliation_required" : externalExisting.status, reconciliation_required: unknown, idempotent_replay: true });
+  }
+  const executionTicketId = text(input.execution_ticket_id, 160);
+  if (!executionTicketId) throw kernelError(400, "RECOVERY_EXECUTION_TICKET_REQUIRED", "A single-use signed execution ticket is required for every consequential recovery step.");
+  if (!readbackVerifier || typeof readbackVerifier.verify !== "function") throw kernelError(503, "RECOVERY_READBACK_UNAVAILABLE", "A same-cycle readback verifier is required before any consequential provider execution.");
+  if (typeof recoveryStore.getExecutionTicket !== "function" || !recoveryStore.executionTicketVerifier || typeof recoveryStore.executionTicketVerifier.verify !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_STORE_UNAVAILABLE", "A durable execution-ticket store and verifier are required before any consequential step.");
+  const executionTicket = await recoveryStore.getExecutionTicket(executionTicketId);
+  if (!executionTicket) throw kernelError(404, "RECOVERY_EXECUTION_TICKET_NOT_FOUND", "The requested execution ticket is not available.");
+  try {
+    await verifyExecutionTicket(executionTicket, { verifier: recoveryStore.executionTicketVerifier, expected: { plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, production_sha: plan.expected_sha, target_key: plan.target_key, idempotency_key: idempotencyKey, target_role: step.target_role, role_selection_hash: plan.role_selection_hash || null, target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint }, selected_roles: plan.role_selection_proof?.selected_roles || ["composite"] } });
+  } catch {
+    throw kernelError(401, "RECOVERY_EXECUTION_TICKET_INVALID", "The execution ticket is absent, expired, invalid, or not bound to this exact plan step.");
+  }
+  const claimContext = { idempotency_key: idempotencyKey, plan_hash: plan.plan_hash, step_id: step.step_id, execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash };
+  const claim = await claimExecution(recoveryStore, { ...claimContext, step_hash: step.step_hash });
+  if (claim.existing) return sanitizeEvidence({ ok: false, status: "reconciliation_required", phase: "execution_outcome_unknown", idempotency_key: idempotencyKey, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, existing_claim: claim.result, reconciliation_required: true, idempotent_replay: true, database_mutation_performed: "unknown", secrets_included: false });
+  let approvalToken;
+  let approval;
+  let approvalContext;
+  try {
+    approvalToken = assertApprovalTokenShape(input.approval_token);
+    const storedDecision = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
+      ? await recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id)
+      : null;
+    const latestApproval = [...APPROVALS.values()].reverse().find((entry) => entry.plan_id === plan.plan_id && entry.step_id === step.step_id);
+    approval = storedDecision || latestApproval
+      || (approvalStore && typeof approvalStore.getChallenge === "function" ? await approvalStore.getChallenge(plan.plan_hash, step.step_id) : null);
+    approvalContext = { plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role };
+    const approvalValid = await verifyApproval(approval, approvalToken, approvalContext, { approvalVerifier, approvalStore });
+    if (!approvalValid) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not cryptographically bound to this plan step.");
+    if (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true || plan.proof?.role_selection_provenance_bound !== true) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift, unverified provenance, or unsatisfied preconditions; mutation is denied.");
+    if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
+    assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
+  } catch (error) {
+    await recoveryStore.releaseExecutionClaim(claimContext).catch(() => {});
+    throw error;
+  }
+  const approvalReservationContext = { ...approvalContext, approval_id: approval.approval_id, idempotency_key: idempotencyKey, execution_ticket_id: executionTicketId };
+  let providerBoundaryStarted = false;
+  try {
+    await reserveApproval(recoveryStore, approvalReservationContext);
+  } catch (error) {
+    if (typeof recoveryStore.releaseExecutionClaim === "function") await recoveryStore.releaseExecutionClaim(claimContext);
+    throw error;
+  }
+  let lockHandle;
+  try { lockHandle = await acquireLock(plan.target_key, plan.plan_hash, { recoveryLock }); } catch (error) {
+    await releaseApprovalReservation(recoveryStore, approvalReservationContext).catch(() => {});
+    await recoveryStore.releaseExecutionClaim(claimContext).catch(() => {});
+    throw error;
+  }
   let run = null;
+  let executionTicketReserved = false;
   try {
     run = {
       run_id: createRunId(plan),
@@ -853,56 +1073,115 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       findings: [],
       phase: null,
       events: [],
-      evidence: { intent_recorded: true, approval_verified: false, execution_started: false, provider_receipt: null, verification: null, secrets_included: false },
+      execution_ticket_id: executionTicketId,
+      execution_ticket_hash: executionTicket.ticket_hash,
+      evidence: { intent_recorded: true, approval_verified: false, approval_reserved: true, execution_started: false, execution_outcome: "not_started", provider_receipt: null, verification: null, secrets_included: false },
     };
     await appendStateEvent(run, "created", "recovery_run_created", { recoveryStore, requiredDurable: true });
     await appendStateEvent(run, "planned", "plan_bound", { recoveryStore, requiredDurable: true, details: { plan_hash: plan.plan_hash } });
     await appendStateEvent(run, "awaiting_approval", "approval_required", { recoveryStore, requiredDurable: true, details: { approval_id: approval.approval_id || null } });
     await appendStateEvent(run, "approval_granted", "approval_verified", { recoveryStore, requiredDurable: true, details: { approval_id: approval.approval_id || null } });
-    await appendStateEvent(run, "locked", "recovery_lock_acquired", { recoveryStore, requiredDurable: true });
-    await appendStateEvent(run, "executing", "execution_started", { recoveryStore, requiredDurable: true });
+    await appendStateEvent(run, "locked", "recovery_lock_acquired", { recoveryStore, requiredDurable: true, details: { lease_id: lockHandle.lease_id, fencing_token: lockHandle.fencing_token, expires_at: lockHandle.expires_at } });
+    await heartbeatLease(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "before_provider_execution" });
+    await assertLeaseFence(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "before_provider_execution" });
+    await reserveExecutionTicket(recoveryStore, { ticket_id: executionTicketId, ticket_hash: executionTicket.ticket_hash, plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, idempotency_key: idempotencyKey });
+    executionTicketReserved = true;
+    await appendStateEvent(run, "executing", "execution_started", { recoveryStore, requiredDurable: true, details: { execution_ticket_id: executionTicketId } });
     run.evidence.approval_verified = true;
     run.evidence.execution_started = true;
     await writeRun(run, { recoveryStore });
     let result;
+    const executionPayload = {
+      capability_key: step.capability_key,
+      operation: step.operation,
+      target_role: step.target_role,
+      authority_ref: step.authority_ref,
+      expected_sha: plan.expected_sha,
+      target_key: plan.target_key,
+      target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
+      plan_hash: plan.plan_hash,
+      step_id: step.step_id,
+      idempotency_key: idempotencyKey,
+      execution_ticket_id: executionTicketId,
+      execution_ticket_hash: executionTicket.ticket_hash,
+      lease_id: lockHandle.lease_id,
+      fencing_token: lockHandle.fencing_token,
+      role_selection_proof_hash: plan.role_selection_hash || null,
+    };
     try {
-      const executionPayload = {
-        capability_key: step.capability_key,
-        operation: step.operation,
-        target_role: step.target_role,
-        authority_ref: step.authority_ref,
-        expected_sha: plan.expected_sha,
-        target_key: plan.target_key,
-        target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
-        plan_hash: plan.plan_hash,
-        step_id: step.step_id,
-        idempotency_key: idempotencyKey,
-      };
       if (step.capability_key === "unsupported_capability_execute") {
         if (!plan.unsupported_capability || plan.unsupported_capability.capability_id !== step.unsupported_capability_id || plan.unsupported_capability.capability_hash !== step.unsupported_capability_hash) throw kernelError(409, "RECOVERY_UNSUPPORTED_PLAN_BINDING_INVALID", "The unsupported capability is not bound to the immutable recovery plan step.");
-        result = await executeUnsupportedCapability({ incident_id: plan.unsupported_capability.incident_id || `incident:${plan.plan_id.slice(-24)}`, expected_sha: plan.expected_sha, target_key: plan.target_key, capability_id: step.unsupported_capability_id, capability_hash: step.unsupported_capability_hash, approval_id: approval.approval_id, idempotency_key: idempotencyKey }, { env, adminPrincipal, unsupportedBroker, recoveryStore });
+        if (!unsupportedBroker || typeof unsupportedBroker.execute !== "function") throw kernelError(503, "UNSUPPORTED_BROKER_UNAVAILABLE", "No managed Unsupported Recovery broker is configured; no SSH or SQL action was attempted.");
+        providerBoundaryStarted = true;
+        result = await executeUnsupportedCapability({ incident_id: plan.unsupported_capability.incident_id || `incident:${plan.plan_id.slice(-24)}`, expected_sha: plan.expected_sha, target_key: plan.target_key, capability_id: step.unsupported_capability_id, capability_hash: step.unsupported_capability_hash, approval_id: approval.approval_id, idempotency_key: idempotencyKey, execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash, plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, lease_id: lockHandle.lease_id, fencing_token: lockHandle.fencing_token }, { env, adminPrincipal, unsupportedBroker, recoveryStore });
       } else {
         if (!mutationExecutor || typeof mutationExecutor.execute !== "function") throw kernelError(503, "RECOVERY_EXECUTOR_UNAVAILABLE", "No capability executor is configured; mutation was not attempted.");
+        providerBoundaryStarted = true;
         result = await mutationExecutor.execute(executionPayload);
       }
     } catch (error) {
-      run.evidence.execution_error = { code: text(error?.code || "recovery_executor_failed", 128), message: "Recovery capability executor failed; final state requires readback.", secrets_included: false };
-      if (["RECOVERY_MUTATIONS_DISABLED", "UNSUPPORTED_BROKER_UNAVAILABLE", "UNSUPPORTED_ADMIN_PRINCIPAL_REQUIRED", "RECOVERY_UNSUPPORTED_PLAN_BINDING_INVALID", "RECOVERY_CAPABILITY_HASH_MISMATCH", "RECOVERY_CAPABILITY_TARGET_MISMATCH"].includes(error?.code)) throw error;
-      throw kernelError(502, "RECOVERY_EXECUTOR_FAILED", "The capability executor failed; recovery remains unverified and must not be replayed automatically.", { run_id: run.run_id });
+      const preProviderCodes = new Set(["RECOVERY_EXECUTOR_UNAVAILABLE", "UNSUPPORTED_BROKER_UNAVAILABLE", "UNSUPPORTED_ADMIN_PRINCIPAL_REQUIRED", "UNSUPPORTED_CAPABILITY_NOT_FOUND", "UNSUPPORTED_CAPABILITY_CONSUMED", "RECOVERY_UNSUPPORTED_PLAN_BINDING_INVALID"]);
+      if (!providerBoundaryStarted && preProviderCodes.has(error?.code)) {
+        await releaseApprovalReservation(recoveryStore, approvalReservationContext).catch(() => {});
+        await recoveryStore.releaseExecutionClaim(claimContext).catch(() => {});
+        throw error;
+      }
+      run.evidence.execution_outcome = "unknown";
+      run.evidence.execution_error = { code: text(error?.code || "recovery_executor_failed", 128), message: "The capability provider outcome is unknown; same-cycle readback is required and replay is forbidden.", secrets_included: false };
+      await appendStateEvent(run, "execution_outcome_unknown", "provider_outcome_unknown", { recoveryStore, requiredDurable: true, details: { error_code: text(error?.code || "recovery_executor_failed", 128) } });
+      throw kernelError(502, "RECOVERY_EXECUTION_OUTCOME_UNKNOWN", "The capability provider outcome is unknown; recovery is reconciliation-only and must not be replayed automatically.", { run_id: run.run_id });
+    }
+    try {
+      await heartbeatLease(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "after_provider_execution" });
+      await assertLeaseFence(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "after_provider_execution" });
+    } catch (error) {
+      run.evidence.execution_outcome = "unknown";
+      run.evidence.execution_error = { code: text(error?.code || "RECOVERY_LOCK_FENCE_LOST", 128), message: "The provider returned but the execution fence was lost; readback is required and replay is forbidden.", secrets_included: false };
+      await appendStateEvent(run, "execution_outcome_unknown", "post_provider_fence_lost", { recoveryStore, requiredDurable: true, details: { error_code: text(error?.code || "RECOVERY_LOCK_FENCE_LOST", 128) } });
+      throw kernelError(409, "RECOVERY_EXECUTION_OUTCOME_UNKNOWN", "The provider returned but the execution fence was lost; recovery is reconciliation-only.", { run_id: run.run_id });
+    }
+    try {
+      await finalizeExecutionTicket(recoveryStore, { ticket_id: executionTicketId, ticket_hash: executionTicket.ticket_hash, plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, idempotency_key: idempotencyKey, provider_acknowledged: true });
+      executionTicketReserved = false;
+      await finalizeApproval(recoveryStore, { ...approvalReservationContext, provider_acknowledged: true });
+    } catch (error) {
+      run.evidence.execution_outcome = "unknown";
+      run.evidence.execution_error = { code: text(error?.code || "RECOVERY_APPROVAL_FINALIZATION_FAILED", 128), message: "Provider acknowledgement was received but approval finalization was not durably confirmed; reconciliation is required and replay is forbidden.", secrets_included: false };
+      await appendStateEvent(run, "execution_outcome_unknown", "approval_finalization_failed", { recoveryStore, requiredDurable: true, details: { error_code: text(error?.code || "RECOVERY_APPROVAL_FINALIZATION_FAILED", 128) } });
+      throw kernelError(502, "RECOVERY_EXECUTION_OUTCOME_UNKNOWN", "Provider acknowledgement cannot be safely replayed because approval finalization is not durably confirmed.", { run_id: run.run_id });
     }
     approval.used = true;
-    if (approvalStore && typeof approvalStore.markUsed === "function") await approvalStore.markUsed(approval.approval_id);
-    if (recoveryStore && typeof recoveryStore.markApprovalUsed === "function") await recoveryStore.markApprovalUsed(approval.approval_id);
+    run.evidence.approval_finalized = true;
     run.evidence.provider_receipt = sanitizeEvidence(result);
     run.evidence.database_mutation_performed = result?.database_mutation_performed === true;
     run.evidence.verification_required = true;
     await appendStateEvent(run, "provider_acknowledged", "provider_acknowledged", { recoveryStore, requiredDurable: true, details: { database_mutation_performed: run.evidence.database_mutation_performed } });
     await appendStateEvent(run, run.evidence.database_mutation_performed ? "readback_pending" : "verifying", run.evidence.database_mutation_performed ? "readback_required" : "verification_pending", { recoveryStore, requiredDurable: true });
-    const receipt = sanitizeEvidence({ ok: true, contract: "mad4b.recovery-remediation-execution-receipt.v1", run_id: run.run_id, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, status: run.status, phase: run.phase, idempotency_key: idempotencyKey, mutation_attestation: { ...noMutationAttestation({ read_only_probe: false }), database_mutation_performed: result?.database_mutation_performed === true }, readback_required: true, secrets_included: false });
+    const receipt = sanitizeEvidence({ ok: true, contract: "mad4b.recovery-remediation-execution-receipt.v1", run_id: run.run_id, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, status: run.status, phase: run.phase, idempotency_key: idempotencyKey,       execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash, mutation_attestation: { ...noMutationAttestation({ read_only_probe: false }), database_mutation_performed: result?.database_mutation_performed === true }, readback_required: true, approval_reserved: true, secrets_included: false });
     await recoveryStore.putIdempotencyReceipt(idempotencyKey, receipt);
     return receipt;
   } catch (error) {
-    if (run && run.phase !== "failed_closed" && run.phase !== "recovered") {
+    if (providerBoundaryStarted && run && run.phase !== "execution_outcome_unknown") {
+      const errorCode = text(error?.code || "RECOVERY_POST_PROVIDER_PERSISTENCE_FAILED", 128);
+      run.evidence.execution_outcome = "unknown";
+      run.evidence.execution_error = { code: errorCode, message: "A post-provider control-plane step failed; the outcome is unknown and reconciliation is required. Automatic replay is forbidden.", secrets_included: false };
+      try {
+        await appendStateEvent(run, "execution_outcome_unknown", "post_provider_control_plane_failure", { recoveryStore, requiredDurable: true, details: { error_code: errorCode } });
+      } catch {
+        run.phase = "execution_outcome_unknown";
+        run.status = "execution_outcome_unknown";
+        try { await writeRun(run, { recoveryStore }); } catch { /* durable persistence failure remains fail-closed */ }
+      }
+      if (error?.code !== "RECOVERY_EXECUTION_OUTCOME_UNKNOWN") {
+        error = kernelError(502, "RECOVERY_EXECUTION_OUTCOME_UNKNOWN", "A provider-bound recovery operation cannot be replayed because a post-provider control-plane step failed; reconciliation is required.", { run_id: run.run_id });
+      }
+    }
+    if (!providerBoundaryStarted) {
+      if (executionTicketReserved) await releaseExecutionTicket(recoveryStore, { ticket_id: executionTicketId, ticket_hash: executionTicket.ticket_hash, plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, idempotency_key: idempotencyKey }).catch(() => {});
+      await releaseApprovalReservation(recoveryStore, approvalReservationContext).catch(() => {});
+      await recoveryStore.releaseExecutionClaim(claimContext).catch(() => {});
+    }
+    if (run && !providerBoundaryStarted && !["failed_closed", "recovered", "execution_outcome_unknown"].includes(run.phase)) {
       try { await appendStateEvent(run, "failed_closed", "recovery_failed_closed", { recoveryStore, requiredDurable: true, details: { error_code: text(error?.code || "recovery_failed_closed", 128) } }); } catch { /* preserve fail-closed result if evidence persistence itself fails */ }
     }
     throw error;
@@ -988,7 +1267,8 @@ export async function inspectProductionDatabase(input = {}, { env = process.env,
   if (recoveryStore && typeof recoveryStore.putFinding === "function") {
     for (const finding of findings) await recoveryStore.putFinding(sanitizeEvidence(finding));
   }
-  return sanitizeEvidence({ ok: inspection?.ok !== false, contract: "mad4b.recovery-production-inspection.v1", run_id: runId, status: run.status, phase: run.phase, identity, trust, attestation, causal_graph: causalGraph, finding_count: findings.length, findings, inspection: { ...inspection, findings }, next_actions: findings.length ? ["finding_details", "remediation_plan_create"] : ["recovery_evidence_get"], durability: { durable: Boolean(recoveryStore), mode: recoveryStore ? "injected_store" : "degraded_memory_only_test_state" }, read_only: true, ...noMutationAttestation({ database_connection_performed: inspection?.database_connection_performed === true, read_only_probe: true }) });
+  const durableStore = isDurableRecoveryStore(recoveryStore);
+  return sanitizeEvidence({ ok: inspection?.ok !== false, contract: "mad4b.recovery-production-inspection.v1", run_id: runId, status: run.status, phase: run.phase, identity, trust, attestation, causal_graph: causalGraph, finding_count: findings.length, findings, inspection: { ...inspection, findings }, next_actions: findings.length ? ["finding_details", "remediation_plan_create"] : ["recovery_evidence_get"], durability: { store_present: Boolean(recoveryStore), store_contract_valid: durableStore, inspection_durable: durableStore, mutation_grade_durable: durableStore, mode: durableStore ? "injected_durable_store" : recoveryStore ? "injected_store_contract_unverified" : "degraded_memory_only_test_state" }, read_only: true, ...noMutationAttestation({ database_connection_performed: inspection?.database_connection_performed === true, read_only_probe: true }) });
 }
 
 export async function callRecoveryKernelCapability(capabilityKey, input = {}, deps = {}) {

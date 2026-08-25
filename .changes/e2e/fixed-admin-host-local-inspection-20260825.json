@@ -13,6 +13,7 @@
       "http-generic-api/routes/recoveryKernelRoutes.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/recoveryKernel.js",
+      "http-generic-api/recoveryExecutionTicket.js",
       "http-generic-api/runtimeBootstrapContract.js",
       "http-generic-api/hostBreakglassCatalog.js",
       "http-generic-api/roleSelectionProof.js",
@@ -67,6 +68,8 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "http-generic-api/test-fixed-host-local-system-tool.mjs",
       "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/test-recovery-execution-ticket.mjs",
       "http-generic-api/test-runtime-bootstrap-contract.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-recovery-trust-model.mjs",
@@ -254,7 +257,7 @@
             "disaster-recovery preview includes backup/restore/replacement/cutover/rollback phases, but provider_connected, execution_allowed, and runtime_mutation_performed remain false",
             "exception revocation, emergency approval, audit-store fallback, and response/session degradation remain explicit contracts rather than bypasses",
             "consequential execution fails closed without durable approval, lock, executor, and readback authorities",
-            "unknown executor outcomes are recorded as failed_closed and are never replayed automatically",
+            "pre-provider dependency or executor unavailability remains failed_closed, while provider acknowledgement, fence loss, or post-provider persistence failures enter execution_outcome_unknown and reconciliation-only status; none are replayed automatically",
             "all evidence is sanitized and secrets_included=false",
             "Staging Windows/Docker remains separately scoped; Local Connector is deferred to an optional diagnostic follow-up and cannot provide Production authority"
           ],
@@ -264,6 +267,20 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-recovery-kernel.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-execution-ticket-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-execution-ticket.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-kernel-private-route-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel-routes.mjs",
               "args": []
             },
             {
@@ -339,6 +356,7 @@
           ],
           "evidence_paths": [
             "http-generic-api/recoveryKernel.js",
+            "http-generic-api/recoveryExecutionTicket.js",
             "http-generic-api/runtimeBootstrapContract.js",
             "http-generic-api/hostBreakglassCatalog.js",
             "http-generic-api/roleSelectionProof.js",
@@ -362,6 +380,8 @@
             "canonicals/openapi/custom-gpt-surfaces.yaml",
             "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
             "http-generic-api/test-recovery-kernel.mjs",
+            "http-generic-api/test-recovery-kernel-routes.mjs",
+            "http-generic-api/test-recovery-execution-ticket.mjs",
             "http-generic-api/test-runtime-bootstrap-contract.mjs",
             "http-generic-api/test-host-breakglass-catalog.mjs",
             "http-generic-api/test-role-selection-proof-contract.mjs",

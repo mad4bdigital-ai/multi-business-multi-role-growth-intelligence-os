@@ -162,7 +162,11 @@
       "level": "R4",
       "mutation_class": "C3",
       "target_roles": ["server_resolved"],
-      "authority_ref": "approved_registered_capability_only"
+      "authority_ref": "approved_registered_capability_only_ticket_claim_reservation_fenced_lease_readback",
+      "execution_ticket_required": true,
+      "atomic_claim_required": true,
+      "approval_reservation_required": true,
+      "provider_outcome_unknown_reconciliation_only": true
     },
     "remediation_step_verify": {
       "level": "R0",
@@ -278,7 +282,9 @@
     "recovery_manifest_hash",
     "target_fingerprint",
     "admin_principal_binding",
-    "role_fingerprint_set"
+    "role_fingerprint_set",
+    "execution_ticket_hash",
+    "grant_binding_hash"
   ],
   "dependency_kinds": [
     "hard_dependency",
@@ -301,6 +307,7 @@
       "locked",
       "executing",
       "provider_acknowledged",
+      "execution_outcome_unknown",
       "readback_pending",
       "verifying",
       "verified",
@@ -318,7 +325,33 @@
   "durability": {
     "inspection_and_plans_may_use_memory_for_local_non_mutating_tests": true,
     "consequential_mutation_requires_injected_durable_store": true,
-    "required_methods": ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt"],
+    "required_methods": ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt", "claimExecution", "releaseExecutionClaim", "reserveApproval", "releaseApprovalReservation", "markApprovalUsed_or_finalizeApproval", "getExecutionTicket", "putExecutionTicket", "reserveExecutionTicket", "releaseExecutionTicket", "finalizeExecutionTicket"],
+    "execution_ticket_contract": {
+      "contract": "mad4b.recovery-execution-ticket.v1",
+      "issuer": "injected_server_side_signer_only",
+      "verifier": "injected_durable_store_verifier_only",
+      "signature_or_secret_returned_to_gpt": false,
+      "bindings": ["expected_sha", "target_key", "target_fingerprint", "plan_hash", "step_hash", "step_id", "selected_roles", "role_fingerprints", "role_selection_hash", "grant_binding_hash", "operation", "idempotency_key", "nonce", "expiry"],
+      "single_use": true,
+      "automatic_replay_after_unknown": false
+    },
+    "bootstrap_mutation_authority": {
+      "execution_ticket_contract": "mad4b.recovery-execution-ticket.v1",
+      "adapter": "injected_server_side_verifier_and_single_use_reservation",
+      "ticket_references_are_not_authority": true,
+      "default_cli_behavior": "fail_closed",
+      "immutable_partial_receipt_store_required_before_connection": true,
+      "provider_wiring_in_repository": false
+    },
+    "atomic_execution_contract": {
+      "claim_before_approval_reservation": true,
+      "approval_reservation_before_provider": true,
+      "approval_finalization_after_provider_acknowledgement": true,
+      "unknown_provider_outcome_is_terminal_until_readback": true,
+      "fenced_lease_required": true,
+      "heartbeat_and_assert_before_each_provider_boundary": true,
+      "partial_receipt_persisted_before_consequential_provider_boundary": true
+    },
     "exception_lifecycle_methods": ["putException", "getException", "appendExceptionEvent"],
     "ephemeral_capability_methods": ["putEphemeralCapability", "getEphemeralCapability"],
     "store_independence": {
@@ -329,8 +362,8 @@
       "enforced_before_consequential_mutation": true
     }
   },
-  "empty_database_reconstruction": {
-    "contract": "mad4b.host-breakglass-empty-object-reconstruction.v1",
+    "empty_database_reconstruction": {
+      "contract": "mad4b.host-breakglass-empty-object-reconstruction.v1",
     "control_plane": "repository_owned_host_breakglass_catalog",
     "scope": "existing_zero_object_set_only",
     "object_kinds": ["tables", "views", "triggers", "routines", "events"],
@@ -355,6 +388,20 @@
     "grants_require_separate_approval": true,
     "database_creation_included": false,
     "drop_nonempty_database_included": false,
+    "provider_accessed_by_contract": false,
+    "partial_rebuild_policy": {
+      "ddl_rollback_claimed": false,
+      "on_partial_failure": "immutable_receipt_and_reconciliation_required",
+      "automatic_rerun_allowed": false,
+      "resume_requires_exact_ticket_plan_bundle_fence_and_explicit_approval": true
+    },
+    "role_specific_target_identity": {
+      "runtime": "Hostinger DB identity bound to runtime database",
+      "governance": "Hostinger DB identity bound to governance database",
+      "runtime_persistence": "Hostinger DB identity bound to runtime-persistence database",
+      "repository_allowlist_split_db_requires_distinct_env_binding": true,
+      "single_bootstrap_identity_for_distinct_databases": false
+    },
     "provider_accessed_by_contract": false,
     "secrets_included": false
   },

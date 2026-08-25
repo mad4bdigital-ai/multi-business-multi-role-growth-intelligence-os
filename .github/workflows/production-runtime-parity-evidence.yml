@@ -180,7 +180,11 @@ on:
         required: false
         type: string
       bootstrap_grants_confirmation:
-        description: Required only for apply_grants; APPLY_HOSTINGER_RUNTIME_GRANTS:sha:target-key:principal:principal-host.
+        description: Required only for apply_grants; exact target identity or canonical split-DB grant-binding hash.
+        required: false
+        type: string
+      bootstrap_grant_binding_hash:
+        description: SHA-256 of the exact role grant policies, databases, principals, and principal hosts for a split-DB target.
         required: false
         type: string
       bootstrap_bundle_manifest:
@@ -205,6 +209,14 @@ on:
         type: string
       bootstrap_role_object_count_fingerprints:
         description: Canonical rich role-selection proof envelope containing source, exact SHA, inspection evidence, finding IDs, selected-role object-count fingerprints, and composite fingerprint; contains no database names or credentials.
+        required: false
+        type: string
+      bootstrap_execution_ticket_id:
+        description: Server-issued bounded execution-ticket reference; never contains a signature or credential.
+        required: false
+        type: string
+      bootstrap_execution_ticket_hash:
+        description: SHA-256 of the server-issued execution ticket; required for every mutation mode.
         required: false
         type: string
 
@@ -283,7 +295,10 @@ jobs:
       BOOTSTRAP_PLAN_SHA256: ${{ inputs.host_breakglass_plan_sha256 }}
       BOOTSTRAP_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
       BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: ${{ inputs.bootstrap_role_object_count_fingerprints }}
+      BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
+      BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
       BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
+      BOOTSTRAP_GRANT_BINDING_HASH: ${{ inputs.bootstrap_grant_binding_hash }}
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
     steps:
@@ -291,13 +306,24 @@ jobs:
         env:
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+          BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
+          BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
           HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
         shell: bash
         run: |
           set -Eeuo pipefail
+          case "${BOOTSTRAP_TARGET_SOURCE}" in
+            repository_allowlist|hostinger_runtime_env) ;;
+            *) echo '{"ok":false,"code":"bootstrap_target_source_denied","secrets_included":false}' >&2; exit 1 ;;
+          esac
           if [[ "${BOOTSTRAP_TARGET_SOURCE}" == "hostinger_runtime_env" && "${BOOTSTRAP_MODE}" != "dry_run" ]]; then
             echo '{"ok":false,"code":"hostinger_runtime_env_dry_run_only","secrets_included":false}' >&2
             exit 1
+          fi
+          if [[ "${BOOTSTRAP_MODE}" == "apply_migration" || "${BOOTSTRAP_MODE}" == "apply_grants" || "${BOOTSTRAP_MODE}" == "execute_sql_capsule" || "${BOOTSTRAP_MODE}" == "execute_shell_capsule" ]]; then
+            [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]]
+            [[ "${BOOTSTRAP_EXECUTION_TICKET_ID}" =~ ^[A-Za-z0-9._:-]{8,160}$ ]]
+            [[ "${BOOTSTRAP_EXECUTION_TICKET_HASH}" =~ ^[0-9a-fA-F]{64}$ ]]
           fi
 
       - name: Validate Host Breakglass catalog binding
@@ -313,6 +339,8 @@ jobs:
           BREAKGLASS_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+          BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
+          BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -412,18 +440,17 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Install database client without lifecycle scripts
-        if: inputs.bootstrap_mode != 'plan' && inputs.bootstrap_target_source == 'repository_allowlist'
-        working-directory: http-generic-api
-        run: npm ci --ignore-scripts
-      - name: Run selected repository bootstrap contract mode
-        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'execute_sql_capsule' && inputs.bootstrap_mode != 'execute_shell_capsule'
+      - name: Deny repository bootstrap execution without an injected host-side role executor
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'plan'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo '{"ok":false,"code":"repository_allowlist_host_role_executor_required","execution_authority":"injected_host_side_role_executor","github_secrets_required":false,"database_mutation_performed":false,"secrets_included":false}' >&2
+          exit 1
+      - name: Run repository bootstrap plan without database credentials
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'plan'
         env:
           HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
-          MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
-          MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-          MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
-          MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
         run: |
           set -Eeuo pipefail

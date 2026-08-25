@@ -12,7 +12,7 @@
     "rebuild_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD",
     "rebuild_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:<sha>:<target-key>:<role-set-or-inspection-derived>",
     "migration_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>",
-    "grants_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>",
+    "grants_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<grant-binding-hash> for split databases; single-database compatibility uses <principal>:<principal-host>",
     "apply_grants_requires_migration_ready": true,
     "auto_apply": false,
     "startup_apply": false,
@@ -64,7 +64,10 @@
     "target_sources": {
       "repository_allowlist": {
         "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
-        "requires_repository_target_json": true
+        "requires_repository_target_json": true,
+        "mutation_requires_injected_execution_ticket_authority": true,
+        "mutation_requires_immutable_partial_receipt_store": true,
+        "mutation_requires_host_side_role_executor": true
       },
       "runtime_env": {
         "allowed_modes": ["dry_run"],
@@ -113,7 +116,9 @@
           "runtime_persistence": "RUNTIME_PERSISTENCE_DB"
         },
         "cross_role_credential_reuse": false,
-        "raw_values_exposed": false
+        "raw_values_exposed": false,
+        "mutation_requires_injected_execution_ticket_authority": true,
+        "mutation_requires_immutable_partial_receipt_store": true
       },
       "staging_local_role_env": {
         "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
@@ -148,7 +153,9 @@
         },
         "cross_environment_credential_reuse": false,
         "cross_role_credential_reuse": false,
-        "raw_values_exposed": false
+        "raw_values_exposed": false,
+        "mutation_requires_injected_execution_ticket_authority": true,
+        "mutation_requires_immutable_partial_receipt_store": true
       }
     },
     "target_role": "runtime",
@@ -158,11 +165,29 @@
     "required_repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     "require_database_sha256": true,
     "require_target_fingerprint": true,
-    "target_fingerprint_formula": "sha256(repository:branch:key:database:governance_database:principal:principal_host)",
+    "target_fingerprint_formula": "sha256(json({repository,branch,key,role_identity_bindings:{runtime:{database,principal,principal_host},governance:{database,principal,principal_host},runtime_persistence:{database,principal,principal_host}}}))",
+    "target_fingerprint_includes": ["runtime_database", "governance_database", "runtime_persistence_database", "runtime_principal", "governance_principal", "runtime_persistence_principal", "runtime_principal_host", "governance_principal_host", "runtime_persistence_principal_host"],
+    "role_identity_binding": {
+      "required_for_distinct_databases": true,
+      "repository_target_fields": ["runtime_principal", "runtime_principal_host", "governance_principal", "governance_principal_host", "runtime_persistence_principal", "runtime_persistence_principal_host"],
+      "distinct_role_env_prefixes": {"runtime": "MYSQL_BOOTSTRAP", "governance": "MYSQL_BOOTSTRAP_GOVERNANCE", "runtime_persistence": "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE"},
+      "single_database_legacy_binding_allowed": true,
+      "cross_database_identity_reuse": false
+    },
     "require_principal_binding": true,
     "require_principal_host_binding": true,
     "runtime_database_credentials_are_never_accepted": true,
     "runtime_database_env_names": ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD", "DATABASE_URL"]
+  },
+  "mutation_authority": {
+    "execution_ticket_contract": "mad4b.recovery-execution-ticket.v1",
+    "mutation_requires_ticket_id_and_hash": true,
+    "ticket_refs_are_not_authority": true,
+    "authority_adapter": "injected_server_side_verifier_and_single_use_reservation",
+    "mutation_requires_immutable_partial_receipt_store_before_connection": true,
+    "default_cli_authority": "deny",
+    "default_cli_partial_receipt_store": "deny",
+    "provider_wiring_in_repository": false
   },
   "bootstrap_credentials": {
     "host_env": "MYSQL_BOOTSTRAP_HOST",
@@ -170,6 +195,8 @@
     "user_env": "MYSQL_BOOTSTRAP_USER",
     "password_env": "MYSQL_BOOTSTRAP_PASSWORD",
     "database_env": "MYSQL_BOOTSTRAP_DATABASE",
+    "role_specific_env_prefixes": {"runtime": "MYSQL_BOOTSTRAP", "governance": "MYSQL_BOOTSTRAP_GOVERNANCE", "runtime_persistence": "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE"},
+    "role_specific_binding_required_for_distinct_databases": true,
     "must_be_separate_from_runtime_credentials": true,
     "host_local_role_scoped_exception_requires_explicit_breakglass": true,
     "host_local_role_scoped_grants_require_separate_confirmation": true,
@@ -228,6 +255,12 @@
       {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
     ],
     "recovery_store_must_be_independent_of_target_role_databases": true,
+    "partial_rebuild_policy": {
+      "ddl_rollback_claimed": false,
+      "on_statement_failure": "immutable_partial_rebuild_receipt_and_reconciliation_required",
+      "automatic_rerun_allowed": false,
+      "resume_requires": ["durable_partial_receipt", "same_bundle_sha", "same_target_fingerprint", "same_execution_ticket", "valid_fence", "explicit_resume_partial_baseline_approval"]
+    },
     "role_seed_files": {
       "runtime": [
         {"file": "039_sprint43_data_integrity_and_missing_tables.sql", "sha256": "719d43521a0aca776f8967332e6b2e2c68101644150135d49580708b84c3b308", "statement_count": 13},
@@ -277,7 +310,33 @@
     "allow_grant_option": false,
     "same_cycle_readback_required": true,
     "preflight_all_tables_before_first_grant": true,
-    "apply_grants_requires_postconditions_ready": true
+    "apply_grants_requires_postconditions_ready": true,
+    "preflight_all_role_tables_before_first_grant": true,
+    "split_database_grant_binding_hash_required": true,
+    "grant_binding_hash_contract": "sha256(canonical role policies plus role database/principal/principal-host bindings)",
+    "role_policies": {
+      "runtime": {
+        "database_binding": "runtime",
+        "principal_binding": "runtime",
+        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
+        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "apply_when": "always"
+      },
+      "governance": {
+        "database_binding": "governance",
+        "principal_binding": "governance",
+        "required_tables": ["governed_migration_ledger"],
+        "required_operations": ["SELECT"],
+        "apply_when": "always"
+      },
+      "runtime_persistence": {
+        "database_binding": "runtime_persistence",
+        "principal_binding": "runtime_persistence",
+        "required_tables": ["governed_tool_response_chunks"],
+        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "apply_when": "always"
+      }
+    }
   },
   "postconditions": {
     "225_sprint67_capability_resolution_envelope_ledger.sql": [

@@ -277,7 +277,7 @@ export async function createEphemeralCapability(input = {}, deps = {}) {
 }
 
 export async function executeUnsupportedCapability(input = {}, deps = {}) {
-  const body = exactKeys(input, ["incident_id", "expected_sha", "target_key", "capability_id", "capability_hash", "approval_id", "idempotency_key"], ["incident_id", "expected_sha", "capability_id", "capability_hash", "approval_id", "idempotency_key"]);
+  const body = exactKeys(input, ["incident_id", "expected_sha", "target_key", "capability_id", "capability_hash", "approval_id", "idempotency_key", "execution_ticket_id", "execution_ticket_hash", "plan_hash", "step_hash", "step_id", "lease_id", "fencing_token"], ["incident_id", "expected_sha", "capability_id", "capability_hash", "approval_id", "idempotency_key"]);
   requireProductionPrincipal(deps.adminPrincipal);
   if (mutationDisabled(deps.env)) throw error(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
   if (!deps.unsupportedBroker || typeof deps.unsupportedBroker.execute !== "function") throw error(503, "UNSUPPORTED_BROKER_UNAVAILABLE", "No managed Unsupported Recovery broker is configured; no SSH or SQL action was attempted.");
@@ -289,6 +289,13 @@ export async function executeUnsupportedCapability(input = {}, deps = {}) {
     capability_hash: sha256(body.capability_hash, "capability_hash"),
     approval_id: safeId(body.approval_id, "approval_id"),
     idempotency_key: safeId(body.idempotency_key, "idempotency_key"),
+    execution_ticket_id: safeId(body.execution_ticket_id, "execution_ticket_id"),
+    execution_ticket_hash: sha256(body.execution_ticket_hash, "execution_ticket_hash"),
+    plan_hash: sha256(body.plan_hash, "plan_hash"),
+    step_hash: sha256(body.step_hash, "step_hash"),
+    step_id: safeId(body.step_id, "step_id"),
+    lease_id: safeId(body.lease_id, "lease_id"),
+    fencing_token: safeId(body.fencing_token, "fencing_token"),
   });
 }
 

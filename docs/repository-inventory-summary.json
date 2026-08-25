@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7366,
-    "bytes": 72528412,
-    "lines": 1690569,
+    "bytes": 72622432,
+    "lines": 1691635,
     "directories": 266,
     "categories": 13
   },
@@ -270,13 +270,13 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3537406,
+      "bytes": 3537404,
       "lines": 99740
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1960584,
+      "bytes": 1960585,
       "lines": 59291
     },
     {

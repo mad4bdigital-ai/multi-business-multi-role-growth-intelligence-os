@@ -19,6 +19,9 @@ import {
   selectMigration,
   validateSchemaBundleManifest,
   sha256Hex,
+  computeTargetBindingFingerprint,
+  computeGrantBindingHash,
+  resolveBootstrapTarget,
 } from "./runtimeBootstrapContract.js";
 import { getRuntimeBootstrapStatus as readStartupStatus } from "./runtimeBootstrapStatus.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
@@ -32,7 +35,7 @@ const TARGET = {
   key: TARGET_KEY,
   database: TARGET_DATABASE,
   database_sha256: sha256Hex(TARGET_DATABASE),
-  target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}:${TARGET_DATABASE}:runtime_user:localhost`),
+  target_fingerprint: computeTargetBindingFingerprint({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "Production", key: TARGET_KEY, database: TARGET_DATABASE, governance_database: TARGET_DATABASE, runtime_persistence_database: TARGET_DATABASE, principal: "runtime_user", principal_host: "localhost" }),
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   branch: "Production",
   environment: "production",
@@ -100,6 +103,10 @@ function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode =
     MYSQL_BOOTSTRAP_PORT: "3306",
     DB_USER: "runtime_user",
     DB_PASSWORD: "runtime-secret-for-test-only",
+    ...(new Set(["apply_migration", "apply_grants"]).has(mode) ? {
+      BOOTSTRAP_EXECUTION_TICKET_ID: `ticket:bootstrap-${mode.replaceAll("_", "-")}-authority`,
+      BOOTSTRAP_EXECUTION_TICKET_HASH: "a".repeat(64),
+    } : {}),
   };
 }
 
@@ -109,6 +116,26 @@ function canonicalObjectCountFingerprint(counts) {
   normalized.legacy_table_only = false;
   normalized.secrets_included = false;
   return sha256Hex(JSON.stringify(normalized));
+}
+
+function makePartialReceiptStore(receipts = []) {
+  return { putImmutablePartialRebuildReceipt: async (receipt) => receipts.push(structuredClone(receipt)) };
+}
+
+function makeExecutionTicketVerifier({ result = { valid: true } } = {}) {
+  return {
+    verifyForBootstrap: async ({ ticket_id, ticket_hash, expected }) => {
+      assert.equal(ticket_id, expected.ticket_id);
+      assert.equal(ticket_hash, expected.ticket_hash);
+      assert.match(ticket_id, /^ticket:[A-Za-z0-9._:-]{8,160}$/u);
+      assert.match(ticket_hash, /^[0-9a-f]{64}$/u);
+      assert.equal(expected.production_sha, EXPECTED_SHA);
+      assert.ok(expected.target_key);
+      assert.match(expected.target_fingerprint, /^[0-9a-f]{64}$/u);
+      assert.ok(["migration", "grants", "database.rebuild_empty"].includes(expected.operation));
+      return result;
+    },
+  };
 }
 
 function roleBoundRebuildEnv(selectedRoles, roleCounts) {
@@ -156,17 +183,13 @@ test("repository allowlist derives database binding from target key without call
   assert.equal(plan.database_connection_performed, false);
 });
 
-function grantRows() {
-  return TARGET ? [
-    ...contract.grant_policy.required_tables.flatMap((table) => [
-      { TABLE_SCHEMA: TARGET_DATABASE, TABLE_NAME: table, PRIVILEGE_TYPE: "SELECT", IS_GRANTABLE: "NO" },
-      { TABLE_SCHEMA: TARGET_DATABASE, TABLE_NAME: table, PRIVILEGE_TYPE: "INSERT", IS_GRANTABLE: "NO" },
-      { TABLE_SCHEMA: TARGET_DATABASE, TABLE_NAME: table, PRIVILEGE_TYPE: "UPDATE", IS_GRANTABLE: "NO" },
-    ]),
-  ] : [];
+function grantRows(database = TARGET_DATABASE, role = null) {
+  const rolePolicies = contract.grant_policy.role_policies || { runtime: { required_tables: contract.grant_policy.required_tables, required_operations: contract.grant_policy.required_operations } };
+  const selectedPolicies = role ? { [role]: rolePolicies[role] } : rolePolicies;
+  return TARGET ? Object.values(selectedPolicies).filter(Boolean).flatMap((policy) => (policy.required_tables || []).flatMap((table) => (policy.required_operations || []).map((privilege) => ({ TABLE_SCHEMA: database, TABLE_NAME: table, PRIVILEGE_TYPE: privilege, IS_GRANTABLE: "NO" })))) : [];
 }
 
-function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null, afterMutationTableCount = null, afterMutationObjectCounts = {}, verificationStaysZero = false, staleAfterCountReads = null } = {}) {
+function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null, afterMutationTableCount = null, afterMutationObjectCounts = {}, verificationStaysZero = false, staleAfterCountReads = null, grantDatabase = TARGET_DATABASE, grantRole = null } = {}) {
   const queryCalls = [];
   const executeCalls = [];
   let mutationQueries = 0;
@@ -183,7 +206,7 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
     "platform_runtime_config",
     ...contract.grant_policy.required_tables,
   ]);
-  const currentGrantRows = grantRows();
+  const currentGrantRows = grantRows(grantDatabase, grantRole);
   const nonTableObjectCounts = { views: 0, triggers: 0, routines: 0, events: 0, ...objectCounts };
   const mutatedNonTableObjectCounts = { views: 0, triggers: 0, routines: 0, events: 0, ...afterMutationObjectCounts };
   const connection = {
@@ -359,10 +382,19 @@ test("runtime_env split-role topology fails closed before any connection", () =>
 });
 
 
+function withGrantBindingHash(env, configuredContract = contract) {
+  const mode = String(env.BOOTSTRAP_MODE || "").trim();
+  const operation = String(env.HOST_BREAKGLASS_OPERATION || "").trim();
+  if (!new Set(["database.inspect", "database.repair", "database.rebuild_empty"]).has(operation) || (mode === "apply_grants" && operation !== "database.repair") || (operation === "database.inspect" && mode !== "dry_run")) return env;
+  const target = resolveBootstrapTarget(env, configuredContract);
+  env.BOOTSTRAP_GRANT_BINDING_HASH = computeGrantBindingHash(target, configuredContract);
+  return env;
+}
+
 function hostLocalRoleEnv(mode = "dry_run", operation = "database.repair") {
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", mode);
   for (const key of ["RUNTIME_BOOTSTRAP_TARGETS_JSON", "BOOTSTRAP_TARGET_DATABASE", "MYSQL_BOOTSTRAP_HOST", "MYSQL_BOOTSTRAP_PORT", "MYSQL_BOOTSTRAP_USER", "MYSQL_BOOTSTRAP_PASSWORD", "MYSQL_BOOTSTRAP_DATABASE"]) delete env[key];
-  return {
+  return withGrantBindingHash({
     ...env,
     BOOTSTRAP_TARGET_SOURCE: "host_local_role_env",
     HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: "true",
@@ -378,7 +410,7 @@ function hostLocalRoleEnv(mode = "dry_run", operation = "database.repair") {
     RUNTIME_PERSISTENCE_DB_NAME: "growth_persistence",
     RUNTIME_PERSISTENCE_DB_USER: "persistence_user",
     RUNTIME_PERSISTENCE_DB_PASSWORD: "persistence-secret-for-test-only",
-  };
+  });
 }
 
 test("host-local role discovery binds three existing Hostinger identities without copying secrets to GitHub", () => {
@@ -407,7 +439,7 @@ test("host-local role recovery requires explicit authorization, a bounded operat
 test("host-local access repair allows grants only with an independent typed grant confirmation", () => {
   const env = hostLocalRoleEnv("apply_grants");
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_confirmation_mismatch");
-  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:${TARGET.principal}:localhost`;
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:${env.BOOTSTRAP_GRANT_BINDING_HASH}`;
   const plan = buildPlan(env, contract);
   assert.equal(plan.operation, "grants");
   assert.equal(plan.credentials.credential_source, "host_local_role_scoped");
@@ -419,24 +451,24 @@ test("host-local access repair allows grants only with an independent typed gran
 
 test("host-local grant exception executes only repository-allowlisted privileges under separate approval", async () => {
   const env = hostLocalRoleEnv("apply_grants");
-  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:${TARGET.principal}:localhost`;
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:${env.BOOTSTRAP_GRANT_BINDING_HASH}`;
   const opened = new Map();
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => {
-    const connection = fakeConnection({ ledgerFound: true });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role, database }) => {
+    const connection = fakeConnection({ ledgerFound: true, grantDatabase: database, grantRole: role });
     opened.set(role, connection);
     return connection;
-  } });
+  }, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.equal(result.status, "apply_grants_complete");
   assert.equal(result.grant_mutation_performed, true);
   assert.equal(result.migration_apply_performed, false);
-  const grants = opened.get("runtime").queryCalls.filter((sql) => /^GRANT /i.test(sql));
-  assert.equal(grants.length, contract.grant_policy.required_tables.length);
-  for (const statement of grants) {
-    assert.match(statement, /^GRANT SELECT, INSERT, UPDATE ON /i);
-    assert.doesNotMatch(statement, /GRANT OPTION|ALL PRIVILEGES/i);
-  }
-  assert.equal(opened.get("governance").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
-  assert.equal(opened.get("runtime_persistence").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+  const grantsByRole = Object.fromEntries([...opened.entries()].map(([role, connection]) => [role, connection.queryCalls.filter((sql) => /^GRANT /i.test(sql))]));
+  assert.equal(grantsByRole.runtime.length, contract.grant_policy.role_policies.runtime.required_tables.length);
+  assert.equal(grantsByRole.governance.length, contract.grant_policy.role_policies.governance.required_tables.length);
+  assert.equal(grantsByRole.runtime_persistence.length, contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
+  assert.equal(grantsByRole.runtime.every((statement) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(statement)), true);
+  assert.equal(grantsByRole.governance.every((statement) => /^GRANT SELECT ON /i.test(statement)), true);
+  assert.equal(grantsByRole.runtime_persistence.every((statement) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(statement)), true);
+  assert.equal(Object.values(grantsByRole).flat().every((statement) => !/GRANT OPTION|ALL PRIVILEGES/i.test(statement)), true);
 });
 
 test("host-local role credentials fail closed before the first connection when an identity is incomplete or shared", async () => {
@@ -547,19 +579,20 @@ test("Staging Windows/Docker binds all three existing role identities with an en
 test("Staging grants require their own approval and reject Production grant confirmation", async () => {
   const env = stagingRoleEnv("apply_grants");
   const configured = stagingRoleContract();
+  withGrantBindingHash(env, configured);
   env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${TARGET.principal}:localhost`;
   assert.throws(() => buildPlan(env, configured), (error) => error.code === "bootstrap_confirmation_mismatch");
-  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_STAGING_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${TARGET.principal}:localhost`;
+  env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_STAGING_RUNTIME_GRANTS:${EXPECTED_SHA}:staging-runtime:${env.BOOTSTRAP_GRANT_BINDING_HASH}`;
   const connections = new Map();
-  const result = await runBootstrap({ env, contract: configured, connectionFactory: async ({ role }) => {
-    const connection = fakeConnection({ ledgerFound: true });
+  const result = await runBootstrap({ env, contract: configured, connectionFactory: async ({ role, database }) => {
+    const connection = fakeConnection({ ledgerFound: true, grantDatabase: database, grantRole: role });
     connections.set(role, connection);
     return connection;
-  } });
+  }, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.equal(result.status, "apply_grants_complete");
-  assert.equal(connections.get("runtime").queryCalls.filter((sql) => /^GRANT /i.test(sql)).length, contract.grant_policy.required_tables.length);
-  assert.equal(connections.get("governance").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
-  assert.equal(connections.get("runtime_persistence").queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+  assert.equal(connections.get("runtime").queryCalls.filter((sql) => /^GRANT /i.test(sql)).length, contract.grant_policy.role_policies.runtime.required_tables.length);
+  assert.equal(connections.get("governance").queryCalls.filter((sql) => /^GRANT /i.test(sql)).length, contract.grant_policy.role_policies.governance.required_tables.length);
+  assert.equal(connections.get("runtime_persistence").queryCalls.filter((sql) => /^GRANT /i.test(sql)).length, contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
 });
 
 test("role-bound credentials reject cross-environment target keys and execution identities", () => {
@@ -688,7 +721,7 @@ test("standalone migration apply is denied for an empty target before the recons
   env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
   const connection = fakeConnection({ tableCount: 0 });
   await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async () => connection }),
+    () => runBootstrap({ env, contract, connectionFactory: async () => connection, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }),
     (error) => error.code === "bootstrap_empty_requires_rebuild_operation" && error.details.database_mutation_performed === false,
   );
   assert.equal(connection.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
@@ -701,7 +734,7 @@ test("selected-role rebuild rejects an unexpected object in the selected role be
   const governance = fakeConnection({ tableCount: 0 });
   const persistence = fakeConnection({ tableCount: 0, objectCounts: { views: 1 } });
   await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : role === "runtime_persistence" ? persistence : runtime }),
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : role === "runtime_persistence" ? persistence : runtime, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }),
     (error) => error.code === "bootstrap_role_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
   );
   assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
@@ -717,7 +750,7 @@ test("m48 runtime nonempty plus governance and persistence empty rebuilds only t
     governance: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }),
     runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }),
   };
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.equal(result.status, "baseline_rebuild_complete");
   assert.deepEqual(result.selected_rebuild_roles, ["governance", "runtime_persistence"]);
   assert.equal(result.role_rebuild_evidence.runtime_role_touched, false);
@@ -732,7 +765,7 @@ test("m48 nonempty governance plus empty persistence selects persistence only", 
   const roleCounts = { runtime: { tables: 7 }, governance: { tables: 4 }, runtime_persistence: { tables: 0 } };
   const env = roleBoundRebuildEnv(["runtime_persistence"], roleCounts);
   const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 4 }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.deepEqual(result.selected_rebuild_roles, ["runtime_persistence"]);
   assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["runtime_persistence"]);
   assert.equal(connections.runtime.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
@@ -743,7 +776,7 @@ test("m48 nonempty runtime plus governance empty and persistence nonempty select
   const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 3 } };
   const env = roleBoundRebuildEnv(["governance"], roleCounts);
   const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }), runtime_persistence: fakeConnection({ tableCount: 3 }) };
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.deepEqual(result.selected_rebuild_roles, ["governance"]);
   assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["governance"]);
   assert.equal(connections.runtime.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
@@ -754,7 +787,7 @@ test("m48 empty runtime with nonempty governance never touches governance", asyn
   const roleCounts = { runtime: { tables: 0 }, governance: { tables: 6 }, runtime_persistence: { tables: 0 } };
   const env = roleBoundRebuildEnv(["runtime", "runtime_persistence"], roleCounts);
   const connections = { runtime: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }), governance: fakeConnection({ tableCount: 6 }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.deepEqual(result.selected_rebuild_roles, ["runtime", "runtime_persistence"]);
   assert.equal(result.role_rebuild_evidence.runtime_role_touched, true);
   assert.equal(connections.governance.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
@@ -764,7 +797,7 @@ test("m48 all nonempty dry-run proposes no baseline roles and performs no mutati
   const env = envFor("", "dry_run");
   env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
   const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 4 }), runtime_persistence: fakeConnection({ tableCount: 3 }) };
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.deepEqual(result.selected_rebuild_roles, []);
   assert.equal(result.role_selection_source, "inspection_derived_zero_object_roles");
   assert.equal(result.database_mutation_performed, false);
@@ -775,7 +808,7 @@ test("m48 selected role that becomes nonempty after inspection is stale and stop
   const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 0 } };
   const env = roleBoundRebuildEnv(["governance", "runtime_persistence"], roleCounts);
   const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 0, staleAfterCountReads: 4 }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
-  await assert.rejects(() => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] }), (error) => error.code === "bootstrap_role_rebuild_inspection_fingerprint_mismatch" || error.code === "bootstrap_role_rebuild_stale_zero_object_proof");
+  await assert.rejects(() => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }), (error) => error.code === "bootstrap_role_rebuild_inspection_fingerprint_mismatch" || error.code === "bootstrap_role_rebuild_stale_zero_object_proof");
   assert.equal(connections.governance.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
   assert.equal(connections.runtime_persistence.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
 });
@@ -784,7 +817,7 @@ test("m48 governance verification failure prevents automatic persistence executi
   const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 0 } };
   const env = roleBoundRebuildEnv(["governance", "runtime_persistence"], roleCounts);
   const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 0, verificationStaysZero: true }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
-  await assert.rejects(() => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] }), (error) => error.code === "bootstrap_role_rebuild_verification_failed");
+  await assert.rejects(() => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }), (error) => error.code === "bootstrap_role_rebuild_verification_failed");
   assert.equal(connections.runtime_persistence.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
 });
 
@@ -825,10 +858,17 @@ test("dry-run supports an explicitly allowlisted separate governance database", 
     ...TARGET,
     governance_database: "growth_governance",
     governance_database_sha256: sha256Hex("growth_governance"),
-    target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}:growth_governance:runtime_user:localhost`),
+    governance_principal: "governance_user",
+    governance_principal_host: "localhost",
+    target_fingerprint: computeTargetBindingFingerprint({ ...TARGET, governance_database: "growth_governance", governance_principal: "governance_user", governance_principal_host: "localhost" }),
   };
   env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
   env.BOOTSTRAP_GOVERNANCE_DATABASE = "growth_governance";
+  env.MYSQL_BOOTSTRAP_GOVERNANCE_HOST = "db.internal";
+  env.MYSQL_BOOTSTRAP_GOVERNANCE_PORT = "3306";
+  env.MYSQL_BOOTSTRAP_GOVERNANCE_USER = "governance_bootstrap";
+  env.MYSQL_BOOTSTRAP_GOVERNANCE_PASSWORD = "governance-bootstrap-secret-for-test-only";
+  env.MYSQL_BOOTSTRAP_GOVERNANCE_DATABASE = "growth_governance";
   const connections = [fakeConnection(), fakeConnection()];
   let opened = 0;
   const result = await runBootstrap({ env, contract, connectionFactory: async () => connections[opened++] });
@@ -845,9 +885,17 @@ test("dry-run binds an explicitly allowlisted runtime persistence database to it
     ...TARGET,
     runtime_persistence_database: persistenceDatabase,
     runtime_persistence_database_sha256: sha256Hex(persistenceDatabase),
+    runtime_persistence_principal: "persistence_user",
+    runtime_persistence_principal_host: "localhost",
+    target_fingerprint: computeTargetBindingFingerprint({ ...TARGET, runtime_persistence_database: persistenceDatabase, runtime_persistence_principal: "persistence_user", runtime_persistence_principal_host: "localhost" }),
   };
   env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
   env.RUNTIME_PERSISTENCE_DB_NAME = persistenceDatabase;
+  env.MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE_HOST = "db.internal";
+  env.MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE_PORT = "3306";
+  env.MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE_USER = "persistence_bootstrap";
+  env.MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE_PASSWORD = "persistence-bootstrap-secret-for-test-only";
+  env.MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE_DATABASE = persistenceDatabase;
   const opened = [];
   const connections = [fakeConnection(), fakeConnection()];
   const result = await runBootstrap({
@@ -876,6 +924,9 @@ test("runtime persistence databases reject missing allowlist binding, wrong hash
     ...TARGET,
     runtime_persistence_database: "growth_persistence",
     runtime_persistence_database_sha256: "0".repeat(64),
+    runtime_persistence_principal: "persistence_user",
+    runtime_persistence_principal_host: "localhost",
+    target_fingerprint: computeTargetBindingFingerprint({ ...TARGET, runtime_persistence_database: "growth_persistence", runtime_persistence_principal: "persistence_user", runtime_persistence_principal_host: "localhost" }),
   };
   env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_fingerprint_mismatch");
@@ -892,7 +943,7 @@ test("nonempty runtime persistence role is not touched when governance is the se
   const runtime = fakeConnection({ tableCount: 7 });
   const governance = fakeConnection({ tableCount: 0, afterMutationTableCount: 1 });
   const persistence = fakeConnection({ tableCount: 1 });
-  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : role === "runtime_persistence" ? persistence : runtime });
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : role === "runtime_persistence" ? persistence : runtime, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.deepEqual(result.selected_rebuild_roles, ["governance"]);
   assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["governance"]);
   assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
@@ -927,7 +978,7 @@ test("migration apply is independently confirmed and never applies grants", asyn
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
   env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
   const connection = fakeConnection({ tableCount: 7 });
-  const result = await runBootstrap({ env, contract, connectionFactory: async () => connection });
+  const result = await runBootstrap({ env, contract, connectionFactory: async () => connection, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.equal(result.status, "apply_migration_complete");
   assert.equal(result.database_mutation_performed, true);
   assert.equal(result.migration_apply_performed, true);
@@ -941,15 +992,17 @@ test("grants apply requires independent confirmation and migration readiness", a
   const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_grants");
   env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:runtime_user:localhost`;
   const connection = fakeConnection({ tableCount: 7, ledgerFound: true });
-  const result = await runBootstrap({ env, contract, connectionFactory: async () => connection });
+  const result = await runBootstrap({ env, contract, connectionFactory: async () => connection, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() });
   assert.equal(result.status, "apply_grants_complete");
   assert.equal(result.migration_apply_performed, false);
   assert.equal(result.grant_mutation_performed, true);
   assert.equal(result.grants.grant_readback.ready, true);
   assert.equal(result.mutation_evidence.migration.attempted, false);
   const grants = connection.queryCalls.filter((sql) => /^GRANT /i.test(sql));
-  assert.equal(grants.length, contract.grant_policy.required_tables.length);
-  assert.equal(grants.every((sql) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(sql)), true);
+  const expectedGrantCount = Object.values(contract.grant_policy.role_policies).reduce((sum, policy) => sum + policy.required_tables.length, 0);
+  assert.equal(grants.length, expectedGrantCount);
+  assert.equal(grants.filter((sql) => /^GRANT SELECT, INSERT, UPDATE ON /i.test(sql)).length, contract.grant_policy.role_policies.runtime.required_tables.length + contract.grant_policy.role_policies.runtime_persistence.required_tables.length);
+  assert.equal(grants.filter((sql) => /^GRANT SELECT ON /i.test(sql)).length, contract.grant_policy.role_policies.governance.required_tables.length);
 });
 
 test("grant preflight checks every table before the first GRANT", async () => {
@@ -957,23 +1010,48 @@ test("grant preflight checks every table before the first GRANT", async () => {
   env.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:runtime_user:localhost`;
   const connection = fakeConnection({ tableCount: 7, ledgerFound: true, missingTables: ["execution_log"] });
   await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async () => connection }),
+    () => runBootstrap({ env, contract, connectionFactory: async () => connection, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }),
     (error) => error.code === "bootstrap_grant_table_missing",
   );
   assert.equal(connection.queryCalls.some((sql) => /^GRANT /i.test(sql)), false);
+});
+
+test("mutation requires an injected execution-ticket authority before opening a connection", async () => {
+  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
+  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
+  let opened = false;
+  await assert.rejects(
+    () => runBootstrap({ env, contract, connectionFactory: async () => { opened = true; return fakeConnection(); }, partialReceiptStore: makePartialReceiptStore() }),
+    (error) => error.code === "bootstrap_execution_ticket_authority_unavailable" && error.details.database_connection_performed === false,
+  );
+  assert.equal(opened, false);
+
+  const rejectedEnv = { ...env, BOOTSTRAP_EXECUTION_TICKET_ID: "ticket:bootstrap-rejected-authority", BOOTSTRAP_EXECUTION_TICKET_HASH: "b".repeat(64) };
+  await assert.rejects(
+    () => runBootstrap({ env: rejectedEnv, contract, connectionFactory: async () => { opened = true; return fakeConnection(); }, partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier({ result: { valid: false } }) }),
+    (error) => error.code === "bootstrap_execution_ticket_verification_failed" && error.details.database_connection_performed === false,
+  );
+  assert.equal(opened, false);
 });
 
 test("partial migration and grant failures report unknown/partial mutation evidence", async () => {
   const migrationEnv = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
   migrationEnv.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
   const migrationConnection = fakeConnection({ tableCount: 7, failMutationAt: 2 });
+  const migrationPartialReceipts = [];
   await assert.rejects(
-    () => runBootstrap({ env: migrationEnv, contract, connectionFactory: async () => migrationConnection }),
+    () => runBootstrap({ env: migrationEnv, contract, connectionFactory: async () => migrationConnection, partialReceiptStore: { putImmutablePartialRebuildReceipt: async (receipt) => migrationPartialReceipts.push(receipt) }, executionTicketVerifier: makeExecutionTicketVerifier() }),
     (error) => {
       assert.equal(error.code, "bootstrap_migration_mutation_failed");
       assert.equal(error.details.database_mutation_performed, "unknown");
       assert.equal(error.details.mutation_evidence.mutation_state, "partial_possible");
       assert.equal(error.details.mutation_evidence.migration.statements_completed, 1);
+      assert.equal(error.details.reconciliation_required, true);
+      assert.equal(error.details.automatic_rerun_allowed, false);
+      assert.equal(error.details.partial_receipt_persisted, true);
+      assert.equal(migrationPartialReceipts.length, 1);
+      assert.equal(migrationPartialReceipts[0].status, "reconciliation_required");
+      assert.equal(migrationPartialReceipts[0].automatic_rerun_allowed, false);
       return true;
     },
   );
@@ -981,16 +1059,28 @@ test("partial migration and grant failures report unknown/partial mutation evide
   const grantsEnv = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_grants");
   grantsEnv.BOOTSTRAP_GRANTS_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_GRANTS:${EXPECTED_SHA}:${TARGET_KEY}:runtime_user:localhost`;
   const grantsConnection = fakeConnection({ tableCount: 7, ledgerFound: true, failGrantAt: 3 });
+  const grantPartialReceipts = [];
   await assert.rejects(
-    () => runBootstrap({ env: grantsEnv, contract, connectionFactory: async () => grantsConnection }),
+    () => runBootstrap({ env: grantsEnv, contract, connectionFactory: async () => grantsConnection, partialReceiptStore: { putImmutablePartialRebuildReceipt: async (receipt) => grantPartialReceipts.push(receipt) }, executionTicketVerifier: makeExecutionTicketVerifier() }),
     (error) => {
       assert.equal(error.code, "bootstrap_grant_mutation_failed");
       assert.equal(error.details.database_mutation_performed, "unknown");
       assert.equal(error.details.mutation_evidence.mutation_state, "partial_possible");
       assert.deepEqual(error.details.mutation_evidence.grants.tables_completed, contract.grant_policy.required_tables.slice(0, 2));
+      assert.equal(error.details.reconciliation_required, true);
+      assert.equal(grantPartialReceipts.length, 1);
+      assert.equal(grantPartialReceipts[0].status, "reconciliation_required");
       return true;
     },
   );
+
+  const retryEnv = { ...migrationEnv, BOOTSTRAP_PARTIAL_REBUILD_RECEIPT_ID: migrationPartialReceipts[0].receipt_id };
+  let reopened = false;
+  await assert.rejects(
+    () => runBootstrap({ env: retryEnv, contract, connectionFactory: async () => { reopened = true; return migrationConnection; } }),
+    (error) => error.code === "bootstrap_partial_rebuild_resume_denied" && error.details.reconciliation_required === true,
+  );
+  assert.equal(reopened, false);
 });
 
 test("migration confirmation is exact and blocks before opening a connection", async () => {
@@ -1009,7 +1099,7 @@ test("empty rebuild apply stops before mutation when canonical bundle is absent"
   delete env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST;
   const connections = { runtime: fakeConnection({ tableCount: 0 }), governance: fakeConnection({ tableCount: 7 }), runtime_persistence: fakeConnection({ tableCount: 7 }) };
   await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] }),
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role], partialReceiptStore: makePartialReceiptStore(), executionTicketVerifier: makeExecutionTicketVerifier() }),
     (error) => error.code === "bootstrap_bundle_manifest_unreadable",
   );
   assert.equal(Object.values(connections).every((connection) => connection.queryCalls.every((sql) => !/CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql))), true);

@@ -60,6 +60,51 @@ export function sha256Hex(value) {
   return crypto.createHash("sha256").update(String(value), "utf8").digest("hex");
 }
 
+function roleIdentityBindings({ database, governanceDatabase, persistenceDatabase, principal, principalHost, runtimePrincipal, runtimePrincipalHost, governancePrincipal, governancePrincipalHost, persistencePrincipal, persistencePrincipalHost }) {
+  return {
+    runtime: { database, principal: String(runtimePrincipal || principal || "").trim(), principal_host: String(runtimePrincipalHost || principalHost || "").trim() },
+    governance: { database: governanceDatabase, principal: String(governancePrincipal || (governanceDatabase === database ? principal : "")).trim(), principal_host: String(governancePrincipalHost || (governanceDatabase === database ? principalHost : "")).trim() },
+    runtime_persistence: { database: persistenceDatabase, principal: String(persistencePrincipal || (persistenceDatabase === database ? principal : "")).trim(), principal_host: String(persistencePrincipalHost || (persistenceDatabase === database ? principalHost : "")).trim() },
+  };
+}
+
+function assertRoleIdentityBindings(bindings, { strictDistinct = true } = {}) {
+  for (const role of BOOTSTRAP_ROLE_KEYS) {
+    const binding = bindings[role];
+    if (!binding?.database || !binding?.principal || !binding?.principal_host) {
+      if (strictDistinct) throw bootstrapError("bootstrap_role_identity_binding_missing", "Every distinct database role requires an explicit principal and principal host binding", { role });
+    }
+  }
+  const seen = new Map();
+  for (const [role, binding] of Object.entries(bindings)) {
+    if (!binding?.principal) continue;
+    const identity = `${binding.principal}@${binding.principal_host}`;
+    const otherRole = seen.get(identity);
+    if (otherRole && bindings[otherRole]?.database !== binding.database) throw bootstrapError("bootstrap_role_identity_reuse_denied", "Distinct database roles cannot reuse one principal identity", { role, other_role: otherRole });
+    seen.set(identity, role);
+  }
+  return bindings;
+}
+
+export function computeTargetBindingFingerprint(target) {
+  const bindings = roleIdentityBindings({
+    database: target.database,
+    governanceDatabase: target.governance_database || target.database,
+    persistenceDatabase: target.runtime_persistence_database || target.database,
+    principal: target.principal,
+    principalHost: target.principal_host,
+    runtimePrincipal: target.runtime_principal,
+    runtimePrincipalHost: target.runtime_principal_host,
+    governancePrincipal: target.governance_principal,
+    governancePrincipalHost: target.governance_principal_host,
+    persistencePrincipal: target.runtime_persistence_principal,
+    persistencePrincipalHost: target.runtime_persistence_principal_host,
+  });
+  const strictDistinct = new Set(Object.values(bindings).map((binding) => binding.database)).size > 1;
+  assertRoleIdentityBindings(bindings, { strictDistinct });
+  return sha256Hex(JSON.stringify({ repository: target.repository, branch: target.branch, key: target.key, role_identity_bindings: bindings }));
+}
+
 export function normalizeMode(value) {
   const mode = String(value || "plan").trim().toLowerCase();
   if (!["plan", "dry_run", "apply_migration", "apply_grants"].includes(mode)) {
@@ -70,6 +115,38 @@ export function normalizeMode(value) {
 
 function isMutationMode(mode) {
   return mode === "apply_migration" || mode === "apply_grants";
+}
+
+async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
+  if (!isMutationMode(mode)) return null;
+  const ticketId = String(env.BOOTSTRAP_EXECUTION_TICKET_ID || "").trim();
+  const ticketHash = String(env.BOOTSTRAP_EXECUTION_TICKET_HASH || "").trim().toLowerCase();
+  if (!ticketId || !ticketHash) {
+    throw bootstrapError("bootstrap_execution_ticket_required", "Every database mutation requires a server-issued execution-ticket reference.", { required_fields: ["BOOTSTRAP_EXECUTION_TICKET_ID", "BOOTSTRAP_EXECUTION_TICKET_HASH"], database_connection_performed: false, database_mutation_performed: false });
+  }
+  if (!executionTicketVerifier || typeof executionTicketVerifier.verifyForBootstrap !== "function") {
+    throw bootstrapError("bootstrap_execution_ticket_authority_unavailable", "No injected governed execution-ticket authority is configured; mutation is unavailable and no database connection was opened.", { database_connection_performed: false, database_mutation_performed: false });
+  }
+  const expected = {
+    ticket_id: ticketId,
+    ticket_hash: ticketHash,
+    production_sha: source.sha,
+    target_key: target.key,
+    target_fingerprint: target.target_fingerprint,
+    operation,
+    role_selection_hash: roleSelectionHash,
+    grant_binding_hash: grantBindingHash,
+  };
+  let verified;
+  try {
+    verified = await executionTicketVerifier.verifyForBootstrap({ ticket_id: ticketId, ticket_hash: ticketHash, expected });
+  } catch (error) {
+    throw bootstrapError("bootstrap_execution_ticket_verification_failed", "The injected execution-ticket authority rejected the mutation binding.", { authority_error: String(error?.code || "verification_failed").slice(0, 120), database_connection_performed: false, database_mutation_performed: false });
+  }
+  if (verified !== true && verified?.valid !== true) {
+    throw bootstrapError("bootstrap_execution_ticket_verification_failed", "The injected execution-ticket authority did not confirm the mutation binding.", { database_connection_performed: false, database_mutation_performed: false });
+  }
+  return { ticket_id: ticketId, ticket_hash: ticketHash, verified: true, secrets_included: false };
 }
 
 function isFullInspectionDryRun(env, mode) {
@@ -316,7 +393,9 @@ function buildRuntimeEnvironmentTarget(env, contract, mode, source = RUNTIME_ENV
   const environment = String(contract.target_binding.required_environment || "production").trim().toLowerCase();
   const databaseSha = sha256Hex(database);
   const governanceDatabaseSha = sha256Hex(governanceDatabase);
-  const targetFingerprint = sha256Hex(`${repository}:${branch}:${key}:${database}:${governanceDatabase}:${principal}:${principalHost}`);
+  const roleBindings = roleIdentityBindings({ database, governanceDatabase, persistenceDatabase, principal, principalHost, runtimePrincipal: env.DB_USER, runtimePrincipalHost: principalHost, governancePrincipal: env.GOVERNANCE_DB_USER, governancePrincipalHost: env.GOVERNANCE_DB_PRINCIPAL_HOST || principalHost, persistencePrincipal: env.RUNTIME_PERSISTENCE_DB_USER, persistencePrincipalHost: env.RUNTIME_PERSISTENCE_DB_PRINCIPAL_HOST || principalHost });
+  assertRoleIdentityBindings(roleBindings, { strictDistinct: new Set(Object.values(roleBindings).map((binding) => binding.database)).size > 1 });
+  const targetFingerprint = sha256Hex(JSON.stringify({ repository, branch, key, role_identity_bindings: roleBindings }));
   return {
     key,
     database,
@@ -331,6 +410,10 @@ function buildRuntimeEnvironmentTarget(env, contract, mode, source = RUNTIME_ENV
     governance_database_sha256: governanceDatabase === database ? null : governanceDatabaseSha,
     runtime_persistence_database_sha256: persistenceDatabase === database ? null : sha256Hex(persistenceDatabase),
     target_fingerprint: targetFingerprint,
+    role_identity_bindings: roleBindings,
+    runtime_principal: roleBindings.runtime.principal,
+    governance_principal: roleBindings.governance.principal,
+    runtime_persistence_principal: roleBindings.runtime_persistence.principal,
     target_source: source,
     target_source_runtime_env: source === RUNTIME_ENV_TARGET_SOURCE,
     target_source_host_local_role_env: source === "host_local_role_env",
@@ -350,7 +433,8 @@ function describeTargetBinding(target, source) {
     database_sha256: target.database_sha256 || sha256Hex(target.database),
     governance_database_sha256: target.governance_database_sha256 || sha256Hex(target.governance_database || target.database),
     runtime_persistence_database_sha256: target.runtime_persistence_database_sha256 || sha256Hex(target.runtime_persistence_database || target.database),
-    target_fingerprint: target.target_fingerprint || sha256Hex(`${target.repository}:${target.branch}:${target.key}:${target.database}:${target.governance_database || target.database}:${target.principal}:${target.principal_host}`),
+    target_fingerprint: target.target_fingerprint || computeTargetBindingFingerprint(target),
+    role_identity_bindings: Object.fromEntries(Object.entries(roleIdentityBindings({ database: target.database, governanceDatabase: target.governance_database || target.database, persistenceDatabase: target.runtime_persistence_database || target.database, principal: target.principal, principalHost: target.principal_host, runtimePrincipal: target.runtime_principal, runtimePrincipalHost: target.runtime_principal_host, governancePrincipal: target.governance_principal, governancePrincipalHost: target.governance_principal_host, persistencePrincipal: target.runtime_persistence_principal, persistencePrincipalHost: target.runtime_persistence_principal_host })).map(([role, binding]) => [role, { database_sha256: sha256Hex(binding.database), principal_configured: Boolean(binding.principal), principal_host_configured: Boolean(binding.principal_host) }])),
     raw_values_exposed: false,
     secrets_included: false,
   };
@@ -398,11 +482,13 @@ export function parseTargetAllowlist(env, contract) {
     const principal = assertIdentifier(target?.principal, "target.principal");
     const principalHost = assertAccountHost(target?.principal_host, "target.principal_host");
     const fingerprint = requireSha256(target?.target_fingerprint, "target.target_fingerprint");
-    const expectedFingerprint = sha256Hex(`${repository}:${branch}:${key}:${database}:${governanceDatabase}:${principal}:${principalHost}`);
+    const expectedFingerprint = computeTargetBindingFingerprint({ ...target, repository, branch, key, database, governance_database: target.governance_database ? governanceDatabase : null, runtime_persistence_database: target.runtime_persistence_database ? persistenceDatabase : null, principal, principal_host: principalHost });
     if (fingerprint !== expectedFingerprint) {
       throw bootstrapError("bootstrap_target_fingerprint_mismatch", "Target fingerprint does not match repository, branch, key, databases, and grant principal", { key });
     }
-    return { ...target, key, database, governance_database: target.governance_database ? governanceDatabase : null, runtime_persistence_database: target.runtime_persistence_database ? persistenceDatabase : null, principal, principal_host: principalHost, repository, branch, environment };
+    const roleBindings = roleIdentityBindings({ database, governanceDatabase, persistenceDatabase, principal, principalHost, runtimePrincipal: target.runtime_principal, runtimePrincipalHost: target.runtime_principal_host, governancePrincipal: target.governance_principal, governancePrincipalHost: target.governance_principal_host, persistencePrincipal: target.runtime_persistence_principal, persistencePrincipalHost: target.runtime_persistence_principal_host });
+    assertRoleIdentityBindings(roleBindings, { strictDistinct: new Set(Object.values(roleBindings).map((binding) => binding.database)).size > 1 });
+    return { ...target, key, database, governance_database: target.governance_database ? governanceDatabase : null, runtime_persistence_database: target.runtime_persistence_database ? persistenceDatabase : null, principal, principal_host: principalHost, role_identity_bindings: roleBindings, repository, branch, environment };
   });
 }
 
@@ -513,7 +599,18 @@ export function resolveRoleBootstrapCredentials(env, role, target, { requirePass
   if (!binding) throw bootstrapError("bootstrap_role_invalid", "Unknown database role", { role });
   const localIdentity = usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE);
   if (!localIdentity) {
-    return { host: env.MYSQL_BOOTSTRAP_HOST, port: Number(env.MYSQL_BOOTSTRAP_PORT || 3306), user: env.MYSQL_BOOTSTRAP_USER, password: env.MYSQL_BOOTSTRAP_PASSWORD, database: binding.database, role, credential_source: "dedicated_bootstrap" };
+    const primaryDatabase = target.database;
+    const roleSpecific = binding.database !== primaryDatabase;
+    const prefix = role === "runtime" ? "MYSQL_BOOTSTRAP" : role === "governance" ? "MYSQL_BOOTSTRAP_GOVERNANCE" : "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE";
+    const host = String(env[`${prefix}_HOST`] || (roleSpecific ? "" : env.MYSQL_BOOTSTRAP_HOST) || "").trim();
+    const port = Number(env[`${prefix}_PORT`] || (roleSpecific ? "" : env.MYSQL_BOOTSTRAP_PORT) || 3306);
+    const user = String(env[`${prefix}_USER`] || (roleSpecific ? "" : env.MYSQL_BOOTSTRAP_USER) || "").trim();
+    const password = String(env[`${prefix}_PASSWORD`] ?? (roleSpecific ? "" : env.MYSQL_BOOTSTRAP_PASSWORD) ?? "");
+    const configuredDatabase = String(env[`${prefix}_DATABASE`] || (roleSpecific ? "" : env.MYSQL_BOOTSTRAP_DATABASE) || "").trim();
+    if (roleSpecific && (!host || !user || !password.trim() || configuredDatabase !== binding.database)) throw bootstrapError("bootstrap_role_credentials_missing", "A distinct database role requires its own bootstrap host, port, user, password, and database binding", { role, required_env_prefix: prefix });
+    if (configuredDatabase && configuredDatabase !== binding.database) throw bootstrapError("bootstrap_role_database_mismatch", "Role bootstrap database does not match the allowlisted role database", { role });
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw bootstrapError("bootstrap_role_port_invalid", "Role bootstrap port is invalid", { role });
+    return { host, port, user, password, database: binding.database, role, credential_source: roleSpecific ? "dedicated_bootstrap_role_specific" : "dedicated_bootstrap" };
   }
   assertHostLocalRoleAuthorization(env, normalizeMode(env.BOOTSTRAP_MODE || "plan"));
   const prefix = binding.database === target.database ? "DB" : binding.prefix;
@@ -548,7 +645,7 @@ function preflightRoleBootstrapCredentials(env, target, { requirePassword = true
   if (governanceDatabase !== target.database) roles.push("governance");
   if (persistenceDatabase !== target.database && persistenceDatabase !== governanceDatabase) roles.push("runtime_persistence");
   const resolved = new Map(roles.map((role) => [role, resolveRoleBootstrapCredentials(env, role, target, { requirePassword })]));
-  if (usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE)) {
+    if (usesLocalRoleIdentity(env.BOOTSTRAP_TARGET_SOURCE) || splitRoleTopology) {
     const identities = new Map();
     for (const [role, credentials] of resolved) {
       if (identities.has(credentials.user)) {
@@ -582,7 +679,14 @@ export function validateApplyConfirmation(env, sha, target, contract, operation)
     : contract.execution_policy.apply_grants_confirmation_prefix;
   const expected = normalizedOperation === "migration"
     ? `${prefix}:${sha}:${targetKey}:${target?.migration || env.BOOTSTRAP_MIGRATION || "20260815_custom_gpt_mcp_catalog_levels.sql"}`
-    : `${prefix}:${sha}:${targetKey}:${target?.principal}:${target?.principal_host}`;
+    : (() => {
+      const distinctDatabases = new Set(Object.values(target?.role_identity_bindings || {}).map((binding) => binding?.database).filter(Boolean)).size > 1;
+      if (!distinctDatabases) return `${prefix}:${sha}:${targetKey}:${target?.principal}:${target?.principal_host}`;
+      const suppliedBindingHash = String(target?.grant_binding_hash || env.BOOTSTRAP_GRANT_BINDING_HASH || "").trim().toLowerCase();
+      const expectedBindingHash = computeGrantBindingHash(target, contract);
+      if (!SHA256_RE.test(suppliedBindingHash) || suppliedBindingHash !== expectedBindingHash) throw bootstrapError("bootstrap_grant_binding_hash_mismatch", "Split-database grants require an exact hash of all role databases, principals, and role grant policies");
+      return `${prefix}:${sha}:${targetKey}:${expectedBindingHash}`;
+    })();
   const confirmationKey = normalizedOperation === "migration" ? "BOOTSTRAP_MIGRATION_CONFIRMATION" : "BOOTSTRAP_GRANTS_CONFIRMATION";
   const confirmation = String(env[confirmationKey] || "");
   if (confirmation !== expected) {
@@ -630,6 +734,21 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
   return { confirmation: expected, plan_hash: planHash, selection_hash: selectionHash, selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints };
 }
 
+function validateGrantEntries(entries, expectedTables, expectedOps, { role = "runtime" } = {}) {
+  const tables = entries.map((entry) => String(entry.table || ""));
+  if (tables.length !== expectedTables.length || new Set(tables).size !== expectedTables.length || tables.some((table) => !expectedTables.includes(table))) {
+    throw bootstrapError("bootstrap_grant_table_set_denied", "Grant table set must exactly match the repository role contract", { role });
+  }
+  return entries.map((entry) => {
+    const table = assertIdentifier(entry.table, "grant.table");
+    const privileges = [...new Set((entry.privileges || []).map((item) => String(item).toUpperCase()))];
+    if (privileges.length !== expectedOps.length || privileges.some((item) => !SAFE_GRANT_PRIVILEGES.has(item)) || expectedOps.some((item) => !privileges.includes(item))) {
+      throw bootstrapError("bootstrap_grant_operation_set_denied", "Grant operations must exactly match SELECT, INSERT, UPDATE", { role, table });
+    }
+    return { table, privileges };
+  });
+}
+
 export function validateGrantPlan(target, contract) {
   const policy = contract.grant_policy;
   const expectedTables = [...(policy.required_tables || [])];
@@ -637,19 +756,60 @@ export function validateGrantPlan(target, contract) {
   const entries = Array.isArray(target.grants) && target.grants.length
     ? target.grants.map(normalizeEntry)
     : expectedTables.map((table) => ({ table, privileges: expectedOps }));
-  const tables = entries.map((entry) => String(entry.table || ""));
-  if (tables.length !== expectedTables.length || new Set(tables).size !== expectedTables.length || tables.some((table) => !expectedTables.includes(table))) {
-    throw bootstrapError("bootstrap_grant_table_set_denied", "Grant table set must exactly match the repository contract");
-  }
-  const grants = entries.map((entry) => {
-    const table = assertIdentifier(entry.table, "grant.table");
-    const privileges = [...new Set((entry.privileges || []).map((item) => String(item).toUpperCase()))];
-    if (privileges.length !== expectedOps.length || privileges.some((item) => !SAFE_GRANT_PRIVILEGES.has(item)) || expectedOps.some((item) => !privileges.includes(item))) {
-      throw bootstrapError("bootstrap_grant_operation_set_denied", "Grant operations must exactly match SELECT, INSERT, UPDATE", { table });
-    }
-    return { table, privileges };
+  return validateGrantEntries(entries, expectedTables, expectedOps, { role: "runtime" });
+}
+
+function roleGrantPolicy(contract, role) {
+  const policy = contract.grant_policy?.role_policies?.[role];
+  if (policy) return policy;
+  if (role === "runtime") return { required_tables: contract.grant_policy?.required_tables || [], required_operations: contract.grant_policy?.required_operations || [], apply_when: "always" };
+  throw bootstrapError("bootstrap_role_grant_policy_missing", "The repository contract has no exact grant policy for the selected database role", { role });
+}
+
+export function validateRoleGrantPlan(target, role, contract) {
+  const policy = roleGrantPolicy(contract, role);
+  const expectedTables = [...(policy.required_tables || [])];
+  const expectedOps = [...(policy.required_operations || contract.grant_policy?.required_operations || [])].map((item) => String(item).toUpperCase());
+  if (!expectedTables.length || !expectedOps.length) throw bootstrapError("bootstrap_role_grant_policy_invalid", "A role grant policy must declare an exact non-empty table and operation set", { role });
+  const entries = Array.isArray(target.grants) && target.grants.length
+    ? target.grants.map(normalizeEntry)
+    : expectedTables.map((table) => ({ table, privileges: expectedOps }));
+  const grants = validateGrantEntries(entries, expectedTables, expectedOps, { role });
+  const binding = targetRoleIdentityBindings(target)?.[role];
+  if (!binding?.database || !binding?.principal || !binding?.principal_host) throw bootstrapError("bootstrap_role_grant_identity_missing", "Role-specific grants require an explicit database, principal, and principal host binding", { role });
+  return { role, database: binding.database, principal: binding.principal, principal_host: binding.principal_host, apply_when: policy.apply_when || "always", grants };
+}
+
+function targetRoleIdentityBindings(target) {
+  if (target?.role_identity_bindings && typeof target.role_identity_bindings === "object") return target.role_identity_bindings;
+  return roleIdentityBindings({ database: target?.database, governanceDatabase: target?.governance_database || target?.database, persistenceDatabase: target?.runtime_persistence_database || target?.database, principal: target?.principal, principalHost: target?.principal_host, runtimePrincipal: target?.runtime_principal, runtimePrincipalHost: target?.runtime_principal_host, governancePrincipal: target?.governance_principal, governancePrincipalHost: target?.governance_principal_host, persistencePrincipal: target?.runtime_persistence_principal, persistencePrincipalHost: target?.runtime_persistence_principal_host });
+}
+
+function roleGrantTarget(target, role, contract) {
+  const plan = validateRoleGrantPlan({ ...target, role_identity_bindings: targetRoleIdentityBindings(target) }, role, contract);
+  return { ...target, role_identity_bindings: targetRoleIdentityBindings(target), principal: plan.principal, principal_host: plan.principal_host, grants: plan.grants };
+}
+
+function roleGrantApplies(target, role, contract) {
+  const plan = roleGrantPolicy(contract, role);
+  if (plan.apply_when !== "distinct_database_only") return true;
+  const binding = targetRoleIdentityBindings(target)?.[role];
+  return Boolean(binding?.database && binding.database !== target.database);
+}
+
+export function resolveGrantRoles(target, contract) {
+  const roles = BOOTSTRAP_ROLE_KEYS.filter((role) => roleGrantApplies(target, role, contract));
+  if (!roles.length) throw bootstrapError("bootstrap_grant_role_set_empty", "The repository grant contract resolved no database role for this target");
+  return roles;
+}
+
+export function computeGrantBindingHash(target, contract) {
+  const bindings = resolveGrantRoles(target, contract).map((role) => {
+    const policy = roleGrantPolicy(contract, role);
+    const binding = targetRoleIdentityBindings(target)?.[role];
+    return { role, database: binding?.database || null, principal: binding?.principal || null, principal_host: binding?.principal_host || null, required_tables: [...(policy.required_tables || [])], required_operations: [...(policy.required_operations || [])].map((item) => String(item).toUpperCase()) };
   });
-  return grants;
+  return sha256Hex(JSON.stringify(bindings));
 }
 
 export function classifyMysqlError(error) {
@@ -1049,19 +1209,28 @@ async function readGrantRows(connection, target, database) {
   return { userRows, schemaRows, tableRows };
 }
 
-export async function readGrantPostconditions(connection, target, database, contract) {
-  if (!target.principal || !target.principal_host) throw bootstrapError("bootstrap_grant_principal_missing", "Allowlisted target must declare principal and principal_host for grants");
-  const grants = validateGrantPlan(target, contract);
-  const { userRows, schemaRows, tableRows } = await readGrantRows(connection, target, database);
+export async function readGrantPostconditions(connection, target, database, contract, role = "runtime") {
+  const roleTarget = role === "runtime" ? target : roleGrantTarget(target, role, contract);
+  if (!roleTarget.principal || !roleTarget.principal_host) throw bootstrapError("bootstrap_grant_principal_missing", "Allowlisted target must declare principal and principal_host for grants", { role });
+  const grants = role === "runtime" ? validateGrantPlan(roleTarget, contract) : validateRoleGrantPlan(roleTarget, role, contract).grants;
+  const { userRows, schemaRows, tableRows } = await readGrantRows(connection, roleTarget, database);
   const requiredTables = new Set(grants.map((entry) => entry.table));
-  const requiredOps = new Set((contract.grant_policy.required_operations || []).map((item) => String(item).toUpperCase()));
+  const roleBindings = targetRoleIdentityBindings(target);
+  const allowedIdentityTables = new Set();
+  for (const candidateRole of BOOTSTRAP_ROLE_KEYS) {
+    const candidateBinding = roleBindings?.[candidateRole];
+    if (candidateBinding?.database === database && candidateBinding?.principal === roleTarget.principal && candidateBinding?.principal_host === roleTarget.principal_host) {
+      for (const entry of (candidateRole === "runtime" ? validateGrantPlan(target, contract) : validateRoleGrantPlan(target, candidateRole, contract).grants)) allowedIdentityTables.add(entry.table);
+    }
+  }
   const tableEvidence = grants.map((grant) => {
+    const expectedOps = new Set(grant.privileges.map((item) => String(item).toUpperCase()));
     const rows = tableRows.filter((row) => String(row.TABLE_NAME) === grant.table);
     const observed = new Set(rows.map((row) => String(row.PRIVILEGE_TYPE).toUpperCase()));
     return {
       table: grant.table,
-      missing: [...requiredOps].filter((operation) => !observed.has(operation)),
-      forbidden: [...observed].filter((operation) => !requiredOps.has(operation)),
+      missing: [...expectedOps].filter((operation) => !observed.has(operation)),
+      forbidden: [...observed].filter((operation) => !expectedOps.has(operation)),
       grant_option: rows.some((row) => String(row.IS_GRANTABLE || "NO").toUpperCase() === "YES"),
     };
   });
@@ -1070,7 +1239,7 @@ export async function readGrantPostconditions(connection, target, database, cont
   const outsideTableWrites = tableRows.filter((row) => {
     const table = String(row.TABLE_NAME || "");
     const privilege = String(row.PRIVILEGE_TYPE || "").toUpperCase();
-    return !requiredTables.has(table) && BROAD_WRITE_PRIVILEGES.has(privilege);
+    return !(allowedIdentityTables.size ? allowedIdentityTables.has(table) : requiredTables.has(table)) && BROAD_WRITE_PRIVILEGES.has(privilege);
   });
   const grantOptions = [...userRows, ...schemaRows, ...tableRows].filter((row) => String(row.IS_GRANTABLE || "NO").toUpperCase() === "YES");
   const ready = broadGlobal.length === 0 && broadSchema.length === 0 && outsideTableWrites.length === 0 && grantOptions.length === 0 && tableEvidence.every((entry) => entry.missing.length === 0 && entry.forbidden.length === 0 && !entry.grant_option);
@@ -1087,29 +1256,30 @@ export async function readGrantPostconditions(connection, target, database, cont
   };
 }
 
-async function applyGrants(connection, target, database, contract, mutationEvidence) {
-  const grants = validateGrantPlan(target, contract);
-  if (!target.principal || !target.principal_host) throw bootstrapError("bootstrap_grant_principal_missing", "Allowlisted target must declare principal and principal_host for grants");
+async function applyGrants(connection, target, database, contract, mutationEvidence, role = "runtime") {
+  const roleTarget = role === "runtime" ? target : roleGrantTarget(target, role, contract);
+  const grants = role === "runtime" ? validateGrantPlan(roleTarget, contract) : validateRoleGrantPlan(roleTarget, role, contract).grants;
+  if (!roleTarget.principal || !roleTarget.principal_host) throw bootstrapError("bootstrap_grant_principal_missing", "Allowlisted role target must declare principal and principal_host for grants", { role });
   const quoteLiteral = (value) => `'${String(value).replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
-  const account = `${quoteLiteral(target.principal)}@${quoteLiteral(target.principal_host)}`;
+  const account = `${quoteLiteral(roleTarget.principal)}@${quoteLiteral(roleTarget.principal_host)}`;
   const tableEvidence = await requiredTableEvidence(connection, database, grants.map((grant) => grant.table));
   const missing = tableEvidence.filter((entry) => !entry.present).map((entry) => entry.table);
-  if (missing.length) throw bootstrapError("bootstrap_grant_table_missing", "All required grant tables must exist before the first GRANT", { missing_tables: missing, preflight_complete: true });
+  if (missing.length) throw bootstrapError("bootstrap_grant_table_missing", "All required role grant tables must exist before the first GRANT", { role, missing_tables: missing, preflight_complete: true });
   const applied = [];
   markMutationAttempt(mutationEvidence, "grants");
-  mutationEvidence.grants.tables_total = grants.length;
+  mutationEvidence.grants.tables_total += grants.length;
   for (const grant of grants) {
     try {
       await connection.query(`GRANT ${grant.privileges.join(", ")} ON \`${database}\`.\`${grant.table}\` TO ${account}`);
-      applied.push(grant);
-      mutationEvidence.grants.tables_completed.push(grant.table);
+      applied.push({ ...grant, role, database });
+      mutationEvidence.grants.tables_completed.push(role === "runtime" ? grant.table : `${role}:${grant.table}`);
     } catch (error) {
-      mutationEvidence.grants.failed_table = grant.table;
-      throw withMutationEvidence(bootstrapError("bootstrap_grant_mutation_failed", "Bootstrap credential could not apply the least-privilege grant after mutation began", { table: grant.table, mysql_code: error?.code || null }), mutationEvidence);
+      mutationEvidence.grants.failed_table = `${role}:${grant.table}`;
+      throw withMutationEvidence(bootstrapError("bootstrap_grant_mutation_failed", "Bootstrap credential could not apply the least-privilege role grant after mutation began", { role, table: grant.table, mysql_code: error?.code || null }), mutationEvidence);
     }
   }
   markMutationComplete(mutationEvidence, "grants");
-  return { applied, grant_mutation_performed: applied.length > 0, preflight_tables: tableEvidence };
+  return { role, database, principal_host_bound: true, applied, grant_mutation_performed: applied.length > 0, preflight_tables: tableEvidence };
 }
 
 async function insertLedgerRecord(connection, migration, checksum, statementCount, expectedSha, sqlApplied, mutationEvidence) {
@@ -1170,14 +1340,24 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   else if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
   const operation = roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only";
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection || roleSelectiveRebuild ? "inspection_derived_role_selection" : "explicit", full_inspection: fullInspection, operation, migration_role: spec?.role || null, selected_rebuild_roles: requestedRebuildRoles, role_selection_source: (fullInspection || roleSelectiveRebuild) ? (requestedRebuildRoles ? "plan_bound_role_selection" : ROLE_SELECTION_FROM_INSPECTION) : null, role_selection_enum: BOOTSTRAP_ROLE_KEYS, credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length), secrets_included: false };
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection || roleSelectiveRebuild ? "inspection_derived_role_selection" : "explicit", full_inspection: fullInspection, operation, migration_role: spec?.role || null, selected_rebuild_roles: requestedRebuildRoles, role_selection_source: (fullInspection || roleSelectiveRebuild) ? (requestedRebuildRoles ? "plan_bound_role_selection" : ROLE_SELECTION_FROM_INSPECTION) : null, role_selection_enum: BOOTSTRAP_ROLE_KEYS, credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0), secrets_included: false };
 }
 
-export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory } = {}) {
+export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory, partialReceiptStore = null, executionTicketVerifier = null } = {}) {
   env = normalizeRuntimeEnvironmentInputs(env);
   const mode = normalizeMode(env.BOOTSTRAP_MODE || "plan");
+  const roleSelectiveRebuildMode = isRoleSelectiveRebuild(env, mode);
+  if (roleSelectiveRebuildMode && (!partialReceiptStore || typeof partialReceiptStore.putImmutablePartialRebuildReceipt !== "function")) {
+    throw bootstrapError("bootstrap_partial_receipt_store_unavailable", "Selected-role baseline rebuild requires an injected immutable partial-rebuild receipt store; no database connection was opened.", { reconciliation_required: true, automatic_rerun_allowed: false });
+  }
+  if (isMutationMode(mode) && String(env.BOOTSTRAP_PARTIAL_REBUILD_RECEIPT_ID || "").trim()) {
+    throw bootstrapError("bootstrap_partial_rebuild_resume_denied", "A prior partial rebuild receipt exists; automatic rerun is denied until an explicit reconciliation/resume authority is introduced.", { receipt_id_present: true, automatic_rerun_allowed: false, reconciliation_required: true });
+  }
   const plan = buildPlan(env, contract);
   if (mode === "plan") return plan;
+  if (isMutationMode(mode) && (!partialReceiptStore || typeof partialReceiptStore.putImmutablePartialRebuildReceipt !== "function")) {
+    throw bootstrapError("bootstrap_partial_receipt_store_unavailable", "Every database mutation requires an injected immutable partial-mutation receipt store; no database connection was opened.", { reconciliation_required: true, automatic_rerun_allowed: false });
+  }
   const target = resolveBootstrapTarget(env, contract);
   const source = validateSourceBinding(env, contract, mode);
   const localDeployment = validateLocalDeploymentEvidence(repoRoot, source, contract);
@@ -1191,7 +1371,8 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   const rebuildBinding = roleSelectiveRebuild ? validateRoleRebuildConfirmation(env, source.sha, target, contract) : null;
   if (!roleSelectiveRebuild && mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length);
+  const executionTicket = await verifyBootstrapExecutionAuthority({ env, mode, target, source, operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants", roleSelectionHash: rebuildBinding?.selection_hash || null, grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null, executionTicketVerifier });
+  const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0);
   const createConnection = connectionFactory || (async ({ credentials }) => {
     const { createConnection: connect } = await import("mysql2/promise");
     return connect({
@@ -1276,7 +1457,17 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     const postconditionsBefore = fullInspection || roleSelectiveRebuild || databaseObjectClassification === "zero_objects"
       ? null
       : await readIncidentPostconditions(connection, target.database, contract, migration);
-    const grantReadbackBefore = await readGrantPostconditions(connection, target, target.database, contract);
+    const grantRoles = resolveGrantRoles(target, contract);
+    const grantRoleConnections = {
+      runtime: { connection, database: target.database },
+      governance: { connection: ledgerConnection, database: governanceDatabase },
+      runtime_persistence: { connection: persistenceExecutor, database: persistenceDatabase },
+    };
+    const grantReadbackByRole = Object.fromEntries(await Promise.all(grantRoles.map(async (role) => {
+      const binding = grantRoleConnections[role];
+      return [role, await readGrantPostconditions(binding.connection, target, binding.database, contract, role)];
+    })));
+    const grantReadbackBefore = grantReadbackByRole.runtime;
     const behavioralProbes = declaredBehavioralProbeEvidence(contract);
     if (mode === "dry_run") {
       return {
@@ -1303,6 +1494,8 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         ledger,
         postconditions: postconditionsBefore,
         grant_readback: grantReadbackBefore,
+        grant_readback_by_role: grantReadbackByRole,
+        grant_binding_hash: computeGrantBindingHash(target, contract),
         migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined,
         migration_selected: Boolean(migration),
         migration_selection: fullInspection ? "inspection_derived_role_selection" : "explicit",
@@ -1316,9 +1509,25 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       if (contract.execution_policy.apply_grants_requires_migration_ready && (!ledger.found || !postconditionsBefore?.ready)) {
         throw bootstrapError("bootstrap_grants_requires_migration_ready", "Grant apply requires a matching migration ledger record and ready migration postconditions", { migration, ledger_found: ledger.found, postconditions_ready: Boolean(postconditionsBefore?.ready) });
       }
-      const grants = await applyGrants(connection, target, target.database, contract, mutationEvidence);
-      const grantReadback = await readGrantPostconditions(connection, target, target.database, contract);
-      if (!grantReadback.ready) throw bootstrapError("bootstrap_grant_readback_failed", "Same-cycle grant readback is not ready");
+      const grantPreflightByRole = Object.fromEntries(await Promise.all(grantRoles.map(async (role) => {
+        const binding = grantRoleConnections[role];
+        const rolePlan = role === "runtime" ? { grants: validateGrantPlan(target, contract) } : validateRoleGrantPlan(target, role, contract);
+        const evidence = await requiredTableEvidence(binding.connection, binding.database, rolePlan.grants.map((grant) => grant.table));
+        const missing = evidence.filter((entry) => !entry.present).map((entry) => entry.table);
+        if (missing.length) throw bootstrapError("bootstrap_grant_table_missing", "All role grant tables must exist before the first GRANT", { role, missing_tables: missing, preflight_complete: true });
+        return [role, { database: binding.database, table_evidence: evidence }];
+      })));
+      const grantsByRole = {};
+      for (const role of grantRoles) {
+        const binding = grantRoleConnections[role];
+        grantsByRole[role] = await applyGrants(binding.connection, target, binding.database, contract, mutationEvidence, role);
+      }
+      const grantReadbackByRoleAfter = Object.fromEntries(await Promise.all(grantRoles.map(async (role) => {
+        const binding = grantRoleConnections[role];
+        return [role, await readGrantPostconditions(binding.connection, target, binding.database, contract, role)];
+      })));
+      const grantReadback = grantReadbackByRoleAfter.runtime;
+      if (Object.values(grantReadbackByRoleAfter).some((entry) => !entry.ready)) throw bootstrapError("bootstrap_grant_readback_failed", "Same-cycle role grant readback is not ready", { roles: Object.entries(grantReadbackByRoleAfter).filter(([, entry]) => !entry.ready).map(([role]) => role) });
       return {
         ...plan,
         source_binding: { ...plan.source_binding, local_deployment_manifest: localDeployment },
@@ -1332,7 +1541,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         ledger,
         postconditions: postconditionsBefore,
         grant_readback_before: grantReadbackBefore,
-        grants: { ...grants, grant_readback: grantReadback },
+        grants: { by_role: grantsByRole, preflight_by_role: grantPreflightByRole, grant_readback: grantReadback, grant_readback_by_role: grantReadbackByRoleAfter, binding_hash: computeGrantBindingHash(target, contract) },
         mutation_evidence: cloneMutationEvidence(mutationEvidence),
         database_connection_performed: true,
         database_mutation_performed: true,
@@ -1482,6 +1691,34 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     };
   } catch (error) {
     const partial = mutationEvidence.mutation_state === "partial_possible";
+    const partialReceipt = partial ? {
+      contract: "mad4b.hostinger.partial-rebuild-receipt.v1",
+      receipt_id: `partial:${sha256Hex(JSON.stringify({ expected_sha: source.sha, target_key: target.key, target_fingerprint: target.target_fingerprint, plan_hash: env.BOOTSTRAP_PLAN_SHA256 || null, execution_ticket_id: env.BOOTSTRAP_EXECUTION_TICKET_ID || null, mutation_evidence: mutationEvidence })).slice(0, 32)}`,
+      status: "reconciliation_required",
+      automatic_rerun_allowed: false,
+      reconciliation_required: true,
+      expected_sha: source.sha,
+      target_key: target.key,
+      target_fingerprint: target.target_fingerprint,
+      plan_hash: String(env.BOOTSTRAP_PLAN_SHA256 || "").trim().toLowerCase() || null,
+      execution_ticket_id: executionTicket?.ticket_id || String(env.BOOTSTRAP_EXECUTION_TICKET_ID || "").trim() || null,
+      execution_ticket_hash: executionTicket?.ticket_hash || String(env.BOOTSTRAP_EXECUTION_TICKET_HASH || "").trim().toLowerCase() || null,
+      bundle_manifest_reference: String(env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST || "").trim() || null,
+      mutation_evidence: cloneMutationEvidence(mutationEvidence),
+      secrets_included: false,
+    } : null;
+    let partialReceiptPersisted = false;
+    if (partial && partialReceiptStore && typeof partialReceiptStore.putImmutablePartialRebuildReceipt === "function") {
+      try {
+        await partialReceiptStore.putImmutablePartialRebuildReceipt(partialReceipt);
+        partialReceiptPersisted = true;
+      } catch (receiptError) {
+        error.details = {
+          ...(error.details && typeof error.details === "object" ? error.details : {}),
+          partial_receipt_persistence_error: String(receiptError?.code || "partial_receipt_store_failed").slice(0, 120),
+        };
+      }
+    }
     error.details = {
       ...(error.details && typeof error.details === "object" ? error.details : {}),
       database_connection_performed: Boolean(connection || governanceConnection || persistenceConnection),
@@ -1489,6 +1726,10 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       migration_apply_performed: mutationEvidence.migration.attempted ? (mutationEvidence.migration.state === "complete" ? true : "unknown") : false,
       grant_mutation_performed: mutationEvidence.grants.attempted ? (mutationEvidence.grants.state === "complete" ? true : "unknown") : false,
       mutation_evidence: cloneMutationEvidence(mutationEvidence),
+      partial_rebuild_receipt: partialReceipt,
+      partial_receipt_persisted: partialReceiptPersisted,
+      reconciliation_required: partial,
+      automatic_rerun_allowed: partial ? false : undefined,
     };
     throw error;
   } finally {
