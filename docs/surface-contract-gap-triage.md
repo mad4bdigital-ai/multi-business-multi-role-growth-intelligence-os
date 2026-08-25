@@ -4,7 +4,7 @@
 
 ## Summary
 
-- Triaged items: 10
+- Triaged items: 11
 - Gate candidates: 6
 - New-gap gate: fail
 - Blocking new items: 7
@@ -12,14 +12,14 @@
 ## Class counts
 
 - new_surface_immediate_review: 6
-- safety_marker_review: 3
+- safety_marker_review: 4
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
 - `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 908; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 907; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260812_repository_reconciliation_admin_apply_activation.sql` — critical_review, score 862; next: add targeted patch-index, parity, and governance documentation
+- `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 906; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260812_repository_reconciliation_admin_apply_activation.sql` — critical_review, score 861; next: add targeted patch-index, parity, and governance documentation
 - `20260815_custom_gpt_mcp_catalog_levels.sql` — critical_review, score 850; next: add targeted patch-index, parity, and governance documentation
 - `1038_sprint69_github_actions_workflow_control_dispatch.sql` — high_review, score 655; next: add targeted patch-index, parity, and governance documentation
 - `1030_sprint69_default_blocker_recovery_governance_seed.sql` — high_review, score 477; next: add targeted patch-index, parity, and governance documentation
