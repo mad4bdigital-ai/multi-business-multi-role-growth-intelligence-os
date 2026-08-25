@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 477
+- Migrations with detected surfaces: 478
 - Migrations reported here: 80
 - OpenAPI operations detected: 1059
 - OpenAPI paths detected: 1044
@@ -32,7 +32,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 467/477 (97.90%)
+- Documentation complete migrations: 468/478 (97.91%)
 - Documentation gap migrations: 10
 - Gap severity: high=5, medium=1, low=4
 - SQL route coverage in OpenAPI: 32/34 (94.12%)
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 16 | 13 |
 | tools | 752 | 273 |
-| views | 532 | 215 |
+| views | 533 | 216 |
 | policies | 198 | 137 |
 | routes | 710 | 295 |
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 470 |
-| no_credential_payload_read | 468 |
-| no_raw_secrets | 469 |
-| no_external_send | 468 |
-| no_external_write | 470 |
-| secrets_included_false | 474 |
+| no_provider_call | 471 |
+| no_credential_payload_read | 469 |
+| no_raw_secrets | 470 |
+| no_external_send | 469 |
+| no_external_write | 471 |
+| secrets_included_false | 475 |
 
 ### Route Classification Coverage
 
@@ -103,7 +103,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1038_sprint69_github_actions_workflow_control_dispatch.sql` | high_review | 655 | high | 2 | 0 | 5 | document_surface_contract, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `1030_sprint69_default_blocker_recovery_governance_seed.sql` | high_review | 477 | medium | 5 | 0 | 2 | document_surface_contract, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `20260810_platform_runtime_registry_drift_reconciliation.sql` | medium_review | 389 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
-| `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 358 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
+| `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 357 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 334 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260728_governed_response_chunk_ownership.sql` | medium_review | 317 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
 
