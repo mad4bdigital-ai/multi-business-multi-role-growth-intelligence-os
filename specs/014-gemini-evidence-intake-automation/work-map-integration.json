@@ -3,9 +3,9 @@
   "feature_key": "014-gemini-evidence-intake-automation",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "c4bb19d88f154b6d02add2c4cf5a954dc153543e5663ad4bdddc3f6a173b26bf",
-    "index_source_hash": "6c0ec748aeba88e5d518fb39385eb36b8d9c394a3b7b37e007decc078cf9d528",
-    "coverage_source_hash": "8878dd74108ba6843e1b5e20933788e27e123c7eb8134603963e5ffbc1e5cf4a",
+    "fingerprint": "5819590fc7853c338858976d4e80200c8a3be371f60b549ff21ba5ffa7cc6d51",
+    "index_source_hash": "e626751a5f64baa83ce883562ad95fc1bc685d2303df260bbef1cb765ebcaea7",
+    "coverage_source_hash": "7be96ae79c1ab36e6c85dc4efc681f539437b8eac9d64ffdc14478f6bedde791",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
