@@ -62,6 +62,7 @@ jobs:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
           SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           CONTROL_ISSUE: '6625'
           READINESS_SUMMARY_PATH: ${{ runner.temp }}/github-review-policy-readiness/summary.json
         run: node http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs
@@ -80,4 +81,4 @@ jobs:
           CONTROL_ISSUE: '6625'
           READINESS_FAILURE_PATH: ${{ runner.temp }}/github-review-policy-readiness/failure.json
           READINESS_STATE_PATH: ${{ runner.temp }}/github-review-policy-readiness/state.json
-        run: node .github/ops/github-main-review-policy-readiness-failure-publisher.mjs
+        run: node http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs

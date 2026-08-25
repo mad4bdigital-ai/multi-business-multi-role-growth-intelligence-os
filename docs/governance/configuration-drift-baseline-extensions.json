@@ -81,9 +81,9 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|CONTROL_ISSUE|environment_reference|control.issue",
+      "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|SOURCE_CONCLUSION|environment_reference|source.conclusion",
       "owner": "repository-governance",
-      "reason": "Control issue number is a fixed repository-governance destination binding for bounded readiness failure evidence; it grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "reason": "Source conclusion is an exact read-only workflow-run fact used to select success-marker or bounded failure-diagnostic publication; it grants no Apply, runtime, provider, database, protected-ref, or Production mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -92,7 +92,7 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|FAILURE_PATH|environment_reference|readiness.failure.path",
+      "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|FAILURE_PATH|environment_reference|readiness.failure.path",
       "owner": "repository-governance",
       "reason": "Readiness failure path points only to the downloaded exact-run artifact in the ephemeral Actions workspace and is used for bounded read-only diagnostic publication.",
       "lifecycle": "permanent",
@@ -103,78 +103,12 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|REPOSITORY|environment_reference|repository",
-      "owner": "repository-governance",
-      "reason": "Repository identity scopes GitHub issue readback and diagnostic publication to the workflow repository and is validated as owner/repo before use.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|SOURCE_CONCLUSION|environment_reference|source.conclusion",
-      "owner": "repository-governance",
-      "reason": "Source conclusion is a read-only workflow-run fact used to reject successful runs from the failure publisher and cannot authorize Apply.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|SOURCE_HEAD_SHA|environment_reference|source.head.sha",
-      "owner": "repository-governance",
-      "reason": "Source head SHA is an exact immutable workflow identity binding used only to validate and report the diagnostic source run.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|SOURCE_RUN_ID|environment_reference|source.run.id",
-      "owner": "repository-governance",
-      "reason": "Source run id binds bounded failure evidence to one completed GitHub Actions run and grants no mutation authority beyond the publisher's explicit issue-comment permission.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|SOURCE_WORKFLOW|environment_reference|source.workflow",
-      "owner": "repository-governance",
-      "reason": "Source workflow name is a read-only provenance guard and must equal the governed live-activation workflow before any diagnostic is published.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|STATE_PATH|environment_reference|readiness.state.path",
+      "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|STATE_PATH|environment_reference|readiness.state.path",
       "owner": "repository-governance",
       "reason": "Readiness state path points only to the downloaded exact-run artifact in the ephemeral Actions workspace and is read for bounded stage metadata without runtime mutation.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-main-review-policy-readiness-failure-publisher.mjs|TOKEN|environment_reference|github.token",
-      "owner": "repository-governance",
-      "reason": "GITHUB_TOKEN is a credential reference supplied by GitHub Actions for bounded issue comment read/write; no token value is tracked, serialized, or emitted by the repository.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "credential_reference",
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
