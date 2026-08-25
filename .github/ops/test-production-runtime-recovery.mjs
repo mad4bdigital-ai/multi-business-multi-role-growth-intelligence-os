@@ -164,6 +164,17 @@ test('workflow_dispatch stays within GitHub input limit and packs Host Breakglas
   assert.doesNotMatch(dispatchBlock, /host_breakglass_(?:operation|correlation_id|plan_sha256|runbook|tool_contract_sha256|capsule):/u);
 });
 
+test('bootstrap policy is evaluated only after exact Production identity is verified and checked out', () => {
+  const bootstrap = workflow.slice(workflow.indexOf("\n  bootstrap:"));
+  const exactVerification = bootstrap.indexOf("- name: Validate trusted dispatch ref and exact Production head");
+  const exactCheckout = bootstrap.indexOf("- name: Checkout exact Production source");
+  const policyValidation = bootstrap.indexOf("- name: Validate bootstrap target source scope");
+  assert.ok(exactVerification >= 0 && exactCheckout >= 0 && policyValidation >= 0);
+  assert.ok(exactVerification < exactCheckout && exactCheckout < policyValidation);
+  assert.match(workflow, /ref: \$\{\{ inputs\.expected_sha \|\| github\.sha \}\}/u);
+  assert.match(bootstrap.slice(0, policyValidation), /gh api "\/repos\/\$\{GITHUB_REPOSITORY\}\/git\/ref\/heads\/Production"/u);
+});
+
 test('primary and fallback recovery share one Production mutation lock', () => {
   const recoveryConcurrency = workflow.match(/\n  recovery:[\s\S]*?\n    env:/u)?.[0] || '';
   assert.match(recoveryConcurrency, /concurrency:\n\s+group: production-runtime-recovery-production\n\s+cancel-in-progress: false/u);

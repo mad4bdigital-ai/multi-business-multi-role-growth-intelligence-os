@@ -184,6 +184,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -251,6 +252,27 @@ jobs:
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
     steps:
+      - name: Validate trusted dispatch ref and exact Production head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: Production
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "${EXPECTED_BRANCH}" == "Production" ]]
+          production_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${production_sha,,}" == "${EXPECTED_SHA,,}" ]]
+
+      - name: Checkout exact Production source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Validate bootstrap target source scope
         env:
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
@@ -319,25 +341,6 @@ jobs:
             *) exit 1 ;;
           esac
 
-      - name: Validate trusted dispatch ref and exact Production head
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: Production
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
-          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
-          [[ "${EXPECTED_BRANCH}" == "Production" ]]
-          production_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-          [[ "${production_sha,,}" == "${EXPECTED_SHA,,}" ]]
-      - name: Checkout exact Production source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ inputs.expected_sha }}
-          fetch-depth: 1
-          persist-credentials: false
       - name: Validate exact Production Host Breakglass tool contract
         if: fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
         env:
