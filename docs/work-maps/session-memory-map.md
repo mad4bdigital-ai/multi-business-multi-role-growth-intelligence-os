@@ -107,7 +107,7 @@ flowchart TD
 | `v_gpt_session_archive_monitoring` | view | Sessions & memory | generated_domain_rule | - | 1 | - | - |
 | `v_gpt_session_archive_monitoring_issues` | view | Sessions & memory | generated_domain_rule | - | 5 | - | - |
 | `v_gpt_session_archive_monitoring_summary` | view | Sessions & memory | generated_domain_rule | - | 2 | - | - |
-| `v_memory_scope_link_registry_issues` | view | Sessions & memory | generated_domain_rule | - | 2 | - | - |
+| `v_memory_scope_link_registry_issues` | view | Sessions & memory | generated_domain_rule | - | 1 | - | - |
 | `v_session_insight_actual_preflight_issues` | view | Governance & authority | generated_domain_rule | - | 1 | - | - |
 | `v_session_insight_actual_preflight_readiness` | view | Governance & authority | generated_domain_rule | - | 1 | - | - |
 | `v_session_insight_actual_request_readiness` | view | Sessions & memory | generated_domain_rule | - | 1 | - | - |
