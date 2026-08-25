@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,364 |
-| Total bytes | 72,514,062 |
-| Counted text lines | 1,690,342 |
+| Total bytes | 72,519,244 |
+| Counted text lines | 1,690,410 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -95,7 +95,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,406 | 99740 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,584 | 59291 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
-| `http-generic-api/openapi.yaml` | api-contracts | 1,027,662 | 23576 |
+| `http-generic-api/openapi.yaml` | api-contracts | 1,028,304 | 23576 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 624,343 | 11828 |
 | `edge/activation-gateway/worker-configuration.d.ts` | connectors-and-edge | 573,853 | 15183 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json` | api-contracts | 407,307 | 11364 |
