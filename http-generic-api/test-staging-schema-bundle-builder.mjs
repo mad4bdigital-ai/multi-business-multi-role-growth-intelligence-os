@@ -691,16 +691,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 796);
-  assert.equal(plan.statement_count, 3064);
+  assert.equal(plan.migration_count, 797);
+  assert.equal(plan.statement_count, 3070);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 797);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 796);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3091);
+  assert.equal(plan.ordered_collation_chain.files_checked, 798);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 797);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3097);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -709,9 +709,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 797);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 796);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3091);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 798);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 797);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3097);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
   assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 876);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
@@ -725,11 +725,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 797);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 796);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3091);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 798);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 797);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3097);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5199);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 5991);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 5999);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_text_width_chain.provider_mutation_performed, false);
@@ -886,6 +886,21 @@ test("MariaDB collation repairs are narrow and precede first risky JOIN use", ()
   assert.match(joinAlignmentSql, /MODIFY\s+user_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
   assert.match(joinAlignmentSql, /MODIFY\s+tenant_id[\s\S]*utf8mb4_uca1400_ai_ci/iu);
   assert.doesNotMatch(joinAlignmentSql, /(?:credential|secret|payload|metadata_json)/iu);
+  const activationAlignment = fs.readFileSync(path.join(migrationsDir, "270_sprint68_z_mariadb_activation_join_key_collation_alignment.sql"), "utf8");
+  const activationAlignmentSql = activationAlignment.replace(/^\s*--[^\r\n]*(?:\r?\n|$)/gmu, "");
+  assert.match(activationAlignmentSql, /ALTER TABLE `app_integrations`[\s\S]*MODIFY `app_key`[\s\S]*utf8mb4_unicode_ci/iu);
+  assert.match(activationAlignmentSql, /ALTER TABLE `user_app_connections`[\s\S]*MODIFY `connection_id`[\s\S]*utf8mb4_unicode_ci[\s\S]*MODIFY `app_key`[\s\S]*utf8mb4_unicode_ci/iu);
+  assert.match(activationAlignmentSql, /ALTER TABLE `app_action_grants`[\s\S]*MODIFY `connection_id`[\s\S]*utf8mb4_unicode_ci[\s\S]*MODIFY `app_key`[\s\S]*utf8mb4_unicode_ci/iu);
+  assert.match(activationAlignmentSql, /ALTER TABLE `tenant_integration_policies`[\s\S]*MODIFY `app_key`[\s\S]*utf8mb4_unicode_ci/iu);
+  assert.match(activationAlignmentSql, /ALTER TABLE `workflows`[\s\S]*MODIFY `workflow_key`[\s\S]*utf8mb4_unicode_ci/iu);
+  assert.match(activationAlignmentSql, /ALTER TABLE `workflow_runtime_bindings`[\s\S]*MODIFY `workflow_key`[\s\S]*utf8mb4_unicode_ci/iu);
+  assert.doesNotMatch(activationAlignmentSql, /(?:credential|encrypted|token|secret|payload|metadata_json)/iu);
+  const orderedMigrations = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort(compareMigrationFiles);
+  assert.ok(
+    orderedMigrations.indexOf("270_sprint68_z_mariadb_activation_join_key_collation_alignment.sql")
+      < orderedMigrations.indexOf("271_sprint68_activation_expanded_authorized_surfaces.sql"),
+    "activation collation alignment must precede the first expanded authorized-surface view",
+  );
   const provenance = fs.readFileSync(path.join(migrationsDir, "20260722_agent_skill_grant_approval_provenance.sql"), "utf8");
   assert.match(provenance, /ENGINE=InnoDB\s+DEFAULT CHARSET=utf8mb4\s+COLLATE=utf8mb4_unicode_ci/iu);
   assert.doesNotMatch(provenance, /approval_hold_id\s+VARCHAR\(36\)\s+CHARACTER SET utf8mb4 COLLATE/iu);
