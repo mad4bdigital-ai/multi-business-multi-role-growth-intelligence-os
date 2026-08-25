@@ -535,9 +535,15 @@ function orderedTextWidthAudit(files) {
     policy,
     readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
   });
+  if (!Number.isInteger(audit.insert_select_source_domain_checks) || audit.insert_select_source_domain_checks <= 0) {
+    fail("ordered MariaDB text-width audit did not check INSERT...SELECT source domains");
+  }
+  if (audit.insert_select_source_domain_overflows > 0) {
+    fail(`ordered MariaDB text-width audit found ${audit.insert_select_source_domain_overflows} INSERT...SELECT source-domain overflows`);
+  }
   if (audit.findings.length > 0) {
-    const sample = audit.findings.slice(0, 8).map((finding) => `${path.basename(finding.file)}#${finding.statement_index ?? "?"}:${finding.table}.${finding.column}=${finding.length}>${finding.max_length}`).join(", ");
-    fail(`ordered MariaDB text-width audit found ${audit.findings.length} literal overflows (${sample})`);
+    const sample = audit.findings.slice(0, 8).map((finding) => `${path.basename(finding.file)}#${finding.statement_index ?? "?"}:${finding.table}.${finding.column}=${finding.length ?? "unbounded"}>${finding.max_length}`).join(", ");
+    fail(`ordered MariaDB text-width audit found ${audit.findings.length} literal/source-domain overflows (${sample})`);
   }
   if (audit.database_connection_performed !== false || audit.sql_mutation_performed !== false || audit.provider_mutation_performed !== false || audit.credential_access_performed !== false || audit.data_export_performed !== false || audit.runtime_mutation_performed !== false || audit.secrets_included !== false) {
     fail("ordered MariaDB text-width audit violated static-only safety boundary");
@@ -583,6 +589,8 @@ function textWidthMetadata(audit) {
     statements_checked: audit.statements_checked,
     bounded_text_columns: audit.bounded_text_columns,
     definitions_applied: audit.definitions_applied,
+    insert_select_source_domain_checks: audit.insert_select_source_domain_checks,
+    insert_select_source_domain_overflows: audit.insert_select_source_domain_overflows,
     ok: audit.ok,
     ready: audit.ready,
     finding_count: audit.findings.length,
@@ -859,6 +867,8 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       ordered_text_width_chain_warnings: textWidthAudit.warnings.length,
       ordered_text_width_chain_files_checked: textWidthAudit.files_checked,
       ordered_text_width_chain_statements_checked: textWidthAudit.statements_checked,
+      ordered_text_width_insert_select_source_domain_checks: textWidthAudit.insert_select_source_domain_checks,
+      ordered_text_width_insert_select_source_domain_overflows: textWidthAudit.insert_select_source_domain_overflows,
     },
   };
   const outputPath = path.join(outputDir, "staging-schema-bundle-manifest.json");
