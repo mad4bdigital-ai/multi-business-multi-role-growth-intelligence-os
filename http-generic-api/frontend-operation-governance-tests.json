@@ -24,6 +24,14 @@
     {
       "file": "test-brand-core-asset-materialization-operation-governance.mjs",
       "evidence_scope": "workspace-brand-core-asset-materialization-transaction"
+    },
+    {
+      "file": "test-recovery-kernel.mjs",
+      "evidence_scope": "recovery-kernel-private-admin-surface"
+    },
+    {
+      "file": "test-fixed-host-local-system-tool.mjs",
+      "evidence_scope": "recovery-kernel-fixed-system-dispatcher"
     }
   ]
 }
