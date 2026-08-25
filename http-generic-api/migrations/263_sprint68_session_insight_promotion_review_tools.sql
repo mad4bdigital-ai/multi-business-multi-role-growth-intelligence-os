@@ -106,6 +106,7 @@ SELECT 'Session Memory Governance', 'session_insight_promotion_review_policy_v1'
          'raw_transcript_included',false,
          'secrets_included',false
        ),
+       'TRUE',
        'session_memory|promotion_review|insight_governance',
        'session_insight_promotions|session_insight_promotion_review_events|admin_platform_endpoint_tools',
        'TRUE',

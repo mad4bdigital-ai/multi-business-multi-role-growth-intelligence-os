@@ -46,6 +46,7 @@
             "Project MariaDB bounded text widths across the complete ordered migration chain and reject literal INSERT, REPLACE, or UPDATE overflow before apply.",
             "Evaluate static CONCAT and CONCAT_WS append expressions against the projected bounded text domain, including direct and COALESCE/IFNULL/NULLIF-wrapped target columns.",
             "Evaluate qualified columns used by ordered CREATE VIEW statements against the schema state available before each view, while treating derived views and system schemas conservatively.",
+            "Evaluate every explicit INSERT column list against its VALUES tuple(s) or SELECT projection, including nested expressions and quoted literals, before disposable schema apply.",
             "Apply platform_runtime_config.note and execution_policies scope-column TEXT alignment before the first ordered descriptive writer.",
             "Resolve the dedicated runtime persistence pool for governed response chunks.",
             "Verify least-privilege readiness and same-source chunk readback or fail closed when configuration is absent."
@@ -61,6 +62,7 @@
             "Text-width/literal and static append-expression overflow mismatches fail closed before Docker or any database connection.",
             "The platform runtime note and execution-policy scope domains are unbounded before their ordered writers; no later writer may rely on the historical VARCHAR(255) width.",
             "A qualified column referenced by an ordered view must exist on its base table before CREATE VIEW; missing columns fail closed before Docker or any database connection.",
+            "INSERT column/value arity mismatches fail closed before Docker or any database connection; policy seeds for execution_policies must provide all eight declared values.",
             "Every schema object exposed to the Work Map coverage matrix is classified by the canonical registry before generated Work Map writing; unresolved objects remain fail-closed."
           ],
           "tests": [
@@ -87,6 +89,13 @@
             },
             {
               "id": "ordered-schema-view-preuse-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "ordered-insert-arity-guard",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-staging-schema-bundle-builder.mjs",
@@ -124,6 +133,9 @@
             "http-generic-api/migrations/204_sprint67_z_mariadb_runtime_dispatch_text_width_alignment.sql",
             "http-generic-api/migrations/204_sprint67_zz_mariadb_platform_runtime_config_note_text_width_alignment.sql",
             "http-generic-api/migrations/251_sprint68_z_mariadb_memory_scope_links_shape_alignment.sql",
+            "http-generic-api/migrations/263_sprint68_session_insight_promotion_review_tools.sql",
+            "http-generic-api/migrations/265_sprint68_session_insight_promotion_dry_run_executor.sql",
+            "http-generic-api/migrations/266_sprint68_session_insight_promotion_apply_request_skeleton.sql",
             "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-contract-governance.mjs",

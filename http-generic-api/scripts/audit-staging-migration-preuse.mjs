@@ -23,6 +23,7 @@ for (const entry of canonicalBootstrap) {
 const tables = new Map();
 const viewNames = new Set();
 let viewColumnReferencesChecked = 0;
+let insertArityChecks = 0;
 const events = [];
 const ignoredFalsePositives = [];
 const normalize = (value) => String(value ?? "").replace(/^[`\"']|[`\"']$/g, "").trim().toLowerCase();
@@ -134,6 +135,34 @@ const parenthesized = (text, offset) => {
     else if (current === ")") {
       depth -= 1;
       if (depth === 0) return { content: text.slice(start, index), end: index + 1 };
+    }
+  }
+  return null;
+};
+const topLevelKeyword = (text, offset, keywords) => {
+  const wanted = keywords.map((word) => word.toUpperCase());
+  let depth = 0;
+  let quote = null;
+  for (let i = offset; i < text.length; i += 1) {
+    const current = text[i];
+    const next = text[i + 1] ?? "";
+    if (quote) {
+      if (current === "\\") i += 1;
+      else if (current === quote) {
+        if (next === quote) i += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (["'", '"', "`"].includes(current)) { quote = current; continue; }
+    if (current === "(") { depth += 1; continue; }
+    if (current === ")") { depth = Math.max(0, depth - 1); continue; }
+    if (depth !== 0 || !/[A-Za-z_]/u.test(current)) continue;
+    for (const keyword of wanted) {
+      const end = i + keyword.length;
+      if (text.slice(i, end).toUpperCase() === keyword
+        && !/[A-Za-z0-9_$]/u.test(text[i - 1] ?? "")
+        && !/[A-Za-z0-9_$]/u.test(text[end] ?? "")) return { index: i, keyword };
     }
   }
   return null;
@@ -392,11 +421,50 @@ const recordTableColumns = ({ table, columns, file, line, statement, detail }) =
 };
 const parseInsert = (sql, file, line) => {
   const clean = stripStringLiterals(stripComments(sql));
+  const arityClean = stripComments(sql);
   const match = clean.match(/INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))\s*\(([^)]*)\)/i);
   if (!match) return false;
   const table = match[1] ?? match[2];
   const columns = [...match[3].matchAll(/`([^`]+)`|\b([A-Za-z_][A-Za-z0-9_]*)\b/g)].map((m) => m[1] ?? m[2]).filter((c) => !["values"].includes(c.toLowerCase()));
   recordTableColumns({ table, columns, file, line, statement: sql, detail: "INSERT column list" });
+  const columnOpen = match.index + match[0].indexOf("(");
+  const columnBlock = parenthesized(clean, columnOpen);
+  if (columnBlock) {
+    const mode = topLevelKeyword(arityClean, columnBlock.end, ["VALUES", "SELECT", "SET"]);
+    if (mode?.keyword === "SELECT") {
+      const selectStart = mode.index + mode.keyword.length;
+      const selectEnd = topLevelKeyword(arityClean, selectStart, ["FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "UNION", "RETURNING", "FOR"]);
+      const projection = arityClean.slice(selectStart, selectEnd?.index ?? arityClean.length).trim().replace(/^DISTINCT\s+/iu, "");
+      const values = splitTopLevel(projection).filter(Boolean);
+      insertArityChecks += 1;
+      if (columns.length !== values.length) record({
+        kind: "insert_arity_mismatch",
+        table,
+        file,
+        line,
+        statement: sql,
+        detail: `INSERT SELECT column/value arity mismatch: ${columns.length} target columns, ${values.length} projected values`,
+      });
+    } else if (mode?.keyword === "VALUES") {
+      let tupleCursor = mode.index + mode.keyword.length;
+      while (tupleCursor < arityClean.length) {
+        while (/\s|,/u.test(arityClean[tupleCursor] ?? "")) tupleCursor += 1;
+        const tuple = parenthesized(arityClean, tupleCursor);
+        if (!tuple) break;
+        const values = splitTopLevel(tuple.content).filter(Boolean);
+        insertArityChecks += 1;
+        if (columns.length !== values.length) record({
+          kind: "insert_arity_mismatch",
+          table,
+          file,
+          line,
+          statement: sql,
+          detail: `INSERT VALUES column/value arity mismatch: ${columns.length} target columns, ${values.length} tuple values`,
+        });
+        tupleCursor = tuple.end;
+      }
+    }
+  }
   const duplicate = clean.match(/ON\s+DUPLICATE\s+KEY\s+UPDATE\s+([\s\S]*)$/i)?.[1] ?? "";
   const updates = [...duplicate.matchAll(/(?:^|,)\s*(?:`([^`]+)`|([A-Za-z_][A-Za-z0-9_]*))\s*=/g)].map((m) => m[1] ?? m[2]);
   recordTableColumns({ table, columns: updates, file, line, statement: sql, detail: "ON DUPLICATE KEY UPDATE target columns" });
@@ -498,6 +566,7 @@ for (const file of migrations) {
 }
 for (const statement of deferredBaselineStatements) processStatement(statement, "schema.sql", lineOf(baselineSql, baselineSql.indexOf(statement)));
 
+const insertArityFindings = events.filter((event) => event.kind === "insert_arity_mismatch");
 const firstByKey = new Map();
 for (const event of events) {
   if (event.kind !== "missing_table" && event.kind !== "missing_column") continue;
@@ -515,6 +584,9 @@ const out = {
   gaps: unique,
   same_statement_false_positives: ignoredFalsePositives.length,
   view_column_references_checked: viewColumnReferencesChecked,
+  insert_arity_checks: insertArityChecks,
+  insert_arity_mismatches: insertArityFindings.length,
+  insert_arity_findings: insertArityFindings,
   sample_false_positives: ignoredFalsePositives.slice(0, 20),
   final_tables: [...tables.entries()].map(([table, columns]) => ({ table, column_count: columns.size }))
 };

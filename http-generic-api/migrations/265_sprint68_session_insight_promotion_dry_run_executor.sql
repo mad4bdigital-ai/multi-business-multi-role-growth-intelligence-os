@@ -113,6 +113,7 @@ SELECT 'Session Memory Governance', 'session_insight_promotion_dry_run_executor_
          'raw_transcript_included',false,
          'secrets_included',false
        ),
+       'TRUE',
        'session_memory|promotion_executor|dry_run_preview',
        'session_insight_promotions|session_insight_promotion_execution_previews|admin_platform_endpoint_tools',
        'TRUE',
