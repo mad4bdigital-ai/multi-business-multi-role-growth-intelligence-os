@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7356,
+  "file_count": 7366,
   "route_count": 1088,
   "write_route_count": 660,
   "classified_write_surface_count": 41,
@@ -17,7 +17,7 @@
   "intentionally_unmapped_write_route_count": 619,
   "sensitive_intentionally_unmapped_write_route_count": 619,
   "migration_count": 447,
-  "registry_evidence_count": 108,
+  "registry_evidence_count": 110,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
   "write_scopes": [
@@ -58519,6 +58519,12 @@
       ]
     },
     {
+      "path": "http-generic-api/migrations/1039_sprint69_zz_platform_tool_dispatch_binding_id_width_alignment.sql",
+      "registries": [
+        "platform_tool_dispatch_bindings"
+      ]
+    },
+    {
       "path": "http-generic-api/migrations/1040_sprint69_capability_enablement_operational_dashboard.sql",
       "registries": [
         "platform_tool_dispatch_bindings"
@@ -58626,6 +58632,12 @@
     },
     {
       "path": "http-generic-api/migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql",
+      "registries": [
+        "platform_tool_dispatch_bindings"
+      ]
+    },
+    {
+      "path": "http-generic-api/migrations/311_sprint69_zz_platform_tool_dispatch_binding_width_alignment.sql",
       "registries": [
         "platform_tool_dispatch_bindings"
       ]
