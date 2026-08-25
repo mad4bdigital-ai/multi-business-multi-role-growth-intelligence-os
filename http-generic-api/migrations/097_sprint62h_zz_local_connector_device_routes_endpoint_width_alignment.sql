@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS `local_connector_device_routes` (
   KEY `idx_lcdr_config_priority` (`config_id`, `is_enabled`, `priority`),
   KEY `idx_lcdr_user_device` (`user_id`, `device_id`),
   KEY `idx_lcdr_health` (`health_status`, `last_health_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE IF EXISTS `local_connector_device_routes`
   MODIFY COLUMN `endpoint_url` TEXT NOT NULL;
