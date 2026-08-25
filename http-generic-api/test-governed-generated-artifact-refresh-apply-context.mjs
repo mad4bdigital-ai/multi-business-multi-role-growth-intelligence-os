@@ -79,8 +79,8 @@ assert.match(workflow, /curl --silent --show-error/u, "verifier dispatch must pr
 assert.match(workflow, /--write-out '%\{http_code\}'/u, "verifier dispatch must capture the exact GitHub HTTP status");
 assert.match(workflow, /x-github-request-id/u, "verifier dispatch must capture GitHub's request id without persisting authorization headers");
 assert.match(workflow, /workflow_dispatch_rejected/u, "rejected verifier dispatches must have a stable fail-closed finding code");
-assert.match(workflow, /outcome:\"blocked\".*requested:false.*http_status/u, "rejected verifier dispatches must publish structured blocked evidence before exiting");
-assert.match(workflow, /outcome:\"passed\".*requested:true/u, "accepted verifier dispatches must publish structured passed evidence");
+assert.match(workflow, /outcome:"blocked".*requested:false.*http_status/u, "rejected verifier dispatches must publish structured blocked evidence before exiting");
+assert.match(workflow, /outcome:"passed".*requested:true/u, "accepted verifier dispatches must publish structured passed evidence");
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
 assert.doesNotMatch(
   workflow,
