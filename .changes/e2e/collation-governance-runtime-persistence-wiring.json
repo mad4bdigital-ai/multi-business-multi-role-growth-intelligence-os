@@ -46,6 +46,7 @@
             "Project MariaDB bounded text widths across the complete ordered migration chain and reject literal INSERT, REPLACE, or UPDATE overflow before apply.",
             "Evaluate static CONCAT and CONCAT_WS append expressions against the projected bounded text domain, including direct and COALESCE/IFNULL/NULLIF-wrapped target columns.",
             "Evaluate qualified columns used by ordered CREATE VIEW statements against the schema state available before each view, while treating derived views and system schemas conservatively.",
+            "Evaluate quoted and unquoted qualified join pairs across the complete ordered projected schema, including cross-migration table definitions, and reject incompatible non-explicit collation boundaries.",
             "Evaluate every explicit INSERT column list against its VALUES tuple(s) or SELECT projection, including nested expressions and quoted literals, before disposable schema apply.",
             "Apply platform_runtime_config.note and execution_policies scope-column TEXT alignment before the first ordered descriptive writer.",
             "Resolve the dedicated runtime persistence pool for governed response chunks.",
@@ -62,6 +63,7 @@
             "Text-width/literal and static append-expression overflow mismatches fail closed before Docker or any database connection.",
             "The platform runtime note and execution-policy scope domains are unbounded before their ordered writers; no later writer may rely on the historical VARCHAR(255) width.",
             "A qualified column referenced by an ordered view must exist on its base table before CREATE VIEW; missing columns fail closed before Docker or any database connection.",
+            "Mixed collations on the app-integration activation join keys fail closed before CREATE VIEW; the ordered 270 alignment reconciles app_key, connection_id, and workflow_key domains without touching secret payloads.",
             "INSERT column/value arity mismatches fail closed before Docker or any database connection; policy seeds for execution_policies must provide all eight declared values.",
             "Every schema object exposed to the Work Map coverage matrix is classified by the canonical registry before generated Work Map writing; unresolved objects remain fail-closed."
           ],
@@ -102,6 +104,13 @@
               "args": []
             },
             {
+              "id": "work-map-schema-intelligence-comment-safe",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-platform-work-map-schema-intelligence.mjs",
+              "args": []
+            },
+            {
               "id": "runtime-persistence-wiring-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -133,6 +142,7 @@
             "http-generic-api/migrations/204_sprint67_z_mariadb_runtime_dispatch_text_width_alignment.sql",
             "http-generic-api/migrations/204_sprint67_zz_mariadb_platform_runtime_config_note_text_width_alignment.sql",
             "http-generic-api/migrations/251_sprint68_z_mariadb_memory_scope_links_shape_alignment.sql",
+            "http-generic-api/migrations/270_sprint68_z_mariadb_activation_join_key_collation_alignment.sql",
             "http-generic-api/migrations/263_sprint68_session_insight_promotion_review_tools.sql",
             "http-generic-api/migrations/265_sprint68_session_insight_promotion_dry_run_executor.sql",
             "http-generic-api/migrations/266_sprint68_session_insight_promotion_apply_request_skeleton.sql",
@@ -142,6 +152,8 @@
             "http-generic-api/config/staging-migration-contract-policy.json",
             ".specify/work-map-schema-classification-registry.json",
             "http-generic-api/scripts/work-map-schema-classification.mjs",
+            "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
+            "http-generic-api/scripts/test-platform-work-map-schema-intelligence.mjs",
             "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/test-mariadb-collation-ci-guard.mjs",
