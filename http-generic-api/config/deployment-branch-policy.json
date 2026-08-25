@@ -156,6 +156,10 @@
           "http-generic-api/scripts/split-openapi.mjs",
           "specs/020-platform-resource-identity-brand-governance/**"
         ],
+        "exclude_patterns": [
+          "http-generic-api/test-*.js",
+          "http-generic-api/test-*.mjs"
+        ],
         "environments": [
           "staging",
           "production"
@@ -206,7 +210,8 @@
           "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
           "http-generic-api/scripts/migration-order.mjs",
           "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
-          "http-generic-api/test-environment-impact-closure.mjs",
+          "http-generic-api/test-*.js",
+          "http-generic-api/test-*.mjs",
           "docs/repo-maintenance-status.md",
           "docs/repository-*.json",
           "docs/repository-*.md",

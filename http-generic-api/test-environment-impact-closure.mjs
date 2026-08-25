@@ -52,6 +52,12 @@ assert.equal(policy.derived_outputs.contract, "mad4b.repository-derived-state-go
 assert.equal(policy.derived_outputs.mode, "registered_outputs_are_not_independent_environment_sources");
 assert.equal(policy.derived_outputs.source_path_classification_remains_authoritative, true);
 assert.equal(policy.derived_outputs.unregistered_outputs_fail_closed, true);
+const sharedRuntimeClass = policy.path_classes.find((entry) => entry.id === "shared_runtime");
+const repositoryGovernanceClass = policy.path_classes.find((entry) => entry.id === "repository_governance");
+assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.mjs"));
+assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.js"));
+assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.mjs"));
+assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.js"));
 assert.deepEqual(
   [...policy.source_of_truth_paths].sort(),
   Object.values(policy.authorities).sort(),
@@ -64,6 +70,9 @@ assert.deepEqual(classifyPath("http-generic-api/schema.sql", classes).map((entry
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("http-generic-api/auth.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("http-generic-api/test-environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("http-generic-api/test-example.js", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-phase-governance-core.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs", classes).map((entry) => entry.id), ["repository_governance"]);

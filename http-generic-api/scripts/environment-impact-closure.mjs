@@ -73,9 +73,9 @@ function classifyPath(filePath, pathClasses = []) {
   const normalized = String(filePath || "").replaceAll("\\", "/");
   const matches = [];
   for (const pathClass of pathClasses) {
-    if ((pathClass.patterns || []).some((pattern) => globToRegExp(pattern).test(normalized))) {
-      matches.push(pathClass);
-    }
+    const included = (pathClass.patterns || []).some((pattern) => globToRegExp(pattern).test(normalized));
+    const excluded = (pathClass.exclude_patterns || []).some((pattern) => globToRegExp(pattern).test(normalized));
+    if (included && !excluded) matches.push(pathClass);
   }
   return matches;
 }
