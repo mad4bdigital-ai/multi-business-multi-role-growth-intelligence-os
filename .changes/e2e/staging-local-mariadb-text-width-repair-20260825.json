@@ -26,7 +26,8 @@
       "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-adapter-width-bridge.json",
       "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-send-mode-width-bridge.json",
       "http-generic-api/scripts/work-map-schema-classification-contract.mjs",
-      "http-generic-api/test-work-map-schema-classification-contract.mjs"
+      "http-generic-api/test-work-map-schema-classification-contract.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "environment_impact": {
