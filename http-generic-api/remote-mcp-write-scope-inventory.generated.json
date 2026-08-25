@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7343,
+  "file_count": 7345,
   "route_count": 1088,
   "write_route_count": 660,
   "classified_write_surface_count": 41,
@@ -16,7 +16,7 @@
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 619,
   "sensitive_intentionally_unmapped_write_route_count": 619,
-  "migration_count": 446,
+  "migration_count": 447,
   "registry_evidence_count": 108,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
@@ -57045,6 +57045,14 @@
         "CURRENT_TIMESTAMP",
         "display_name",
         "json_asset_subject_links"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/251_sprint68_z_mariadb_memory_scope_links_shape_alignment.sql",
+      "tables": [
+        "memory_scope_links"
       ],
       "write_scopes": [],
       "catalog_fingerprints": []
