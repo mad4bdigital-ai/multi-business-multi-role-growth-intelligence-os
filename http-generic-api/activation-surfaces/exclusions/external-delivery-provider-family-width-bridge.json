@@ -1,0 +1,5 @@
+{
+  "source_table": "external_delivery_provider_family_registry",
+  "owner": "staging-migration-governance",
+  "reason": "This table is a DDL-only policy-key width compatibility bridge; it records no activatable surface and cannot authorize external provider delivery or outbound sends."
+}

@@ -19,7 +19,12 @@
       "http-generic-api/migrations/313_sprint69_zz_platform_plugin_capabilities_runtime_status_width_alignment.sql",
       "http-generic-api/migrations/313_sprint69_zzz_capability_assurance_key_width_alignment.sql",
       "http-generic-api/test-mariadb-collation-ci-guard.mjs",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/activation-surfaces/exclusions/local-connector-device-routes-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/remote-runtime-targets-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-family-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-adapter-width-bridge.json",
+      "http-generic-api/activation-surfaces/exclusions/external-delivery-provider-send-mode-width-bridge.json"
     ]
   },
   "environment_impact": {

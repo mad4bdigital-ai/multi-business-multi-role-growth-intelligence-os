@@ -1,0 +1,5 @@
+{
+  "source_table": "remote_runtime_targets",
+  "owner": "staging-migration-governance",
+  "reason": "This table is an additive width compatibility bridge for an immutable Staging migration; it is not an activation surface and does not authorize remote runtime access or provider dispatch."
+}
