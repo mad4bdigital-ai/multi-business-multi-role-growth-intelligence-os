@@ -11,8 +11,8 @@
     "target.classify": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "connection.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "schema_bundle.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration"] },
-    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "zero_object_proof", "exact_sha", "typed_confirmation"] },
-    "schema_bundle.rebuild_runtime_persistence": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "exact_sha", "repository_persistence_bundle", "pinned_bundle_sha256", "same_cycle_postcondition_readback"] },
+    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["selected_zero_object_role_proof", "pre_mutation_zero_object_recheck", "role_fingerprint", "exact_sha", "typed_confirmation", "same_cycle_readback", "sequential_stop_on_failure"] },
+    "schema_bundle.rebuild_runtime_persistence": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["selected_zero_object_role_proof", "pre_mutation_zero_object_recheck", "role_fingerprint", "exact_sha", "repository_persistence_bundle", "pinned_bundle_sha256", "same_cycle_postcondition_readback", "sequential_stop_on_failure"] },
     "migration_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration"] },
     "migration_contract.apply": { "mutation": true, "executor": "governedMigrationExecutionTool", "actions": ["apply_migration"], "requires": ["repository_catalog_entry", "exact_sha", "typed_confirmation"] },
     "grant_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_grants"] },
@@ -37,7 +37,7 @@
     },
     "database.empty_rebuild": {
       "operation": "database.rebuild_empty",
-      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "schema_bundle.rebuild_runtime_persistence", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
+      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "schema_bundle.rebuild_runtime_persistence", "migration_contract.inspect", "database.postconditions.read", "ledger.readback"]
     },
     "host.sql_capsule_exception": {
       "operation": "host.command_capsule",

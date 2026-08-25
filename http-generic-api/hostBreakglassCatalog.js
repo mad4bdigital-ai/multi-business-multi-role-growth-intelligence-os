@@ -31,6 +31,21 @@ function stableHash(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+function roleSelectionHash(proof) {
+  const selectedRoles = Array.isArray(proof?.selected_roles) ? [...new Set(proof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
+  const fingerprints = proof?.role_object_count_fingerprints && typeof proof.role_object_count_fingerprints === "object" ? Object.fromEntries(selectedRoles.map((role) => [role, String(proof.role_object_count_fingerprints[role] || "").toLowerCase()])) : {};
+  return stableHash({
+    source: String(proof?.source || ""),
+    expected_sha: String(proof?.expected_sha || "").toLowerCase(),
+    selected_roles: selectedRoles,
+    inspection_run_id: String(proof?.inspection_run_id || ""),
+    inspection_evidence_hash: String(proof?.inspection_evidence_hash || "").toLowerCase(),
+    finding_ids: Array.isArray(proof?.finding_ids) ? [...new Set(proof.finding_ids.map((id) => String(id).trim()))].sort() : [],
+    role_object_count_fingerprints: fingerprints,
+    composite_target_fingerprint: String(proof?.composite_target_fingerprint || "").toLowerCase(),
+  });
+}
+
 function stableFileHash(filePath) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
@@ -44,14 +59,17 @@ function reconstructionRoleEvidence(role, baseline = {}) {
   return roleConfig ? { role, bundle_file: roleConfig.bundle_file || null, required_tables: Array.isArray(roleConfig.required_tables) ? [...roleConfig.required_tables] : [], object_kinds: ["tables", "views", "triggers", "routines", "events"] } : { role, bundle_file: null, required_tables: [], object_kinds: ["tables", "views", "triggers", "routines", "events"] };
 }
 
-function reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology) {
+function reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology, selectedRoles = null) {
   const baseline = bootstrapContract?.baseline_bundle || {};
   const migrationCatalog = Object.entries(bootstrapContract?.migrations || {}).map(([file, spec]) => ({ file, sha256: String(spec?.sha256 || "").toLowerCase(), statement_count: Number(spec?.statement_count || 0), role: spec?.role || null, allowed_modes: Array.isArray(spec?.allowed_modes) ? [...spec.allowed_modes] : [] }));
   const migrationSequence = migrationCatalog.filter((entry) => entry.allowed_modes.includes("apply_migration"));
-  const roles = Object.entries(databaseRoleTopology || {}).filter(([, config]) => config?.required === true).map(([role]) => reconstructionRoleEvidence(role, baseline));
+  const candidateRoles = Object.entries(databaseRoleTopology || {}).filter(([, config]) => config?.required === true).map(([role]) => role);
+  const roles = (Array.isArray(selectedRoles) && selectedRoles.length ? selectedRoles : candidateRoles).map((role) => reconstructionRoleEvidence(role, baseline));
   return {
     zero_object_proof_required: true,
     zero_object_proof_roles: roles.map((entry) => entry.role),
+    selected_roles: Array.isArray(selectedRoles) ? [...selectedRoles] : [],
+    selection_pending_inspection: !(Array.isArray(selectedRoles) && selectedRoles.length),
     zero_object_kinds: ["tables", "views", "triggers", "routines", "events"],
     baseline_bundle: {
       manifest_contract: baseline.manifest_contract || null,
@@ -59,10 +77,10 @@ function reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology) 
       schema_only_required: baseline.schema_only_required === true,
       roles,
     },
-    execution_order: ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    execution_order: ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
     migration_catalog: migrationCatalog,
     migration_sequence: migrationSequence,
-    seed_set: (Array.isArray(baseline.required_seed_files) ? baseline.required_seed_files : []).map((entry) => ({ file: entry.file || null, sha256: String(entry.sha256 || "").toLowerCase(), statement_count: Number(entry.statement_count || 0) })),
+    seed_set_by_role: Object.fromEntries(Object.entries(baseline.role_seed_files || {}).map(([role, entries]) => [role, (Array.isArray(entries) ? entries : []).map((entry) => ({ file: entry.file || null, sha256: String(entry.sha256 || "").toLowerCase(), statement_count: Number(entry.statement_count || 0) }))])),
     grant_manifest: {
       tables: Array.isArray(bootstrapContract?.grant_policy?.required_tables) ? [...bootstrapContract.grant_policy.required_tables] : [],
       operations: Array.isArray(bootstrapContract?.grant_policy?.required_operations) ? [...bootstrapContract.grant_policy.required_operations] : [],
@@ -74,14 +92,17 @@ function reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology) 
   };
 }
 
-function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology, bootstrapContract }) {
+function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology, bootstrapContract, selectedRoles = null }) {
   if (runbookKey !== "database.empty_rebuild") return null;
   const mutating = action === "apply_migration";
-  const preview = reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology);
+  const preview = reconstructionPreviewEvidence(bootstrapContract, databaseRoleTopology, selectedRoles);
+  const graphRoles = Array.isArray(selectedRoles) && selectedRoles.length
+    ? selectedRoles
+    : Object.keys(databaseRoleTopology).filter((role) => databaseRoleTopology[role]?.required === true);
   const steps = [
     { key: "target.classify", mutation: false, zero_table_required: true, zero_object_required: true, object_kinds: ["tables", "views", "triggers", "routines", "events"], readback_required: true },
     { key: "schema_bundle.inspect", mutation: false, exact_sha_required: true },
-    ...Object.keys(databaseRoleTopology).filter((role) => databaseRoleTopology[role]?.required === true).map((role) => ({
+    ...graphRoles.map((role) => ({
       key: `schema_bundle.rebuild_empty.${role}`,
       role,
       mutation: mutating,
@@ -91,21 +112,22 @@ function buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRol
       zero_table_required: true,
       zero_object_required: true,
       object_kinds: ["tables", "views", "triggers", "routines", "events"],
-      same_cycle_readback_required: role === "runtime_persistence",
+      same_cycle_readback_required: true,
+      selected_role_only: Array.isArray(selectedRoles) && selectedRoles.length > 0,
     })),
-    { key: "migration_contract.apply", mutation: mutating, execution_allowlist_required: true },
-    { key: "canonical_seeds.apply", mutation: mutating, repository_owned: true },
+    { key: "migration_contract.apply", mutation: false, execution_included: false, repository_owned: true, baseline_first_required: true },
+    { key: "canonical_seeds.apply", mutation: mutating, repository_owned: true, selected_role_only: true },
     { key: "grant_contract.apply", mutation: true, execution_included: false, separate_runbook: "database.access_repair", separate_approval_required: true },
     { key: "database.postconditions.read", mutation: false, same_cycle_readback_required: true },
     { key: "ledger.readback", mutation: false, same_cycle_readback_required: true },
   ];
-  if (mutating && (!toolChain.includes("schema_bundle.rebuild_empty") || !toolChain.includes("schema_bundle.rebuild_runtime_persistence") || !toolChain.includes("migration_contract.apply"))) {
-    fail(403, "host_breakglass_runbook_execution_denied", "Runbook graph does not grant both repository-owned reconstruction and migration capabilities.");
+  if (mutating && (!toolChain.includes("schema_bundle.rebuild_empty") || (selectedRoles || []).includes("runtime_persistence") && !toolChain.includes("schema_bundle.rebuild_runtime_persistence"))) {
+    fail(403, "host_breakglass_runbook_execution_denied", "Runbook graph does not grant the repository-owned selected-role reconstruction capability.");
   }
   if (mutating && steps.some((step) => step.executor_available === false)) {
     fail(409, "host_breakglass_runbook_executor_missing", "A required database role has no reconstruction executor.");
   }
-  const graph = { contract: "mad4b.host-breakglass-runbook-graph.v1", runbook_key: runbookKey, execution_mode: mutating ? "apply_runbook" : "inspect_runbook", grants_included: false, arbitrary_sql_allowed: false, destructive_nonempty_rebuild_allowed: false, partial_role_rebuild_allowed: false, ...preview, steps };
+  const graph = { contract: "mad4b.host-breakglass-runbook-graph.v1", runbook_key: runbookKey, execution_mode: mutating ? "apply_runbook" : "inspect_runbook", grants_included: false, arbitrary_sql_allowed: false, destructive_nonempty_rebuild_allowed: false, partial_role_rebuild_allowed: true, sequential_role_execution: true, stop_on_role_verification_failure: true, ...preview, steps };
   return { ...graph, graph_sha256: stableHash(graph) };
 }
 
@@ -158,7 +180,9 @@ function resolveToolChain({ operation, action, input, toolContract }) {
     const environments = toolContract.tools[key].environments;
     if (environments && !environments.includes(input.environment_key || "production_hostinger_autodeploy")) fail(403, "host_breakglass_tool_environment_denied", "Tool is unavailable in the selected environment.", { tool_key: key });
   }
-  const requiredMutationTool = action === "apply_migration" ? "migration_contract.apply" : action === "apply_grants" ? "grant_contract.apply" : action === "execute_sql_capsule" ? "raw_sql.execute_exception" : action === "execute_shell_capsule" ? "shell.execute_exception" : null;
+  const requiredMutationTool = action === "apply_migration"
+    ? operation.key === "database.rebuild_empty" ? "schema_bundle.rebuild_empty" : "migration_contract.apply"
+    : action === "apply_grants" ? "grant_contract.apply" : action === "execute_sql_capsule" ? "raw_sql.execute_exception" : action === "execute_shell_capsule" ? "shell.execute_exception" : null;
   if (requiredMutationTool && !toolChain.includes(requiredMutationTool)) {
     fail(403, "host_breakglass_runbook_action_denied", "Runbook does not grant the mutation capability required by this action.", { runbook_key: requested, action, required_tool: requiredMutationTool });
   }
@@ -230,14 +254,27 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   if (targetSource === "staging_local_role_env" && environmentKey !== "staging_local_windows_docker") {
     fail(403, "host_breakglass_role_source_environment_mismatch", "Windows/Docker role credentials cannot be used for Production.", { environment_key: environmentKey });
   }
+  const roleSelectionProof = input.role_selection_proof && typeof input.role_selection_proof === "object" ? input.role_selection_proof : null;
+  const selectedRoles = Array.isArray(roleSelectionProof?.selected_roles) ? [...new Set(roleSelectionProof.selected_roles.map((role) => String(role).trim().toLowerCase()))] : [];
+  const allowedRoles = ["runtime", "governance", "runtime_persistence"];
+  if (selectedRoles.some((role) => !allowedRoles.includes(role))) fail(400, "host_breakglass_role_selection_invalid", "Role selection proof contains an unregistered role.", { allowed_roles: allowedRoles });
+  if (operationKey === "database.rebuild_empty" && action === "apply_migration" && (!roleSelectionProof || roleSelectionProof.source !== "durable_full_inspection" || !roleSelectionProof.inspection_run_id || !roleSelectionProof.inspection_evidence_hash || !roleSelectionProof.composite_target_fingerprint || !Array.isArray(roleSelectionProof.finding_ids) || roleSelectionProof.finding_ids.length === 0 || !selectedRoles.length)) {
+    fail(400, "host_breakglass_role_selection_proof_required", "Role-selective rebuild apply requires a bounded durable full-inspection proof, finding IDs, and selected zero-object roles.");
+  }
+  if (operationKey === "database.rebuild_empty" && action === "apply_migration") {
+    if (!CAPSULE_SHA_RE.test(String(roleSelectionProof.inspection_evidence_hash).toLowerCase()) || !CAPSULE_SHA_RE.test(String(roleSelectionProof.composite_target_fingerprint).toLowerCase())) fail(400, "host_breakglass_role_selection_proof_invalid", "Role selection proof hashes must be full SHA-256 values.");
+    for (const role of selectedRoles) if (!CAPSULE_SHA_RE.test(String(roleSelectionProof.role_object_count_fingerprints?.[role] || "").toLowerCase())) fail(400, "host_breakglass_role_selection_fingerprint_invalid", "Every selected role requires a full object-count fingerprint.", { role });
+    if (roleSelectionProof.finding_ids.some((id) => !/^finding:[0-9a-f]{16,64}$/u.test(String(id)))) fail(400, "host_breakglass_role_selection_finding_invalid", "Role selection proof finding IDs must be bounded durable finding references.");
+    if (!roleSelectionProof.expected_sha || String(roleSelectionProof.expected_sha).toLowerCase() !== expectedSha) fail(409, "host_breakglass_role_selection_sha_mismatch", "Role selection proof is bound to a different exact source SHA.");
+  }
   const { runbookKey, toolChain } = resolveToolChain({ operation, action, input, toolContract });
   if (!SHA_RE.test(expectedSha)) fail(400, "host_breakglass_expected_sha_invalid", "expected_sha must be a lowercase 40-character SHA.");
   if (!SAFE_ID_RE.test(targetKey)) fail(400, "host_breakglass_target_key_invalid", "target_key is invalid.");
   if (!targetKey.startsWith(environment.target_key_prefix || `${environment.environment}-`)) fail(403, "host_breakglass_environment_target_mismatch", "Target key does not belong to the selected environment.", { environment_key: environmentKey, target_key: targetKey });
   const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
-  const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {}, bootstrapContract });
+  const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {}, bootstrapContract, selectedRoles: selectedRoles.length ? selectedRoles : null });
   const migration = String(input.migration || "").trim();
-  const migrationOptional = operationKey === "database.inspect" && runbookKey === "database.full_inspection" && action === "dry_run";
+  const migrationOptional = (operationKey === "database.inspect" && runbookKey === "database.full_inspection" && action === "dry_run") || (operationKey === "database.rebuild_empty" && runbookKey === "database.empty_rebuild" && !migration);
   if (["dry_run", "apply_migration"].includes(action) && !migrationOptional && !migrationFiles(bootstrapContract).has(migration)) {
     fail(400, "host_breakglass_migration_not_cataloged", "Migration is not present in the repository-owned bootstrap contract.", { migration });
   }
@@ -262,8 +299,11 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   const confirmationRequired = operation.requires_confirmation === true && !["plan", "dry_run"].includes(action);
   const migrationPrefix = targetSource === "staging_local_role_env" ? environment.apply_migration_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_MIGRATION";
   const grantsPrefix = targetSource === "staging_local_role_env" ? environment.apply_grants_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_GRANTS";
+  const rebuildConfirmationPrefix = targetSource === "staging_local_role_env" ? environment.rebuild_confirmation_prefix : "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD";
   const expectedConfirmation = action === "apply_migration"
-    ? `${migrationPrefix}:${expectedSha}:${targetKey}:${migration}`
+    ? operationKey === "database.rebuild_empty" && !migration
+      ? `${rebuildConfirmationPrefix}:${expectedSha}:${targetKey}:${selectedRoles.join(",")}`
+      : `${migrationPrefix}:${expectedSha}:${targetKey}:${migration}`
     : "";
   const grantsConfirmationValid = action === "apply_grants"
     && new RegExp(`^${grantsPrefix}:${expectedSha}:${targetKey}:[A-Za-z0-9_$.-]{1,128}:[A-Za-z0-9._%:-]{1,255}$`, "u").test(confirmation);
@@ -299,7 +339,9 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     runbook_execution_graph: executionGraph,
     migration: migration || null,
     migration_selected: Boolean(migration),
-    migration_selection: migration ? "explicit" : migrationOptional ? "full_inspection_catalog" : "required",
+    migration_selection: migration ? "explicit" : migrationOptional ? (operationKey === "database.rebuild_empty" ? "inspection_derived_role_selection" : "full_inspection_catalog") : "required",
+    selected_rebuild_roles: selectedRoles,
+    role_selection_proof: roleSelectionProof ? { source: String(roleSelectionProof.source || ""), inspection_run_id: String(roleSelectionProof.inspection_run_id || ""), inspection_evidence_hash: String(roleSelectionProof.inspection_evidence_hash || "").toLowerCase(), expected_sha: String(roleSelectionProof.expected_sha || expectedSha).toLowerCase(), finding_ids: Array.isArray(roleSelectionProof.finding_ids) ? roleSelectionProof.finding_ids.map((id) => String(id)) : [], selected_roles: selectedRoles, role_object_count_fingerprints: roleSelectionProof.role_object_count_fingerprints && typeof roleSelectionProof.role_object_count_fingerprints === "object" ? Object.fromEntries(selectedRoles.map((role) => [role, String(roleSelectionProof.role_object_count_fingerprints[role] || "").toLowerCase()])) : {}, composite_target_fingerprint: String(roleSelectionProof.composite_target_fingerprint || "").toLowerCase(), selection_hash: roleSelectionHash({ ...roleSelectionProof, selected_roles: selectedRoles }), secrets_included: false } : null,
     capsule_path: capsulePath || null,
     capsule_sha256: capsuleSha256 || null,
     backup_evidence_path: backupEvidencePath || null,
@@ -308,7 +350,10 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     correlation_id: correlationId,
     requires_zero_table_database: operation.requires_zero_table_database === true,
     requires_zero_object_database: operation.requires_zero_object_database === true,
-    requires_zero_object_proof_for_all_roles: operation.requires_zero_object_proof_for_all_roles === true,
+    requires_zero_object_proof_for_all_roles: false,
+    role_selection_required: operationKey === "database.rebuild_empty",
+    sequential_role_execution: operationKey === "database.rebuild_empty",
+    stop_on_role_verification_failure: operationKey === "database.rebuild_empty",
     destructive_nonempty_rebuild_allowed: false,
     database_independent_control_plane: true,
     database_mutation_performed: false,
@@ -391,7 +436,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
         secrets_included: false,
       };
     }
-    return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
+    return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof ? stableHash(plan.role_selection_proof) : null, command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --role-set " + (Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "inspection-derived") + " --plan-hash " + plan.plan_sha256 + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {
     return { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
@@ -416,11 +461,19 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     bootstrap_mode: plan.action,
     bootstrap_target_key: plan.target_key,
     bootstrap_target_source: plan.target_source === "runtime_env" ? "hostinger_runtime_env" : "repository_allowlist",
-    bootstrap_migration: plan.migration || "20260815_custom_gpt_mcp_catalog_levels.sql",
-    bootstrap_migration_confirmation: plan.action === "apply_migration" ? plan.confirmation || "" : "",
+    bootstrap_migration: plan.migration || (plan.operation_key === "database.rebuild_empty" ? "" : "20260815_custom_gpt_mcp_catalog_levels.sql"),
+    bootstrap_migration_confirmation: plan.action === "apply_migration" && plan.operation_key !== "database.rebuild_empty" ? plan.confirmation || "" : "",
+    bootstrap_rebuild_confirmation: plan.action === "apply_migration" && plan.operation_key === "database.rebuild_empty" ? plan.confirmation || "" : "",
+    bootstrap_role_selection: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
+    bootstrap_inspection_run_id: plan.role_selection_proof?.inspection_run_id || "",
+    bootstrap_role_selection_hash: plan.role_selection_proof?.selection_hash || "",
+    bootstrap_role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints ? JSON.stringify(plan.role_selection_proof.role_object_count_fingerprints) : "",
     bootstrap_grants_confirmation: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     host_breakglass_operation: plan.operation_key,
     host_breakglass_runbook: plan.runbook_key,
+    host_breakglass_selected_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
+    host_breakglass_inspection_run_id: plan.role_selection_proof?.inspection_run_id || "",
+    host_breakglass_role_selection_hash: plan.role_selection_proof?.selection_hash || "",
     host_breakglass_tool_contract_sha256: plan.tool_contract_sha256,
     host_breakglass_capsule: plan.capsule_path ? JSON.stringify({ path: plan.capsule_path, sha256: plan.capsule_sha256, confirmation: plan.confirmation, backup_evidence_path: plan.backup_evidence_path }) : "",
     host_breakglass_correlation_id: plan.correlation_id,

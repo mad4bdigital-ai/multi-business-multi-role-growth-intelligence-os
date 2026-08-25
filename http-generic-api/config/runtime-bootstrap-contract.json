@@ -9,6 +9,8 @@
     "combined_apply_mode": "deny",
     "apply_migration_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_MIGRATION",
     "apply_grants_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_GRANTS",
+    "rebuild_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD",
+    "rebuild_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:<sha>:<target-key>:<role-set-or-inspection-derived>",
     "migration_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_MIGRATION:<sha>:<target-key>:<migration-file>",
     "grants_confirmation_formula": "APPLY_HOSTINGER_RUNTIME_GRANTS:<sha>:<target-key>:<principal>:<principal-host>",
     "apply_grants_requires_migration_ready": true,
@@ -62,8 +64,16 @@
         "allowed_operations": ["database.inspect", "database.repair", "database.rebuild_empty"],
         "inspection_requires_dry_run": true,
         "inspection_migration_optional": true,
+        "role_selective_rebuild": true,
+        "role_selection_env": "BOOTSTRAP_ROLE_SELECTION",
+        "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+        "selection_source": "full_inspection_durable_record_or_plan_bound_selector",
+        "requires_pre_mutation_zero_object_recheck": true,
+        "sequential_role_execution": true,
+        "stop_on_role_verification_failure": true,
         "requires_exact_source_sha": true,
         "requires_typed_migration_confirmation_for_apply": true,
+        "requires_typed_rebuild_confirmation_for_apply": true,
         "requires_separate_typed_grants_confirmation": true,
         "grant_operation": "database.repair",
         "grant_scope": "existing_repository_owned_least_privilege_table_allowlist_only",
@@ -88,7 +98,15 @@
         "required_transport": "local_cli",
         "required_platform": "win32",
         "required_runtime": "docker_compose",
+        "role_selective_rebuild": true,
+        "role_selection_env": "BOOTSTRAP_ROLE_SELECTION",
+        "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+        "selection_source": "full_inspection_durable_record_or_plan_bound_selector",
+        "requires_pre_mutation_zero_object_recheck": true,
+        "sequential_role_execution": true,
+        "stop_on_role_verification_failure": true,
         "requires_exact_source_sha": true,
+        "requires_typed_rebuild_confirmation_for_apply": true,
         "requires_separate_environment_bound_confirmations": true,
         "github_actions_allowed": false,
         "hostinger_access_allowed": false,
@@ -161,27 +179,34 @@
     "role_split_baseline_requires_no_partial_pair": true,
     "empty_database_classification": "EMPTY_UNINITIALIZED_DATABASE",
     "empty_database_object_kinds": ["tables", "views", "triggers", "routines", "events"],
-    "empty_database_requires_all_roles_zero_objects": true,
+    "empty_database_requires_all_roles_zero_objects": false,
+    "empty_database_role_selection": "only_roles_classified_zero_objects_by_same_cycle_full_inspection",
+    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "selection_cannot_be_caller_database_name": true,
     "empty_database_standalone_migration_first_denied": true,
-    "empty_database_execution_order": ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    "sequential_role_execution": true,
+    "stop_on_role_verification_failure": true,
+    "pre_mutation_zero_object_recheck": true,
+    "role_rebuild_postconditions": {
+      "runtime": {"required_tables": "required_runtime_tables", "object_count_nonzero": true, "behavioral_probe": "runtime_full_inspection_readiness"},
+      "governance": {"required_tables": "required_governance_tables", "object_count_nonzero": true, "behavioral_probe": "governance_catalog_readiness"},
+      "runtime_persistence": {"required_tables": "required_runtime_persistence_tables", "object_count_nonzero": true, "behavioral_probe": "runtime_persistence_response_chunk_readiness"}
+    },
+    "empty_database_execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
     "behavioral_probes": [
       {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
       {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
       {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
     ],
     "recovery_store_must_be_independent_of_target_role_databases": true,
-    "required_seed_files": [
-      {
-        "file": "039_sprint43_data_integrity_and_missing_tables.sql",
-        "sha256": "719d43521a0aca776f8967332e6b2e2c68101644150135d49580708b84c3b308",
-        "statement_count": 13
-      },
-      {
-        "file": "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
-        "sha256": "ea95dba9c2968c43535cda20aca5649d02098fc2027adbad094b6f99caaa9c47",
-        "statement_count": 1
-      }
-    ]
+    "role_seed_files": {
+      "runtime": [
+        {"file": "039_sprint43_data_integrity_and_missing_tables.sql", "sha256": "719d43521a0aca776f8967332e6b2e2c68101644150135d49580708b84c3b308", "statement_count": 13},
+        {"file": "1043_sprint69_dynamic_container_hvac_activity_seed.sql", "sha256": "ea95dba9c2968c43535cda20aca5649d02098fc2027adbad094b6f99caaa9c47", "statement_count": 1}
+      ],
+      "governance": [],
+      "runtime_persistence": []
+    }
   },
   "migrations": {
     "225_sprint67_capability_resolution_envelope_ledger.sql": {

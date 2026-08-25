@@ -126,6 +126,10 @@ function readinessFailure() {
     migration_apply_performed: false,
     provider_mutation_performed: false,
     deployment_performed: false,
+    full_inspection: true,
+    role_database_object_counts: { runtime: { tables: 7, views: 0, triggers: 0, routines: 0, events: 0, total: 7 }, governance: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 }, runtime_persistence: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 } },
+    role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
+    role_database_object_count_fingerprints: { runtime: "a".repeat(64), governance: "b".repeat(64), runtime_persistence: "c".repeat(64) },
     secrets_included: false,
   };
 }
@@ -174,7 +178,7 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "ephemeral_capability_create",
     "unsupported_capability_execute",
   ]) assert.ok(result.capabilities.some((entry) => entry.capability_key === key), key);
-  assert.deepEqual(result.mutation_capabilities, ["remediation_step_execute", "unsupported_capability_execute"]);
+  assert.deepEqual(result.mutation_capabilities, ["runtime.baseline.rebuild_empty", "governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty", "remediation_step_execute", "unsupported_capability_execute"]);
   assert.equal(result.database_independent_capabilities.includes("recovery_capabilities"), true);
 });
 
@@ -330,6 +334,10 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
           migration_apply_performed: false,
           grant_mutation_performed: false,
           workflow_dispatch_performed: false,
+          full_inspection: true,
+          role_database_object_counts: { runtime: { tables: 7, views: 0, triggers: 0, routines: 0, events: 0, total: 7 }, governance: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 }, runtime_persistence: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 } },
+          role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
+          role_database_object_count_fingerprints: { runtime: "a".repeat(64), governance: "b".repeat(64), runtime_persistence: "c".repeat(64) },
           read_only: true,
           secrets_included: false,
         };
@@ -341,7 +349,9 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
   assert.equal(calls[0].options.env, ENV);
   assert.equal(result.read_only, true);
   assert.equal(result.database_mutation_performed, false);
-  assert.equal(result.finding_count, 3);
+  assert.equal(result.finding_count, 2);
+  assert.deepEqual(result.findings.slice(0, 2).map((finding) => finding.category), ["empty_uninitialized_database", "empty_uninitialized_database"]);
+  assert.deepEqual(result.findings.slice(0, 2).map((finding) => finding.subject.target_role), ["governance", "runtime_persistence"]);
   assert.ok(result.findings.every((finding) => finding.finding_id.startsWith("finding:")));
   assert.equal(result.causal_graph.contract, "mad4b.recovery-causal-finding-graph.v1");
   assert.equal(result.attestation.manifest_bound, true);
@@ -361,9 +371,12 @@ test("plan and preview are deterministic and never execution-authorized", async 
   assert.equal(plan.execution_allowed, false);
   assert.equal(plan.expected_sha, SHA);
   assert.ok(plan.plan_hash);
-  assert.equal(plan.steps.length, 3);
+  assert.equal(plan.steps.length, 2);
   assert.ok(plan.steps.every((step) => step.preconditions.includes("plan_hash_match")));
-  assert.equal(plan.steps.some((step) => step.capability_key === "governance.mcp_catalog.repair"), true);
+  assert.deepEqual(plan.selected_rebuild_roles, ["governance", "runtime_persistence"]);
+  assert.equal(plan.steps.filter((step) => step.capability_key.endsWith(".baseline.rebuild_empty")).length, 2);
+  assert.equal(plan.steps.some((step) => step.capability_key === "governance.mcp_catalog.repair" || step.capability_key === "governance.grant.repair" || step.capability_key === "runtime_persistence.schema.repair"), false);
+  assert.ok(plan.steps.every((step) => step.inspection_run_id === run.run_id));
 
   const preview = await previewRemediationPlan({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: plan.steps[0].step_id });
   assert.equal(preview.ok, true);
@@ -679,7 +692,7 @@ test("durable plans and findings survive a process-memory restart boundary", asy
     recoveryStore: durable,
   });
   assert.equal(inspection.durability.durable, true);
-  assert.equal(durable.findings.size, 3);
+  assert.equal(durable.findings.size, 2);
   const findingIds = [...durable.findings.keys()];
   _testingRecoveryKernel.RUNS.clear();
   _testingRecoveryKernel.PLANS.clear();
@@ -690,6 +703,9 @@ test("durable plans and findings survive a process-memory restart boundary", asy
   const resumedPlan = await previewRemediationPlan({ plan_id: plan.plan_id, plan_hash: plan.plan_hash }, { recoveryStore: durable });
   assert.equal(resumedPlan.plan_id, plan.plan_id);
   assert.equal(resumedPlan.execution_allowed, false);
+  const durableFinding = await callRecoveryKernelCapability("finding_details", { finding_id: findingIds[0] }, { recoveryStore: durable, env: ENV });
+  assert.equal(durableFinding.durable_read, true);
+  assert.equal(durableFinding.finding.inspection_run_id, inspection.run_id);
   const step = plan.steps.find((entry) => entry.consequential);
   const challenge = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id }, { recoveryStore: durable });
   assert.equal(durable.approvals.has(challenge.approval_id), true);

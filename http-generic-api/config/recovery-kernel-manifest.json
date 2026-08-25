@@ -99,6 +99,24 @@
       "target_roles": ["runtime", "governance", "runtime_persistence"],
       "authority_ref": "host_local_role_env"
     },
+    "runtime.baseline.rebuild_empty": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["runtime"],
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback"
+    },
+    "governance.baseline.rebuild_empty": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["governance"],
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback"
+    },
+    "runtime_persistence.baseline.rebuild_empty": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["runtime_persistence"],
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback"
+    },
     "remediation_plan_create": {
       "level": "R2",
       "mutation_class": "C0",
@@ -288,10 +306,17 @@
     "scope": "existing_zero_object_set_only",
     "object_kinds": ["tables", "views", "triggers", "routines", "events"],
     "required_roles": ["runtime", "governance", "runtime_persistence"],
-    "all_roles_must_be_zero_objects": true,
-    "partial_role_rebuild_allowed": false,
+    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+    "all_roles_must_be_zero_objects": false,
+    "partial_role_rebuild_allowed": true,
+    "runtime_nonempty_preserved": true,
+    "pre_mutation_zero_object_recheck_required": true,
+    "sequential_role_execution": true,
+    "stop_on_role_verification_failure": true,
+    "role_fingerprints_bound_to_plan_and_approval": true,
     "standalone_migration_first_allowed": false,
-    "execution_order": ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"],
+    "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
     "behavioral_probes": [
       {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
       {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},

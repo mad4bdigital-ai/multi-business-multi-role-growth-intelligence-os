@@ -39,6 +39,47 @@ const TARGET = {
   principal_host: "localhost",
 };
 
+function createRoleBundleFixture() {
+  const repoRoot = path.resolve(process.cwd(), "..");
+  const directory = fs.mkdtempSync(path.join(repoRoot, ".m48-role-bundles-"));
+  const roleFiles = {
+    runtime: contract.baseline_bundle.runtime_role_file,
+    governance: contract.baseline_bundle.governance_role_file,
+    runtime_persistence: contract.baseline_bundle.runtime_persistence_role_file,
+  };
+  const roleTables = {
+    runtime: contract.baseline_bundle.required_runtime_tables,
+    governance: contract.baseline_bundle.required_governance_tables,
+    runtime_persistence: contract.baseline_bundle.required_runtime_persistence_tables,
+  };
+  const roles = {};
+  for (const role of Object.keys(roleFiles)) {
+    const tables = [...roleTables[role]];
+    const sql = tables.map((table) => `CREATE TABLE IF NOT EXISTS \`${table}\` (id INT)`).join(";\\n") + ";\\n";
+    const file = path.join(directory, roleFiles[role]);
+    fs.writeFileSync(file, zlib.gzipSync(sql, { level: 9 }));
+    roles[role] = { bundle_file: roleFiles[role], sha256: createHash("sha256").update(fs.readFileSync(file)).digest("hex"), table_count: tables.length, tables };
+  }
+  const manifest = {
+    contract: contract.baseline_bundle.manifest_contract,
+    source_commit: EXPECTED_SHA,
+    source_repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    source_kind: "exact_local_git_checkout",
+    generated_at: "2026-08-25T00:00:00.000Z",
+    schema_only: true,
+    production_accessed: false,
+    provider_accessed: false,
+    data_exported: false,
+    secrets_included: false,
+    roles,
+  };
+  const manifestPath = path.join(directory, "staging-schema-bundle-manifest.json");
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return path.relative(repoRoot, manifestPath).split(path.sep).join("/");
+}
+
+const ROLE_BUNDLE_FIXTURE = createRoleBundleFixture();
+
 function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode = "dry_run") {
   return {
     BOOTSTRAP_MODE: mode,
@@ -57,6 +98,47 @@ function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode =
     DB_USER: "runtime_user",
     DB_PASSWORD: "runtime-secret-for-test-only",
   };
+}
+
+function canonicalObjectCountFingerprint(counts) {
+  const normalized = { tables: Number(counts.tables || 0), views: Number(counts.views || 0), triggers: Number(counts.triggers || 0), routines: Number(counts.routines || 0), events: Number(counts.events || 0) };
+  normalized.total = Object.values(normalized).reduce((sum, value) => sum + value, 0);
+  normalized.legacy_table_only = false;
+  normalized.secrets_included = false;
+  return sha256Hex(JSON.stringify(normalized));
+}
+
+function roleBoundRebuildEnv(selectedRoles, roleCounts) {
+  const env = envFor("", "apply_migration");
+  const roles = ["runtime", "governance", "runtime_persistence"];
+  env.BOOTSTRAP_TARGET_SOURCE = "host_local_role_env";
+  env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
+  env.HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS = "true";
+  env.HOST_BREAKGLASS_ENVIRONMENT_KEY = "production_hostinger_autodeploy";
+  env.DB_NAME = TARGET_DATABASE;
+  env.DB_HOST = "db.internal";
+  env.DB_PORT = "3306";
+  env.DB_USER = "runtime_user";
+  env.DB_PASSWORD = "runtime-secret-for-test-only";
+  env.GOVERNANCE_DB_NAME = "growth_governance";
+  env.GOVERNANCE_DB_HOST = "db.internal";
+  env.GOVERNANCE_DB_PORT = "3306";
+  env.GOVERNANCE_DB_USER = "governance_user";
+  env.GOVERNANCE_DB_PASSWORD = "governance-secret-for-test-only";
+  env.RUNTIME_PERSISTENCE_DB_NAME = "growth_persistence";
+  env.RUNTIME_PERSISTENCE_DB_HOST = "db.internal";
+  env.RUNTIME_PERSISTENCE_DB_PORT = "3306";
+  env.RUNTIME_PERSISTENCE_DB_USER = "persistence_user";
+  env.RUNTIME_PERSISTENCE_DB_PASSWORD = "persistence-secret-for-test-only";
+  env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST = ROLE_BUNDLE_FIXTURE;
+  env.BOOTSTRAP_ROLE_SELECTION = selectedRoles.join(",");
+  env.BOOTSTRAP_INSPECTION_RUN_ID = "inspection-m48-role-proof";
+  env.BOOTSTRAP_PLAN_SHA256 = "b".repeat(64);
+  const fingerprints = Object.fromEntries(selectedRoles.map((role) => [role, canonicalObjectCountFingerprint(roleCounts[role])]));
+  env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS = JSON.stringify(fingerprints);
+  env.BOOTSTRAP_ROLE_SELECTION_HASH = sha256Hex(JSON.stringify({ selected_roles: selectedRoles, inspection_run_id: env.BOOTSTRAP_INSPECTION_RUN_ID, role_object_count_fingerprints: fingerprints }));
+  env.BOOTSTRAP_REBUILD_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${EXPECTED_SHA}:${TARGET_KEY}:${selectedRoles.join(",")}`;
+  return env;
 }
 
 test("repository allowlist derives database binding from target key without caller database inputs", () => {
@@ -80,12 +162,14 @@ function grantRows() {
   ] : [];
 }
 
-function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null } = {}) {
+function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [], ledgerFound = false, failMutationAt = null, failGrantAt = null, afterMutationTableCount = null, afterMutationObjectCounts = {}, verificationStaysZero = false, staleAfterCountReads = null } = {}) {
   const queryCalls = [];
   const executeCalls = [];
   let mutationQueries = 0;
   let grantsIssued = 0;
   let recordedLedger = ledgerFound;
+  let schemaMutated = false;
+  let countReads = 0;
   const requiredTables = new Set([
     "admin_platform_endpoint_tools",
     "tenant_platform_endpoint_tools",
@@ -97,6 +181,7 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
   ]);
   const currentGrantRows = grantRows();
   const nonTableObjectCounts = { views: 0, triggers: 0, routines: 0, events: 0, ...objectCounts };
+  const mutatedNonTableObjectCounts = { views: 0, triggers: 0, routines: 0, events: 0, ...afterMutationObjectCounts };
   const connection = {
     query: async (sql) => {
       const text = String(sql).trim();
@@ -110,6 +195,7 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
         }
       } else if (/^(?:CREATE|ALTER|UPDATE|INSERT|DELETE|REPLACE|SET|PREPARE|EXECUTE|DEALLOCATE)\b/i.test(text)) {
         mutationQueries += 1;
+        if (/^(?:CREATE|ALTER)\b/i.test(text)) schemaMutated = true;
         if (failMutationAt === mutationQueries) {
           const error = new Error("simulated mutation failure");
           error.code = "ER_UNKNOWN_ERROR";
@@ -122,11 +208,12 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
       executeCalls.push({ sql: String(sql), params });
       const text = String(sql);
       if (text.includes("SCHEMATA")) return [[{ SCHEMA_NAME: TARGET_DATABASE }]];
-      if (text.includes("COUNT(*) AS table_count")) return [[{ table_count: String(tableCount) }]];
-      if (text.includes("COUNT(*) AS view_count")) return [[{ view_count: String(nonTableObjectCounts.views) }]];
-      if (text.includes("COUNT(*) AS trigger_count")) return [[{ trigger_count: String(nonTableObjectCounts.triggers) }]];
-      if (text.includes("COUNT(*) AS routine_count")) return [[{ routine_count: String(nonTableObjectCounts.routines) }]];
-      if (text.includes("COUNT(*) AS event_count")) return [[{ event_count: String(nonTableObjectCounts.events) }]];
+      const stale = staleAfterCountReads !== null && countReads > staleAfterCountReads;
+      if (text.includes("COUNT(*) AS table_count")) { countReads += 1; return [[{ table_count: String(stale ? 1 : (schemaMutated && !verificationStaysZero ? (afterMutationTableCount ?? Math.max(tableCount, 1)) : tableCount)) }]]; }
+      if (text.includes("COUNT(*) AS view_count")) { countReads += 1; return [[{ view_count: String(stale ? 0 : (schemaMutated && !verificationStaysZero ? mutatedNonTableObjectCounts.views : nonTableObjectCounts.views)) }]]; }
+      if (text.includes("COUNT(*) AS trigger_count")) { countReads += 1; return [[{ trigger_count: String(stale ? 0 : (schemaMutated && !verificationStaysZero ? mutatedNonTableObjectCounts.triggers : nonTableObjectCounts.triggers)) }]]; }
+      if (text.includes("COUNT(*) AS routine_count")) { countReads += 1; return [[{ routine_count: String(stale ? 0 : (schemaMutated && !verificationStaysZero ? mutatedNonTableObjectCounts.routines : nonTableObjectCounts.routines)) }]]; }
+      if (text.includes("COUNT(*) AS event_count")) { countReads += 1; return [[{ event_count: String(stale ? 0 : (schemaMutated && !verificationStaysZero ? mutatedNonTableObjectCounts.events : nonTableObjectCounts.events)) }]]; }
       if (text.includes("TABLE_NAME = 'governed_migration_ledger'") && text.includes("information_schema.TABLES")) return [[{ TABLE_NAME: "governed_migration_ledger" }]];
       if (text.includes("TABLE_NAME = ?") && text.includes("information_schema.TABLES")) {
         const table = String(params[1] || "");
@@ -371,7 +458,7 @@ test("host-local full inspection uses all existing role credentials without sele
   assert.equal(result.status, "dry_run_complete");
   assert.equal(result.migration, null);
   assert.equal(result.migration_selected, false);
-  assert.equal(result.migration_selection, "full_inspection_catalog");
+  assert.equal(result.migration_selection, "inspection_derived_role_selection");
   assert.equal(result.postconditions, null);
   assert.equal(result.ledger.available, true);
   assert.deepEqual(result.role_database_classifications, { runtime: "nonempty", governance: "nonempty", runtime_persistence: "nonempty" });
@@ -489,9 +576,12 @@ test("Host Breakglass empty rebuild contract is represented as a zero-object-onl
   assert.equal(catalog.database_independent, true);
   assert.equal(rebuild.requires_zero_table_database, true);
   assert.equal(rebuild.requires_zero_object_database, true);
-  assert.equal(rebuild.requires_zero_object_proof_for_all_roles, true);
+  assert.equal(rebuild.requires_zero_object_proof_for_all_roles, false);
   assert.deepEqual(contract.baseline_bundle.empty_database_object_kinds, ["tables", "views", "triggers", "routines", "events"]);
-  assert.equal(contract.baseline_bundle.empty_database_requires_all_roles_zero_objects, true);
+  assert.equal(contract.baseline_bundle.empty_database_requires_all_roles_zero_objects, false);
+  assert.deepEqual(contract.baseline_bundle.selected_role_enum, ["runtime", "governance", "runtime_persistence"]);
+  assert.equal(contract.baseline_bundle.pre_mutation_zero_object_recheck, true);
+  assert.deepEqual(Object.keys(contract.baseline_bundle.role_seed_files), ["runtime", "governance", "runtime_persistence"]);
   assert.equal(catalog.destructive_nonempty_rebuild.supported, false);
 });
 
@@ -600,26 +690,98 @@ test("standalone migration apply is denied for an empty target before the recons
   assert.equal(connection.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
 });
 
-test("empty rebuild rejects a non-table object in any role before mutation", async () => {
-  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
-  env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
-  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
-  const splitTarget = {
-    ...TARGET,
-    governance_database: "growth_governance",
-    governance_database_sha256: sha256Hex("growth_governance"),
-    target_fingerprint: sha256Hex(`mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os:Production:${TARGET_KEY}:${TARGET_DATABASE}:growth_governance:runtime_user:localhost`),
-  };
-  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([splitTarget]);
-  env.BOOTSTRAP_GOVERNANCE_DATABASE = "growth_governance";
-  const runtime = fakeConnection({ tableCount: 0 });
-  const governance = fakeConnection({ tableCount: 0, objectCounts: { views: 1 } });
+test("selected-role rebuild rejects an unexpected object in the selected role before mutation", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 0, views: 1 } };
+  const env = roleBoundRebuildEnv(["runtime_persistence"], roleCounts);
+  const runtime = fakeConnection({ tableCount: 7 });
+  const governance = fakeConnection({ tableCount: 0 });
+  const persistence = fakeConnection({ tableCount: 0, objectCounts: { views: 1 } });
   await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : runtime }),
-    (error) => error.code === "host_breakglass_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : role === "runtime_persistence" ? persistence : runtime }),
+    (error) => error.code === "bootstrap_role_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
   );
   assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
   assert.equal(governance.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+  assert.equal(persistence.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+});
+
+test("m48 runtime nonempty plus governance and persistence empty rebuilds only the two empty roles", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 0 } };
+  const env = roleBoundRebuildEnv(["governance", "runtime_persistence"], roleCounts);
+  const connections = {
+    runtime: fakeConnection({ tableCount: 7 }),
+    governance: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }),
+    runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }),
+  };
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  assert.equal(result.status, "baseline_rebuild_complete");
+  assert.deepEqual(result.selected_rebuild_roles, ["governance", "runtime_persistence"]);
+  assert.equal(result.role_rebuild_evidence.runtime_role_touched, false);
+  assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["governance", "runtime_persistence"]);
+  assert.equal(connections.runtime.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+  assert.equal(connections.governance.queryCalls.some((sql) => /039_sprint43|1043_sprint69/i.test(sql)), false);
+  assert.equal(connections.runtime_persistence.queryCalls.some((sql) => /039_sprint43|1043_sprint69/i.test(sql)), false);
+  assert.deepEqual(result.role_rebuild_results.map((item) => item.role), ["governance", "runtime_persistence"]);
+});
+
+test("m48 nonempty governance plus empty persistence selects persistence only", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 4 }, runtime_persistence: { tables: 0 } };
+  const env = roleBoundRebuildEnv(["runtime_persistence"], roleCounts);
+  const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 4 }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  assert.deepEqual(result.selected_rebuild_roles, ["runtime_persistence"]);
+  assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["runtime_persistence"]);
+  assert.equal(connections.runtime.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+  assert.equal(connections.governance.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+});
+
+test("m48 nonempty runtime plus governance empty and persistence nonempty selects governance only", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 3 } };
+  const env = roleBoundRebuildEnv(["governance"], roleCounts);
+  const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }), runtime_persistence: fakeConnection({ tableCount: 3 }) };
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  assert.deepEqual(result.selected_rebuild_roles, ["governance"]);
+  assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["governance"]);
+  assert.equal(connections.runtime.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+  assert.equal(connections.runtime_persistence.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+});
+
+test("m48 empty runtime with nonempty governance never touches governance", async () => {
+  const roleCounts = { runtime: { tables: 0 }, governance: { tables: 6 }, runtime_persistence: { tables: 0 } };
+  const env = roleBoundRebuildEnv(["runtime", "runtime_persistence"], roleCounts);
+  const connections = { runtime: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }), governance: fakeConnection({ tableCount: 6 }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  assert.deepEqual(result.selected_rebuild_roles, ["runtime", "runtime_persistence"]);
+  assert.equal(result.role_rebuild_evidence.runtime_role_touched, true);
+  assert.equal(connections.governance.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+});
+
+test("m48 all nonempty dry-run proposes no baseline roles and performs no mutation", async () => {
+  const env = envFor("", "dry_run");
+  env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
+  const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 4 }), runtime_persistence: fakeConnection({ tableCount: 3 }) };
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] });
+  assert.deepEqual(result.selected_rebuild_roles, []);
+  assert.equal(result.role_selection_source, "inspection_derived_zero_object_roles");
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(Object.values(connections).every((connection) => connection.queryCalls.every((sql) => !/CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql))), true);
+});
+
+test("m48 selected role that becomes nonempty after inspection is stale and stops before mutation", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 0 } };
+  const env = roleBoundRebuildEnv(["governance", "runtime_persistence"], roleCounts);
+  const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 0, staleAfterCountReads: 4 }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
+  await assert.rejects(() => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] }), (error) => error.code === "bootstrap_role_rebuild_inspection_fingerprint_mismatch" || error.code === "bootstrap_role_rebuild_stale_zero_object_proof");
+  assert.equal(connections.governance.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+  assert.equal(connections.runtime_persistence.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
+});
+
+test("m48 governance verification failure prevents automatic persistence execution", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 0 } };
+  const env = roleBoundRebuildEnv(["governance", "runtime_persistence"], roleCounts);
+  const connections = { runtime: fakeConnection({ tableCount: 7 }), governance: fakeConnection({ tableCount: 0, verificationStaysZero: true }), runtime_persistence: fakeConnection({ tableCount: 0, afterMutationTableCount: 1 }) };
+  await assert.rejects(() => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] }), (error) => error.code === "bootstrap_role_rebuild_verification_failed");
+  assert.equal(connections.runtime_persistence.queryCalls.some((sql) => /CREATE|ALTER|INSERT|UPDATE|GRANT/i.test(sql)), false);
 });
 
 test("20260815 requires both catalog prerequisite tables on a nonempty database", async () => {
@@ -720,22 +882,15 @@ test("runtime persistence databases reject missing allowlist binding, wrong hash
   assert.throws(() => buildPlan(env, contract), (error) => error.code === "bootstrap_persistence_database_mismatch");
 });
 
-test("nonempty runtime persistence target blocks split-role baseline before any mutation", async () => {
-  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
-  const persistenceDatabase = "growth_persistence";
-  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
-  env.RUNTIME_PERSISTENCE_DB_NAME = persistenceDatabase;
-  env.RUNTIME_BOOTSTRAP_TARGETS_JSON = JSON.stringify([{
-    ...TARGET,
-    runtime_persistence_database: persistenceDatabase,
-    runtime_persistence_database_sha256: sha256Hex(persistenceDatabase),
-  }]);
-  const runtime = fakeConnection({ tableCount: 0 });
+test("nonempty runtime persistence role is not touched when governance is the selected empty role", async () => {
+  const roleCounts = { runtime: { tables: 7 }, governance: { tables: 0 }, runtime_persistence: { tables: 1 } };
+  const env = roleBoundRebuildEnv(["governance"], roleCounts);
+  const runtime = fakeConnection({ tableCount: 7 });
+  const governance = fakeConnection({ tableCount: 0, afterMutationTableCount: 1 });
   const persistence = fakeConnection({ tableCount: 1 });
-  await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "runtime_persistence" ? persistence : runtime }),
-    (error) => error.code === "bootstrap_persistence_rebuild_nonempty_denied" && error.details.database_mutation_performed === false,
-  );
+  const result = await runBootstrap({ env, contract, connectionFactory: async ({ role }) => role === "governance" ? governance : role === "runtime_persistence" ? persistence : runtime });
+  assert.deepEqual(result.selected_rebuild_roles, ["governance"]);
+  assert.deepEqual(result.role_rebuild_evidence.roles_completed, ["governance"]);
   assert.equal(runtime.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
   assert.equal(persistence.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
 });
@@ -846,15 +1001,14 @@ test("migration confirmation is exact and blocks before opening a connection", a
 });
 
 test("empty rebuild apply stops before mutation when canonical bundle is absent", async () => {
-  const env = envFor("20260815_custom_gpt_mcp_catalog_levels.sql", "apply_migration");
-  env.HOST_BREAKGLASS_OPERATION = "database.rebuild_empty";
-  env.BOOTSTRAP_MIGRATION_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_MIGRATION:${EXPECTED_SHA}:${TARGET_KEY}:20260815_custom_gpt_mcp_catalog_levels.sql`;
-  const connection = fakeConnection({ tableCount: 0 });
+  const env = roleBoundRebuildEnv(["runtime"], { runtime: { tables: 0 }, governance: { tables: 7 }, runtime_persistence: { tables: 7 } });
+  delete env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST;
+  const connections = { runtime: fakeConnection({ tableCount: 0 }), governance: fakeConnection({ tableCount: 7 }), runtime_persistence: fakeConnection({ tableCount: 7 }) };
   await assert.rejects(
-    () => runBootstrap({ env, contract, connectionFactory: async () => connection }),
+    () => runBootstrap({ env, contract, connectionFactory: async ({ role }) => connections[role] }),
     (error) => error.code === "bootstrap_bundle_manifest_unreadable",
   );
-  assert.equal(connection.queryCalls.some((sql) => /CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql)), false);
+  assert.equal(Object.values(connections).every((connection) => connection.queryCalls.every((sql) => !/CREATE|ALTER|UPDATE|INSERT|GRANT/i.test(sql))), true);
 });
 
 test("empty-database bundle is blocked when manifest or pinned artifact is absent/mismatched", () => {

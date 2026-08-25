@@ -12,6 +12,7 @@ const SHA256_RE = /^[0-9a-f]{64}$/iu;
 const DATABASE_RE = /^[A-Za-z0-9_$-]+$/u;
 const IDENTIFIER_RE = /^[A-Za-z0-9_$.-]+$/u;
 const ACCOUNT_HOST_RE = /^[A-Za-z0-9_$%.:-]+$/u;
+const SAFE_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/u;
 const SAFE_GRANT_PRIVILEGES = new Set(["SELECT", "INSERT", "UPDATE"]);
 const LEDGER_COLUMNS = [
   "run_id", "migration_file", "migration_checksum_sha256", "applied_at", "applied_by", "runner_version",
@@ -22,6 +23,19 @@ const BROAD_WRITE_PRIVILEGES = new Set([
   "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "INDEX", "TRIGGER", "REFERENCES",
   "EXECUTE", "EVENT", "CREATE ROUTINE", "ALTER ROUTINE", "CREATE VIEW", "CREATE TEMPORARY TABLES", "LOCK TABLES",
 ]);
+const BOOTSTRAP_ROLE_KEYS = Object.freeze(["runtime", "governance", "runtime_persistence"]);
+const BOOTSTRAP_OBJECT_KINDS = Object.freeze(["tables", "views", "triggers", "routines", "events"]);
+const ROLE_SELECTION_FROM_INSPECTION = "inspection_derived_zero_object_roles";
+
+function normalizeRoleSelection(value, { allowInspectionDerived = true } = {}) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw || (allowInspectionDerived && raw === ROLE_SELECTION_FROM_INSPECTION)) return null;
+  const roles = [...new Set(raw.split(",").map((role) => role.trim()).filter(Boolean))];
+  if (!roles.length || roles.some((role) => !BOOTSTRAP_ROLE_KEYS.includes(role))) {
+    throw bootstrapError("bootstrap_role_selection_invalid", "Role selection must contain only repository-registered database roles.", { allowed_roles: BOOTSTRAP_ROLE_KEYS });
+  }
+  return BOOTSTRAP_ROLE_KEYS.filter((role) => roles.includes(role));
+}
 
 export function bootstrapError(code, message, details = {}) {
   const error = new Error(message);
@@ -58,8 +72,15 @@ function isMutationMode(mode) {
 }
 
 function isFullInspectionDryRun(env, mode) {
+  const operation = String(env.HOST_BREAKGLASS_OPERATION || "").trim();
   return mode === "dry_run"
-    && String(env.HOST_BREAKGLASS_OPERATION || "").trim() === "database.inspect"
+    && ["database.inspect", "database.rebuild_empty"].includes(operation)
+    && !String(env.BOOTSTRAP_MIGRATION || "").trim();
+}
+
+function isRoleSelectiveRebuild(env, mode) {
+  return mode === "apply_migration"
+    && String(env.HOST_BREAKGLASS_OPERATION || "").trim() === "database.rebuild_empty"
     && !String(env.BOOTSTRAP_MIGRATION || "").trim();
 }
 
@@ -569,6 +590,31 @@ export function validateApplyConfirmation(env, sha, target, contract, operation)
   return expected;
 }
 
+export function validateRoleRebuildConfirmation(env, sha, target, contract) {
+  const selected = normalizeRoleSelection(env.BOOTSTRAP_ROLE_SELECTION || env.HOST_BREAKGLASS_TARGET_ROLES, { allowInspectionDerived: false });
+  const inspectionRunId = String(env.BOOTSTRAP_INSPECTION_RUN_ID || "").trim();
+  const planHash = String(env.BOOTSTRAP_PLAN_SHA256 || "").trim().toLowerCase();
+  const selectionHash = String(env.BOOTSTRAP_ROLE_SELECTION_HASH || "").trim().toLowerCase();
+  const roleFingerprintText = String(env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS || "").trim();
+  let roleFingerprints;
+  try { roleFingerprints = JSON.parse(roleFingerprintText); } catch { roleFingerprints = null; }
+  if (!inspectionRunId || !SAFE_ID_RE.test(inspectionRunId) || !SHA256_RE.test(planHash) || !roleFingerprints || typeof roleFingerprints !== "object" || Array.isArray(roleFingerprints)) {
+    throw bootstrapError("bootstrap_rebuild_inspection_binding_missing", "Role-selective baseline rebuild requires a bounded durable inspection run, exact plan hash, and per-role object-count fingerprints.", { required_fields: ["BOOTSTRAP_INSPECTION_RUN_ID", "BOOTSTRAP_PLAN_SHA256", "BOOTSTRAP_ROLE_SELECTION", "BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS"] });
+  }
+  for (const role of selected) if (!SHA256_RE.test(String(roleFingerprints[role] || "").toLowerCase())) throw bootstrapError("bootstrap_rebuild_role_fingerprint_missing", "Every selected role must carry a full object-count fingerprint from the inspection record.", { role });
+  const normalizedRoleFingerprints = Object.fromEntries(selected.map((role) => [role, String(roleFingerprints[role]).toLowerCase()]));
+  const expectedSelectionHash = sha256Hex(JSON.stringify({ selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints }));
+  if (selectionHash !== expectedSelectionHash) throw bootstrapError("bootstrap_rebuild_role_selection_hash_mismatch", "Role selection proof hash does not match the selected roles, inspection run, and object-count fingerprints.", { selected_roles: selected });
+  const roleBinding = selected.join(",");
+  const prefix = contract.execution_policy.rebuild_confirmation_prefix || "APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD";
+  const expected = `${prefix}:${sha}:${target?.key}:${roleBinding}`;
+  const confirmation = String(env.BOOTSTRAP_REBUILD_CONFIRMATION || "");
+  if (confirmation !== expected) {
+    throw bootstrapError("bootstrap_rebuild_confirmation_mismatch", "Role-selective baseline rebuild requires an exact SHA-, target-, and role-set-bound confirmation.", { confirmation_key: "BOOTSTRAP_REBUILD_CONFIRMATION", expected_confirmation: expected, selected_roles: selected });
+  }
+  return { confirmation: expected, plan_hash: planHash, selection_hash: selectionHash, selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints };
+}
+
 export function validateGrantPlan(target, contract) {
   const policy = contract.grant_policy;
   const expectedTables = [...(policy.required_tables || [])];
@@ -695,6 +741,43 @@ export function assertBaselineDatabaseEligible(value) {
     throw bootstrapError("bootstrap_baseline_nonempty_denied", "Baseline schema bundle is permitted only for a zero-object database", { table_count: counts.tables, object_counts: counts });
   }
   return true;
+}
+
+function resolveEmptyRebuildRoles(env, roleClassifications, { allowNone = false } = {}) {
+  const requested = normalizeRoleSelection(env.BOOTSTRAP_ROLE_SELECTION || env.HOST_BREAKGLASS_TARGET_ROLES);
+  const zeroObjectRoles = BOOTSTRAP_ROLE_KEYS.filter((role) => roleClassifications[role] === "zero_objects");
+  const selected = requested || zeroObjectRoles;
+  if (!selected.length && !allowNone) throw bootstrapError("bootstrap_no_zero_object_roles", "database.rebuild_empty requires at least one role proven to have zero tables, views, triggers, routines, and events.", { role_classifications: roleClassifications });
+  const nonemptySelected = selected.filter((role) => roleClassifications[role] !== "zero_objects");
+  if (nonemptySelected.length) {
+    throw bootstrapError("bootstrap_role_rebuild_nonempty_denied", "A role-specific empty rebuild is permitted only for roles proven zero-object in the same inspection cycle.", { selected_roles: selected, nonempty_selected_roles: nonemptySelected, role_classifications: roleClassifications });
+  }
+  return { roles: selected, source: requested ? "plan_bound_role_selection" : ROLE_SELECTION_FROM_INSPECTION };
+}
+
+function roleSeedEntries(contract, role) {
+  const declared = contract?.baseline_bundle?.role_seed_files?.[role];
+  if (Array.isArray(declared)) return declared;
+  return role === "runtime" && Array.isArray(contract?.baseline_bundle?.required_seed_files)
+    ? contract.baseline_bundle.required_seed_files
+    : [];
+}
+
+function roleBaselineTables(contract, role) {
+  const key = role === "runtime" ? "required_runtime_tables" : role === "governance" ? "required_governance_tables" : "required_runtime_persistence_tables";
+  return Array.isArray(contract?.baseline_bundle?.[key]) ? contract.baseline_bundle[key] : [];
+}
+
+function objectCountsFingerprint(counts) {
+  return sha256Hex(JSON.stringify(normalizeObjectCounts(counts)));
+}
+
+function roleConnectionBindings({ connection, ledgerConnection, persistenceExecutor, target, governanceDatabase, persistenceDatabase }) {
+  return {
+    runtime: { connection, database: target.database },
+    governance: { connection: ledgerConnection, database: governanceDatabase },
+    runtime_persistence: { connection: persistenceExecutor, database: persistenceDatabase },
+  };
 }
 
 export async function tableExists(connection, database, table) {
@@ -1061,14 +1144,18 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   if (mode === "plan") return result;
   const target = resolveBootstrapTarget(env, contract);
   const fullInspection = isFullInspectionDryRun(env, mode);
-  const migrationSelection = fullInspection ? null : selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
+  const roleSelectiveRebuild = isRoleSelectiveRebuild(env, mode);
+  const migrationSelection = fullInspection || roleSelectiveRebuild ? null : selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
   const migration = migrationSelection?.file || null;
   const spec = migrationSelection?.spec || null;
+  const requestedRebuildRoles = (fullInspection || roleSelectiveRebuild) ? normalizeRoleSelection(env.BOOTSTRAP_ROLE_SELECTION || env.HOST_BREAKGLASS_TARGET_ROLES) : null;
   const credentials = validateBootstrapCredentials(env, { requirePassword: false, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: false });
-  if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
+  if (roleSelectiveRebuild) validateRoleRebuildConfirmation(env, source.sha, target, contract);
+  else if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection ? "full_inspection_catalog" : "explicit", full_inspection: fullInspection, migration_role: spec?.role || null, operation: mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only", credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length), secrets_included: false };
+  const operation = roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only";
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection || roleSelectiveRebuild ? "inspection_derived_role_selection" : "explicit", full_inspection: fullInspection, operation, migration_role: spec?.role || null, selected_rebuild_roles: requestedRebuildRoles, role_selection_source: (fullInspection || roleSelectiveRebuild) ? (requestedRebuildRoles ? "plan_bound_role_selection" : ROLE_SELECTION_FROM_INSPECTION) : null, role_selection_enum: BOOTSTRAP_ROLE_KEYS, credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length), secrets_included: false };
 }
 
 export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory } = {}) {
@@ -1080,12 +1167,14 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   const source = validateSourceBinding(env, contract, mode);
   const localDeployment = validateLocalDeploymentEvidence(repoRoot, source, contract);
   const fullInspection = isFullInspectionDryRun(env, mode);
-  const migrationSelection = fullInspection ? null : selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
+  const roleSelectiveRebuild = isRoleSelectiveRebuild(env, mode);
+  const migrationSelection = fullInspection || roleSelectiveRebuild ? null : selectMigration(contract, env.BOOTSTRAP_MIGRATION, mode);
   const migration = migrationSelection?.file || null;
   const spec = migrationSelection?.spec || null;
   validateBootstrapCredentials(env, { requirePassword: true, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: true });
-  if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
+  const rebuildBinding = roleSelectiveRebuild ? validateRoleRebuildConfirmation(env, source.sha, target, contract) : null;
+  if (!roleSelectiveRebuild && mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
   const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, contract.grant_policy.required_tables.length);
   const createConnection = connectionFactory || (async ({ credentials }) => {
@@ -1129,9 +1218,6 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       if (!persistenceExists) throw bootstrapError("bootstrap_database_missing", "Runtime persistence database does not exist; database creation is intentionally outside this contract", { target_key: target.key, role: "runtime_persistence" });
       await persistenceConnection.query(`USE \`${persistenceDatabase}\``);
       persistenceExecutor = persistenceConnection;
-      if (mode === "apply_migration" && await tableCount(connection, target.database) === 0 && await tableCount(persistenceConnection, persistenceDatabase) !== 0) {
-        throw bootstrapError("bootstrap_persistence_rebuild_nonempty_denied", "Runtime persistence replacement must be empty before any role bundle is applied", { role: "runtime_persistence" });
-      }
     }
     const beforeTableCount = await tableCount(connection, target.database);
     const databaseClassification = classifyDatabaseTableCount(beforeTableCount);
@@ -1144,12 +1230,12 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     if (roleDatabaseObjectCounts.runtime_persistence === null) roleDatabaseObjectCounts.runtime_persistence = roleDatabaseObjectCounts.runtime;
     const databaseObjectClassification = classifyDatabaseObjectCount(roleDatabaseObjectCounts.runtime);
     const roleDatabaseObjectClassifications = Object.fromEntries(Object.entries(roleDatabaseObjectCounts).map(([role, counts]) => [role, classifyDatabaseObjectCount(counts)]));
-    const populatedRoles = Object.entries(roleDatabaseObjectClassifications).filter(([, classification]) => classification !== "zero_objects").map(([role]) => role);
     const hostBreakglassOperation = String(env.HOST_BREAKGLASS_OPERATION || "").trim();
-    if (hostBreakglassOperation === "database.rebuild_empty" && populatedRoles.length) {
-      throw bootstrapError("host_breakglass_rebuild_nonempty_denied", "database.rebuild_empty requires zero tables, views, triggers, routines, and events in every role database and never drops an existing schema", { table_count: beforeTableCount, database_classification: databaseClassification, object_classification: databaseObjectClassification, object_counts: roleDatabaseObjectCounts, populated_roles: populatedRoles });
-    }
-    if (mode === "apply_migration" && databaseObjectClassification === "zero_objects" && hostBreakglassOperation !== "database.rebuild_empty") {
+    const rebuildSelection = ["database.inspect", "database.rebuild_empty"].includes(hostBreakglassOperation)
+      ? resolveEmptyRebuildRoles(env, roleDatabaseObjectClassifications, { allowNone: fullInspection })
+      : null;
+    const selectedRebuildRoles = rebuildSelection?.roles || [];
+    if (mode === "apply_migration" && databaseObjectClassification === "zero_objects" && !roleSelectiveRebuild) {
       throw bootstrapError("bootstrap_empty_requires_rebuild_operation", "An empty database must enter through database.rebuild_empty; standalone migration apply is denied before the reconstruction chain.", { object_counts: roleDatabaseObjectCounts.runtime });
     }
     const roleDatabaseTableCounts = {
@@ -1158,9 +1244,9 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       runtime_persistence: persistenceDatabase === target.database ? beforeTableCount : await tableCount(persistenceExecutor, persistenceDatabase),
     };
     const roleTableEvidence = {
-      runtime: await requiredTableEvidence(connection, target.database, contract.baseline_bundle?.required_runtime_tables || []),
-      governance: await requiredTableEvidence(ledgerConnection, target.governance_database || target.database, contract.baseline_bundle?.required_governance_tables || []),
-      runtime_persistence: await requiredTableEvidence(persistenceExecutor, persistenceDatabase, contract.baseline_bundle?.required_runtime_persistence_tables || []),
+      runtime: await requiredTableEvidence(connection, target.database, roleBaselineTables(contract, "runtime")),
+      governance: await requiredTableEvidence(ledgerConnection, governanceDatabase, roleBaselineTables(contract, "governance")),
+      runtime_persistence: await requiredTableEvidence(persistenceExecutor, persistenceDatabase, roleBaselineTables(contract, "runtime_persistence")),
     };
     const required = fullInspection ? [] : (spec?.requires_tables || []);
     const requiredEvidence = fullInspection ? roleTableEvidence.runtime : await requiredTableEvidence(connection, target.database, required);
@@ -1168,11 +1254,11 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       throw bootstrapError("bootstrap_migration_prerequisite_missing", "Incident migration prerequisites are missing from a non-empty database", { migration, missing_tables: requiredEvidence.filter((entry) => !entry.present).map((entry) => entry.table), table_count: beforeTableCount });
     }
     let ledger = fullInspection
-      ? await readLedgerInspection(ledgerConnection, target.governance_database || target.database)
-      : databaseObjectClassification === "zero_objects"
+      ? await readLedgerInspection(ledgerConnection, governanceDatabase)
+      : roleSelectiveRebuild || databaseObjectClassification === "zero_objects"
         ? { found: false, run_id: null, applied_at: null, deferred_until_baseline: true }
-        : await readLedgerApplyRecord(ledgerConnection, target.governance_database || target.database, migration, spec.sha256);
-    const postconditionsBefore = fullInspection || databaseObjectClassification === "zero_objects"
+        : await readLedgerApplyRecord(ledgerConnection, governanceDatabase, migration, spec.sha256);
+    const postconditionsBefore = fullInspection || roleSelectiveRebuild || databaseObjectClassification === "zero_objects"
       ? null
       : await readIncidentPostconditions(connection, target.database, contract, migration);
     const grantReadbackBefore = await readGrantPostconditions(connection, target, target.database, contract);
@@ -1192,6 +1278,10 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         database_object_classification: databaseObjectClassification,
         role_database_object_counts: roleDatabaseObjectCounts,
         role_database_object_classifications: roleDatabaseObjectClassifications,
+        role_database_object_count_fingerprints: Object.fromEntries(Object.entries(roleDatabaseObjectCounts).map(([role, counts]) => [role, objectCountsFingerprint(counts)])),
+        selected_rebuild_roles: selectedRebuildRoles,
+        role_selection_source: rebuildSelection?.source || null,
+        runtime_role_touched: false,
         behavioral_probes: behavioralProbes,
         required_table_evidence: requiredEvidence,
         role_table_evidence: roleTableEvidence,
@@ -1200,7 +1290,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         grant_readback: grantReadbackBefore,
         migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined,
         migration_selected: Boolean(migration),
-        migration_selection: fullInspection ? "full_inspection_catalog" : "explicit",
+        migration_selection: fullInspection ? "inspection_derived_role_selection" : "explicit",
         mutation_evidence: cloneMutationEvidence(mutationEvidence),
         database_connection_performed: true,
         secrets_included: false,
@@ -1237,19 +1327,88 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
       };
     }
     const migrationResults = [];
-    if (databaseObjectClassification === "zero_objects") {
-      assertZeroObjectDatabase(roleDatabaseObjectCounts.runtime);
-      if (Object.values(roleDatabaseObjectClassifications).some((classification) => classification !== "zero_objects")) {
-        throw bootstrapError("bootstrap_role_rebuild_nonempty_denied", "Every role database must have zero tables, views, triggers, routines, and events before reconstruction begins", { role_database_object_counts: roleDatabaseObjectCounts, role_database_object_classifications: roleDatabaseObjectClassifications });
+    const roleRebuildResults = [];
+    let roleRebuildEvidence = null;
+    if (roleSelectiveRebuild) {
+      let manifestPath = null;
+      const roleConnections = roleConnectionBindings({ connection, ledgerConnection, persistenceExecutor, target, governanceDatabase, persistenceDatabase });
+      const roleFingerprintsBefore = Object.fromEntries(Object.entries(roleDatabaseObjectCounts).map(([role, counts]) => [role, objectCountsFingerprint(counts)]));
+      roleRebuildEvidence = {
+        contract: "mad4b.role-selective-baseline-rebuild.v1",
+        expected_sha: source.sha,
+        target_key: target.key,
+        selected_roles: selectedRebuildRoles,
+        selection_source: rebuildSelection?.source || ROLE_SELECTION_FROM_INSPECTION,
+        inspection_run_id: rebuildBinding?.inspection_run_id || null,
+        role_object_count_fingerprints_from_inspection: rebuildBinding?.role_object_count_fingerprints || {},
+        role_object_count_fingerprints_before: roleFingerprintsBefore,
+        role_database_object_classifications_before: roleDatabaseObjectClassifications,
+        sequential: true,
+        runtime_role_touched: selectedRebuildRoles.includes("runtime"),
+        durable_recovery_store_required: true,
+        provider_accessed: false,
+        secrets_included: false,
+      };
+      roleRebuildEvidence.evidence_hash = sha256Hex(JSON.stringify(roleRebuildEvidence));
+      for (const role of selectedRebuildRoles) {
+        if (rebuildBinding && rebuildBinding.role_object_count_fingerprints[role] !== roleFingerprintsBefore[role]) {
+          throw bootstrapError("bootstrap_role_rebuild_inspection_fingerprint_mismatch", "Observed role object-count evidence does not match the durable inspection proof; rebuild is stale and fail-closed.", { role, selected_roles: selectedRebuildRoles });
+        }
+        const binding = roleConnections[role];
+        const beforeRoleCounts = await databaseObjectCounts(binding.connection, binding.database);
+        const beforeRoleFingerprint = objectCountsFingerprint(beforeRoleCounts);
+        if (classifyDatabaseObjectCount(beforeRoleCounts) !== "zero_objects" || beforeRoleFingerprint !== roleFingerprintsBefore[role]) {
+          throw bootstrapError("bootstrap_role_rebuild_stale_zero_object_proof", "Selected role changed after inspection; baseline reconstruction is denied and the next role will not be attempted.", { role, expected_object_count_fingerprint: roleFingerprintsBefore[role], observed_object_count_fingerprint: beforeRoleFingerprint, observed_classification: classifyDatabaseObjectCount(beforeRoleCounts), selected_roles: selectedRebuildRoles });
+        }
+        manifestPath ||= resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
+        const applied = role === "runtime"
+          ? await applyRuntimeBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence)
+          : role === "governance"
+            ? await applyGovernanceBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence)
+            : await applyRuntimePersistenceBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence);
+        const seeds = [];
+        for (const seed of roleSeedEntries(contract, role)) seeds.push(await applySeedFile(binding.connection, repoRoot, seed, mutationEvidence));
+        const afterRoleCounts = await databaseObjectCounts(binding.connection, binding.database);
+        const afterRoleClassification = classifyDatabaseObjectCount(afterRoleCounts);
+        const afterTables = await requiredTableEvidence(binding.connection, binding.database, roleBaselineTables(contract, role));
+        if (afterRoleClassification === "zero_objects" || afterTables.some((entry) => !entry.present)) {
+          throw bootstrapError("bootstrap_role_rebuild_verification_failed", "A selected role did not pass same-cycle object and required-table verification; sequential reconstruction stopped before the next role.", { role, after_classification: afterRoleClassification, required_table_verification_passed: afterTables.every((entry) => entry.present), selected_roles: selectedRebuildRoles });
+        }
+        const roleResult = { role, before_object_count_fingerprint: beforeRoleFingerprint, after_object_counts: afterRoleCounts, after_object_classification: afterRoleClassification, required_table_evidence: afterTables, bundle: applied, seeds, verification: { object_count_nonzero: afterRoleClassification !== "zero_objects", required_tables_present: afterTables.every((entry) => entry.present), provider_accessed: false, secrets_included: false } };
+        roleRebuildResults.push(roleResult);
+        migrationResults.push(roleResult);
       }
-      const manifestPath = resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
-      migrationResults.push(await applyRuntimeBundle(connection, target.database, manifestPath, source.sha, contract, mutationEvidence));
-      migrationResults.push(await applyGovernanceBundle(ledgerConnection, target.governance_database || target.database, manifestPath, source.sha, contract, mutationEvidence));
-      migrationResults.push(await applyRuntimePersistenceBundle(persistenceExecutor, persistenceDatabase, manifestPath, source.sha, contract, mutationEvidence));
+      markMutationComplete(mutationEvidence, "baseline");
+      roleRebuildEvidence.roles_completed = roleRebuildResults.map((item) => item.role);
+      roleRebuildEvidence.verification = roleRebuildResults.map((item) => item.verification);
+      roleRebuildEvidence.evidence_hash = sha256Hex(JSON.stringify(roleRebuildEvidence));
+      return {
+        ...plan,
+        source_binding: { ...plan.source_binding, local_deployment_manifest: localDeployment },
+        status: "baseline_rebuild_complete",
+        operation: "database.rebuild_empty",
+        target_key: target.key,
+        database_table_count_before: beforeTableCount,
+        database_classification: databaseClassification,
+        database_object_counts_before: roleDatabaseObjectCounts,
+        database_object_classifications_before: roleDatabaseObjectClassifications,
+        selected_rebuild_roles: selectedRebuildRoles,
+        role_selection_source: rebuildSelection?.source || ROLE_SELECTION_FROM_INSPECTION,
+        role_rebuild_evidence: roleRebuildEvidence,
+        role_rebuild_results: roleRebuildResults,
+        behavioral_probes: behavioralProbes,
+        ledger,
+        postconditions: { ready: true, contract: "role_baseline_required_tables.v1", roles: roleRebuildResults.map((item) => ({ role: item.role, required_tables_ready: item.verification.required_tables_present })) },
+        grant_readback: grantReadbackBefore,
+        mutation_evidence: cloneMutationEvidence(mutationEvidence),
+        database_connection_performed: true,
+        database_mutation_performed: mutationEvidence.mutation_attempted,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        secrets_included: false,
+      };
     }
-    const postconditionsAfterBaseline = databaseObjectClassification === "zero_objects"
-      ? await readIncidentPostconditions(connection, target.database, contract, migration)
-      : postconditionsBefore;
+    const postconditionsAfterBaseline = postconditionsBefore;
     if (ledger.found && !postconditionsAfterBaseline?.ready) {
       throw bootstrapError("bootstrap_ledger_schema_divergence", "Ledger says migration is applied but declared postconditions are not ready", { migration, run_id: ledger.run_id || null });
     }

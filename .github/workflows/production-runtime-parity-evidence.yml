@@ -184,7 +184,27 @@ on:
         required: false
         type: string
       bootstrap_bundle_manifest:
-        description: Optional exact generated schema bundle manifest for zero-table apply.
+        description: Optional exact generated schema bundle manifest for zero-object role baseline apply.
+        required: false
+        type: string
+      bootstrap_rebuild_confirmation:
+        description: Typed confirmation for selected-role baseline rebuild; distinct from migration and grants confirmations.
+        required: false
+        type: string
+      bootstrap_role_selection:
+        description: Closed enum role set derived from a durable full-inspection proof; never a database name.
+        required: false
+        type: string
+      bootstrap_inspection_run_id:
+        description: Durable full-inspection run identifier bound to the selected role set.
+        required: false
+        type: string
+      bootstrap_role_selection_hash:
+        description: SHA-256 binding selected roles, inspection run, and per-role object-count fingerprints.
+        required: false
+        type: string
+      bootstrap_role_object_count_fingerprints:
+        description: JSON map of selected role to object-count fingerprint; contains no database names or credentials.
         required: false
         type: string
 
@@ -257,6 +277,12 @@ jobs:
       BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
       BOOTSTRAP_MIGRATION: ${{ inputs.bootstrap_migration }}
       BOOTSTRAP_MIGRATION_CONFIRMATION: ${{ inputs.bootstrap_migration_confirmation }}
+      BOOTSTRAP_REBUILD_CONFIRMATION: ${{ inputs.bootstrap_rebuild_confirmation }}
+      BOOTSTRAP_ROLE_SELECTION: ${{ inputs.bootstrap_role_selection }}
+      BOOTSTRAP_INSPECTION_RUN_ID: ${{ inputs.bootstrap_inspection_run_id }}
+      BOOTSTRAP_PLAN_SHA256: ${{ inputs.host_breakglass_plan_sha256 }}
+      BOOTSTRAP_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
+      BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: ${{ inputs.bootstrap_role_object_count_fingerprints }}
       BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
@@ -282,6 +308,9 @@ jobs:
           BREAKGLASS_RUNBOOK: ${{ inputs.host_breakglass_runbook }}
           BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
           BREAKGLASS_PLAN_SHA256: ${{ inputs.host_breakglass_plan_sha256 }}
+          BREAKGLASS_SELECTED_ROLES: ${{ inputs.bootstrap_role_selection }}
+          BREAKGLASS_INSPECTION_RUN_ID: ${{ inputs.bootstrap_inspection_run_id }}
+          BREAKGLASS_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
         shell: bash
@@ -301,7 +330,14 @@ jobs:
                 exit 1
               fi
               ;;
-            database.rebuild_empty) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && "${BREAKGLASS_RUNBOOK}" == "database.empty_rebuild" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ) ]] ;;
+            database.rebuild_empty)
+              [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && "${BREAKGLASS_RUNBOOK}" == "database.empty_rebuild" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ) ]]
+              if [[ "${BOOTSTRAP_MODE}" == "apply_migration" ]]; then
+                [[ "${BREAKGLASS_SELECTED_ROLES}" =~ ^(runtime|governance|runtime_persistence)(,(runtime|governance|runtime_persistence))*$ ]]
+                [[ "${BREAKGLASS_INSPECTION_RUN_ID}" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]
+                [[ "${BREAKGLASS_ROLE_SELECTION_HASH}" =~ ^[0-9a-fA-F]{64}$ ]]
+              fi
+              ;;
             host.command_capsule) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && (( "${BREAKGLASS_RUNBOOK}" == "host.sql_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_sql_capsule" ) || ( "${BREAKGLASS_RUNBOOK}" == "host.shell_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_shell_capsule" )) ]] ;;
             *) exit 1 ;;
           esac

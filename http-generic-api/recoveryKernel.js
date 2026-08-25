@@ -261,6 +261,9 @@ export const RECOVERY_KERNEL_CAPABILITIES = Object.freeze([
   capability("recovery_capabilities", "C0", "Return the static Recovery Kernel capability matrix, risk classes, dependencies, and boundaries.", { dependencies: ["repository_static_contract"] }),
   capability("production_activation_readiness", "C0", "Read the three bounded Production readiness dimensions without loading a large catalog or performing mutation.", { dependencies: ["mcp_catalog_schema_reader", "governance_privilege_reader", "runtime_persistence_reader"] }),
   capability("database_full_inspection", "C0", "Run the exact-SHA Production host-local full database inspection using the three independent role identities in the server environment.", { dependencies: ["host_local_role_env", "production_identity", "runtime_bootstrap_contract"] }),
+  capability("runtime.baseline.rebuild_empty", "C5", "Rebuild only the runtime role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["runtime"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
+  capability("governance.baseline.rebuild_empty", "C5", "Rebuild only the governance role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["governance"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
+  capability("runtime_persistence.baseline.rebuild_empty", "C5", "Rebuild only the runtime-persistence role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["runtime_persistence"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
   capability("finding_details", "C0", "Read one sanitized finding produced by a Recovery Kernel inspection or readiness probe.", { dependencies: ["recovery_run_state"] }),
   capability("remediation_plan_create", "C0", "Build a deterministic plan from registered finding IDs and repository-owned capability rules without execution.", { dependencies: ["recovery_findings", "repository_static_contract"] }),
   capability("remediation_plan_preview", "C0", "Preview blast radius, dependencies, approval class, rollback classification, and postconditions for a registered plan step.", { dependencies: ["recovery_plan_state"] }),
@@ -394,13 +397,37 @@ function findingsFromInspection(inspection = {}) {
   const findings = [];
   const checks = inspection.checks && typeof inspection.checks === "object" ? inspection.checks : {};
   const dimensions = inspection.dimensions && typeof inspection.dimensions === "object" ? inspection.dimensions : {};
+  const roleCounts = inspection.role_database_object_counts && typeof inspection.role_database_object_counts === "object" ? inspection.role_database_object_counts : {};
+  const roleClassifications = inspection.role_database_object_classifications && typeof inspection.role_database_object_classifications === "object" ? inspection.role_database_object_classifications : {};
+  const roleCountFingerprints = inspection.role_database_object_count_fingerprints && typeof inspection.role_database_object_count_fingerprints === "object" ? inspection.role_database_object_count_fingerprints : {};
+  const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
+  const emptyRoles = new Set();
+  if (roleEvidenceAvailable && inspection.full_inspection === true) {
+    for (const role of ["runtime", "governance", "runtime_persistence"]) {
+      if (roleClassifications[role] !== "zero_objects") continue;
+      emptyRoles.add(role);
+      const finding = inspectionFinding({
+        targetRole: role,
+        resource: `${role} database schema objects`,
+        category: "empty_uninitialized_database",
+        severity: "high",
+        expected: { object_count: 0, object_kinds: ["tables", "views", "triggers", "routines", "events"] },
+        actual: { classification: roleClassifications[role], object_counts: roleCounts[role], object_count_fingerprint: roleCountFingerprints[role] || null },
+        authorityRef: `${role}.baseline.rebuild_empty`,
+        repairability: "deterministic",
+        mutationRequired: true,
+      });
+      finding.candidate_capability = `${role}.baseline.rebuild_empty`;
+      findings.push(finding);
+    }
+  }
   const checkMap = [
     ["mcp_catalog_schema_ready", "governance", "admin_platform_endpoint_tools.mcp_catalog_level", "known_migration_gap", "high", "governance.mcp_catalog.repair", "20260815_custom_gpt_mcp_catalog_levels.sql"],
     ["governance_db_privilege_ready", "governance", "governance database privilege contract", "known_grant_gap", "high", "governance.grant.repair", "repository grant contract"],
     ["runtime_persistence_ready", "runtime_persistence", "governed_tool_response_chunks", "schema_drift", "high", "runtime_persistence.schema.repair", "persistence schema bundle"],
   ];
   for (const [check, role, resource, category, severity, candidate, authority] of checkMap) {
-    if (checks[check] === true) continue;
+    if (checks[check] === true || emptyRoles.has(role)) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
     finding.candidate_capability = candidate;
     findings.push(finding);
@@ -416,6 +443,8 @@ function findingsFromInspection(inspection = {}) {
 
 function classifyFinding(finding = {}) {
   const candidate = text(finding.candidate_capability, 160);
+  const roleRebuild = candidate.match(/^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u);
+  if (roleRebuild) return { classification: "empty_uninitialized_database", capability_key: candidate, operation: "database.rebuild_empty", target_role: roleRebuild[1], authority_ref: `${roleRebuild[1]}.baseline.rebuild_empty`, mutation_class: "C5" };
   if (candidate === "governance.mcp_catalog.repair") return { classification: "known_migration_gap", capability_key: candidate, operation: "apply_migration", target_role: "governance", authority_ref: "20260815_custom_gpt_mcp_catalog_levels.sql", mutation_class: "C3" };
   if (candidate === "governance.grant.repair") return { classification: "known_grant_gap", capability_key: candidate, operation: "apply_grants", target_role: "governance", authority_ref: "repository grant contract", mutation_class: "C2" };
   if (candidate === "runtime_persistence.schema.repair") return { classification: "schema_drift", capability_key: candidate, operation: "apply_migration", target_role: "runtime_persistence", authority_ref: "persistence schema bundle", mutation_class: "C3" };
@@ -520,7 +549,7 @@ function createRunId(plan) {
 }
 
 function createPlanId(input) {
-  return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
+  return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, finding_hash: input.finding_hash || null, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
 }
 
 function planSteps(findings, targetFingerprints = {}) {
@@ -534,6 +563,10 @@ function planSteps(findings, targetFingerprints = {}) {
       operation: classified.operation,
       target_role: classified.target_role,
       target_fingerprint: targetFingerprints[classified.target_role] || targetFingerprints.composite || null,
+      role_object_count_fingerprint: text(finding.observed_state?.actual?.object_count_fingerprint, 128) || (finding.observed_state?.actual?.object_counts ? stableHash(finding.observed_state.actual.object_counts) : null),
+      role_object_classification: text(finding.observed_state?.actual?.classification, 80) || null,
+      inspection_run_id: text(finding.inspection_run_id, 160) || null,
+      inspection_evidence_hash: text(finding.inspection_evidence_hash, 128) || null,
       authority_ref: classified.authority_ref,
       mutation_class: classified.mutation_class,
       consequential: Boolean(classified.capability_key),
@@ -582,7 +615,8 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     if (!found) throw kernelError(404, "RECOVERY_FINDING_NOT_FOUND", "A requested finding is not registered in the Recovery Kernel state.", { finding_id: findingId });
     findings.push(sanitizeEvidence(found));
   }
-  const planId = createPlanId({ expected_sha: expectedSha, target_key: targetKey, finding_ids: findingIds });
+  const findingHash = stableHash(findings);
+  const planId = createPlanId({ expected_sha: expectedSha, target_key: targetKey, finding_ids: findingIds, finding_hash: findingHash });
   let existing = null;
   if (recoveryStore && typeof recoveryStore.getPlan === "function") existing = await recoveryStore.getPlan(planId);
   if (!existing) existing = PLANS.get(planId);
@@ -628,7 +662,10 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     repository: RECOVERY_KERNEL_REPOSITORY,
     branch: RECOVERY_KERNEL_PRODUCTION_BRANCH,
     finding_ids: findingIds,
-    finding_hash: stableHash(findings),
+    finding_hash: findingHash,
+    inspection_run_ids: [...new Set(findings.map((finding) => text(finding.inspection_run_id, 160)).filter(Boolean))],
+    inspection_evidence_hashes: [...new Set(findings.map((finding) => text(finding.inspection_evidence_hash, 128)).filter(Boolean))],
+    selected_rebuild_roles: [...new Set(steps.filter((step) => step.capability_key?.endsWith(".baseline.rebuild_empty")).map((step) => step.target_role))],
     unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
     steps,
     status: "planned",
@@ -938,7 +975,12 @@ export async function inspectProductionDatabase(input = {}, { env = process.env,
   const attestation = readRuntimeAttestation({ env, expectedSha: request.expected_sha });
   const causalGraph = buildCausalFindingGraph(findings);
   const runId = `run:${stableHash({ expected_sha: request.expected_sha, target_key: request.target_key, nonce: randomUUID() }).slice(0, 32)}`;
-  const evidence = { identity, trust, attestation, inspection: sanitizeEvidence(inspection), findings: sanitizeEvidence(findings), causal_graph: causalGraph, final_inspection: false, secrets_included: false };
+  const inspectionEvidenceHash = stableHash(sanitizeEvidence(inspection));
+  for (const finding of findings) {
+    finding.inspection_run_id = runId;
+    finding.inspection_evidence_hash = inspectionEvidenceHash;
+  }
+  const evidence = { identity, trust, attestation, inspection: sanitizeEvidence(inspection), findings: sanitizeEvidence(findings), causal_graph: causalGraph, final_inspection: false, inspection_run_id: runId, inspection_evidence_hash: inspectionEvidenceHash, secrets_included: false };
   const run = { run_id: runId, status: "created", phase: null, plan_id: null, plan_hash: null, step_id: null, expected_sha: request.expected_sha, target_key: request.target_key, target_fingerprint: trust.target_fingerprints.composite, started_at: new Date().toISOString(), findings, events: [], evidence };
   await appendStateEvent(run, "created", "recovery_inspection_created", { recoveryStore, details: { durable: Boolean(recoveryStore) } });
   await appendStateEvent(run, "inspecting", "inspection_started", { recoveryStore });
@@ -1049,9 +1091,11 @@ export async function callRecoveryKernelCapability(capabilityKey, input = {}, de
     case "finding_details": {
       assertObject(input); assertNoForbiddenKeys(input);
       const findingId = requireId(input.finding_id, FINDING_ID_RE, "finding_id", "RECOVERY_FINDING_ID_INVALID");
-      const finding = [...RUNS.values()].flatMap((run) => run.findings || []).find((candidate) => candidate.finding_id === findingId);
-      if (!finding) throw kernelError(404, "RECOVERY_FINDING_NOT_FOUND", "The requested finding is not available.", { finding_id: findingId });
-      return sanitizeEvidence({ ok: true, contract: "mad4b.recovery-finding.v1", finding });
+      let finding = null;
+      if (deps.recoveryStore && typeof deps.recoveryStore.getFinding === "function") finding = await deps.recoveryStore.getFinding(findingId);
+      if (!finding) finding = [...RUNS.values()].flatMap((run) => run.findings || []).find((candidate) => candidate.finding_id === findingId);
+      if (!finding) throw kernelError(404, "RECOVERY_FINDING_NOT_FOUND", "The requested finding is not available in the durable Recovery state.", { finding_id: findingId });
+      return sanitizeEvidence({ ok: true, contract: "mad4b.recovery-finding.v1", finding, durable_read: Boolean(deps.recoveryStore && typeof deps.recoveryStore.getFinding === "function") });
     }
     case "system_tool_get":
     case "system_tools_search":

@@ -12,6 +12,16 @@ const SHELL_PATH = path.join(REPO_ROOT, ".github/breakglass/shell/test-host-brea
 const BACKUP_PATH = path.join(REPO_ROOT, ".github/breakglass/evidence/backup.json");
 const SQL = "SELECT 1;\n";
 const SHELL = "set -eu\nprintf ok\n";
+const ROLE_SELECTION_PROOF = {
+  source: "durable_full_inspection",
+  inspection_run_id: "inspection-m48-host-proof",
+  finding_ids: ["finding:0123456789abcdef0123456789abcdef"],
+  inspection_evidence_hash: "b".repeat(64),
+  composite_target_fingerprint: "c".repeat(64),
+  expected_sha: SHA,
+  selected_roles: ["governance", "runtime_persistence"],
+  role_object_count_fingerprints: { governance: "d".repeat(64), runtime_persistence: "e".repeat(64) },
+};
 fs.mkdirSync(path.dirname(SQL_PATH), { recursive: true });
 fs.mkdirSync(path.dirname(SHELL_PATH), { recursive: true });
 fs.writeFileSync(SQL_PATH, SQL);
@@ -26,13 +36,16 @@ test("catalog is repository-owned and database independent", () => {
   assert.equal(catalog.tool_contract.default_policy, "deny");
   assert.equal(catalog.tool_contract.denied_capabilities.includes("raw_sql.inline"), true);
 });
-test("reconstruction graph binds all roles to explicit zero-object execution while nonempty rebuild stays denied", () => {
+test("reconstruction graph exposes bounded selected-role execution while nonempty rebuild stays denied", () => {
   const catalog = publicHostBreakglassCatalog();
   assert.equal(catalog.reconstruction_plan.mode, "plan_and_explicit_apply");
   assert.equal(catalog.reconstruction_plan.scope, "existing_zero_object_set_only");
   assert.equal(catalog.reconstruction_plan.requires_zero_object_proof, true);
   assert.equal(catalog.reconstruction_plan.execution_allowed, true);
-  assert.equal(catalog.reconstruction_plan.steps.some((step) => step.key === "rebuild_runtime_persistence_schema" && step.executor_available === true && step.executor === "hostinger-runtime-bootstrap"), true);
+  assert.equal(catalog.reconstruction_plan.steps.some((step) => step.key === "rebuild_selected_runtime_persistence_schema" && step.executor_available === true && step.executor === "hostinger-runtime-bootstrap"), true);
+  assert.deepEqual(catalog.reconstruction_plan.selected_role_enum, ["runtime", "governance", "runtime_persistence"]);
+  assert.equal(catalog.reconstruction_plan.sequential_role_execution, true);
+  assert.equal(catalog.reconstruction_plan.stop_on_role_verification_failure, true);
   assert.equal(catalog.reconstruction_plan.complete, true);
   assert.equal(catalog.reconstruction_plan.destructive_nonempty_rebuild_allowed, false);
 });
@@ -41,8 +54,9 @@ test("tool contract exposes governed platform capabilities with capsule-only raw
   assert.equal(contract.tools["migration_contract.apply"].executor, "governedMigrationExecutionTool");
   assert.equal(contract.tools["migration_catalog.inspect"].mutation, false);
   assert.equal(contract.tools["database_role_topology.inspect"].mutation, false);
-  assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("zero_table_proof"), true);
-  assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("zero_object_proof"), true);
+  assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("selected_zero_object_role_proof"), true);
+  assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("pre_mutation_zero_object_recheck"), true);
+  assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("role_fingerprint"), true);
   assert.equal(contract.tools["schema_bundle.rebuild_runtime_persistence"].requires.includes("same_cycle_postcondition_readback"), true);
   assert.equal(Object.hasOwn(contract.tools, "shell.execute"), false);
 });
@@ -57,10 +71,12 @@ test("full migration discovery never expands the Production execution allowlist"
   assert.equal(catalog.database_role_topology.runtime_persistence.rebuild_executor_available, true);
 });
 test("empty database rebuild is exact-sha and repository-contract bound", () => {
-  const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "dry_run", expected_sha: SHA, migration: MIGRATION });
+  const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "dry_run", expected_sha: SHA, migration: "" });
   assert.equal(plan.requires_zero_table_database, true);
   assert.equal(plan.requires_zero_object_database, true);
-  assert.equal(plan.requires_zero_object_proof_for_all_roles, true);
+  assert.equal(plan.requires_zero_object_proof_for_all_roles, false);
+  assert.equal(plan.role_selection_required, true);
+  assert.deepEqual(plan.selected_rebuild_roles, []);
   assert.equal(plan.dispatch_ref, "main");
   assert.equal(plan.target_branch, "Production");
   assert.equal(plan.destructive_nonempty_rebuild_allowed, false);
@@ -68,6 +84,8 @@ test("empty database rebuild is exact-sha and repository-contract bound", () => 
   assert.equal(plan.capability_grants.includes("schema_bundle.rebuild_empty"), false);
   assert.equal(plan.capability_grants.includes("schema_bundle.inspect"), true);
   assert.equal(plan.runbook_execution_graph.steps.some((step) => step.key === "schema_bundle.rebuild_empty.runtime_persistence"), true);
+  assert.equal(plan.runbook_execution_graph.partial_role_rebuild_allowed, true);
+  assert.equal(plan.runbook_execution_graph.sequential_role_execution, true);
   assert.equal(plan.runbook_execution_graph.grants_included, false);
   assert.match(plan.runbook_execution_graph.graph_sha256, /^[0-9a-f]{64}$/u);
 });
@@ -79,23 +97,32 @@ test("apply plans receive only runbook-scoped mutation capabilities", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.inspect", runbook_key: "database.schema_repair", action: "plan", expected_sha: SHA }), /not allowed/u);
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", runbook_key: "database.schema_repair", action: "apply_grants", expected_sha: SHA, confirmation: `APPLY_HOSTINGER_RUNTIME_GRANTS:${SHA}:production-runtime:user:localhost` }), /does not grant/u);
 });
-test("empty rebuild exposes a hashed role-by-role execution graph without granting grants or arbitrary SQL", () => {
-  const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_migration", expected_sha: SHA, migration: MIGRATION, confirmation: `APPLY_HOSTINGER_RUNTIME_MIGRATION:${SHA}:production-runtime:${MIGRATION}` });
+test("empty rebuild exposes a hashed selected-role graph without granting grants or arbitrary SQL", () => {
+  const plan = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_migration", expected_sha: SHA, migration: "", role_selection_proof: ROLE_SELECTION_PROOF, confirmation: `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${SHA}:production-runtime:governance,runtime_persistence` });
   const graph = plan.runbook_execution_graph;
   assert.equal(graph.execution_mode, "apply_runbook");
   assert.equal(graph.zero_object_proof_required, true);
   assert.deepEqual(graph.zero_object_kinds, ["tables", "views", "triggers", "routines", "events"]);
-  assert.deepEqual(graph.execution_order, ["zero_object_proof", "role_bundle_baseline", "allowlisted_migration_sequence", "canonical_seeds", "separate_least_privilege_grants_approval", "same_cycle_postconditions", "behavioral_probes"]);
+  assert.deepEqual(graph.execution_order, ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"]);
+  assert.deepEqual(graph.selected_roles, ROLE_SELECTION_PROOF.selected_roles);
   assert.deepEqual(graph.migration_sequence.map((entry) => entry.file), [MIGRATION]);
   assert.deepEqual(graph.behavioral_probes.map((probe) => probe.role), ["governance", "runtime_persistence", "runtime"]);
   assert.ok(graph.behavioral_probes.every((probe) => probe.execution_status === "declared_not_executed_in_preview" && probe.provider_accessed === false));
-  assert.equal(graph.partial_role_rebuild_allowed, false);
-  assert.deepEqual(graph.steps.filter((step) => step.role).map((step) => step.role), ["runtime", "governance", "runtime_persistence"]);
+  assert.equal(graph.partial_role_rebuild_allowed, true);
+  assert.equal(graph.sequential_role_execution, true);
+  assert.deepEqual(graph.steps.filter((step) => step.role).map((step) => step.role), ["governance", "runtime_persistence"]);
   assert.equal(graph.steps.find((step) => step.role === "runtime_persistence").same_cycle_readback_required, true);
   assert.equal(graph.grants_included, false);
   assert.equal(graph.arbitrary_sql_allowed, false);
   assert.equal(plan.capability_grants.includes("grant_contract.apply"), false);
   assert.equal(plan.capability_grants.includes("schema_bundle.rebuild_runtime_persistence"), true);
+  assert.deepEqual(plan.selected_rebuild_roles, ROLE_SELECTION_PROOF.selected_roles);
+  assert.equal(plan.role_selection_proof.selection_hash.length, 64);
+  assert.equal(plan.role_selection_proof.source, "durable_full_inspection");
+});
+test("empty rebuild apply rejects caller role selector without durable finding proof", () => {
+  const incomplete = { ...ROLE_SELECTION_PROOF, source: undefined, finding_ids: [] };
+  assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "apply_migration", expected_sha: SHA, migration: "", role_selection_proof: incomplete, confirmation: `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${SHA}:production-runtime:governance,runtime_persistence` }), (error) => error.code === "host_breakglass_role_selection_proof_required");
 });
 test("runtime_env mutation and uncataloged migration fail closed", () => {
   assert.throws(() => buildHostBreakglassPlan({ operation_key: "database.repair", action: "apply_migration", expected_sha: SHA, target_source: "runtime_env", migration: MIGRATION }), /Target source is not allowed/u);
