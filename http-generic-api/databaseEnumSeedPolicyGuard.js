@@ -232,7 +232,7 @@ function insertInfo(statement) {
     rest = rest.slice(close + 1).trimStart();
   }
   const valuesToken = rest.match(/^VALUES\b/iu);
-  if (!valuesToken) return { table, columns, rows: [], duplicate: "" };
+  if (!valuesToken) return { table, columns, rows: [], duplicate: "", rest };
   const valuesSource = rest.slice(valuesToken[0].length).trimStart();
   const rows = [];
   let index = 0;
@@ -244,7 +244,30 @@ function insertInfo(statement) {
     rows.push(splitTopLevel(valuesSource.slice(index + 1, close)));
     index = close + 1;
   }
-  return { table, columns, rows, duplicate: rest.slice(valuesToken[0].length).match(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b([\s\S]*)$/iu)?.[1] || "" };
+  return { table, columns, rows, duplicate: rest.slice(valuesToken[0].length).match(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b([\s\S]*)$/iu)?.[1] || "", rest };
+}
+
+function enumSeedExpressionLiterals(expression) {
+  const value = TEXT(expression);
+  if (decodeString(value) !== null) return [value];
+  if (!/^CASE\b[\s\S]*\bEND$/iu.test(value)) return [];
+  return [...value.matchAll(/\b(?:THEN|ELSE)\s+('(?:''|[^'])*')/giu)].map((match) => match[1]);
+}
+
+function inspectInsertSelectEnumLiterals(state, insert, file, statementIndex, findings, statement) {
+  if (!insert.columns.length || !/^SELECT\b/iu.test(insert.rest)) return;
+  const duplicateIndex = insert.rest.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/iu);
+  const selectSource = (duplicateIndex >= 0 ? insert.rest.slice(0, duplicateIndex) : insert.rest).trim();
+  const selectBody = selectSource.replace(/^SELECT\s+/iu, "");
+  const fromIndex = selectBody.search(/\s+FROM\b/iu);
+  const expressions = splitTopLevel(fromIndex >= 0 ? selectBody.slice(0, fromIndex) : selectBody);
+  for (const [index, column] of insert.columns.entries()) {
+    const definition = state.get(`${insert.table}.${column}`);
+    if (!definition || expressions[index] === undefined) continue;
+    for (const literal of enumSeedExpressionLiterals(expressions[index])) {
+      pushUnsupported(findings, definition, file, statementIndex, literal, statement);
+    }
+  }
 }
 
 function inspectAssignments(state, statement, file, statementIndex, findings) {
@@ -256,6 +279,7 @@ function inspectAssignments(state, statement, file, statementIndex, findings) {
         if (definition && row[index] !== undefined) pushUnsupported(findings, definition, file, statementIndex, row[index], statement);
       }
     }
+    if (!insert.rows.length) inspectInsertSelectEnumLiterals(state, insert, file, statementIndex, findings, statement);
     if (insert.duplicate) inspectAssignmentText(state, insert.table, insert.duplicate, file, statementIndex, findings, statement);
     return;
   }

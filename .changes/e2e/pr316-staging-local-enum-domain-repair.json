@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr316-staging-local-enum-domain-repair",
+  "title": "PR316 staging-local enum-domain alignment before historical writers",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr316-staging-local-enum-domain-repair.json",
+      "http-generic-api/databaseEnumSeedPolicyGuard.js",
+      "http-generic-api/migrations/198_sprint67_zzzz_repo_certification_runs_certification_type_enum_alignment.sql",
+      "http-generic-api/migrations/316_sprint69_aaaa_workspace_resource_grants_source_enum_alignment.sql",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align historical MariaDB enum domains before migration 199 and migration 316 writers while preserving the local Staging-only boundary.",
+      "e2e_journeys": [
+        {
+          "id": "pr316-enum-domain-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head against the ordered migration, enum, text-width, environment, and governance contracts.",
+          "terminal_outcome": "The ordered enum guard blocks direct and CASE literals in INSERT...SELECT when undeclared, the two additive bridges align historical writer domains, and no local Staging replay proceeds until a fresh exact-main preflight and approved replay.",
+          "steps": [
+            "Classify the exact base-to-head changes against the canonical environment path classes.",
+            "Verify repo_certification_runs.certification_type includes the path_scope writer domain before migration 199.",
+            "Verify workspace_resource_grants.source includes the workspace_registry_membership_backfill writer domain before migration 316.",
+            "Verify both additive bridges preserve existing enum values, defaults, charset/collation, indexes, and rows without data DML.",
+            "Verify ordered enum and text-width guards report zero findings and zero database/provider/credential/runtime mutations.",
+            "Bind all evidence to the exact evaluated HEAD SHA before any future Windows-local replay is considered."
+          ],
+          "assertions": [
+            "The environment impact declaration source of truth is the canonical deployment branch policy.",
+            "Both staging and production are explicitly declared and cross-environment review is true.",
+            "Live staging certification remains required and is not silently waived.",
+            "production_mutation_allowed is false.",
+            "No migration DML, database mutation, provider mutation, credential payload read, deployment, AutoPilot, importer, or readback is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr316-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "pr316-ordered-migration-contracts",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr316-staging-local-enum-domain-repair.json",
+            "http-generic-api/databaseEnumSeedPolicyGuard.js",
+            "http-generic-api/migrations/198_sprint67_zzzz_repo_certification_runs_certification_type_enum_alignment.sql",
+            "http-generic-api/migrations/316_sprint69_aaaa_workspace_resource_grants_source_enum_alignment.sql",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "enum-insert-select-static-guard",
+          "runner": "node",
+          "path": "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+          "args": []
+        },
+        {
+          "id": "enum-bridge-order-and-no-dml",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-schema-bundle-builder.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
