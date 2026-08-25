@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "32bf84715319a130b9411b4d67af34aa34ecb2684de5c13975d8cb7568d9a0d3",
-    "dispatch_artifact_sha256": "983597ff04d42f5fb7e98fe95009e16c723af1acda70abd2b2127e06bebaf02a"
+    "dispatch_source_digest": "ca7d1f059870d7142aa8764326bc9d6d3f83fd8bf5e43776a2ce7601a568f1f0",
+    "dispatch_artifact_sha256": "9e611aa1781a373c69b21d935183dbef60da22236b1ec985f1267ca71b145cf8"
   },
   "coverage": {
-    "operation_count": 1053,
-    "openapi_documented_count": 1037,
-    "openapi_canonical_documented_count": 722,
+    "operation_count": 1057,
+    "openapi_documented_count": 1041,
+    "openapi_canonical_documented_count": 726,
     "openapi_generated_index_count": 315,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
-    "unresolved_surface_decision_count": 0,
-    "coverage_complete": true
+    "unresolved_surface_decision_count": 1,
+    "coverage_complete": false
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -37,6 +37,10 @@
       {
         "decision": "legacy_compatibility",
         "count": 6
+      },
+      {
+        "decision": "requires_review",
+        "count": 1
       },
       {
         "decision": "unified_ui",
@@ -646,9 +650,15 @@
   ],
   "priority_summary": {
     "blocking_contract_gap_count": 0,
-    "surface_decision_required_family_count": 0,
+    "surface_decision_required_family_count": 1,
     "documentation_only_detail_gap_count": 315,
-    "top_surface_decision_families": []
+    "top_surface_decision_families": [
+      {
+        "family_key": "recovery-kernel",
+        "surface_decision": "requires_review",
+        "detail_gap_count": 0
+      }
+    ]
   },
   "scope_boundary": {
     "route_wiring": false,
