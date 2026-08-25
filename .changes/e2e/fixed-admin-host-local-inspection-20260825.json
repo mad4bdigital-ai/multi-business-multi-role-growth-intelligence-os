@@ -203,7 +203,7 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Provide a repository-owned, Production-only Recovery/Survival Plane that remains callable without the DB-backed MCP catalog, binds Root of Trust to the exact runtime SHA, manifest hash, role target fingerprints, and verified admin principal, emits hash-only runtime attestation and causal/proof-carrying plans, separates Staging, and fails closed before any consequential step unless durable append-only evidence, approval, locking, idempotency, executor, and readback authorities are injected. Unsupported SSH/SQL are contract-only, role-separated, hash-bound, deny-by-default escape-hatch references with no live connector.",
+      "objective": "Provide a repository-owned, Production-only Recovery/Survival Plane that remains callable without the DB-backed MCP catalog, binds Root of Trust to the exact runtime SHA, manifest hash, role target fingerprints, and verified admin principal, emits hash-only runtime attestation and causal/proof-carrying plans, separates Staging, and fails closed before any consequential step unless durable append-only evidence, approval, locking, idempotency, executor, and readback authorities are injected. Production reconstruction uses the existing Admin governed execution path through auth.mad4b.com and does not require a Windows/local connector. Unsupported SSH/SQL are contract-only, role-separated, hash-bound, deny-by-default escape-hatch references; Local Connector remains explicitly deferred and is never a Production fallback.",
       "e2e_journeys": [
         {
           "id": "private-production-recovery-survival-plane",
@@ -236,6 +236,7 @@
             "durable recovery store and durable idempotency are required before consequential execution",
             "consequential recovery requires an injected durable store explicitly independent of all target role databases and provider access",
             "empty database reconstruction is repository-contract-only and selects only roles proven EMPTY_UNINITIALIZED_DATABASE by a same-cycle full inspection across tables/views/triggers/routines/events; a nonempty role is preserved",
+            "Production reconstruction is authorized through the existing Admin governed execution path at auth.mad4b.com; Local Connector availability is not a prerequisite and its deferred/unavailable state cannot reroute or block the Production path",
             "selected-role reconstruction is bound to a closed role enum, durable inspection_run_id, finding/evidence IDs and hashes, exact role object-count fingerprints, target composite fingerprint, exact source SHA, and plan hash",
             "selected role rebuild re-reads zero-object evidence immediately before each role bundle, executes roles sequentially, requires same-cycle postconditions/behavioral verification, and stops before the next role after verification failure",
             "runtime remains untouched when governance and/or runtime_persistence are selected, and governance nonempty is never touched by a persistence-only selection",
@@ -250,7 +251,8 @@
             "exception revocation, emergency approval, audit-store fallback, and response/session degradation remain explicit contracts rather than bypasses",
             "consequential execution fails closed without durable approval, lock, executor, and readback authorities",
             "unknown executor outcomes are recorded as failed_closed and are never replayed automatically",
-            "all evidence is sanitized and secrets_included=false"
+            "all evidence is sanitized and secrets_included=false",
+            "Staging Windows/Docker remains separately scoped; Local Connector is deferred to an optional diagnostic follow-up and cannot provide Production authority"
           ],
           "tests": [
             {

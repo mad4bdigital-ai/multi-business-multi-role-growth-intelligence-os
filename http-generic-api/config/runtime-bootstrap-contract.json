@@ -20,7 +20,26 @@
     "docker_start_apply": false,
     "normal_route_bypass": false,
     "record_only_ledger_reconciliation": false,
-    "unknown_migration_policy": "deny"
+    "unknown_migration_policy": "deny",
+    "production_admin_execution": {
+      "status": "primary_governed_admin_path",
+      "control_plane_host": "auth.mad4b.com",
+      "entrypoint": "existing_admin_governed_execution",
+      "transport": "github_workflow",
+      "new_mutation_endpoint_required": false,
+      "role_selection_server_derived_only": true,
+      "local_connector_required": false,
+      "local_connector_fallback_allowed": false,
+      "secrets_included": false
+    },
+    "local_connector_policy": {
+      "status": "deferred",
+      "required_for_production_reconstruction": false,
+      "scope": "staging_local_windows_docker_optional_diagnostic",
+      "unavailable_behavior": "record_deferred_scope_and_fail_closed_without_blocking_production_admin_path",
+      "must_not_create_production_authority": true,
+      "must_not_be_used_as_production_fallback": true
+    }
   },
   "source_binding": {
     "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
@@ -56,11 +75,17 @@
         "principal_host_env": "DB_PRINCIPAL_HOST",
         "default_principal_host": "localhost",
         "raw_values_exposed": false,
-        "apply_allowed": false
+        "apply_allowed": false,
+        "execution_authority": "production_admin_governed_execution",
+        "local_connector_required": false,
+        "local_connector_fallback_allowed": false
       },
       "host_local_role_env": {
         "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
         "requires_explicit_host_breakglass_authorization": true,
+        "execution_authority": "production_admin_governed_execution",
+        "local_connector_required": false,
+        "local_connector_fallback_allowed": false,
         "allowed_operations": ["database.inspect", "database.repair", "database.rebuild_empty"],
         "inspection_requires_dry_run": true,
         "inspection_migration_optional": true,
@@ -98,6 +123,10 @@
         "required_transport": "local_cli",
         "required_platform": "win32",
         "required_runtime": "docker_compose",
+        "execution_authority": "staging_local_windows_docker",
+        "local_connector_status": "deferred",
+        "local_connector_required": false,
+        "production_admin_path_not_available": true,
         "role_selective_rebuild": true,
         "role_selection_env": "BOOTSTRAP_ROLE_SELECTION",
         "selected_role_enum": ["runtime", "governance", "runtime_persistence"],

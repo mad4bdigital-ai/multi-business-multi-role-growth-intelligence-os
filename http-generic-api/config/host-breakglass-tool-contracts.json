@@ -3,6 +3,14 @@
   "contract": "mad4b.host-breakglass-tool-contracts.v1",
   "database_independent": true,
   "default_policy": "deny",
+  "production_execution_boundary": {
+    "control_plane_host": "auth.mad4b.com",
+    "authority": "existing_admin_governed_execution",
+    "local_connector_status": "deferred",
+    "local_connector_required": false,
+    "local_connector_production_authority": false,
+    "local_connector_production_fallback": false
+  },
   "tools": {
     "catalog.resolve": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
     "authority.validate": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
@@ -48,6 +56,6 @@
       "tools": ["catalog.resolve", "authority.validate", "shell.execute_exception"]
     }
   },
-  "denied_capabilities": ["raw_sql.inline", "shell.inline", "credential.export", "provider_console.execute", "database.drop_nonempty", "authorization.disable"],
+  "denied_capabilities": ["raw_sql.inline", "shell.inline", "credential.export", "provider_console.execute", "database.drop_nonempty", "authorization.disable", "local_connector.production_authority", "local_connector.production_fallback"],
   "secrets_included": false
 }

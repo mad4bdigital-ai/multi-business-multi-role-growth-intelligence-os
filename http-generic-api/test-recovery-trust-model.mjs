@@ -37,6 +37,13 @@ test("manifest is repository-owned, hash-addressed, and contains no secret mater
   assert.equal(manifest.empty_database_reconstruction.sequential_role_execution, true);
   assert.deepEqual(manifest.empty_database_reconstruction.selected_role_enum, ["runtime", "governance", "runtime_persistence"]);
   assert.deepEqual(manifest.empty_database_reconstruction.object_kinds, ["tables", "views", "triggers", "routines", "events"]);
+  assert.equal(manifest.execution_authority.production.status, "primary_governed_admin_path");
+  assert.equal(manifest.execution_authority.production.control_plane_host, "auth.mad4b.com");
+  assert.equal(manifest.execution_authority.production.local_connector_required, false);
+  assert.equal(manifest.execution_authority.production.local_connector_fallback_allowed, false);
+  assert.equal(manifest.execution_authority.staging.local_connector_status, "deferred");
+  assert.equal(manifest.execution_authority.staging.local_connector_required, false);
+  assert.deepEqual(manifest.execution_authority.deferred_scope, ["local_connector"]);
 });
 
 test("manifest verification requires exact runtime SHA and production binding", () => {

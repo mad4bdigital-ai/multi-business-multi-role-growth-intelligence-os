@@ -12,6 +12,20 @@
   "target_environment": "staging",
   "default_target_key": "staging-runtime",
   "role_target_source": "staging_local_role_env",
+  "execution_authority": "staging_local_windows_docker",
+  "production_admin_execution": {
+    "available": false,
+    "control_plane_host": null,
+    "reason": "staging_is_local_only"
+  },
+  "local_connector": {
+    "status": "deferred",
+    "required_for_production_reconstruction": false,
+    "required_for_staging_reconstruction": false,
+    "scope": "optional_staging_diagnostic_only",
+    "unavailable_behavior": "skip_deferred_scope_and_fail_closed",
+    "fallback_to_production_admin_path": false
+  },
   "role_credential_prefixes": {
     "runtime": "DB",
     "governance": "GOVERNANCE_DB",
@@ -51,5 +65,6 @@
   },
   "github_workflow_dispatch_allowed": false,
   "hostinger_access_allowed": false,
+  "local_connector_access_allowed": false,
   "secrets_included": false
 }

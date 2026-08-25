@@ -36,6 +36,28 @@ test("catalog is repository-owned and database independent", () => {
   assert.equal(catalog.tool_contract.default_policy, "deny");
   assert.equal(catalog.tool_contract.denied_capabilities.includes("raw_sql.inline"), true);
 });
+
+test("Production reconstruction uses Admin governed execution and defers Local Connector", async () => {
+  const catalog = publicHostBreakglassCatalog();
+  assert.equal(catalog.production_reconstruction_authority.status, "primary_governed_admin_path");
+  assert.equal(catalog.production_reconstruction_authority.control_plane_host, "auth.mad4b.com");
+  assert.equal(catalog.production_reconstruction_authority.execution_entrypoint, "existing_admin_governed_execution");
+  assert.equal(catalog.production_reconstruction_authority.local_connector.status, "deferred");
+  assert.equal(catalog.production_reconstruction_authority.local_connector.required_for_production_reconstruction, false);
+  assert.equal(catalog.production_reconstruction_authority.local_connector.fallback_to_local_connector_allowed, false);
+
+  const production = buildHostBreakglassPlan({ operation_key: "database.rebuild_empty", action: "dry_run", expected_sha: SHA, target_key: "production-runtime" });
+  assert.equal(production.execution_authority, "existing_admin_governed_execution");
+  assert.equal(production.control_plane_host, "auth.mad4b.com");
+  assert.equal(production.local_connector_status, "deferred");
+  assert.equal(production.local_connector_required, false);
+  assert.equal(production.local_connector_fallback_allowed, false);
+
+  await assert.rejects(
+    dispatchHostBreakglassPlan({ ...production, local_connector_required: true }, { hostLocalExecutor: async () => ({ ok: true }) }),
+    (error) => error.code === "host_breakglass_production_admin_authority_invalid",
+  );
+});
 test("reconstruction graph exposes bounded selected-role execution while nonempty rebuild stays denied", () => {
   const catalog = publicHostBreakglassCatalog();
   assert.equal(catalog.reconstruction_plan.mode, "plan_and_explicit_apply");
@@ -58,6 +80,12 @@ test("tool contract exposes governed platform capabilities with capsule-only raw
   assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("pre_mutation_zero_object_recheck"), true);
   assert.equal(contract.tools["schema_bundle.rebuild_empty"].requires.includes("role_fingerprint"), true);
   assert.equal(contract.tools["schema_bundle.rebuild_runtime_persistence"].requires.includes("same_cycle_postcondition_readback"), true);
+  assert.equal(contract.production_execution_boundary.control_plane_host, "auth.mad4b.com");
+  assert.equal(contract.production_execution_boundary.local_connector_status, "deferred");
+  assert.equal(contract.production_execution_boundary.local_connector_required, false);
+  assert.equal(contract.production_execution_boundary.local_connector_production_fallback, false);
+  assert.equal(contract.denied_capabilities.includes("local_connector.production_authority"), true);
+  assert.equal(contract.denied_capabilities.includes("local_connector.production_fallback"), true);
   assert.equal(Object.hasOwn(contract.tools, "shell.execute"), false);
 });
 test("full migration discovery never expands the Production execution allowlist", () => {

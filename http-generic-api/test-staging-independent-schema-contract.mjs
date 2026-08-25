@@ -15,6 +15,17 @@ process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const readJson = (relative) => JSON.parse(read(relative));
+const stagingContract = readJson("http-generic-api/config/host-breakglass-staging-contract.json");
+const breakglassCatalog = readJson("http-generic-api/config/host-breakglass-catalog.json");
+assert.equal(stagingContract.execution_authority, "staging_local_windows_docker");
+assert.equal(stagingContract.production_admin_execution.available, false);
+assert.equal(stagingContract.local_connector.status, "deferred");
+assert.equal(stagingContract.local_connector.required_for_production_reconstruction, false);
+assert.equal(stagingContract.local_connector.required_for_staging_reconstruction, false);
+assert.equal(stagingContract.local_connector.fallback_to_production_admin_path, false);
+assert.equal(breakglassCatalog.production_reconstruction_authority.local_connector.required_for_production_reconstruction, false);
+assert.equal(breakglassCatalog.production_reconstruction_authority.local_connector.fallback_to_local_connector_allowed, false);
 const stagingAuthDispatcher = read("http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml");
 assert.doesNotMatch(stagingAuthDispatcher, /host_local_role_env|host_local_role_inspection_dry_run|production_activation_readiness_probe|admin\/recovery\/kernel/u, "Staging OpenAPI must not advertise Production-only Recovery controls");
 const productionAuthDispatcher = read("http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml");

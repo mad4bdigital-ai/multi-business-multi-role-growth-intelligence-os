@@ -8,6 +8,22 @@
   "backup_evidence_schema": "config/host-breakglass-backup-evidence.schema.json",
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   "dispatch_ref": "main",
+  "production_reconstruction_authority": {
+    "status": "primary_governed_admin_path",
+    "control_plane_host": "auth.mad4b.com",
+    "execution_entrypoint": "existing_admin_governed_execution",
+    "transport": "github_workflow",
+    "new_mutation_endpoint_required": false,
+    "role_selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+    "local_connector": {
+      "status": "deferred",
+      "required_for_production_reconstruction": false,
+      "production_dependency": false,
+      "fallback_to_local_connector_allowed": false,
+      "unavailable_behavior": "record_deferred_scope_and_fail_closed_without_blocking_admin_path"
+    },
+    "secrets_included": false
+  },
   "target_branch": "Production",
   "workflow": "production-runtime-parity-evidence.yml",
   "environments": {
@@ -24,6 +40,10 @@
       "target_key_prefix": "staging-",
       "provider": "local_docker",
       "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
+      "admin_surface_host": null,
+      "local_connector_status": "deferred",
+      "local_connector_required": false,
+      "local_connector_scope": "staging_local_only_optional_diagnostic",
       "github_workflow_dispatch_allowed": false,
       "hostinger_access_allowed": false
     },
@@ -41,6 +61,11 @@
       "dispatch_ref": "main",
       "provider": "hostinger",
       "credential_namespace": "DB_*, GOVERNANCE_DB_*, RUNTIME_PERSISTENCE_DB_* (host-local role source); repository_allowlist uses its separately governed bootstrap identity",
+      "admin_surface_host": "auth.mad4b.com",
+      "admin_execution_authority": "existing_admin_governed_execution",
+      "local_connector_status": "deferred",
+      "local_connector_required": false,
+      "local_connector_fallback_allowed": false,
       "github_workflow_dispatch_allowed": true,
       "hostinger_access_allowed": true
     }

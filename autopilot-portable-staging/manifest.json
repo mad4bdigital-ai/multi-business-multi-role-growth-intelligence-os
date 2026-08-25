@@ -250,7 +250,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "d75aa9d69525651e6a85a32ed3691a8e5a41a2d0faedd18fac0925fe85799cee"
+      "sha256": "311314fb0e2952b84bb2dae85e63ce90ba4321dce540c8cce3dc759183d20c52"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",

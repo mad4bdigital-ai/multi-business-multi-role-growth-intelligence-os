@@ -328,6 +328,11 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
     host: environment.host,
     runtime: environment.runtime,
     execution_transport: environment.execution_transport,
+    execution_authority: environment.admin_execution_authority || environment.execution_authority || null,
+    control_plane_host: environment.admin_surface_host || null,
+    local_connector_status: environment.local_connector_status || catalog.production_reconstruction_authority?.local_connector?.status || null,
+    local_connector_required: environment.local_connector_required === true,
+    local_connector_fallback_allowed: environment.local_connector_fallback_allowed === true,
     repository: catalog.repository,
     dispatch_ref: environment.dispatch_ref || null,
     target_branch: environment.source_branch,
@@ -412,6 +417,9 @@ function matchingHostBreakglassRuns(payload, plan) {
 }
 
 export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken, hostLocalExecutor = executeHostLocalRoleInspection } = {}) {
+  if (plan.environment_key === "production_hostinger_autodeploy" && (plan.execution_authority !== "existing_admin_governed_execution" || plan.local_connector_required || plan.local_connector_fallback_allowed)) {
+    fail(403, "host_breakglass_production_admin_authority_invalid", "Production reconstruction requires the existing Admin governed execution path and cannot depend on or fall back to the Local Connector.");
+  }
   if (plan.target_source === "host_local_role_env") {
     if (plan.environment_key !== "production_hostinger_autodeploy") fail(403, "host_breakglass_host_local_environment_denied", "Host-local role credentials are restricted to the Hostinger Production environment.");
     if (!["database.inspect", "database.repair", "database.rebuild_empty"].includes(plan.operation_key)) fail(403, "host_breakglass_host_local_operation_denied", "Host-local role credentials require a bounded database inspection or recovery runbook.");
@@ -429,6 +437,11 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
         environment_key: plan.environment_key,
         target_source: plan.target_source,
         role_credential_source: "existing_hostinger_environment",
+        execution_authority: plan.execution_authority,
+        control_plane_host: plan.control_plane_host,
+        local_connector_status: plan.local_connector_status,
+        local_connector_required: plan.local_connector_required,
+        local_connector_fallback_allowed: plan.local_connector_fallback_allowed,
         workflow_dispatch_performed: false,
         database_mutation_performed: false,
         migration_apply_performed: false,
@@ -436,7 +449,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
         secrets_included: false,
       };
     }
-    return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof ? stableHash(plan.role_selection_proof) : null, command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --role-set " + (Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "inspection-derived") + " --plan-hash " + plan.plan_sha256 + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
+    return { ok: true, contract: "mad4b.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof ? stableHash(plan.role_selection_proof) : null, command: "node scripts/hostinger-runtime-bootstrap.mjs --" + plan.action.replaceAll("_", "-") + " --host-local-role-credentials --operation " + plan.operation_key + " --role-set " + (Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "inspection-derived") + " --plan-hash " + plan.plan_sha256 + " --env-file .env", separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {
     return { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
@@ -450,7 +463,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
   if (matchingRuns.length > 1) fail(409, "host_breakglass_idempotency_ambiguous", "More than one exact GitHub workflow run matches this correlation and plan.", { candidate_count: matchingRuns.length });
   if (matchingRuns.length === 1) {
     const run = matchingRuns[0];
-    const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "reused", workflow_run_id: String(run.id), workflow_dispatch_performed: false, idempotent_reuse: true, replayed: true, durable_github_readback: true, broker_auth_mode: auth_mode, database_mutation_performed: false, secrets_included: false };
+    const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "reused", workflow_run_id: String(run.id), execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, workflow_dispatch_performed: false, idempotent_reuse: true, replayed: true, durable_github_readback: true, broker_auth_mode: auth_mode, database_mutation_performed: false, secrets_included: false };
     RUNS.set(plan.correlation_id, receipt);
     return receipt;
   }
@@ -479,7 +492,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     host_breakglass_correlation_id: plan.correlation_id,
     host_breakglass_plan_sha256: plan.plan_sha256
   } } });
-  const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "dispatched", workflow_run_id: null, workflow_dispatch_performed: true, broker_auth_mode: auth_mode, database_mutation_performed: false, dispatched_at: dispatchedAt, secrets_included: false };
+  const receipt = { ok: true, contract: "mad4b.host-breakglass-dispatch-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "dispatched", workflow_run_id: null, execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, workflow_dispatch_performed: true, broker_auth_mode: auth_mode, database_mutation_performed: false, dispatched_at: dispatchedAt, secrets_included: false };
   RUNS.set(plan.correlation_id, receipt);
   return receipt;
 }

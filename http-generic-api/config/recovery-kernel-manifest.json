@@ -5,6 +5,26 @@
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   "production_branch": "Production",
   "production_environment": "production_hostinger_autodeploy",
+  "execution_authority": {
+    "production": {
+      "status": "primary_governed_admin_path",
+      "control_plane_host": "auth.mad4b.com",
+      "entrypoint": "existing_admin_governed_execution",
+      "transport": "github_workflow",
+      "new_mutation_endpoint_required": false,
+      "local_connector_required": false,
+      "local_connector_fallback_allowed": false
+    },
+    "staging": {
+      "status": "local_windows_docker_only",
+      "production_admin_path_available": false,
+      "local_connector_status": "deferred",
+      "local_connector_required": false,
+      "scope": "optional_diagnostic_only"
+    },
+    "deferred_scope": ["local_connector"],
+    "secrets_included": false
+  },
   "source_binding": {
     "sha_policy": "exact_runtime_identity_required",
     "manifest_hash_is_not_a_substitute_for_deployment_sha": true,
@@ -97,25 +117,34 @@
       "level": "R1",
       "mutation_class": "C0",
       "target_roles": ["runtime", "governance", "runtime_persistence"],
-      "authority_ref": "host_local_role_env"
+      "authority_ref": "host_local_role_env",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "production_control_plane_host": "auth.mad4b.com",
+      "local_connector_required": false
     },
     "runtime.baseline.rebuild_empty": {
       "level": "R4",
       "mutation_class": "C5",
       "target_roles": ["runtime"],
-      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback"
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "local_connector_required": false
     },
     "governance.baseline.rebuild_empty": {
       "level": "R4",
       "mutation_class": "C5",
       "target_roles": ["governance"],
-      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback"
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "local_connector_required": false
     },
     "runtime_persistence.baseline.rebuild_empty": {
       "level": "R4",
       "mutation_class": "C5",
       "target_roles": ["runtime_persistence"],
-      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback"
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "local_connector_required": false
     },
     "remediation_plan_create": {
       "level": "R2",
