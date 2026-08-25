@@ -19,7 +19,6 @@ jobs:
   publish:
     if: >-
       github.event.workflow_run.event == 'issue_comment' &&
-      github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_sha != null
     runs-on: ubuntu-24.04
     steps:
@@ -53,7 +52,9 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
       - name: Publish exact target/fingerprint readiness marker
-        if: steps.readiness.outputs.found == 'true'
+        if: >-
+          steps.readiness.outputs.found == 'true' &&
+          github.event.workflow_run.conclusion == 'success'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -61,6 +62,23 @@ jobs:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
           SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           CONTROL_ISSUE: '6625'
           READINESS_SUMMARY_PATH: ${{ runner.temp }}/github-review-policy-readiness/summary.json
+        run: node http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs
+      - name: Publish bounded no-secret readiness failure diagnostic
+        if: >-
+          steps.readiness.outputs.found == 'true' &&
+          github.event.workflow_run.conclusion != 'success'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CONTROL_ISSUE: '6625'
+          READINESS_FAILURE_PATH: ${{ runner.temp }}/github-review-policy-readiness/failure.json
+          READINESS_STATE_PATH: ${{ runner.temp }}/github-review-policy-readiness/state.json
         run: node http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs

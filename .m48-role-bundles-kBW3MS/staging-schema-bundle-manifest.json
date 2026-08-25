@@ -1,0 +1,45 @@
+{
+  "contract": "mad4b.staging.schema-bundle-output.v1",
+  "source_commit": "f47024b57098c7a1e236968b5ee238618cf5153f",
+  "source_repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "source_kind": "exact_local_git_checkout",
+  "generated_at": "2026-08-25T00:00:00.000Z",
+  "schema_only": true,
+  "production_accessed": false,
+  "provider_accessed": false,
+  "data_exported": false,
+  "secrets_included": false,
+  "roles": {
+    "runtime": {
+      "bundle_file": "runtime.schema.sql.gz",
+      "sha256": "1eb163ab608cbff43bc01b1cb05354617ffcbf598cd53155de77fea4e26643e6",
+      "table_count": 8,
+      "tables": [
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools",
+        "customer_sessions",
+        "gpt_session_turns",
+        "actions",
+        "dynamic_audit_scheduler_runs",
+        "execution_log",
+        "json_assets"
+      ]
+    },
+    "governance": {
+      "bundle_file": "governance.schema.sql.gz",
+      "sha256": "e581521601e5ac460180514b4a60478fb44f72b5d457cb5abd54012cd6184485",
+      "table_count": 1,
+      "tables": [
+        "governed_migration_ledger"
+      ]
+    },
+    "runtime_persistence": {
+      "bundle_file": "persistence.schema.sql.gz",
+      "sha256": "4dcfb6ef55856fcc72b4d7a3e78200f3a9a6fada29a83126cb1834788710500a",
+      "table_count": 1,
+      "tables": [
+        "governed_tool_response_chunks"
+      ]
+    }
+  }
+}

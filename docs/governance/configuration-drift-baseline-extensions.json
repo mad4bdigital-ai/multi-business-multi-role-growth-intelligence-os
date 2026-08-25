@@ -79,6 +79,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|SOURCE_CONCLUSION|environment_reference|source.conclusion",
+      "owner": "repository-governance",
+      "reason": "Source conclusion is an exact read-only workflow-run fact used to select success-marker or bounded failure-diagnostic publication; it grants no Apply, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|FAILURE_PATH|environment_reference|readiness.failure.path",
+      "owner": "repository-governance",
+      "reason": "Readiness failure path points only to the downloaded exact-run artifact in the ephemeral Actions workspace and is used for bounded read-only diagnostic publication.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|STATE_PATH|environment_reference|readiness.state.path",
+      "owner": "repository-governance",
+      "reason": "Readiness state path points only to the downloaded exact-run artifact in the ephemeral Actions workspace and is read for bounded stage metadata without runtime mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
