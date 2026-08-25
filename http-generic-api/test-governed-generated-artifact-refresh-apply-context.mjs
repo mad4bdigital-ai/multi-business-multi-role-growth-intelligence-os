@@ -75,6 +75,12 @@ assert.match(workflow, /verifier_workflows=\("remote-mcp-write-scope-verificatio
 assert.match(workflow, /verifier_workflows=\("pr-generated-artifact-refresh\.yml"\)/u);
 assert.match(workflow, /actions\/workflows\/\$\{verifier_workflow\}\/dispatches/u);
 assert.match(workflow, /generated-artifact-refresh-verification-dispatch\.json/u);
+assert.match(workflow, /curl --silent --show-error/u, "verifier dispatch must preserve the bounded GitHub HTTP response for canonical evidence");
+assert.match(workflow, /--write-out '%\{http_code\}'/u, "verifier dispatch must capture the exact GitHub HTTP status");
+assert.match(workflow, /x-github-request-id/u, "verifier dispatch must capture GitHub's request id without persisting authorization headers");
+assert.match(workflow, /workflow_dispatch_rejected/u, "rejected verifier dispatches must have a stable fail-closed finding code");
+assert.match(workflow, /outcome:\"blocked\".*requested:false.*http_status/u, "rejected verifier dispatches must publish structured blocked evidence before exiting");
+assert.match(workflow, /outcome:\"passed\".*requested:true/u, "accepted verifier dispatches must publish structured passed evidence");
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
 assert.doesNotMatch(
   workflow,
@@ -106,13 +112,15 @@ console.log(JSON.stringify({
   ok: true,
   gate: "governed_generated_artifact_refresh_apply_context",
   contract: "mad4b.governed-generated-artifact-refresh.v1",
-  cases: 41,
+  cases: 47,
   workflow_dispatch_only: true,
   exact_run_identity_visible: true,
   stale_requests_cancelled: true,
   trusted_repository_writer_identity: true,
   github_token_writer_fallback: false,
   remote_mcp_write_scope_recipe_registered: true,
+  verifier_dispatch_http_evidence: true,
+  verifier_dispatch_rejection_fail_closed: true,
   scripts_test_coverage_registered: true,
   bounded_ref_readback: true,
   non_404_absence_inference: false,
