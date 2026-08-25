@@ -98,7 +98,7 @@ paths:
       operationId: callAdminRecoveryKernel
       x-openai-isConsequential: false
       summary: Call a fixed Production Recovery Kernel capability
-      description: Production-only fixed Recovery Kernel call surface. It is independent of the database-backed MCP catalog and is intended for bounded identity, Root of Trust, runtime attestation, tool-surface parity, host-local inspection, findings, planning, approval-challenge creation, verification, and sanitized.
+      description: Production-only fixed Recovery Kernel call surface. It is independent of the database-backed MCP catalog and is intended for bounded identity, Root of Trust, runtime attestation, tool-surface parity, host-local inspection, findings, planning, approval-challenge creation, disaster-recovery preview,.
       requestBody:
         required: true
         content:
@@ -126,6 +126,7 @@ paths:
                     - privileged_operation_preview
                     - privileged_lease_preview
                     - recovery_exception_preview
+                    - disaster_recovery_preview
                     - recovery_reconciliation_preview
                     - recovery_cancel_preview
                     - recovery_evidence_chain_preview
@@ -514,7 +515,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 83d9160e91f8f2e13897365315fce5c7ca489a486e5c792f76d7fa874b67af2d
+  source_openapi_sha256: 78795733eb63948f5f66a48fcd2024a22f98abf2882b9d900cb7c105ed4e63fa
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 6e5736c5596ba75c9ad9f7c15a17f8a16c48f0ac4b85426b2c376485173278ca
   domain_family_policy: http-generic-api/config/domain-family-policy.json
