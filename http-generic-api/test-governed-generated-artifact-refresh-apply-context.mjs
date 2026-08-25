@@ -44,7 +44,28 @@ assert.doesNotMatch(
 assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u);
 assert.match(workflow, /main.*Production/u);
 assert.match(workflow, /expected_head_sha/u);
+assert.match(workflow, /Require trusted repository writer identity/u, "writer must fail before checkout when the trusted repository credential is unavailable");
+assert.match(workflow, /REPO_AUTOSYNC_TOKEN is required for governed generated-artifact repository writes/u);
+const trustedSecretRefs = workflow.match(/\$\{\{\s*secrets\.REPO_AUTOSYNC_TOKEN\s*\}\}/gu) ?? [];
+assert.ok(trustedSecretRefs.length >= 4, "branch APIs, checkout, and verifier dispatch must share the scoped repository writer identity");
+const trustedGhTokenRefs = workflow.match(/GH_TOKEN:\s*\$\{\{\s*secrets\.REPO_AUTOSYNC_TOKEN\s*\}\}/gu) ?? [];
+assert.ok(trustedGhTokenRefs.length >= 2, "all GitHub API mutation/dispatch calls must use the scoped repository writer identity");
+assert.match(
+  workflow,
+  /token:\s*\$\{\{\s*secrets\.REPO_AUTOSYNC_TOKEN\s*\}\}/u,
+  "checkout must persist the scoped repository writer identity used by the generated-artifact tool push",
+);
 assert.match(workflow, /persist-credentials:\s*true/u);
+assert.doesNotMatch(
+  workflow,
+  /\$\{\{\s*github\.token\s*\}\}/u,
+  "github.token must not be a repository-writer or verification-dispatch fallback",
+);
+assert.doesNotMatch(
+  workflow,
+  /\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}/u,
+  "GITHUB_TOKEN must not be a repository-writer fallback",
+);
 assert.match(workflow, /maintenance-tools\/generated-artifact-refresh\.mjs/u);
 assert.match(workflow, /--output-dir "\$\{OUTPUT_DIR\}"/u);
 assert.match(workflow, /remote_mcp_write_scope_refresh/u);
@@ -85,10 +106,12 @@ console.log(JSON.stringify({
   ok: true,
   gate: "governed_generated_artifact_refresh_apply_context",
   contract: "mad4b.governed-generated-artifact-refresh.v1",
-  cases: 35,
+  cases: 41,
   workflow_dispatch_only: true,
   exact_run_identity_visible: true,
   stale_requests_cancelled: true,
+  trusted_repository_writer_identity: true,
+  github_token_writer_fallback: false,
   remote_mcp_write_scope_recipe_registered: true,
   scripts_test_coverage_registered: true,
   bounded_ref_readback: true,
