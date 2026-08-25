@@ -5,157 +5,106 @@ import {
   callSystemLayerTool,
 } from "./routes/systemLayerRoutes.js";
 
-const SHA = "a".repeat(40);
+const ADMIN = { is_admin: true, mode: "backend_api_key" };
+const TENANT = { is_admin: false, mode: "backend_api_key" };
 
-function readOnlyResult() {
-  return {
-    ok: true,
-    contract: "mad4b.host-breakglass-host-local-inspection.v1",
-    status: "host_local_inspection_complete",
-    mode: "dry_run",
-    operation: "read_only",
-    environment_key: "production_hostinger_autodeploy",
-    target_key: "production-runtime",
-    target_source: "host_local_role_env",
-    migration: null,
-    migration_selected: false,
-    read_only: true,
-    database_connection_performed: true,
-    database_mutation_performed: false,
-    migration_apply_performed: false,
-    grant_mutation_performed: false,
-    workflow_dispatch_performed: false,
-    secrets_included: false,
-  };
+function descriptor(name) {
+  return SYSTEM_LAYER_TOOLS.find((tool) => tool.name === name);
 }
 
-test("fixed host-local system tool is registered with a bounded admin-only schema", () => {
-  const descriptor = SYSTEM_LAYER_TOOLS.find((tool) => tool.name === "host_local_role_inspection_dry_run");
-  assert.ok(descriptor);
-  assert.equal(descriptor.requires_admin, true);
-  assert.deepEqual(descriptor.inputSchema.required, ["expected_sha"]);
-  assert.equal(descriptor.inputSchema.additionalProperties, false);
-  assert.deepEqual(Object.keys(descriptor.inputSchema.properties).sort(), ["expected_sha", "target_key"]);
+test("shared system layer exposes only database-independent generic recovery discovery tools", () => {
+  for (const name of ["recovery_kernel_capabilities", "system_tool_get", "system_tools_search"]) {
+    assert.ok(descriptor(name), `${name} must be registered`);
+    assert.equal(descriptor(name).requires_admin, true);
+  }
+  assert.equal(descriptor("host_local_role_inspection_dry_run"), undefined, "Production host-local inspection must not leak into shared catalog");
+  assert.equal(descriptor("production_activation_readiness_probe"), undefined, "Production readiness probe must not leak into shared catalog");
+  assert.deepEqual(Object.keys(descriptor("system_tool_get").inputSchema.properties), ["tool_name"]);
+  assert.equal(descriptor("system_tool_get").inputSchema.additionalProperties, false);
+  assert.equal(descriptor("system_tools_search").inputSchema.additionalProperties, false);
 });
 
-test("fixed host-local system tool delegates directly to the injected read-only adapter", async () => {
+test("recovery capability matrix dispatches directly without generic endpoint facade", async () => {
   const calls = [];
   const result = await callSystemLayerTool(
-    "host_local_role_inspection_dry_run",
-    { expected_sha: SHA, target_key: "production-runtime" },
-    { is_admin: true, mode: "backend_api_key" },
+    "recovery_kernel_capabilities",
+    {},
+    ADMIN,
     {
-      hostLocalInspectionExecutor: async (request, options) => {
-        calls.push({ request, has_process_env: options.env === process.env, repoRoot: options.repoRoot });
-        return readOnlyResult();
-      },
+      executionFacade: { execute: async () => { calls.push("generic_facade"); } },
     },
   );
-
-  assert.deepEqual(result, readOnlyResult());
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].request, { expected_sha: SHA, target_key: "production-runtime" });
-  assert.equal(calls[0].has_process_env, true);
-});
-
-test("fixed host-local system tool rejects non-admin principals before adapter invocation", async () => {
-  let invoked = false;
-  await assert.rejects(
-    () => callSystemLayerTool(
-      "host_local_role_inspection_dry_run",
-      { expected_sha: SHA },
-      { is_admin: false, mode: "backend_api_key" },
-      {
-        hostLocalInspectionExecutor: async () => {
-          invoked = true;
-          return readOnlyResult();
-        },
-      },
-    ),
-    (error) => error?.code === "admin_system_tool_required" && error?.status === 403,
-  );
-  assert.equal(invoked, false);
-});
-
-test("fixed host-local system tool does not route to the generic endpoint facade", async () => {
-  const calls = [];
-  const result = await callSystemLayerTool(
-    "host_local_role_inspection_dry_run",
-    { expected_sha: SHA },
-    { is_admin: true, mode: "backend_api_key" },
-    {
-      executionFacade: {
-        execute: async () => {
-          calls.push("generic_facade");
-          throw new Error("generic facade must not be used");
-        },
-      },
-      hostLocalInspectionExecutor: async () => readOnlyResult(),
-    },
-  );
-  assert.equal(result.read_only, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.catalog_source, "repository_static_contract");
+  assert.ok(result.capabilities.some((entry) => entry.capability_key === "database_full_inspection"));
+  assert.equal(result.secrets_included, false);
   assert.deepEqual(calls, []);
 });
 
-test("production readiness probe delegates to a bounded read-only reader and accepts no arguments", async () => {
-  const calls = [];
-  const result = await callSystemLayerTool(
-    "production_activation_readiness_probe",
-    {},
-    { is_admin: true, mode: "backend_api_key" },
-    {
-      productionActivationReadinessExecutor: async () => {
-        calls.push("readiness");
-        return {
-          contract: "mad4b.production-activation-readiness.v1",
-          status: "blocked",
-          ok: false,
-          ready: false,
-          checks: {
-            mcp_catalog_schema_ready: false,
-            governance_db_privilege_ready: false,
-            runtime_persistence_ready: false,
-            mutation_attestation_complete: true,
-          },
-          read_only_probe: true,
-          sql_mutation_performed: false,
-          migration_apply_performed: false,
-          provider_mutation_performed: false,
-          deployment_performed: false,
-          secrets_included: false,
-        };
-      },
-    },
-  );
-  assert.equal(calls.length, 1);
-  assert.equal(result.read_only_probe, true);
-  assert.equal(result.sql_mutation_performed, false);
-  await assert.rejects(
-    () => callSystemLayerTool(
-      "production_activation_readiness_probe",
-      { unexpected: true },
-      { is_admin: true, mode: "backend_api_key" },
-      { productionActivationReadinessExecutor: async () => result },
-    ),
-    (error) => error?.code === "production_activation_readiness_arguments_forbidden" && error?.status === 400,
-  );
+test("static system_tool_get and system_tools_search do not query the database", async () => {
+  const lookup = await callSystemLayerTool("system_tool_get", { tool_name: "recovery_kernel_capabilities" }, ADMIN);
+  assert.equal(lookup.tool.name, "recovery_kernel_capabilities");
+  assert.equal(lookup.secrets_included, false);
+
+  const search = await callSystemLayerTool("system_tools_search", { q: "recovery", limit: 10 }, ADMIN);
+  assert.equal(search.catalog_mode, "repository_static_system_layer");
+  assert.equal(search.database_query_performed, false);
+  assert.ok(search.items.some((item) => item.name === "recovery_kernel_capabilities"));
+  assert.equal(search.secrets_included, false);
 });
 
-test("production readiness probe rejects non-admin principals before invoking the reader", async () => {
-  let invoked = false;
+test("generic fixed discovery tools remain admin-only before any handler or facade invocation", async () => {
+  for (const name of ["recovery_kernel_capabilities", "system_tool_get", "system_tools_search"]) {
+    let invoked = false;
+    await assert.rejects(
+      () => callSystemLayerTool(name, name === "system_tool_get" ? { tool_name: "recovery_kernel_capabilities" } : {}, TENANT, {
+        executionFacade: { execute: async () => { invoked = true; } },
+      }),
+      (error) => error?.code === "admin_system_tool_required" && error?.status === 403,
+    );
+    assert.equal(invoked, false);
+  }
+});
+
+test("shared dispatcher rejects the removed Production-specific names instead of reaching a generic facade", async () => {
+  for (const name of ["host_local_role_inspection_dry_run", "production_activation_readiness_probe"]) {
+    const calls = [];
+    await assert.rejects(
+      () => callSystemLayerTool(name, {}, ADMIN, {
+        executionFacade: { execute: async () => { calls.push("generic_facade"); } },
+      }),
+      (error) => error?.code === "unknown_tool" && error?.status === 400,
+    );
+    assert.deepEqual(calls, []);
+  }
+});
+
+test("fixed recovery_kernel_call is available through the existing Admin dispatcher with environment fail-closed", async () => {
+  const calls = [];
+  const production = await callSystemLayerTool(
+    "recovery_kernel_call",
+    { capability_key: "recovery_capabilities", input: {} },
+    ADMIN,
+    {
+      recoveryKernelEnv: { NODE_ENV: "production", GITHUB_REF_NAME: "Production" },
+      executionFacade: { execute: async () => calls.push("generic_facade") },
+    },
+  );
+  assert.equal(production.catalog_source, "repository_static_contract");
+  assert.deepEqual(calls, []);
+
+  let inspectionInvoked = false;
   await assert.rejects(
     () => callSystemLayerTool(
-      "production_activation_readiness_probe",
-      {},
-      { is_admin: false, mode: "backend_api_key" },
+      "recovery_kernel_call",
+      { capability_key: "database_full_inspection", input: { expected_sha: "a".repeat(40) } },
+      ADMIN,
       {
-        productionActivationReadinessExecutor: async () => {
-          invoked = true;
-          return { ok: true };
-        },
+        recoveryKernelEnv: { NODE_ENV: "staging" },
+        hostLocalInspectionExecutor: async () => { inspectionInvoked = true; return {}; },
       },
     ),
-    (error) => error?.code === "admin_system_tool_required" && error?.status === 403,
+    (error) => error?.code === "recovery_kernel_production_only" && error?.status === 404,
   );
-  assert.equal(invoked, false);
+  assert.equal(inspectionInvoked, false);
 });

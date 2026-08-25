@@ -21,6 +21,12 @@ const ACTIVE_SCHEMAS = {
     maxOperations: 30,
     requiredOperations: ["listAdminTools", "callAdminTool", "repairLocalConnector"],
   },
+  "openapi.custom-gpt.recovery-admin.production.yaml": {
+    serverUrl: "https://auth.mad4b.com",
+    securityScheme: "backendBearerAuth",
+    maxOperations: 4,
+    requiredOperations: ["callAdminRecoveryKernel", "executeAdminRecoveryKernelStep", "getAdminRecoveryKernelRun", "getAdminRecoveryKernelEvidence"],
+  },
   "openapi.custom-gpt.activation-admin.yaml": {
     serverUrl: "https://activation.mad4b.com",
     securityScheme: "backendBearerAuth",

@@ -57,6 +57,22 @@ surfaces:
           reason: Hostinger role-local full inspection is an internal service-key route and must not be exposed as an Admin GPT operation.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: callAdminRecoveryKernel
+          reason: Production-only Recovery Kernel call surface is private and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: executeAdminRecoveryKernelStep
+          reason: Consequential Recovery Kernel execution is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminRecoveryKernelRun
+          reason: Recovery Kernel run readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminRecoveryKernelEvidence
+          reason: Recovery Kernel evidence readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
         - operation_id: sessionInsightTargetWriteReadbackCreate
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
@@ -935,6 +951,32 @@ surfaces:
     auth_profile: development
     hard_operation_limit: 30
     warning_operation_limit: 24
+  admin_recovery_production:
+    mode: generated_from_openapi
+    base_surface: admin_core
+    source_surface_key: admin_recovery_production
+    private_only: true
+    environment: production
+    domain_service: auth
+    output_file: openapi/openapi.custom-gpt.recovery-admin.production.yaml
+    server_url: https://auth.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 12
+    warning_operation_limit: 12
+    info:
+      title: Growth Intelligence Platform - Production Recovery Kernel
+      summary: Private fixed Production-only Recovery Kernel surface.
+      description: This private surface is restricted to Production and provides bounded Recovery Kernel discovery, inspection, planning, approval, execution, verification, and sanitized evidence readback.
+    candidate_policy:
+      mode: marker_required
+      required_marker: admin_recovery_production
+      candidate_tags:
+        - recovery-kernel
+      omission: fail
+      exclusion_records: []
+    selector:
+      source_markers:
+        - admin_recovery_production
   admin_core_production:
     mode: generated_from_openapi
     base_surface: admin_core
