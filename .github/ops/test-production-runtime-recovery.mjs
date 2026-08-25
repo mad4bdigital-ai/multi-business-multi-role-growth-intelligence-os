@@ -389,8 +389,14 @@ test('workflow exposes snapshot variables only as non-secret descriptors', () =>
 
 test('explicit bootstrap requires live Hostinger parity and runs the parity contract test', () => {
   const parityGate = workflow.indexOf('Require live Hostinger runtime parity before bootstrap');
-  const bootstrapRun = workflow.indexOf('Run selected repository bootstrap contract mode');
-  assert.ok(parityGate >= 0 && parityGate < bootstrapRun, 'runtime parity gate must precede bootstrap execution');
+  const bootstrapMarkers = [
+    'Run selected repository bootstrap contract mode',
+    'Deny repository bootstrap execution without an injected host-side role executor',
+    'Run repository bootstrap plan without database credentials',
+  ];
+  const bootstrapPositions = bootstrapMarkers.map((marker) => workflow.indexOf(marker)).filter((position) => position >= 0);
+  const bootstrapRun = bootstrapPositions.length > 0 ? Math.min(...bootstrapPositions) : -1;
+  assert.ok(parityGate >= 0 && bootstrapRun >= 0 && parityGate < bootstrapRun, 'runtime parity gate must precede bootstrap execution or denial');
   assert.match(workflow, /if: inputs\.bootstrap_mode != 'plan'/u);
   assert.match(workflow, /curl --proto '=https' --tlsv1\.2 --fail --silent --show-error/u);
   assert.match(workflow, /https:\/\/auth\.mad4b\.com\/version/u);
