@@ -47,7 +47,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git ls-files -z -- '*.js' '*.mjs' '*.cjs' | xargs -0 -r -n 1 -P 4 node --check
+
+          failed=0
+          while IFS= read -r -d '' file; do
+            if ! node --check "$file"; then
+              failed=1
+              echo "::error file=$file::node --check failed for tracked JavaScript module"
+            fi
+          done < <(git ls-files -z -- '*.js' '*.mjs' '*.cjs')
+
+          exit "$failed"
       - name: Evaluate dynamic semantic repository fixed point
         env:
           SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

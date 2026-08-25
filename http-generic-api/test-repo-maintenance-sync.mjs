@@ -91,7 +91,13 @@ assert(permissionRunbook.includes("REPO_AUTOSYNC_TOKEN"), "permission runbook mu
 assert(permissionRunbook.includes("required for automated merge"), "permission runbook must explain why GITHUB_TOKEN cannot perform auto-merge");
 assert(permissionRunbook.includes("Allow auto-merge"), "permission runbook must document the independent repository auto-merge setting");
 assert(permissionRunbook.includes("action_required"), "permission runbook must classify blocked follow-up checks separately from test failures");
-assert(permissionRunbook.includes("contents: write") && permissionRunbook.includes("pull requests: write"), "permission runbook must document minimum token permissions");
+assert(
+  permissionRunbook.includes("Actions: Read and write")
+    && permissionRunbook.includes("Contents: Read and write")
+    && permissionRunbook.includes("Pull requests: Read and write"),
+  "permission runbook must document minimum fine-grained token permissions",
+);
+assert(permissionRunbook.includes("403 Resource not accessible by personal access token"), "permission runbook must document verifier dispatch rejection without Actions write permission");
 assert(workflow.includes("create-pull-request"), "workflow must open reviewable PRs instead of pushing directly to main");
 
 assert(autofillTest.includes("repo-maintenance-sync.mjs --write"), "legacy OpenAPI autofill test must accept orchestration path");
