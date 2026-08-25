@@ -1,4 +1,5 @@
 import { GOVERNANCE_DB_PRIVILEGE_MATRIX } from "./databasePrivilegeContracts.js";
+export { GOVERNANCE_DB_PRIVILEGE_MATRIX } from "./databasePrivilegeContracts.js";
 
 const ALLOWED_GLOBAL_PRIVILEGES = new Set(["USAGE"]);
 

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7390,
-    "bytes": 72710392,
-    "lines": 1693165,
+    "bytes": 72710474,
+    "lines": 1693166,
     "directories": 266,
     "categories": 13
   },
@@ -40713,9 +40713,9 @@
       "path": "http-generic-api/governanceDbPrivilegeContract.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 4955,
-      "lines": 133,
-      "sha256": "0266a8fdd124b67659dfeeff981e1d940f352ef3d9e5a7eecb507b8afe058c4a",
+      "bytes": 5037,
+      "lines": 134,
+      "sha256": "8ddd4c2d5ea510549743203a66ede07c114c7eaba8a9a3467d5d99db40498f33",
       "mode": "644",
       "executable": false,
       "generated": false
