@@ -19,7 +19,7 @@ surfaces:
     info:
       title: Growth Intelligence Platform - Admin Core Actions
       summary: Admin and system MCP facades with a bounded operation surface.
-      description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven.
+      description: Stable Admin Core transport with a hard Custom GPT limit of 30 operations. The existing callAdminSystemTool operation carries the single bounded non-consequential recovery_kernel_call bridge for Recovery inspection, findings, planning, previews, approval challenges, verification, and readback; direct private Recovery operationIds and consequential plan-step execution remain excluded. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven.
     candidate_policy:
       mode: marker_required
       required_marker: admin_core
@@ -55,6 +55,22 @@ surfaces:
           review_after: 2026-09-30
         - operation_id: runHostLocalRoleBootstrapDryRun
           reason: Hostinger role-local full inspection is an internal service-key route and must not be exposed as an Admin GPT operation.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: callAdminRecoveryKernel
+          reason: Production-only Recovery Kernel call surface is private and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: executeAdminRecoveryKernelStep
+          reason: Consequential Recovery Kernel execution is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminRecoveryKernelRun
+          reason: Recovery Kernel run readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminRecoveryKernelEvidence
+          reason: Recovery Kernel evidence readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
           owner: platform-governance
           review_after: 2026-09-30
         - operation_id: sessionInsightTargetWriteReadbackCreate
@@ -107,7 +123,7 @@ surfaces:
     info:
       title: Growth Intelligence Platform - Activation Admin Actions
       summary: Admin/service Activation orchestration and read surfaces.
-      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com.
+      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here.
     candidate_policy:
       mode: marker_required
       required_marker: activation_admin
@@ -935,6 +951,32 @@ surfaces:
     auth_profile: development
     hard_operation_limit: 30
     warning_operation_limit: 24
+  admin_recovery_production:
+    mode: generated_from_openapi
+    base_surface: admin_core
+    source_surface_key: admin_recovery_production
+    private_only: true
+    environment: production
+    domain_service: auth
+    output_file: openapi/openapi.custom-gpt.recovery-admin.production.yaml
+    server_url: https://auth.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 12
+    warning_operation_limit: 12
+    info:
+      title: Growth Intelligence Platform - Production Recovery Kernel
+      summary: Private fixed Production-only Recovery Kernel surface.
+      description: This private surface is restricted to Production and provides bounded Recovery Kernel discovery, inspection, planning, approval, execution, verification, and sanitized evidence readback.
+    candidate_policy:
+      mode: marker_required
+      required_marker: admin_recovery_production
+      candidate_tags:
+        - recovery-kernel
+      omission: fail
+      exclusion_records: []
+    selector:
+      source_markers:
+        - admin_recovery_production
   admin_core_production:
     mode: generated_from_openapi
     base_surface: admin_core
@@ -964,7 +1006,7 @@ surfaces:
     info:
       title: Growth Intelligence Platform - Activation Admin Actions - production
       summary: Admin/service Activation orchestration and read surfaces. (production).
-      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
+      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
   activation_admin_staging:
     mode: generated_from_openapi
     base_surface: activation_admin
@@ -974,7 +1016,7 @@ surfaces:
     info:
       title: Growth Intelligence Platform - Activation Admin Actions - staging
       summary: Admin/service Activation orchestration and read surfaces. (staging).
-      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
+      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
   tenant_core_production:
     mode: generated_from_openapi
     base_surface: tenant_core

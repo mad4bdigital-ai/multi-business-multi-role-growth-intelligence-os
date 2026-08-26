@@ -66,7 +66,7 @@ function resolveConfiguredSurface(surfaceKey, surface, registry, domainPolicy) {
   const base = registry.surfaces?.[surface.base_surface];
   if (!base) throw new Error(`${surfaceKey}: base_surface is not registered: ${surface.base_surface}`);
   const merged = { ...clone(base), ...clone(surface), selector: clone(surface.selector || base.selector), candidate_policy: clone(surface.candidate_policy || base.candidate_policy), info: clone(surface.info || base.info) };
-  return resolveEnvironmentVariant(surfaceKey, { ...merged, source_surface_key: surface.base_surface }, domainPolicy);
+  return resolveEnvironmentVariant(surfaceKey, { ...merged, source_surface_key: surface.source_surface_key || surface.base_surface }, domainPolicy);
 }
 
 function outputPath(file) {

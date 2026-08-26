@@ -3,7 +3,7 @@ info:
   title: Growth Intelligence Platform - Activation Admin Actions - staging
   version: 3.0.0-platform
   summary: Admin/service Activation orchestration and read surfaces. (staging).
-  description: Activation-only admin transport. Authentication and business authorization remain on dev.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
+  description: Activation-only admin transport. Authentication and business authorization remain on dev.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
 servers:
   - url: https://activation-dev.mad4b.com
     description: activation_admin_staging surface
@@ -1697,9 +1697,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 358a068292296eb07cc9631aa43a3b4f102acba9a06a3639d883c6630e6d1b1f
+  source_openapi_sha256: dd0d68e4929a15e5f7634e4aaf2b4cbf0ce47aaf6b81c51227790ca15acb4c79
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: b7a1370a9719da6c576e0d3c7a496a21f320e8069e94add2dc3be9fc79319b5b
+  registry_sha256: a6e2cb0aa6b4ea4dd045c5ca87d17885c2d9eaaf06f691cb26d0675e4dcf48e1
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: staging

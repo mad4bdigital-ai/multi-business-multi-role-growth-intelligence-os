@@ -1,6 +1,6 @@
 name: Production Runtime Parity Evidence
 run-name: >-
-  runtime-breakglass-${{ inputs.breakglass_correlation_id || inputs.host_breakglass_correlation_id || github.run_id }}-${{ inputs.expected_sha || github.sha }}${{ inputs.host_breakglass_plan_sha256 && format('-{0}', inputs.host_breakglass_plan_sha256) || '' }}
+  runtime-breakglass-${{ inputs.expected_sha || github.sha }}-${{ github.run_id }}
 
 on:
   pull_request:
@@ -55,60 +55,6 @@ on:
         description: Exact 40-character Production deployment SHA
         required: true
         type: string
-      expected_branch:
-        description: Exact deployment branch reported by /version
-        required: false
-        default: Production
-        type: string
-      auth_url:
-        description: Hostinger Production auth runtime /version endpoint
-        required: true
-        default: https://auth.mad4b.com/version
-        type: string
-      deployment_info_url:
-        description: Hostinger Production auth runtime /deployment-info endpoint
-        required: false
-        default: https://auth.mad4b.com/deployment-info
-        type: string
-      runtime_bootstrap_url:
-        description: Protected Hostinger-side runtime_env dry-run endpoint; only used with hostinger_runtime_env source.
-        required: false
-        default: https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run
-        type: string
-      host_breakglass_operation:
-        description: Repository-owned Host Breakglass catalog operation key.
-        required: false
-        default: database.inspect
-        type: choice
-        options:
-          - database.inspect
-          - database.repair
-          - database.rebuild_empty
-      host_breakglass_correlation_id:
-        description: Bounded broker correlation identifier; contains no credentials.
-        required: false
-        type: string
-      host_breakglass_plan_sha256:
-        description: Exact SHA-256 of the repository-owned Host Breakglass plan; used for durable run correlation.
-        required: false
-        type: string
-      host_breakglass_runbook:
-        description: Repository-owned capability runbook compatible with the selected operation and action.
-        required: false
-        default: database.full_inspection
-        type: string
-      host_breakglass_tool_contract_sha256:
-        description: SHA-256 of the canonical database-independent tool contract.
-        required: false
-        type: string
-      host_breakglass_capsule:
-        description: JSON envelope containing repository path, SHA-256, confirmation, and Production backup evidence path. Inline commands are forbidden.
-        required: false
-        type: string
-      breakglass_correlation_id:
-        description: Bounded Runtime Breakglass idempotency/correlation identifier; contains no credentials.
-        required: false
-        type: string
       strategy:
         description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
         required: false
@@ -136,7 +82,6 @@ on:
         type: boolean
       confirmation:
         description: For recovery strategies use RECOVER:<strategy>:<exact-sha>.
-
         required: false
         type: string
       target_key:
@@ -180,11 +125,47 @@ on:
         required: false
         type: string
       bootstrap_grants_confirmation:
-        description: Required only for apply_grants; APPLY_HOSTINGER_RUNTIME_GRANTS:sha:target-key:principal:principal-host.
+        description: Required only for apply_grants; exact target identity or canonical split-DB grant-binding hash.
+        required: false
+        type: string
+      bootstrap_grant_binding_hash:
+        description: SHA-256 of the exact role grant policies, databases, principals, and principal hosts for a split-DB target.
         required: false
         type: string
       bootstrap_bundle_manifest:
-        description: Optional exact generated schema bundle manifest for zero-table apply.
+        description: Optional exact generated schema bundle manifest for zero-object role baseline apply.
+        required: false
+        type: string
+      bootstrap_rebuild_confirmation:
+        description: Typed confirmation for selected-role baseline rebuild; distinct from migration and grants confirmations.
+        required: false
+        type: string
+      bootstrap_role_selection:
+        description: Closed enum role set derived from a durable full-inspection proof; never a database name.
+        required: false
+        type: string
+      bootstrap_inspection_run_id:
+        description: Durable full-inspection run identifier bound to the selected role set.
+        required: false
+        type: string
+      bootstrap_role_selection_hash:
+        description: SHA-256 of the canonical rich role-selection proof envelope, including source, exact SHA, inspection evidence, finding IDs, selected-role object-count fingerprints, and composite fingerprint.
+        required: false
+        type: string
+      bootstrap_role_object_count_fingerprints:
+        description: Canonical rich role-selection proof envelope containing source, exact SHA, inspection evidence, finding IDs, selected-role object-count fingerprints, and composite fingerprint; contains no database names or credentials.
+        required: false
+        type: string
+      bootstrap_execution_ticket_id:
+        description: Server-issued bounded execution-ticket reference; never contains a signature or credential.
+        required: false
+        type: string
+      bootstrap_execution_ticket_hash:
+        description: SHA-256 of the server-issued execution ticket; required for every mutation mode.
+        required: false
+        type: string
+      recovery_envelope:
+        description: Server-generated Host Breakglass reference envelope; contains no credentials or inline commands.
         required: false
         type: string
 
@@ -203,6 +184,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -251,39 +233,85 @@ jobs:
     env:
       BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
       BOOTSTRAP_EXPECTED_SHA: ${{ inputs.expected_sha }}
-      BOOTSTRAP_EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+      BOOTSTRAP_EXPECTED_BRANCH: Production
       BOOTSTRAP_EXPECTED_REPOSITORY: ${{ github.repository }}
       BOOTSTRAP_TARGET_KEY: ${{ inputs.bootstrap_target_key }}
       BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
       BOOTSTRAP_MIGRATION: ${{ inputs.bootstrap_migration }}
       BOOTSTRAP_MIGRATION_CONFIRMATION: ${{ inputs.bootstrap_migration_confirmation }}
+      BOOTSTRAP_REBUILD_CONFIRMATION: ${{ inputs.bootstrap_rebuild_confirmation }}
+      BOOTSTRAP_ROLE_SELECTION: ${{ inputs.bootstrap_role_selection }}
+      BOOTSTRAP_INSPECTION_RUN_ID: ${{ inputs.bootstrap_inspection_run_id }}
+      BOOTSTRAP_PLAN_SHA256: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.plan_sha256 || '' }}
+      BOOTSTRAP_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
+      BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: ${{ inputs.bootstrap_role_object_count_fingerprints }}
+      BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
+      BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
       BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
+      BOOTSTRAP_GRANT_BINDING_HASH: ${{ inputs.bootstrap_grant_binding_hash }}
       BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST: ${{ inputs.bootstrap_bundle_manifest }}
       RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
     steps:
+      - name: Validate trusted dispatch ref and exact Production head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: Production
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "${EXPECTED_BRANCH}" == "Production" ]]
+          production_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${production_sha,,}" == "${EXPECTED_SHA,,}" ]]
+
+      - name: Checkout exact Production source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Validate bootstrap target source scope
         env:
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
-          HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
+          BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
+          BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
+          HOST_BREAKGLASS_OPERATION: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.operation || '' }}
         shell: bash
         run: |
           set -Eeuo pipefail
+          case "${BOOTSTRAP_TARGET_SOURCE}" in
+            repository_allowlist|hostinger_runtime_env) ;;
+            *) echo '{"ok":false,"code":"bootstrap_target_source_denied","secrets_included":false}' >&2; exit 1 ;;
+          esac
           if [[ "${BOOTSTRAP_TARGET_SOURCE}" == "hostinger_runtime_env" && "${BOOTSTRAP_MODE}" != "dry_run" ]]; then
             echo '{"ok":false,"code":"hostinger_runtime_env_dry_run_only","secrets_included":false}' >&2
             exit 1
           fi
+          if [[ "${BOOTSTRAP_MODE}" == "apply_migration" || "${BOOTSTRAP_MODE}" == "apply_grants" || "${BOOTSTRAP_MODE}" == "execute_sql_capsule" || "${BOOTSTRAP_MODE}" == "execute_shell_capsule" ]]; then
+            [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]]
+            [[ "${BOOTSTRAP_EXECUTION_TICKET_ID}" =~ ^[A-Za-z0-9._:-]{8,160}$ ]]
+            [[ "${BOOTSTRAP_EXECUTION_TICKET_HASH}" =~ ^[0-9a-fA-F]{64}$ ]]
+          fi
 
       - name: Validate Host Breakglass catalog binding
-        if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        if: fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
         env:
-          BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
-          BREAKGLASS_CORRELATION_ID: ${{ inputs.host_breakglass_correlation_id }}
-          BREAKGLASS_RUNBOOK: ${{ inputs.host_breakglass_runbook }}
-          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
-          BREAKGLASS_PLAN_SHA256: ${{ inputs.host_breakglass_plan_sha256 }}
+          BREAKGLASS_OPERATION: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.operation || '' }}
+          BREAKGLASS_CORRELATION_ID: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.correlation_id || '' }}
+          BREAKGLASS_RUNBOOK: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.runbook || '' }}
+          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.tool_contract_sha256 || '' }}
+          BREAKGLASS_PLAN_SHA256: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.plan_sha256 || '' }}
+          BREAKGLASS_SELECTED_ROLES: ${{ inputs.bootstrap_role_selection }}
+          BREAKGLASS_INSPECTION_RUN_ID: ${{ inputs.bootstrap_inspection_run_id }}
+          BREAKGLASS_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
           BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
+          BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
+          BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -301,34 +329,22 @@ jobs:
                 exit 1
               fi
               ;;
-            database.rebuild_empty) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && "${BREAKGLASS_RUNBOOK}" == "database.empty_rebuild" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ) ]] ;;
+            database.rebuild_empty)
+              [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && "${BREAKGLASS_RUNBOOK}" == "database.empty_rebuild" && ( "${BOOTSTRAP_MODE}" == "plan" || "${BOOTSTRAP_MODE}" == "dry_run" || "${BOOTSTRAP_MODE}" == "apply_migration" ) ]]
+              if [[ "${BOOTSTRAP_MODE}" == "apply_migration" ]]; then
+                [[ "${BREAKGLASS_SELECTED_ROLES}" =~ ^(runtime|governance|runtime_persistence)(,(runtime|governance|runtime_persistence))*$ ]]
+                [[ "${BREAKGLASS_INSPECTION_RUN_ID}" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]
+                [[ "${BREAKGLASS_ROLE_SELECTION_HASH}" =~ ^[0-9a-fA-F]{64}$ ]]
+              fi
+              ;;
             host.command_capsule) [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" && (( "${BREAKGLASS_RUNBOOK}" == "host.sql_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_sql_capsule" ) || ( "${BREAKGLASS_RUNBOOK}" == "host.shell_capsule_exception" && "${BOOTSTRAP_MODE}" == "execute_shell_capsule" )) ]] ;;
             *) exit 1 ;;
           esac
 
-      - name: Validate trusted dispatch ref and exact Production head
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
-          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
-          [[ "${EXPECTED_BRANCH}" == "Production" ]]
-          production_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-          [[ "${production_sha,,}" == "${EXPECTED_SHA,,}" ]]
-      - name: Checkout exact Production source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ inputs.expected_sha }}
-          fetch-depth: 1
-          persist-credentials: false
       - name: Validate exact Production Host Breakglass tool contract
-        if: inputs.host_breakglass_correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
+        if: fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.correlation_id != '' || inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
         env:
-          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ inputs.host_breakglass_tool_contract_sha256 }}
+          BREAKGLASS_TOOL_CONTRACT_SHA256: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.tool_contract_sha256 || '' }}
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -339,9 +355,9 @@ jobs:
         if: inputs.bootstrap_mode != 'plan'
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
-          VERSION_URL: ${{ inputs.auth_url }}
-          DEPLOYMENT_INFO_URL: ${{ inputs.deployment_info_url }}
+          EXPECTED_BRANCH: Production
+          VERSION_URL: https://auth.mad4b.com/version
+          DEPLOYMENT_INFO_URL: https://auth.mad4b.com/deployment-info
           PARITY_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/hostinger-parity.json
         shell: bash
         run: |
@@ -376,18 +392,17 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Install database client without lifecycle scripts
-        if: inputs.bootstrap_mode != 'plan' && inputs.bootstrap_target_source == 'repository_allowlist'
-        working-directory: http-generic-api
-        run: npm ci --ignore-scripts
-      - name: Run selected repository bootstrap contract mode
-        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'execute_sql_capsule' && inputs.bootstrap_mode != 'execute_shell_capsule'
+      - name: Deny repository bootstrap execution without an injected host-side role executor
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode != 'plan'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo '{"ok":false,"code":"repository_allowlist_host_role_executor_required","execution_authority":"injected_host_side_role_executor","github_secrets_required":false,"database_mutation_performed":false,"secrets_included":false}' >&2
+          exit 1
+      - name: Run repository bootstrap plan without database credentials
+        if: inputs.bootstrap_target_source == 'repository_allowlist' && inputs.bootstrap_mode == 'plan'
         env:
-          HOST_BREAKGLASS_OPERATION: ${{ inputs.host_breakglass_operation }}
-          MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
-          MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
-          MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
-          MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+          HOST_BREAKGLASS_OPERATION: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.operation || '' }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
         run: |
           set -Eeuo pipefail
@@ -400,7 +415,7 @@ jobs:
           MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
           MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
           MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
-          HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}
+          HOST_BREAKGLASS_CAPSULE_JSON: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.capsule_json || '' }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
         shell: bash
         run: |
@@ -415,7 +430,7 @@ jobs:
           HOSTINGER_PROD_SSH_USER: ${{ vars.HOSTINGER_PROD_SSH_USER }}
           HOSTINGER_PROD_SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_PROD_SSH_PRIVATE_KEY }}
           HOSTINGER_PROD_SSH_KNOWN_HOSTS: ${{ secrets.HOSTINGER_PROD_SSH_KNOWN_HOSTS }}
-          HOST_BREAKGLASS_CAPSULE_JSON: ${{ inputs.host_breakglass_capsule }}
+          HOST_BREAKGLASS_CAPSULE_JSON: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.capsule_json || '' }}
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
         shell: bash
         run: |
@@ -426,9 +441,9 @@ jobs:
         if: inputs.bootstrap_mode == 'execute_sql_capsule' || inputs.bootstrap_mode == 'execute_shell_capsule'
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
-          VERSION_URL: ${{ inputs.auth_url }}
-          DEPLOYMENT_INFO_URL: ${{ inputs.deployment_info_url }}
+          EXPECTED_BRANCH: Production
+          VERSION_URL: https://auth.mad4b.com/version
+          DEPLOYMENT_INFO_URL: https://auth.mad4b.com/deployment-info
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -449,11 +464,11 @@ jobs:
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          EXPECTED_BRANCH: Production
           EXPECTED_REPOSITORY: ${{ github.repository }}
           TARGET_KEY: ${{ inputs.bootstrap_target_key }}
           MIGRATION: ${{ inputs.bootstrap_migration }}
-          RUNTIME_BOOTSTRAP_URL: ${{ inputs.runtime_bootstrap_url }}
+          RUNTIME_BOOTSTRAP_URL: https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run
           BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/result.json
         shell: bash
         run: |
@@ -524,7 +539,7 @@ jobs:
         shell: bash
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          EXPECTED_BRANCH: Production
         run: |
           set -euo pipefail
           [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
@@ -539,8 +554,8 @@ jobs:
         working-directory: http-generic-api
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
-          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
-          AUTH_URL: ${{ inputs.auth_url }}
+          EXPECTED_BRANCH: Production
+          AUTH_URL: https://auth.mad4b.com/version
           PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
         run: |
           set -euo pipefail

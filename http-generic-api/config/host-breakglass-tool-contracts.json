@@ -3,6 +3,46 @@
   "contract": "mad4b.host-breakglass-tool-contracts.v1",
   "database_independent": true,
   "default_policy": "deny",
+  "production_execution_boundary": {
+    "control_plane_host": "auth.mad4b.com",
+    "authority": "existing_admin_governed_execution",
+    "local_connector_status": "deferred",
+    "local_connector_required": false,
+    "local_connector_production_authority": false,
+    "local_connector_production_fallback": false,
+    "mutation_executor": "injected_hostinger_role_specific_executor",
+    "execution_ticket_required": true,
+    "execution_ticket_signature_not_exposed_to_gpt": true,
+    "durable_store_independent_of_target_databases": true,
+    "atomic_claim_before_provider": true,
+    "approval_reservation_before_provider": true,
+    "fenced_lease_and_heartbeat_required": true,
+    "readback_required_after_provider": true,
+    "execution_ticket_authority": "injected_server_side_verifier_and_single_use_reservation",
+    "execution_ticket_refs_only": true,
+    "immutable_partial_receipt_store_required_before_connection": true,
+    "split_database_grant_binding_hash_required": true
+  },
+  "target_source_policy": {
+    "runtime_env": "hostinger_runtime_env_read_only_only",
+    "repository_allowlist": "github_plan_only; mutation_requires_injected_hostinger_role_executor",
+    "host_local_role_env": "injected_hostinger_executor_only; never_github_workflow",
+    "staging_local_role_env": "windows_docker_staging_only; never_production_authority",
+    "unknown_source": "deny"
+  },
+  "split_database_identity_policy": {
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
+    "one_role_identity_per_database": true,
+    "cross_role_credential_reuse": false,
+    "single_bootstrap_identity_for_distinct_databases": false,
+    "credentials_in_repository": false
+  },
+  "partial_rebuild_policy": {
+    "ddl_rollback_claimed": false,
+    "on_partial_failure": "immutable_receipt_and_reconciliation_required",
+    "automatic_rerun_allowed": false,
+    "resume_requires_exact_bundle_sha_ticket_plan_and_fence": true
+  },
   "tools": {
     "catalog.resolve": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
     "authority.validate": { "mutation": false, "executor": "hostBreakglassCatalog", "actions": ["plan", "dry_run", "apply_migration", "apply_grants", "execute_sql_capsule", "execute_shell_capsule"] },
@@ -11,12 +51,12 @@
     "target.classify": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "connection.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "schema_bundle.inspect": { "mutation": false, "executor": "hostinger-runtime-bootstrap", "actions": ["dry_run", "apply_migration"] },
-    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
-    "schema_bundle.rebuild_runtime_persistence": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["zero_table_proof", "exact_sha", "repository_persistence_bundle", "pinned_bundle_sha256", "same_cycle_postcondition_readback"] },
+    "schema_bundle.rebuild_empty": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["selected_zero_object_role_proof", "pre_mutation_zero_object_recheck", "role_fingerprint", "exact_sha", "typed_confirmation", "execution_ticket", "atomic_execution_claim", "approval_reservation", "fenced_lease_heartbeat", "immutable_partial_receipt_store", "same_cycle_readback", "sequential_stop_on_failure"] },
+    "schema_bundle.rebuild_runtime_persistence": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_migration"], "requires": ["selected_zero_object_role_proof", "pre_mutation_zero_object_recheck", "role_fingerprint", "exact_sha", "repository_persistence_bundle", "pinned_bundle_sha256", "execution_ticket", "atomic_execution_claim", "approval_reservation", "fenced_lease_heartbeat", "same_cycle_postcondition_readback", "sequential_stop_on_failure"] },
     "migration_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration"] },
-    "migration_contract.apply": { "mutation": true, "executor": "governedMigrationExecutionTool", "actions": ["apply_migration"], "requires": ["repository_catalog_entry", "exact_sha", "typed_confirmation"] },
+    "migration_contract.apply": { "mutation": true, "executor": "governedMigrationExecutionTool", "actions": ["apply_migration"], "requires": ["repository_catalog_entry", "exact_sha", "typed_confirmation", "execution_ticket", "atomic_execution_claim", "approval_reservation", "fenced_lease_heartbeat", "immutable_partial_receipt_store"] },
     "grant_contract.inspect": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_grants"] },
-    "grant_contract.apply": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_grants"], "requires": ["postconditions_ready", "exact_sha", "typed_confirmation"] },
+    "grant_contract.apply": { "mutation": true, "executor": "hostinger-runtime-bootstrap", "actions": ["apply_grants"], "requires": ["postconditions_ready", "exact_sha", "typed_confirmation", "execution_ticket", "atomic_execution_claim", "approval_reservation", "fenced_lease_heartbeat", "immutable_partial_receipt_store", "grant_binding_hash_for_split_db"] },
     "database.postconditions.read": { "mutation": false, "executor": "runtimeBootstrapContract", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] },
     "ledger.readback": { "mutation": false, "executor": "governedMigrationExecutionTool", "actions": ["dry_run", "apply_migration", "apply_grants", "execute_sql_capsule"] }
     ,"raw_sql.execute_exception": { "mutation": true, "executor": "host-breakglass-capsule-executor", "actions": ["execute_sql_capsule"], "requires": ["repository_capsule", "capsule_sha256", "exact_sha", "typed_confirmation", "backup_evidence_production", "same_cycle_readback"] }
@@ -37,7 +77,7 @@
     },
     "database.empty_rebuild": {
       "operation": "database.rebuild_empty",
-      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "schema_bundle.rebuild_runtime_persistence", "migration_contract.inspect", "migration_contract.apply", "database.postconditions.read", "ledger.readback"]
+      "tools": ["catalog.resolve", "authority.validate", "migration_catalog.inspect", "database_role_topology.inspect", "target.classify", "connection.inspect", "schema_bundle.inspect", "schema_bundle.rebuild_empty", "schema_bundle.rebuild_runtime_persistence", "migration_contract.inspect", "database.postconditions.read", "ledger.readback"]
     },
     "host.sql_capsule_exception": {
       "operation": "host.command_capsule",
@@ -48,6 +88,6 @@
       "tools": ["catalog.resolve", "authority.validate", "shell.execute_exception"]
     }
   },
-  "denied_capabilities": ["raw_sql.inline", "shell.inline", "credential.export", "provider_console.execute", "database.drop_nonempty", "authorization.disable"],
+  "denied_capabilities": ["raw_sql.inline", "shell.inline", "credential.export", "provider_console.execute", "database.drop_nonempty", "authorization.disable", "local_connector.production_authority", "local_connector.production_fallback"],
   "secrets_included": false
 }

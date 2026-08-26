@@ -22,6 +22,8 @@ const upstreamCommands = [
   "node test-mcp-catalog-schema-preflight.mjs",
   "node test-production-activation-readiness.mjs",
   "node test-staging-independent-schema-contract.mjs",
+  "node test-recovery-kernel.mjs",
+  "node test-fixed-host-local-system-tool.mjs",
 ];
 
 // Some repository guards intentionally verify canonical manifest membership from

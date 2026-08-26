@@ -76,15 +76,22 @@ assert.deepEqual(
   baseSurfaceKeys.slice().sort(),
   "base generated Custom GPT surfaces must remain the four reviewed canonical surfaces",
 );
-assert.equal(generatedSurfaces.length, 12, "environment-aware registry must contain four base surfaces plus eight environment projections");
-assert.equal(environmentGeneratedSurfaces.length, 8, "environment-aware registry must contain exactly eight environment projections");
+assert.equal(generatedSurfaces.length, 13, "environment-aware registry must contain four base surfaces, eight standard projections, and one private Production projection");
+assert.equal(environmentGeneratedSurfaces.length, 9, "environment-aware registry must contain eight standard projections plus one private Production projection");
+const privateProductionSurfaces = environmentGeneratedSurfaces.filter((surface) => surface.private_only === true);
+assert.deepEqual(privateProductionSurfaces.map((surface) => surface.surfaceKey), ["admin_recovery_production"], "only the reviewed private Recovery projection may be private");
 const projectionKeys = new Set();
 for (const surface of environmentGeneratedSurfaces) {
   assert.ok(baseSurfaceKeys.includes(surface.base_surface), `${surface.surfaceKey} must derive from a reviewed base surface`);
   assert.ok(["staging", "production"].includes(surface.environment), `${surface.surfaceKey} must declare staging or production`);
+  assert.equal(surface.private_only === true, surface.surfaceKey === "admin_recovery_production");
   const projectionKey = `${surface.base_surface}:${surface.environment}`;
-  assert(!projectionKeys.has(projectionKey), `${surface.surfaceKey} duplicates environment projection ${projectionKey}`);
-  projectionKeys.add(projectionKey);
+  if (surface.private_only !== true) {
+    assert(!projectionKeys.has(projectionKey), `${surface.surfaceKey} duplicates environment projection ${projectionKey}`);
+    projectionKeys.add(projectionKey);
+  } else {
+    assert.equal(surface.environment, "production", `${surface.surfaceKey} private projection must be Production-only`);
+  }
   assert.match(String(surface.output_file), new RegExp(`\\.${surface.environment}\\.yaml$`), `${surface.surfaceKey} output must be environment-specific`);
 }
 for (const baseSurfaceKey of baseSurfaceKeys) {

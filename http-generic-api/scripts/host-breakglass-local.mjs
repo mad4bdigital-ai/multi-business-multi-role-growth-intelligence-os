@@ -28,6 +28,7 @@ function stagingContract() {
   if (plan.target_source === overlay.role_target_source) {
     base.execution_policy.apply_migration_confirmation_prefix = overlay.apply_migration_confirmation_prefix;
     base.execution_policy.apply_grants_confirmation_prefix = overlay.apply_grants_confirmation_prefix;
+    base.execution_policy.rebuild_confirmation_prefix = overlay.rebuild_confirmation_prefix;
   }
   return base;
 }
@@ -54,7 +55,13 @@ function localEnv() {
     BOOTSTRAP_TARGET_KEY: plan.target_key,
     BOOTSTRAP_TARGET_SOURCE: plan.target_source,
     BOOTSTRAP_MIGRATION: plan.migration || env.BOOTSTRAP_MIGRATION,
-    BOOTSTRAP_MIGRATION_CONFIRMATION: plan.action === "apply_migration" ? plan.confirmation || "" : "",
+    BOOTSTRAP_MIGRATION_CONFIRMATION: plan.action === "apply_migration" && plan.operation_key !== "database.rebuild_empty" ? plan.confirmation || "" : "",
+    BOOTSTRAP_REBUILD_CONFIRMATION: plan.action === "apply_migration" && plan.operation_key === "database.rebuild_empty" ? plan.confirmation || "" : "",
+    BOOTSTRAP_ROLE_SELECTION: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
+    BOOTSTRAP_INSPECTION_RUN_ID: plan.role_selection_proof?.inspection_run_id || "",
+    BOOTSTRAP_PLAN_SHA256: plan.plan_sha256,
+    BOOTSTRAP_ROLE_SELECTION_HASH: plan.role_selection_proof?.selection_hash || "",
+    BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan.role_selection_proof?.role_object_count_fingerprints ? JSON.stringify(plan.role_selection_proof.role_object_count_fingerprints) : "",
     BOOTSTRAP_GRANTS_CONFIRMATION: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     HOST_BREAKGLASS_OPERATION: plan.operation_key
     ,HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: plan.target_source === overlay.role_target_source ? "true" : ""

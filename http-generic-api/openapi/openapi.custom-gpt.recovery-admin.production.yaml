@@ -1,0 +1,540 @@
+openapi: 3.1.0
+info:
+  title: Growth Intelligence Platform - Production Recovery Kernel
+  version: 3.0.0-platform
+  summary: Private fixed Production-only Recovery Kernel surface.
+  description: This private surface is restricted to Production and provides bounded Recovery Kernel discovery, inspection, planning, approval, execution, verification, and sanitized evidence readback.
+servers:
+  - url: https://auth.mad4b.com
+    description: admin_recovery_production surface
+tags:
+  - name: admin-control
+    description: Personal administrator control surface for CLI, database, and runtime environment operations.
+  - name: recovery-kernel
+components:
+  securitySchemes:
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+  schemas:
+    ErrorObject:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        status:
+          type: integer
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+              properties: {}
+            - type: "null"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          $ref: "#/components/schemas/ErrorObject"
+        execution_guardrail:
+          type: boolean
+  responses:
+    BadRequest:
+      description: Invalid request body or missing required field
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource state conflicts with the requested operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+security:
+  - backendBearerAuth: []
+paths:
+  /admin/recovery/kernel/call:
+    post:
+      tags:
+        - admin-control
+        - recovery-kernel
+      security:
+        - backendBearerAuth: []
+      operationId: callAdminRecoveryKernel
+      x-openai-isConsequential: false
+      summary: Call a fixed Production Recovery Kernel capability
+      description: Production-only fixed Recovery Kernel call surface. It is independent of the database-backed MCP catalog and is intended for bounded identity, Root of Trust, runtime attestation, tool-surface parity, host-local inspection, findings, planning, approval-challenge creation, disaster-recovery preview,.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - capability_key
+              properties:
+                capability_key:
+                  type: string
+                  enum:
+                    - production_identity
+                    - recovery_manifest_get
+                    - recovery_manifest
+                    - recovery_trust_model
+                    - recovery_trust
+                    - runtime_attestation
+                    - tool_surface_parity
+                    - system_tool_get
+                    - system_tools_search
+                    - recovery_capabilities
+                    - recovery_incident_create
+                    - privileged_operation_preview
+                    - privileged_lease_preview
+                    - recovery_exception_preview
+                    - disaster_recovery_preview
+                    - recovery_reconciliation_preview
+                    - recovery_cancel_preview
+                    - recovery_evidence_chain_preview
+                    - secret_observation
+                    - production_activation_readiness
+                    - production_activation_readiness_probe
+                    - database_full_inspection
+                    - production_host_local_database_inspect
+                    - finding_details
+                    - remediation_plan_create
+                    - host_breakglass_plan
+                    - remediation_plan_preview
+                    - host_breakglass_preview
+                    - approval_challenge_create
+                    - remediation_step_verify
+                    - host_breakglass_verify
+                    - recovery_run_get
+                    - host_breakglass_run_get
+                    - recovery_evidence_get
+                    - recovery_evidence_export
+                    - unsupported_recovery_escalate
+                    - ssh_session_preview
+                    - ssh_preview
+                    - sql_session_preview
+                    - sql_preview
+                    - ephemeral_capability_create
+                input:
+                  type: object
+                  additionalProperties: false
+                  description: Capability-specific bounded input. Only the listed references and bounded query fields are permitted; the server applies a stricter per-capability allowlist and rejects raw commands, secrets, database identifiers, migration/grant selection, workflow/ref controls, and arbitrary target sources.
+                  properties:
+                    expected_sha:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{40}$
+                    target_key:
+                      type: string
+                      enum:
+                        - production-runtime
+                    target_role:
+                      type: string
+                      enum:
+                        - server_resolved
+                        - runtime
+                        - governance
+                        - runtime_persistence
+                    host_fingerprint:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    tool_name:
+                      type: string
+                      minLength: 1
+                      maxLength: 191
+                    q:
+                      type: string
+                      maxLength: 256
+                    tag:
+                      type: string
+                      maxLength: 96
+                    capability_key:
+                      type: string
+                      maxLength: 191
+                    limit:
+                      type: integer
+                      minimum: 1
+                      maximum: 50
+                    finding_ids:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      items:
+                        type: string
+                        pattern: ^finding:[0-9a-f]{16,64}$
+                    plan_id:
+                      type: string
+                      pattern: ^plan:[0-9a-f]{16,64}$
+                    plan_hash:
+                      type: string
+                      pattern: ^[0-9a-f]{64}$
+                    step_id:
+                      type: string
+                      pattern: ^step:[0-9a-f]{16,64}$
+                    run_id:
+                      type: string
+                      pattern: ^run:[0-9a-f]{16,64}$
+                    incident_id:
+                      type: string
+                      pattern: ^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$
+                    reason:
+                      type: string
+                      minLength: 12
+                      maxLength: 1000
+                    profile:
+                      type: string
+                      enum:
+                        - S0
+                        - S1
+                        - S2
+                        - S3
+                        - S4
+                        - S5
+                        - Q0
+                        - Q1
+                        - Q2
+                        - Q3
+                        - Q4
+                        - Q5
+                        - Q6
+                    risk_class:
+                      type: string
+                      enum:
+                        - read_only
+                        - reversible
+                        - service_impacting
+                        - filesystem_mutation
+                        - destructive
+                        - unknown
+                    command_sha256:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    query_sha256:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    artifact_sha256:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    scope_ref:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    expires_at:
+                      type: string
+                      format: date-time
+                    transport:
+                      type: string
+                      enum:
+                        - ssh
+                        - sql
+                    capability_type:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    single_use:
+                      type: boolean
+                      default: true
+                    backup_evidence_ref:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    operation_type:
+                      type: string
+                      enum:
+                        - ssh_command
+                        - sql_statement
+                        - file_patch
+                        - service_action
+                        - process_action
+                        - network_diagnostic
+                        - backup_operation
+                        - deployment_rollback
+                    exception_class:
+                      type: string
+                      enum:
+                        - E0
+                        - E1
+                        - E2
+                        - E3
+                        - E4
+                        - E5
+                        - E6
+                    requested_scope_ref:
+                      type: string
+                      pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    depends_on:
+                      type: array
+                      maxItems: 5
+                      items:
+                        type: string
+                        pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$
+                    capability_budget:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        max_statements:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_rows:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_files:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_bytes:
+                          type: integer
+                          minimum: 0
+                          maximum: 67108864
+                        max_runtime_seconds:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_services:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                        max_commands:
+                          type: integer
+                          minimum: 0
+                          maximum: 1000000
+                    max_commands:
+                      type: integer
+                      minimum: 0
+                      maximum: 50
+                    max_rows:
+                      type: integer
+                      minimum: 0
+                      maximum: 100
+                    previous_hash:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    event:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+                    configured:
+                      type: boolean
+                    value_hash:
+                      type: string
+                      pattern: ^[0-9a-fA-F]{64}$
+                    age_seconds:
+                      type: integer
+                      minimum: 0
+                      maximum: 315360000
+      responses:
+        "200":
+          description: Fixed Recovery Kernel result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  capability_key:
+                    type: string
+                  result:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    const: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/recovery/kernel/execute:
+    post:
+      tags:
+        - admin-control
+        - recovery-kernel
+      security:
+        - backendBearerAuth: []
+      operationId: executeAdminRecoveryKernelStep
+      x-openai-isConsequential: true
+      summary: Execute one approved Production Recovery Kernel plan step
+      description: Production-only consequential Recovery Kernel execution. The server accepts only a registered plan_id, plan_hash, step_id, single-use approval token, and idempotency key. Execution fails closed unless exact Production identity, immutable plan and step hashes, durable recovery lock, single-use appro.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - plan_id
+                - plan_hash
+                - step_id
+                - approval_token
+                - idempotency_key
+              properties:
+                plan_id:
+                  type: string
+                  pattern: ^plan:[0-9a-f]{16,64}$
+                plan_hash:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+                step_id:
+                  type: string
+                  pattern: ^step:[0-9a-f]{16,64}$
+                approval_token:
+                  type: string
+                  minLength: 16
+                  maxLength: 512
+                idempotency_key:
+                  type: string
+                  minLength: 8
+                  maxLength: 160
+      responses:
+        "202":
+          description: Execution receipt; final success requires readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  result:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    const: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/recovery/kernel/runs/{run_id}:
+    get:
+      tags:
+        - admin-control
+        - recovery-kernel
+      security:
+        - backendBearerAuth: []
+      operationId: getAdminRecoveryKernelRun
+      summary: Read a sanitized Recovery Kernel run
+      description: Returns bounded resumable run state and never returns raw logs, secrets, credentials, or database identifiers.
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema:
+            type: string
+            pattern: ^run:[0-9a-f]{16,64}$
+      responses:
+        "200":
+          description: Sanitized Recovery Kernel run
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/recovery/kernel/evidence/{run_id}:
+    get:
+      tags:
+        - admin-control
+        - recovery-kernel
+      security:
+        - backendBearerAuth: []
+      operationId: getAdminRecoveryKernelEvidence
+      summary: Read sanitized Recovery Kernel evidence
+      description: Returns sanitized evidence, mutation attestations, and verification state without raw logs, secrets, credentials, or database identifiers.
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema:
+            type: string
+            pattern: ^run:[0-9a-f]{16,64}$
+      responses:
+        "200":
+          description: Sanitized Recovery Kernel evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+x-custom-gpt-generation:
+  generator: http-generic-api/scripts/split-openapi.mjs
+  source_openapi: http-generic-api/openapi.yaml
+  source_openapi_sha256: dd0d68e4929a15e5f7634e4aaf2b4cbf0ce47aaf6b81c51227790ca15acb4c79
+  registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
+  registry_sha256: a6e2cb0aa6b4ea4dd045c5ca87d17885c2d9eaaf06f691cb26d0675e4dcf48e1
+  domain_family_policy: http-generic-api/config/domain-family-policy.json
+  domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
+  environment: production
+  registry_version: 2
+  selector_model: marker_required
+  candidate_policy:
+    mode: marker_required
+    required_marker: admin_recovery_production
+    candidate_tags:
+      - recovery-kernel
+    omission: fail
+    exclusion_records: []
+  catalog_policy: null
+  static_operation_ids: null
+  dynamic_operation_ids: null
+  operation_count: 4
+  warning_operation_limit: 12
+  warning_budget_exceeded: false
+  hard_operation_limit: 12
+  secrets_included: false

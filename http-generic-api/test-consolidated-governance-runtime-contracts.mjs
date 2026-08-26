@@ -107,13 +107,16 @@ assert.equal(integrity.state, "verified_clean");
 assert.equal(integrity.ready, true);
 
 const governancePrivileges = read("./governanceDbPrivilegeContract.js");
-assert.match(governancePrivileges, /capability_resolution_envelope_ledger/);
-assert.match(governancePrivileges, /approval_holds: Object\.freeze\(\["SELECT", "INSERT"\]\)/);
-assert.match(governancePrivileges, /repository_operation_leases/);
-assert.match(governancePrivileges, /repository_mutation_plans_v6/);
-assert.match(governancePrivileges, /runtime_break_glass_incidents/);
-assert.match(governancePrivileges, /runtime_verification_evidence_chunks/);
-assert.match(governancePrivileges, /deployment_attestations/);
+const canonicalGovernancePrivileges = read("./databasePrivilegeContracts.js");
+assert.match(governancePrivileges, /GOVERNANCE_DB_PRIVILEGE_MATRIX/);
+assert.match(governancePrivileges, /from ["']\.\/databasePrivilegeContracts\.js["']/);
+assert.match(canonicalGovernancePrivileges, /capability_resolution_envelope_ledger/);
+assert.match(canonicalGovernancePrivileges, /approval_holds: Object\.freeze\(\["SELECT", "INSERT"\]\)/);
+assert.match(canonicalGovernancePrivileges, /repository_operation_leases/);
+assert.match(canonicalGovernancePrivileges, /repository_mutation_plans_v6/);
+assert.match(canonicalGovernancePrivileges, /runtime_break_glass_incidents/);
+assert.match(canonicalGovernancePrivileges, /runtime_verification_evidence_chunks/);
+assert.match(canonicalGovernancePrivileges, /deployment_attestations/);
 
 const canonicalSchemaGovernance = read("../canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md");
 assert.match(canonicalSchemaGovernance, /engine-aware policy/i);
