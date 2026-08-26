@@ -17,6 +17,11 @@ const EXPECTED_TABLES = Object.freeze([
   'repository_capability_policy_layers',
   'governed_migration_authorization_registry',
 ]);
+const ENVELOPE_DEPENDENCY_MIGRATION = '225_sprint67_capability_resolution_envelope_ledger.sql';
+const ENVELOPE_DEPENDENCY_PATH = new URL(`../../http-generic-api/migrations/${ENVELOPE_DEPENDENCY_MIGRATION}`, import.meta.url);
+const ENVELOPE_DEPENDENCY_EXPECTED_CHECKSUM = '35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419';
+const ENVELOPE_DEPENDENCY_EXPECTED_STATEMENT_COUNT = 3;
+const ENVELOPE_DEPENDENCY_EXPECTED_TABLES = Object.freeze(['capability_resolution_envelope_ledger']);
 
 export const METADATA_STATE_SQL = `SELECT
   (SELECT COUNT(*) FROM platform_resource_adapters WHERE adapter_key='github_repository_policy_v2') AS adapter_count,
@@ -148,11 +153,11 @@ async function requestRaw(base, key, pathname, body, timeoutMs = 120000) {
   }
 }
 
-function ledgerPass(readback, checksum, statementCount) {
+function ledgerPass(readback, checksum, statementCount, migration = MIGRATION) {
   const ledger = readback?.ledger;
   return Boolean(readback?.readback_status === 'pass'
     && ledger?.found === true
-    && ledger?.migration_file === MIGRATION
+    && ledger?.migration_file === migration
     && String(ledger?.migration_checksum_sha256 || '').toLowerCase() === checksum
     && String(ledger?.mode || '').toLowerCase() === 'apply'
     && Number(ledger?.statement_count) === statementCount
@@ -160,7 +165,56 @@ function ledgerPass(readback, checksum, statementCount) {
     && Number(ledger?.preflight_risk_count || 0) === 0);
 }
 
+async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
+  const sql = fs.readFileSync(ENVELOPE_DEPENDENCY_PATH, 'utf8');
+  const checksum = sha256(sql);
+  const statementCount = splitMigrationSqlStatements(sql).length;
+  assert.equal(checksum, ENVELOPE_DEPENDENCY_EXPECTED_CHECKSUM, 'Migration 225 checksum changed');
+  assert.equal(statementCount, ENVELOPE_DEPENDENCY_EXPECTED_STATEMENT_COUNT, 'Migration 225 statement count changed');
+  const result = await requestRaw(base, key, '/gpt/tools/call', {
+    name: 'governed_migration_schema_readback',
+    tool_args: {
+      migration: ENVELOPE_DEPENDENCY_MIGRATION,
+      expected_checksum_sha256: checksum,
+      expected_statement_count: statementCount,
+      expected_tables: [...ENVELOPE_DEPENDENCY_EXPECTED_TABLES],
+    },
+  }, 180000);
+  const readback = keyed(result.payload, 'readback_status');
+  const schemaTables = Array.isArray(readback?.schema?.tables) ? readback.schema.tables : [];
+  const missingTables = Array.isArray(readback?.expectations?.missing?.tables) ? readback.expectations.missing.tables : [];
+  const tablePresent = schemaTables.some((row) => String(row?.TABLE_NAME || row?.table_name || '') === ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0])
+    && !missingTables.includes(ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0]);
+  const exactLedgerVerified = result.transport_ok && ledgerPass(readback, checksum, statementCount, ENVELOPE_DEPENDENCY_MIGRATION);
+  const report = {
+    contract: 'github_repository_policy_1051_envelope_dependency_225.v1',
+    migration: ENVELOPE_DEPENDENCY_MIGRATION,
+    migration_checksum_sha256: checksum,
+    statement_count: statementCount,
+    transport_ok: result.transport_ok,
+    http_status: result.status,
+    readback_status: readback?.readback_status ?? null,
+    ledger_found: readback?.ledger?.found ?? null,
+    exact_apply_ledger_verified: exactLedgerVerified,
+    table: ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0],
+    table_present: tablePresent,
+    missing_tables: missingTables,
+    dependency_ready: exactLedgerVerified && tablePresent,
+    dependency_grants_apply_authority: false,
+    apply_sent: false,
+    provider_call_executed: false,
+    external_write_executed: false,
+    row_data_read: false,
+    freeform_sql_accepted: false,
+    secrets_included: false,
+  };
+  fs.mkdirSync(evidenceDir, { recursive: true });
+  fs.writeFileSync(path.join(evidenceDir, 'dependency-225-readback.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  return report;
+}
+
 export async function captureMetadataState({ base, key, evidenceDir, mode = 'verify' }) {
+  const dependency225 = await captureEnvelopeDependency225({ base, key, evidenceDir });
   const body = buildAdminControlDbReadRequest({
     sql: METADATA_STATE_SQL,
     params: [],
@@ -204,11 +258,14 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
   }
 
   const diagnosticCaptured = result.transport_ok && result.http_ok && result.payload?.ok !== false && rows.length === 1;
+  const metadataReplayAllowed = diagnosticCaptured && (ledger.exact_apply_ledger_verified || classification.replay_safe_without_exact_ledger);
+  const dependencyGuardRequired = mode === 'readiness' || mode === 'pre_apply';
+  const dependencyGuardAllowed = dependency225.dependency_ready === true;
   const guardAllowed = mode !== 'pre_apply'
     ? true
-    : diagnosticCaptured && (ledger.exact_apply_ledger_verified || classification.replay_safe_without_exact_ledger);
+    : metadataReplayAllowed && dependencyGuardAllowed;
   const report = {
-    contract: 'github_repository_policy_1051_metadata_diagnostic.v2',
+    contract: 'github_repository_policy_1051_metadata_diagnostic.v3',
     mode,
     diagnostic_status: diagnosticCaptured ? 'captured' : 'unavailable',
     transport_ok: result.transport_ok,
@@ -222,16 +279,25 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     counts: classification.counts,
     presence: classification.presence,
     metadata: safeMetadata(row),
+    envelope_dependency_225: dependency225,
     ledger,
+    readiness_dependency_guard: mode === 'readiness' ? {
+      status: dependencyGuardAllowed ? 'pass' : 'blocked',
+      reason: dependencyGuardAllowed ? 'migration_225_exact_apply_ledger_and_table_verified' : 'migration_225_dependency_not_ready',
+    } : null,
     pre_apply_guard: mode === 'pre_apply' ? {
       status: guardAllowed ? 'pass' : 'blocked',
-      reason: ledger.exact_apply_ledger_verified
-        ? 'exact_apply_ledger_already_verified'
-        : classification.replay_safe_without_exact_ledger
-          ? 'target_metadata_absent'
-          : `target_metadata_${classification.target_metadata_state}_without_exact_ledger`,
+      reason: !dependencyGuardAllowed
+        ? 'migration_225_dependency_not_ready'
+        : ledger.exact_apply_ledger_verified
+          ? 'exact_apply_ledger_already_verified'
+          : classification.replay_safe_without_exact_ledger
+            ? 'target_metadata_absent'
+            : `target_metadata_${classification.target_metadata_state}_without_exact_ledger`,
     } : null,
+    dependency_guard_required: dependencyGuardRequired,
     metadata_grants_apply_authority: false,
+    dependency_grants_apply_authority: false,
     apply_sent: false,
     provider_call_executed: false,
     external_write_executed: false,
@@ -242,8 +308,20 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
   fs.mkdirSync(evidenceDir, { recursive: true });
   fs.writeFileSync(path.join(evidenceDir, 'metadata-diagnostic-readback.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
+  if (mode === 'readiness') {
+    if (!dependencyGuardAllowed) {
+      const error = new Error('Migration 1051 readiness blocked: Migration 225 capability envelope dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
+      error.code = 'migration_1051_dependency_225_not_ready';
+      throw error;
+    }
+  }
   if (mode === 'pre_apply') {
     assert.ok(diagnosticCaptured, 'Migration 1051 pre-Apply metadata diagnostic is unavailable');
+    if (!dependencyGuardAllowed) {
+      const error = new Error('Migration 1051 pre-Apply blocked: Migration 225 capability envelope dependency is not ready');
+      error.code = 'migration_1051_dependency_225_not_ready';
+      throw error;
+    }
     assert.ok(guardAllowed, `Migration 1051 replay guard blocked ${classification.target_metadata_state} target metadata without an exact Apply ledger`);
   }
   return report;
@@ -256,7 +334,7 @@ async function main() {
   const evidenceDir = path.resolve(String(process.env.EVIDENCE_DIR || '.artifacts/github-repository-policy-1051-verify'));
   assert.ok(base, 'RUNTIME_BASE_URL is required');
   assert.ok(key, 'BACKEND_API_KEY is required');
-  assert.ok(['verify', 'pre_apply'].includes(mode), 'METADATA_DIAGNOSTIC_MODE must be verify or pre_apply');
+  assert.ok(['verify', 'readiness', 'pre_apply'].includes(mode), 'METADATA_DIAGNOSTIC_MODE must be verify, readiness, or pre_apply');
   const report = await captureMetadataState({ base, key, evidenceDir, mode });
   console.log(JSON.stringify({
     contract: report.contract,
@@ -264,8 +342,11 @@ async function main() {
     target_metadata_state: report.target_metadata_state,
     authorization_state: report.authorization_state,
     metadata_present: report.metadata_present,
+    dependency_225_ready: report.envelope_dependency_225?.dependency_ready ?? false,
+    readiness_dependency_guard: report.readiness_dependency_guard?.status ?? null,
     pre_apply_guard: report.pre_apply_guard?.status ?? null,
     metadata_grants_apply_authority: false,
+    dependency_grants_apply_authority: false,
     secrets_included: false,
   }));
 }
