@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "8bd0c1bf5e3c87cbe81079c582d6ebaf184903f40db2086aa6fdbee545074aec",
+  "content_hash_sha256": "1aacf5f0d82e8bf39dcb0d4095279a0913e5a995644c987f4e6923be72c26526",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -588,13 +588,13 @@
   ],
   "secrets_included": false,
   "signature_algorithm": "Ed25519",
-  "source_openapi_sha256": "dd0d68e4929a15e5f7634e4aaf2b4cbf0ce47aaf6b81c51227790ca15acb4c79",
+  "source_openapi_sha256": "e119e611b9660a318c188bffbfdc62966a6856f0b32c64c947d3d38cbe3f328f",
   "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
   "source_surfaces": [
     "activation_admin",
     "tenant_activation"
   ],
-  "surface_registry_sha256": "a6e2cb0aa6b4ea4dd045c5ca87d17885c2d9eaaf06f691cb26d0675e4dcf48e1",
+  "surface_registry_sha256": "6697ce4d2383a7b915808740a9da345f9ead4c6a65cb674b680e580edfcba83e",
   "surface_registry_version": 2,
   "upstream_origin": "https://auth.mad4b.com",
   "warning_budget": [

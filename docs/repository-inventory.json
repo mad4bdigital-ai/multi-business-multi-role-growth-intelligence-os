@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7409,
-    "bytes": 72981980,
-    "lines": 1698092,
+    "files": 7413,
+    "bytes": 73008964,
+    "lines": 1698685,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2193,
-      "documentation": 1914,
-      "api-runtime": 1512,
+      "tests-and-specs": 2195,
+      "documentation": 1915,
+      "api-runtime": 1513,
       "database-migrations": 819,
       "root-and-other": 335,
       "api-contracts": 192,
@@ -26,9 +26,9 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2515,
-      ".mjs": 1765,
-      ".js": 1018,
+      ".md": 2516,
+      ".mjs": 1767,
+      ".js": 1019,
       ".json": 885,
       ".sql": 834,
       ".yml": 173,
@@ -61,8 +61,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3847,
-      "docs": 1818,
+      "http-generic-api": 3850,
+      "docs": 1819,
       "specs": 880,
       ".github": 305,
       ".changes": 304,
@@ -2624,6 +2624,8 @@
       "http-generic-api/test-push-workflow-runner-context-registration.mjs",
       "http-generic-api/test-queue-redis-status-redaction.mjs",
       "http-generic-api/test-record-only-authorization-retirement-migration.mjs",
+      "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+      "http-generic-api/test-recovery-action-bridge.mjs",
       "http-generic-api/test-recovery-capability-taxonomy.mjs",
       "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/test-recovery-exception-framework.mjs",
@@ -4909,6 +4911,8 @@
       "http-generic-api/test-push-workflow-runner-context-registration.mjs",
       "http-generic-api/test-queue-redis-status-redaction.mjs",
       "http-generic-api/test-record-only-authorization-retirement-migration.mjs",
+      "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+      "http-generic-api/test-recovery-action-bridge.mjs",
       "http-generic-api/test-recovery-capability-taxonomy.mjs",
       "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/test-recovery-exception-framework.mjs",
@@ -32804,6 +32808,17 @@
       "generated": false
     },
     {
+      "path": "docs/recovery-action-ticket-bridge.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 4200,
+      "lines": 40,
+      "sha256": "b16083798455abda6b275aa72c3d8535bb30dde2a1440d2e49e7ddb7f990437a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/recovery-capability-taxonomy-foundation.md",
       "category": "documentation",
       "extension": ".md",
@@ -34976,7 +34991,7 @@
       "extension": ".json",
       "bytes": 743,
       "lines": 26,
-      "sha256": "c02f6b06605012d217482043ecc5a708447c25b3eb83558b1df05595b7106379",
+      "sha256": "5e3b02caa18444015f2fc23337d1d0b1f42b42bbf8466eb04848654e0e64f029",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34987,7 +35002,7 @@
       "extension": ".json",
       "bytes": 15158,
       "lines": 615,
-      "sha256": "0de5577d9c58da0478f3752cb1f27d7f732e6948015558b38ef0d79f7d2457be",
+      "sha256": "ffd62da9e0a50f9db5310f8c6f62085a5564c2e7d360838f9fa5a58fc6b38570",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53198,6 +53213,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/recoveryActionBridge.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 8901,
+      "lines": 219,
+      "sha256": "1eb0ce7c3c299ee43ce5f8e9de843d253c9086762772423ca0575fb56daf6e58",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/recoveryComposition.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -71332,6 +71358,28 @@
       "bytes": 1803,
       "lines": 29,
       "sha256": "1897fc4b5e473bede85588b30705116bfcc0d5536d4ab21f3283cf440c8dec94",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 3562,
+      "lines": 92,
+      "sha256": "e63de8fd9e3778472a09b8e598577525d830f415502b22149584e4d4a075ce14",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-recovery-action-bridge.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 10321,
+      "lines": 242,
+      "sha256": "63966dffbb45485e57e6762a6492a57cdcdd90e97f849d41a361b632805ea048",
       "mode": "644",
       "executable": false,
       "generated": false
