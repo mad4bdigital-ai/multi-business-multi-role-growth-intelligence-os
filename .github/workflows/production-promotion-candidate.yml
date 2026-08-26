@@ -57,6 +57,17 @@ jobs:
       validation_base_branch: ${{ steps.prepare.outputs.validation_base_branch }}
       candidate_mode: ${{ steps.prepare.outputs.candidate_mode }}
     steps:
+      - name: Require trusted promotion review-surface identity
+        env:
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" ]]; then
+            echo "::error::REPO_AUTOSYNC_TOKEN is required before constructing Production promotion review surfaces."
+            exit 1
+          fi
+
       - name: Checkout exact trusted workflow source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -255,7 +266,7 @@ jobs:
         if: ${{ inputs.create_pull_requests }}
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           RELEASE_CUT_SHA: ${{ steps.prepare.outputs.release_cut_sha }}
           CURRENT_MAIN_SHA: ${{ steps.prepare.outputs.current_main_sha }}
           PRODUCTION_SHA: ${{ steps.prepare.outputs.production_sha }}
