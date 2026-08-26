@@ -1,3 +1,8 @@
+// frontend-surface-operation: post /admin/recovery/kernel/execute-approved
+// frontend-surface-operation: post /admin/recovery/kernel/execute
+// frontend-surface-operation: get /admin/recovery/kernel/runs/{run_id}
+// frontend-surface-operation: get /admin/recovery/kernel/evidence/{run_id}
+
 import assert from "node:assert/strict";
 import express from "express";
 import test from "node:test";
@@ -12,8 +17,8 @@ function startServer(app) {
   });
 }
 
-async function postJson(baseUrl, body) {
-  const response = await fetch(`${baseUrl}/admin/recovery/kernel/execute`, {
+async function postJson(baseUrl, body, pathname = "/admin/recovery/kernel/execute-approved") {
+  const response = await fetch(`${baseUrl}${pathname}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -24,7 +29,6 @@ async function postJson(baseUrl, body) {
 const PLAN_ID = "plan:1234567890abcdef";
 const PLAN_HASH = "a".repeat(64);
 const STEP_ID = "step:1234567890abcdef";
-const TICKET_ID = "ticket:bootstrap-route-test";
 const PLAN = {
   plan_id: PLAN_ID,
   plan_hash: PLAN_HASH,
@@ -69,29 +73,28 @@ function validBody() {
     step_id: STEP_ID,
     approval_token: "bound-approval-token-route-test",
     idempotency_key: "idempotency:route-test-001",
-    execution_ticket_id: TICKET_ID,
   };
 }
 
-test("private execute route requires the ticket reference and rejects fields outside the fixed contract", async () => {
+test("private bridge route rejects caller-generated ticket fields and requires only the server-issued contract", async () => {
   const app = buildTestApp({ recoveryStore: { getPlan: async () => PLAN } });
   const { server, baseUrl } = await startServer(app);
   try {
-    const missingTicket = validBody();
-    delete missingTicket.execution_ticket_id;
-    const missingResponse = await postJson(baseUrl, missingTicket);
-    assert.equal(missingResponse.status, 400);
-    assert.equal(missingResponse.body.error.code, "recovery_kernel_required_field_missing");
-
-    const extraFieldResponse = await postJson(baseUrl, { ...validBody(), execution_ticket_hash: "e".repeat(64) });
+    const extraFieldResponse = await postJson(baseUrl, { ...validBody(), execution_ticket_id: "ticket:caller-made" });
     assert.equal(extraFieldResponse.status, 400);
     assert.equal(extraFieldResponse.body.error.code, "recovery_kernel_input_field_forbidden");
+
+    const missingApproval = validBody();
+    delete missingApproval.approval_token;
+    const missingResponse = await postJson(baseUrl, missingApproval);
+    assert.equal(missingResponse.status, 400);
+    assert.equal(missingResponse.body.error.code, "recovery_kernel_required_field_missing");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
 });
 
-test("private execute route accepts the ticket ID field but default dependency wiring fails closed before provider", async () => {
+test("historical execute alias uses the same server-issued bridge and fails closed before provider", async () => {
   let providerCalls = 0;
   const app = buildTestApp({
     recoveryStore: { getPlan: async () => PLAN },
@@ -99,9 +102,9 @@ test("private execute route accepts the ticket ID field but default dependency w
   });
   const { server, baseUrl } = await startServer(app);
   try {
-    const response = await postJson(baseUrl, validBody());
+    const response = await postJson(baseUrl, validBody(), "/admin/recovery/kernel/execute");
     assert.equal(response.status, 503);
-    assert.equal(response.body.error.code, "RECOVERY_MUTATION_STORE_UNAVAILABLE");
+    assert.equal(response.body.error.code, "recovery_action_bridge_authority_unavailable");
     assert.equal(providerCalls, 0);
     assert.equal(response.body.database_mutation_performed, false);
     assert.equal(response.body.secrets_included, false);

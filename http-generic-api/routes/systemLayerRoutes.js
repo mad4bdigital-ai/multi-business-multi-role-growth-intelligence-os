@@ -94,6 +94,7 @@ import {
   selectPlatformEndpointToolBinding,
 } from "../platformEndpointToolFacade.js";
 import { getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
+import { issueAndExecuteApprovedRecoveryStep, sanitizeRecoveryActionBridgeOutput } from "../recoveryActionBridge.js";
 
 // Auth Admin Actions already have a bounded fixed dispatcher. Keep Recovery reachable
 // through that single operation without allowing a non-consequential Action to invoke
@@ -215,6 +216,27 @@ const SYSTEM_LAYER_TOOLS = [
         tag: { type: "string", maxLength: 96 },
         capability_key: { type: "string", maxLength: 191 },
         limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+      },
+    },
+  },
+  {
+    name: "recovery_kernel_execute_approved_step",
+    description: "Private principal-scoped Admin Recovery bridge. Accepts only plan, step, approval, and idempotency references; issues the execution ticket server-side and forwards it internally to the governed Recovery/Host Breakglass executor. Ticket IDs, hashes, signatures, credentials, SQL, migration selection, and provider controls are never caller-controlled or returned.",
+    source_key: "private_recovery_action_bridge",
+    capability_key: "recovery_kernel_execute_approved_step",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "private", "principal_scoped", "consequential"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
+        approval_token: { type: "string", minLength: 16, maxLength: 512 },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
       },
     },
   },
@@ -2383,6 +2405,35 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "recovery_kernel_execute_approved_step": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_execute_approved_step requires a JSON object.");
+        error.status = 400;
+        error.code = "recovery_kernel_execute_approved_step_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length) {
+        const error = new Error("recovery_kernel_execute_approved_step accepts only plan, step, approval, and idempotency references; execution tickets are server-issued.");
+        error.status = 400;
+        error.code = "recovery_kernel_execute_approved_step_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const result = await issueAndExecuteApprovedRecoveryStep(args, {
+        env: deps.recoveryKernelEnv || deps.env || process.env,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
+        recoveryStore: deps.recoveryStore,
+        executionTicketSigner: deps.executionTicketSigner,
+        approvalVerifier: deps.approvalVerifier,
+        approvalStore: deps.approvalStore,
+        recoveryLock: deps.recoveryLock,
+        readbackVerifier: deps.readbackVerifier,
+        hostBreakglassMutationExecutor: deps.hostBreakglassMutationExecutor,
+      });
+      return sanitizeRecoveryActionBridgeOutput(result);
+    }
     case "recovery_kernel_call": {
       if (!args || typeof args !== "object" || Array.isArray(args)) {
         const error = new Error("recovery_kernel_call requires a JSON object.");
@@ -2650,6 +2701,8 @@ export function buildSystemLayerRoutes(deps) {
     recoveryLock,
     mutationExecutor,
     readbackVerifier,
+    executionTicketSigner,
+    hostBreakglassMutationExecutor,
     systemToolLookup,
     env,
   } = deps;
@@ -2744,6 +2797,8 @@ export function buildSystemLayerRoutes(deps) {
           recoveryLock,
           mutationExecutor,
           readbackVerifier,
+          executionTicketSigner,
+          hostBreakglassMutationExecutor,
           systemToolLookup,
           env,
         }),
@@ -2848,6 +2903,8 @@ export function buildSystemLayerRoutes(deps) {
           recoveryLock,
           mutationExecutor,
           readbackVerifier,
+          executionTicketSigner,
+          hostBreakglassMutationExecutor,
           systemToolLookup,
           env,
         }),

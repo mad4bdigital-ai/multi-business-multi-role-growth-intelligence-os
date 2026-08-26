@@ -3,9 +3,9 @@ import {
   callRecoveryKernelCapability,
   getRecoveryEvidence,
   getRecoveryRun,
-  executeRemediationStep,
   sanitizeEvidence,
 } from "../recoveryKernel.js";
+import { issueAndExecuteApprovedRecoveryStep, sanitizeRecoveryActionBridgeOutput } from "../recoveryActionBridge.js";
 
 const READ_ONLY_CAPABILITIES = new Set([
   "production_identity",
@@ -139,6 +139,7 @@ export function buildRecoveryKernelRoutes({
   mutationExecutor,
   readbackVerifier,
   executionTicketSigner,
+  hostBreakglassMutationExecutor,
   productionActivationReadinessExecutor,
   systemToolLookup,
 } = {}) {
@@ -203,25 +204,30 @@ export function buildRecoveryKernelRoutes({
     }
   });
 
-  router.post("/admin/recovery/kernel/execute", async (req, res) => {
+  const executeApprovedBridge = async (req, res) => {
     try {
-      const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"], ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"]);
-      const result = await executeRemediationStep(body, {
+      const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"], ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
+      const result = await issueAndExecuteApprovedRecoveryStep(body, {
         env,
+        adminPrincipal: requestAdminPrincipal(req),
         recoveryStore,
-        approvalIssuer,
+        executionTicketSigner,
         approvalVerifier,
         approvalStore,
         recoveryLock,
-        mutationExecutor,
         readbackVerifier,
-        adminPrincipal: requestAdminPrincipal(req),
+        hostBreakglassMutationExecutor,
       });
-      return res.status(202).json({ ok: true, contract: "mad4b.recovery-kernel-execute-receipt.v1", result: sanitizeEvidence(result), secrets_included: false });
+      return res.status(202).json(sanitizeRecoveryActionBridgeOutput({ ok: true, contract: "mad4b.recovery-action-bridge-route-receipt.v1", result, secrets_included: false }));
     } catch (error) {
-      return errorResponse(res, error, "recovery_kernel_execute_failed");
+      return errorResponse(res, error, "recovery_action_bridge_failed");
     }
-  });
+  };
+
+  router.post("/admin/recovery/kernel/execute-approved", executeApprovedBridge);
+  // Keep the historical path as a server-issued-ticket alias. Caller-supplied
+  // execution_ticket_id/hash/signature fields are rejected by the fixed bridge contract.
+  router.post("/admin/recovery/kernel/execute", executeApprovedBridge);
 
   router.get("/admin/recovery/kernel/runs/:run_id", async (req, res) => {
     try {

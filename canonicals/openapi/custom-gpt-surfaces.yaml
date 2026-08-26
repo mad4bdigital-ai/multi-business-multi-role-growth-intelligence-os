@@ -65,6 +65,10 @@ surfaces:
           reason: Consequential Recovery Kernel execution is private Production-only and must not be advertised through shared Admin Core or Staging projections.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: executeApprovedAdminRecoveryKernelStep
+          reason: Server-issued-ticket consequential Recovery execution is private Production-only and must not be advertised through shared Admin Core or Staging projections.
+          owner: platform-governance
+          review_after: 2026-09-30
         - operation_id: getAdminRecoveryKernelRun
           reason: Recovery Kernel run readback is private Production-only and must not be advertised through shared Admin Core or Staging projections.
           owner: platform-governance

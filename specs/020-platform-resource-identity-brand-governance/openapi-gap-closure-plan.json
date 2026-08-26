@@ -6,20 +6,20 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "48b9a5559f634c78c080d00269070f910ff8bed647d1e361e93df52ca9728be6",
-    "dispatch_artifact_sha256": "7cfd2bd2a7d4638ebf0ab648fd7101dfc5be8ad9357b16fecec3814edb16a49b"
+    "dispatch_source_digest": "6c451886e29c99d66a8c75bc3e46a5ef5124812750cc9569964f94d381ed4354",
+    "dispatch_artifact_sha256": "c1cb7d10fbab4186f6c53a54419e72f7d3ee991c5df8131694c04b5d31f62dd0"
   },
   "coverage": {
-    "operation_count": 1057,
+    "operation_count": 1058,
     "mounted_family_count": 172,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
     "unresolved_surface_decision_count": 0,
-    "unresolved_operation_class_count": 0,
+    "unresolved_operation_class_count": 1,
     "untested_family_count": 0,
     "untested_operation_count": 0,
-    "coverage_complete": true
+    "coverage_complete": false
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
@@ -5388,9 +5388,9 @@
       "surface_decision": "internal_only",
       "priority": "P3_observe",
       "detail_gap_count": 0,
-      "operation_count": 4,
+      "operation_count": 5,
       "untested_operation_count": 0,
-      "unresolved_operation_count": 0,
+      "unresolved_operation_count": 1,
       "next_action": "continue_deterministic_observation_and_regression_checks",
       "activation_allowed": false,
       "evidence_refs": [
@@ -5414,6 +5414,7 @@
         "routes/index.js",
         "routes/recoveryKernelRoutes.js",
         "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
         "test-recovery-kernel.mjs"
       ]
     },

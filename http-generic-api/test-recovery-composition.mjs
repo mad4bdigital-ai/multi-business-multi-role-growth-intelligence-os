@@ -56,6 +56,7 @@ test("default Recovery composition is explicitly fail-closed and provider-free",
   assert.equal(composition.mutation_authority_available, false);
   assert.equal(composition.components.recoveryStore, null);
   assert.equal(composition.hostBreakglassBroker.hostLocalMutationExecutor, null);
+  assert.equal(getRecoveryCompositionRouteDependencies(composition).hostBreakglassMutationExecutor, null);
   assert.equal(composition.runtimeBootstrapDependencies.partialReceiptStore, null);
   assert.equal(composition.runtimeBootstrapDependencies.executionTicketVerifier, null);
 });
@@ -93,6 +94,7 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(routeDeps.executionTicketSigner, adapters.executionTicketSigner);
   assert.equal(routeDeps.executionTicketVerifier, adapters.executionTicketVerifier);
   assert.equal(routeDeps.broker.hostLocalMutationExecutor, adapters.hostLocalMutationExecutor);
+  assert.equal(routeDeps.hostBreakglassMutationExecutor, adapters.hostLocalMutationExecutor);
   assert.equal(routeDeps.runtimeBootstrapDependencies.partialReceiptStore, adapters.partialReceiptStore);
   assert.equal(routeDeps.runtimeBootstrapDependencies.executionTicketVerifier, adapters.executionTicketVerifier);
 });
@@ -102,7 +104,7 @@ test("composition root wires the contract without auto-discovering credentials o
   assert.match(serverSource, /\.\.\.recoveryCompositionDependencies/u);
   assert.match(serverSource, /const runtimeBootstrapReader = \(options = \{\}\) => runBootstrap/u);
   assert.match(routesSource, /executionTicketSigner/u);
-  assert.match(routesSource, /executionTicketSigner,\n\s+productionActivationReadinessExecutor/u);
+  assert.match(routesSource, /executionTicketSigner,[\s\S]*hostBreakglassMutationExecutor,[\s\S]*productionActivationReadinessExecutor/u);
   assert.doesNotMatch(serverSource, /RECOVERY_COMPOSITION_LIVE_ENABLED/u);
   assert.doesNotMatch(serverSource, /RUNTIME_BREAKGLASS_GITHUB_TOKEN/u);
 });

@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7399,
-    "bytes": 72828710,
-    "lines": 1695233,
+    "files": 7409,
+    "bytes": 72981980,
+    "lines": 1698092,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2191,
+      "tests-and-specs": 2193,
       "documentation": 1914,
-      "api-runtime": 1509,
-      "database-migrations": 815,
-      "root-and-other": 334,
+      "api-runtime": 1512,
+      "database-migrations": 819,
+      "root-and-other": 335,
       "api-contracts": 192,
       "ci-workflows": 170,
       "ci-config": 135,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2515,
-      ".mjs": 1763,
-      ".js": 1016,
-      ".json": 883,
-      ".sql": 830,
+      ".mjs": 1765,
+      ".js": 1018,
+      ".json": 885,
+      ".sql": 834,
       ".yml": 173,
       ".yaml": 120,
       ".ps1": 20,
@@ -61,11 +61,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3838,
+      "http-generic-api": 3847,
       "docs": 1818,
       "specs": 880,
       ".github": 305,
-      ".changes": 303,
+      ".changes": 304,
       "canonicals": 70,
       "local-connector": 23,
       "autopilot-portable-staging": 22,
@@ -256,9 +256,9 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 815,
+    "migrations": 819,
     "apiContracts": 192,
-    "testSpecFiles": 2281
+    "testSpecFiles": 2283
   },
   "largestFiles": [
     {
@@ -270,14 +270,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3537406,
-      "lines": 99740
+      "bytes": 3540338,
+      "lines": 99833
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1960980,
-      "lines": 59303
+      "bytes": 1963307,
+      "lines": 59371
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -288,8 +288,8 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 1028304,
-      "lines": 23576
+      "bytes": 1031291,
+      "lines": 23627
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
@@ -330,8 +330,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 275222,
-      "lines": 6536
+      "bytes": 275266,
+      "lines": 6537
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",

@@ -24,8 +24,8 @@ const ACTIVE_SCHEMAS = {
   "openapi.custom-gpt.recovery-admin.production.yaml": {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "backendBearerAuth",
-    maxOperations: 4,
-    requiredOperations: ["callAdminRecoveryKernel", "executeAdminRecoveryKernelStep", "getAdminRecoveryKernelRun", "getAdminRecoveryKernelEvidence"],
+    maxOperations: 12,
+    requiredOperations: ["callAdminRecoveryKernel", "executeAdminRecoveryKernelStep", "executeApprovedAdminRecoveryKernelStep", "getAdminRecoveryKernelRun", "getAdminRecoveryKernelEvidence"],
   },
   "openapi.custom-gpt.activation-admin.yaml": {
     serverUrl: "https://activation.mad4b.com",
@@ -306,6 +306,9 @@ for (const [file, expected] of Object.entries(ACTIVE_SCHEMAS)) {
   const operationIds = new Set(operations.map((op) => op.operation.operationId).filter(Boolean));
   for (const operationId of expected.requiredOperations) {
     assert(`exposes ${operationId}`, operationIds.has(operationId));
+  }
+  if (["openapi.custom-gpt.auth-dispatcher.yaml", "openapi.custom-gpt.activation-admin.yaml"].includes(file)) {
+    assert("private Recovery bridge is not exposed on shared Auth/Activation surfaces", !operationIds.has("executeApprovedAdminRecoveryKernelStep"));
   }
 
   const longDescriptions = walkDescriptions(doc);
