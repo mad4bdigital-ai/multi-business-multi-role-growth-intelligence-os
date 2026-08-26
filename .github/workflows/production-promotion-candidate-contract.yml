@@ -42,6 +42,32 @@ jobs:
         working-directory: http-generic-api
         run: node test-production-promotion-candidate-workflow.mjs
 
+      - name: Verify trusted promotion review-surface identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const workflow = fs.readFileSync(".github/workflows/production-promotion-candidate.yml", "utf8");
+          const open = "$" + "{{";
+          const close = "}" + "}";
+          const required = [
+            "Require trusted promotion review-surface identity",
+            `REPO_AUTOSYNC_TOKEN_PRESENT: ${open} secrets.REPO_AUTOSYNC_TOKEN != '' ${close}`,
+            `GH_TOKEN: ${open} secrets.REPO_AUTOSYNC_TOKEN ${close}`,
+          ];
+          for (const value of required) {
+            if (!workflow.includes(value)) throw new Error(`missing trusted promotion identity contract: ${value}`);
+          }
+          const forbidden = `GH_TOKEN: ${open} github.token ${close}`;
+          if (workflow.includes(forbidden)) {
+            throw new Error("promotion review surfaces must not fall back to GITHUB_TOKEN");
+          }
+          if (workflow.indexOf("Require trusted promotion review-surface identity") > workflow.indexOf("Prepare immutable release-cut candidate")) {
+            throw new Error("trusted promotion identity preflight must run before candidate mutation");
+          }
+          NODE
+
       - name: Create bounded contract evidence
         shell: bash
         run: |
@@ -55,6 +81,8 @@ jobs:
             workflow: ".github/workflows/production-promotion-candidate.yml",
             certified_validation_workflow: ".github/workflows/production-certified-release-cut-validation.yml",
             test: "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+            trusted_review_surface_identity_required: true,
+            github_token_review_surface_fallback_forbidden: true,
             immutable_release_cut_required: true,
             release_cut_first_parent_required: true,
             candidate_tree_matches_release_cut_required: true,
@@ -71,7 +99,7 @@ jobs:
           fs.writeFileSync(process.env.RUNNER_TEMP + "/production-promotion-candidate-contract.json", JSON.stringify(evidence, null, 2) + "\n");
           NODE
           test -s "$RUNNER_TEMP/production-promotion-candidate-contract.json"
-          node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.release_mode!=="certified_release_cut" || value.immutable_release_cut_required!==true || value.production_ref_stability_required!==true || value.main_tip_may_advance!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
+          node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.release_mode!=="certified_release_cut" || value.trusted_review_surface_identity_required!==true || value.github_token_review_surface_fallback_forbidden!==true || value.immutable_release_cut_required!==true || value.production_ref_stability_required!==true || value.main_tip_may_advance!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
 
       - name: Upload contract evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
