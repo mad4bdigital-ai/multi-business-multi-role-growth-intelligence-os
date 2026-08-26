@@ -710,6 +710,7 @@ function generatedColumnMetadata(audit) {
     compatibility_bridge_candidates: audit.compatibility_bridge_candidates,
     unsupported_generated_expressions: audit.unsupported_generated_expressions,
     allowed_compatibility_bridges: audit.allowed_compatibility_bridges,
+    ordinary_column_trigger_bridges: audit.ordinary_column_trigger_bridges,
     ok: audit.ok,
     ready: audit.ready,
     finding_count: audit.findings.length,

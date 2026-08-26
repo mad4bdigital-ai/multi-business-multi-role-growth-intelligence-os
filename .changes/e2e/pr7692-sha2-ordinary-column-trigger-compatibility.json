@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7692-sha2-ordinary-column-trigger-compatibility",
+  "title": "Staging-local MariaDB 11.4 class-level SHA2 ordinary-column trigger compatibility",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7692-sha2-ordinary-column-trigger-compatibility.json",
+      "http-generic-api/config/staging-migration-contract-policy.json",
+      "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+      "http-generic-api/migrations/096_zzzz_mariadb_generated_hash_local_connector_device_routes_compatibility.sql",
+      "http-generic-api/migrations/20260718_zzzz_mariadb_generated_hash_growth_control_compatibility.sql",
+      "http-generic-api/migrations/20260727_zzzz_mariadb_generated_hash_brand_skill_grants_compatibility.sql",
+      "http-generic-api/migrations/20260802_01_zzzz_mariadb_generated_expression_storage_execution_leases_compatibility.sql",
+      "http-generic-api/migrations/20260814_zzzz_mariadb_generated_hash_act_as_user_compatibility.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/migration-contract-governance.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent every currently identified MariaDB 11.4 SHA2-generated-column ERROR 1901 path by materializing the affected digest columns as ordinary columns and maintaining them through exact DDL-defined BEFORE INSERT/UPDATE triggers, while preserving immutable historical migrations and schema contracts.",
+      "e2e_journeys": [
+        {
+          "id": "sha2-class-level-ordinary-trigger-guard-and-local-replay-gate",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed CI and staging-local Windows migration operator",
+          "entrypoint": "Exact-head static governance followed by a freshly authorized disposable Windows Docker MariaDB 11.4 schema-only replay",
+          "terminal_outcome": "The ordered guard detects all known SHA2-generated columns, accepts only five exact ordinary-column trigger bridges, reports zero unsupported expressions, and any later local replay stops before AutoPilot, importer, readback, deployment, provider, Hostinger, Cloudflare, or Production action on the first MariaDB error.",
+          "steps": [
+            "Discover and register all known SHA2-generated-column compatibility bridges in the immutable ordered migration chain.",
+            "Verify each bridge is ordered before its historical writer, DDL-only, preserves affected table keys and foreign keys, and declares exact ordinary type/nullability and BEFORE INSERT/UPDATE trigger expressions.",
+            "Run static generated-column, pre-use, collation, enum, text-width, index-width, required-INSERT, builder, and governance checks on the exact source head.",
+            "After a fresh merged main head and a new exact-SHA authorization, run only the disposable local Windows Docker MariaDB 11.4 schema-only replay.",
+            "Stop before AutoPilot, importer, readback, data export/import, deployment, provider, Hostinger, Cloudflare, or Production operations on any failure."
+          ],
+          "assertions": [
+            "The forbidden generated-expression function denylist includes SHA2 and the guard fails closed when a matching ordered bridge is absent, malformed, or incomplete.",
+            "The five known SHA2 columns use ordinary materialized columns with exact type/nullability contracts and named BEFORE INSERT/UPDATE triggers; ordinary columns are not counted as generated_columns.",
+            "All five bridges are DDL-only, preserve source affected-table indexes and foreign keys, and leave immutable historical migration SQL unchanged.",
+            "The plan and governance report expose generated_columns, generated_expression_checks, compatibility_bridge_candidates, unsupported_generated_expressions, allowed_compatibility_bridges, and ordinary_column_trigger_bridges.",
+            "No database, provider, credential, export, runtime, deployment, Production, AutoPilot, importer, or readback mutation is introduced by static governance or this declaration.",
+            "production_mutation_allowed is false and secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "generated-expression-and-sha2-ordinary-trigger-static-guards",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder-class-level-sha2-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-contract-governance",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+            "http-generic-api/config/staging-migration-contract-policy.json",
+            "http-generic-api/migrations/096_zzzz_mariadb_generated_hash_local_connector_device_routes_compatibility.sql",
+            "http-generic-api/migrations/20260718_zzzz_mariadb_generated_hash_growth_control_compatibility.sql",
+            "http-generic-api/migrations/20260727_zzzz_mariadb_generated_hash_brand_skill_grants_compatibility.sql",
+            "http-generic-api/migrations/20260802_01_zzzz_mariadb_generated_expression_storage_execution_leases_compatibility.sql",
+            "http-generic-api/migrations/20260814_zzzz_mariadb_generated_hash_act_as_user_compatibility.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
