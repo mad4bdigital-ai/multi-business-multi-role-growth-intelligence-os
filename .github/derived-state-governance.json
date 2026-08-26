@@ -130,6 +130,7 @@
       ".changes/e2e/staging-migration-1038-binding-width.json",
       ".changes/e2e/staging-migration-1039-status-compatibility.json",
       ".changes/e2e/staging-migration-1041-note-compatibility.json",
+      ".changes/e2e/staging-migration-1042-order-compatibility.json",
       ".changes/e2e/staging-autopilot-git-transport-resilience.json",
       ".changes/e2e/postmerge-observability-trusted-readback-20260822.json",
       ".changes/e2e/hostinger-storage-workmap-gate-scope-20260822.json",
