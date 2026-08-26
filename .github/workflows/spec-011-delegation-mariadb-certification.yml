@@ -36,11 +36,13 @@ jobs:
   disposable-mariadb-certification:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DB_NAME: ${{ format('spec011_delegation_cert_{0}', github.run_id) }}
     services:
       mariadb:
         image: mariadb:11.4
         env:
-          MARIADB_DATABASE: spec011_delegation_cert_ci
+          MARIADB_DATABASE: ${{ format('spec011_delegation_cert_{0}', github.run_id) }}
           MARIADB_USER: spec011
           MARIADB_PASSWORD: spec011
           MARIADB_ROOT_PASSWORD: spec011-root
@@ -83,7 +85,6 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000
@@ -150,7 +151,6 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000
@@ -161,7 +161,6 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000
@@ -177,7 +176,6 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000
