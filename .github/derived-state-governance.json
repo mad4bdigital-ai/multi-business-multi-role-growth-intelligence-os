@@ -209,6 +209,8 @@
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
       ".github/workflows/github-main-review-policy-readiness-publisher.yml",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".github/workflows/production-promotion-candidate-contract.yml",
+      ".github/workflows/production-promotion-candidate.yml",
       ".github/workflows/production-promotion-rehearsal.yml",
       ".github/workflows/automation-overlap-guard.yml",
       ".github/workflows/ci.yml",
