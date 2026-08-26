@@ -54,6 +54,13 @@ test("SQL splitter preserves semicolons inside quoted literals and strips commen
   ]);
 });
 
+test("migration ordering uses deterministic bytewise tie-breaks for same-prefix parent and child files", () => {
+  const parent = "20260611_activation_dynamic_tabs.sql";
+  const child = "20260611_activation_dynamic_tabs_autodiscovery.sql";
+  assert.equal(compareMigrationFiles(parent, child), -1);
+  assert.equal(compareMigrationFiles(child, parent), 1);
+  assert.deepEqual([child, parent].sort(compareMigrationFiles), [parent, child]);
+});
 
 test("migration contract policy enables comprehensive pre-use fail-closed guards", () => {
   assert.equal(migrationPolicy.contract, "mad4b.staging.migration-contract-policy.v1");
