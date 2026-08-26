@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "6c451886e29c99d66a8c75bc3e46a5ef5124812750cc9569964f94d381ed4354",
+    "source_digest": "a79c4481f837e396b8b50c79c79df3d8c50b3cac75eefe6aabb3576caa8d4fe8",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "93cf9ce5becc7e9db6e11e0ccbec6ad531ce2f2b5bee1afc18d1a4a53ab9ff4d",
+        "sha256": "80f920c09460235f7cb84f7b453683ed96ab8653b224905ff7e94aa26658a2ed",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "05d584912b09b4e73adc1cae4b8818739e6f3ce8d5a636de5591a28012ad3e12",
+        "sha256": "4c691a1708bbbf39f6582cb64d5bf870873f4b385faab89b6db3d2a8a2b6316c",
         "present": true
       },
       {
@@ -1174,18 +1174,18 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 641,
-    "unresolved_operation_class_count": 1,
-    "classified_mutation_count": 16,
-    "governed_mutation_operation_count": 16,
+    "unresolved_operation_class_count": 0,
+    "classified_mutation_count": 17,
+    "governed_mutation_operation_count": 17,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 172,
     "untested_family_count": 0,
     "test_owned_operation_count": 1058,
     "untested_operation_count": 0,
-    "ready_task_count": 171,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "ready_task_count": 172,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -3264,18 +3264,49 @@
             "test-recovery-kernel-routes.mjs"
           ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "server_issued_ticket_and_exact_plan_step_preflight"
+              },
+              "approval": {
+                "mode": "durable_single_use_plan_step_approval"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "The bridge has no live executor in the default composition; any injected Host Breakglass executor remains subject to its own bounded compensation and readback contract."
+              }
+            },
+            "parameter_bindings": {
+              "plan_id": "request.body.plan_id",
+              "plan_hash": "request.body.plan_hash",
+              "step_id": "request.body.step_id",
+              "approval_token": "request.body.approval_token",
+              "idempotency_key": "request.body.idempotency_key",
+              "execution_ticket": "server-issued and internal-only"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-server-issued-ticket-bridge",
+            "owner": "runtime-operations",
+            "rationale": "The private Recovery Action bridge accepts only plan, step, approval, and idempotency references. It issues the execution ticket server-side, reuses Recovery Kernel approval/fence/readback semantics, and forwards ticket references only to the explicitly injected Host Breakglass mutation boundary; the default composition remains fail-closed before provider or database mutation.",
+            "evidence_refs": [
+              "docs/recovery-action-ticket-bridge.md",
+              "recoveryActionBridge.js",
+              "recoveryKernel.js",
+              "routes/recoveryKernelRoutes.js",
+              "test-recovery-action-bridge-system-layer.mjs",
+              "test-recovery-action-bridge.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -3572,14 +3603,7 @@
           "test-recovery-kernel.mjs"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /admin/recovery/kernel/execute-approved",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 9,
         "class": "critical"
@@ -95341,6 +95365,59 @@
       ]
     },
     {
+      "task_key": "frontend.recovery-kernel",
+      "title": "Resolve and deliver recovery kernel",
+      "wave": "F3-admin-workspaces",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/recoveryKernelRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
+        "test-recovery-kernel.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-recovery-kernel-routes.mjs",
+        "node test-recovery-kernel.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.registry-data-management.admin",
       "title": "Resolve and deliver registry data management (admin)",
       "wave": "F3-admin-workspaces",
@@ -97162,61 +97239,6 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.recovery-kernel",
-      "title": "Resolve and deliver recovery kernel",
-      "wave": "F3-admin-workspaces",
-      "state": "blocked",
-      "blockers": [
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/recoveryKernelRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-recovery-kernel-routes.mjs",
-        "test-recovery-kernel.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-recovery-kernel-routes.mjs",
-        "node test-recovery-kernel.mjs"
       ]
     },
     {

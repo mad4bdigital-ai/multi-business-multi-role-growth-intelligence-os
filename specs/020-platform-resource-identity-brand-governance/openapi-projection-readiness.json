@@ -26,9 +26,9 @@
     "production_activation_allowed": false
   },
   "repository_openapi_baseline": {
-    "operation_count": 1041,
-    "openapi_documented_count": 1025,
-    "openapi_canonical_documented_count": 710,
+    "operation_count": 1058,
+    "openapi_documented_count": 1042,
+    "openapi_canonical_documented_count": 727,
     "openapi_generated_index_count": 315,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,

@@ -177,6 +177,7 @@
           ".specify/work-map-schema-classification-registry.json",
           ".dockerignore",
           "docs/governance/**",
+          "docs/recovery-*.md",
           "docs/surface-contract-**",
           "Updating Registry Patch Index.md",
           "deployment_parity_checklist.md",

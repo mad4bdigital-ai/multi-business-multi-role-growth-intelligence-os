@@ -1,0 +1,154 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-action-ticket-bridge-20260826",
+  "title": "Private Recovery Action server-issued execution-ticket bridge",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/recovery-action-ticket-bridge-20260826.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "docs/recovery-action-ticket-bridge.md",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "docs/repository-evaluation-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "edge/activation-gateway/generated/route-policy.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/recoveryActionBridge.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-custom-gpt-schemas.mjs",
+      "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+      "http-generic-api/test-recovery-action-bridge.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the Recovery Action/runtime contract gap with a private principal-scoped bridge that issues execution tickets server-side and reuses the existing Recovery Kernel and Host Breakglass boundaries without activating live authorities.",
+      "e2e_journeys": [
+        {
+          "id": "private-recovery-action-server-issued-ticket-bridge",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Verified admin principal through the private Recovery surface",
+          "entrypoint": "POST /admin/recovery/kernel/execute-approved or the fixed recovery_kernel_execute_approved_step System Tool",
+          "terminal_outcome": "The bridge accepts only plan, step, approval, and idempotency references, issues and stores the execution ticket server-side, forwards its references only internally to Recovery Kernel/Host Breakglass, and returns a sanitized receipt; default composition remains an explicit fail-closed 503 before provider or database mutation.",
+          "steps": [
+            "Validate verified admin principal and the exact five-field request contract.",
+            "Reject caller-generated ticket identifiers, hashes, signatures, raw SQL, migration/grant selection, credentials, workflow, provider, and arbitrary target controls.",
+            "Require durable Recovery store, server signer, approval verifier, fenced lock, Host Breakglass mutation boundary, and same-cycle readback verifier before ticket issuance or execution.",
+            "Issue the ticket with the existing createExecutionTicket contract and execute the step through executeRemediationStep with internal-only ticket forwarding.",
+            "Return only sanitized status and reconciliation evidence; never return ticket identifiers, hashes, signatures, credentials, or raw provider details."
+          ],
+          "assertions": [
+            "The private descriptor is admin-only and principal-scoped; tenant and non-admin listing/call paths cannot reach the bridge.",
+            "The request schema has exactly the five approved references and no caller-controlled execution-ticket fields.",
+            "The default composition and every incomplete authority graph fail closed before executor/provider/database invocation with an explicit 503.",
+            "Injected non-live fixtures prove server-side ticket issuance, exact plan/step binding, approval, lock, readback, idempotency, and internal Host Breakglass forwarding.",
+            "The outward receipt contains no execution ticket ID, ticket hash, signature, credential, raw SQL, or live connection detail.",
+            "The private Recovery operation is present only on the Recovery production surface; Auth Dispatcher and Activation Admin operation counts and surfaces remain unchanged.",
+            "No production activation, migration apply, grant apply, provider call, SSH/SQL action, or live credential read is introduced."
+          ],
+          "tests": [
+            {
+              "id": "recovery-action-bridge-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-action-bridge.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-action-bridge-system-layer-principal-scope",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-action-bridge-system-layer.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-kernel-route-bridge-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-composition-fail-closed-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "custom-gpt-surface-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-custom-gpt-schemas.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/recoveryActionBridge.js",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/recoveryExecutionTicket.js",
+            "http-generic-api/routes/recoveryKernelRoutes.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/recoveryComposition.js",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+            "canonicals/openapi/custom-gpt-surfaces.yaml",
+            "docs/recovery-action-ticket-bridge.md"
+          ]
+        }
+      ]
+    }
+  ]
+}

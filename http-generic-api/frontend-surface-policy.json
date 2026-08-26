@@ -3018,6 +3018,44 @@
       ]
     },
     {
+      "rule_id": "recovery-kernel-server-issued-ticket-bridge",
+      "operation": "POST /admin/recovery/kernel/execute-approved",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "The private Recovery Action bridge accepts only plan, step, approval, and idempotency references. It issues the execution ticket server-side, reuses Recovery Kernel approval/fence/readback semantics, and forwards ticket references only to the explicitly injected Host Breakglass mutation boundary; the default composition remains fail-closed before provider or database mutation.",
+      "preflight": {
+        "mode": "server_issued_ticket_and_exact_plan_step_preflight"
+      },
+      "approval": {
+        "mode": "durable_single_use_plan_step_approval"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The bridge has no live executor in the default composition; any injected Host Breakglass executor remains subject to its own bounded compensation and readback contract."
+      },
+      "parameter_bindings": {
+        "plan_id": "request.body.plan_id",
+        "plan_hash": "request.body.plan_hash",
+        "step_id": "request.body.step_id",
+        "approval_token": "request.body.approval_token",
+        "idempotency_key": "request.body.idempotency_key",
+        "execution_ticket": "server-issued and internal-only"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryActionBridge.js",
+        "recoveryKernel.js",
+        "test-recovery-action-bridge.mjs",
+        "test-recovery-action-bridge-system-layer.mjs",
+        "docs/recovery-action-ticket-bridge.md"
+      ]
+    },
+    {
       "rule_id": "host-breakglass-plan-read-action",
       "operation": "POST /admin/runtime-bootstrap/plan",
       "source_file": "routes/adminHostBreakglassRoutes.js",

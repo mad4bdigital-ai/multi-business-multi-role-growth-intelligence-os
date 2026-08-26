@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7418,
-    "bytes": 73053775,
-    "lines": 1699361,
+    "bytes": 73057632,
+    "lines": 1699426,
     "directories": 266,
     "categories": 13
   },
@@ -270,8 +270,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3540338,
-      "lines": 99833
+      "bytes": 3541976,
+      "lines": 99855
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -294,8 +294,8 @@
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 624343,
-      "lines": 11828
+      "bytes": 626229,
+      "lines": 11866
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -330,7 +330,7 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 275266,
+      "bytes": 275265,
       "lines": 6537
     },
     {
