@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 7413,
-    "bytes": 73008964,
+    "bytes": 73009212,
     "lines": 1698685,
     "directories": 266,
     "categories": 13
@@ -10349,9 +10349,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 17751,
+      "bytes": 17999,
       "lines": 115,
-      "sha256": "7a103f26631e7632fb34d8f75a8a6fb6492732361f69af049fc8035e33d55056",
+      "sha256": "3f7cec28c3dd1d13a127616ef3f663f7ee828a8cf8d11164705047faefa89e25",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32912,7 +32912,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "38470cf2eeba28de22568ac4fd9be88d1fa0fc500723e665d2c170147f83e899",
+      "sha256": "2fc1957fddf2d5773bd577c4fa516facaa11b48ee9047a7eb59e9cda1b2d960c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53548,7 +53548,7 @@
       "extension": ".json",
       "bytes": 1963307,
       "lines": 59371,
-      "sha256": "85f9394f1a3ae8e81140dbb96d7bd9b4283c8a1bc50c67373781d0aa7647bde2",
+      "sha256": "e34f3d1d6185e8cbe018185abc805ce69e1f2ef3664c8a494ef472142f3fc151",
       "mode": "644",
       "executable": false,
       "generated": false
