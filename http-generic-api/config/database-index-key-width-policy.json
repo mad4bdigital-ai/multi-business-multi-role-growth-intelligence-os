@@ -1,0 +1,48 @@
+{
+  "contract": "mad4b.database-index-key-width-policy.v1",
+  "engine": "mariadb",
+  "scope": "staging-local-schema-replay",
+  "index_key_width_chain_contract": {
+    "enabled": true,
+    "engine": "mariadb",
+    "baseline_file": "http-generic-api/schema.sql",
+    "ordered_numeric_filename_and_lexicographic_tie_break": true,
+    "max_key_bytes": 3072,
+    "fail_on_index_key_overflow": true,
+    "inspect_create_alter_index_definitions": true,
+    "inspect_character_set_byte_widths": true,
+    "static_only": true,
+    "database_connection_allowed": false,
+    "sql_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "credential_access_allowed": false,
+    "data_export_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false,
+    "policy_key": "mariadb_index_key_width_ordered_chain_v1"
+  },
+  "charset_max_bytes_per_char": {
+    "utf8mb4": 4,
+    "utf8": 3,
+    "utf8mb3": 3,
+    "latin1": 1,
+    "ascii": 1,
+    "binary": 1
+  },
+  "fixed_type_bytes": {
+    "TINYINT": 1,
+    "SMALLINT": 2,
+    "MEDIUMINT": 3,
+    "INT": 4,
+    "INTEGER": 4,
+    "BIGINT": 8,
+    "FLOAT": 4,
+    "DOUBLE": 8,
+    "DECIMAL": 16,
+    "DATE": 3,
+    "DATETIME": 8,
+    "TIMESTAMP": 4,
+    "TIME": 3,
+    "YEAR": 1
+  }
+}
