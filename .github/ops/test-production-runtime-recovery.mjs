@@ -30,6 +30,7 @@ import {
   validateProductionBaseUrl,
 } from './production-runtime-recovery-policy.mjs';
 import { buildVersionPayload } from '../../http-generic-api/deploymentManifest.js';
+import { GOVERNANCE_DB_PRIVILEGE_MATRIX } from '../../http-generic-api/databasePrivilegeContracts.js';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 const workflow = readFileSync(new URL('../workflows/production-runtime-parity-evidence.yml', import.meta.url), 'utf8');
@@ -153,6 +154,27 @@ test('workflow observes Hostinger Auto Deploy and contains no provider deploymen
   assert.doesNotMatch(operator, /provider_deploy_credential_required:\s*true/u);
 });
 
+test('workflow_dispatch stays within GitHub input limit and packs Host Breakglass metadata', () => {
+  const dispatchBlock = workflow.match(/\n  workflow_dispatch:\n    inputs:\n([\s\S]*?)\n\npermissions:/u)?.[1] || '';
+  const inputNames = [...dispatchBlock.matchAll(/^      ([a-z][a-z0-9_]*)\s*:/gmu)].map((match) => match[1]);
+  assert.ok(inputNames.length > 0, 'workflow_dispatch inputs must be discoverable');
+  assert.ok(inputNames.length <= 25, `workflow_dispatch exposes ${inputNames.length} inputs; GitHub maximum is 25`);
+  assert.equal(inputNames.includes('recovery_envelope'), true);
+  assert.match(workflow, /fromJSON\(inputs\.recovery_envelope \|\| '\{"host_breakglass":\{\}\}'\)/u);
+  assert.doesNotMatch(dispatchBlock, /host_breakglass_(?:operation|correlation_id|plan_sha256|runbook|tool_contract_sha256|capsule):/u);
+});
+
+test('bootstrap policy is evaluated only after exact Production identity is verified and checked out', () => {
+  const bootstrap = workflow.slice(workflow.indexOf("\n  bootstrap:"));
+  const exactVerification = bootstrap.indexOf("- name: Validate trusted dispatch ref and exact Production head");
+  const exactCheckout = bootstrap.indexOf("- name: Checkout exact Production source");
+  const policyValidation = bootstrap.indexOf("- name: Validate bootstrap target source scope");
+  assert.ok(exactVerification >= 0 && exactCheckout >= 0 && policyValidation >= 0);
+  assert.ok(exactVerification < exactCheckout && exactCheckout < policyValidation);
+  assert.match(workflow, /ref: \$\{\{ inputs\.expected_sha \|\| github\.sha \}\}/u);
+  assert.match(bootstrap.slice(0, policyValidation), /gh api "\/repos\/\$\{GITHUB_REPOSITORY\}\/git\/ref\/heads\/Production"/u);
+});
+
 test('primary and fallback recovery share one Production mutation lock', () => {
   const recoveryConcurrency = workflow.match(/\n  recovery:[\s\S]*?\n    env:/u)?.[0] || '';
   assert.match(recoveryConcurrency, /concurrency:\n\s+group: production-runtime-recovery-production\n\s+cancel-in-progress: false/u);
@@ -207,6 +229,9 @@ test('reviewed route contract narrows recovery tools, migrations and grant scope
   assert.equal(routeContract.grant_policy.allow_global_write_privileges, false);
   assert.equal(routeContract.grant_policy.allow_grant_option, false);
   assert.equal(routeContract.grant_policy.same_cycle_readback_required, true);
+  assert.equal(routeContract.grant_policy.canonical_privilege_contract, 'http-generic-api/databasePrivilegeContracts.js');
+  assert.deepEqual(routeContract.grant_policy.role_policies.governance.required_tables, Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX));
+  assert.deepEqual(routeContract.grant_policy.role_policies.runtime_persistence.required_operations, ['SELECT', 'INSERT', 'UPDATE', 'DELETE']);
   assert.equal(routeContract.fallback_sql_policy, undefined);
   assert.equal(routeContract.fallback_migration_policy.canonical_governed_ledger, 'governed_migration_ledger');
   assert.equal(routeContract.fallback_migration_policy.canonical_governed_ledger_required, true);
@@ -389,8 +414,14 @@ test('workflow exposes snapshot variables only as non-secret descriptors', () =>
 
 test('explicit bootstrap requires live Hostinger parity and runs the parity contract test', () => {
   const parityGate = workflow.indexOf('Require live Hostinger runtime parity before bootstrap');
-  const bootstrapRun = workflow.indexOf('Run selected repository bootstrap contract mode');
-  assert.ok(parityGate >= 0 && parityGate < bootstrapRun, 'runtime parity gate must precede bootstrap execution');
+  const bootstrapMarkers = [
+    'Run selected repository bootstrap contract mode',
+    'Deny repository bootstrap execution without an injected host-side role executor',
+    'Run repository bootstrap plan without database credentials',
+  ];
+  const bootstrapPositions = bootstrapMarkers.map((marker) => workflow.indexOf(marker)).filter((position) => position >= 0);
+  const bootstrapRun = bootstrapPositions.length > 0 ? Math.min(...bootstrapPositions) : -1;
+  assert.ok(parityGate >= 0 && bootstrapRun >= 0 && parityGate < bootstrapRun, 'runtime parity gate must precede bootstrap execution or denial');
   assert.match(workflow, /if: inputs\.bootstrap_mode != 'plan'/u);
   assert.match(workflow, /curl --proto '=https' --tlsv1\.2 --fail --silent --show-error/u);
   assert.match(workflow, /https:\/\/auth\.mad4b\.com\/version/u);

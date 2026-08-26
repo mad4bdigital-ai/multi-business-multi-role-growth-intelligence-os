@@ -62,18 +62,23 @@ assert.deepEqual(registry.shared_surface_allowlist, ["listSystemTools", "callSys
 assert.equal(registry.oauth_client_contract.authorization_server, "https://auth.mad4b.com");
 assert.equal(registry.oauth_client_contract.activation_gateway_alias, true);
 assert.equal(registry.oauth_client_contract.consent_model, "one_client_resource_bound");
-assert.equal(GENERATED_SURFACES.length, 12, "registry must define four base and eight environment-specific generated surfaces");
+assert.equal(GENERATED_SURFACES.length, 13, "registry must define four base, eight standard environment-specific, and one private Production generated surface");
 const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
 const environmentSurfaceKeys = baseSurfaceKeys.flatMap((base) => [
   `${base}_production`,
   `${base}_staging`,
 ]);
 for (const key of [...baseSurfaceKeys, ...environmentSurfaceKeys]) assert(registry.surfaces[key], `registry must define ${key}`);
+assert(registry.surfaces.admin_recovery_production, "registry must define the private Production Recovery surface");
+assert.equal(registry.surfaces.admin_recovery_production.private_only, true);
+assert.equal(registry.surfaces.admin_recovery_production.environment, "production");
+assert.equal(registry.surfaces.admin_recovery_production.base_surface, "admin_core");
+assert.equal(registry.surfaces.admin_recovery_production_staging, undefined, "private Recovery surface must not have a Staging projection");
 for (const surface of GENERATED_SURFACES) {
   const base = surface.base_surface ? registry.surfaces[surface.base_surface] : surface;
   const effectiveSurface = { ...base, ...surface, selector: surface.selector || base.selector, candidate_policy: surface.candidate_policy || base.candidate_policy };
-  const expectedSourceMarker = surface.base_surface || surface.surfaceKey;
-  assert.deepEqual(effectiveSurface.selector?.source_markers, [expectedSourceMarker], `${surface.surfaceKey} must use its base source marker as the selector`);
+  const expectedSourceMarker = surface.private_only ? surface.surfaceKey : surface.base_surface || surface.surfaceKey;
+  assert.deepEqual(effectiveSurface.selector?.source_markers, [expectedSourceMarker], `${surface.surfaceKey} must use the reviewed source marker as the selector`);
   assert.equal(effectiveSurface.candidate_policy?.mode, "marker_required");
   assert.equal(effectiveSurface.candidate_policy?.required_marker, expectedSourceMarker);
   assert.equal(effectiveSurface.candidate_policy?.omission, "fail");

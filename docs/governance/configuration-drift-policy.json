@@ -3,6 +3,8 @@
   "schema_version": 1,
   "inventory_path": "docs/repository-inventory.json",
   "baseline_fingerprints": [
+    "http-generic-api/recoveryKernel.js|RECOVERY_KERNEL_PRODUCTION_ENVIRONMENT|literal_declaration|recovery.kernel.production.environment",
+    "http-generic-api/recoveryKernel.js|approvalId|literal_declaration|approvalid",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|BASE|environment_reference|runtime.base.url",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|DIR|environment_reference|evidence.dir",
     ".github/ops/github-issue-comment-parity-governed-readiness.mjs|GH|environment_reference|gh.read.token",

@@ -194,6 +194,22 @@
       ]
     },
     {
+      "rule_id": "recovery-kernel-private-admin-surface",
+      "family_key": "recovery-kernel",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "scope": "admin",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "The Recovery Kernel is a private, Production-only administrative API and fixed system dispatcher. It is not a browser navigation surface, never accepts raw commands or credentials, and keeps consequential execution behind plan, approval, lock, idempotency, and readback gates.",
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+        "test-recovery-kernel.mjs",
+        "test-fixed-host-local-system-tool.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-backup-artifact-routes-backupartifactroutes-js",
       "family_key": "backup-artifact",
       "source_file": "routes/backupArtifactRoutes.js",
@@ -2949,6 +2965,58 @@
     }
   ],
   "operation_rules": [
+    {
+      "rule_id": "recovery-kernel-call-preflight",
+      "operation": "POST /admin/recovery/kernel/call",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "preflight",
+      "owner": "runtime-operations",
+      "rationale": "The Recovery Kernel call endpoint is a bounded discovery, inspection, finding, planning, preview, and approval-challenge preflight. It does not execute a mutation and rejects raw SQL, shell, credentials, arbitrary targets, and migration or grant selection.",
+      "parameter_bindings": {
+        "capability_key": "request.body.capability_key",
+        "input": "request.body.input"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "test-recovery-kernel.mjs",
+        "test-fixed-host-local-system-tool.mjs"
+      ]
+    },
+    {
+      "rule_id": "recovery-kernel-plan-bound-execute",
+      "operation": "POST /admin/recovery/kernel/execute",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Consequential Recovery Kernel execution is accepted only as an exact plan-hash, target-fingerprint, step, approval, lock, idempotency, executor, and same-cycle readback contract. The repository default has no durable authorities and therefore fails closed before mutation.",
+      "preflight": {
+        "mode": "exact_plan_hash_target_fingerprint_and_step_preflight"
+      },
+      "approval": {
+        "mode": "durable_single_use_plan_step_approval"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "No execution authority is present by default; any future injected executor must supply its own bounded compensation contract before activation."
+      },
+      "parameter_bindings": {
+        "plan_hash": "request.body.plan_hash",
+        "step_id": "request.body.step_id",
+        "approval_id": "request.body.approval_id",
+        "idempotency_key": "request.body.idempotency_key",
+        "target_fingerprint": "request.body.target_fingerprint"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "test-recovery-kernel.mjs"
+      ]
+    },
     {
       "rule_id": "host-breakglass-plan-read-action",
       "operation": "POST /admin/runtime-bootstrap/plan",

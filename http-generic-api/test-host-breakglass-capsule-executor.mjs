@@ -5,6 +5,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { runSqlCapsule } from "./scripts/host-breakglass-capsule-executor.mjs";
+import { computeTargetBindingFingerprint } from "./runtimeBootstrapContract.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..");
 const capsuleRelative = ".github/breakglass/sql/test-capsule-runner.sql";
@@ -21,7 +22,8 @@ const targetKey = "production-runtime";
 const repository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const branch = "Production";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const target = { key: targetKey, database, repository, branch, environment: "production", principal, principal_host: fixtureOrigin, database_sha256: sha256(database), target_fingerprint: sha256(`${repository}:${branch}:${targetKey}:${database}:${database}:${principal}:${fixtureOrigin}`) };
+const target = { key: targetKey, database, repository, branch, environment: "production", principal, principal_host: fixtureOrigin, database_sha256: sha256(database) };
+target.target_fingerprint = computeTargetBindingFingerprint(target);
 
 test.before(() => {
   fs.mkdirSync(path.dirname(capsulePath), { recursive: true });

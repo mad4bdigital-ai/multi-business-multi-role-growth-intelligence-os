@@ -1,0 +1,425 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "recovery_manifest_version": "1",
+  "contract": "mad4b.recovery-kernel-manifest.v1",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "production_branch": "Production",
+  "production_environment": "production_hostinger_autodeploy",
+  "execution_authority": {
+    "production": {
+      "status": "primary_governed_admin_path",
+      "control_plane_host": "auth.mad4b.com",
+      "entrypoint": "existing_admin_governed_execution",
+      "transport": "github_workflow",
+      "new_mutation_endpoint_required": false,
+      "local_connector_required": false,
+      "local_connector_fallback_allowed": false
+    },
+    "staging": {
+      "status": "local_windows_docker_only",
+      "production_admin_path_available": false,
+      "local_connector_status": "deferred",
+      "local_connector_required": false,
+      "scope": "optional_diagnostic_only"
+    },
+    "deferred_scope": ["local_connector"],
+    "secrets_included": false
+  },
+  "source_binding": {
+    "sha_policy": "exact_runtime_identity_required",
+    "manifest_hash_is_not_a_substitute_for_deployment_sha": true,
+    "generated_artifacts_must_be_current": true
+  },
+  "capability_levels": {
+    "R0": "observe",
+    "R1": "diagnose",
+    "R2": "simulate",
+    "R3": "governed_repair",
+    "R4": "privileged_recovery",
+    "R5": "disaster_recovery",
+    "legacy_R0": "identity_and_readiness",
+    "legacy_R1": "inspection",
+    "legacy_R2": "planning_and_simulation",
+    "legacy_R3": "reversible_repair",
+    "legacy_R4": "schema_or_grant_mutation",
+    "legacy_R5": "rebuild",
+    "legacy_R6": "cutover"
+  },
+  "formal_recovery_modes": [
+    "NORMAL",
+    "DEGRADED",
+    "RECOVERY_READONLY",
+    "RECOVERY_CONTROLLED",
+    "RECOVERY_PRIVILEGED",
+    "DISASTER_RECOVERY",
+    "VERIFYING",
+    "RECOVERED"
+  ],
+  "exception_classes": {
+    "E0": "diagnostic",
+    "E1": "target_topology",
+    "E2": "tool_provider",
+    "E3": "policy",
+    "E4": "privilege",
+    "E5": "execution_reconciliation",
+    "E6": "disaster"
+  },
+  "capabilities": {
+    "production_identity": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "repository_static_contract"
+    },
+    "recovery_manifest_get": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "repository_static_manifest"
+    },
+    "recovery_trust_model": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "exact_sha_manifest_attestation_target_fingerprint"
+    },
+    "runtime_attestation": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "hash_only_runtime_attestation"
+    },
+    "tool_surface_parity": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "generated_openapi_and_fixed_system_registry"
+    },
+    "system_tools_search": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "repository_static_system_layer"
+    },
+    "recovery_capabilities": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "repository_static_contract"
+    },
+    "production_activation_readiness": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": ["runtime", "governance", "runtime_persistence"],
+      "authority_ref": "bounded_readiness_contract"
+    },
+    "database_full_inspection": {
+      "level": "R1",
+      "mutation_class": "C0",
+      "target_roles": ["runtime", "governance", "runtime_persistence"],
+      "authority_ref": "host_local_role_env",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "production_control_plane_host": "auth.mad4b.com",
+      "local_connector_required": false
+    },
+    "runtime.baseline.rebuild_empty": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["runtime"],
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "local_connector_required": false
+    },
+    "governance.baseline.rebuild_empty": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["governance"],
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "local_connector_required": false
+    },
+    "runtime_persistence.baseline.rebuild_empty": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["runtime_persistence"],
+      "authority_ref": "same_cycle_zero_object_inspection_role_fingerprint_exact_sha_plan_hash_approval_readback",
+      "production_execution_authority": "existing_admin_governed_execution",
+      "local_connector_required": false
+    },
+    "remediation_plan_create": {
+      "level": "R2",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "registered_finding_and_capability_contract"
+    },
+    "remediation_plan_preview": {
+      "level": "R2",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "proof_carrying_plan_contract"
+    },
+    "remediation_step_execute": {
+      "level": "R4",
+      "mutation_class": "C3",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "approved_registered_capability_only_ticket_claim_reservation_fenced_lease_readback",
+      "execution_ticket_required": true,
+      "atomic_claim_required": true,
+      "approval_reservation_required": true,
+      "provider_outcome_unknown_reconciliation_only": true
+    },
+    "remediation_step_verify": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "same_cycle_readback_contract"
+    },
+    "recovery_run_get": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "recovery_evidence_contract"
+    },
+    "recovery_evidence_get": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "append_only_evidence_contract"
+    },
+    "unsupported_recovery_escalate": {
+      "level": "R2",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "explicit_incident_escalation_contract"
+    },
+    "ssh_session_preview": {
+      "level": "R1",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "managed_ssh_contract_only"
+    },
+    "sql_session_preview": {
+      "level": "R1",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "role_bound_sql_contract_only"
+    },
+    "ephemeral_capability_create": {
+      "level": "R2",
+      "mutation_class": "C2",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "hash_bound_single_use_temporary_authority"
+    },
+    "unsupported_capability_execute": {
+      "level": "R4",
+      "mutation_class": "C4-C6",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "injected_broker_and_explicit_approval_only"
+    },
+    "recovery_incident_create": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "incident_object_before_privileged_path"
+    },
+    "privileged_operation_preview": {
+      "level": "R2",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "risk_scope_ttl_budget_preview_only"
+    },
+    "privileged_lease_preview": {
+      "level": "R2",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "owner_bound_heartbeat_lease_preview_only"
+    },
+    "recovery_exception_preview": {
+      "level": "R2",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "E0-E6_scoped_exception_preview_only"
+    },
+    "recovery_exception_lifecycle": {
+      "level": "R4",
+      "mutation_class": "C4-C6",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "injected_exception_store_dual_control_revoke_expire"
+    },
+    "disaster_recovery_preview": {
+      "level": "R5",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "backup_restore_replacement_cutover_preview_only"
+    },
+    "recovery_reconciliation_preview": {
+      "level": "R1",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "readback_before_retry_or_compensation"
+    },
+    "recovery_cancel_preview": {
+      "level": "R1",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "stop_future_steps_no_automatic_rollback"
+    },
+    "recovery_evidence_chain_preview": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "tamper_evident_previous_hash_chain"
+    },
+    "secret_observation": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "presence_hash_age_only"
+    }
+  },
+  "trust_roots": [
+    "exact_production_sha",
+    "recovery_manifest_hash",
+    "target_fingerprint",
+    "admin_principal_binding",
+    "role_fingerprint_set",
+    "execution_ticket_hash",
+    "grant_binding_hash"
+  ],
+  "dependency_kinds": [
+    "hard_dependency",
+    "soft_dependency",
+    "authority_dependency",
+    "observability_dependency",
+    "recovery_dependency",
+    "exception_lifecycle_dependency",
+    "backup_dependency",
+    "cutover_dependency"
+  ],
+  "state_machine": {
+    "phases": [
+      "created",
+      "inspecting",
+      "classified",
+      "planned",
+      "awaiting_approval",
+      "approval_granted",
+      "locked",
+      "executing",
+      "provider_acknowledged",
+      "execution_outcome_unknown",
+      "readback_pending",
+      "verifying",
+      "verified",
+      "partially_verified",
+      "compensation_required",
+      "failed_closed",
+      "recovered"
+    ],
+    "events": "append_only",
+    "replay_policy": "single_use_idempotency",
+    "exception_events": "append_only",
+    "unknown_outcome_policy": "readback_before_retry_or_compensation",
+    "cancel_policy": "stop_future_steps_without_automatic_rollback"
+  },
+  "durability": {
+    "inspection_and_plans_may_use_memory_for_local_non_mutating_tests": true,
+    "consequential_mutation_requires_injected_durable_store": true,
+    "required_methods": ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt", "claimExecution", "releaseExecutionClaim", "reserveApproval", "releaseApprovalReservation", "markApprovalUsed_or_finalizeApproval", "getExecutionTicket", "putExecutionTicket", "reserveExecutionTicket", "releaseExecutionTicket", "finalizeExecutionTicket"],
+    "execution_ticket_contract": {
+      "contract": "mad4b.recovery-execution-ticket.v1",
+      "issuer": "injected_server_side_signer_only",
+      "verifier": "injected_durable_store_verifier_only",
+      "signature_or_secret_returned_to_gpt": false,
+      "bindings": ["expected_sha", "target_key", "target_fingerprint", "plan_hash", "step_hash", "step_id", "selected_roles", "role_fingerprints", "role_selection_hash", "grant_binding_hash", "operation", "idempotency_key", "nonce", "expiry"],
+      "single_use": true,
+      "automatic_replay_after_unknown": false
+    },
+    "bootstrap_mutation_authority": {
+      "execution_ticket_contract": "mad4b.recovery-execution-ticket.v1",
+      "adapter": "injected_server_side_verifier_and_single_use_reservation",
+      "ticket_references_are_not_authority": true,
+      "default_cli_behavior": "fail_closed",
+      "immutable_partial_receipt_store_required_before_connection": true,
+      "provider_wiring_in_repository": false
+    },
+    "atomic_execution_contract": {
+      "claim_before_approval_reservation": true,
+      "approval_reservation_before_provider": true,
+      "approval_finalization_after_provider_acknowledgement": true,
+      "unknown_provider_outcome_is_terminal_until_readback": true,
+      "fenced_lease_required": true,
+      "heartbeat_and_assert_before_each_provider_boundary": true,
+      "partial_receipt_persisted_before_consequential_provider_boundary": true
+    },
+    "exception_lifecycle_methods": ["putException", "getException", "appendExceptionEvent"],
+    "ephemeral_capability_methods": ["putEphemeralCapability", "getEphemeralCapability"],
+    "store_independence": {
+      "contract": "mad4b.recovery-durable-store.v1",
+      "independent_of_target_databases": true,
+      "target_database_binding": "forbidden",
+      "provider_accessed": false,
+      "enforced_before_consequential_mutation": true
+    }
+  },
+    "empty_database_reconstruction": {
+      "contract": "mad4b.host-breakglass-empty-object-reconstruction.v1",
+    "control_plane": "repository_owned_host_breakglass_catalog",
+    "scope": "existing_zero_object_set_only",
+    "object_kinds": ["tables", "views", "triggers", "routines", "events"],
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
+    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+    "all_roles_must_be_zero_objects": false,
+    "partial_role_rebuild_allowed": true,
+    "runtime_nonempty_preserved": true,
+    "pre_mutation_zero_object_recheck_required": true,
+    "sequential_role_execution": true,
+    "stop_on_role_verification_failure": true,
+    "role_fingerprints_bound_to_plan_and_approval": true,
+    "standalone_migration_first_allowed": false,
+    "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
+    "behavioral_probes": [
+      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+    ],
+    "grants_included": false,
+    "grants_require_separate_approval": true,
+    "database_creation_included": false,
+    "drop_nonempty_database_included": false,
+    "provider_accessed_by_contract": false,
+    "partial_rebuild_policy": {
+      "ddl_rollback_claimed": false,
+      "on_partial_failure": "immutable_receipt_and_reconciliation_required",
+      "automatic_rerun_allowed": false,
+      "resume_requires_exact_ticket_plan_bundle_fence_and_explicit_approval": true
+    },
+    "role_specific_target_identity": {
+      "runtime": "Hostinger DB identity bound to runtime database",
+      "governance": "Hostinger DB identity bound to governance database",
+      "runtime_persistence": "Hostinger DB identity bound to runtime-persistence database",
+      "repository_allowlist_split_db_requires_distinct_env_binding": true,
+      "single_bootstrap_identity_for_distinct_databases": false
+    },
+    "provider_accessed_by_contract": false,
+    "secrets_included": false
+  },
+  "safety": {
+    "secrets_included": false,
+    "raw_commands_allowed": false,
+    "raw_sql_allowed": false,
+    "caller_controlled_credentials_allowed": false,
+    "cross_role_credential_reuse": false,
+    "default_mutation_policy": "deny_until_exact_trust_and_approval",
+    "target_roles_are_server_resolved": true,
+    "ssh_sql_are_contract_only_by_default": true,
+    "managed_ssh_broker_required_before_live_execution": true,
+    "managed_sql_broker_ast_policy_required_before_live_execution": true,
+    "backup_restore_cutover_providers_not_injected": true,
+    "unsupported_broker_live_connector_present": false,
+    "exception_framework_does_not_bypass_kernel_invariants": true,
+    "emergency_approval_not_self_issued_by_gpt": true,
+    "kill_switch_default": "disabled"
+  }
+}

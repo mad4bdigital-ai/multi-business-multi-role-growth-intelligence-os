@@ -93,6 +93,43 @@ import {
   buildPlatformEndpointToolDescriptors,
   selectPlatformEndpointToolBinding,
 } from "../platformEndpointToolFacade.js";
+import { getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
+
+// Auth Admin Actions already have a bounded fixed dispatcher. Keep Recovery reachable
+// through that single operation without allowing a non-consequential Action to invoke
+// plan-step or unsupported/provider mutations. Consequential work remains on the
+// explicitly consequential Host Breakglass/Recovery routes with their own approvals.
+const SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES = new Set([
+  "production_identity",
+  "recovery_manifest_get",
+  "recovery_trust_model",
+  "runtime_attestation",
+  "tool_surface_parity",
+  "recovery_capabilities",
+  "production_activation_readiness",
+  "database_full_inspection",
+  "finding_details",
+  "remediation_plan_create",
+  "remediation_plan_preview",
+  "approval_challenge_create",
+  "remediation_step_verify",
+  "recovery_run_get",
+  "recovery_evidence_get",
+  "privileged_operation_preview",
+  "privileged_lease_preview",
+  "recovery_exception_preview",
+  "disaster_recovery_preview",
+  "recovery_reconciliation_preview",
+  "recovery_cancel_preview",
+  "recovery_evidence_chain_preview",
+  "secret_observation",
+  "unsupported_recovery_escalate",
+  "ssh_session_preview",
+  "sql_session_preview",
+  "ephemeral_capability_create",
+  "system_tool_get",
+  "system_tools_search",
+]);
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -147,6 +184,98 @@ const SYSTEM_LAYER_TOOLS = [
         timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
       },
       required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
+    name: "recovery_kernel_capabilities",
+    description: "Admin-only fixed, repository-owned Recovery Kernel capability matrix. Returns bounded risk, dependency, approval, rollback, and mutation metadata without loading a dynamic catalog or connecting to a database.",
+    requires_admin: true,
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
+    name: "system_tool_get",
+    description: "Admin-only exact lookup of one fixed system-tool descriptor from the repository-owned static registry. It does not load the large database-backed catalog.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["tool_name"],
+      properties: { tool_name: { type: "string", minLength: 1, maxLength: 191 } },
+    },
+  },
+  {
+    name: "system_tools_search",
+    description: "Admin-only bounded search over fixed system-tool descriptors from the repository-owned static registry. It does not load the large database-backed catalog.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        q: { type: "string", maxLength: 256 },
+        tag: { type: "string", maxLength: 96 },
+        capability_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+      },
+    },
+  },
+  {
+    name: "recovery_kernel_call",
+    description: "Admin-only fixed dispatcher for the repository-owned Recovery Kernel. The capability key is server-allowlisted and the request never accepts SQL, shell, credentials, database identifiers, migration/grant selection, workflow/ref, or arbitrary target-source controls. Production-only capabilities are rejected by the runtime when the environment is not Production; Staging may use only database-independent discovery capabilities.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        input: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+            target_key: { type: "string", enum: ["production-runtime"] },
+            target_role: { type: "string", enum: ["server_resolved", "runtime", "governance", "runtime_persistence"] },
+            host_fingerprint: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            tool_name: { type: "string", minLength: 1, maxLength: 191 },
+            q: { type: "string", maxLength: 256 },
+            tag: { type: "string", maxLength: 96 },
+            capability_key: { type: "string", maxLength: 191 },
+            limit: { type: "integer", minimum: 1, maximum: 50 },
+            finding_id: { type: "string", pattern: "^finding:[0-9a-f]{16,64}$" },
+            finding_ids: { type: "array", minItems: 1, maxItems: 50, items: { type: "string", pattern: "^finding:[0-9a-f]{16,64}$" } },
+            plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+            plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+            step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
+            run_id: { type: "string", pattern: "^run:[0-9a-f]{16,64}$" },
+            incident_id: { type: "string", pattern: "^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" },
+            reason: { type: "string", minLength: 12, maxLength: 1000 },
+            profile: { type: "string", enum: ["S0", "S1", "S2", "S3", "S4", "S5", "Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6"] },
+            risk_class: { type: "string", enum: ["read_only", "reversible", "service_impacting", "filesystem_mutation", "destructive", "unknown"] },
+            command_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            query_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            artifact_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            expires_at: { type: "string", format: "date-time" },
+            transport: { type: "string", enum: ["ssh", "sql"] },
+            capability_type: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            single_use: { type: "boolean", default: true },
+            backup_evidence_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            operation_type: { type: "string", enum: ["ssh_command", "sql_statement", "file_patch", "service_action", "process_action", "network_diagnostic", "backup_operation", "deployment_rollback"] },
+            scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            exception_class: { type: "string", enum: ["E0", "E1", "E2", "E3", "E4", "E5", "E6"] },
+            requested_scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            depends_on: { type: "array", maxItems: 5, items: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" } },
+            capability_budget: { type: "object", additionalProperties: false, properties: { max_statements: { type: "integer", minimum: 0, maximum: 1000000 }, max_rows: { type: "integer", minimum: 0, maximum: 1000000 }, max_files: { type: "integer", minimum: 0, maximum: 1000000 }, max_bytes: { type: "integer", minimum: 0, maximum: 67108864 }, max_runtime_seconds: { type: "integer", minimum: 0, maximum: 1000000 }, max_services: { type: "integer", minimum: 0, maximum: 1000000 }, max_commands: { type: "integer", minimum: 0, maximum: 1000000 } } },
+            max_commands: { type: "integer", minimum: 0, maximum: 50 },
+            max_rows: { type: "integer", minimum: 0, maximum: 100 },
+            previous_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            event: { type: "object", additionalProperties: true },
+            configured: { type: "boolean" },
+            value_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            age_seconds: { type: "integer", minimum: 0, maximum: 315360000 },
+          },
+        },
+      },
     },
   },
   {
@@ -2214,6 +2343,25 @@ async function inspectGoogleDriveFolder(args = {}, auth = null, deps = {}) {
   };
 }
 
+function recoveryAdminPrincipalFromAuth(auth) {
+  const verified = auth?.is_admin === true;
+  return { verified, binding: verified ? "admin_guard_auth_context" : "missing_admin_guard_binding" };
+}
+
+function recoveryEnvironmentIsProduction(env = process.env) {
+  const signals = [
+    ["NODE_ENV", env.NODE_ENV],
+    ["REMOTE_MCP_ENVIRONMENT", env.REMOTE_MCP_ENVIRONMENT],
+    ["DEPLOYMENT_ENVIRONMENT", env.DEPLOYMENT_ENVIRONMENT],
+    ["GITHUB_REF_NAME", env.GITHUB_REF_NAME],
+  ].filter(([, value]) => String(value || "").trim());
+  if (!signals.length) return false;
+  return signals.every(([name, value]) => {
+    const normalized = String(value).trim().toLowerCase();
+    return name === "GITHUB_REF_NAME" ? normalized === "production" : ["production", "prod"].includes(normalized);
+  });
+}
+
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
     const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
@@ -2235,6 +2383,93 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "recovery_kernel_call": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_call requires a JSON object.");
+        error.status = 400;
+        error.code = "recovery_kernel_call_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["capability_key", "input"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length || typeof args.capability_key !== "string" || !args.capability_key.trim()) {
+        const error = new Error("recovery_kernel_call accepts only capability_key and bounded input.");
+        error.status = 400;
+        error.code = "recovery_kernel_call_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const capabilityKey = args.capability_key.trim();
+      if (!SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES.has(capabilityKey)) {
+        const error = new Error("Consequential Recovery execution is not available through the shared non-consequential Admin System Action.");
+        error.status = 404;
+        error.code = "recovery_kernel_private_surface_required";
+        error.details = { capability_key: capabilityKey, required_surface: "admin_recovery_production_or_host_breakglass", secrets_included: false };
+        throw error;
+      }
+      const stagingSafe = new Set(["recovery_capabilities", "system_tool_get", "system_tools_search"]);
+      const env = deps.recoveryKernelEnv || deps.env || process.env;
+      if (!stagingSafe.has(capabilityKey) && !recoveryEnvironmentIsProduction(env)) {
+        const error = new Error("Production-only Recovery Kernel capability requested outside Production.");
+        error.status = 404;
+        error.code = "recovery_kernel_production_only";
+        error.details = { capability_key: capabilityKey, secrets_included: false };
+        throw error;
+      }
+      return await callRecoveryKernelCapability(capabilityKey, args.input || {}, {
+        env,
+        repoRoot: deps.hostLocalInspectionRepoRoot,
+        hostLocalExecutor: deps.hostLocalInspectionExecutor,
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalVerifier: deps.approvalVerifier,
+        approvalStore: deps.approvalStore,
+        recoveryLock: deps.recoveryLock,
+        mutationExecutor: deps.mutationExecutor,
+        readbackVerifier: deps.readbackVerifier,
+        productionActivationReadinessExecutor: deps.productionActivationReadinessExecutor,
+        systemToolLookup: deps.systemToolLookup,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
+      });
+    }
+    case "recovery_kernel_capabilities":
+      return getRecoveryCapabilities({ env: deps.recoveryKernelEnv || deps.env || process.env });
+    case "system_tool_get": {
+      if (!args || typeof args !== "object" || Array.isArray(args) || typeof args.tool_name !== "string" || !args.tool_name.trim()) {
+        const error = new Error("system_tool_get requires tool_name and accepts no other control fields.");
+        error.status = 400;
+        error.code = "system_tool_get_input_invalid";
+        throw error;
+      }
+      const { getSystemToolDescriptorByName } = await import("../systemToolCatalogV2.js");
+      return getSystemToolDescriptorByName(toolsForPrincipal(auth), args.tool_name.trim());
+    }
+    case "system_tools_search": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("system_tools_search requires a JSON object.");
+        error.status = 400;
+        error.code = "system_tools_search_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["q", "tag", "capability_key", "limit"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length) {
+        const error = new Error("system_tools_search accepts only bounded query fields.");
+        error.status = 400;
+        error.code = "system_tools_search_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const { listSystemToolCatalog } = await import("../systemToolCatalogV2.js");
+      return {
+        ok: true,
+        protocol: "openapi-mcp-facade",
+        catalog_mode: "repository_static_system_layer",
+        ...listSystemToolCatalog(toolsForPrincipal(auth), { ...args, limit: Math.min(Number(args.limit || 20), 50) }),
+        database_query_performed: false,
+        secrets_included: false,
+      };
+    }
     case "response_chunk_read":
       return await readCachedToolResponseChunk({
         ...(args || {}),
@@ -2400,7 +2635,24 @@ function sendError(res, err, fallbackCode) {
 }
 
 export function buildSystemLayerRoutes(deps) {
-  const { requireBackendApiKey, executionFacade } = deps;
+  const {
+    requireBackendApiKey,
+    executionFacade,
+    hostLocalInspectionExecutor,
+    hostLocalInspectionEnv,
+    hostLocalInspectionRepoRoot,
+    productionActivationReadinessExecutor,
+    recoveryKernelEnv,
+    recoveryStore,
+    approvalIssuer,
+    approvalVerifier,
+    approvalStore,
+    recoveryLock,
+    mutationExecutor,
+    readbackVerifier,
+    systemToolLookup,
+    env,
+  } = deps;
   const router = Router();
   const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
   const authenticated = [requireBackendApiKey];
@@ -2477,7 +2729,24 @@ export function buildSystemLayerRoutes(deps) {
         }, timeoutMs)
       );
       const result = await Promise.race([
-        callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
+        callSystemLayerTool(name, args, req.auth, {
+          executionFacade,
+          req,
+          hostLocalInspectionExecutor,
+          hostLocalInspectionEnv,
+          hostLocalInspectionRepoRoot,
+          productionActivationReadinessExecutor,
+          recoveryKernelEnv,
+          recoveryStore,
+          approvalIssuer,
+          approvalVerifier,
+          approvalStore,
+          recoveryLock,
+          mutationExecutor,
+          readbackVerifier,
+          systemToolLookup,
+          env,
+        }),
         deadline
       ]);
       if (!shouldChunkDispatchedToolResponse(name, result)) {
@@ -2565,7 +2834,23 @@ export function buildSystemLayerRoutes(deps) {
         }, timeoutMs)
       );
       const result = await Promise.race([
-        callSystemLayerTool(name, args, req.auth, { executionFacade }),
+        callSystemLayerTool(name, args, req.auth, {
+          executionFacade,
+          hostLocalInspectionExecutor,
+          hostLocalInspectionEnv,
+          hostLocalInspectionRepoRoot,
+          productionActivationReadinessExecutor,
+          recoveryKernelEnv,
+          recoveryStore,
+          approvalIssuer,
+          approvalVerifier,
+          approvalStore,
+          recoveryLock,
+          mutationExecutor,
+          readbackVerifier,
+          systemToolLookup,
+          env,
+        }),
         deadline
       ]);
       if (!shouldChunkDispatchedToolResponse(name, result)) {

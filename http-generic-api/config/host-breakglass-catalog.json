@@ -8,6 +8,22 @@
   "backup_evidence_schema": "config/host-breakglass-backup-evidence.schema.json",
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   "dispatch_ref": "main",
+  "production_reconstruction_authority": {
+    "status": "primary_governed_admin_path",
+    "control_plane_host": "auth.mad4b.com",
+    "execution_entrypoint": "existing_admin_governed_execution",
+    "transport": "github_workflow",
+    "new_mutation_endpoint_required": false,
+    "role_selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+    "local_connector": {
+      "status": "deferred",
+      "required_for_production_reconstruction": false,
+      "production_dependency": false,
+      "fallback_to_local_connector_allowed": false,
+      "unavailable_behavior": "record_deferred_scope_and_fail_closed_without_blocking_admin_path"
+    },
+    "secrets_included": false
+  },
   "target_branch": "Production",
   "workflow": "production-runtime-parity-evidence.yml",
   "environments": {
@@ -24,6 +40,10 @@
       "target_key_prefix": "staging-",
       "provider": "local_docker",
       "credential_namespace": "STAGING_MYSQL_BOOTSTRAP_*",
+      "admin_surface_host": null,
+      "local_connector_status": "deferred",
+      "local_connector_required": false,
+      "local_connector_scope": "staging_local_only_optional_diagnostic",
       "github_workflow_dispatch_allowed": false,
       "hostinger_access_allowed": false
     },
@@ -41,6 +61,11 @@
       "dispatch_ref": "main",
       "provider": "hostinger",
       "credential_namespace": "DB_*, GOVERNANCE_DB_*, RUNTIME_PERSISTENCE_DB_* (host-local role source); repository_allowlist uses its separately governed bootstrap identity",
+      "admin_surface_host": "auth.mad4b.com",
+      "admin_execution_authority": "existing_admin_governed_execution",
+      "local_connector_status": "deferred",
+      "local_connector_required": false,
+      "local_connector_fallback_allowed": false,
       "github_workflow_dispatch_allowed": true,
       "hostinger_access_allowed": true
     }
@@ -105,7 +130,17 @@
       "requires_confirmation": true,
       "allowed_runbooks": ["database.empty_rebuild"],
       "requires_zero_table_database": true,
-      "purpose": "Rebuild an empty database from the exact-SHA schema bundle, seeds, repository migrations, and same-cycle readback. Grants remain a separate database.access_repair approval after rebuild readback."
+      "requires_zero_object_database": true,
+      "requires_zero_object_proof_for_all_roles": false,
+      "requires_selected_zero_object_role_proof": true,
+      "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+      "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+      "selection_cannot_be_caller_database_name": true,
+      "pre_mutation_zero_object_recheck_required": true,
+      "sequential_role_execution": true,
+      "stop_on_role_verification_failure": true,
+      "runtime_nonempty_preserved": true,
+      "purpose": "Rebuild only the selected role set proven EMPTY_UNINITIALIZED_DATABASE by the same-cycle full inspection. A nonempty runtime role remains untouched when governance or runtime_persistence is selected. Grants remain a separate database.access_repair approval after each selected role passes same-cycle readback."
     },
     {
       "key": "host.command_capsule",
@@ -121,22 +156,35 @@
   "reconstruction_plan": {
     "contract": "mad4b.host-breakglass-reconstruction-plan.v1",
     "mode": "plan_and_explicit_apply",
-    "scope": "existing_zero_table_only",
+    "scope": "existing_zero_object_set_only",
+    "requires_zero_object_proof": true,
+    "requires_selected_zero_object_role_proof": true,
+    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+    "pre_mutation_zero_object_recheck_required": true,
+    "sequential_role_execution": true,
+    "stop_on_role_verification_failure": true,
+    "runtime_nonempty_preserved": true,
     "execution_allowed": true,
     "steps": [
-      { "key": "classify_target", "mutation": false, "readback": true },
+      { "key": "classify_target", "mutation": false, "readback": true, "object_kinds": ["tables", "views", "triggers", "routines", "events"] },
       { "key": "inspect_schema_bundle", "mutation": false, "readback": true },
-      { "key": "rebuild_runtime_schema", "role": "runtime", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
-      { "key": "rebuild_governance_schema", "role": "governance", "mutation": true, "requires": ["zero_table_proof", "exact_sha", "typed_confirmation"] },
-      { "key": "rebuild_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "executor_available": true, "executor": "hostinger-runtime-bootstrap", "bundle_file": "persistence.schema.sql.gz", "same_cycle_readback_required": true },
+      { "key": "rebuild_selected_runtime_schema", "role": "runtime", "mutation": true, "selected_role_only": true, "requires": ["selected_zero_object_proof", "pre_mutation_recheck", "role_fingerprint", "exact_sha", "typed_confirmation", "same_cycle_readback"] },
+      { "key": "rebuild_selected_governance_schema", "role": "governance", "mutation": true, "selected_role_only": true, "requires": ["selected_zero_object_proof", "pre_mutation_recheck", "role_fingerprint", "exact_sha", "typed_confirmation", "same_cycle_readback"] },
+      { "key": "rebuild_selected_runtime_persistence_schema", "role": "runtime_persistence", "mutation": true, "selected_role_only": true, "executor_available": true, "executor": "hostinger-runtime-bootstrap", "bundle_file": "persistence.schema.sql.gz", "requires": ["selected_zero_object_proof", "pre_mutation_recheck", "role_fingerprint", "exact_sha", "typed_confirmation", "same_cycle_readback"] },
       { "key": "apply_canonical_seeds", "mutation": true, "requires": ["exact_sha", "typed_confirmation"] },
       { "key": "reconcile_reviewed_migrations", "mutation": true, "requires": ["repository_allowlist", "exact_sha", "typed_confirmation"] },
       { "key": "apply_least_privilege_grants", "mutation": true, "requires": ["separate_confirmation", "postconditions_ready"] },
       { "key": "read_postconditions_and_ledger", "mutation": false, "readback": true }
     ],
+    "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
     "complete": true,
     "blocking_reason": null,
-    "destructive_nonempty_rebuild_allowed": false
+    "destructive_nonempty_rebuild_allowed": false,
+    "partial_role_rebuild_allowed": true,
+    "selected_role_proof_required": true,
+    "sequential_role_execution": true,
+    "stop_on_role_verification_failure": true
   },
   "destructive_nonempty_rebuild": {
     "supported": false,

@@ -12,6 +12,20 @@
   "target_environment": "staging",
   "default_target_key": "staging-runtime",
   "role_target_source": "staging_local_role_env",
+  "execution_authority": "staging_local_windows_docker",
+  "production_admin_execution": {
+    "available": false,
+    "control_plane_host": null,
+    "reason": "staging_is_local_only"
+  },
+  "local_connector": {
+    "status": "deferred",
+    "required_for_production_reconstruction": false,
+    "required_for_staging_reconstruction": false,
+    "scope": "optional_staging_diagnostic_only",
+    "unavailable_behavior": "skip_deferred_scope_and_fail_closed",
+    "fallback_to_production_admin_path": false
+  },
   "role_credential_prefixes": {
     "runtime": "DB",
     "governance": "GOVERNANCE_DB",
@@ -19,8 +33,29 @@
   },
   "apply_migration_confirmation_prefix": "APPLY_STAGING_RUNTIME_MIGRATION",
   "apply_grants_confirmation_prefix": "APPLY_STAGING_RUNTIME_GRANTS",
+  "rebuild_confirmation_prefix": "APPLY_STAGING_RUNTIME_BASELINE_REBUILD",
   "role_credentials_require_windows_docker": true,
   "cross_environment_credential_reuse": false,
+  "empty_database_reconstruction": {
+    "scope": "existing_zero_object_set_only",
+    "object_kinds": ["tables", "views", "triggers", "routines", "events"],
+    "required_roles": ["runtime", "governance", "runtime_persistence"],
+    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
+    "all_roles_must_be_zero_objects": false,
+    "partial_role_rebuild_allowed": true,
+    "runtime_nonempty_preserved": true,
+    "pre_mutation_zero_object_recheck_required": true,
+    "sequential_role_execution": true,
+    "stop_on_role_verification_failure": true,
+    "standalone_migration_first_allowed": false,
+    "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
+    "behavioral_probes": [
+      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
+      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+    ]
+  },
   "credential_mapping": {
     "STAGING_MYSQL_BOOTSTRAP_HOST": "MYSQL_BOOTSTRAP_HOST",
     "STAGING_MYSQL_BOOTSTRAP_PORT": "MYSQL_BOOTSTRAP_PORT",
@@ -30,5 +65,6 @@
   },
   "github_workflow_dispatch_allowed": false,
   "hostinger_access_allowed": false,
+  "local_connector_access_allowed": false,
   "secrets_included": false
 }
