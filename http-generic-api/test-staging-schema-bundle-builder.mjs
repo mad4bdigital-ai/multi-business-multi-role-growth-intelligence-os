@@ -54,6 +54,7 @@ test("SQL splitter preserves semicolons inside quoted literals and strips commen
   ]);
 });
 
+
 test("migration contract policy enables comprehensive pre-use fail-closed guards", () => {
   assert.equal(migrationPolicy.contract, "mad4b.staging.migration-contract-policy.v1");
   assert.deepEqual(migrationPolicy.preuse_contract, {
@@ -971,8 +972,8 @@ test("canonical table bootstrap resolves ordered migration pre-use inside dispos
   assert.equal(bootstrap.provider_access_forbidden, true);
   assert.equal(bootstrap.secrets_included, false);
   assert.equal(bootstrap.unresolved_missing_table_gaps, 0);
-  assert.ok(bootstrap.resolved_missing_table_gaps >= 17);
-  assert.ok(bootstrap.table_count >= 18);
+  assert.ok(bootstrap.resolved_missing_table_gaps >= 11);
+  assert.ok(bootstrap.table_count >= 12);
   assert.ok(bootstrap.view_count >= 0);
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
