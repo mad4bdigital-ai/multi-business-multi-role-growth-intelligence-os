@@ -39,6 +39,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+      - name: Capture Migration 225 envelope dependency diagnostic before authorization
+        env:
+          METADATA_DIAGNOSTIC_MODE: readiness
+        run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Execute Production-bound authorization and dry-run
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret readiness evidence
