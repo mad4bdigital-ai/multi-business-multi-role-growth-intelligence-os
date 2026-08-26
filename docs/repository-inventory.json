@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7394,
-    "bytes": 72788068,
-    "lines": 1694438,
+    "files": 7397,
+    "bytes": 72805696,
+    "lines": 1694796,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2189,
-      "documentation": 1913,
-      "api-runtime": 1508,
+      "tests-and-specs": 2190,
+      "documentation": 1914,
+      "api-runtime": 1509,
       "database-migrations": 815,
       "root-and-other": 334,
       "api-contracts": 192,
@@ -26,9 +26,9 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2514,
-      ".mjs": 1760,
-      ".js": 1015,
+      ".md": 2515,
+      ".mjs": 1761,
+      ".js": 1016,
       ".json": 883,
       ".sql": 830,
       ".yml": 173,
@@ -61,8 +61,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3835,
-      "docs": 1817,
+      "http-generic-api": 3837,
+      "docs": 1818,
       "specs": 880,
       ".github": 304,
       ".changes": 303,
@@ -2619,6 +2619,7 @@
       "http-generic-api/test-queue-redis-status-redaction.mjs",
       "http-generic-api/test-record-only-authorization-retirement-migration.mjs",
       "http-generic-api/test-recovery-capability-taxonomy.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/test-recovery-exception-framework.mjs",
       "http-generic-api/test-recovery-execution-ticket.mjs",
       "http-generic-api/test-recovery-kernel-routes.mjs",
@@ -4900,6 +4901,7 @@
       "http-generic-api/test-queue-redis-status-redaction.mjs",
       "http-generic-api/test-record-only-authorization-retirement-migration.mjs",
       "http-generic-api/test-recovery-capability-taxonomy.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/test-recovery-exception-framework.mjs",
       "http-generic-api/test-recovery-execution-ticket.mjs",
       "http-generic-api/test-recovery-kernel-routes.mjs",
@@ -13712,7 +13714,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "225345b11ddcdc9ae6a4009d941a9866a05b11c131c5efaf5162d4217064e464",
+      "sha256": "54f9781170c17f0cc91d54b6a5a56171f9797e2b430b607e6dcb8d48a2ee6ca8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31450,6 +31452,17 @@
       "generated": false
     },
     {
+      "path": "docs/governance/recovery-composition.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 3824,
+      "lines": 33,
+      "sha256": "7a3b691a4d512ff873a5c82d8a42c173ce4c745ef9c310a89dc8dbf30bcaca8c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/governance/runtime-breakglass-environments.md",
       "category": "documentation",
       "extension": ".md",
@@ -32852,7 +32865,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "1cdbb4300b7b1cd254796717a7db300f239eef188c82cc5dcbfab6d598424624",
+      "sha256": "3e3e51b58eed2ef019bd0481ef10e69a31a8ce4a5a55173614950a4b1133c090",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -40519,7 +40532,7 @@
       "extension": ".json",
       "bytes": 3537404,
       "lines": 99740,
-      "sha256": "ac32b513833cc412169a216ae4ee2bc28d652a2300d80410b3b99b6692f70f87",
+      "sha256": "7f8b982ad9905d6fc38211b16094d29de644d866b749408c4014abb2651f7d96",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53076,6 +53089,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/recoveryComposition.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 7809,
+      "lines": 214,
+      "sha256": "6f288ae16f6734074eec20230ac7126eafbc7dd3a103289d3273760afdf3ac43",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/recoveryExceptionFramework.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -53389,7 +53413,7 @@
       "extension": ".json",
       "bytes": 1960980,
       "lines": 59303,
-      "sha256": "c1a7700d73da01b54550369705fb250c2416b7424e2147f388bc65e810dbf2b5",
+      "sha256": "1bf6092e31bfe2281ba1d28a97ed4ed734a94b92490776a0d98a4b8691f58462",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -71193,6 +71217,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-recovery-composition.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 5995,
+      "lines": 111,
+      "sha256": "21f67ec096fff7017c654795619b531a052cba33466a5710a249098d5af5484b",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-recovery-exception-framework.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -86983,7 +87018,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "0011e56a86988d484322b74a73f58fcb3cb25cd84d0247706141bdf043e4a8e8",
+      "sha256": "4547da72420839f348fb415286b5f15f7454157befb4ca86376f6f7ba3537d34",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -86994,7 +87029,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "6a650197f1332baebc431c5a2ed4a04e52e6ba0047e6ed580371c840f73ae109",
+      "sha256": "8d8d2d3e53a517aea9c991fb7efad220e2187d8eeaab9cbe818f6f9fbb31fc6b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87005,7 +87040,7 @@
       "extension": ".json",
       "bytes": 275222,
       "lines": 6536,
-      "sha256": "cdf0b37d03b0b4237ae17fea5a4ca370a9fd7d9288e9dfca00bbbfc73afc915a",
+      "sha256": "954e0b07945bfcca24536916626293dc5cd03b8ad4a3375ade450e8864f2ac2f",
       "mode": "644",
       "executable": false,
       "generated": false
