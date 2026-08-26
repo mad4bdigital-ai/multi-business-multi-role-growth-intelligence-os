@@ -81,6 +81,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+      - name: Enforce Migration 1051 pre-Apply metadata replay guard
+        env:
+          METADATA_DIAGNOSTIC_MODE: pre_apply
+        run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Execute exactly-once metadata Apply and same-cycle certification
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret Apply evidence
@@ -124,115 +128,9 @@ jobs:
         with:
           node-version: '22'
       - name: Capture bounded Migration 1051 metadata diagnostic without Apply
-        shell: bash
-        run: |
-          cd .github/workflows
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import path from 'node:path';
-          import { buildAdminControlDbReadRequest } from '../ops/lib/admin-control-db-request.mjs';
-
-          const base = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
-          const key = String(process.env.BACKEND_API_KEY || '');
-          const evidenceDir = path.resolve('../..', String(process.env.EVIDENCE_DIR || '.artifacts/github-repository-policy-1051-verify'));
-          const reportPath = path.join(evidenceDir, 'metadata-diagnostic-readback.json');
-          const sql = `SELECT
-            (SELECT status FROM platform_resource_adapters WHERE adapter_key='github_repository_policy_v2' LIMIT 1) AS adapter_status,
-            (SELECT status FROM platform_capability_readback_contracts WHERE contract_key='github_repository_policy_controller_readback_v2' AND is_current=1 LIMIT 1) AS readback_status,
-            (SELECT status FROM capability_apply_authorization_policy_registry WHERE policy_key='github_repository_policy_controller_apply_v1' LIMIT 1) AS apply_policy_status,
-            (SELECT runtime_surface FROM capability_apply_authorization_policy_registry WHERE policy_key='github_repository_policy_controller_apply_v1' LIMIT 1) AS apply_runtime_surface,
-            (SELECT allow_external_write FROM capability_apply_authorization_policy_registry WHERE policy_key='github_repository_policy_controller_apply_v1' LIMIT 1) AS allow_external_write,
-            (SELECT requires_typed_confirmation FROM capability_apply_authorization_policy_registry WHERE policy_key='github_repository_policy_controller_apply_v1' LIMIT 1) AS requires_typed_confirmation,
-            (SELECT requires_same_cycle_dry_run FROM capability_apply_authorization_policy_registry WHERE policy_key='github_repository_policy_controller_apply_v1' LIMIT 1) AS requires_same_cycle_dry_run,
-            (SELECT readiness_status FROM v_repository_capability_binding_readiness WHERE capability_binding_key='growth_intelligence_platform.github.repository_policy_controller.production' LIMIT 1) AS capability_readiness,
-            (SELECT policy_key FROM v_repository_capability_binding_readiness WHERE capability_binding_key='growth_intelligence_platform.github.repository_policy_controller.production' LIMIT 1) AS capability_policy_key,
-            (SELECT authorization_status FROM governed_migration_authorization_registry WHERE migration_file='1051_github_repository_policy_live_apply_authority.sql' LIMIT 1) AS migration_authorization_status,
-            (SELECT JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.live_github_policy_apply')) FROM governed_migration_authorization_registry WHERE migration_file='1051_github_repository_policy_live_apply_authority.sql' LIMIT 1) AS live_github_policy_apply;`;
-          const findRows = (value, seen = new Set()) => {
-            if (!value || typeof value !== 'object' || seen.has(value)) return null;
-            seen.add(value);
-            if (Array.isArray(value.rows)) return value.rows;
-            for (const child of Object.values(value)) {
-              const rows = findRows(child, seen);
-              if (rows) return rows;
-            }
-            return null;
-          };
-          const safeMetadata = (row = {}) => ({
-            adapter_status: row.adapter_status ?? null,
-            readback_status: row.readback_status ?? null,
-            apply_policy_status: row.apply_policy_status ?? null,
-            apply_runtime_surface: row.apply_runtime_surface ?? null,
-            allow_external_write: row.allow_external_write ?? null,
-            requires_typed_confirmation: row.requires_typed_confirmation ?? null,
-            requires_same_cycle_dry_run: row.requires_same_cycle_dry_run ?? null,
-            capability_readiness: row.capability_readiness ?? null,
-            capability_policy_key: row.capability_policy_key ?? null,
-            migration_authorization_status: row.migration_authorization_status ?? null,
-            live_github_policy_apply: row.live_github_policy_apply ?? null,
-          });
-          let report;
-          try {
-            const body = buildAdminControlDbReadRequest({
-              sql,
-              params: [],
-              maxRows: 1,
-              authorityContext: {
-                resource_type: 'database_metadata',
-                resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_live_apply_authority',
-                operation_mode: 'read_only_readiness_probe',
-                required: true,
-              },
-            });
-            const response = await fetch(`${base}/admin/control`, {
-              method: 'POST',
-              redirect: 'error',
-              headers: { 'x-api-key': key, Accept: 'application/json', 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-              signal: AbortSignal.timeout(120000),
-            });
-            const text = await response.text();
-            let payload = null;
-            try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
-            const rows = findRows(payload) || [];
-            report = {
-              contract: 'github_repository_policy_1051_metadata_diagnostic.v1',
-              diagnostic_status: response.ok && payload?.ok !== false ? 'captured' : 'unavailable',
-              transport_ok: true,
-              http_status: response.status,
-              row_present: rows.length > 0,
-              metadata: safeMetadata(rows[0]),
-              exact_apply_ledger_verified: false,
-              metadata_grants_apply_authority: false,
-              apply_sent: false,
-              provider_call_executed: false,
-              external_write_executed: false,
-              row_data_read: false,
-              freeform_sql_accepted: false,
-              secrets_included: false,
-            };
-          } catch (error) {
-            report = {
-              contract: 'github_repository_policy_1051_metadata_diagnostic.v1',
-              diagnostic_status: 'unavailable',
-              transport_ok: false,
-              error_code: String(error?.name || 'metadata_diagnostic_failed').slice(0, 128),
-              row_present: false,
-              metadata: safeMetadata(),
-              exact_apply_ledger_verified: false,
-              metadata_grants_apply_authority: false,
-              apply_sent: false,
-              provider_call_executed: false,
-              external_write_executed: false,
-              row_data_read: false,
-              freeform_sql_accepted: false,
-              secrets_included: false,
-            };
-          }
-          fs.mkdirSync(evidenceDir, { recursive: true });
-          fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-          console.log(JSON.stringify({ contract: report.contract, diagnostic_status: report.diagnostic_status, row_present: report.row_present, metadata_grants_apply_authority: false, secrets_included: false }));
-          NODE
+        env:
+          METADATA_DIAGNOSTIC_MODE: verify
+        run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Verify exact ledger and authority metadata without Apply
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret verification evidence

@@ -181,6 +181,7 @@
       ".github/ops/test-github-repository-policy-readback-core.mjs",
       ".github/ops/github-main-review-policy-live-activation.mjs",
       ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+      ".github/ops/github-repository-policy-1051-metadata-state.mjs",
       ".github/ops/runtime-recovery-governed-operations.mjs",
       ".github/ops/lib/admin-control-db-request.mjs",
       ".github/scripts/production-promotion-rehearsal.mjs",

@@ -6,6 +6,7 @@ import { classifyMigrationReadbackFailure } from "../.github/ops/lib/migration-r
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 
 const migrationWorkflow = read("../.github/workflows/github-repository-policy-1051-governed-rollout.yml");
+const metadataState = read("../.github/ops/github-repository-policy-1051-metadata-state.mjs");
 const liveWorkflow = read("../.github/workflows/github-main-review-policy-live-activation.yml");
 const publisherWorkflow = read("../.github/workflows/github-main-review-policy-readiness-publisher.yml");
 const migrationRunner = read("../.github/ops/github-repository-policy-1051-governed-rollout.mjs");
@@ -47,18 +48,38 @@ assert.match(migrationWorkflow, /VERIFY_GOVERNED_MIGRATION_1051_GITHUB_REPOSITOR
 assert.match(migrationWorkflow, /SOURCE_PR: '6631'/);
 assert.match(migrationWorkflow, /persist-credentials: false/);
 
+const applyGuardIndex = migrationWorkflow.indexOf("Enforce Migration 1051 pre-Apply metadata replay guard");
+const applyExecuteIndex = migrationWorkflow.indexOf("Execute exactly-once metadata Apply and same-cycle certification");
 const metadataDiagnosticIndex = migrationWorkflow.indexOf("Capture bounded Migration 1051 metadata diagnostic without Apply");
 const ledgerVerifyIndex = migrationWorkflow.indexOf("Verify exact ledger and authority metadata without Apply");
+assert.ok(applyGuardIndex >= 0, "Migration 1051 Apply must enforce a replay guard");
+assert.ok(applyExecuteIndex > applyGuardIndex, "Replay guard must run before Migration 1051 Apply");
 assert.ok(metadataDiagnosticIndex >= 0, "Migration 1051 VERIFY must capture bounded metadata diagnostics");
 assert.ok(ledgerVerifyIndex > metadataDiagnosticIndex, "Metadata diagnostics must run before the exact ledger gate");
-assert.match(migrationWorkflow, /metadata-diagnostic-readback\.json/);
-assert.match(migrationWorkflow, /operation_mode: 'read_only_readiness_probe'/);
-assert.match(migrationWorkflow, /metadata_grants_apply_authority: false/);
-assert.match(migrationWorkflow, /exact_apply_ledger_verified: false/);
-assert.match(migrationWorkflow, /provider_call_executed: false/);
-assert.match(migrationWorkflow, /external_write_executed: false/);
-assert.match(migrationWorkflow, /freeform_sql_accepted: false/);
-assert.match(migrationWorkflow, /secrets_included: false/);
+assert.match(migrationWorkflow, /github-repository-policy-1051-metadata-state\.mjs/);
+assert.match(migrationWorkflow, /METADATA_DIAGNOSTIC_MODE: pre_apply/);
+assert.match(migrationWorkflow, /METADATA_DIAGNOSTIC_MODE: verify/);
+
+assert.match(metadataState, /github_repository_policy_1051_metadata_diagnostic\.v2/);
+assert.match(metadataState, /metadata-diagnostic-readback\.json/);
+assert.match(metadataState, /operation_mode: 'read_only_readiness_probe'/);
+assert.match(metadataState, /AS adapter_count/);
+assert.match(metadataState, /AS readback_contract_count/);
+assert.match(metadataState, /AS apply_policy_count/);
+assert.match(metadataState, /AS capability_binding_count/);
+assert.match(metadataState, /AS expected_policy_layer_count/);
+assert.match(metadataState, /AS total_policy_layer_count/);
+assert.match(metadataState, /AS migration_authorization_count/);
+assert.match(metadataState, /target_metadata_state/);
+assert.match(metadataState, /replay_safe_without_exact_ledger/);
+assert.match(metadataState, /target_metadata_\$\{classification\.target_metadata_state\}_without_exact_ledger/);
+assert.match(metadataState, /exact_apply_ledger_verified/);
+assert.match(metadataState, /metadata_grants_apply_authority: false/);
+assert.match(metadataState, /apply_sent: false/);
+assert.match(metadataState, /provider_call_executed: false/);
+assert.match(metadataState, /external_write_executed: false/);
+assert.match(metadataState, /freeform_sql_accepted: false/);
+assert.match(metadataState, /secrets_included: false/);
 
 assert.match(liveWorkflow, /^name: Governed GitHub Review Policy Live Activation/m);
 assert.match(liveWorkflow, /permissions:\n  contents: read/);

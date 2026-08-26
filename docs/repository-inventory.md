@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,397 |
-| Total bytes | 72,805,698 |
-| Counted text lines | 1,694,796 |
+| Tracked files | 7,399 |
+| Total bytes | 72,822,425 |
+| Counted text lines | 1,695,133 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -17,14 +17,14 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,190 |
+| `tests-and-specs` | 2,191 |
 | `documentation` | 1,914 |
 | `api-runtime` | 1,509 |
 | `database-migrations` | 815 |
 | `root-and-other` | 334 |
 | `api-contracts` | 192 |
 | `ci-workflows` | 170 |
-| `ci-config` | 134 |
+| `ci-config` | 135 |
 | `schemas-and-data` | 77 |
 | `connectors-and-edge` | 29 |
 | `applications` | 19 |
@@ -36,7 +36,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,515 |
-| `.mjs` | 1,761 |
+| `.mjs` | 1,763 |
 | `.js` | 1,016 |
 | `.json` | 883 |
 | `.sql` | 830 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 170 |
 | Database migrations | 815 |
 | API/OpenAPI contracts | 192 |
-| Test/spec files (paths) | 2,280 |
+| Test/spec files (paths) | 2,281 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -92,7 +92,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,406 | 99740 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,537,404 | 99740 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,960,980 | 59303 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 1,028,304 | 23576 |
