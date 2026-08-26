@@ -251,7 +251,7 @@ jobs:
             --arg validation_branch "$VALIDATION_BRANCH" \
             --arg validation_base_branch "$VALIDATION_BASE_BRANCH" \
             --arg candidate_mode "$CANDIDATE_MODE" \
-            '{schema_version:"production_promotion_candidate.v3",ok:true,release_mode:"certified_release_cut",release_cut_sha:$release_cut_sha,current_main_sha:$main_sha,production_sha:$ACTUAL_PRODUCTION_SHA,candidate_sha:$candidate_sha,candidate_tree:$candidate_tree,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,candidate_mode:$candidate_mode,tree_policy:"exact_release_cut_tree",main_tip_may_advance:true,production_must_remain_stable:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            '{schema_version:"production_promotion_candidate.v3",ok:true,release_mode:"certified_release_cut",release_cut_sha:$release_cut_sha,current_main_sha:$main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,candidate_tree:$candidate_tree,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,candidate_mode:$candidate_mode,tree_policy:"exact_release_cut_tree",main_tip_may_advance:true,production_must_remain_stable:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "$RUNNER_TEMP/production-promotion-candidate.json"
 
       - name: Upload candidate evidence
