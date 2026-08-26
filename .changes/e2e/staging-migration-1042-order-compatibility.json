@@ -41,7 +41,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the local exact-main Staging schema bundle replay apply migrations by numeric version prefix before filename tie-breaker, so migration 310 creates activation_runs before migration 1042 creates its session-context index.",
+      "objective": "Make the local exact-main Staging schema bundle replay apply migrations by numeric version prefix with a deterministic complete-filename tie-breaker, so migration 310 creates activation_runs before migration 1042 creates its session-context index and same-prefix parent migrations precede their child migrations.",
       "e2e_journeys": [
         {
           "id": "numeric-ordered-disposable-mariadb-replay",
@@ -59,6 +59,7 @@
           ],
           "assertions": [
             "Migration 310 precedes migration 1042 in the builder and pre-use audit order.",
+            "Same-prefix parent filenames sort before suffixed child filenames with the same comparator on Windows and Linux.",
             "Every migration filename has a numeric version prefix.",
             "The manifest ordering contract matches the comparator implementation.",
             "The builder remains fail-closed on wrong SHA, dirty tree, non-local Docker, missing confirmation, SQL failure, or missing outputs.",
@@ -78,6 +79,13 @@
               "working_directory": ".",
               "path": "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
               "args": ["."]
+            },
+            {
+              "id": "migration-order-parent-child-tie-break-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-migration-placement-guard.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -91,6 +99,7 @@
             "http-generic-api/test-environment-impact-closure.mjs",
             ".github/workflows/e2e-phase-governance.yml",
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-migration-placement-guard.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
           ]
         }
