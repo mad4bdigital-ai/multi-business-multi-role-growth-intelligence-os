@@ -12,8 +12,15 @@ function text(value = "") {
   return String(value ?? "").trim();
 }
 
+function safeCount(value) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : 0;
+}
+
 export function projectGovernanceDbPrivilegeReadiness(result = {}) {
-  const ready = result.ready === true && result.privilege_readiness?.ready === true;
+  const schemaObjectsReady = result.schema_readiness?.ready === true;
+  const privilegeMatrixExact = result.privilege_readiness?.ready === true;
+  const ready = result.ready === true && schemaObjectsReady && privilegeMatrixExact;
   return {
     contract: GOVERNANCE_DB_PRIVILEGE_READINESS_RUNTIME_CONTRACT,
     status: ready ? "ready" : "blocked",
@@ -23,7 +30,12 @@ export function projectGovernanceDbPrivilegeReadiness(result = {}) {
     production_branch_exact: result.production_branch_exact === true,
     promotion_target_branch_exact: result.promotion_target_branch_exact === true,
     governance_identity_configured: result.governance_identity_configured === true,
-    privilege_matrix_exact: ready,
+    schema_objects_ready: schemaObjectsReady,
+    required_schema_table_count: safeCount(result.schema_readiness?.required_table_count),
+    observed_required_schema_table_count: safeCount(result.schema_readiness?.observed_required_table_count),
+    missing_required_schema_table_count: safeCount(result.schema_readiness?.missing_required_table_count),
+    table_names_exposed: false,
+    privilege_matrix_exact: privilegeMatrixExact,
     database_connection_performed: result.database_connection_performed === true,
     sql_readback_performed: result.sql_readback_performed === true,
     read_only_probe: true,
