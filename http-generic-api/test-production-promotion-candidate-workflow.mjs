@@ -18,6 +18,10 @@ assert.match(workflow, /validation_base_branch:/u, "workflow must require an imm
 assert.match(workflow, /contents:\s*write/u, "candidate workflow needs bounded contents write permission");
 assert.match(workflow, /pull-requests:\s*write/u, "candidate workflow needs bounded PR write permission");
 assert.match(workflow, /cancel-in-progress:\s*false/u, "candidate construction must not be cancelled mid-ref update");
+assert.match(workflow, /REPO_AUTOSYNC_TOKEN_PRESENT:\s*\$\{\{\s*secrets\.REPO_AUTOSYNC_TOKEN != ''\s*\}\}/u, "candidate workflow must fail closed before mutation when the trusted review-surface identity is unavailable");
+assert.match(workflow, /GH_TOKEN:\s*\$\{\{\s*secrets\.REPO_AUTOSYNC_TOKEN\s*\}\}/u, "promotion review surfaces must be created by the trusted repository identity");
+assert.doesNotMatch(workflow, /GH_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/u, "promotion review surfaces must never fall back to GITHUB_TOKEN because pull_request_target validation would not be triggered");
+assert.ok(workflow.indexOf("Require trusted promotion review-surface identity") < workflow.indexOf("Prepare immutable release-cut candidate"), "trusted promotion identity must be required before candidate branch mutation");
 
 assert.match(workflow, /\^\[0-9a-f\]\{40\}\$/u, "workflow must validate exact lowercase SHAs");
 assert.match(workflow, /git check-ref-format --branch/u, "workflow must validate branch names");
