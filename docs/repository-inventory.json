@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7419,
-    "bytes": 73067381,
-    "lines": 1699588,
+    "bytes": 73067494,
+    "lines": 1699590,
     "directories": 266,
     "categories": 13
   },
@@ -7856,9 +7856,9 @@
       "path": ".changes/e2e/recovery-action-ticket-bridge-20260826.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 9200,
-      "lines": 159,
-      "sha256": "6b2068e2882d641d330d835f16fa7b5b6245b623e4aa300a2e2b60c1952ee44b",
+      "bytes": 9247,
+      "lines": 160,
+      "sha256": "b78a82d53c9b135c258781d39f0d658468a9b089b58ed92c6656718b12f82107",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10287,9 +10287,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 22107,
-      "lines": 453,
-      "sha256": "e9344baaf76d6347a29703514b9fa8f6f6c6fed646722562edb57803a5d4caa7",
+      "bytes": 22173,
+      "lines": 454,
+      "sha256": "6082cfacc862f272665abc7acdf9e4dd5830883947f6435a0eb6bcf7326bd4d1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13776,7 +13776,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "2023e73fedd460508437470b0aff677bcba8228eb1f330992c6a1fc45dcb6a1d",
+      "sha256": "f97224e4ab7a517e8b4107272d4edcf60fe1f4fc8947faf265d44f4d6dba6a0c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -40638,7 +40638,7 @@
       "extension": ".json",
       "bytes": 3541976,
       "lines": 99855,
-      "sha256": "a649ef378195126b7c0ad8902042bbe054e75516fbdc1edc858fd8394f0fb83f",
+      "sha256": "51c8fa86e85e5fcb6578ff639ee5a493808e735ee29119fa53b279e62fa2e6b1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87278,7 +87278,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "e43aeb6f1dcb19a689b99c977bf5c186a8ea9e651e385284e4fd70c1c86c7ad5",
+      "sha256": "ea9eb8d3942ea339086fff2de42a06e1396d0f78e235bba5704b917ca0b8e9e5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87289,7 +87289,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "be67523021946d05dae23a1ef32664d0a1a73d68af3edba3454cf0315f348646",
+      "sha256": "d7443c5554de3a157e06ca03e5a86a9c4ffc516b0745548fc4d133af74ecbe28",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87300,7 +87300,7 @@
       "extension": ".json",
       "bytes": 275265,
       "lines": 6537,
-      "sha256": "2422595eb3aa4f07a03a798db19fe52430f48c6240019bd7f6f9619346ee6c3f",
+      "sha256": "c170027825a4f881c872f078e88453749cefe466200c673ed12008c57c39494c",
       "mode": "644",
       "executable": false,
       "generated": false
