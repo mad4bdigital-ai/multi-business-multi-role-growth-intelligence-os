@@ -197,6 +197,9 @@ async function captureGovernanceWriterReadiness({ base, key }) {
     && readiness?.production_branch_exact === true
     && readiness?.promotion_target_branch_exact === true
     && readiness?.governance_identity_configured === true
+    && readiness?.schema_objects_ready === true
+    && Number(readiness?.missing_required_schema_table_count) === 0
+    && readiness?.table_names_exposed === false
     && readiness?.privilege_matrix_exact === true
     && readiness?.database_connection_performed === true
     && readiness?.sql_readback_performed === true
@@ -208,7 +211,7 @@ async function captureGovernanceWriterReadiness({ base, key }) {
     && readiness?.secrets_included === false
   );
   return {
-    contract: 'github_repository_policy_1051_governance_writer_readiness.v1',
+    contract: 'github_repository_policy_1051_governance_writer_readiness.v2',
     transport_ok: result.transport_ok,
     http_status: result.status,
     runtime_branch: runtimeBranch || null,
@@ -219,6 +222,11 @@ async function captureGovernanceWriterReadiness({ base, key }) {
     production_branch_exact: readiness?.production_branch_exact === true,
     promotion_target_branch_exact: readiness?.promotion_target_branch_exact === true,
     governance_identity_configured: readiness?.governance_identity_configured === true,
+    schema_objects_ready: readiness?.schema_objects_ready === true,
+    required_schema_table_count: count(readiness?.required_schema_table_count),
+    observed_required_schema_table_count: count(readiness?.observed_required_schema_table_count),
+    missing_required_schema_table_count: count(readiness?.missing_required_schema_table_count),
+    table_names_exposed: readiness?.table_names_exposed === true,
     privilege_matrix_exact: readiness?.privilege_matrix_exact === true,
     database_connection_performed: readiness?.database_connection_performed === true,
     sql_readback_performed: readiness?.sql_readback_performed === true,
@@ -261,7 +269,7 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
       ? 'governance_writer_readiness_not_ready'
       : null;
   const report = {
-    contract: 'github_repository_policy_1051_envelope_dependency_225.v2',
+    contract: 'github_repository_policy_1051_envelope_dependency_225.v3',
     migration: ENVELOPE_DEPENDENCY_MIGRATION,
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
@@ -343,7 +351,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     ? true
     : metadataReplayAllowed && dependencyGuardAllowed;
   const report = {
-    contract: 'github_repository_policy_1051_metadata_diagnostic.v4',
+    contract: 'github_repository_policy_1051_metadata_diagnostic.v5',
     mode,
     diagnostic_status: diagnosticCaptured ? 'captured' : 'unavailable',
     transport_ok: result.transport_ok,
@@ -361,7 +369,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     ledger,
     readiness_dependency_guard: mode === 'readiness' ? {
       status: dependencyGuardAllowed ? 'pass' : 'blocked',
-      reason: dependencyGuardAllowed ? 'migration_225_runtime_and_governance_writer_verified' : dependency225.dependency_block_reason,
+      reason: dependencyGuardAllowed ? 'migration_225_runtime_and_governance_writer_schema_verified' : dependency225.dependency_block_reason,
     } : null,
     pre_apply_guard: mode === 'pre_apply' ? {
       status: guardAllowed ? 'pass' : 'blocked',
@@ -390,7 +398,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     if (!dependencyGuardAllowed) {
       const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
       const error = new Error(writerBlocked
-        ? 'Migration 1051 readiness blocked: Governance DB writer readiness is not proven on the same Production runtime that will persist the capability envelope'
+        ? 'Migration 1051 readiness blocked: Governance DB writer schema and privilege readiness are not proven on the same Production runtime that will persist the capability envelope'
         : 'Migration 1051 readiness blocked: Migration 225 runtime dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
       error.code = writerBlocked
         ? 'migration_1051_governance_writer_dependency_not_ready'
@@ -403,7 +411,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     if (!dependencyGuardAllowed) {
       const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
       const error = new Error(writerBlocked
-        ? 'Migration 1051 pre-Apply blocked: Governance DB writer readiness is not proven'
+        ? 'Migration 1051 pre-Apply blocked: Governance DB writer schema and privilege readiness are not proven'
         : 'Migration 1051 pre-Apply blocked: Migration 225 runtime dependency is not ready');
       error.code = writerBlocked
         ? 'migration_1051_governance_writer_dependency_not_ready'
@@ -431,6 +439,7 @@ async function main() {
     authorization_state: report.authorization_state,
     metadata_present: report.metadata_present,
     dependency_225_runtime_ready: report.envelope_dependency_225?.runtime_dependency_ready ?? false,
+    governance_writer_schema_ready: report.envelope_dependency_225?.governance_writer_readiness?.schema_objects_ready ?? false,
     governance_writer_ready: report.envelope_dependency_225?.governance_writer_ready ?? false,
     dependency_225_ready: report.envelope_dependency_225?.dependency_ready ?? false,
     readiness_dependency_guard: report.readiness_dependency_guard?.status ?? null,
