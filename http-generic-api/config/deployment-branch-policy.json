@@ -208,6 +208,7 @@
           "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
           "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
           "http-generic-api/scripts/environment-impact-closure.mjs",
+          "http-generic-api/scripts/spec011-disposable-migration-authorization-binding.mjs",
           "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
           "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
           "http-generic-api/scripts/migration-order.mjs",

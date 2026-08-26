@@ -14,10 +14,12 @@ on:
       - "http-generic-api/spec011Phase5MigrationPreflight.js"
       - "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql"
       - "http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs"
+      - "http-generic-api/scripts/spec011-disposable-migration-authorization-binding.mjs"
       - "http-generic-api/scripts/delegation-mariadb-production-cycle.mjs"
       - "http-generic-api/scripts/spec011-phase5-migration-preflight.mjs"
       - "http-generic-api/scripts/spec011-phase5-validation-lab.mjs"
       - "http-generic-api/test-delegation-grant-mariadb-*.mjs"
+      - "http-generic-api/test-spec011-disposable-migration-authorization-binding.mjs"
       - "http-generic-api/test-spec011-phase5-migration-preflight.mjs"
       - "http-generic-api/test-spec011-phase5-validation-ci.mjs"
       - ".github/workflows/spec-011-delegation-mariadb-certification.yml"
@@ -34,11 +36,13 @@ jobs:
   disposable-mariadb-certification:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DB_NAME: ${{ format('spec011_delegation_cert_{0}', github.run_id) }}
     services:
       mariadb:
         image: mariadb:11.4
         env:
-          MARIADB_DATABASE: spec011_delegation_cert_ci
+          MARIADB_DATABASE: ${{ format('spec011_delegation_cert_{0}', github.run_id) }}
           MARIADB_USER: spec011
           MARIADB_PASSWORD: spec011
           MARIADB_ROOT_PASSWORD: spec011-root
@@ -73,6 +77,7 @@ jobs:
           node test-delegation-grant-mariadb-adapter-contract.mjs
           node test-delegation-grant-mariadb-readiness-collector.mjs
           node test-delegation-grant-mariadb-runtime-binding.mjs
+          node test-spec011-disposable-migration-authorization-binding.mjs
           node test-spec011-phase5-migration-preflight.mjs
           node test-spec011-phase5-validation-ci.mjs
 
@@ -80,7 +85,6 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000
@@ -143,11 +147,20 @@ jobs:
           }
           NODE
 
+      - name: Bind exact disposable migration authorization artifact
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: spec011
+          DB_PASSWORD: spec011
+          DB_CONNECT_TIMEOUT_MS: 10000
+          DELEGATION_MARIADB_CERTIFICATION_MODE: disposable
+        run: node scripts/spec011-disposable-migration-authorization-binding.mjs
+
       - name: Certify governed migration and lifecycle on disposable MariaDB
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000
@@ -163,7 +176,6 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_NAME: spec011_delegation_cert_ci
           DB_USER: spec011
           DB_PASSWORD: spec011
           DB_CONNECT_TIMEOUT_MS: 10000

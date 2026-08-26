@@ -253,7 +253,8 @@
       "docs/governance/production-readiness-consolidated-fix.md",
       "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
       ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",
-      ".changes/e2e/spec018-residual-readiness-evidence.json"
+      ".changes/e2e/spec018-residual-readiness-evidence.json",
+      ".github/workflows/spec-011-delegation-mariadb-certification.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
