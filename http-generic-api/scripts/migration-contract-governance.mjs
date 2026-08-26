@@ -16,6 +16,7 @@ const { inspectOrderedMigrationChainEnumSeeds } = await import(pathToFileURL(pat
 const { inspectOrderedMigrationChainTextWidths } = await import(pathToFileURL(path.join(apiRoot, "databaseTextWidthPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainGeneratedColumns } = await import(pathToFileURL(path.join(apiRoot, "databaseGeneratedColumnPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainIndexKeyWidths } = await import(pathToFileURL(path.join(apiRoot, "databaseIndexKeyWidthPolicyGuard.js")).href);
+const { inspectOrderedMigrationChainRequiredInsertColumns } = await import(pathToFileURL(path.join(apiRoot, "databaseRequiredInsertColumnPolicyGuard.js")).href);
 
 function parseArgs(argv) {
   const options = { root: defaultRepoRoot, expectedCommit: "", output: "" };
@@ -154,6 +155,7 @@ const report = {
   text_width_chain_contract: policy.text_width_chain_contract || null,
   generated_column_chain_contract: policy.generated_column_chain_contract || null,
   index_key_width_chain_contract: policy.index_key_width_chain_contract || null,
+  required_insert_column_chain_contract: policy.required_insert_column_chain_contract || null,
   environment_profiles: {},
   database_role_topology: policy.database_role_topology || null,
   migration_history: policy.migration_history || null,
@@ -232,6 +234,11 @@ if (!indexKeyWidthContract || indexKeyWidthContract.enabled !== true || indexKey
 let indexKeyWidthPolicy;
 try { indexKeyWidthPolicy = readJson(indexKeyWidthPolicyPath); }
 catch (error) { pushFinding(report, "index_key_width_chain", "blocker", "database-index-key-width-policy.json", `index-key-width policy unreadable: ${error.message}`); }
+
+const requiredInsertColumnContract = policy.required_insert_column_chain_contract;
+if (!requiredInsertColumnContract || requiredInsertColumnContract.enabled !== true || requiredInsertColumnContract.engine !== "mariadb" || requiredInsertColumnContract.fail_on_omitted_required_columns !== true || requiredInsertColumnContract.inspect_create_alter_required_columns !== true || requiredInsertColumnContract.inspect_insert_replace_writers !== true || requiredInsertColumnContract.allow_declared_ddl_bridges !== true || requiredInsertColumnContract.static_only !== true || requiredInsertColumnContract.database_connection_allowed !== false || requiredInsertColumnContract.sql_mutation_allowed !== false || requiredInsertColumnContract.provider_access_allowed !== false || requiredInsertColumnContract.credential_access_allowed !== false || requiredInsertColumnContract.data_export_allowed !== false || requiredInsertColumnContract.runtime_mutation_allowed !== false || requiredInsertColumnContract.secrets_included !== false || !Array.isArray(requiredInsertColumnContract.required_tables) || requiredInsertColumnContract.required_tables.length === 0) {
+  pushFinding(report, "required_insert_column_chain", "blocker", "staging-migration-contract-policy.json", "required_insert_column_chain_contract must enable the MariaDB static ordered required-column writer gate");
+}
 
 const files = migrationFiles();
 report.counts.migration_files = files.length;
@@ -489,6 +496,53 @@ if (indexKeyWidthPolicy && indexKeyWidthContract?.enabled === true) {
   }
 }
 
+if (requiredInsertColumnContract?.enabled === true) {
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const requiredInsertColumnChain = inspectOrderedMigrationChainRequiredInsertColumns({
+    files: orderedFiles,
+    baselineFile: requiredInsertColumnContract.baseline_file || "http-generic-api/schema.sql",
+    engine: requiredInsertColumnContract.engine || "mariadb",
+    policy,
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  report.required_insert_column_chain = {
+    contract: requiredInsertColumnChain.contract,
+    engine: requiredInsertColumnChain.engine,
+    policy_key: requiredInsertColumnChain.policy_key,
+    baseline_file: requiredInsertColumnChain.baseline_file,
+    files_checked: requiredInsertColumnChain.files_checked,
+    migration_files_checked: requiredInsertColumnChain.migration_files_checked,
+    statements_checked: requiredInsertColumnChain.statements_checked,
+    tables_projected: requiredInsertColumnChain.tables_projected,
+    writer_checks: requiredInsertColumnChain.writer_checks,
+    required_columns_checked: requiredInsertColumnChain.required_columns_checked,
+    omitted_required_columns: requiredInsertColumnChain.omitted_required_columns,
+    allowed_bridge_omissions: requiredInsertColumnChain.allowed_bridge_omissions,
+    required_tables: requiredInsertColumnChain.required_tables,
+    findings: requiredInsertColumnChain.findings,
+    warnings: requiredInsertColumnChain.warnings,
+    ok: requiredInsertColumnChain.ok,
+    ready: requiredInsertColumnChain.ready,
+    database_connection_performed: requiredInsertColumnChain.database_connection_performed,
+    sql_mutation_performed: requiredInsertColumnChain.sql_mutation_performed,
+    provider_mutation_performed: requiredInsertColumnChain.provider_mutation_performed,
+    credential_access_performed: requiredInsertColumnChain.credential_access_performed,
+    data_export_performed: requiredInsertColumnChain.data_export_performed,
+    runtime_mutation_performed: requiredInsertColumnChain.runtime_mutation_performed,
+    secrets_included: requiredInsertColumnChain.secrets_included,
+  };
+  if (requiredInsertColumnChain.findings.length > 0) {
+    pushFinding(report, "required_insert_column_chain", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB required INSERT-column guard reports an omitted required column or invalid bridge", "", {
+      required_insert_column_findings: requiredInsertColumnChain.findings.length,
+      required_insert_column_files_checked: requiredInsertColumnChain.files_checked,
+      required_insert_column_statements_checked: requiredInsertColumnChain.statements_checked,
+    });
+  }
+  if (requiredInsertColumnChain.database_connection_performed !== false || requiredInsertColumnChain.sql_mutation_performed !== false || requiredInsertColumnChain.provider_mutation_performed !== false || requiredInsertColumnChain.credential_access_performed !== false || requiredInsertColumnChain.data_export_performed !== false || requiredInsertColumnChain.runtime_mutation_performed !== false || requiredInsertColumnChain.secrets_included !== false) {
+    pushFinding(report, "safety_boundary", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB required INSERT-column evidence violates static-only safety");
+  }
+}
+
 report.migration_catalog = {
   contract: "mad4b.cross-environment.migration-discovery.v1",
   source_commit: expectedCommit,
@@ -506,7 +560,7 @@ else if (planResult.status !== 0) pushFinding(report, "canonical_plan", "blocker
 else {
   try {
     const plan = JSON.parse(planResult.stdout);
-    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, ordered_index_key_width_chain: plan.ordered_index_key_width_chain, ordered_generated_column_chain: plan.ordered_generated_column_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
+    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, ordered_index_key_width_chain: plan.ordered_index_key_width_chain, ordered_required_insert_column_chain: plan.ordered_required_insert_column_chain, ordered_generated_column_chain: plan.ordered_generated_column_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
     if (plan.plan_only !== true) pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", "canonical builder did not return plan_only=true");
     if (plan.production_access_forbidden !== true || plan.provider_access_forbidden !== true) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical plan safety flags are incomplete");
     if (plan.ordered_preuse_audit?.missing_table_gaps > 0 || plan.ordered_preuse_audit?.missing_column_gaps > 0 || plan.ordered_preuse_audit?.unique_true_preuse_gaps > 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical ordered pre-use audit reports unresolved gaps", plan.ordered_preuse_audit);
@@ -526,6 +580,8 @@ else {
     if (plan.ordered_index_key_width_chain?.ok !== true || plan.ordered_index_key_width_chain?.ready !== true || plan.ordered_index_key_width_chain?.finding_count !== 0 || plan.ordered_index_key_width_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_index_key_width_chain?.statements_checked <= plan.statement_count || plan.ordered_index_key_width_chain?.max_key_bytes !== 3072) pushFinding(report, "index_key_width_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered index-key-width evidence is incomplete or reports a key over 3072 bytes", plan.ordered_index_key_width_chain || {});
     if (plan.ordered_generated_column_chain?.database_connection_performed !== false || plan.ordered_generated_column_chain?.sql_mutation_performed !== false || plan.ordered_generated_column_chain?.provider_mutation_performed !== false || plan.ordered_generated_column_chain?.credential_access_performed !== false || plan.ordered_generated_column_chain?.data_export_performed !== false || plan.ordered_generated_column_chain?.runtime_mutation_performed !== false || plan.ordered_generated_column_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered generated-column evidence violates static-only safety", plan.ordered_generated_column_chain || {});
     if (plan.ordered_index_key_width_chain?.database_connection_performed !== false || plan.ordered_index_key_width_chain?.sql_mutation_performed !== false || plan.ordered_index_key_width_chain?.provider_mutation_performed !== false || plan.ordered_index_key_width_chain?.credential_access_performed !== false || plan.ordered_index_key_width_chain?.data_export_performed !== false || plan.ordered_index_key_width_chain?.runtime_mutation_performed !== false || plan.ordered_index_key_width_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered index-key-width evidence violates static-only safety", plan.ordered_index_key_width_chain || {});
+    if (plan.ordered_required_insert_column_chain?.ok !== true || plan.ordered_required_insert_column_chain?.ready !== true || plan.ordered_required_insert_column_chain?.finding_count !== 0 || plan.ordered_required_insert_column_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_required_insert_column_chain?.statements_checked <= plan.statement_count) pushFinding(report, "required_insert_column_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered required INSERT-column evidence is incomplete or reports omitted required columns", plan.ordered_required_insert_column_chain || {});
+    if (plan.ordered_required_insert_column_chain?.database_connection_performed !== false || plan.ordered_required_insert_column_chain?.sql_mutation_performed !== false || plan.ordered_required_insert_column_chain?.provider_mutation_performed !== false || plan.ordered_required_insert_column_chain?.credential_access_performed !== false || plan.ordered_required_insert_column_chain?.data_export_performed !== false || plan.ordered_required_insert_column_chain?.runtime_mutation_performed !== false || plan.ordered_required_insert_column_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered required INSERT-column evidence violates static-only safety", plan.ordered_required_insert_column_chain || {});
   } catch (error) { pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", `canonical builder plan was not valid JSON: ${error.message}`); }
 }
 

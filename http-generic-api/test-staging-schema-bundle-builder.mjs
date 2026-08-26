@@ -10,6 +10,7 @@ import { inspectOrderedMigrationChainEnumSeeds } from "./databaseEnumSeedPolicyG
 import { inspectOrderedMigrationChainTextWidths } from "./databaseTextWidthPolicyGuard.js";
 import { inspectOrderedMigrationChainGeneratedColumns } from "./databaseGeneratedColumnPolicyGuard.js";
 import { inspectOrderedMigrationChainIndexKeyWidths } from "./databaseIndexKeyWidthPolicyGuard.js";
+import { inspectOrderedMigrationChainRequiredInsertColumns } from "./databaseRequiredInsertColumnPolicyGuard.js";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
@@ -155,6 +156,49 @@ test("index-key-width contract is static-only and blocks utf8mb4 composite overf
   assert.equal(passing.ok, true);
   assert.equal(passing.ready, true);
   assert.equal(passing.findings.length, 0);
+});
+
+test("required INSERT-column guard blocks omitted required columns and accepts an ordered DDL bridge", () => {
+  const baseContract = migrationPolicy.required_insert_column_chain_contract;
+  const fixtureBridge = "20260719_zzzz_mariadb_required_insert_column_platform_outbox_compatibility.sql";
+  const fixtureWriter = "20260720_dynamic_growth_control_plane_foundation.sql";
+  const fixturePolicy = {
+    required_insert_column_chain_contract: {
+      ...baseContract,
+      required_tables: [{
+        table: "platform_outbox_event_types",
+        columns: ["producer_key"],
+        default_bridge: {
+          bridge_file: fixtureBridge,
+          table: "platform_outbox_event_types",
+          column: "producer_key",
+          default_literal: "growth_control_plane",
+          writer_files: [fixtureWriter],
+        },
+      }],
+    },
+  };
+  const failingFiles = ["http-generic-api/migrations/20260711_outbox.sql", `http-generic-api/migrations/${fixtureWriter}`];
+  const failingRead = (file) => new Map([
+    ["http-generic-api/schema.sql", ""],
+    [failingFiles[0], "CREATE TABLE platform_outbox_event_types (event_type VARCHAR(191) NOT NULL, producer_key VARCHAR(120) NOT NULL) ENGINE=InnoDB;"],
+    [failingFiles[1], "INSERT INTO platform_outbox_event_types (event_type) VALUES ('x');"],
+  ]).get(file);
+  const failing = inspectOrderedMigrationChainRequiredInsertColumns({ files: failingFiles, baselineFile: "http-generic-api/schema.sql", engine: "mariadb", policy: fixturePolicy, readFile: failingRead });
+  assert.equal(failing.ok, false);
+  assert.equal(failing.findings[0].code, "required_insert_column_omitted");
+  const passingFiles = ["http-generic-api/migrations/20260711_outbox.sql", `http-generic-api/migrations/${fixtureBridge}`, `http-generic-api/migrations/${fixtureWriter}`];
+  const passingRead = (file) => new Map([
+    ["http-generic-api/schema.sql", ""],
+    [passingFiles[0], "CREATE TABLE platform_outbox_event_types (event_type VARCHAR(191) NOT NULL, producer_key VARCHAR(120) NOT NULL) ENGINE=InnoDB;"],
+    [passingFiles[1], "ALTER TABLE platform_outbox_event_types MODIFY COLUMN producer_key VARCHAR(120) NOT NULL DEFAULT 'growth_control_plane';"],
+    [passingFiles[2], "INSERT INTO platform_outbox_event_types (event_type) VALUES ('x');"],
+  ]).get(file);
+  const passing = inspectOrderedMigrationChainRequiredInsertColumns({ files: passingFiles, baselineFile: "http-generic-api/schema.sql", engine: "mariadb", policy: fixturePolicy, readFile: passingRead });
+  assert.equal(passing.ok, true);
+  assert.equal(passing.ready, true);
+  assert.equal(passing.findings.length, 0);
+  assert.equal(passing.allowed_bridge_omissions, 1);
 });
 
 test("schema bundle manifest declares exactly three isolated roles", () => {
@@ -913,16 +957,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 817);
-  assert.equal(plan.statement_count, 3105);
+  assert.equal(plan.migration_count, 818);
+  assert.equal(plan.statement_count, 3106);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 818);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 817);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3132);
+  assert.equal(plan.ordered_collation_chain.files_checked, 819);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 818);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3133);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -931,9 +975,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 818);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 817);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3132);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 819);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 818);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3133);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
   assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 893);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
@@ -947,11 +991,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 818);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 817);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3132);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 819);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 818);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3133);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5201);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6035);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6036);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
@@ -965,12 +1009,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.ok, true);
   assert.equal(plan.ordered_index_key_width_chain.ready, true);
   assert.equal(plan.ordered_index_key_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_index_key_width_chain.files_checked, 818);
-  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 817);
-  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3132);
+  assert.equal(plan.ordered_index_key_width_chain.files_checked, 819);
+  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 818);
+  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3133);
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, 582);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2815);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4767);
+  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2816);
+  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4769);
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
@@ -979,16 +1023,35 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.data_export_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.runtime_mutation_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.secrets_included, false);
+  assert.equal(plan.ordered_required_insert_column_chain.contract, "mad4b.mariadb-required-insert-column-ordered-chain.v1");
+  assert.equal(plan.ordered_required_insert_column_chain.ok, true);
+  assert.equal(plan.ordered_required_insert_column_chain.ready, true);
+  assert.equal(plan.ordered_required_insert_column_chain.finding_count, 0);
+  assert.equal(plan.ordered_required_insert_column_chain.files_checked, 819);
+  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, 818);
+  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, 3133);
+  assert.equal(plan.ordered_required_insert_column_chain.tables_projected, 585);
+  assert.equal(plan.ordered_required_insert_column_chain.writer_checks, 11);
+  assert.equal(plan.ordered_required_insert_column_chain.required_columns_checked, 11);
+  assert.equal(plan.ordered_required_insert_column_chain.omitted_required_columns, 1);
+  assert.equal(plan.ordered_required_insert_column_chain.allowed_bridge_omissions, 1);
+  assert.equal(plan.ordered_required_insert_column_chain.database_connection_performed, false);
+  assert.equal(plan.ordered_required_insert_column_chain.sql_mutation_performed, false);
+  assert.equal(plan.ordered_required_insert_column_chain.provider_mutation_performed, false);
+  assert.equal(plan.ordered_required_insert_column_chain.credential_access_performed, false);
+  assert.equal(plan.ordered_required_insert_column_chain.data_export_performed, false);
+  assert.equal(plan.ordered_required_insert_column_chain.runtime_mutation_performed, false);
+  assert.equal(plan.ordered_required_insert_column_chain.secrets_included, false);
   assert.equal(plan.ordered_generated_column_chain.contract, "mad4b.mariadb-generated-column-ordered-chain.v1");
   assert.equal(plan.ordered_generated_column_chain.ok, true);
   assert.equal(plan.ordered_generated_column_chain.ready, true);
   assert.equal(plan.ordered_generated_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_generated_column_chain.files_checked, 818);
-  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 817);
-  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3132);
+  assert.equal(plan.ordered_generated_column_chain.files_checked, 819);
+  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 818);
+  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3133);
   assert.equal(plan.ordered_generated_column_chain.generated_columns, 13);
   assert.equal(plan.ordered_generated_column_chain.definitions_applied, 13);
-  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3132);
+  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3133);
   assert.equal(plan.ordered_generated_column_chain.database_connection_performed, false);
   assert.equal(plan.ordered_generated_column_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_generated_column_chain.provider_mutation_performed, false);
