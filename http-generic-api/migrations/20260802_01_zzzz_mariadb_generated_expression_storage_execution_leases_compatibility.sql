@@ -1,10 +1,11 @@
 -- MariaDB 11.4 compatibility bridge for the immutable 20260802_02 storage-control
--- plane definitions. SHA2() already returns the required lowercase hexadecimal
--- digest; MariaDB 11.4 rejects LOWER(SHA2(...)) in a STORED generated column with
--- ERROR 1901. This bridge keeps the historical migration immutable and precreates
--- both related tables before their CREATE TABLE IF NOT EXISTS statements.
--- The parent is included so the lease foreign keys remain present in the bridge.
--- DDL only: no DML, provider access, credentials, data export, runtime mutation,
+-- plane definitions. MariaDB 11.4 rejects SHA2() in a STORED generated column
+-- with ERROR 1901. This bridge therefore materializes root_ref_digest as an
+-- ordinary NOT NULL column and maintains the same SHA-256 lowercase-hex
+-- invariant through idempotent BEFORE INSERT/UPDATE triggers.
+-- The historical migration remains immutable and is skipped by CREATE TABLE IF
+-- NOT EXISTS after this bridge creates the complete table shape.
+-- DDL only: no DML, provider access, credentials, data export, runtime action,
 -- Production action, or secrets.
 
 CREATE TABLE IF NOT EXISTS storage_cleanup_operations (
@@ -71,8 +72,7 @@ CREATE TABLE IF NOT EXISTS storage_cleanup_operations (
 CREATE TABLE IF NOT EXISTS storage_execution_leases (
   id CHAR(36) NOT NULL,
   target_id CHAR(36) NOT NULL,
-  root_ref_digest CHAR(64)
-    GENERATED ALWAYS AS (SHA2(target_id, 256)) STORED,
+  root_ref_digest CHAR(64) NOT NULL,
   active_slot TINYINT UNSIGNED NOT NULL DEFAULT 1,
   lease_id CHAR(36) NOT NULL,
   operation_id CHAR(36) NOT NULL,
@@ -117,3 +117,13 @@ CREATE TABLE IF NOT EXISTS storage_execution_leases (
   CONSTRAINT chk_storage_execution_leases_versions
     CHECK (generation >= 1 AND row_version >= 1 AND active_slot = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE OR REPLACE TRIGGER trg_storage_execution_leases_root_ref_digest_bi
+BEFORE INSERT ON storage_execution_leases
+FOR EACH ROW
+SET NEW.root_ref_digest = SHA2(NEW.target_id, 256);
+
+CREATE OR REPLACE TRIGGER trg_storage_execution_leases_root_ref_digest_bu
+BEFORE UPDATE ON storage_execution_leases
+FOR EACH ROW
+SET NEW.root_ref_digest = SHA2(NEW.target_id, 256);
