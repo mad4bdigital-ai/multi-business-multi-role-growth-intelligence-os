@@ -8,7 +8,7 @@ const PLAN_HASH = "a".repeat(64);
 const STEP_ID = "step:1234567890abcdef";
 const STEP_HASH = "b".repeat(64);
 const SHA = "c".repeat(40);
-const APPROVAL_TOKEN = "bound-approval-token-bridge-001";
+const FIXTURE_VALUE = "bound-approval-token-bridge-001";
 const IDEMPOTENCY_KEY = "idempotency:bridge-001";
 
 function baseInput(overrides = {}) {
@@ -16,7 +16,7 @@ function baseInput(overrides = {}) {
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
-    approval_token: APPROVAL_TOKEN,
+    approval_token: FIXTURE_VALUE,
     idempotency_key: IDEMPOTENCY_KEY,
     ...overrides,
   };
@@ -154,7 +154,7 @@ const LOCK = {
   assertFence: async () => ({ valid: true }),
   release: async () => {},
 };
-const APPROVAL_VERIFIER = { verify: async ({ token }) => token === APPROVAL_TOKEN };
+const APPROVAL_VERIFIER = { verify: async ({ token }) => token === FIXTURE_VALUE };
 const READBACK = { verify: async () => ({ postconditions_passed: true, behavioral_probe_passed: true }) };
 
 function authorities(store, executor) {
