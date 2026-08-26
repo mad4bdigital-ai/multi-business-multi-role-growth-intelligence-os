@@ -227,6 +227,13 @@ const generatedColumnPolicy = {
       allow_declared_bridges: true,
       forbidden_function_names: ["lower", "lcase", "sha2"],
       max_allowed_bridges: 8,
+      required_default_contract: {
+        enabled: true,
+        static_only: true,
+        exact_literal_required: true,
+        sentinel_overwritten_by_before_trigger: true,
+        not_null_requires_default_migration: true,
+      },
       bridges: [],
     },
     policy_key: "test-generated-column-chain",
@@ -285,6 +292,9 @@ const sha2Rule = {
   replacement_mode: "ordinary_column_trigger",
   replacement_column_type: "CHAR(64)",
   replacement_column_nullability: "NOT NULL",
+  insert_omission_mode: "required_default_before_trigger",
+  replacement_column_default: "'0000000000000000000000000000000000000000000000000000000000000000'",
+  required_default_file: "001_sha2_default.sql",
   replacement_expression: "SHA2(NEW.endpoint_url, 256)",
   trigger_names: ["trg_local_connector_device_routes_endpoint_url_sha256_bi", "trg_local_connector_device_routes_endpoint_url_sha256_bu"],
   trigger_events: ["INSERT", "UPDATE"],
@@ -301,15 +311,19 @@ const sha2BridgePolicy = {
 };
 const sha2Source = "CREATE TABLE IF NOT EXISTS local_connector_device_routes (route_id INT NOT NULL PRIMARY KEY, endpoint_url TEXT NOT NULL, endpoint_url_sha256 CHAR(64) GENERATED ALWAYS AS (SHA2(endpoint_url, 256)) STORED);";
 const sha2Bridge = "CREATE TABLE IF NOT EXISTS local_connector_device_routes (route_id INT NOT NULL PRIMARY KEY, endpoint_url TEXT NOT NULL, endpoint_url_sha256 CHAR(64) NOT NULL, UNIQUE KEY uq_local_connector_device_routes_endpoint_url_sha256 (endpoint_url_sha256)); CREATE OR REPLACE TRIGGER trg_local_connector_device_routes_endpoint_url_sha256_bi BEFORE INSERT ON local_connector_device_routes FOR EACH ROW SET NEW.endpoint_url_sha256 = SHA2(NEW.endpoint_url, 256); CREATE OR REPLACE TRIGGER trg_local_connector_device_routes_endpoint_url_sha256_bu BEFORE UPDATE ON local_connector_device_routes FOR EACH ROW SET NEW.endpoint_url_sha256 = SHA2(NEW.endpoint_url, 256);";
-const sha2FixtureFiles = (bridgeSql) => ({
+const sha2Default = "ALTER TABLE IF EXISTS local_connector_device_routes MODIFY COLUMN endpoint_url_sha256 CHAR(64) NOT NULL DEFAULT '0000000000000000000000000000000000000000000000000000000000000000';";
+const sha2Writer = "INSERT INTO local_connector_device_routes (route_id, endpoint_url) SELECT route_id, endpoint_url FROM local_connector_device_routes_source;";
+const sha2FixtureFiles = (bridgeSql, defaultSql = sha2Default, writerSql = "") => ({
   "http-generic-api/schema.sql": "",
   "http-generic-api/migrations/001_sha2_bridge.sql": bridgeSql,
+  "http-generic-api/migrations/001_sha2_default.sql": defaultSql,
   "http-generic-api/migrations/002_sha2_source.sql": sha2Source,
+  "http-generic-api/migrations/003_sha2_writer.sql": writerSql,
 });
-const inspectSha2Fixture = (bridgeSql, policy = sha2BridgePolicy) => {
-  const files = sha2FixtureFiles(bridgeSql);
+const inspectSha2Fixture = (bridgeSql, policy = sha2BridgePolicy, defaultSql = sha2Default, writerSql = "") => {
+  const files = sha2FixtureFiles(bridgeSql, defaultSql, writerSql);
   return inspectOrderedMigrationChainGeneratedColumns({
-    files: ["http-generic-api/migrations/001_sha2_bridge.sql", "http-generic-api/migrations/002_sha2_source.sql"],
+    files: ["http-generic-api/migrations/001_sha2_bridge.sql", "http-generic-api/migrations/001_sha2_default.sql", "http-generic-api/migrations/002_sha2_source.sql", "http-generic-api/migrations/003_sha2_writer.sql"],
     baselineFile: "http-generic-api/schema.sql",
     policy,
     readFile: (file) => files[file],
@@ -332,7 +346,10 @@ assert.equal(sha2WrongShape.findings.some((finding) => finding.code === "generat
 const sha2MissingTrigger = inspectSha2Fixture(sha2Bridge.replace(" CREATE OR REPLACE TRIGGER trg_local_connector_device_routes_endpoint_url_sha256_bu BEFORE UPDATE ON local_connector_device_routes FOR EACH ROW SET NEW.endpoint_url_sha256 = SHA2(NEW.endpoint_url, 256);", ""));
 assert.equal(sha2MissingTrigger.ok, false, JSON.stringify(sha2MissingTrigger));
 assert.equal(sha2MissingTrigger.findings.some((finding) => finding.code === "generated_column_unsupported_expression"), true);
-const sha2Good = inspectSha2Fixture(sha2Bridge);
+const sha2MissingDefault = inspectSha2Fixture(sha2Bridge, sha2BridgePolicy, "", sha2Writer);
+assert.equal(sha2MissingDefault.ok, false, JSON.stringify(sha2MissingDefault));
+assert.equal(sha2MissingDefault.findings.some((finding) => finding.code === "generated_column_required_insert_default_missing"), true);
+const sha2Good = inspectSha2Fixture(sha2Bridge, sha2BridgePolicy, sha2Default, sha2Writer);
 assert.equal(sha2Good.ok, true, JSON.stringify(sha2Good));
 assert.equal(sha2Good.ready, true);
 assert.equal(sha2Good.findings.length, 0);
@@ -341,6 +358,7 @@ assert.equal(sha2Good.definitions_applied, 0);
 assert.equal(sha2Good.compatibility_bridge_candidates, 1);
 assert.equal(sha2Good.allowed_compatibility_bridges, 1);
 assert.equal(sha2Good.ordinary_column_trigger_bridges, 1);
+assert.equal(sha2Good.warnings.some((warning) => warning.code === "generated_column_required_insert_default_bridge_applied"), true);
 assert.equal(sha2Good.database_connection_performed, false);
 assert.equal(sha2Good.sql_mutation_performed, false);
 assert.equal(sha2Good.secrets_included, false);

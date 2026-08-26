@@ -218,6 +218,11 @@ function compatibilityRules(contract) {
     replacement_mode: TEXT(rule.replacement_mode || "generated_expression").toLowerCase(),
     replacement_column_type: TEXT(rule.replacement_column_type || ""),
     replacement_column_nullability: TEXT(rule.replacement_column_nullability || "").toUpperCase(),
+    insert_omission_mode: TEXT(rule.insert_omission_mode || "").toLowerCase(),
+    replacement_column_default: Object.prototype.hasOwnProperty.call(rule, "replacement_column_default")
+      ? (rule.replacement_column_default === null ? null : TEXT(rule.replacement_column_default))
+      : undefined,
+    required_default_file: rule.required_default_file ? path.basename(String(rule.required_default_file)) : null,
     trigger_names: Array.isArray(rule.trigger_names) ? rule.trigger_names.map((name) => IDENTIFIER(name)) : [],
     trigger_events: Array.isArray(rule.trigger_events) ? rule.trigger_events.map((event) => TEXT(event).toUpperCase()) : [],
   }));
@@ -245,6 +250,21 @@ function ordinaryColumnTriggerBridgeEvidence(rule, bridgeSql) {
   });
 }
 
+function requiredDefaultBridgeEvidence(rule, defaultSql) {
+  if (!defaultSql || rule.insert_omission_mode !== "required_default_before_trigger" || !rule.replacement_column_default) return false;
+  const ddl = stripSqlComments(defaultSql);
+  const table = escapeRegExp(rule.table);
+  const column = escapeRegExp(rule.column);
+  const columnType = escapeRegExp(rule.replacement_column_type).replaceAll("\\\\ ", "\\\\s*");
+  const columnNullability = escapeRegExp(rule.replacement_column_nullability).replaceAll("\\\\ ", "\\\\s*");
+  const defaultValue = escapeRegExp(rule.replacement_column_default).replaceAll("\\\\ ", "\\\\s*");
+  const pattern = new RegExp(
+    "^\\s*ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?`?" + table + "`?\\s+MODIFY\\s+(?:COLUMN\\s+)?`?" + column + "`?\\s+" + columnType + "\\s+" + columnNullability + "\\s+DEFAULT\\s+" + defaultValue + "\\s*;?\\s*$",
+    "iu",
+  );
+  return pattern.test(ddl);
+}
+
 function forbiddenGeneratedFunctions(contract) {
   return new Set((contract.generated_expression_compatibility?.forbidden_function_names || []).map((name) => TEXT(name).toLowerCase()).filter(Boolean));
 }
@@ -261,6 +281,7 @@ function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbi
     && entry.source_file === sourceFile
     && entry.source_expression === normalizeExpression(candidate.expression));
   const bridgeIndex = rule ? sequence.findIndex((entry) => path.basename(entry) === rule.bridge_file) : -1;
+  const requiredDefaultIndex = rule?.required_default_file ? sequence.findIndex((entry) => path.basename(entry) === rule.required_default_file) : -1;
   const sourceIndex = sequence.findIndex((entry) => path.basename(entry) === sourceFile);
   const postBridgeIndex = rule?.post_bridge_file ? sequence.findIndex((entry) => path.basename(entry) === rule.post_bridge_file) : -1;
   const bridgeDefinition = rule ? state.get(`${candidate.table}.${candidate.column}`) : null;
@@ -268,13 +289,23 @@ function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbi
   if (rule && bridgeIndex >= 0) {
     try { bridgeSql = readFile(sequence[bridgeIndex]); } catch { bridgeSql = null; }
   }
+  let requiredDefaultSql = null;
+  if (rule?.required_default_file && requiredDefaultIndex >= 0) {
+    try { requiredDefaultSql = readFile(sequence[requiredDefaultIndex]); } catch { requiredDefaultSql = null; }
+  }
+  const defaultOrderingValid = rule?.insert_omission_mode === "required_default_before_trigger"
+    ? Boolean(rule.required_default_file && requiredDefaultIndex > bridgeIndex && requiredDefaultIndex < sourceIndex)
+    : Boolean(!rule?.required_default_file && rule?.replacement_column_default === null);
   const orderingValid = Boolean(rule
     && bridgeIndex >= 0
     && sourceIndex >= 0
     && bridgeIndex < sourceIndex
+    && defaultOrderingValid
     && (!rule.post_bridge_file || (postBridgeIndex >= 0 && postBridgeIndex > sourceIndex)));
   const bridgeEvidence = rule?.replacement_mode === "ordinary_column_trigger"
-    ? Boolean(bridgeSql && ordinaryColumnTriggerBridgeEvidence(rule, bridgeSql))
+    ? Boolean(bridgeSql && ordinaryColumnTriggerBridgeEvidence(rule, bridgeSql)
+      && (rule.insert_omission_mode !== "required_default_before_trigger"
+        || requiredDefaultBridgeEvidence(rule, requiredDefaultSql)))
     : Boolean(bridgeDefinition
       && path.basename(bridgeDefinition.file) === rule?.bridge_file
       && normalizeExpression(bridgeDefinition.expression) === rule?.replacement_expression);
@@ -295,6 +326,8 @@ function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbi
       replacement_expression: rule.replacement_expression || null,
       trigger_names: rule.trigger_names,
       trigger_events: rule.trigger_events,
+      required_default_file: rule.required_default_file,
+      replacement_column_default: rule.replacement_column_default,
     });
     return;
   }
@@ -416,6 +449,51 @@ function finding(state, findings, table, column, file, statementIndex, statement
   });
 }
 
+function inspectRequiredDefaultWriters({ rules, sequence, statement, file, statementIndex, findings, warnings, readFile }) {
+  const insert = insertInfo(statement);
+  if (!insert) return;
+  for (const rule of rules) {
+    if (rule.replacement_mode !== "ordinary_column_trigger" || rule.insert_omission_mode !== "required_default_before_trigger") continue;
+    if (rule.table !== insert.table) continue;
+    const omitted = !insert.hasColumns || !insert.columns.includes(rule.column);
+    if (!omitted) continue;
+    const writerIndex = sequence.findIndex((entry) => path.basename(entry) === path.basename(file));
+    const defaultIndex = rule.required_default_file
+      ? sequence.findIndex((entry) => path.basename(entry) === rule.required_default_file)
+      : -1;
+    let defaultSql = null;
+    if (defaultIndex >= 0) {
+      try { defaultSql = readFile(sequence[defaultIndex]); } catch { defaultSql = null; }
+    }
+    if (defaultIndex < 0 || writerIndex < 0 || defaultIndex >= writerIndex || !requiredDefaultBridgeEvidence(rule, defaultSql)) {
+      findings.push({
+        code: "generated_column_required_insert_default_missing",
+        category: "generated_column_expression_compatibility",
+        severity: "blocker",
+        file,
+        statement_index: statementIndex,
+        table: rule.table,
+        column: rule.column,
+        writer_mode: "INSERT/REPLACE omitted required materialized column",
+        reason: "writer omits a NOT NULL ordinary SHA2 materialized column before its exact default compatibility migration",
+        required_default_file: rule.required_default_file || null,
+        statement: TEXT(statement).slice(0, 2000),
+        applies_sql: false,
+      });
+      continue;
+    }
+    warnings.push({
+      code: "generated_column_required_insert_default_bridge_applied",
+      file,
+      statement_index: statementIndex,
+      table: rule.table,
+      column: rule.column,
+      required_default_file: rule.required_default_file,
+      replacement_column_default: rule.replacement_column_default,
+    });
+  }
+}
+
 function inspectWriters(state, tables, statement, file, statementIndex, findings) {
   const insert = insertInfo(statement);
   if (insert) {
@@ -479,13 +557,19 @@ export function inspectOrderedMigrationChainGeneratedColumns({
 } = {}) {
   const contract = policy.generated_column_chain_contract || {};
   const compatibility = contract.generated_expression_compatibility || {};
+  const requiredDefaultContract = compatibility.required_default_contract || {};
   const compatibilitySafe = compatibility.enabled === true
     && compatibility.static_only === true
     && compatibility.fail_on_unsupported_functions === true
     && compatibility.allow_declared_bridges === true
     && Array.isArray(compatibility.forbidden_function_names)
     && compatibility.forbidden_function_names.length > 0
-    && Array.isArray(compatibility.bridges);
+    && Array.isArray(compatibility.bridges)
+    && requiredDefaultContract.enabled === true
+    && requiredDefaultContract.static_only === true
+    && requiredDefaultContract.exact_literal_required === true
+    && requiredDefaultContract.sentinel_overwritten_by_before_trigger === true
+    && requiredDefaultContract.not_null_requires_default_migration === true;
   if (engine !== "mariadb") return blocked("unsupported_engine", "Generated-column inspection is currently defined for MariaDB staging only.", { engine });
   if (contract.enabled !== true || contract.static_only !== true || contract.database_connection_allowed !== false || contract.sql_mutation_allowed !== false || contract.provider_access_allowed !== false || contract.secrets_included !== false || contract.fail_on_generated_column_write !== true || compatibilitySafe !== true) {
     return blocked("generated_column_contract_invalid", "The generated-column contract must explicitly enable static-only fail-closed evaluation and expression compatibility checks.", { engine, policy_key: contract.policy_key || null });
@@ -515,8 +599,28 @@ export function inspectOrderedMigrationChainGeneratedColumns({
   for (const rule of rules) {
     const sourceIndex = sequence.findIndex((entry) => path.basename(entry) === rule.source_file);
     const bridgeIndex = sequence.findIndex((entry) => path.basename(entry) === rule.bridge_file);
+    const requiredDefaultIndex = rule.required_default_file ? sequence.findIndex((entry) => path.basename(entry) === rule.required_default_file) : -1;
     const postBridgeIndex = rule.post_bridge_file ? sequence.findIndex((entry) => path.basename(entry) === rule.post_bridge_file) : -1;
-    if (!rule.table || !rule.column || !rule.source_file || !rule.bridge_file || !rule.source_expression || !rule.replacement_expression || sourceIndex < 0 || bridgeIndex < 0 || bridgeIndex >= sourceIndex || (rule.post_bridge_file && (postBridgeIndex < 0 || postBridgeIndex <= sourceIndex))) {
+    const defaultContractValid = rule.replacement_column_nullability === "NOT NULL"
+      ? rule.insert_omission_mode === "required_default_before_trigger" && Boolean(rule.required_default_file) && Boolean(rule.replacement_column_default)
+      : rule.insert_omission_mode === "nullable_trigger_recompute" && rule.replacement_column_default === null && !rule.required_default_file;
+    if (!defaultContractValid) {
+      findings.push({
+        code: "generated_column_required_default_contract_invalid",
+        category: "generated_column_expression_compatibility",
+        severity: "blocker",
+        file: rule.required_default_file || rule.bridge_file || "policy",
+        statement_index: null,
+        table: rule.table || null,
+        column: rule.column || null,
+        reason: "ordinary SHA2 bridge must declare an exact required-column default migration for NOT NULL materialized columns, or explicit nullable/no-default semantics",
+        insert_omission_mode: rule.insert_omission_mode || null,
+        required_default_file: rule.required_default_file || null,
+        replacement_column_default: rule.replacement_column_default ?? null,
+        applies_sql: false,
+      });
+    }
+    if (!rule.table || !rule.column || !rule.source_file || !rule.bridge_file || !rule.source_expression || !rule.replacement_expression || sourceIndex < 0 || bridgeIndex < 0 || bridgeIndex >= sourceIndex || (rule.replacement_column_nullability === "NOT NULL" && (requiredDefaultIndex < 0 || requiredDefaultIndex <= bridgeIndex || requiredDefaultIndex >= sourceIndex)) || (rule.post_bridge_file && (postBridgeIndex < 0 || postBridgeIndex <= sourceIndex))) {
       findings.push({
         code: "generated_column_compatibility_bridge_order_invalid",
         category: "generated_column_expression_compatibility",
@@ -533,7 +637,7 @@ export function inspectOrderedMigrationChainGeneratedColumns({
       });
       continue;
     }
-    for (const bridgeName of [rule.bridge_file, rule.post_bridge_file].filter(Boolean)) {
+    for (const bridgeName of [rule.bridge_file, rule.required_default_file, rule.post_bridge_file].filter(Boolean)) {
       const bridgePath = sequence.find((entry) => path.basename(entry) === bridgeName);
       let bridgeSql;
       try { bridgeSql = readFile(bridgePath); } catch (error) {
@@ -570,6 +674,7 @@ export function inspectOrderedMigrationChainGeneratedColumns({
         inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex, candidate, findings, warnings, metrics, readFile });
       }
       inspectWriters(state, tables, statement, file, statementIndex, findings);
+      inspectRequiredDefaultWriters({ rules, sequence, statement, file, statementIndex, findings, warnings, readFile });
     }
   }
   if (compatibility.max_allowed_bridges !== undefined && metrics.allowed_compatibility_bridges > compatibility.max_allowed_bridges) {

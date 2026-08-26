@@ -137,6 +137,13 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
       allow_declared_bridges: true,
       forbidden_function_names: ["lower", "lcase", "sha2"],
       max_allowed_bridges: 8,
+      required_default_contract: {
+        enabled: true,
+        static_only: true,
+        exact_literal_required: true,
+        sentinel_overwritten_by_before_trigger: true,
+        not_null_requires_default_migration: true,
+      },
       bridges: [
         {
           table: "local_connector_device_routes",
@@ -147,6 +154,9 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
           replacement_mode: "ordinary_column_trigger",
           replacement_column_type: "CHAR(64)",
           replacement_column_nullability: "NOT NULL",
+          insert_omission_mode: "required_default_before_trigger",
+          replacement_column_default: "'0000000000000000000000000000000000000000000000000000000000000000'",
+          required_default_file: "096_zzzzzz_mariadb_sha2_required_insert_default_local_connector_device_routes.sql",
           replacement_expression: "SHA2(NEW.endpoint_url, 256)",
           trigger_names: ["trg_local_connector_device_routes_endpoint_url_sha256_bi", "trg_local_connector_device_routes_endpoint_url_sha256_bu"],
           trigger_events: ["INSERT", "UPDATE"],
@@ -161,6 +171,9 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
           replacement_mode: "ordinary_column_trigger",
           replacement_column_type: "BINARY(32)",
           replacement_column_nullability: "NOT NULL",
+          insert_omission_mode: "required_default_before_trigger",
+          replacement_column_default: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          required_default_file: "20260718_zzzzzz_mariadb_sha2_required_insert_default_growth_control_config_versions.sql",
           replacement_expression: "UNHEX(SHA2(CONCAT('growth-control-scope-v1:', NEW.scope_key), 256))",
           trigger_names: ["trg_growth_control_config_versions_scope_key_hash_bi", "trg_growth_control_config_versions_scope_key_hash_bu"],
           trigger_events: ["INSERT", "UPDATE"],
@@ -175,6 +188,9 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
           replacement_mode: "ordinary_column_trigger",
           replacement_column_type: "CHAR(64)",
           replacement_column_nullability: "NULL",
+          insert_omission_mode: "nullable_trigger_recompute",
+          replacement_column_default: null,
+          required_default_file: null,
           replacement_expression: "CASE WHEN NEW.status = 'active' THEN SHA2(CONCAT_WS('|', HEX(NEW.tenant_id), HEX(NEW.user_id), HEX(NEW.brand_key), HEX(NEW.agent_id), HEX(NEW.skill_id), HEX(COALESCE(NEW.resource_type, '')), HEX(COALESCE(NEW.resource_ref, '')) ), 256) ELSE NULL END",
           trigger_names: ["trg_user_brand_skill_grants_active_scope_hash_bi", "trg_user_brand_skill_grants_active_scope_hash_bu"],
           trigger_events: ["INSERT", "UPDATE"],
@@ -189,6 +205,9 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
           replacement_mode: "ordinary_column_trigger",
           replacement_column_type: "CHAR(64)",
           replacement_column_nullability: "NOT NULL",
+          insert_omission_mode: "required_default_before_trigger",
+          replacement_column_default: "'0000000000000000000000000000000000000000000000000000000000000000'",
+          required_default_file: "20260802_01_zzzzzz_mariadb_sha2_required_insert_default_storage_execution_leases.sql",
           replacement_expression: "SHA2(NEW.target_id, 256)",
           trigger_names: ["trg_storage_execution_leases_root_ref_digest_bi", "trg_storage_execution_leases_root_ref_digest_bu"],
           trigger_events: ["INSERT", "UPDATE"],
@@ -203,6 +222,9 @@ test("migration contract policy enables comprehensive pre-use fail-closed guards
           replacement_mode: "ordinary_column_trigger",
           replacement_column_type: "BINARY(32)",
           replacement_column_nullability: "NOT NULL",
+          insert_omission_mode: "required_default_before_trigger",
+          replacement_column_default: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          required_default_file: "20260814_zzzzzz_mariadb_sha2_required_insert_default_act_as_user_sessions.sql",
           replacement_expression: "UNHEX(SHA2(CONCAT( 'act-as-user-idempotency-v1:', NEW.environment, CHAR(0), NEW.tenant_id, CHAR(0), NEW.actor_principal_id, CHAR(0), NEW.target_user_id, CHAR(0), NEW.requested_operation, CHAR(0), NEW.requested_tool, CHAR(0), NEW.idempotency_key ), 256))",
           trigger_names: ["trg_act_as_user_sessions_idempotency_tuple_hash_bi", "trg_act_as_user_sessions_idempotency_tuple_hash_bu"],
           trigger_events: ["INSERT", "UPDATE"],
@@ -672,8 +694,10 @@ test("generated expression compatibility guard fails closed and accepts only the
   const baseContract = migrationPolicy.generated_column_chain_contract;
   const sourceFile = "20260802_02_spec014_hostinger_storage_control_plane.sql";
   const bridgeFile = "20260802_01_zzzz_mariadb_generated_expression_storage_execution_leases_compatibility.sql";
+  const defaultFile = "20260802_01_zzzzzz_mariadb_sha2_required_insert_default_storage_execution_leases.sql";
   const sourceSql = "CREATE TABLE IF NOT EXISTS storage_execution_leases (target_id CHAR(36) NOT NULL, root_ref_digest CHAR(64) GENERATED ALWAYS AS (LOWER(SHA2(target_id, 256))) STORED);";
   const bridgeSql = "CREATE TABLE IF NOT EXISTS storage_execution_leases (target_id CHAR(36) NOT NULL, root_ref_digest CHAR(64) NOT NULL, UNIQUE KEY uq_storage_execution_leases_root_ref_digest (root_ref_digest)); CREATE OR REPLACE TRIGGER trg_storage_execution_leases_root_ref_digest_bi BEFORE INSERT ON storage_execution_leases FOR EACH ROW SET NEW.root_ref_digest = SHA2(NEW.target_id, 256); CREATE OR REPLACE TRIGGER trg_storage_execution_leases_root_ref_digest_bu BEFORE UPDATE ON storage_execution_leases FOR EACH ROW SET NEW.root_ref_digest = SHA2(NEW.target_id, 256);";
+  const defaultSql = "ALTER TABLE IF EXISTS storage_execution_leases MODIFY COLUMN root_ref_digest CHAR(64) NOT NULL DEFAULT '0000000000000000000000000000000000000000000000000000000000000000';";
   const storageRule = baseContract.generated_expression_compatibility.bridges.find((rule) => rule.table === "storage_execution_leases");
   const storageOnlyPolicy = {
     generated_column_chain_contract: {
@@ -707,11 +731,13 @@ test("generated expression compatibility guard fails closed and accepts only the
 
   const files = [
     `http-generic-api/migrations/${bridgeFile}`,
+    `http-generic-api/migrations/${defaultFile}`,
     `http-generic-api/migrations/${sourceFile}`,
   ];
   const contents = new Map([
     ["http-generic-api/schema.sql", ""],
     [`http-generic-api/migrations/${bridgeFile}`, bridgeSql],
+    [`http-generic-api/migrations/${defaultFile}`, defaultSql],
     [`http-generic-api/migrations/${sourceFile}`, sourceSql],
   ]);
   const passing = inspectOrderedMigrationChainGeneratedColumns({
@@ -743,10 +769,21 @@ test("all SHA2 ordinary-column bridges preserve source keys and exact trigger co
   assert.equal(bridgeRules.length, 5);
   for (const rule of bridgeRules) {
     const bridgeIndex = orderedNames.indexOf(rule.bridge_file);
+    const defaultIndex = rule.required_default_file ? orderedNames.indexOf(rule.required_default_file) : -1;
     const sourceIndex = orderedNames.indexOf(rule.source_file);
     assert.notEqual(bridgeIndex, -1, `${rule.bridge_file} must exist`);
     assert.notEqual(sourceIndex, -1, `${rule.source_file} must exist`);
     assert.ok(bridgeIndex < sourceIndex, `${rule.bridge_file} must precede ${rule.source_file}`);
+    if (rule.replacement_column_nullability === "NOT NULL") {
+      assert.notEqual(defaultIndex, -1, `${rule.required_default_file} must exist`);
+      assert.ok(bridgeIndex < defaultIndex && defaultIndex < sourceIndex, `${rule.required_default_file} must be between ${rule.bridge_file} and ${rule.source_file}`);
+      const defaultSql = stripSqlComments(fs.readFileSync(path.join(migrationsDir, rule.required_default_file), "utf8"));
+      assert.match(defaultSql, new RegExp("^\\s*ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?`?" + escape(rule.table) + "`?\\s+MODIFY\\s+(?:COLUMN\\s+)?`?" + escape(rule.column) + "`?\\s+" + escape(rule.replacement_column_type) + "\\s+" + escape(rule.replacement_column_nullability) + "\\s+DEFAULT\\s+" + escape(rule.replacement_column_default) + "\\s*;?\\s*$", "imu"));
+      assert.doesNotMatch(defaultSql, /(?:^|;)\\s*(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\\s+DATA)\\b/imu, `${rule.required_default_file} must be DDL-only`);
+    } else {
+      assert.equal(rule.required_default_file, null);
+      assert.equal(rule.replacement_column_default, null);
+    }
     const bridgeSql = fs.readFileSync(path.join(migrationsDir, rule.bridge_file), "utf8");
     const sourceSql = fs.readFileSync(path.join(migrationsDir, rule.source_file), "utf8");
     const bridgeDdl = stripSqlComments(bridgeSql);
@@ -776,6 +813,35 @@ test("all SHA2 ordinary-column bridges preserve source keys and exact trigger co
       assert.equal(normalizeSql(assignment[1]), normalizeSql(rule.replacement_expression), `${triggerName} expression must match policy exactly`);
     });
   }
+});
+
+test("required SHA2 default bridges cover audited omitted-column writers", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const defaultFiles = [
+    "096_zzzzzz_mariadb_sha2_required_insert_default_local_connector_device_routes.sql",
+    "20260718_zzzzzz_mariadb_sha2_required_insert_default_growth_control_config_versions.sql",
+    "20260802_01_zzzzzz_mariadb_sha2_required_insert_default_storage_execution_leases.sql",
+    "20260814_zzzzzz_mariadb_sha2_required_insert_default_act_as_user_sessions.sql",
+  ];
+  for (const file of defaultFiles) {
+    const sql = stripSqlComments(fs.readFileSync(path.join(migrationsDir, file), "utf8"));
+    assert.match(sql, /^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?/iu);
+    assert.doesNotMatch(sql, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/imu);
+  }
+  const localStatements = splitStatements(fs.readFileSync(path.join(migrationsDir, "098_sprint62i_local_connector_device_routes.sql"), "utf8"));
+  const localInserts = localStatements.filter((statement) => /^\s*INSERT\s+INTO\s+`?local_connector_device_routes`?/iu.test(statement));
+  assert.equal(localInserts.length, 2);
+  for (const statement of localInserts) assert.doesNotMatch(statement, /endpoint_url_sha256/i);
+
+  const growthSource = fs.readFileSync(path.join(apiRoot, "src/infrastructure/growthControlPlane/growthControlPlaneRepository.js"), "utf8");
+  const growthInsert = growthSource.match(/INSERT\s+INTO\s+growth_control_config_versions[\s\S]*?VALUES[\s\S]*?\)/iu)?.[0] || "";
+  assert.ok(growthInsert, "growth repository INSERT must remain discoverable for omission protection");
+  assert.doesNotMatch(growthInsert, /scope_key_hash/i);
+
+  const actAsSource = fs.readFileSync(path.join(apiRoot, "actAsUserDurableRepositories.js"), "utf8");
+  const actAsInsert = actAsSource.match(/INSERT\s+INTO\s+act_as_user_sessions[\s\S]*?VALUES[\s\S]*?\)/iu)?.[0] || "";
+  assert.ok(actAsInsert, "act-as repository INSERT must remain discoverable for omission protection");
+  assert.doesNotMatch(actAsInsert, /idempotency_tuple_hash/i);
 });
 
 test("storage lease generated-expression bridge is ordered, DDL-only, and preserves foreign keys", () => {
@@ -1169,16 +1235,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 823);
-  assert.equal(plan.statement_count, 3122);
+  assert.equal(plan.migration_count, 827);
+  assert.equal(plan.statement_count, 3126);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 824);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 823);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3149);
+  assert.equal(plan.ordered_collation_chain.files_checked, 828);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 827);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3153);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -1187,9 +1253,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 824);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 823);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3149);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 828);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 827);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3153);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
   assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 900);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
@@ -1203,11 +1269,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 824);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 823);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3149);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 828);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 827);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3153);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5201);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6036);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6038);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
@@ -1221,12 +1287,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.ok, true);
   assert.equal(plan.ordered_index_key_width_chain.ready, true);
   assert.equal(plan.ordered_index_key_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_index_key_width_chain.files_checked, 824);
-  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 823);
-  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3149);
+  assert.equal(plan.ordered_index_key_width_chain.files_checked, 828);
+  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 827);
+  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3153);
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, 582);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2816);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4769);
+  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2835);
+  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4814);
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
@@ -1239,9 +1305,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_required_insert_column_chain.ok, true);
   assert.equal(plan.ordered_required_insert_column_chain.ready, true);
   assert.equal(plan.ordered_required_insert_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_required_insert_column_chain.files_checked, 824);
-  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, 823);
-  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, 3149);
+  assert.equal(plan.ordered_required_insert_column_chain.files_checked, 828);
+  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, 827);
+  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, 3153);
   assert.equal(plan.ordered_required_insert_column_chain.tables_projected, 585);
   assert.equal(plan.ordered_required_insert_column_chain.writer_checks, 11);
   assert.equal(plan.ordered_required_insert_column_chain.required_columns_checked, 11);
@@ -1258,12 +1324,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_generated_column_chain.ok, true);
   assert.equal(plan.ordered_generated_column_chain.ready, true);
   assert.equal(plan.ordered_generated_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_generated_column_chain.files_checked, 824);
-  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 823);
-  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3149);
+  assert.equal(plan.ordered_generated_column_chain.files_checked, 828);
+  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 827);
+  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3153);
   assert.equal(plan.ordered_generated_column_chain.generated_columns, 8);
   assert.equal(plan.ordered_generated_column_chain.definitions_applied, 8);
-  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3149);
+  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3153);
   assert.equal(plan.ordered_generated_column_chain.generated_expression_checks, 19);
   assert.equal(plan.ordered_generated_column_chain.compatibility_bridge_candidates, 5);
   assert.equal(plan.ordered_generated_column_chain.unsupported_generated_expressions, 0);
