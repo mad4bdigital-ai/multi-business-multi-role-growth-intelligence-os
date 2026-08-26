@@ -2,21 +2,21 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "48b9a5559f634c78c080d00269070f910ff8bed647d1e361e93df52ca9728be6",
+    "source_digest": "5323bd33b7f525cc77a0570ca9582a5f2fb9309bf8c5141a9c4635cc85ce87b2",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "a6e2cb0aa6b4ea4dd045c5ca87d17885c2d9eaaf06f691cb26d0675e4dcf48e1",
+        "sha256": "6697ce4d2383a7b915808740a9da345f9ead4c6a65cb674b680e580edfcba83e",
         "present": true
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dc8cd04c08d5b895f6aace36ddc1ee3987e53502662cdfa1542e6bafca0065fe",
+        "sha256": "7a0cf2e9b993df1203b818e292a5a75598d93b17fea876c924a8cda0bb58372f",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "93cf9ce5becc7e9db6e11e0ccbec6ad531ce2f2b5bee1afc18d1a4a53ab9ff4d",
+        "sha256": "80f920c09460235f7cb84f7b453683ed96ab8653b224905ff7e94aa26658a2ed",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "dd0d68e4929a15e5f7634e4aaf2b4cbf0ce47aaf6b81c51227790ca15acb4c79",
+        "sha256": "e119e611b9660a318c188bffbfdc62966a6856f0b32c64c947d3d38cbe3f328f",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "05d584912b09b4e73adc1cae4b8818739e6f3ce8d5a636de5591a28012ad3e12",
+        "sha256": "4c691a1708bbbf39f6582cb64d5bf870873f4b385faab89b6db3d2a8a2b6316c",
         "present": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "6622b14b468840f12105a5bbacbf11528b87c8265db8fd9363128b589696cf42",
+        "sha256": "872c5e32f4070e29ee0b2d654fc35192bf3168600b9ac7b34b496f791e1eb1f2",
         "present": true
       },
       {
@@ -991,7 +991,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "838c58760e3bf5d401ff062acc5be99b831ba4711f0759ec3e3dd9497aea49e0",
+        "sha256": "7dbfdbf04ede8f6250dfd3fc9c3f42cb693e244b0719b0a305b5b327ae99fb77",
         "present": true
       },
       {
@@ -1076,7 +1076,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "02374a0c270807a3b818aa84c47c5f0c05ce2510d2a442e611f69ef8f23fd8ec",
+        "sha256": "88c78ceb1fdfc958881069930c7d611de130664465d546ee4316f0917bfcb10c",
         "present": true
       },
       {
@@ -1101,7 +1101,12 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "c60dc7937ea844253d194c9a3aa76cbd2adf9729937eb3762f210ad6451bde14",
+        "sha256": "c06428f91f6607574cdb21a45301148e5435efc6c6b7d5f92c6ac628af674ef6",
+        "present": true
+      },
+      {
+        "file": "test-recovery-kernel-routes.mjs",
+        "sha256": "b28c70b14f7d0d0ea5508f305b27abd636db1cbb267f96bc367f58455c1a73cc",
         "present": true
       },
       {
@@ -1154,29 +1159,29 @@
     "mounted_family_count": 172,
     "mounted_route_file_count": 142,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1057,
-    "openapi_documented_count": 1041,
-    "openapi_canonical_documented_count": 726,
+    "operation_count": 1058,
+    "openapi_documented_count": 1042,
+    "openapi_canonical_documented_count": 727,
     "openapi_generated_index_count": 315,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 315,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1041,
+      "equivalent": 1042,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 640,
+    "non_get_candidate_count": 641,
     "unresolved_operation_class_count": 0,
-    "classified_mutation_count": 16,
-    "governed_mutation_operation_count": 16,
+    "classified_mutation_count": 17,
+    "governed_mutation_operation_count": 17,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 172,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1057,
+    "test_owned_operation_count": 1058,
     "untested_operation_count": 0,
     "ready_task_count": 172,
     "blocked_task_count": 0,
@@ -3109,7 +3114,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "6622b14b468840f12105a5bbacbf11528b87c8265db8fd9363128b589696cf42",
+      "source_digest": "872c5e32f4070e29ee0b2d654fc35192bf3168600b9ac7b34b496f791e1eb1f2",
       "mount_prefix": "/",
       "mount_order": 12992,
       "split_from_mixed_scope_file": false,
@@ -3202,6 +3207,109 @@
         },
         {
           "method": "POST",
+          "path": "/admin/recovery/kernel/execute-approved",
+          "signature": "POST /admin/recovery/kernel/execute-approved",
+          "source_file": "routes/recoveryKernelRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-recovery-kernel-routes.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "server_issued_ticket_and_exact_plan_step_preflight"
+              },
+              "approval": {
+                "mode": "durable_single_use_plan_step_approval"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "The bridge has no live executor in the default composition; any injected Host Breakglass executor remains subject to its own bounded compensation and readback contract."
+              }
+            },
+            "parameter_bindings": {
+              "plan_id": "request.body.plan_id",
+              "plan_hash": "request.body.plan_hash",
+              "step_id": "request.body.step_id",
+              "approval_token": "request.body.approval_token",
+              "idempotency_key": "request.body.idempotency_key",
+              "execution_ticket": "server-issued and internal-only"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-server-issued-ticket-bridge",
+            "owner": "runtime-operations",
+            "rationale": "The private Recovery Action bridge accepts only plan, step, approval, and idempotency references. It issues the execution ticket server-side, reuses Recovery Kernel approval/fence/readback semantics, and forwards ticket references only to the explicitly injected Host Breakglass mutation boundary; the default composition remains fail-closed before provider or database mutation.",
+            "evidence_refs": [
+              "docs/recovery-action-ticket-bridge.md",
+              "recoveryActionBridge.js",
+              "recoveryKernel.js",
+              "routes/recoveryKernelRoutes.js",
+              "test-recovery-action-bridge-system-layer.mjs",
+              "test-recovery-action-bridge.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        },
+        {
+          "method": "POST",
           "path": "/admin/recovery/kernel/execute",
           "signature": "POST /admin/recovery/kernel/execute",
           "source_file": "routes/recoveryKernelRoutes.js",
@@ -3256,6 +3364,7 @@
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [
+            "test-recovery-kernel-routes.mjs",
             "test-recovery-kernel.mjs"
           ],
           "governance": {
@@ -3355,6 +3464,7 @@
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [
+            "test-recovery-kernel-routes.mjs",
             "test-recovery-kernel.mjs"
           ],
           "governance": {
@@ -3425,6 +3535,7 @@
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [
+            "test-recovery-kernel-routes.mjs",
             "test-recovery-kernel.mjs"
           ],
           "governance": {
@@ -3448,6 +3559,7 @@
         "GET /admin/recovery/kernel/evidence/{run_id}"
       ],
       "tests": [
+        "test-recovery-kernel-routes.mjs",
         "test-recovery-kernel.mjs"
       ],
       "untested_operations": [],
@@ -3475,6 +3587,7 @@
         "routes/index.js",
         "routes/recoveryKernelRoutes.js",
         "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
         "test-recovery-kernel.mjs"
       ],
       "surface_decision": {
@@ -11430,7 +11543,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "838c58760e3bf5d401ff062acc5be99b831ba4711f0759ec3e3dd9497aea49e0",
+      "source_digest": "7dbfdbf04ede8f6250dfd3fc9c3f42cb693e244b0719b0a305b5b327ae99fb77",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,
@@ -12206,7 +12319,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "838c58760e3bf5d401ff062acc5be99b831ba4711f0759ec3e3dd9497aea49e0",
+      "source_digest": "7dbfdbf04ede8f6250dfd3fc9c3f42cb693e244b0719b0a305b5b327ae99fb77",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,
@@ -95285,6 +95398,7 @@
         "routes/index.js",
         "routes/recoveryKernelRoutes.js",
         "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
         "test-recovery-kernel.mjs"
       ],
       "acceptance_gates": [
@@ -95299,6 +95413,7 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-recovery-kernel-routes.mjs",
         "node test-recovery-kernel.mjs"
       ]
     },

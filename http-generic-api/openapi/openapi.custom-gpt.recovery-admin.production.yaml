@@ -452,6 +452,85 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+  /admin/recovery/kernel/execute-approved:
+    post:
+      tags:
+        - admin-control
+        - recovery-kernel
+      security:
+        - backendBearerAuth: []
+      operationId: executeApprovedAdminRecoveryKernelStep
+      x-openai-isConsequential: true
+      summary: Issue a server-side ticket and execute one approved Production Recovery Kernel step
+      description: Private principal-scoped Recovery bridge. The caller submits only a registered plan, immutable plan and step hashes, a single-use approval token, and an idempotency key. The server issues and stores the execution ticket, forwards its references internally to the Recovery Kernel/Host Breakglass boun.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - plan_id
+                - plan_hash
+                - step_id
+                - approval_token
+                - idempotency_key
+              properties:
+                plan_id:
+                  type: string
+                  pattern: ^plan:[0-9a-f]{16,64}$
+                plan_hash:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+                step_id:
+                  type: string
+                  pattern: ^step:[0-9a-f]{16,64}$
+                approval_token:
+                  type: string
+                  minLength: 16
+                  maxLength: 512
+                idempotency_key:
+                  type: string
+                  minLength: 8
+                  maxLength: 160
+      responses:
+        "202":
+          description: Server-issued-ticket execution receipt; final success requires readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - result
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                  contract:
+                    type: string
+                    const: mad4b.recovery-action-bridge-route-receipt.v1
+                  result:
+                    type: object
+                    additionalProperties: true
+                    description: Sanitized receipt without execution ticket ID, hash, or signature.
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    const: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          description: Recovery authorities are unavailable; no provider or database mutation was attempted.
   /admin/recovery/kernel/runs/{run_id}:
     get:
       tags:
@@ -515,9 +594,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: dd0d68e4929a15e5f7634e4aaf2b4cbf0ce47aaf6b81c51227790ca15acb4c79
+  source_openapi_sha256: e119e611b9660a318c188bffbfdc62966a6856f0b32c64c947d3d38cbe3f328f
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: a6e2cb0aa6b4ea4dd045c5ca87d17885c2d9eaaf06f691cb26d0675e4dcf48e1
+  registry_sha256: 6697ce4d2383a7b915808740a9da345f9ead4c6a65cb674b680e580edfcba83e
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: production
@@ -533,7 +612,7 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 4
+  operation_count: 5
   warning_operation_limit: 12
   warning_budget_exceeded: false
   hard_operation_limit: 12

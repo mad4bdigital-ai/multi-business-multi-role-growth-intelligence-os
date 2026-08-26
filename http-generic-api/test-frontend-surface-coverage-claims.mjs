@@ -1060,8 +1060,9 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 16, "the governed mutation set includes the bounded Host Breakglass workflow dispatch and plan-bound Recovery execution");
+assert.equal(governedMutations.length, 17, "the governed mutation set includes the bounded Host Breakglass workflow dispatch, plan-bound Recovery execution, and server-issued Recovery bridge");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute"), "plan-bound Recovery execution must remain explicitly governed");
+assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute-approved"), "server-issued Recovery bridge must remain explicitly governed");
 assert.equal(plan.safety?.executes_provider_calls, false, "coverage claims must not execute provider calls");
 assert.equal(plan.safety?.writes_database, false, "coverage claims must not write the database");
 assert.equal(plan.safety?.deploys, false, "coverage claims must not deploy or enable Production mutation");

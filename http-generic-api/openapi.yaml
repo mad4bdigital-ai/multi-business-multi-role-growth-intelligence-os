@@ -12581,6 +12581,57 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /admin/recovery/kernel/execute-approved:
+    post:
+      tags: [admin-control, recovery-kernel]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: executeApprovedAdminRecoveryKernelStep
+      x-custom-gpt-surfaces: [admin_recovery_production]
+      x-openai-isConsequential: true
+      summary: Issue a server-side ticket and execute one approved Production Recovery Kernel step
+      description: >-
+        Private principal-scoped Recovery bridge. The caller submits only a registered plan, immutable plan and step hashes,
+        a single-use approval token, and an idempotency key. The server issues and stores the execution ticket, forwards its
+        references internally to the Recovery Kernel/Host Breakglass boundary, and never accepts or returns a caller-generated
+        ticket ID, ticket hash, signature, credentials, SQL, migration selection, workflow/ref, or provider control. The
+        operation fails closed with 503 before any provider or database mutation when durable Recovery store, server signer,
+        approval verifier, fenced lock, mutation executor, or same-cycle readback authority is unavailable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plan_id, plan_hash, step_id, approval_token, idempotency_key]
+              properties:
+                plan_id: { type: string, pattern: "^plan:[0-9a-f]{16,64}$" }
+                plan_hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                step_id: { type: string, pattern: "^step:[0-9a-f]{16,64}$" }
+                approval_token: { type: string, minLength: 16, maxLength: 512 }
+                idempotency_key: { type: string, minLength: 8, maxLength: 160 }
+      responses:
+        "202":
+          description: Server-issued-ticket execution receipt; final success requires readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, contract, result, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  contract: { type: string, const: "mad4b.recovery-action-bridge-route-receipt.v1" }
+                  result:
+                    type: object
+                    additionalProperties: true
+                    description: Sanitized receipt without execution ticket ID, hash, or signature.
+                  secrets_included: { type: boolean, const: false }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { description: Recovery authorities are unavailable; no provider or database mutation was attempted. }
   /admin/recovery/kernel/runs/{run_id}:
     get:
       tags: [admin-control, recovery-kernel]

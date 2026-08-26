@@ -201,6 +201,7 @@ export function getRecoveryCompositionRouteDependencies(composition = buildFailC
     recoveryComposition: composition,
     ...composition.kernelDependencies,
     broker: composition.hostBreakglassBroker,
+    hostBreakglassMutationExecutor: composition.hostBreakglassBroker.hostLocalMutationExecutor || null,
     runtimeBootstrapDependencies: composition.runtimeBootstrapDependencies,
   });
 }

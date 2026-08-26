@@ -23,6 +23,10 @@ const upstreamCommands = [
   "node test-production-activation-readiness.mjs",
   "node test-staging-independent-schema-contract.mjs",
   "node test-recovery-kernel.mjs",
+  "node test-recovery-kernel-routes.mjs",
+  "node test-recovery-composition.mjs",
+  "node test-recovery-action-bridge.mjs",
+  "node test-recovery-action-bridge-system-layer.mjs",
   "node test-fixed-host-local-system-tool.mjs",
 ];
 
