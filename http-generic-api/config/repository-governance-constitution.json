@@ -360,6 +360,7 @@
     ".github/ops/production-runtime-recovery-routes.json",
     "docs/governance/runtime-recovery-schema-less-modes.md",
     "docs/governance/hostinger-runtime-bootstrap.md",
+    "docs/governance/recovery-composition.md",
     "docs/governance/runtime-breakglass-environments.md",
     "canonicals/openapi/custom-gpt-surfaces.yaml",
     ".changes/e2e/e2e-contract-reference-integrity.json",
