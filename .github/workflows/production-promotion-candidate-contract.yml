@@ -49,15 +49,18 @@ jobs:
           node - <<'NODE'
           const fs = require("node:fs");
           const workflow = fs.readFileSync(".github/workflows/production-promotion-candidate.yml", "utf8");
+          const open = "$" + "{{";
+          const close = "}" + "}";
           const required = [
             "Require trusted promotion review-surface identity",
-            "REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}",
-            "GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}",
+            `REPO_AUTOSYNC_TOKEN_PRESENT: ${open} secrets.REPO_AUTOSYNC_TOKEN != '' ${close}`,
+            `GH_TOKEN: ${open} secrets.REPO_AUTOSYNC_TOKEN ${close}`,
           ];
           for (const value of required) {
             if (!workflow.includes(value)) throw new Error(`missing trusted promotion identity contract: ${value}`);
           }
-          if (/GH_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/u.test(workflow)) {
+          const forbidden = `GH_TOKEN: ${open} github.token ${close}`;
+          if (workflow.includes(forbidden)) {
             throw new Error("promotion review surfaces must not fall back to GITHUB_TOKEN");
           }
           if (workflow.indexOf("Require trusted promotion review-surface identity") > workflow.indexOf("Prepare immutable release-cut candidate")) {
