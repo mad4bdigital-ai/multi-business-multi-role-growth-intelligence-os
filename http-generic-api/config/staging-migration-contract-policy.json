@@ -65,6 +65,47 @@
       "columns": ["rule_id"]
     }
   ],
+  "required_insert_column_chain_contract": {
+    "enabled": true,
+    "engine": "mariadb",
+    "baseline_file": "http-generic-api/schema.sql",
+    "ordered_numeric_filename_and_lexicographic_tie_break": true,
+    "fail_on_omitted_required_columns": true,
+    "inspect_create_alter_required_columns": true,
+    "inspect_insert_replace_writers": true,
+    "allow_declared_ddl_bridges": true,
+    "max_bridge_omissions": 32,
+    "static_only": true,
+    "database_connection_allowed": false,
+    "sql_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "credential_access_allowed": false,
+    "data_export_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false,
+    "policy_key": "mariadb_required_insert_column_ordered_chain_v1",
+    "required_tables": [
+      {
+        "table": "local_connector_shell_allowlists",
+        "columns": ["allowlist_id"]
+      },
+      {
+        "table": "local_connector_file_access_rules",
+        "columns": ["rule_id"]
+      },
+      {
+        "table": "platform_outbox_event_types",
+        "columns": ["producer_key"],
+        "default_bridge": {
+          "bridge_file": "20260719_zzzz_mariadb_required_insert_column_platform_outbox_compatibility.sql",
+          "table": "platform_outbox_event_types",
+          "column": "producer_key",
+          "default_literal": "growth_control_plane",
+          "writer_files": ["20260720_dynamic_growth_control_plane_foundation.sql"]
+        }
+      }
+    ]
+  },
   "preuse_contract": {
     "check_create_index_table_and_columns": true,
     "check_alter_add_index_table_and_columns": true,
