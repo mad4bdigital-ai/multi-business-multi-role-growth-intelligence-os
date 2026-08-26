@@ -220,6 +220,15 @@ const generatedColumnPolicy = {
     data_export_allowed: false,
     runtime_mutation_allowed: false,
     secrets_included: false,
+    generated_expression_compatibility: {
+      enabled: true,
+      static_only: true,
+      fail_on_unsupported_functions: true,
+      allow_declared_bridges: true,
+      forbidden_function_names: ["lower", "lcase"],
+      max_allowed_bridges: 8,
+      bridges: [],
+    },
     policy_key: "test-generated-column-chain",
   },
 };

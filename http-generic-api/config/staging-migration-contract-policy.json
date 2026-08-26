@@ -186,6 +186,25 @@
     "data_export_allowed": false,
     "runtime_mutation_allowed": false,
     "secrets_included": false,
+    "generated_expression_compatibility": {
+      "enabled": true,
+      "static_only": true,
+      "fail_on_unsupported_functions": true,
+      "allow_declared_bridges": true,
+      "forbidden_function_names": ["lower", "lcase"],
+      "max_allowed_bridges": 8,
+      "bridges": [
+        {
+          "table": "storage_execution_leases",
+          "column": "root_ref_digest",
+          "source_file": "20260802_02_spec014_hostinger_storage_control_plane.sql",
+          "source_expression": "LOWER(SHA2(target_id, 256))",
+          "bridge_file": "20260802_01_zzzz_mariadb_generated_expression_storage_execution_leases_compatibility.sql",
+          "replacement_expression": "SHA2(target_id, 256)",
+          "reason": "MariaDB 11.4 rejects LOWER/LCASE around SHA2 in a STORED generated column; SHA2 returns the required lowercase hexadecimal digest."
+        }
+      ]
+    },
     "policy_key": "mariadb_generated_column_ordered_chain_v1"
   },
   "index_key_width_chain_contract": {
