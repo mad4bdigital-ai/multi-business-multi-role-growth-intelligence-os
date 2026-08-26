@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
+import { compareMigrationFiles } from "./scripts/migration-order.mjs";
 
 function runGuard(root) {
   return spawnSync(process.execPath, ["scripts/migration-placement-guard.mjs", "--root", root], {
@@ -13,6 +14,11 @@ function runGuard(root) {
 
 const cleanRoot = mkdtempSync(join(tmpdir(), "migration-placement-clean-"));
 const badRoot = mkdtempSync(join(tmpdir(), "migration-placement-bad-"));
+
+const parentMigration = "20260611_activation_dynamic_tabs.sql";
+const childMigration = "20260611_activation_dynamic_tabs_autodiscovery.sql";
+assert.equal(compareMigrationFiles(parentMigration, childMigration), -1);
+assert.deepEqual([childMigration, parentMigration].sort(compareMigrationFiles), [parentMigration, childMigration]);
 
 try {
   mkdirSync(join(cleanRoot, "http-generic-api", "migrations"), { recursive: true });
