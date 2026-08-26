@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7692-staging-local-generated-expression-compatibility",
+  "title": "Staging-local MariaDB 11.4 generated-expression compatibility repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7692-staging-local-generated-expression-compatibility.json",
+      ".github/workflows/ci.yml",
+      "http-generic-api/config/staging-migration-contract-policy.json",
+      "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+      "http-generic-api/migrations/20260802_01_zzzz_mariadb_generated_expression_storage_execution_leases_compatibility.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/migration-contract-governance.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent MariaDB 11.4 ERROR 1901 from unsupported LOWER/LCASE wrappers in stored generated expressions while preserving the immutable historical migration and all downstream automation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "generated-expression-static-guard-and-local-replay-gate",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed CI and staging-local Windows migration operator",
+          "entrypoint": "Exact-head static governance followed by freshly authorized disposable Windows Docker MariaDB 11.4 schema-only replay",
+          "terminal_outcome": "The generated-expression ordered-chain guard reports zero unresolved unsupported expressions, the DDL-only compatibility bridge preserves the source schema contract, and any later local replay stops before AutoPilot, importer, readback, deployment, provider, or Production action on the first MariaDB error.",
+          "steps": [
+            "Classify the exact base-to-head changes and record the required environment impact declaration.",
+            "Verify all generated expressions statically, including forbidden function detection, exact bridge ordering, and DDL-only bridge content.",
+            "Verify the immutable storage-control migration remains unchanged and the bridge precreates both related tables with the original foreign keys.",
+            "Verify enum, text-width, collation, index-width, required-INSERT, pre-use, arity, and governance contracts remain clean.",
+            "After a fresh merged main head and a new exact-SHA authorization, run only the disposable local Windows Docker MariaDB 11.4 schema-only replay.",
+            "Stop before AutoPilot, importer, readback, data export/import, deployment, provider, Hostinger, Cloudflare, or Production operations on any failure."
+          ],
+          "assertions": [
+            "The generated-expression guard is static-only and fails closed on every forbidden function without an exact ordered bridge.",
+            "The compatibility bridge is DDL-only, preserves the original storage tables and foreign keys, and does not modify the historical migration.",
+            "The plan and manifest expose generated_expression_checks, compatibility_bridge_candidates, unsupported_generated_expressions, and allowed_compatibility_bridges.",
+            "No database, provider, credential, export, runtime, deployment, Production, AutoPilot, importer, or readback mutation is introduced by static governance or this declaration.",
+            "production_mutation_allowed is false and secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "generated-expression-and-mariadb-static-guards",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder-generated-expression-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-contract-governance",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+            "http-generic-api/config/staging-migration-contract-policy.json",
+            "http-generic-api/migrations/20260802_01_zzzz_mariadb_generated_expression_storage_execution_leases_compatibility.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
