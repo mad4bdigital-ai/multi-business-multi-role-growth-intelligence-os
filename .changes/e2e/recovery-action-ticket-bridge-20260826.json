@@ -10,6 +10,7 @@
     "include": [
       ".changes/e2e/recovery-action-ticket-bridge-20260826.json",
       ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
       "autopilot-portable-staging/manifest.json",
       "canonicals/openapi/custom-gpt-surfaces.yaml",
       "docs/recovery-action-ticket-bridge.md",
