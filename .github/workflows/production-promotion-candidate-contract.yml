@@ -54,14 +54,20 @@ jobs:
           const required = [
             "Require trusted promotion review-surface identity",
             `REPO_AUTOSYNC_TOKEN_PRESENT: ${open} secrets.REPO_AUTOSYNC_TOKEN != '' ${close}`,
+            `token: ${open} secrets.REPO_AUTOSYNC_TOKEN ${close}`,
             `GH_TOKEN: ${open} secrets.REPO_AUTOSYNC_TOKEN ${close}`,
           ];
           for (const value of required) {
             if (!workflow.includes(value)) throw new Error(`missing trusted promotion identity contract: ${value}`);
           }
-          const forbidden = `GH_TOKEN: ${open} github.token ${close}`;
-          if (workflow.includes(forbidden)) {
-            throw new Error("promotion review surfaces must not fall back to GITHUB_TOKEN");
+          const forbidden = [
+            `GH_TOKEN: ${open} github.token ${close}`,
+            `token: ${open} github.token ${close}`,
+          ];
+          for (const value of forbidden) {
+            if (workflow.includes(value)) {
+              throw new Error(`promotion writes must not fall back to GITHUB_TOKEN: ${value}`);
+            }
           }
           if (workflow.indexOf("Require trusted promotion review-surface identity") > workflow.indexOf("Prepare immutable release-cut candidate")) {
             throw new Error("trusted promotion identity preflight must run before candidate mutation");
