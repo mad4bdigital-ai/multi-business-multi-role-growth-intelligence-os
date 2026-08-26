@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "85f9394f1a3ae8e81140dbb96d7bd9b4283c8a1bc50c67373781d0aa7647bde2"
+      "sha256": "e34f3d1d6185e8cbe018185abc805ce69e1f2ef3664c8a494ef472142f3fc151"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
