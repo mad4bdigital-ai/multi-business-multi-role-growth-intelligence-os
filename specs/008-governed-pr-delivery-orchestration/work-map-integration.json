@@ -3,9 +3,9 @@
   "feature_key": "008-governed-pr-delivery-orchestration",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "fd3a9b47f47f2d52b88a593fa21aad28694e29a89c859b8281c93135b0e84bbb",
-    "index_source_hash": "fe55b595a930e3926a81cd6381f7d51c0304d37844ac0d67b8f11490e775e538",
-    "coverage_source_hash": "552ee8c82b5fdb2d341c28b3ec489b024091c0d3698b56ba5953078ec24f57c1",
+    "fingerprint": "40e440184447072ab581c3df4a6a6f33bbdaeaeef1aa01cb2325259da88d1391",
+    "index_source_hash": "155f245adcfdbe64414ca4f81a581fa0e9a993d0f928e4f5fb730f0f650e822a",
+    "coverage_source_hash": "7db8d27fa432fe6a40d9ca88862c645bf5af1a61d621e1cc9b64ee39b0e5caae",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,

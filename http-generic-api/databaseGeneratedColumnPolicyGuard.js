@@ -215,14 +215,41 @@ function compatibilityRules(contract) {
     post_bridge_file: path.basename(String(rule.post_bridge_file || "")),
     source_expression: normalizeExpression(rule.source_expression),
     replacement_expression: normalizeExpression(rule.replacement_expression),
+    replacement_mode: TEXT(rule.replacement_mode || "generated_expression").toLowerCase(),
+    replacement_column_type: TEXT(rule.replacement_column_type || ""),
+    replacement_column_nullability: TEXT(rule.replacement_column_nullability || "").toUpperCase(),
+    trigger_names: Array.isArray(rule.trigger_names) ? rule.trigger_names.map((name) => IDENTIFIER(name)) : [],
+    trigger_events: Array.isArray(rule.trigger_events) ? rule.trigger_events.map((event) => TEXT(event).toUpperCase()) : [],
   }));
+}
+
+function escapeRegExp(value) {
+  return String(value ?? "").replace(/[.*+?^${}()|[\[\]\\]/gu, "\\$&");
+}
+
+function ordinaryColumnTriggerBridgeEvidence(rule, bridgeSql) {
+  const ddl = stripSqlComments(bridgeSql);
+  const table = escapeRegExp(rule.table);
+  const column = escapeRegExp(rule.column);
+  const columnType = escapeRegExp(rule.replacement_column_type).replaceAll("\\\\ ", "\\\\s*");
+  const columnNullability = escapeRegExp(rule.replacement_column_nullability).replaceAll("\\\\ ", "\\\\s*");
+  const ordinaryColumn = new RegExp("(?:^|,)\\s*`?" + column + "`?\\s+" + columnType + "\\s+" + columnNullability + "\\b", "iu");
+  if (!rule.replacement_column_type || !rule.replacement_column_nullability || !ordinaryColumn.test(ddl)) return false;
+  if (rule.trigger_names.length !== 2 || rule.trigger_events.length !== 2 || !rule.replacement_expression) return false;
+  return rule.trigger_names.every((name, index) => {
+    const trigger = escapeRegExp(name);
+    const event = escapeRegExp(rule.trigger_events[index]);
+    const pattern = "CREATE\\s+OR\\s+REPLACE\\s+TRIGGER\\s+`?" + trigger + "`?\\s+BEFORE\\s+" + event + "\\s+ON\\s+`?" + table + "`?\\s+FOR\\s+EACH\\s+ROW\\s+SET\\s+NEW\\.`?" + column + "`?\\s*=\\s*([\\s\\S]*?)(?:;|$)";
+    const match = new RegExp(pattern, "iu").exec(ddl);
+    return Boolean(match && normalizeExpression(match[1]) === rule.replacement_expression);
+  });
 }
 
 function forbiddenGeneratedFunctions(contract) {
   return new Set((contract.generated_expression_compatibility?.forbidden_function_names || []).map((name) => TEXT(name).toLowerCase()).filter(Boolean));
 }
 
-function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex, candidate, findings, warnings, metrics }) {
+function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex, candidate, findings, warnings, metrics, readFile }) {
   metrics.generated_expression_checks += 1;
   const calls = functionCalls(candidate.expression);
   const forbidden = calls.filter((name) => forbiddenFunctions.has(name));
@@ -237,16 +264,24 @@ function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbi
   const sourceIndex = sequence.findIndex((entry) => path.basename(entry) === sourceFile);
   const postBridgeIndex = rule?.post_bridge_file ? sequence.findIndex((entry) => path.basename(entry) === rule.post_bridge_file) : -1;
   const bridgeDefinition = rule ? state.get(`${candidate.table}.${candidate.column}`) : null;
-  const bridgeApplied = Boolean(rule
+  let bridgeSql = null;
+  if (rule && bridgeIndex >= 0) {
+    try { bridgeSql = readFile(sequence[bridgeIndex]); } catch { bridgeSql = null; }
+  }
+  const orderingValid = Boolean(rule
     && bridgeIndex >= 0
     && sourceIndex >= 0
     && bridgeIndex < sourceIndex
-    && (!rule.post_bridge_file || (postBridgeIndex >= 0 && postBridgeIndex > sourceIndex))
-    && bridgeDefinition
-    && path.basename(bridgeDefinition.file) === rule.bridge_file
-    && normalizeExpression(bridgeDefinition.expression) === rule.replacement_expression);
+    && (!rule.post_bridge_file || (postBridgeIndex >= 0 && postBridgeIndex > sourceIndex)));
+  const bridgeEvidence = rule?.replacement_mode === "ordinary_column_trigger"
+    ? Boolean(bridgeSql && ordinaryColumnTriggerBridgeEvidence(rule, bridgeSql))
+    : Boolean(bridgeDefinition
+      && path.basename(bridgeDefinition.file) === rule?.bridge_file
+      && normalizeExpression(bridgeDefinition.expression) === rule?.replacement_expression);
+  const bridgeApplied = orderingValid && bridgeEvidence;
   if (bridgeApplied) {
     metrics.allowed_compatibility_bridges += 1;
+    if (rule.replacement_mode === "ordinary_column_trigger") metrics.ordinary_column_trigger_bridges += 1;
     warnings.push({
       code: "generated_column_expression_compatibility_bridge_applied",
       file,
@@ -256,7 +291,10 @@ function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbi
       forbidden_functions: forbidden,
       source_expression: candidate.expression,
       bridge_file: rule.bridge_file,
-      replacement_expression: rule.replacement_expression,
+      replacement_mode: rule.replacement_mode,
+      replacement_expression: rule.replacement_expression || null,
+      trigger_names: rule.trigger_names,
+      trigger_events: rule.trigger_events,
     });
     return;
   }
@@ -275,6 +313,7 @@ function inspectGeneratedExpressionCompatibility({ state, contract, rules, forbi
     expression: candidate.expression,
     definition: TEXT(candidate.item).slice(0, 2000),
     compatibility_bridge_file: rule?.bridge_file || null,
+    replacement_mode: rule?.replacement_mode || null,
     applies_sql: false,
   });
 }
@@ -471,6 +510,7 @@ export function inspectOrderedMigrationChainGeneratedColumns({
     compatibility_bridge_candidates: 0,
     unsupported_generated_expressions: 0,
     allowed_compatibility_bridges: 0,
+    ordinary_column_trigger_bridges: 0,
   };
   for (const rule of rules) {
     const sourceIndex = sequence.findIndex((entry) => path.basename(entry) === rule.source_file);
@@ -516,7 +556,7 @@ export function inspectOrderedMigrationChainGeneratedColumns({
       projectCreate(statement, file, state, tables, definitions);
       projectAlter(statement, file, state, tables, definitions);
       for (const candidate of collectGeneratedDefinitions(statement, file)) {
-        inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex: null, candidate, findings, warnings, metrics });
+        inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex: null, candidate, findings, warnings, metrics, readFile });
       }
     }
     const source = readFile(file);
@@ -527,7 +567,7 @@ export function inspectOrderedMigrationChainGeneratedColumns({
       projectCreate(statement, file, state, tables, definitions);
       projectAlter(statement, file, state, tables, definitions);
       for (const candidate of collectGeneratedDefinitions(statement, file)) {
-        inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex, candidate, findings, warnings, metrics });
+        inspectGeneratedExpressionCompatibility({ state, contract, rules, forbiddenFunctions, sequence, file, statementIndex, candidate, findings, warnings, metrics, readFile });
       }
       inspectWriters(state, tables, statement, file, statementIndex, findings);
     }
@@ -562,6 +602,7 @@ export function inspectOrderedMigrationChainGeneratedColumns({
     compatibility_bridge_candidates: metrics.compatibility_bridge_candidates,
     unsupported_generated_expressions: metrics.unsupported_generated_expressions,
     allowed_compatibility_bridges: metrics.allowed_compatibility_bridges,
+    ordinary_column_trigger_bridges: metrics.ordinary_column_trigger_bridges,
     findings,
     warnings,
     ok: findings.length === 0,
