@@ -153,6 +153,23 @@ async function requestRaw(base, key, pathname, body, timeoutMs = 120000) {
   }
 }
 
+async function requestReadinessProjection(base, key, timeoutMs = 120000) {
+  try {
+    const response = await fetch(`${base}/deployment-info?include_governance_db_readiness=1`, {
+      method: 'GET',
+      redirect: 'error',
+      headers: { 'x-api-key': key, Accept: 'application/json' },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const text = await response.text();
+    let payload = null;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
+    return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
+  } catch (error) {
+    return { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: String(error?.name || 'Error') };
+  }
+}
+
 function ledgerPass(readback, checksum, statementCount, migration = MIGRATION) {
   const ledger = readback?.ledger;
   return Boolean(readback?.readback_status === 'pass'
@@ -163,6 +180,63 @@ function ledgerPass(readback, checksum, statementCount, migration = MIGRATION) {
     && Number(ledger?.statement_count) === statementCount
     && String(ledger?.preflight_status || '').toLowerCase() === 'pass'
     && Number(ledger?.preflight_risk_count || 0) === 0);
+}
+
+async function captureGovernanceWriterReadiness({ base, key }) {
+  const result = await requestReadinessProjection(base, key);
+  const readiness = result.payload?.governance_db_privilege_readiness;
+  const runtimeBranch = String(result.payload?.branch || result.payload?.gitBranch || '').trim();
+  const ready = Boolean(
+    result.transport_ok
+    && result.http_ok
+    && result.payload?.ok !== false
+    && runtimeBranch === 'Production'
+    && readiness?.status === 'ready'
+    && readiness?.ready === true
+    && readiness?.production_preflight_ready === true
+    && readiness?.production_branch_exact === true
+    && readiness?.promotion_target_branch_exact === true
+    && readiness?.governance_identity_configured === true
+    && readiness?.schema_objects_ready === true
+    && Number(readiness?.missing_required_schema_table_count) === 0
+    && readiness?.table_names_exposed === false
+    && readiness?.privilege_matrix_exact === true
+    && readiness?.database_connection_performed === true
+    && readiness?.sql_readback_performed === true
+    && readiness?.read_only_probe === true
+    && readiness?.sql_mutation_performed === false
+    && readiness?.migration_apply_performed === false
+    && readiness?.provider_mutation_performed === false
+    && readiness?.deployment_performed === false
+    && readiness?.secrets_included === false
+  );
+  return {
+    contract: 'github_repository_policy_1051_governance_writer_readiness.v2',
+    transport_ok: result.transport_ok,
+    http_status: result.status,
+    runtime_branch: runtimeBranch || null,
+    status: readiness?.status ?? null,
+    ready,
+    code: readiness?.code ?? null,
+    production_preflight_ready: readiness?.production_preflight_ready === true,
+    production_branch_exact: readiness?.production_branch_exact === true,
+    promotion_target_branch_exact: readiness?.promotion_target_branch_exact === true,
+    governance_identity_configured: readiness?.governance_identity_configured === true,
+    schema_objects_ready: readiness?.schema_objects_ready === true,
+    required_schema_table_count: count(readiness?.required_schema_table_count),
+    observed_required_schema_table_count: count(readiness?.observed_required_schema_table_count),
+    missing_required_schema_table_count: count(readiness?.missing_required_schema_table_count),
+    table_names_exposed: readiness?.table_names_exposed === true,
+    privilege_matrix_exact: readiness?.privilege_matrix_exact === true,
+    database_connection_performed: readiness?.database_connection_performed === true,
+    sql_readback_performed: readiness?.sql_readback_performed === true,
+    read_only_probe: readiness?.read_only_probe === true,
+    sql_mutation_performed: false,
+    migration_apply_performed: false,
+    provider_mutation_performed: false,
+    deployment_performed: false,
+    secrets_included: false,
+  };
 }
 
 async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
@@ -186,8 +260,16 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
   const tablePresent = schemaTables.some((row) => String(row?.TABLE_NAME || row?.table_name || '') === ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0])
     && !missingTables.includes(ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0]);
   const exactLedgerVerified = result.transport_ok && ledgerPass(readback, checksum, statementCount, ENVELOPE_DEPENDENCY_MIGRATION);
+  const runtimeDependencyReady = exactLedgerVerified && tablePresent;
+  const governanceWriter = await captureGovernanceWriterReadiness({ base, key });
+  const dependencyReady = runtimeDependencyReady && governanceWriter.ready;
+  const dependencyBlockReason = !runtimeDependencyReady
+    ? 'migration_225_runtime_dependency_not_ready'
+    : !governanceWriter.ready
+      ? 'governance_writer_readiness_not_ready'
+      : null;
   const report = {
-    contract: 'github_repository_policy_1051_envelope_dependency_225.v1',
+    contract: 'github_repository_policy_1051_envelope_dependency_225.v3',
     migration: ENVELOPE_DEPENDENCY_MIGRATION,
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
@@ -199,7 +281,11 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
     table: ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0],
     table_present: tablePresent,
     missing_tables: missingTables,
-    dependency_ready: exactLedgerVerified && tablePresent,
+    runtime_dependency_ready: runtimeDependencyReady,
+    governance_writer_readiness: governanceWriter,
+    governance_writer_ready: governanceWriter.ready,
+    dependency_block_reason: dependencyBlockReason,
+    dependency_ready: dependencyReady,
     dependency_grants_apply_authority: false,
     apply_sent: false,
     provider_call_executed: false,
@@ -265,7 +351,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     ? true
     : metadataReplayAllowed && dependencyGuardAllowed;
   const report = {
-    contract: 'github_repository_policy_1051_metadata_diagnostic.v3',
+    contract: 'github_repository_policy_1051_metadata_diagnostic.v5',
     mode,
     diagnostic_status: diagnosticCaptured ? 'captured' : 'unavailable',
     transport_ok: result.transport_ok,
@@ -283,12 +369,12 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     ledger,
     readiness_dependency_guard: mode === 'readiness' ? {
       status: dependencyGuardAllowed ? 'pass' : 'blocked',
-      reason: dependencyGuardAllowed ? 'migration_225_exact_apply_ledger_and_table_verified' : 'migration_225_dependency_not_ready',
+      reason: dependencyGuardAllowed ? 'migration_225_runtime_and_governance_writer_schema_verified' : dependency225.dependency_block_reason,
     } : null,
     pre_apply_guard: mode === 'pre_apply' ? {
       status: guardAllowed ? 'pass' : 'blocked',
       reason: !dependencyGuardAllowed
-        ? 'migration_225_dependency_not_ready'
+        ? dependency225.dependency_block_reason
         : ledger.exact_apply_ledger_verified
           ? 'exact_apply_ledger_already_verified'
           : classification.replay_safe_without_exact_ledger
@@ -310,16 +396,26 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
 
   if (mode === 'readiness') {
     if (!dependencyGuardAllowed) {
-      const error = new Error('Migration 1051 readiness blocked: Migration 225 capability envelope dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
-      error.code = 'migration_1051_dependency_225_not_ready';
+      const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
+      const error = new Error(writerBlocked
+        ? 'Migration 1051 readiness blocked: Governance DB writer schema and privilege readiness are not proven on the same Production runtime that will persist the capability envelope'
+        : 'Migration 1051 readiness blocked: Migration 225 runtime dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
+      error.code = writerBlocked
+        ? 'migration_1051_governance_writer_dependency_not_ready'
+        : 'migration_1051_dependency_225_not_ready';
       throw error;
     }
   }
   if (mode === 'pre_apply') {
     assert.ok(diagnosticCaptured, 'Migration 1051 pre-Apply metadata diagnostic is unavailable');
     if (!dependencyGuardAllowed) {
-      const error = new Error('Migration 1051 pre-Apply blocked: Migration 225 capability envelope dependency is not ready');
-      error.code = 'migration_1051_dependency_225_not_ready';
+      const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
+      const error = new Error(writerBlocked
+        ? 'Migration 1051 pre-Apply blocked: Governance DB writer schema and privilege readiness are not proven'
+        : 'Migration 1051 pre-Apply blocked: Migration 225 runtime dependency is not ready');
+      error.code = writerBlocked
+        ? 'migration_1051_governance_writer_dependency_not_ready'
+        : 'migration_1051_dependency_225_not_ready';
       throw error;
     }
     assert.ok(guardAllowed, `Migration 1051 replay guard blocked ${classification.target_metadata_state} target metadata without an exact Apply ledger`);
@@ -342,6 +438,9 @@ async function main() {
     target_metadata_state: report.target_metadata_state,
     authorization_state: report.authorization_state,
     metadata_present: report.metadata_present,
+    dependency_225_runtime_ready: report.envelope_dependency_225?.runtime_dependency_ready ?? false,
+    governance_writer_schema_ready: report.envelope_dependency_225?.governance_writer_readiness?.schema_objects_ready ?? false,
+    governance_writer_ready: report.envelope_dependency_225?.governance_writer_ready ?? false,
     dependency_225_ready: report.envelope_dependency_225?.dependency_ready ?? false,
     readiness_dependency_guard: report.readiness_dependency_guard?.status ?? null,
     pre_apply_guard: report.pre_apply_guard?.status ?? null,

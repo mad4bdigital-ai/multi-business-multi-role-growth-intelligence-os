@@ -21,8 +21,42 @@ function completeTablePrivileges() {
   );
 }
 
+function completeSchemaRows() {
+  return Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX).map((table) => ({ TABLE_NAME: table }));
+}
+
+function createReadinessConnection({ schemaRows = completeSchemaRows(), queries = [] } = {}) {
+  return {
+    async ping() {},
+    async query(sql) {
+      queries.push(sql);
+      if (sql.includes("CURRENT_USER()")) return [[{ current_account: "governance_writer@localhost", current_database: database }]];
+      if (sql.includes("information_schema.TABLES")) return [schemaRows];
+      if (sql.includes("USER_PRIVILEGES")) return [[{ PRIVILEGE_TYPE: "USAGE" }]];
+      if (sql.includes("SCHEMA_PRIVILEGES")) return [[]];
+      if (sql.includes("TABLE_PRIVILEGES")) return [completeTablePrivileges()];
+      if (sql.includes("COLUMN_PRIVILEGES")) return [[]];
+      if (sql.includes("APPLICABLE_ROLES")) return [[]];
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+    release() { queries.push("release"); },
+  };
+}
+
+const readinessDeps = (connection) => ({
+  runtimePool: { marker: "runtime-reader" },
+  governancePool: { async getConnection() { return connection; } },
+  resolveGovernanceDbConfig: () => ({ database }),
+  resolveGovernanceProductionPreflight: async () => ({
+    ready: true,
+    governance_db: { identity_configured: true },
+    environment_authority: { production_branch: "Production", promotion_target_branch: "Production" },
+  }),
+});
+
 const requiredPrivilegeCount = Object.values(GOVERNANCE_DB_PRIVILEGE_MATRIX)
   .reduce((count, operations) => count + operations.length, 0);
+const requiredSchemaTableCount = Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX).length;
 
 {
   assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.platform_resource_authority_bindings, ["SELECT", "INSERT"]);
@@ -143,54 +177,78 @@ const requiredPrivilegeCount = Object.values(GOVERNANCE_DB_PRIVILEGE_MATRIX)
 
 {
   const queries = [];
-  const connection = {
-    async ping() {},
-    async query(sql) {
-      queries.push(sql);
-      if (sql.includes("CURRENT_USER()")) return [[{ current_account: "governance_writer@localhost", current_database: database }]];
-      if (sql.includes("USER_PRIVILEGES")) return [[{ PRIVILEGE_TYPE: "USAGE" }]];
-      if (sql.includes("SCHEMA_PRIVILEGES")) return [[]];
-      if (sql.includes("TABLE_PRIVILEGES")) return [completeTablePrivileges()];
-      if (sql.includes("COLUMN_PRIVILEGES")) return [[]];
-      if (sql.includes("APPLICABLE_ROLES")) return [[]];
-      throw new Error(`Unexpected query: ${sql}`);
-    },
-    release() { queries.push("release"); },
-  };
+  const connection = createReadinessConnection({ queries });
   const result = await runGovernanceDbPrivilegeReadiness(
     { env: {} },
-    {
-      runtimePool: { marker: "runtime-reader" },
-      governancePool: { async getConnection() { return connection; } },
-      resolveGovernanceDbConfig: () => ({ database }),
-      resolveGovernanceProductionPreflight: async () => ({
-        ready: true,
-        governance_db: { identity_configured: true },
-        environment_authority: { production_branch: "Production", promotion_target_branch: "Production" },
-      }),
-    },
+    readinessDeps(connection),
   );
   assert.equal(result.ready, true);
+  assert.equal(result.schema_readiness.ready, true);
+  assert.equal(result.schema_readiness.required_table_count, requiredSchemaTableCount);
+  assert.equal(result.schema_readiness.observed_required_table_count, requiredSchemaTableCount);
+  assert.equal(result.schema_readiness.missing_required_table_count, 0);
+  assert.equal(result.schema_readiness.table_names_exposed, false);
   assert.equal(result.privilege_readiness.ready, true);
   assert.equal(result.database_connection_performed, true);
   assert.equal(result.sql_readback_performed, true);
   assert.equal(result.sql_mutation_performed, false);
   assert.equal(result.secrets_included, false);
+  assert.equal(queries.some((query) => query.includes("information_schema.TABLES")), true);
+  assert.equal(queries.includes("release"), true);
+}
+
+{
+  const schemaRows = completeSchemaRows().filter(
+    (row) => row.TABLE_NAME !== "capability_resolution_envelope_ledger",
+  );
+  const queries = [];
+  const connection = createReadinessConnection({ schemaRows, queries });
+  const result = await runGovernanceDbPrivilegeReadiness(
+    { env: {} },
+    readinessDeps(connection),
+  );
+  const serialized = JSON.stringify(result);
+  assert.equal(result.ready, false);
+  assert.equal(result.code, "GOVERNANCE_DB_SCHEMA_READINESS_FAILED");
+  assert.equal(result.schema_readiness?.ready, false);
+  assert.equal(result.schema_readiness?.required_table_count, requiredSchemaTableCount);
+  assert.equal(result.schema_readiness?.observed_required_table_count, requiredSchemaTableCount - 1);
+  assert.equal(result.schema_readiness?.missing_required_table_count, 1);
+  assert.equal(result.schema_readiness?.table_names_exposed, false);
+  assert.equal(result.database_connection_performed, true);
+  assert.equal(result.sql_readback_performed, true);
+  assert.equal(result.sql_mutation_performed, false);
+  assert.equal(serialized.includes("capability_resolution_envelope_ledger"), false);
+  assert.equal(queries.some((query) => query.includes("TABLE_PRIVILEGES")), false);
   assert.equal(queries.includes("release"), true);
 }
 
 {
   const projected = projectGovernanceDbPrivilegeReadiness({
     ready: false,
-    code: "GOVERNANCE_DB_PRIVILEGE_READINESS_FAILED",
-    details: { missing_required: ["capability_resolution_envelope_ledger:INSERT"], raw_username: "must-not-be-public", secrets_included: false },
+    code: "GOVERNANCE_DB_SCHEMA_READINESS_FAILED",
+    details: { raw_username: "must-not-be-public", secrets_included: false },
+    schema_readiness: {
+      ready: false,
+      required_table_count: requiredSchemaTableCount,
+      observed_required_table_count: requiredSchemaTableCount - 1,
+      missing_required_table_count: 1,
+      table_names_exposed: false,
+      secrets_included: false,
+    },
+    privilege_readiness: { ready: true },
     database_connection_performed: true,
     sql_readback_performed: true,
   });
   const serialized = JSON.stringify(projected);
   assert.equal(projected.ready, false);
-  assert.equal(projected.code, "GOVERNANCE_DB_PRIVILEGE_READINESS_FAILED");
-  assert.equal(serialized.includes("capability_resolution_envelope_ledger:INSERT"), false);
+  assert.equal(projected.code, "GOVERNANCE_DB_SCHEMA_READINESS_FAILED");
+  assert.equal(projected.schema_objects_ready, false);
+  assert.equal(projected.required_schema_table_count, requiredSchemaTableCount);
+  assert.equal(projected.observed_required_schema_table_count, requiredSchemaTableCount - 1);
+  assert.equal(projected.missing_required_schema_table_count, 1);
+  assert.equal(projected.table_names_exposed, false);
+  assert.equal(projected.privilege_matrix_exact, true);
   assert.equal(serialized.includes("must-not-be-public"), false);
   assert.equal(projected.secrets_included, false);
 }
@@ -206,6 +264,12 @@ const requiredPrivilegeCount = Object.values(GOVERNANCE_DB_PRIVILEGE_MATRIX)
       production_branch_exact: true,
       promotion_target_branch_exact: true,
       governance_identity_configured: true,
+      schema_readiness: {
+        ready: true,
+        required_table_count: requiredSchemaTableCount,
+        observed_required_table_count: requiredSchemaTableCount,
+        missing_required_table_count: 0,
+      },
       privilege_readiness: { ready: true },
       database_connection_performed: true,
       sql_readback_performed: true,
@@ -220,6 +284,8 @@ const requiredPrivilegeCount = Object.values(GOVERNANCE_DB_PRIVILEGE_MATRIX)
   assert.equal(first.ready, true);
   assert.equal(second.ready, true);
   assert.equal(calls, 1);
+  assert.equal(first.schema_objects_ready, true);
+  assert.equal(first.missing_required_schema_table_count, 0);
   assert.equal(first.privilege_matrix_exact, true);
   assert.equal(first.secrets_included, false);
   resetGovernanceDbPrivilegeReadinessRuntimeCacheForTest();
