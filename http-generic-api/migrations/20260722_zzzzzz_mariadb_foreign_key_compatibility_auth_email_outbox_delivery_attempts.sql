@@ -1,10 +1,10 @@
 -- MariaDB 11.4 FK compatibility bridge for auth email delivery attempts.
 -- Additive DDL only: the historical 20260723 migration remains immutable.
 -- Preserve the generated active_claim expression while pinning email_id to
--- auth_email_outbox.email_id's canonical utf8mb4_general_ci collation.
+-- auth_email_outbox.email_id's canonical utf8mb4_uca1400_ai_ci collation.
 CREATE TABLE IF NOT EXISTS `auth_email_outbox_delivery_attempts` (
   `attempt_id` varchar(64) NOT NULL,
-  `email_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `email_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `attempt_number` int unsigned NOT NULL,
   `idempotency_key` varchar(191) NOT NULL,
   `recipient_email` varchar(255) NOT NULL,

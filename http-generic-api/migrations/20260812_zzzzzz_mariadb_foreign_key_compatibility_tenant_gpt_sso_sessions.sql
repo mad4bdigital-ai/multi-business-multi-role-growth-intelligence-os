@@ -20,4 +20,4 @@ CREATE TABLE IF NOT EXISTS `tenant_gpt_sso_sessions` (
   KEY `idx_tenant_gpt_sso_expiry` (`status`,`expires_at`),
   CONSTRAINT `fk_tenant_gpt_sso_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
   CONSTRAINT `fk_tenant_gpt_sso_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;

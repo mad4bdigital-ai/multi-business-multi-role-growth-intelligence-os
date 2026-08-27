@@ -4,7 +4,7 @@
 -- column to the canonical tenants.tenant_id collation.
 CREATE TABLE IF NOT EXISTS `tenant_brand_links` (
   `link_id` varchar(64) NOT NULL,
-  `tenant_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `tenant_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   `brand_target_key` varchar(191) NOT NULL,
   `link_source` varchar(64) NOT NULL DEFAULT 'tenant_metadata_brand_key',
   `status` enum('active','inactive','superseded') NOT NULL DEFAULT 'active',

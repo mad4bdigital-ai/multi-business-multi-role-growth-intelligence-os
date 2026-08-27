@@ -169,10 +169,10 @@
             "source_type": "varchar(36)",
             "replacement_type": "varchar(36)",
             "replacement_charset": "utf8mb4",
-            "replacement_collation": "utf8mb4_general_ci"
+            "replacement_collation": "utf8mb4_uca1400_ai_ci"
           }
         ],
-        "reason": "The historical child table uses utf8mb4_uca1400_ai_ci while canonical tenants.tenant_id resolves to utf8mb4_general_ci; an additive precreate pins only the FK column to the parent collation and preserves the table UCA default."
+        "reason": "The historical child table uses the MariaDB default UCA collation while the canonical tenants.tenant_id key is governed as utf8mb4_uca1400_ai_ci; an additive precreate pins the FK column to the exact parent collation and preserves the table UCA default."
       },
       {
         "table": "auth_email_outbox_delivery_attempts",
@@ -187,10 +187,10 @@
             "source_type": "varchar(64)",
             "replacement_type": "varchar(64)",
             "replacement_charset": "utf8mb4",
-            "replacement_collation": "utf8mb4_general_ci"
+            "replacement_collation": "utf8mb4_uca1400_ai_ci"
           }
         ],
-        "reason": "The historical child table uses utf8mb4_uca1400_ai_ci while canonical auth_email_outbox.email_id resolves to utf8mb4_general_ci; an additive precreate pins only the FK column to the parent collation."
+        "reason": "The historical child table uses the MariaDB default UCA collation while canonical auth_email_outbox.email_id is governed as utf8mb4_uca1400_ai_ci; an additive precreate pins the FK column to the exact parent collation."
       },
       {
         "table": "tenant_gpt_sso_sessions",
@@ -205,7 +205,7 @@
             "source_type": "varchar(64)",
             "replacement_type": "varchar(36)",
             "replacement_charset": "utf8mb4",
-            "replacement_collation": "utf8mb4_general_ci"
+            "replacement_collation": "utf8mb4_uca1400_ai_ci"
           },
           {
             "column": "tenant_id",
@@ -214,7 +214,7 @@
             "source_type": "varchar(64)",
             "replacement_type": "varchar(36)",
             "replacement_charset": "utf8mb4",
-            "replacement_collation": "utf8mb4_general_ci"
+            "replacement_collation": "utf8mb4_uca1400_ai_ci"
           }
         ],
         "reason": "MariaDB InnoDB requires foreign-key child and parent character key definitions to match; the historical SSO migration uses VARCHAR(64) against canonical VARCHAR(36) keys, so an earlier governed idempotent bridge pre-creates the table without editing history."

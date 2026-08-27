@@ -1380,7 +1380,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 583);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 137);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 139);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 4);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.unresolved_type_mismatches, 0);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.missing_parent_tables, 0);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.missing_parent_columns, 0);

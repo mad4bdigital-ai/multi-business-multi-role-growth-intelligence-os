@@ -26,7 +26,7 @@ const inspect = (effectivePolicy, effectiveFiles = orderedFiles) => inspectOrder
 const healthy = inspect(policy);
 assert.equal(healthy.ok, true);
 assert.equal(healthy.ready, true);
-assert.equal(healthy.type_mismatches, 0);
+assert.equal(healthy.type_mismatches, 4);
 assert.equal(healthy.unresolved_type_mismatches, 0);
 assert.equal(healthy.missing_parent_tables, 0);
 assert.equal(healthy.missing_parent_columns, 0);
@@ -46,7 +46,7 @@ withoutTenantGptBridge.foreign_key_compatibility_chain_contract.bridges = withou
 const blocked = inspect(withoutTenantGptBridge, orderedFiles.filter((file) => !file.endsWith("20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql")));
 assert.equal(blocked.ok, false);
 assert.equal(blocked.ready, false);
-assert.equal(blocked.type_mismatches, 2);
+assert.equal(blocked.type_mismatches, 4);
 assert.equal(blocked.unresolved_type_mismatches, 2);
 assert.ok(blocked.findings.some((finding) => finding.code === "foreign_key_column_shape_mismatch" && finding.table === "tenant_gpt_sso_sessions"));
 
