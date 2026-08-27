@@ -180,6 +180,10 @@ export function buildStagingRecoveryAdminRoutes({
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter((guard) => typeof guard === "function");
 
   router.use((req, res, next) => {
+    // Scope the environment isolation guard to this surface's exact paths.
+    // A router-level deny-all would intercept unrelated public health routes
+    // such as /version when the application is running outside Staging.
+    if (!STAGING_RECOVERY_PATHS.includes(String(req?.path || ""))) return next();
     if (!staging) return errorResponse(res, req, 404, "RECOVERY_STAGING_SURFACE_UNAVAILABLE", "The Staging Recovery surface is not available outside a declared Staging runtime.");
     return next();
   });

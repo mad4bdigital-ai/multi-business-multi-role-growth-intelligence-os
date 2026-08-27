@@ -184,6 +184,8 @@ test("Staging Recovery routes are reachable only in declared staging runtime", a
     requireAdminPrincipal: (_req, _res, next) => next(),
     recoveryComposition: completeStagingComposition(),
   }));
+  // The Staging-only guard must not intercept unrelated public health routes.
+  productionApp.get("/version", (_req, res) => res.status(200).json({ ok: true, route: "version" }));
   const production = await listen(productionApp);
   try {
     const response = await fetch(`${production.url}/admin/recovery/staging/contract`);
@@ -191,6 +193,11 @@ test("Staging Recovery routes are reachable only in declared staging runtime", a
     assert.equal(response.status, 404);
     assert.equal(body.error.code, "RECOVERY_STAGING_SURFACE_UNAVAILABLE");
     assert.equal(body.database_mutation_performed, false);
+
+    const versionResponse = await fetch(`${production.url}/version`);
+    const versionBody = await versionResponse.json();
+    assert.equal(versionResponse.status, 200);
+    assert.deepEqual(versionBody, { ok: true, route: "version" });
   } finally {
     await new Promise((resolve) => production.server.close(resolve));
   }

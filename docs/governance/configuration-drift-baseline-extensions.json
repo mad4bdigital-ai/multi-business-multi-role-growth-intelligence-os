@@ -343,6 +343,50 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/recoveryActivationReadiness.js|compositionConfigured|literal_declaration|compositionconfigured",
+      "owner": "recovery-governance",
+      "reason": "The Recovery readiness compositionConfigured predicate is a non-secret, read-only certification result. It reports whether the injected non-live composition is structurally complete and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/recoveryActivationReadiness.js|allRequiredComponentsConfigured|literal_declaration|allrequiredcomponentsconfigured",
+      "owner": "recovery-governance",
+      "reason": "The Recovery readiness allRequiredComponentsConfigured predicate is a non-secret, read-only completeness result for the server-managed authority graph. It cannot enable live execution or grant mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/recoveryActivationReadiness.js|stagingModeValid|literal_declaration|stagingmodevalid",
+      "owner": "recovery-governance",
+      "reason": "The Recovery readiness stagingModeValid predicate is a non-secret, read-only environment-bound safety check. It rejects non-staging composition modes and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/serverManagedRecoveryBindingProvider.js|SERVER_MANAGED_BINDING_MODE_ENV|literal_declaration|server.managed.binding.mode.env",
+      "owner": "recovery-governance",
+      "reason": "The server-managed binding mode environment variable name is a non-secret, read-only configuration locator. The provider remains fail-closed for Production and does not grant runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
