@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7438,
-    "bytes": 73358782,
-    "lines": 1704490,
+    "files": 7440,
+    "bytes": 73371488,
+    "lines": 1704796,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2198,
+      "tests-and-specs": 2199,
       "documentation": 1915,
-      "api-runtime": 1516,
+      "api-runtime": 1517,
       "database-migrations": 833,
       "root-and-other": 340,
       "api-contracts": 192,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2516,
-      ".mjs": 1770,
-      ".js": 1022,
+      ".mjs": 1771,
+      ".js": 1023,
       ".json": 890,
       ".sql": 848,
       ".yml": 173,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3870,
+      "http-generic-api": 3872,
       "docs": 1819,
       "specs": 880,
       ".changes": 309,
@@ -2633,6 +2633,7 @@
       "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
       "http-generic-api/test-production-write-authority-degradation.mjs",
       "http-generic-api/test-protected-promotion-generated-artifact-context.mjs",
       "http-generic-api/test-provider-canonical-response-certification.mjs",
@@ -4923,6 +4924,7 @@
       "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
       "http-generic-api/test-production-write-authority-degradation.mjs",
       "http-generic-api/test-protected-promotion-generated-artifact-context.mjs",
       "http-generic-api/test-provider-canonical-response-certification.mjs",
@@ -53233,6 +53235,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/productionRecoveryCompositionFactory.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 5168,
+      "lines": 155,
+      "sha256": "5dbe0a187b95ce2c81b38d4ce758b04d979989c3113fbfe09306d1e4eac6cbfb",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/providerCanonicalResponseCertification.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -71565,6 +71578,17 @@
       "bytes": 9660,
       "lines": 202,
       "sha256": "55180bd22d6548f7379fcbb97d8da51ff0a43893c7ff8bd867a057da085e824e",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 7538,
+      "lines": 151,
+      "sha256": "31b50dd86e349485e7afdd66638b9bae2efaccbe5cc4ef525eba7318415ddac6",
       "mode": "644",
       "executable": false,
       "generated": false
