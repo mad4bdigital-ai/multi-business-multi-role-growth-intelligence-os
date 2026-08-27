@@ -349,6 +349,7 @@
     ".changes/e2e/recovery-authority-composition-20260827.json",
     ".changes/e2e/production-composition-adapter-factory-20260827.json",
     ".changes/e2e/recovery-server-managed-authority-binding-20260827.json",
+    "docs/governance/recovery-server-managed-authority-binding.md",
     ".changes/e2e/staging-migration-125-json-path-contract.json",
     ".changes/e2e/staging-local-allowlist-id-contract.json",
     ".changes/e2e/staging-local-secret-reference-uniqueness.json",
