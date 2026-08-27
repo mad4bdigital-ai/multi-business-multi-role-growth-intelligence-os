@@ -11,6 +11,7 @@
       ".changes/e2e/work-map-recovery-independent-bootstrap.json",
       ".github/derived-state-governance.json",
       "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/staging-migration-contract-policy.json",
       "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
