@@ -277,6 +277,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs|OPENAPI_DETAIL_BATCH_OUTPUT|literal_declaration|openapi.detail.batch.output",
+      "owner": "repository-governance",
+      "reason": "The OpenAPI detail-batch output path is a code-owned allowlist binding for the registered frontend generated-artifact writer; it limits writes to one governed tracked artifact and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

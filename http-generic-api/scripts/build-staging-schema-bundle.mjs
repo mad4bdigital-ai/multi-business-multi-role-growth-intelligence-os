@@ -12,6 +12,7 @@ import { inspectOrderedMigrationChainTextWidths } from "../databaseTextWidthPoli
 import { inspectOrderedMigrationChainGeneratedColumns } from "../databaseGeneratedColumnPolicyGuard.js";
 import { inspectOrderedMigrationChainIndexKeyWidths } from "../databaseIndexKeyWidthPolicyGuard.js";
 import { inspectOrderedMigrationChainRequiredInsertColumns } from "../databaseRequiredInsertColumnPolicyGuard.js";
+import { inspectOrderedMigrationChainForeignKeys } from "../databaseForeignKeyCompatibilityPolicyGuard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -578,6 +579,64 @@ function orderedIndexKeyWidthAudit(files) {
   return audit;
 }
 
+function orderedForeignKeyAudit(files) {
+  if (!fs.existsSync(migrationContractPolicyPath)) fail(`staging migration contract policy is missing: ${migrationContractPolicyPath}`);
+  let policy;
+  try { policy = JSON.parse(fs.readFileSync(migrationContractPolicyPath, "utf8")); }
+  catch (error) { fail(`staging migration contract policy is invalid: ${error.message}`); }
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const audit = inspectOrderedMigrationChainForeignKeys({
+    files: orderedFiles,
+    baselineFile: "http-generic-api/schema.sql",
+    engine: "mariadb",
+    policy,
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  if (audit.findings.length > 0) {
+    const sample = audit.findings.slice(0, 8).map((finding) => `${path.basename(finding.file)}#${finding.statement_index ?? "?"}:${finding.table || "?"}.${finding.column || "?"}:${finding.code}`).join(", ");
+    fail(`ordered MariaDB foreign-key compatibility audit found ${audit.findings.length} findings (${sample})`);
+  }
+  if (audit.database_connection_performed !== false || audit.sql_mutation_performed !== false || audit.provider_mutation_performed !== false || audit.credential_access_performed !== false || audit.data_export_performed !== false || audit.runtime_mutation_performed !== false || audit.secrets_included !== false) {
+    fail("ordered MariaDB foreign-key compatibility audit violated static-only safety boundary");
+  }
+  return audit;
+}
+
+function orderedForeignKeyMetadata(audit) {
+  return {
+    contract: audit.contract,
+    engine: audit.engine,
+    policy_key: audit.policy_key,
+    baseline_file: audit.baseline_file,
+    files_checked: audit.files_checked,
+    migration_files_checked: audit.migration_files_checked,
+    statements_checked: audit.statements_checked,
+    tables_projected: audit.tables_projected,
+    foreign_keys_checked: audit.foreign_keys_checked,
+    type_comparisons: audit.type_comparisons,
+    type_mismatches: audit.type_mismatches,
+    unresolved_type_mismatches: audit.unresolved_type_mismatches,
+    missing_parent_tables: audit.missing_parent_tables,
+    missing_parent_columns: audit.missing_parent_columns,
+    missing_parent_indexes: audit.missing_parent_indexes,
+    compatibility_bridge_candidates: audit.compatibility_bridge_candidates,
+    allowed_compatibility_bridges: audit.allowed_compatibility_bridges,
+    ok: audit.ok,
+    ready: audit.ready,
+    finding_count: audit.findings.length,
+    warning_count: audit.warnings.length,
+    findings: audit.findings.slice(0, 8),
+    warning_samples: audit.warnings.slice(0, 8),
+    database_connection_performed: audit.database_connection_performed,
+    sql_mutation_performed: audit.sql_mutation_performed,
+    provider_mutation_performed: audit.provider_mutation_performed,
+    credential_access_performed: audit.credential_access_performed,
+    data_export_performed: audit.data_export_performed,
+    runtime_mutation_performed: audit.runtime_mutation_performed,
+    secrets_included: audit.secrets_included,
+  };
+}
+
 function orderedEnumSeedMetadata(audit) {
   return {
     contract: audit.contract,
@@ -938,7 +997,7 @@ function collationAuditMetadata(audit) {
   };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, bootstrap, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, bootstrap, tableSets, bundles) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -961,6 +1020,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     ordered_index_key_width_chain: indexKeyWidthMetadata(indexKeyWidthAudit),
     ordered_required_insert_column_chain: requiredInsertColumnMetadata(requiredInsertColumnAudit),
     ordered_generated_column_chain: generatedColumnMetadata(generatedColumnAudit),
+    ordered_foreign_key_compatibility_chain: orderedForeignKeyMetadata(foreignKeyAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     roles: bundles,
     validation: {
@@ -1003,6 +1063,12 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       ordered_generated_column_chain_findings: generatedColumnAudit.findings.length,
       ordered_generated_column_chain_files_checked: generatedColumnAudit.files_checked,
       ordered_generated_column_chain_statements_checked: generatedColumnAudit.statements_checked,
+      ordered_foreign_key_compatibility_chain_checked: true,
+      ordered_foreign_key_compatibility_chain_findings: foreignKeyAudit.findings.length,
+      ordered_foreign_key_compatibility_chain_files_checked: foreignKeyAudit.files_checked,
+      ordered_foreign_key_compatibility_chain_statements_checked: foreignKeyAudit.statements_checked,
+      ordered_foreign_key_compatibility_chain_type_mismatches: foreignKeyAudit.type_mismatches,
+      ordered_foreign_key_compatibility_chain_allowed_bridges: foreignKeyAudit.allowed_compatibility_bridges,
       ordered_text_width_chain_warnings: textWidthAudit.warnings.length,
       ordered_text_width_chain_files_checked: textWidthAudit.files_checked,
       ordered_text_width_chain_statements_checked: textWidthAudit.statements_checked,
@@ -1015,7 +1081,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
   return outputPath;
 }
 
-function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, bootstrap) {
+function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, bootstrap) {
   console.log(JSON.stringify({
     contract: manifest.contract,
     expected_commit: expectedCommit?.toLowerCase() || null,
@@ -1031,6 +1097,7 @@ function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit
     ordered_index_key_width_chain: indexKeyWidthMetadata(indexKeyWidthAudit),
     ordered_required_insert_column_chain: requiredInsertColumnMetadata(requiredInsertColumnAudit),
     ordered_generated_column_chain: generatedColumnMetadata(generatedColumnAudit),
+    ordered_foreign_key_compatibility_chain: orderedForeignKeyMetadata(foreignKeyAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     required_bundle_files: manifest.validation.required_bundle_files,
     confirmation_required: manifest.safety.confirmation,
@@ -1066,6 +1133,7 @@ const textWidthAudit = orderedTextWidthAudit(files);
   if (initialAudit.missing_column_gaps > 0) fail(`ordered pre-use audit found ${initialAudit.missing_column_gaps} missing-column pre-use gaps; repair canonical DDL before schema build`);
 if (initialAudit.insert_arity_mismatches > 0) fail(`ordered pre-use audit found ${initialAudit.insert_arity_mismatches} INSERT column/value arity mismatches; repair migration writers before schema build`);
 const tableBootstrap = canonicalTableBootstrap(files, initialAudit);
+const foreignKeyAudit = orderedForeignKeyAudit(files);
 const generatedColumnAudit = inspectOrderedMigrationChainGeneratedColumns({
   files: files.map((file) => `http-generic-api/migrations/${file}`),
   baselineFile: "http-generic-api/schema.sql",
@@ -1093,7 +1161,7 @@ if (orderedAudit.missing_table_gaps > 0) {
   if (orderedAudit.insert_arity_mismatches > 0) fail(`canonical ordered pre-use audit reports ${orderedAudit.insert_arity_mismatches} INSERT column/value arity mismatches; repair migration writers before schema build`);
   const canonicalSeeds = canonicalSeedPlan(manifest, files);
 if (planOnly) {
-  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, tableBootstrap);
+  printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, tableBootstrap);
   process.exit(0);
 }
 if (confirmation !== manifest.safety.confirmation) fail(`explicit confirmation is required: --confirm ${manifest.safety.confirmation}`);
@@ -1110,7 +1178,7 @@ try {
       governance: makeDump("governance", sets.governance, manifest),
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, tableBootstrap, sets, bundles);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, tableBootstrap, sets, bundles);
 
   console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
 } finally {
