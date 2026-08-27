@@ -143,9 +143,10 @@ function sqlType(item, tableDefaults = {}) {
 function tableDefaults(statement) {
   const charset = statement.match(/\b(?:DEFAULT\s+)?CHARSET\s*=\s*([A-Za-z0-9_]+)/iu)?.[1]?.toLowerCase() || null;
   const explicitCollation = statement.match(/\bCOLLATE\s*=\s*([A-Za-z0-9_]+)/iu)?.[1]?.toLowerCase() || null;
-  // MariaDB 11.4 uses the compiled-in utf8mb4_general_ci default when a table
-  // names DEFAULT CHARSET=utf8mb4 without an explicit COLLATE clause.
-  const collation = explicitCollation || (charset === "utf8mb4" ? "utf8mb4_general_ci" : null);
+  // The governed mariadb:11.4 Docker image used by the local replay resolves
+  // DEFAULT CHARSET=utf8mb4 to the UCA1400 collation. Repairs must be explicit
+  // because defaults can vary across image patch levels.
+  const collation = explicitCollation || (charset === "utf8mb4" ? "utf8mb4_uca1400_ai_ci" : null);
   return { charset, collation };
 }
 
@@ -234,6 +235,9 @@ function parseBridgeRules(policy) {
     table: IDENTIFIER(bridge.table),
     bridge_file: RELATIVE(bridge.bridge_file),
     source_file: RELATIVE(bridge.source_file),
+    prepare_file: bridge.prepare_file ? RELATIVE(bridge.prepare_file) : null,
+    prepare_table: bridge.prepare_table ? IDENTIFIER(bridge.prepare_table) : null,
+    prepare_foreign_key: bridge.prepare_foreign_key ? IDENTIFIER(bridge.prepare_foreign_key) : null,
     columns: Array.isArray(bridge.columns) ? bridge.columns.map((item) => ({
       ...item,
       column: IDENTIFIER(item.column),
@@ -269,6 +273,27 @@ function validateBridge(rule, files, readFile, findings) {
   }
   const bridgeSql = readFile(bridgePath);
   const sourceSql = readFile(sourcePath);
+  if (rule.prepare_file) {
+    const preparePath = rule.prepare_file.startsWith("http-generic-api/") ? rule.prepare_file : `http-generic-api/migrations/${path.basename(rule.prepare_file)}`;
+    const prepareIndex = files.indexOf(preparePath);
+    if (prepareIndex < 0 || prepareIndex >= bridgeIndex) {
+      findings.push({ code: "bridge_prepare_order", table: rule.table, bridge_file: rule.bridge_file, prepare_file: rule.prepare_file, detail: "declared FK restore bridge must follow its governed prepare migration" });
+      return false;
+    }
+    const prepareSql = stripComments(readFile(preparePath));
+    const preparePattern = new RegExp(
+      "^\\s*ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?`?" +
+      escapeRegExp(rule.prepare_table || rule.table) +
+      "`?\\s+DROP\\s+FOREIGN\\s+KEY\\s+IF\\s+EXISTS\\s+`?" +
+      escapeRegExp(rule.prepare_foreign_key || "") +
+      "`?\\s*;?\\s*$",
+      "iu",
+    );
+    if (!rule.prepare_foreign_key || !preparePattern.test(prepareSql)) {
+      findings.push({ code: "bridge_prepare_shape", table: rule.table, bridge_file: rule.bridge_file, prepare_file: rule.prepare_file, detail: "governed prepare migration must drop the declared FK with IF EXISTS before restore" });
+      return false;
+    }
+  }
   const sourceDefinition = sourceCreateForTable(sourceSql, rule.table);
   if (!sourceDefinition) {
     findings.push({ code: "bridge_definition", table: rule.table, bridge_file: rule.bridge_file, source_file: rule.source_file, detail: "historical source must contain the target CREATE TABLE" });

@@ -19,7 +19,9 @@
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/migrations/000_aaaaaaaa_mariadb_foreign_key_compatibility_user_credentials_prepare.sql",
       "http-generic-api/migrations/000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
+      "http-generic-api/migrations/003_zzzzzz_mariadb_foreign_key_compatibility_user_credentials_restore.sql",
       "http-generic-api/migrations/20260720_zzzzzz_mariadb_foreign_key_compatibility_tenant_brand_links.sql",
       "http-generic-api/migrations/20260722_zzzzzz_mariadb_foreign_key_compatibility_auth_email_outbox_delivery_attempts.sql",
       "http-generic-api/migrations/20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql"
@@ -58,6 +60,7 @@
           "assertions": [
             "The historical tenant_gpt_sso_sessions width mismatch is repaired by a precreate bridge that preserves its two foreign-key edges and exact parent key shape.",
             "The baseline user_credentials, tenant_brand_links, and auth_email_outbox_delivery_attempts collation mismatches are normalized through additive, exact, MariaDB 11.4-compatible DDL bridges.",
+            "The user_credentials repair removes the incompatible baseline FK before ordered DDL, explicitly aligns users.user_id and user_credentials.user_id to utf8mb4_uca1400_ai_ci, and restores the FK without editing schema.sql or historical migrations.",
             "The FK guard reports zero unresolved type mismatches, missing parent tables, missing parent columns, and missing parent indexes, and it fails closed when a required bridge is absent.",
             "Inline parent primary keys and CREATE TABLE LIKE source tables are recognized without false missing-index or missing-table findings.",
             "Static governance and replay wrappers perform no provider, credential, production, runtime, export/import, AutoPilot, importer, or readback action."
@@ -100,7 +103,9 @@
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
+            "http-generic-api/migrations/000_aaaaaaaa_mariadb_foreign_key_compatibility_user_credentials_prepare.sql",
             "http-generic-api/migrations/000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
+            "http-generic-api/migrations/003_zzzzzz_mariadb_foreign_key_compatibility_user_credentials_restore.sql",
             "http-generic-api/migrations/20260720_zzzzzz_mariadb_foreign_key_compatibility_tenant_brand_links.sql",
             "http-generic-api/migrations/20260722_zzzzzz_mariadb_foreign_key_compatibility_auth_email_outbox_delivery_attempts.sql",
             "http-generic-api/migrations/20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql"

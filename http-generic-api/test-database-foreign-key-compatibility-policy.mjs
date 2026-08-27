@@ -26,13 +26,13 @@ const inspect = (effectivePolicy, effectiveFiles = orderedFiles) => inspectOrder
 const healthy = inspect(policy);
 assert.equal(healthy.ok, true);
 assert.equal(healthy.ready, true);
-assert.equal(healthy.type_mismatches, 4);
+assert.equal(healthy.type_mismatches, 0);
 assert.equal(healthy.unresolved_type_mismatches, 0);
 assert.equal(healthy.missing_parent_tables, 0);
 assert.equal(healthy.missing_parent_columns, 0);
 assert.equal(healthy.missing_parent_indexes, 0);
-assert.equal(healthy.compatibility_bridge_candidates, 4);
-assert.equal(healthy.allowed_compatibility_bridges, 4);
+assert.equal(healthy.compatibility_bridge_candidates, 5);
+assert.equal(healthy.allowed_compatibility_bridges, 5);
 assert.equal(healthy.database_connection_performed, false);
 assert.equal(healthy.sql_mutation_performed, false);
 assert.equal(healthy.provider_mutation_performed, false);
@@ -46,9 +46,17 @@ withoutTenantGptBridge.foreign_key_compatibility_chain_contract.bridges = withou
 const blocked = inspect(withoutTenantGptBridge, orderedFiles.filter((file) => !file.endsWith("20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql")));
 assert.equal(blocked.ok, false);
 assert.equal(blocked.ready, false);
-assert.equal(blocked.type_mismatches, 4);
+assert.equal(blocked.type_mismatches, 2);
 assert.equal(blocked.unresolved_type_mismatches, 2);
 assert.ok(blocked.findings.some((finding) => finding.code === "foreign_key_column_shape_mismatch" && finding.table === "tenant_gpt_sso_sessions"));
+
+const withoutUserCredentialsPrepare = structuredClone(policy);
+const userCredentialsRestore = withoutUserCredentialsPrepare.foreign_key_compatibility_chain_contract.bridges.find((rule) => rule.bridge_file === "003_zzzzzz_mariadb_foreign_key_compatibility_user_credentials_restore.sql");
+userCredentialsRestore.prepare_file = "000_missing_user_credentials_prepare.sql";
+const prepareBlocked = inspect(withoutUserCredentialsPrepare);
+assert.equal(prepareBlocked.ok, false);
+assert.equal(prepareBlocked.ready, false);
+assert.ok(prepareBlocked.findings.some((finding) => finding.code === "bridge_prepare_order" && finding.table === "user_credentials"));
 
 console.log(JSON.stringify({
   contract: healthy.contract,
