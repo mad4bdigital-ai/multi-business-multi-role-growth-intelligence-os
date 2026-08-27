@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,429 |
-| Total bytes | 73,276,599 |
-| Counted text lines | 1,703,143 |
+| Total bytes | 73,277,367 |
+| Counted text lines | 1,703,154 |
 | Directories | 266 |
 | Categories | 13 |
 
