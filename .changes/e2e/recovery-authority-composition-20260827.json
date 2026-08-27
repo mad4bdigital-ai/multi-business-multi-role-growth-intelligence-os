@@ -22,6 +22,8 @@
       "edge/activation-gateway/generated/route-policy.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/governedMigrationExecutionTool.js",
+      "http-generic-api/migrationExecutionSafety.js",
       "http-generic-api/openapi.yaml",
       "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
@@ -41,14 +43,21 @@
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/recoveryKernelRoutes.js",
       "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+      "http-generic-api/test-migration-execution-safety.mjs",
+      "http-generic-api/test-governed-migration-execution-tool.mjs",
       "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
       "http-generic-api/test-recovery-kernel-routes.mjs",
       "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
-      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/recovery-kernel-manifest.json"
     ]
   },
   "environment_impact": {
@@ -65,7 +74,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Expose a private Recovery approval-challenge contract while requiring an explicit injected authority graph before any approval or execution ticket can be used.",
+      "objective": "Expose a private Recovery approval-challenge contract and a pure Migration Execution Safety layer while requiring an explicit injected authority graph before any approval or execution ticket or migration mutation can be used.",
       "e2e_journeys": [
         {
           "id": "recovery-authority-composition-challenge-preflight",
@@ -79,14 +88,16 @@
             "Resolve the explicit durable Recovery and approval authorities from composition rather than discovering providers or credentials.",
             "Run authority preflight and fail closed when the durable store or approval issuer is absent or incomplete.",
             "Persist and return only a bounded challenge receipt; never return approval tokens, execution tickets, signatures, credentials, SQL, or provider details.",
-            "Verify that the Recovery operation remains private Production-only and is absent from shared Admin Core and Activation Admin projections."
+            "Verify that the Recovery operation remains private Production-only and is absent from shared Admin Core and Activation Admin projections.",
+            "Validate the migration artifact binding, statement journal, preflight safety gates, per-statement fence/heartbeat, durable transition ordering, unknown-outcome reconciliation, and bounded emergency receipt using non-live doubles."
           ],
           "assertions": [
             "The approval challenge is admin-only, principal-scoped, and hidden from tenant/non-admin System Tool discovery.",
             "The challenge input contains no caller-generated ticket, signature, credential, migration, grant, provider, or arbitrary target fields.",
             "The default and incomplete compositions return sanitized 503 fail-closed results before database/provider invocation.",
             "The generated Recovery production surface contains the operation while Auth Dispatcher and Activation Admin counts remain unchanged.",
-            "The repository contains no live credentials and the journey performs no Production activation, migration apply, grant apply, provider call, SSH/SQL action, or database mutation."
+            "The repository contains no live credentials and the journey performs no Production activation, migration apply, grant apply, provider call, SSH/SQL action, or database mutation.",
+            "A non-durable transition, stale schema fingerprint, blocking metadata lock, unsafe capacity profile, unsupported engine, or unresolved prior outcome fails closed before execution."
           ],
           "tests": [
             {
@@ -116,6 +127,20 @@
               "working_directory": "http-generic-api",
               "path": "test-custom-gpt-schemas.mjs",
               "args": []
+            },
+            {
+              "id": "migration-execution-safety-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-migration-execution-safety.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-migration-safety-integration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-execution-tool.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -123,6 +148,8 @@
             "http-generic-api/recoveryKernel.js",
             "http-generic-api/routes/recoveryKernelRoutes.js",
             "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/migrationExecutionSafety.js",
+            "http-generic-api/governedMigrationExecutionTool.js",
             "http-generic-api/openapi.yaml",
             "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
             "canonicals/openapi/custom-gpt-surfaces.yaml",

@@ -40,6 +40,20 @@ The intended sequence is `registered plan → approval challenge → separately 
 
 The outward receipt includes bounded plan, step, run, status, phase, idempotency, and readback state. It includes explicit flags indicating that the ticket was server-issued and forwarded internally, but it never returns the execution ticket ID, ticket hash, signature, raw logs, credentials, database identifiers, or provider secrets. Final recovery success still requires the existing readback verification path.
 
+## Migration Execution Safety Layer
+
+The bridge is now accompanied by a pure, injectable safety contract in `http-generic-api/migrationExecutionSafety.js`. This contract does not open a database connection and does not execute SQL. It supplies the preflight and state-machine invariants that a future live adapter must satisfy before any migration mutation can be considered eligible.
+
+The artifact binding distinguishes the repository file hash, the normalized artifact hash, and the derived execution-bundle hash. The statement journal records an ordered `step_index`, statement fingerprint, precondition hash, postcondition hash, timestamps, result class, and reconciliation flag. A transformed or re-split SQL bundle cannot be treated as the approved artifact unless its derived hash remains bound to the plan.
+
+The preflight contract requires an explicit approval identity, exact runtime SHA, target fingerprint, schema precondition fingerprint, supported engine/version, metadata-lock snapshot, capacity/headroom evidence, session-state declaration, health gates, dependency state, traffic mode, and migration-specific execution profile. It rejects blocking metadata locks, long-running target transactions, insufficient headroom, stale schema fingerprints, unsupported engines, non-zero replication lag, missing backup evidence when required by policy, unresolved prior outcomes, and unsafe backfill classifications.
+
+The statement-boundary guard requires a fence assertion before every consequential statement and before recording success. It also exposes a heartbeat path for long waits. The durable execution state machine requires every transition to be persisted before advancing from `approved` through `claimed`, `executing`, `provider_returned`, `verifying`, `verified`, and `finalized`; non-durable transitions fail closed.
+
+A provider response is never treated as success by itself. A passing database postcondition may finalize the ledger, a failed postcondition enters `partial_execution` reconciliation, and an unavailable postcondition after provider return becomes `execution_outcome_unknown`. If the database mutation succeeds but ledger finalization fails, the state is `applied_unrecorded` and the migration must not be retried blindly. The bounded emergency receipt contains only run, migration, SHA, target, result, postconditions, and reconciliation state; ticket internals, credentials, SQL, and provider details are excluded.
+
+The repository test `http-generic-api/test-migration-execution-safety.mjs` exercises these invariants with non-live doubles. Passing this test is evidence of contract coverage only; it is not evidence that Production authorities, Hostinger connectivity, staging certification, or database permissions are live.
+
 ## Remaining live prerequisites
 
-This bridge is a repository contract and wiring change, not a Production readiness claim. Live use remains blocked until a durable Production Recovery store, approved ticket signer/verifier, fenced lock, role-specific Hostinger mutation executor, same-cycle readback verifier, and deployment-attestation binding are independently configured and reviewed. Those prerequisites are intentionally not supplied or activated by this Draft PR.
+This bridge and its safety contract are repository changes, not a Production readiness claim. Live use remains blocked until a durable Production Recovery store, approved ticket signer/verifier, fenced lock with heartbeat, role-specific Hostinger mutation executor, same-cycle readback verifier, deployment-attestation binding, and migration-specific database preflight adapters are independently configured and reviewed. Those prerequisites are intentionally not supplied or activated by this Draft PR.
