@@ -153,9 +153,9 @@ jobs:
           behind_by="$(jq -er '.behind_by' "${compare_file}")"
           printf 'Freshness proof: base_ref_sha=%s compare_base_sha=%s merge_base_sha=%s status=%s ahead_by=%s behind_by=%s\n' \
             "${base_ref_sha}" "${compare_base_sha}" "${merge_base_sha}" "${compare_status}" "${ahead_by}" "${behind_by}"
-          test "${base_ref_sha}" =~ ^[0-9a-f]{40}$
-          test "${compare_base_sha}" =~ ^[0-9a-f]{40}$
-          test "${merge_base_sha}" =~ ^[0-9a-f]{40}$
+          [[ "${base_ref_sha}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${compare_base_sha}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${merge_base_sha}" =~ ^[0-9a-f]{40}$ ]]
           test "${compare_base_sha}" = "${base_ref_sha}"
           test "${merge_base_sha}" = "${base_ref_sha}"
           test "${compare_status}" = "ahead"
