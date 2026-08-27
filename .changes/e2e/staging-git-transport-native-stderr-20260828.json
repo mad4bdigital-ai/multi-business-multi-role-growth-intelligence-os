@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-git-transport-native-stderr-20260828",
+  "title": "Windows Staging Git native stderr transport handling",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
+      "autopilot-portable-staging/Staging-GitTransport.ps1",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/manifest.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent Windows PowerShell from treating successful native Git stderr diagnostics as terminating errors while preserving exact exit-code failure handling and bounded retries.",
+      "e2e_journeys": [
+        {
+          "id": "windows-bootstrap-git-stderr-success-path",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging operator",
+          "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+          "terminal_outcome": "Bootstrap accepts a successful Git fetch that emits progress/protocol text on stderr, continues to exact checkout and preflight, and still fails closed for a non-zero Git exit code or exhausted retryable transport failure.",
+          "steps": [
+            "Invoke the shared Staging Git transport from Bootstrap under Windows PowerShell 5.1 ErrorActionPreference=Stop.",
+            "Capture Git stdout and stderr without allowing a successful stderr diagnostic to terminate the invocation.",
+            "Read an explicit exit marker emitted immediately after Git and accept the operation only when the marker is zero.",
+            "Continue the existing exact SHA checkout and schema/governance preflight only after the transport operation succeeds.",
+            "Preserve the existing retry and fail-closed behavior for non-zero retryable or non-retryable Git failures."
+          ],
+          "assertions": [
+            "The transport sets Continue only inside the native Git capture scope and does not weaken the global fail-closed policy.",
+            "The transport records an explicit exit marker and branches on the captured exit code rather than on stderr presence.",
+            "A non-zero exit code remains STAGING_GIT_OPERATION_FAILED and retryable transport errors remain bounded by the existing attempt limit.",
+            "The fix does not read or print GitHub tokens, credentials, or local environment secrets.",
+            "The fix performs no Docker, MariaDB, schema apply, data import/export, provider, Hostinger, Cloudflare, or Production operation.",
+            "No immutable schema.sql or published historical migration is changed."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure-validator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-environment-impact-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
+            "autopilot-portable-staging/Staging-GitTransport.ps1",
+            "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority.",
+      "blockers": [
+        "Production and provider actions require separate explicit authorization and independent evidence.",
+        "This transport fix only handles local Git process output and never activates production_live authority."
+      ]
+    }
+  ]
+}
