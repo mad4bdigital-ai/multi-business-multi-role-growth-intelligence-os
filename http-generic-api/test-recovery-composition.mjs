@@ -115,7 +115,7 @@ test("complete injected graph remains non-live and is exposed through three boun
 });
 
 test("composition root wires the contract without auto-discovering credentials or providers", () => {
-  assert.match(serverSource, /createRecoveryComposition\(\{[\s\S]*source: "server_composition_root"/u);
+  assert.match(serverSource, /createProductionRecoveryComposition\(\{[\s\S]*source: "server_composition_root"/u);
   assert.match(serverSource, /\.\.\.recoveryCompositionDependencies/u);
   assert.match(serverSource, /const runtimeBootstrapReader = \(options = \{\}\) => runBootstrap/u);
   assert.match(routesSource, /executionTicketSigner/u);

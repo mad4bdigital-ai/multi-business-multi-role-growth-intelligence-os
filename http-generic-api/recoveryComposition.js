@@ -2,6 +2,17 @@ const COMPOSITION_MODES = new Set(["fail_closed", "injected_non_live", "producti
 
 export const RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-composition.v1";
 export const RECOVERY_COMPOSITION_MODES = Object.freeze([...COMPOSITION_MODES]);
+export const SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-server-managed-composition-factory.v1";
+const SERVER_MANAGED_BINDING_CONTEXT = Object.freeze({
+  contract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
+  binding_source: "server_managed_only",
+  caller_credentials_accepted: false,
+  gpt_credentials_accepted: false,
+  local_connector_accepted: false,
+  provider_discovery: false,
+  database_discovery: false,
+  secrets_included: false,
+});
 
 const COMPONENT_KEYS = Object.freeze([
   "deploymentIdentityProvider",

@@ -196,7 +196,12 @@
     "mutation_requires_immutable_partial_receipt_store_before_connection": true,
     "default_cli_authority": "deny",
     "default_cli_partial_receipt_store": "deny",
-    "provider_wiring_in_repository": false
+    "provider_wiring_in_repository": false,
+    "server_managed_adapter_factory_wired": true,
+    "server_managed_adapter_factory": "http-generic-api/productionRecoveryCompositionFactory.js",
+    "server_managed_binding_contract": "mad4b.recovery-server-managed-composition-factory.v1",
+    "live_provider_authority_configured": false,
+    "live_activation_requires_separate_release": true
   },
   "migration_target_role_bindings": {
     "20260815_custom_gpt_mcp_catalog_levels.sql": {

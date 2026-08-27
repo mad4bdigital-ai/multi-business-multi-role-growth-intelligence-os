@@ -76,7 +76,7 @@ Ordinary migration ownership is intentionally separate from execution target. Th
 
 Verification by a separate read-only capability requires an exact durable `run_id` bound to the plan hash and step ID. Plan lookup, latest-run lookup, process memory, or an in-memory fallback cannot satisfy verification. When a same-cycle readback fails or the durable run identity is absent, the outcome is `reconciliation_required` and automatic replay is forbidden.
 
-`production_live` is registered only as a contract name for future composition compatibility. `createRecoveryComposition({ mode: "production_live" })` rejects with `RECOVERY_PRODUCTION_LIVE_DISABLED`; this Draft PR adds no environment switch, production adapter, live credential path, or operational activation.
+`production_live` remains registered as a contract boundary and is still hard-denied. The server composition root now calls `createProductionRecoveryComposition()` through `productionRecoveryCompositionFactory.js`, so the repository contains an explicit server-managed factory boundary rather than an implicit provider-discovery path. Its default `disabled` mode delegates to the existing fail-closed composition; it accepts only a server-managed, secret-free adapter envelope for the non-live injected graph, rejects caller/GPT/Local Connector binding metadata, and never discovers providers or databases. `createProductionRecoveryComposition({ mode: "production_live" })` still rejects with `RECOVERY_PRODUCTION_LIVE_DISABLED`. The factory wiring is therefore present for a separately reviewed release, while live provider authority, credentials, and operational activation remain absent.
 
 | New contract | Safety guarantee | Live status in this Draft PR |
 | --- | --- | --- |
@@ -84,6 +84,7 @@ Verification by a separate read-only capability requires an exact durable `run_i
 | `mad4b.baseline-before-ordinary-migration.v1` | Prevents ordinary migration apply before the declared Recovery and schema baseline predecessors. | Enforced in bootstrap apply preflight; no apply is authorized by this PR. |
 | `mad4b.role-bundle-binding.v1` | Binds every selected role bundle and statement fingerprint set to the server-issued ticket. | Implemented and tested with non-live fixtures. |
 | `mad4b.role-bundle-progress.v1` | Makes statement-boundary progress monotonic and reconciliation-first after partial/unknown outcomes. | Implemented in the baseline executor contract; durable live wiring remains absent. |
+| `mad4b.recovery-server-managed-composition-factory.v1` | Makes the server composition boundary explicit and rejects caller/provider discovery or secret-bearing bindings. | Factory wired at the server root; default remains fail-closed and live authority is not configured. |
 
 These additions improve the repository’s fail-closed safety boundary but do not certify Hostinger deployment parity, database readiness, grants, or any particular migration. The existing private Recovery surface, server-issued ticket semantics, separate least-privilege grants operation, and prohibition on Local Connector fallback for Production remain unchanged.
 
@@ -95,3 +96,4 @@ The focused coverage is in `http-generic-api/test-recovery-execution-binding.mjs
 [2]: ../http-generic-api/recoveryExecutionTicket.js "Server-issued Recovery execution ticket contract"
 [3]: ../http-generic-api/runtimeBootstrapContract.js "Runtime bootstrap and baseline execution contract"
 [4]: ../http-generic-api/config/recovery-kernel-manifest.json "Recovery Kernel manifest"
+[5]: ../http-generic-api/productionRecoveryCompositionFactory.js "Server-managed Recovery composition factory"
