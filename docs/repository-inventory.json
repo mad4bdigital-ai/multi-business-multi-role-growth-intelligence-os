@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7420,
-    "bytes": 73114153,
-    "lines": 1700532,
+    "files": 7422,
+    "bytes": 73151363,
+    "lines": 1701275,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2195,
+      "tests-and-specs": 2196,
       "documentation": 1915,
-      "api-runtime": 1513,
+      "api-runtime": 1514,
       "database-migrations": 823,
       "root-and-other": 338,
       "api-contracts": 192,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2516,
-      ".mjs": 1767,
-      ".js": 1019,
+      ".mjs": 1768,
+      ".js": 1020,
       ".json": 888,
       ".sql": 838,
       ".yml": 173,
@@ -61,7 +61,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3854,
+      "http-generic-api": 3856,
       "docs": 1819,
       "specs": 880,
       ".changes": 307,
@@ -2474,6 +2474,7 @@
       "http-generic-api/test-memory-scope-links-foundation.mjs",
       "http-generic-api/test-memory-scope-links-migration.mjs",
       "http-generic-api/test-migrate-sql-adapter.mjs",
+      "http-generic-api/test-migration-execution-safety.mjs",
       "http-generic-api/test-migration-placement-guard.mjs",
       "http-generic-api/test-migration-preflight-collation-allowance.mjs",
       "http-generic-api/test-multi-activity-ambiguity-isolation.mjs",
@@ -4761,6 +4762,7 @@
       "http-generic-api/test-memory-scope-links-foundation.mjs",
       "http-generic-api/test-memory-scope-links-migration.mjs",
       "http-generic-api/test-migrate-sql-adapter.mjs",
+      "http-generic-api/test-migration-execution-safety.mjs",
       "http-generic-api/test-migration-placement-guard.mjs",
       "http-generic-api/test-migration-preflight-collation-allowance.mjs",
       "http-generic-api/test-multi-activity-ambiguity-isolation.mjs",
@@ -10386,9 +10388,9 @@
       "path": ".github/governance/test-authority-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 18291,
+      "bytes": 18239,
       "lines": 116,
-      "sha256": "e3f5bd21fe460df50a84ad268a2e47e8cb68482c93f59090cb9b41b6fe6efd34",
+      "sha256": "97080eef3a81bf8fbb28838edc708c74d5e57998e36a42117c4c71e8e78b4a5d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10397,9 +10399,9 @@
       "path": ".github/governance/verifier-registry.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 3780,
-      "lines": 36,
-      "sha256": "a21285df73f3ddc28740ed1c437bef107f0b36d0c10dfe76170c61a7920c3555",
+      "bytes": 3927,
+      "lines": 37,
+      "sha256": "438548b006c5a682bbd3da7df2401964269ebed2d4e2121d503f29e1f63f7d86",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13787,7 +13789,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "7ee94f5e243783253523b40d1e0e746d6f7a843f1c3b747360ed29d14392bd56",
+      "sha256": "23b3d21df372b584fd109d3b83d89b7fd65c11eb1e6c28ddd4fba476504ad405",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32949,7 +32951,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "0cee81d6696de913f28451e34e1b33b7a2634abcec4a9c0408b38b4e3c40cc29",
+      "sha256": "64cd9cec3fe205ca9b8e7bb44fe5e84df4d6faba54f13ebaa3a54928f6287e23",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -42190,6 +42192,17 @@
       "bytes": 20274,
       "lines": 519,
       "sha256": "0fd289f2d581ec4dee9ce3dbb6fe4941c46867b77d1a1afd287d30537fad8355",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/migrationExecutionSafety.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 26403,
+      "lines": 496,
+      "sha256": "5923c1bfc1cb8dcd137cee5110ebe3f42230569f94ce74541e95a90f28383e49",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53629,7 +53642,7 @@
       "extension": ".json",
       "bytes": 1965990,
       "lines": 59453,
-      "sha256": "726aee266ce2584221de6356ca597c1524426db8fddd214efd9377decdfc12a1",
+      "sha256": "7fc7957b58deff8a53d4f58332a52106cb2659a5ede07f9492949633447449b1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -69745,6 +69758,17 @@
       "bytes": 6878,
       "lines": 210,
       "sha256": "67cb04ee6b8e3625189bb7df4868f801bda1d2646f944ca3b02c585917dac016",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-migration-execution-safety.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 10712,
+      "lines": 246,
+      "sha256": "37a6daac7bdaf289c70efc86b45a41078ee29021897722a30fa83c13850e4e0f",
       "mode": "644",
       "executable": false,
       "generated": false
