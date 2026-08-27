@@ -153,6 +153,7 @@
       ".changes/e2e/runtime-remediation-batch-20260820.json",
       ".changes/e2e/staging-local-mariadb-text-width-repair-20260825.json",
       ".changes/e2e/governance-db-privilege-readiness-6813.json",
+      ".changes/e2e/staging-local-mariadb-dump-authentication-repair-20260827.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",
