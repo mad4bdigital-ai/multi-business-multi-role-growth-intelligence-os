@@ -84,6 +84,7 @@ jobs:
             --candidates .artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.json \
             --changed-files /tmp/repository-tool-changes.tsv \
             --baseline-policy docs/governance/configuration-drift-policy.json \
+            --baseline-extension docs/governance/configuration-drift-baseline-extensions.json \
             --output .artifacts/repository-tool-lifecycle/platform-configuration-entry-guard.json \
             --fail-on-findings
 

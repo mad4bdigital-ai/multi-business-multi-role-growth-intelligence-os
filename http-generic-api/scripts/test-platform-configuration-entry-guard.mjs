@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { evaluateConfigurationEntryGuard } from "./maintenance-tools/platform-configuration-entry-guard.mjs";
+import { collectBaselineFingerprints, evaluateConfigurationEntryGuard } from "./maintenance-tools/platform-configuration-entry-guard.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const baseRegistry = {
@@ -108,10 +108,54 @@ const baselineIgnored = evaluateConfigurationEntryGuard({
 });
 assert.equal(baselineIgnored.ok, true);
 
+const reviewedPolicyFingerprint = "http-generic-api/routes/exampleRoutes.js|KNOWN_POLICY_SETTING|literal_declaration|operation.policy";
+const extensionIgnored = evaluateConfigurationEntryGuard({
+  repositoryRoot,
+  registry: baseRegistry,
+  candidates: {
+    candidates: [{
+      ...candidate("policy_candidate", "operation.policy"),
+      symbol: "KNOWN_POLICY_SETTING",
+      expression_kind: "literal_declaration",
+    }],
+  },
+  changedFiles: ["http-generic-api/routes/exampleRoutes.js"],
+  baselineFingerprints: collectBaselineFingerprints({ baselineExtensionDocument: { entries: [{
+    fingerprint: reviewedPolicyFingerprint,
+    configuration_class: "ci_governance_input",
+    contains_secret_value: false,
+    grants_runtime_mutation: false,
+    grants_production_activation: false,
+  }] } }),
+});
+assert.equal(extensionIgnored.ok, true);
+
+const unsafeExtension = evaluateConfigurationEntryGuard({
+  repositoryRoot,
+  registry: baseRegistry,
+  candidates: {
+    candidates: [{
+      ...candidate("policy_candidate", "operation.policy"),
+      symbol: "UNSAFE_POLICY_SETTING",
+      expression_kind: "literal_declaration",
+    }],
+  },
+  changedFiles: ["http-generic-api/routes/exampleRoutes.js"],
+  baselineFingerprints: collectBaselineFingerprints({ baselineExtensionDocument: { entries: [{
+    fingerprint: "http-generic-api/routes/exampleRoutes.js|UNSAFE_POLICY_SETTING|literal_declaration|operation.policy",
+    configuration_class: "ci_governance_input",
+    contains_secret_value: true,
+    grants_runtime_mutation: false,
+    grants_production_activation: false,
+  }] } }),
+});
+assert.equal(unsafeExtension.ok, false);
+assert(unsafeExtension.findings.some((item) => item.code === "NEW_POLICY_CONFIGURATION_CANDIDATE"));
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.platform-configuration-entry-guard-regression.v1",
-  cases: 6,
+  cases: 8,
   repository_mutation_executed: false,
   database_mutation_executed: false,
   production_activation_executed: false,
