@@ -904,7 +904,8 @@ function dockerExec(args, options = {}) {
   const stdinFlag = options.input === undefined ? [] : ["-i"];
   return run("docker", ["exec", ...stdinFlag, ...args], options);
 }
-function dbArgs(extra = []) { return ["--protocol=socket", "-uroot", `-p${rootPassword}`, "--database", buildDatabase, ...extra]; }
+function dbConnectionArgs(extra = []) { return ["--protocol=socket", "-uroot", `-p${rootPassword}`, ...extra]; }
+function dbArgs(extra = []) { return [...dbConnectionArgs(), "--database", buildDatabase, ...extra]; }
 
 function startDatabase() {
   run("docker", ["run", "--pull=never", "--detach", "--rm", "--name", containerName, "-e", `MARIADB_ROOT_PASSWORD=${rootPassword}`, "-e", `MARIADB_DATABASE=${buildDatabase}`, "mariadb:11.4"], { timeoutMs: 30000 });
@@ -962,7 +963,7 @@ function makeDump(role, tables, manifest) {
   const roleConfig = manifest.roles[role];
   if (!tables.length) fail(`${role} role has no tables after migration chain`);
   const names = tables.map((table) => table.name);
-  const result = dockerExec([containerName, "mariadb-dump", "--no-data", "--skip-triggers", "--skip-add-locks", "--skip-lock-tables", buildDatabase, ...names]);
+  const result = dockerExec([containerName, "mariadb-dump", ...dbConnectionArgs(["--no-data", "--skip-triggers", "--skip-add-locks", "--skip-lock-tables"]), buildDatabase, ...names]);
   const dump = Buffer.from(result.stdout, "utf8");
   if (/\b(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/iu.test(result.stdout)) fail(`${role} schema dump contains data mutation statements`);
   if (!dump.length) fail(`${role} schema dump is empty`);
