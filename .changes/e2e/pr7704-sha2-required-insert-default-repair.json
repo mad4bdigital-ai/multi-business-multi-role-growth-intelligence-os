@@ -8,10 +8,15 @@
   "scope": {
     "include": [
       ".changes/e2e/pr7704-sha2-required-insert-default-repair.json",
+      ".changes/e2e/work-map-recovery-independent-bootstrap.json",
       ".github/derived-state-governance.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/staging-migration-contract-policy.json",
       "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+      "docs/spec-kit-work-map-integration-governance.md",
+      "http-generic-api/test-work-map-autofix-diagnostics.mjs",
       "http-generic-api/migrations/096_zzzzzz_mariadb_sha2_required_insert_default_local_connector_device_routes.sql",
       "http-generic-api/migrations/20260718_zzzzzz_mariadb_sha2_required_insert_default_growth_control_config_versions.sql",
       "http-generic-api/migrations/20260802_01_zzzzzz_mariadb_sha2_required_insert_default_storage_execution_leases.sql",
@@ -35,7 +40,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an exact additive default compatibility migration for every known NOT NULL ordinary SHA2 materialized column whose INSERT writers may omit the column, while preserving the existing BEFORE INSERT/UPDATE trigger-derived value, immutable historical migrations, and staging-only execution boundaries.",
+      "objective": "Provide an exact additive default compatibility migration for every known NOT NULL ordinary SHA2 materialized column whose INSERT writers may omit the column, and repair the related Work Map freshness validator, while preserving the existing BEFORE INSERT/UPDATE trigger-derived value, immutable historical migrations, and staging-only execution boundaries.",
       "e2e_journeys": [
         {
           "id": "sha2-required-insert-default-static-guard-and-local-replay-gate",
@@ -48,18 +53,26 @@
             "Audit the five known SHA2 ordinary-column trigger bridges and identify writers that omit non-null materialized columns before trigger execution.",
             "Apply only additive DDL default migrations with exact CHAR(64) or BINARY(32) sentinel literals; the existing BEFORE INSERT/UPDATE triggers remain the source of the final digest value.",
             "Verify bridge/default/source ordering, exact default declarations, DDL-only behavior, preserved keys and foreign keys, and explicit nullable/no-default semantics for the brand-skill bridge.",
-            "Run static generated-column, required-insert, pre-use, collation, enum, text-width, index-width, builder, and governance checks on the exact source head.",
+            "Run static generated-column, required-insert, pre-use, collation, enum, text-width, index-width, builder, Work Map recovery, and governance checks on the exact source head.",
             "After a fresh merged main head and a new exact-SHA authorization, run only the disposable local Windows Docker MariaDB 11.4 schema-only replay.",
             "Stop before AutoPilot, importer, readback, data export/import, deployment, provider, Hostinger, Cloudflare, or Production operations on any failure."
           ],
           "assertions": [
             "Every NOT NULL SHA2 ordinary bridge declares one exact required-default migration ordered after its trigger bridge and before its immutable generated-expression source.",
+            "Work Map Bootstrap and Recovery prove PR-base/compare-base equality, merge-base equality, ahead status, and positive ahead_by before one-time authorization consumption; malformed comparison data remains blocked.",
             "The guard rejects a default-less or wrong-default omitted-column writer fixture and accepts only the exact declared sentinel plus the existing BEFORE INSERT/UPDATE trigger contract.",
             "The four required-default migrations are DDL-only, preserve the source affected-table keys and foreign keys through the existing bridges, and leave immutable historical migration SQL unchanged.",
             "The nullable brand-skill bridge explicitly preserves nullable/no-default semantics and is not converted into a required-default bridge.",
             "Static governance and this declaration perform no database, provider, credential, export, runtime, deployment, Production, AutoPilot, importer, or readback mutation."
           ],
           "tests": [
+            {
+              "id": "work-map-recovery-freshness-static-guards",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-diagnostics.mjs",
+              "args": []
+            },
             {
               "id": "generated-expression-and-required-default-static-guards",
               "runner": "node",
@@ -83,6 +96,11 @@
           ],
           "evidence_paths": [
             "http-generic-api/config/staging-migration-contract-policy.json",
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+            ".changes/e2e/work-map-recovery-independent-bootstrap.json",
+            "docs/spec-kit-work-map-integration-governance.md",
+            "http-generic-api/test-work-map-autofix-diagnostics.mjs",
             "http-generic-api/databaseGeneratedColumnPolicyGuard.js",
             "http-generic-api/migrations/096_zzzzzz_mariadb_sha2_required_insert_default_local_connector_device_routes.sql",
             "http-generic-api/migrations/20260718_zzzzzz_mariadb_sha2_required_insert_default_growth_control_config_versions.sql",

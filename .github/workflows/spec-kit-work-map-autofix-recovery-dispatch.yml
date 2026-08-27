@@ -129,6 +129,7 @@ jobs:
           base_ref="$(jq -r '.base.ref' "${pr_file}")"
           head_repo="$(jq -r '.head.repo.full_name' "${pr_file}")"
           target_branch="$(jq -r '.head.ref' "${pr_file}")"
+          base_ref_sha="$(jq -r '.base.sha' "${pr_file}")"
           current_head_sha="$(jq -r '.head.sha' "${pr_file}")"
           body="$(jq -r '.body // ""' "${pr_file}")"
 
@@ -142,12 +143,24 @@ jobs:
 
           compare_file="${REPORT_DIR}/main-comparison.json"
           gh api "repos/${GITHUB_REPOSITORY}/compare/main...${REQUESTED_HEAD_SHA}" > "${compare_file}"
+          compare_status="$(jq -r '.status' "${compare_file}")"
+          compare_base_sha="$(jq -r '.base_commit.sha' "${compare_file}")"
+          merge_base_sha="$(jq -r '.merge_base_commit.sha' "${compare_file}")"
+          ahead_by="$(jq -r '.ahead_by' "${compare_file}")"
           behind_by="$(jq -r '.behind_by' "${compare_file}")"
-          test "${behind_by}" = "0"
+          test "${compare_base_sha}" = "${base_ref_sha}"
+          test "${merge_base_sha}" = "${base_ref_sha}"
+          test "${compare_status}" = "ahead"
+          [[ "${ahead_by}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${behind_by}" =~ ^[0-9]+$ ]]
 
           echo "pr_number=${REQUESTED_PR_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "target_branch=${target_branch}" >> "$GITHUB_OUTPUT"
           echo "expected_head_sha=${REQUESTED_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "base_ref_sha=${base_ref_sha}" >> "$GITHUB_OUTPUT"
+          echo "merge_base_sha=${merge_base_sha}" >> "$GITHUB_OUTPUT"
+          echo "compare_status=${compare_status}" >> "$GITHUB_OUTPUT"
+          echo "ahead_by=${ahead_by}" >> "$GITHUB_OUTPUT"
           echo "behind_by=${behind_by}" >> "$GITHUB_OUTPUT"
 
       - name: Re-enable governed Work Map workflows and verify active state
