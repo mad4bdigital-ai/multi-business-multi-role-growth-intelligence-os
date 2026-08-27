@@ -117,9 +117,16 @@ runCheck("tool-canonical-auth-repair", () => {
   const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
   const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
+  const detailBatchIndex = toolSource.indexOf("generate_openapi_detail_closure_batch");
   assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
   assert.ok(detailGapIndex > dispatchIndex, "detail-gap classification must follow frontend dispatch generation");
   assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
+  assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
+  assert.match(toolSource, /openapi:detail-batch:write/u);
+  assert.match(toolSource, /openapi-detail-closure-batch-full\.json/u);
+  assert.match(toolSource, /openapi:detail-batch:check/u);
+  assert.match(toolSource, /verify_openapi_detail_closure_batch/u);
+  assert.match(toolSource, /OPENAPI_DETAIL_BATCH_OUTPUT/u);
   assert.match(toolSource, /openapi:detail-gaps:check/u);
   assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
