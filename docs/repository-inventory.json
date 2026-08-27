@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7436,
-    "bytes": 73349033,
-    "lines": 1704365,
+    "bytes": 73350528,
+    "lines": 1704387,
     "directories": 266,
     "categories": 13
   },
@@ -31432,9 +31432,9 @@
       "path": "docs/governance/configuration-drift-baseline-extensions.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 19762,
-      "lines": 322,
-      "sha256": "0121a29a5b03451fe83aea994be5307ec6a7b636b1fd19d6f748cb7584c1f800",
+      "bytes": 21257,
+      "lines": 344,
+      "sha256": "749e30f11a725a314b31d3ccb18775ceaaee24175abd24463a7a9a1b966c70b2",
       "mode": "644",
       "executable": false,
       "generated": false
