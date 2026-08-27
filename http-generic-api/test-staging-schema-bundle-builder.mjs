@@ -49,6 +49,12 @@ function runPreuseAuditFixture({ baseline, migrations }) {
   }
 }
 
+test("schema dump uses the authenticated disposable MariaDB connection", () => {
+  assert.match(generator, /function dbConnectionArgs\(extra = \[\]\) \{ return \[\"--protocol=socket\", \"-uroot\", `-p\$\{rootPassword\}`/);
+  assert.match(generator, /\[containerName, \"mariadb-dump\", \.\.\.dbConnectionArgs\(\[\"--no-data\"/);
+  assert.doesNotMatch(generator, /\[containerName, \"mariadb-dump\", \"--no-data\", \"--skip-triggers\"/);
+});
+
 test("SQL splitter preserves semicolons inside quoted literals and strips comments safely", () => {
   const sql = `-- Values are provisioned separately; this schema contains no secret payloads.\nCREATE TABLE IF NOT EXISTS \`tenant_secrets\` (\`id\` BIGINT UNSIGNED NOT NULL);\nINSERT INTO \`tenant_secrets\` (\`metadata_json\`) VALUES (JSON_OBJECT('note', 'a;b'));\n/* block comment; remains data-safe */\nUPDATE \`tenant_secrets\` SET \`metadata_json\` = '{"value":"x;y"}' WHERE \`id\` = 1;`;
   assert.deepEqual(splitStatements(sql), [
