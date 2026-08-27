@@ -154,7 +154,28 @@
             "replacement_collation": "utf8mb4_general_ci"
           }
         ],
-        "reason": "The immutable baseline child column explicitly uses utf8mb4_unicode_ci while canonical users.user_id resolves to MariaDB 11.4 utf8mb4_general_ci; an additive early ALTER aligns the child before the baseline deferred FK is created."
+        "reason": "The immutable baseline child column is temporarily normalized by the historical bridge to utf8mb4_general_ci; a subsequent additive prepare/restore sequence removes that FK, explicitly aligns users.user_id and user_credentials.user_id to utf8mb4_uca1400_ai_ci, and restores the FK before deferred baseline closure."
+      },
+      {
+        "table": "user_credentials",
+        "source_file": "http-generic-api/schema.sql",
+        "bridge_file": "003_zzzzzz_mariadb_foreign_key_compatibility_user_credentials_restore.sql",
+        "bridge_mode": "baseline_alter_column_shape",
+        "prepare_file": "000_aaaaaaaa_mariadb_foreign_key_compatibility_user_credentials_prepare.sql",
+        "prepare_table": "user_credentials",
+        "prepare_foreign_key": "user_credentials_ibfk_1",
+        "columns": [
+          {
+            "column": "user_id",
+            "parent_table": "users",
+            "parent_column": "user_id",
+            "source_type": "varchar(36)",
+            "replacement_type": "varchar(36)",
+            "replacement_charset": "utf8mb4",
+            "replacement_collation": "utf8mb4_uca1400_ai_ci"
+          }
+        ],
+        "reason": "The additive restore bridge explicitly aligns the parent and child key columns to the canonical MariaDB 11.4 UCA1400 collation and restores the immutable baseline relationship after the historical general_ci bridge."
       },
       {
         "table": "tenant_brand_links",
