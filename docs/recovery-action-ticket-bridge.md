@@ -12,6 +12,8 @@ The HTTP operation is `POST /admin/recovery/kernel/execute-approved` with operat
 
 The fixed System Tool is `recovery_kernel_execute_approved_step`. It is `requires_admin`, tagged as `private`, `principal_scoped`, and `consequential`, and uses `catalog_level: private_recovery`. The shared `recovery_kernel_call` read-only allowlist is intentionally unchanged. Tenant and non-admin principals cannot list, look up, or call the private descriptor.
 
+The companion approval entrypoint is `POST /admin/recovery/kernel/approval-challenge`, operation ID `createAdminRecoveryApprovalChallenge`, plus the fixed System Tool `recovery_kernel_create_approval_challenge`. It accepts only `plan_id`, `plan_hash`, and `step_id`, and remains on the same private `admin_recovery_production` surface at `auth.mad4b.com`; it is not placed in Activation Admin. The operation creates a short-lived, non-transferable challenge through injected approval authorities, but never returns the approval token, an execution ticket, a signature, credentials, SQL, migration selection, or provider control. The token must be delivered through the separately governed approval authority; a challenge receipt without a governed delivery/verification path is not execution-ready.
+
 ## Caller contract
 
 | Accepted field | Purpose |
@@ -26,9 +28,13 @@ The bridge rejects `execution_ticket_id`, `execution_ticket_hash`, `ticket_id`, 
 
 ## Fail-closed behavior
 
-Before issuing a ticket, the bridge requires the mutation-grade durable Recovery store, the server-side execution-ticket signer, the durable ticket verifier, approval verifier, fenced lock, Host Breakglass mutation executor, and same-cycle readback verifier. Missing or incomplete authorities return an explicit `503` and the bridge records `database_mutation_performed: false`; no provider or target-database operation is attempted.
+Before issuing a ticket, the bridge requires the mutation-grade durable Recovery store, the server-side execution-ticket signer, the durable ticket verifier, approval verifier, fenced lock, Host Breakglass mutation executor, and same-cycle readback verifier. The approval-challenge entrypoint independently requires a durable plan/approval store (`getPlan`, `putApproval`, `getApprovalByPlanStep`), an approval store (`putChallenge`, `getChallenge`), and an injected approval issuer (`createChallenge`). Missing or incomplete authorities return an explicit `503` and the bridge records `database_mutation_performed: false`; no provider or target-database operation is attempted.
 
 The default server composition remains `fail_closed`. The repository does not discover credentials, connect to Production, invoke Hostinger, invoke GitHub, run migrations, apply grants, use SSH/SQL, or activate live mutation adapters as part of this change. Injected non-live doubles are covered by focused tests only.
+
+## Approval-to-execution sequence
+
+The intended sequence is `registered plan → approval challenge → separately governed approval delivery → caller submits approval_token → server-issued execution ticket → fenced Host Breakglass execution → same-cycle readback → sanitized receipt`. The challenge endpoint is not an approval bypass and does not mint a token into the GPT response. The execution bridge remains the only route that can issue the execution ticket, and its exact-key contract continues to reject caller-generated ticket fields.
 
 ## Receipt policy
 

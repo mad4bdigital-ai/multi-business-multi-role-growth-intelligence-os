@@ -6,11 +6,11 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "5323bd33b7f525cc77a0570ca9582a5f2fb9309bf8c5141a9c4635cc85ce87b2",
-    "dispatch_artifact_sha256": "51c8fa86e85e5fcb6578ff639ee5a493808e735ee29119fa53b279e62fa2e6b1"
+    "dispatch_source_digest": "2e16e254abcc0a0529ae7d52678d3b7933bef4b3cdb5fa32a176d4581d9664af",
+    "dispatch_artifact_sha256": "8f8c9b9e31e537c6b3a26d4d3534335fea4c7d5c2c25c2c7b3e772da03b5cc37"
   },
   "coverage": {
-    "operation_count": 1058,
+    "operation_count": 1059,
     "mounted_family_count": 172,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
@@ -5388,7 +5388,7 @@
       "surface_decision": "internal_only",
       "priority": "P3_observe",
       "detail_gap_count": 0,
-      "operation_count": 5,
+      "operation_count": 6,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "continue_deterministic_observation_and_regression_checks",

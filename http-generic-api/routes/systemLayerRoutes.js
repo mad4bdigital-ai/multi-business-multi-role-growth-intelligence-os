@@ -93,7 +93,7 @@ import {
   buildPlatformEndpointToolDescriptors,
   selectPlatformEndpointToolBinding,
 } from "../platformEndpointToolFacade.js";
-import { getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
+import { assertApprovalChallengeAuthorities, getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
 import { issueAndExecuteApprovedRecoveryStep, sanitizeRecoveryActionBridgeOutput } from "../recoveryActionBridge.js";
 
 // Auth Admin Actions already have a bounded fixed dispatcher. Keep Recovery reachable
@@ -237,6 +237,25 @@ const SYSTEM_LAYER_TOOLS = [
         step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
         approval_token: { type: "string", minLength: 16, maxLength: 512 },
         idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+      },
+    },
+  },
+  {
+    name: "recovery_kernel_create_approval_challenge",
+    description: "Private principal-scoped Admin Recovery approval-challenge issuer. Accepts only a registered plan, immutable plan hash, and step reference; stores a short-lived step-bound challenge through the injected approval authorities and never returns an approval token, execution ticket, signature, credential, SQL, migration, or provider control.",
+    source_key: "private_recovery_approval_challenge",
+    capability_key: "approval_challenge_create",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "private", "principal_scoped", "approval"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
       },
     },
   },
@@ -2405,6 +2424,37 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "recovery_kernel_create_approval_challenge": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_create_approval_challenge requires a JSON object.");
+        error.status = 400;
+        error.code = "recovery_kernel_create_approval_challenge_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["plan_id", "plan_hash", "step_id"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      const missing = ["plan_id", "plan_hash", "step_id"].filter((key) => args[key] === undefined || args[key] === null || args[key] === "");
+      if (unexpected.length || missing.length) {
+        const error = new Error("recovery_kernel_create_approval_challenge accepts only plan, plan hash, and step references.");
+        error.status = 400;
+        error.code = "recovery_kernel_create_approval_challenge_field_forbidden";
+        error.details = { fields: [...unexpected, ...missing], secrets_included: false };
+        throw error;
+      }
+      assertApprovalChallengeAuthorities({
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalStore: deps.approvalStore,
+      });
+      const result = await callRecoveryKernelCapability("approval_challenge_create", args, {
+        env: deps.recoveryKernelEnv || deps.env || process.env,
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalStore: deps.approvalStore,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
+      });
+      return result;
+    }
     case "recovery_kernel_execute_approved_step": {
       if (!args || typeof args !== "object" || Array.isArray(args)) {
         const error = new Error("recovery_kernel_execute_approved_step requires a JSON object.");

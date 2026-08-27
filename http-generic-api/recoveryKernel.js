@@ -862,6 +862,21 @@ export async function previewRemediationPlan(input = {}, { recoveryStore } = {})
   });
 }
 
+export function assertApprovalChallengeAuthorities({ approvalIssuer, approvalStore, recoveryStore } = {}) {
+  const missing = [];
+  if (!approvalIssuer || typeof approvalIssuer.createChallenge !== "function") missing.push({ component: "approvalIssuer", missing_methods: ["createChallenge"] });
+  if (!approvalStore || typeof approvalStore.putChallenge !== "function" || typeof approvalStore.getChallenge !== "function") {
+    missing.push({ component: "approvalStore", missing_methods: ["putChallenge", "getChallenge"].filter((method) => typeof approvalStore?.[method] !== "function") });
+  }
+  if (!recoveryStore || typeof recoveryStore.getPlan !== "function" || typeof recoveryStore.putApproval !== "function" || typeof recoveryStore.getApprovalByPlanStep !== "function") {
+    missing.push({ component: "recoveryStore", missing_methods: ["getPlan", "putApproval", "getApprovalByPlanStep"].filter((method) => typeof recoveryStore?.[method] !== "function") });
+  }
+  if (missing.length) {
+    throw kernelError(503, "RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE", "Approval challenge issuance requires an injected durable plan/approval store and governed approval issuer; no token or provider action was attempted.", { missing_components: missing, database_mutation_performed: false });
+  }
+  return { ok: true, authority_ready: true, secrets_included: false };
+}
+
 export async function createApprovalChallenge(input = {}, { approvalIssuer, approvalStore, recoveryStore } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);

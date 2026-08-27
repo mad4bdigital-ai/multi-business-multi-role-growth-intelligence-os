@@ -12541,6 +12541,57 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/recovery/kernel/approval-challenge:
+    post:
+      tags: [admin-control, recovery-kernel]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: createAdminRecoveryApprovalChallenge
+      x-custom-gpt-surfaces: [admin_recovery_production]
+      x-openai-isConsequential: false
+      summary: Create a step-bound Production Recovery approval challenge
+      description: >-
+        Private principal-scoped Recovery approval issuer. The caller submits only a registered plan, immutable plan hash,
+        and step reference. The server persists a short-lived, non-transferable challenge through the injected approval
+        authorities. The approval token is delivered only through the separately governed approval authority and is never
+        returned by this operation. Execution tickets, signatures, credentials, SQL, migration selection, workflow/ref,
+        provider controls, and target-source controls are not accepted or returned. The operation is a challenge creation
+        request only and performs no provider or database mutation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plan_id, plan_hash, step_id]
+              properties:
+                plan_id: { type: string, pattern: "^plan:[0-9a-f]{16,64}$" }
+                plan_hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                step_id: { type: string, pattern: "^step:[0-9a-f]{16,64}$" }
+      responses:
+        "201":
+          description: Sanitized approval-challenge receipt without the approval token or execution ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, contract, result, approval_token_not_returned, execution_ticket_not_returned, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  contract: { type: string, const: "mad4b.recovery-approval-challenge-route-receipt.v1" }
+                  result:
+                    type: object
+                    additionalProperties: true
+                    description: Challenge metadata and delivery status; no approval token is included.
+                  approval_token_not_returned: { type: boolean, const: true }
+                  execution_ticket_not_returned: { type: boolean, const: true }
+                  secrets_included: { type: boolean, const: false }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { description: Approval authority or durable Recovery store is unavailable; no provider or database mutation was attempted. }
   /admin/recovery/kernel/execute:
     post:
       tags: [admin-control, recovery-kernel]

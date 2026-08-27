@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,419 |
-| Total bytes | 73,067,494 |
-| Counted text lines | 1,699,590 |
+| Total bytes | 73,093,717 |
+| Counted text lines | 1,700,137 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -92,11 +92,11 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,541,976 | 99855 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,963,307 | 59371 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,545,802 | 99954 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,965,990 | 59453 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
-| `http-generic-api/openapi.yaml` | api-contracts | 1,031,291 | 23627 |
-| `http-generic-api/frontend-surface-policy.json` | api-runtime | 626,229 | 11866 |
+| `http-generic-api/openapi.yaml` | api-contracts | 1,034,267 | 23678 |
+| `http-generic-api/frontend-surface-policy.json` | api-runtime | 627,891 | 11900 |
 | `edge/activation-gateway/worker-configuration.d.ts` | connectors-and-edge | 573,853 | 15183 |
 | `specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json` | api-contracts | 407,307 | 11364 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |

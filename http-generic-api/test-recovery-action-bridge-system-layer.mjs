@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildSystemLayerRoutes } from "./routes/systemLayerRoutes.js";
 
 const TOOL_NAME = "recovery_kernel_execute_approved_step";
+const APPROVAL_TOOL_NAME = "recovery_kernel_create_approval_challenge";
 
 function buildApp() {
   const app = express();
@@ -53,6 +54,50 @@ test("private recovery bridge descriptor is admin-visible and tenant-hidden", as
     const tenant = await request(baseUrl, `/system/tools/${TOOL_NAME}`, { headers: { "x-admin": "false" } });
     assert.equal(tenant.status, 404);
     assert.equal(tenant.body.error.code, "SYSTEM_TOOL_NOT_FOUND");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("approval challenge tool is admin-visible, tenant-hidden, and excludes token/ticket fields", async () => {
+  const { server, baseUrl } = await start(buildApp());
+  try {
+    const admin = await request(baseUrl, `/system/tools/${APPROVAL_TOOL_NAME}`, { headers: { "x-admin": "true" } });
+    assert.equal(admin.status, 200);
+    assert.equal(admin.body.tool.name, APPROVAL_TOOL_NAME);
+    assert.equal(admin.body.tool.requires_admin, true);
+    assert.equal(admin.body.tool.catalog_level, "private_recovery");
+    assert.deepEqual(admin.body.tool.inputSchema.required, ["plan_id", "plan_hash", "step_id"]);
+    assert.equal(Object.hasOwn(admin.body.tool.inputSchema.properties, "approval_token"), false);
+    assert.equal(Object.hasOwn(admin.body.tool.inputSchema.properties, "execution_ticket_id"), false);
+    assert.equal(Object.hasOwn(admin.body.tool.inputSchema.properties, "signature"), false);
+
+    const tenant = await request(baseUrl, `/system/tools/${APPROVAL_TOOL_NAME}`, { headers: { "x-admin": "false" } });
+    assert.equal(tenant.status, 404);
+    assert.equal(tenant.body.error.code, "SYSTEM_TOOL_NOT_FOUND");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("approval challenge tool rejects caller-supplied approval and ticket controls", async () => {
+  const { server, baseUrl } = await start(buildApp());
+  try {
+    const response = await request(baseUrl, "/admin/system/tools/call", {
+      method: "POST",
+      headers: { "x-admin": "true" },
+      body: JSON.stringify({
+        name: APPROVAL_TOOL_NAME,
+        tool_args: {
+          plan_id: "plan:1234567890abcdef",
+          plan_hash: "a".repeat(64),
+          step_id: "step:1234567890abcdef",
+          approval_token: "caller-must-not-supply",
+        },
+      }),
+    });
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "recovery_kernel_create_approval_challenge_field_forbidden");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

@@ -1,4 +1,5 @@
 // frontend-surface-operation: post /admin/recovery/kernel/execute-approved
+// frontend-surface-operation: post /admin/recovery/kernel/approval-challenge
 // frontend-surface-operation: post /admin/recovery/kernel/execute
 // frontend-surface-operation: get /admin/recovery/kernel/runs/{run_id}
 // frontend-surface-operation: get /admin/recovery/kernel/evidence/{run_id}
@@ -44,13 +45,14 @@ const PLAN = {
     step_id: STEP_ID,
     step_hash: "d".repeat(64),
     consequential: true,
+    approval_required: true,
     capability_key: "runtime.baseline.rebuild_empty",
     target_role: "runtime",
     mutation_class: "C5",
   }],
 };
 
-function buildTestApp({ recoveryStore, mutationExecutor } = {}) {
+function buildTestApp({ recoveryStore, approvalIssuer, approvalStore, mutationExecutor } = {}) {
   const app = express();
   app.use(express.json());
   app.use(buildRecoveryKernelRoutes({
@@ -61,6 +63,8 @@ function buildTestApp({ recoveryStore, mutationExecutor } = {}) {
     },
     env: { NODE_ENV: "production" },
     recoveryStore,
+    approvalIssuer,
+    approvalStore,
     mutationExecutor,
   }));
   return app;
@@ -89,6 +93,49 @@ test("private bridge route rejects caller-generated ticket fields and requires o
     const missingResponse = await postJson(baseUrl, missingApproval);
     assert.equal(missingResponse.status, 400);
     assert.equal(missingResponse.body.error.code, "recovery_kernel_required_field_missing");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("approval challenge route is admin-scoped, step-bound, and never returns an approval token or execution ticket", async () => {
+  let issuerCalls = 0;
+  const app = buildTestApp({
+    recoveryStore: {
+      getPlan: async () => PLAN,
+      putApproval: async () => ({ persisted: true }),
+      getApprovalByPlanStep: async () => null,
+    },
+    approvalIssuer: { createChallenge: async () => { issuerCalls += 1; return { delivery_ref: "approval-delivery:test" }; } },
+    approvalStore: {
+      putChallenge: async () => ({ persisted: true }),
+      getChallenge: async () => null,
+    },
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const response = await postJson(baseUrl, {
+      plan_id: PLAN_ID,
+      plan_hash: PLAN_HASH,
+      step_id: STEP_ID,
+    }, "/admin/recovery/kernel/approval-challenge");
+    assert.equal(response.status, 201);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.approval_token_not_returned, true);
+    assert.equal(response.body.execution_ticket_not_returned, true);
+    assert.equal(Object.hasOwn(response.body.result, "approval_token"), false);
+    assert.equal(Object.hasOwn(response.body.result, "execution_ticket_id"), false);
+    assert.equal(Object.hasOwn(response.body.result, "execution_ticket_hash"), false);
+    assert.equal(issuerCalls, 1);
+
+    const extraField = await postJson(baseUrl, {
+      plan_id: PLAN_ID,
+      plan_hash: PLAN_HASH,
+      step_id: STEP_ID,
+      approval_token: "must-not-be-accepted",
+    }, "/admin/recovery/kernel/approval-challenge");
+    assert.equal(extraField.status, 400);
+    assert.equal(extraField.body.error.code, "recovery_kernel_input_field_forbidden");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

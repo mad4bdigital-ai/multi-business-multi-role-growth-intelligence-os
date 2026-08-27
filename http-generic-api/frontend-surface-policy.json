@@ -3018,6 +3018,40 @@
       ]
     },
     {
+      "rule_id": "recovery-kernel-approval-challenge-issuer",
+      "operation": "POST /admin/recovery/kernel/approval-challenge",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Approval challenge issuance persists a short-lived, step-bound control-plane challenge through injected approval authorities without executing a provider or database mutation. It remains private Recovery-only, requires explicit authority preflight, never returns the approval token, and cannot accept ticket or provider controls.",
+      "preflight": {
+        "mode": "durable_plan_and_approval_authority_preflight"
+      },
+      "approval": {
+        "mode": "separately_governed_out_of_band_approval_delivery"
+      },
+      "readback": {
+        "mode": "challenge_persistence_receipt"
+      },
+      "rollback": {
+        "mode": "expiry_and_revoke_by_approval_authority",
+        "rationale": "The challenge is short-lived and non-transferable; revocation remains owned by the injected approval authority and no provider mutation is initiated by this operation."
+      },
+      "parameter_bindings": {
+        "plan_id": "request.body.plan_id",
+        "plan_hash": "request.body.plan_hash",
+        "step_id": "request.body.step_id",
+        "approval_token": "never accepted or returned",
+        "execution_ticket": "never accepted or returned"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "test-recovery-kernel-routes.mjs",
+        "test-recovery-action-bridge-system-layer.mjs"
+      ]
+    },
+    {
       "rule_id": "recovery-kernel-server-issued-ticket-bridge",
       "operation": "POST /admin/recovery/kernel/execute-approved",
       "source_file": "routes/recoveryKernelRoutes.js",

@@ -2,11 +2,11 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "5323bd33b7f525cc77a0570ca9582a5f2fb9309bf8c5141a9c4635cc85ce87b2",
+    "source_digest": "2e16e254abcc0a0529ae7d52678d3b7933bef4b3cdb5fa32a176d4581d9664af",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "6697ce4d2383a7b915808740a9da345f9ead4c6a65cb674b680e580edfcba83e",
+        "sha256": "3ba9485974d6c3f8e6ee346a94174ab0962f9e6f70cba1b4ba34b47628654ee0",
         "present": true
       },
       {
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "80f920c09460235f7cb84f7b453683ed96ab8653b224905ff7e94aa26658a2ed",
+        "sha256": "823c4975f67f38dc9acc51c7a746f49ec876d667048ec1fbbe0863ca1dcf3039",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "e119e611b9660a318c188bffbfdc62966a6856f0b32c64c947d3d38cbe3f328f",
+        "sha256": "904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007",
         "present": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "872c5e32f4070e29ee0b2d654fc35192bf3168600b9ac7b34b496f791e1eb1f2",
+        "sha256": "d6a470ac98f53a81c7e684fa34095fd9224e73eba2bee7e371096b0683d8bfc9",
         "present": true
       },
       {
@@ -991,7 +991,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "7dbfdbf04ede8f6250dfd3fc9c3f42cb693e244b0719b0a305b5b327ae99fb77",
+        "sha256": "12d32545dfbbf9a87dc4d24527edfd9cdbb3805c4c4fc122c0ca9f4de797c156",
         "present": true
       },
       {
@@ -1101,12 +1101,12 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "c06428f91f6607574cdb21a45301148e5435efc6c6b7d5f92c6ac628af674ef6",
+        "sha256": "527e84b5f06e99711bffa7b41fd373d7fc8534c074b67ebb670a427bf2453375",
         "present": true
       },
       {
         "file": "test-recovery-kernel-routes.mjs",
-        "sha256": "b28c70b14f7d0d0ea5508f305b27abd636db1cbb267f96bc367f58455c1a73cc",
+        "sha256": "11c83c344cc054dd7ee37d0d437ee28754108c7e705facf0eecac4ea6cabf7e6",
         "present": true
       },
       {
@@ -1159,29 +1159,29 @@
     "mounted_family_count": 172,
     "mounted_route_file_count": 142,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1058,
-    "openapi_documented_count": 1042,
-    "openapi_canonical_documented_count": 727,
+    "operation_count": 1059,
+    "openapi_documented_count": 1043,
+    "openapi_canonical_documented_count": 728,
     "openapi_generated_index_count": 315,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 315,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1042,
+      "equivalent": 1043,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 641,
+    "non_get_candidate_count": 642,
     "unresolved_operation_class_count": 0,
-    "classified_mutation_count": 17,
-    "governed_mutation_operation_count": 17,
+    "classified_mutation_count": 18,
+    "governed_mutation_operation_count": 18,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 172,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1058,
+    "test_owned_operation_count": 1059,
     "untested_operation_count": 0,
     "ready_task_count": 172,
     "blocked_task_count": 0,
@@ -3114,7 +3114,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "872c5e32f4070e29ee0b2d654fc35192bf3168600b9ac7b34b496f791e1eb1f2",
+      "source_digest": "d6a470ac98f53a81c7e684fa34095fd9224e73eba2bee7e371096b0683d8bfc9",
       "mount_prefix": "/",
       "mount_order": 12992,
       "split_from_mixed_scope_file": false,
@@ -3204,6 +3204,105 @@
           },
           "mutation_candidate": true,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/kernel/approval-challenge",
+          "signature": "POST /admin/recovery/kernel/approval-challenge",
+          "source_file": "routes/recoveryKernelRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-recovery-kernel-routes.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "durable_plan_and_approval_authority_preflight"
+              },
+              "approval": {
+                "mode": "separately_governed_out_of_band_approval_delivery"
+              },
+              "readback": {
+                "mode": "challenge_persistence_receipt"
+              },
+              "rollback": {
+                "mode": "expiry_and_revoke_by_approval_authority",
+                "rationale": "The challenge is short-lived and non-transferable; revocation remains owned by the injected approval authority and no provider mutation is initiated by this operation."
+              }
+            },
+            "parameter_bindings": {
+              "plan_id": "request.body.plan_id",
+              "plan_hash": "request.body.plan_hash",
+              "step_id": "request.body.step_id",
+              "approval_token": "never accepted or returned",
+              "execution_ticket": "never accepted or returned"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-approval-challenge-issuer",
+            "owner": "runtime-operations",
+            "rationale": "Approval challenge issuance persists a short-lived, step-bound control-plane challenge through injected approval authorities without executing a provider or database mutation. It remains private Recovery-only, requires explicit authority preflight, never returns the approval token, and cannot accept ticket or provider controls.",
+            "evidence_refs": [
+              "recoveryKernel.js",
+              "routes/recoveryKernelRoutes.js",
+              "test-recovery-action-bridge-system-layer.mjs",
+              "test-recovery-kernel-routes.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
         },
         {
           "method": "POST",
@@ -11543,7 +11642,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "7dbfdbf04ede8f6250dfd3fc9c3f42cb693e244b0719b0a305b5b327ae99fb77",
+      "source_digest": "12d32545dfbbf9a87dc4d24527edfd9cdbb3805c4c4fc122c0ca9f4de797c156",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,
@@ -12319,7 +12418,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "7dbfdbf04ede8f6250dfd3fc9c3f42cb693e244b0719b0a305b5b327ae99fb77",
+      "source_digest": "12d32545dfbbf9a87dc4d24527edfd9cdbb3805c4c4fc122c0ca9f4de797c156",
       "mount_prefix": "/",
       "mount_order": 14536,
       "split_from_mixed_scope_file": true,
