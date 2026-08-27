@@ -117,6 +117,110 @@
     "check_rename_and_drop_targets": true,
     "fail_on_unresolved_gaps": true
   },
+  "foreign_key_compatibility_chain_contract": {
+    "enabled": true,
+    "engine": "mariadb",
+    "baseline_file": "http-generic-api/schema.sql",
+    "ordered_numeric_filename_and_lexicographic_tie_break": true,
+    "fail_on_type_mismatch": true,
+    "inspect_create_alter_foreign_keys": true,
+    "inspect_parent_unique_indexes": true,
+    "inspect_column_type_length_sign_charset_collation": true,
+    "allow_declared_additive_precreate_bridges": true,
+    "allow_declared_additive_baseline_alter_bridges": true,
+    "static_only": true,
+    "database_connection_allowed": false,
+    "sql_mutation_allowed": false,
+    "provider_access_allowed": false,
+    "credential_access_allowed": false,
+    "data_export_allowed": false,
+    "runtime_mutation_allowed": false,
+    "secrets_included": false,
+    "policy_key": "mariadb_foreign_key_compatibility_ordered_chain_v1",
+    "bridges": [
+      {
+        "table": "user_credentials",
+        "source_file": "http-generic-api/schema.sql",
+        "bridge_file": "000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
+        "bridge_mode": "baseline_alter_column_shape",
+        "columns": [
+          {
+            "column": "user_id",
+            "parent_table": "users",
+            "parent_column": "user_id",
+            "source_type": "varchar(36)",
+            "replacement_type": "varchar(36)",
+            "replacement_charset": "utf8mb4",
+            "replacement_collation": "utf8mb4_general_ci"
+          }
+        ],
+        "reason": "The immutable baseline child column explicitly uses utf8mb4_unicode_ci while canonical users.user_id resolves to MariaDB 11.4 utf8mb4_general_ci; an additive early ALTER aligns the child before the baseline deferred FK is created."
+      },
+      {
+        "table": "tenant_brand_links",
+        "source_file": "20260721_tenant_brand_links_projection_gap.sql",
+        "bridge_file": "20260720_zzzzzz_mariadb_foreign_key_compatibility_tenant_brand_links.sql",
+        "bridge_mode": "idempotent_canonical_precreate",
+        "columns": [
+          {
+            "column": "tenant_id",
+            "parent_table": "tenants",
+            "parent_column": "tenant_id",
+            "source_type": "varchar(36)",
+            "replacement_type": "varchar(36)",
+            "replacement_charset": "utf8mb4",
+            "replacement_collation": "utf8mb4_general_ci"
+          }
+        ],
+        "reason": "The historical child table uses utf8mb4_uca1400_ai_ci while canonical tenants.tenant_id resolves to utf8mb4_general_ci; an additive precreate pins only the FK column to the parent collation and preserves the table UCA default."
+      },
+      {
+        "table": "auth_email_outbox_delivery_attempts",
+        "source_file": "20260723_auth_email_outbox_delivery_attempts.sql",
+        "bridge_file": "20260722_zzzzzz_mariadb_foreign_key_compatibility_auth_email_outbox_delivery_attempts.sql",
+        "bridge_mode": "idempotent_canonical_precreate",
+        "columns": [
+          {
+            "column": "email_id",
+            "parent_table": "auth_email_outbox",
+            "parent_column": "email_id",
+            "source_type": "varchar(64)",
+            "replacement_type": "varchar(64)",
+            "replacement_charset": "utf8mb4",
+            "replacement_collation": "utf8mb4_general_ci"
+          }
+        ],
+        "reason": "The historical child table uses utf8mb4_uca1400_ai_ci while canonical auth_email_outbox.email_id resolves to utf8mb4_general_ci; an additive precreate pins only the FK column to the parent collation."
+      },
+      {
+        "table": "tenant_gpt_sso_sessions",
+        "source_file": "20260813_tenant_gpt_sso_sessions_v1.sql",
+        "bridge_file": "20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql",
+        "bridge_mode": "idempotent_canonical_precreate",
+        "columns": [
+          {
+            "column": "user_id",
+            "parent_table": "users",
+            "parent_column": "user_id",
+            "source_type": "varchar(64)",
+            "replacement_type": "varchar(36)",
+            "replacement_charset": "utf8mb4",
+            "replacement_collation": "utf8mb4_general_ci"
+          },
+          {
+            "column": "tenant_id",
+            "parent_table": "tenants",
+            "parent_column": "tenant_id",
+            "source_type": "varchar(64)",
+            "replacement_type": "varchar(36)",
+            "replacement_charset": "utf8mb4",
+            "replacement_collation": "utf8mb4_general_ci"
+          }
+        ],
+        "reason": "MariaDB InnoDB requires foreign-key child and parent character key definitions to match; the historical SSO migration uses VARCHAR(64) against canonical VARCHAR(36) keys, so an earlier governed idempotent bridge pre-creates the table without editing history."
+      }
+    ]
+  },
   "collation_chain_contract": {
     "enabled": true,
     "engine": "mariadb",

@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-local-mariadb-foreign-key-compatibility-repair",
+  "title": "Staging-local MariaDB 11.4 foreign-key type, collation, index, and ordering compatibility",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-local-mariadb-foreign-key-compatibility-repair.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-migration-contract-policy.json",
+      "http-generic-api/databaseForeignKeyCompatibilityPolicyGuard.js",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/migration-contract-governance.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/migrations/000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
+      "http-generic-api/migrations/20260720_zzzzzz_mariadb_foreign_key_compatibility_tenant_brand_links.sql",
+      "http-generic-api/migrations/20260722_zzzzzz_mariadb_foreign_key_compatibility_auth_email_outbox_delivery_attempts.sql",
+      "http-generic-api/migrations/20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a governed additive compatibility chain for MariaDB 11.4 foreign keys so historical child definitions with incompatible width or collation cannot reach replay, while immutable migrations, parent keys, runtime boundaries, and production isolation remain intact.",
+      "e2e_journeys": [
+        {
+          "id": "foreign-key-compatibility-static-guard-and-local-replay-gate",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed CI and staging-local Windows migration operator",
+          "entrypoint": "Exact-head static governance followed by a freshly authorized disposable Windows Docker MariaDB 11.4 schema-only replay",
+          "terminal_outcome": "The ordered FK guard accepts only exact additive bridges for parent-key availability, type/length/sign, charset/collation, and deterministic ordering; local replay stops before any downstream automation on the first MariaDB error.",
+          "steps": [
+            "Project the baseline and ordered migrations with MariaDB 11.4 semantics, including inline primary keys, CREATE TABLE LIKE, parent index coverage, and deferred baseline foreign keys.",
+            "Apply only additive DDL bridges for the discovered width/collation incompatibilities; do not modify historical migrations or disable foreign_key_checks.",
+            "Run the FK guard, existing schema compatibility guards, builder plan, governance report, and regression fixtures on the exact source head.",
+            "After a fresh merged main head and a new exact-SHA authorization, run only the disposable local Windows Docker MariaDB 11.4 schema-only replay.",
+            "Stop before AutoPilot, importer, readback, data export/import, deployment, provider, Hostinger, Cloudflare, or Production operations on any failure."
+          ],
+          "assertions": [
+            "The historical tenant_gpt_sso_sessions width mismatch is repaired by a precreate bridge that preserves its two foreign-key edges and exact parent key shape.",
+            "The baseline user_credentials, tenant_brand_links, and auth_email_outbox_delivery_attempts collation mismatches are normalized through additive, exact, MariaDB 11.4-compatible DDL bridges.",
+            "The FK guard reports zero unresolved type mismatches, missing parent tables, missing parent columns, and missing parent indexes, and it fails closed when a required bridge is absent.",
+            "Inline parent primary keys and CREATE TABLE LIKE source tables are recognized without false missing-index or missing-table findings.",
+            "Static governance and replay wrappers perform no provider, credential, production, runtime, export/import, AutoPilot, importer, or readback action."
+          ],
+          "tests": [
+            {
+              "id": "foreign-key-compatibility-static-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-foreign-key-compatibility-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder-foreign-key-plan",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-contract-governance",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/staging-migration-contract-policy.json",
+            "http-generic-api/databaseForeignKeyCompatibilityPolicyGuard.js",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
+            "http-generic-api/migrations/000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
+            "http-generic-api/migrations/20260720_zzzzzz_mariadb_foreign_key_compatibility_tenant_brand_links.sql",
+            "http-generic-api/migrations/20260722_zzzzzz_mariadb_foreign_key_compatibility_auth_email_outbox_delivery_attempts.sql",
+            "http-generic-api/migrations/20260812_zzzzzz_mariadb_foreign_key_compatibility_tenant_gpt_sso_sessions.sql"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

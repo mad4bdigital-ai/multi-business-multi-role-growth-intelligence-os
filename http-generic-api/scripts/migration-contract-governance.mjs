@@ -11,12 +11,14 @@ const apiRoot = path.resolve(scriptDir, "..");
 const defaultRepoRoot = path.resolve(apiRoot, "..");
 const parserPath = path.join(apiRoot, "scripts", "staging-sql-parser.mjs");
 const { splitStatements } = await import(pathToFileURL(parserPath).href);
+const { compareMigrationFiles } = await import(pathToFileURL(path.join(apiRoot, "scripts/migration-order.mjs")).href);
 const { inspectOrderedMigrationChainCollations } = await import(pathToFileURL(path.join(apiRoot, "databaseCollationPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainEnumSeeds } = await import(pathToFileURL(path.join(apiRoot, "databaseEnumSeedPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainTextWidths } = await import(pathToFileURL(path.join(apiRoot, "databaseTextWidthPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainGeneratedColumns } = await import(pathToFileURL(path.join(apiRoot, "databaseGeneratedColumnPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainIndexKeyWidths } = await import(pathToFileURL(path.join(apiRoot, "databaseIndexKeyWidthPolicyGuard.js")).href);
 const { inspectOrderedMigrationChainRequiredInsertColumns } = await import(pathToFileURL(path.join(apiRoot, "databaseRequiredInsertColumnPolicyGuard.js")).href);
+const { inspectOrderedMigrationChainForeignKeys } = await import(pathToFileURL(path.join(apiRoot, "databaseForeignKeyCompatibilityPolicyGuard.js")).href);
 
 function parseArgs(argv) {
   const options = { root: defaultRepoRoot, expectedCommit: "", output: "" };
@@ -63,7 +65,7 @@ function pushFinding(report, category, severity, file, detail, statement = "", e
 function migrationFiles() {
   return fs.readdirSync(migrationsDir)
     .filter((file) => file.endsWith(".sql"))
-    .sort((left, right) => Number(left.match(/^\d+/u)?.[0] || 0) - Number(right.match(/^\d+/u)?.[0] || 0) || left.localeCompare(right));
+    .sort(compareMigrationFiles);
 }
 function canonicalBootstrapEntries(plan) {
   return (plan.canonical_table_bootstrap?.entries || []).map((entry) => {
@@ -156,6 +158,7 @@ const report = {
   generated_column_chain_contract: policy.generated_column_chain_contract || null,
   index_key_width_chain_contract: policy.index_key_width_chain_contract || null,
   required_insert_column_chain_contract: policy.required_insert_column_chain_contract || null,
+  foreign_key_compatibility_chain_contract: policy.foreign_key_compatibility_chain_contract || null,
   environment_profiles: {},
   database_role_topology: policy.database_role_topology || null,
   migration_history: policy.migration_history || null,
@@ -283,6 +286,32 @@ catch (error) { pushFinding(report, "index_key_width_chain", "blocker", "databas
 const requiredInsertColumnContract = policy.required_insert_column_chain_contract;
 if (!requiredInsertColumnContract || requiredInsertColumnContract.enabled !== true || requiredInsertColumnContract.engine !== "mariadb" || requiredInsertColumnContract.fail_on_omitted_required_columns !== true || requiredInsertColumnContract.inspect_create_alter_required_columns !== true || requiredInsertColumnContract.inspect_insert_replace_writers !== true || requiredInsertColumnContract.allow_declared_ddl_bridges !== true || requiredInsertColumnContract.static_only !== true || requiredInsertColumnContract.database_connection_allowed !== false || requiredInsertColumnContract.sql_mutation_allowed !== false || requiredInsertColumnContract.provider_access_allowed !== false || requiredInsertColumnContract.credential_access_allowed !== false || requiredInsertColumnContract.data_export_allowed !== false || requiredInsertColumnContract.runtime_mutation_allowed !== false || requiredInsertColumnContract.secrets_included !== false || !Array.isArray(requiredInsertColumnContract.required_tables) || requiredInsertColumnContract.required_tables.length === 0) {
   pushFinding(report, "required_insert_column_chain", "blocker", "staging-migration-contract-policy.json", "required_insert_column_chain_contract must enable the MariaDB static ordered required-column writer gate");
+}
+
+const foreignKeyContract = policy.foreign_key_compatibility_chain_contract;
+const foreignKeyBridgeRules = Array.isArray(foreignKeyContract?.bridges) ? foreignKeyContract.bridges : [];
+if (!foreignKeyContract
+  || foreignKeyContract.enabled !== true
+  || foreignKeyContract.engine !== "mariadb"
+  || foreignKeyContract.baseline_file !== "http-generic-api/schema.sql"
+  || foreignKeyContract.ordered_numeric_filename_and_lexicographic_tie_break !== true
+  || foreignKeyContract.fail_on_type_mismatch !== true
+  || foreignKeyContract.inspect_create_alter_foreign_keys !== true
+  || foreignKeyContract.inspect_parent_unique_indexes !== true
+  || foreignKeyContract.inspect_column_type_length_sign_charset_collation !== true
+  || foreignKeyContract.allow_declared_additive_precreate_bridges !== true
+  || foreignKeyContract.allow_declared_additive_baseline_alter_bridges !== true
+  || foreignKeyContract.static_only !== true
+  || foreignKeyContract.database_connection_allowed !== false
+  || foreignKeyContract.sql_mutation_allowed !== false
+  || foreignKeyContract.provider_access_allowed !== false
+  || foreignKeyContract.credential_access_allowed !== false
+  || foreignKeyContract.data_export_allowed !== false
+  || foreignKeyContract.runtime_mutation_allowed !== false
+  || foreignKeyContract.secrets_included !== false
+  || foreignKeyBridgeRules.length === 0
+  || foreignKeyBridgeRules.some((rule) => !rule?.table || !rule?.source_file || !rule?.bridge_file || !["idempotent_canonical_precreate", "baseline_alter_column_shape"].includes(rule.bridge_mode) || !Array.isArray(rule.columns) || rule.columns.length === 0 || rule.columns.some((item) => !item?.column || !item?.parent_table || !item?.parent_column || !item?.source_type || !item?.replacement_type || !item?.replacement_charset || !item?.replacement_collation))) {
+  pushFinding(report, "foreign_key_compatibility_chain", "blocker", "staging-migration-contract-policy.json", "foreign_key_compatibility_chain_contract must enable the MariaDB static ordered FK/type/index gate and declare exact additive bridge metadata");
 }
 
 const files = migrationFiles();
@@ -588,6 +617,60 @@ if (requiredInsertColumnContract?.enabled === true) {
   }
 }
 
+if (foreignKeyContract?.enabled === true) {
+  const orderedFiles = files.map((file) => `http-generic-api/migrations/${file}`);
+  const foreignKeyChain = inspectOrderedMigrationChainForeignKeys({
+    files: orderedFiles,
+    baselineFile: foreignKeyContract.baseline_file || "http-generic-api/schema.sql",
+    engine: foreignKeyContract.engine || "mariadb",
+    policy,
+    readFile: (file) => fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  });
+  report.foreign_key_compatibility_chain = {
+    contract: foreignKeyChain.contract,
+    engine: foreignKeyChain.engine,
+    policy_key: foreignKeyChain.policy_key,
+    baseline_file: foreignKeyChain.baseline_file,
+    files_checked: foreignKeyChain.files_checked,
+    migration_files_checked: foreignKeyChain.migration_files_checked,
+    statements_checked: foreignKeyChain.statements_checked,
+    tables_projected: foreignKeyChain.tables_projected,
+    foreign_keys_checked: foreignKeyChain.foreign_keys_checked,
+    type_comparisons: foreignKeyChain.type_comparisons,
+    type_mismatches: foreignKeyChain.type_mismatches,
+    unresolved_type_mismatches: foreignKeyChain.unresolved_type_mismatches,
+    missing_parent_tables: foreignKeyChain.missing_parent_tables,
+    missing_parent_columns: foreignKeyChain.missing_parent_columns,
+    missing_parent_indexes: foreignKeyChain.missing_parent_indexes,
+    compatibility_bridge_candidates: foreignKeyChain.compatibility_bridge_candidates,
+    allowed_compatibility_bridges: foreignKeyChain.allowed_compatibility_bridges,
+    findings: foreignKeyChain.findings,
+    warnings: foreignKeyChain.warnings,
+    ok: foreignKeyChain.ok,
+    ready: foreignKeyChain.ready,
+    database_connection_performed: foreignKeyChain.database_connection_performed,
+    sql_mutation_performed: foreignKeyChain.sql_mutation_performed,
+    provider_mutation_performed: foreignKeyChain.provider_mutation_performed,
+    credential_access_performed: foreignKeyChain.credential_access_performed,
+    data_export_performed: foreignKeyChain.data_export_performed,
+    runtime_mutation_performed: foreignKeyChain.runtime_mutation_performed,
+    secrets_included: foreignKeyChain.secrets_included,
+  };
+  if (foreignKeyChain.ok !== true || foreignKeyChain.ready !== true || foreignKeyChain.findings.length > 0) {
+    pushFinding(report, "foreign_key_compatibility_chain", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB foreign-key compatibility guard reports unresolved parent/index/type/charset/collation findings", "", {
+      foreign_key_findings: foreignKeyChain.findings.length,
+      foreign_key_files_checked: foreignKeyChain.files_checked,
+      foreign_key_statements_checked: foreignKeyChain.statements_checked,
+      foreign_key_type_mismatches: foreignKeyChain.type_mismatches,
+      foreign_key_missing_parent_indexes: foreignKeyChain.missing_parent_indexes,
+      foreign_key_allowed_bridges: foreignKeyChain.allowed_compatibility_bridges,
+    });
+  }
+  if (foreignKeyChain.database_connection_performed !== false || foreignKeyChain.sql_mutation_performed !== false || foreignKeyChain.provider_mutation_performed !== false || foreignKeyChain.credential_access_performed !== false || foreignKeyChain.data_export_performed !== false || foreignKeyChain.runtime_mutation_performed !== false || foreignKeyChain.secrets_included !== false) {
+    pushFinding(report, "safety_boundary", "blocker", "staging-migration-contract-policy.json", "ordered MariaDB foreign-key compatibility evidence violates static-only safety");
+  }
+}
+
 report.migration_catalog = {
   contract: "mad4b.cross-environment.migration-discovery.v1",
   source_commit: expectedCommit,
@@ -605,7 +688,7 @@ else if (planResult.status !== 0) pushFinding(report, "canonical_plan", "blocker
 else {
   try {
     const plan = JSON.parse(planResult.stdout);
-    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, ordered_index_key_width_chain: plan.ordered_index_key_width_chain, ordered_required_insert_column_chain: plan.ordered_required_insert_column_chain, ordered_generated_column_chain: plan.ordered_generated_column_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
+    report.plan = { contract: plan.contract, migration_count: plan.migration_count, statement_count: plan.statement_count, ordered_preuse_audit: plan.ordered_preuse_audit, ordered_collation_chain: plan.ordered_collation_chain, ordered_enum_seed_chain: plan.ordered_enum_seed_chain, ordered_text_width_chain: plan.ordered_text_width_chain, ordered_index_key_width_chain: plan.ordered_index_key_width_chain, ordered_required_insert_column_chain: plan.ordered_required_insert_column_chain, ordered_generated_column_chain: plan.ordered_generated_column_chain, ordered_foreign_key_compatibility_chain: plan.ordered_foreign_key_compatibility_chain, canonical_table_bootstrap: plan.canonical_table_bootstrap, plan_only: plan.plan_only, production_access_forbidden: plan.production_access_forbidden, provider_access_forbidden: plan.provider_access_forbidden };
     if (plan.plan_only !== true) pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", "canonical builder did not return plan_only=true");
     if (plan.production_access_forbidden !== true || plan.provider_access_forbidden !== true) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical plan safety flags are incomplete");
     if (plan.ordered_preuse_audit?.missing_table_gaps > 0 || plan.ordered_preuse_audit?.missing_column_gaps > 0 || plan.ordered_preuse_audit?.unique_true_preuse_gaps > 0) pushFinding(report, "ordering_dependency", "blocker", "build-staging-schema-bundle.mjs", "canonical ordered pre-use audit reports unresolved gaps", plan.ordered_preuse_audit);
@@ -625,6 +708,8 @@ else {
     if (plan.ordered_index_key_width_chain?.ok !== true || plan.ordered_index_key_width_chain?.ready !== true || plan.ordered_index_key_width_chain?.finding_count !== 0 || plan.ordered_index_key_width_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_index_key_width_chain?.statements_checked <= plan.statement_count || plan.ordered_index_key_width_chain?.max_key_bytes !== 3072) pushFinding(report, "index_key_width_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered index-key-width evidence is incomplete or reports a key over 3072 bytes", plan.ordered_index_key_width_chain || {});
     if (plan.ordered_generated_column_chain?.database_connection_performed !== false || plan.ordered_generated_column_chain?.sql_mutation_performed !== false || plan.ordered_generated_column_chain?.provider_mutation_performed !== false || plan.ordered_generated_column_chain?.credential_access_performed !== false || plan.ordered_generated_column_chain?.data_export_performed !== false || plan.ordered_generated_column_chain?.runtime_mutation_performed !== false || plan.ordered_generated_column_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered generated-column evidence violates static-only safety", plan.ordered_generated_column_chain || {});
     if (plan.ordered_index_key_width_chain?.database_connection_performed !== false || plan.ordered_index_key_width_chain?.sql_mutation_performed !== false || plan.ordered_index_key_width_chain?.provider_mutation_performed !== false || plan.ordered_index_key_width_chain?.credential_access_performed !== false || plan.ordered_index_key_width_chain?.data_export_performed !== false || plan.ordered_index_key_width_chain?.runtime_mutation_performed !== false || plan.ordered_index_key_width_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered index-key-width evidence violates static-only safety", plan.ordered_index_key_width_chain || {});
+    if (plan.ordered_foreign_key_compatibility_chain?.ok !== true || plan.ordered_foreign_key_compatibility_chain?.ready !== true || plan.ordered_foreign_key_compatibility_chain?.finding_count !== 0 || plan.ordered_foreign_key_compatibility_chain?.type_mismatches !== 0 || plan.ordered_foreign_key_compatibility_chain?.unresolved_type_mismatches !== 0 || plan.ordered_foreign_key_compatibility_chain?.missing_parent_tables !== 0 || plan.ordered_foreign_key_compatibility_chain?.missing_parent_columns !== 0 || plan.ordered_foreign_key_compatibility_chain?.missing_parent_indexes !== 0 || plan.ordered_foreign_key_compatibility_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_foreign_key_compatibility_chain?.statements_checked <= plan.statement_count) pushFinding(report, "foreign_key_compatibility_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered foreign-key compatibility evidence is incomplete or reports unresolved MariaDB findings", plan.ordered_foreign_key_compatibility_chain || {});
+    if (plan.ordered_foreign_key_compatibility_chain?.database_connection_performed !== false || plan.ordered_foreign_key_compatibility_chain?.sql_mutation_performed !== false || plan.ordered_foreign_key_compatibility_chain?.provider_mutation_performed !== false || plan.ordered_foreign_key_compatibility_chain?.credential_access_performed !== false || plan.ordered_foreign_key_compatibility_chain?.data_export_performed !== false || plan.ordered_foreign_key_compatibility_chain?.runtime_mutation_performed !== false || plan.ordered_foreign_key_compatibility_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered foreign-key compatibility evidence violates static-only safety", plan.ordered_foreign_key_compatibility_chain || {});
     if (plan.ordered_required_insert_column_chain?.ok !== true || plan.ordered_required_insert_column_chain?.ready !== true || plan.ordered_required_insert_column_chain?.finding_count !== 0 || plan.ordered_required_insert_column_chain?.files_checked !== plan.migration_count + 1 || plan.ordered_required_insert_column_chain?.statements_checked <= plan.statement_count) pushFinding(report, "required_insert_column_chain", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered required INSERT-column evidence is incomplete or reports omitted required columns", plan.ordered_required_insert_column_chain || {});
     if (plan.ordered_required_insert_column_chain?.database_connection_performed !== false || plan.ordered_required_insert_column_chain?.sql_mutation_performed !== false || plan.ordered_required_insert_column_chain?.provider_mutation_performed !== false || plan.ordered_required_insert_column_chain?.credential_access_performed !== false || plan.ordered_required_insert_column_chain?.data_export_performed !== false || plan.ordered_required_insert_column_chain?.runtime_mutation_performed !== false || plan.ordered_required_insert_column_chain?.secrets_included !== false) pushFinding(report, "safety_boundary", "blocker", "build-staging-schema-bundle.mjs", "canonical builder ordered required INSERT-column evidence violates static-only safety", plan.ordered_required_insert_column_chain || {});
   } catch (error) { pushFinding(report, "canonical_plan", "blocker", "build-staging-schema-bundle.mjs", `canonical builder plan was not valid JSON: ${error.message}`); }
