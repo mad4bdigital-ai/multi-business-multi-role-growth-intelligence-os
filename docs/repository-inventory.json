@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7443,
-    "bytes": 73399271,
-    "lines": 1705274,
+    "files": 7449,
+    "bytes": 73450285,
+    "lines": 1706310,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2199,
-      "documentation": 1915,
-      "api-runtime": 1517,
+      "tests-and-specs": 2200,
+      "documentation": 1916,
+      "api-runtime": 1520,
       "database-migrations": 833,
-      "root-and-other": 342,
+      "root-and-other": 343,
       "api-contracts": 192,
       "ci-workflows": 170,
       "ci-config": 135,
@@ -26,10 +26,10 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2516,
-      ".mjs": 1771,
-      ".js": 1023,
-      ".json": 893,
+      ".md": 2517,
+      ".mjs": 1772,
+      ".js": 1026,
+      ".json": 894,
       ".sql": 848,
       ".yml": 173,
       ".yaml": 120,
@@ -61,10 +61,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3872,
-      "docs": 1819,
+      "http-generic-api": 3876,
+      "docs": 1820,
       "specs": 880,
-      ".changes": 312,
+      ".changes": 313,
       ".github": 305,
       "canonicals": 70,
       "local-connector": 23,
@@ -2779,6 +2779,7 @@
       "http-generic-api/test-semantic-capability-effective-resolution.mjs",
       "http-generic-api/test-sequential-plan-orchestrator.mjs",
       "http-generic-api/test-sequential-test-progress-report.mjs",
+      "http-generic-api/test-server-managed-recovery-binding.mjs",
       "http-generic-api/test-server-startup-smoke.mjs",
       "http-generic-api/test-session-archive-capability-family-policy.mjs",
       "http-generic-api/test-session-archive-service.mjs",
@@ -5070,6 +5071,7 @@
       "http-generic-api/test-semantic-capability-effective-resolution.mjs",
       "http-generic-api/test-sequential-plan-orchestrator.mjs",
       "http-generic-api/test-sequential-test-progress-report.mjs",
+      "http-generic-api/test-server-managed-recovery-binding.mjs",
       "http-generic-api/test-server-startup-smoke.mjs",
       "http-generic-api/test-session-archive-capability-family-policy.mjs",
       "http-generic-api/test-session-archive-service.mjs",
@@ -7910,6 +7912,17 @@
       "bytes": 12238,
       "lines": 202,
       "sha256": "6a78f75c571341872fe92e0d0321da8b6e5378b414eb61cf3f8eff1126a8bd41",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/recovery-server-managed-authority-binding-20260827.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 10476,
+      "lines": 187,
+      "sha256": "f0123bc520196a07982f204370b0e64d135b29004c3dd94e98e1159c9b54bde4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -13860,7 +13873,7 @@
       "extension": ".json",
       "bytes": 12894,
       "lines": 325,
-      "sha256": "dadf4a00626eba791dfebbacd667b01c40c3a90d6188a7f509e275137e74d298",
+      "sha256": "efaccd157baee3c4eda8f6d4847021dbc56d6049d8a1b8f65e595b9b3ac6b3be",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31609,6 +31622,17 @@
       "generated": false
     },
     {
+      "path": "docs/governance/recovery-server-managed-authority-binding.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 8947,
+      "lines": 108,
+      "sha256": "8d54cc6f6a684cfab438207a842d86647b1afb8335b033561ee17b5ed5d20f94",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/governance/runtime-breakglass-environments.md",
       "category": "documentation",
       "extension": ".md",
@@ -33022,7 +33046,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "2bc0ceb9313ced06be4c55532f946092d8b05ce2c02444eae6069f0bd2009968",
+      "sha256": "aa295bba4aa7b87d6087563e4096da4781d48f892e58b97b3d88c5cdced3a739",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53856,7 +53880,7 @@
       "extension": ".json",
       "bytes": 1966012,
       "lines": 59454,
-      "sha256": "968eb32c775d563c67beafe3eeef9988c47f6b7a117e776f592cffec143e7f56",
+      "sha256": "e33fb38f63a80867c33ff846495dbf660f41ef09ed42bc250362b12c1efdf473",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -60491,6 +60515,39 @@
       "lines": 3349,
       "sha256": "9c5b318b7bde7487873053aa84ada115c2b74a1b179076f6bfd71a7bf3783428",
       "mode": "600",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/serverManagedDeploymentIdentityProvider.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 4136,
+      "lines": 107,
+      "sha256": "783655c87a73525821a1a940f3153d2ce957c397e9c59a5b0c3d940e897e1276",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/serverManagedRecoveryAuthorityBinding.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 5407,
+      "lines": 152,
+      "sha256": "3c747ce319821c65b6471e02f196e4f4f28e352da9da8c51643d808cf71a7154",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/serverManagedRecoveryBindingProvider.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 9428,
+      "lines": 240,
+      "sha256": "7a7fa17f98f86d7afec7f04af62659a7a388d809371bdae242bf1a3a2a91713f",
+      "mode": "644",
       "executable": false,
       "generated": false
     },
@@ -73217,6 +73274,17 @@
       "bytes": 6447,
       "lines": 151,
       "sha256": "c57f4209320f82becb3d90e126463bf6f5502010762ff58f04c9c8157cc81a21",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-server-managed-recovery-binding.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 12620,
+      "lines": 242,
+      "sha256": "2deb004c98362d3c0b2eb1d6191d2fe17a8c4fede84f8c8c71ba64e8e524d22c",
       "mode": "644",
       "executable": false,
       "generated": false
