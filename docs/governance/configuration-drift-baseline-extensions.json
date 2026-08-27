@@ -200,6 +200,83 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/databaseGeneratedColumnPolicyGuard.js|defaultContractValid|literal_declaration|defaultcontractvalid",
+      "owner": "repository-governance",
+      "reason": "The required-default contract validator is a code-owned fail-closed governance predicate for MariaDB SHA2 ordinary-column compatibility; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/databaseGeneratedColumnPolicyGuard.js|defaultOrderingValid|literal_declaration|defaultorderingvalid",
+      "owner": "repository-governance",
+      "reason": "The required-default ordering predicate is a code-owned fail-closed governance input that enforces additive DDL placement before omitted-column writers; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/databaseGeneratedColumnPolicyGuard.js|defaultSql|literal_declaration|defaultsql",
+      "owner": "repository-governance",
+      "reason": "The exact default SQL literal is a code-owned non-secret contract value used to reject wrong sentinel DDL shapes before any disposable replay; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/databaseGeneratedColumnPolicyGuard.js|requiredDefaultSql|literal_declaration|requireddefaultsql",
+      "owner": "repository-governance",
+      "reason": "The required-default SQL evidence literal is a code-owned read-only validator binding for the MariaDB ERROR 1364 contract and cannot authorize runtime, database, provider, protected-ref, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-mariadb-collation-ci-guard.mjs|sha2Default|literal_declaration|sha2default",
+      "owner": "repository-governance",
+      "reason": "The SHA2 default fixture is a non-secret static regression input proving omitted required ordinary columns are rejected without the exact sentinel default; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-schema-bundle-builder.mjs|defaultFile|literal_declaration|defaultfile",
+      "owner": "repository-governance",
+      "reason": "The static builder fixture names the governed additive default migration files and is used only for deterministic ordering checks; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-schema-bundle-builder.mjs|defaultSql|literal_declaration|defaultsql",
+      "owner": "repository-governance",
+      "reason": "The static builder fixture records exact default SQL shapes for fail-closed contract testing; it contains no credential or provider value and grants no runtime, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
