@@ -10,6 +10,9 @@ const root = await mkdtemp(join(tmpdir(), "configuration-drift-guard-"));
 try {
   await mkdir(join(root, ".github/workflows"), { recursive: true });
   await mkdir(join(root, ".changes/e2e"), { recursive: true });
+  for (const outputName of ["initial", "drift", "extension", "unsafe-extension", "suppressed", "conflict", "expired", "scope"]) {
+    await mkdir(join(root, ".artifacts", outputName), { recursive: true });
+  }
   await mkdir(join(root, "docs/governance"), { recursive: true });
   await mkdir(join(root, "http-generic-api/runtime"), { recursive: true });
   await mkdir(join(root, "http-generic-api/scripts/maintenance-tools"), { recursive: true });

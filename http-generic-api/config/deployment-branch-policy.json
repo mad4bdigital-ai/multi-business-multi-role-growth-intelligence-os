@@ -184,6 +184,7 @@
           "docs/ai-docs-agent-governance.md",
           "docs/auto-docs-agent/**",
           "docs/change-documentation-governance.md",
+          "docs/spec-kit-work-map-integration-governance.md",
           "scripts/**",
           "http-generic-api/scripts/taxonomy/**",
           "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
