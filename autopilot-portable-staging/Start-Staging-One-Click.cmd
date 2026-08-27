@@ -6,10 +6,12 @@ if not exist "%BOOTSTRAP%" (
   pause
   exit /b 1
 )
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%BOOTSTRAP%'; exit $p.ExitCode"
+echo Starting local Staging only: schema/governance preflight, no tunnel, no Auto Deploy watcher, no schema apply.
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%BOOTSTRAP%','-NoTunnel','-NoAutoDeploy'; exit $p.ExitCode"
 set "CODE=%ERRORLEVEL%"
 echo.
 echo Auto Pilot log directory: "%~dp0logs"
+echo Schema/governance preflight report: "%~dp0logs\staging-schema-governance-preflight.json"
 if exist "%~dp0logs\last-failure.json" (
   echo --- Last recorded failure ---
   type "%~dp0logs\last-failure.json"

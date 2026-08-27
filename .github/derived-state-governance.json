@@ -158,6 +158,7 @@
       ".changes/e2e/governance-db-privilege-readiness-6813.json",
       ".changes/e2e/staging-local-mariadb-dump-authentication-repair-20260827.json",
       ".changes/e2e/staging-local-mariadb-schema-dump-guard-repair-20260827.json",
+      ".changes/e2e/staging-one-click-schema-governance-preflight.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",

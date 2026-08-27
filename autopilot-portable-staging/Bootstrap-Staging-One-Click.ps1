@@ -25,6 +25,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bootstrapLogRoot = Join-Path $scriptRoot "logs"
 $bootstrapFallbackLog = Join-Path $bootstrapLogRoot "bootstrap-console.log"
 $oneClickScript = Join-Path $scriptRoot "One-Click-Staging.ps1"
+$schemaPreflightPath = Join-Path $scriptRoot "Staging-Schema-Governance-Preflight.ps1"
 $gitSafetyPath = Join-Path $scriptRoot "Staging-GitSafety.ps1"
 if (-not (Test-Path -LiteralPath $gitSafetyPath)) { Fail "Staging-GitSafety.ps1 is missing: $gitSafetyPath" }
 . $gitSafetyPath
@@ -127,6 +128,7 @@ if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = (Resolve-
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
 if (-not (Test-Path -LiteralPath $oneClickScript)) { Fail "One-Click-Staging.ps1 is missing: $oneClickScript" }
+if (-not (Test-Path -LiteralPath $schemaPreflightPath)) { Fail "Staging-Schema-Governance-Preflight.ps1 is missing: $schemaPreflightPath" }
 if ($SkipBuild -and $BuildMode -ne "Smart") { Fail "-SkipBuild cannot be combined with an explicit BuildMode" }
 Acquire-AutoPilotRunLock
 
@@ -149,6 +151,15 @@ try {
 } finally {
     Pop-Location
 }
+
+$preflightReportPath = Join-Path $bootstrapLogRoot "staging-schema-governance-preflight.json"
+& powershell.exe @(
+    "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $schemaPreflightPath,
+    "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $checkedOut, "-ReportPath", $preflightReportPath
+)
+$preflightExitCode = $LASTEXITCODE
+if ($preflightExitCode -ne 0) { Fail "Static schema/governance preflight exited with code $preflightExitCode. Review $preflightReportPath" }
+Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap static schema/governance preflight passed; report=" + $preflightReportPath)
 
 $updatedOneClick = Get-Content -Raw -LiteralPath $oneClickScript
 foreach ($marker in @("Start-AutoPilot.ps1", "BuildMode", "Staging Main Deploy Eligibility")) {

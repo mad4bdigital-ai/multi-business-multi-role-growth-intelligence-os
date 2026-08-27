@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "3062f646dc0b54778a820bc5602f18419b9a8cb1cc1d450d713aad2d62e6c252"
+      "sha256": "dc4b1d7097197be57daeccb1d6809c86868dc2accbccf278fc0c64fbda6e9195"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -66,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "1a3e36ccd98e880177f891ff9950c492dce133fe1bdec5e53305e425a6df8b02"
+      "sha256": "f5c7ec33bf80565b8f453a2b18539c9890f0f975dfade29dd47dc23baf8875ac"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "84c9e31221ffe01b5d77f5a9fc1629a0fbe1fe6c251a7ac35b922d8d0b75dd3a"
+      "sha256": "ed621c7b362ee72f9a06699e17d4dcdd6fff2e4990fccd037fad626ca84b8f33"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "35eb1d0c4db9f1f504029da4a654cb5e05ecfa7304340008987dc7b5c58f799e"
+      "sha256": "6fae32256b60d952ff10471921ed091ab3f948c5dfff48e2c79722b4fcb1e7c5"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "a3b89c37e51d10202224aeeff53cd27a4ffef1c8a4b2cb7d2a7f672baf15dec7"
+      "sha256": "35dd165c9929f7e807b6ee0900bdf3325904f2e5ce8fad0d7dbc4c840daa743d"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -302,7 +302,7 @@
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
-      "sha256": "a7f0ddb163650b4cfdca2cf35933d5161743d4bfcfa7ef1337661027d15633ac"
+      "sha256": "b7d189c91c15bb7bd8b5e0a36800c3de5fb75f45b1d11e094f2322c4c0441bb8"
     },
     {
       "path": "autopilot-portable-staging/Staging-GitSafety.ps1",
@@ -311,6 +311,10 @@
     {
       "path": "autopilot-portable-staging/Staging-GitTransport.ps1",
       "sha256": "3ff503800a5f9727f286ff10b3b8b05125d81c47f473cd11b3a2a59958862928"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
+      "sha256": "f29c123aa3641912833fdf2abdb080d04ac25ad129d3f118b6bff7fcdfa6abcc"
     }
   ],
   "safety": {
