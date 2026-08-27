@@ -96,7 +96,7 @@ assert.match(bootstrap, /Staging-Schema-Governance-Preflight\.ps1/);
 assert.match(bootstrap, /Static schema\/governance preflight/);
 assert.match(bootstrap, /-ExpectedCommit/);
 assert.match(bootstrap, /-ReportPath/);
-assert.ok(bootstrap.indexOf('checkout", "--detach') < bootstrap.indexOf('Staging-Schema-Governance-Preflight.ps1'));
+assert.ok(bootstrap.indexOf('Invoke-Git @("checkout", "--detach"') < bootstrap.indexOf('$preflightReportPath'));
 assert.match(schemaPreflight, /--plan/);
 assert.match(schemaPreflight, /migration-contract-governance\.mjs/);
 assert.match(schemaPreflight, /environment-impact-closure\.mjs/);
