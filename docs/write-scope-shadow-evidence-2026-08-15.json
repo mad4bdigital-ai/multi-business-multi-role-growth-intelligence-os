@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 663
+    "route_count": 664
   },
   "scope_selection": [
     "approvals.request",
@@ -27,7 +27,7 @@
       "default_request": false,
       "tool_bound": false,
       "route_evidence": {
-        "route_count": 21,
+        "route_count": 22,
         "route_ids": [
           "http-generic-api/routes/activationAwarenessRoutes.js#POST:/tenant/resolution/skill-approvals/:approvalKey/decision:20",
           "http-generic-api/routes/agentSkillRoutes.js#POST:/agent-skill-grant-requests/:request_id/decision:6",
@@ -38,6 +38,7 @@
           "http-generic-api/routes/managedExecutionRoutes.js#POST:/approval-holds/:id/decide:15",
           "http-generic-api/routes/platformEngineRoutes.js#POST:/platform/engines/database-lifecycle/scheduler-approval-metadata:17",
           "http-generic-api/routes/platformEngineRoutes.js#POST:/platform/engines/database-lifecycle/scheduler-approval-readback:18",
+          "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:1",
           "http-generic-api/routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js#POST:/platform/session-insight-promotions/capability-envelope-approvals/decision:0",
           "http-generic-api/routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js#POST:/platform/session-insight-promotions/capability-envelope-approvals/list:1",
           "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/approval-hold/decision:62",
@@ -52,7 +53,7 @@
           "http-generic-api/routes/workflowOrchestrationRoutes.js#POST:/approval-holds/:id/decide:5"
         ],
         "classification_counts": {
-          "shadow_candidate": 21
+          "shadow_candidate": 22
         },
         "prerequisites": [
           "approval_policy_evidence",
@@ -442,7 +443,7 @@
   ],
   "summary": {
     "scope_count": 6,
-    "route_count": 41,
+    "route_count": 42,
     "all_preflight_decisions_denied": true,
     "all_execution_attempts_false": true,
     "all_rollback_plans_validated": true
@@ -459,5 +460,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "bae9481a3de8cb8ea1180e3acaad3d76b8a523e487b5e1d4123de0b46c3ef1ab"
+  "evidence_fingerprint": "f8029d656c025a7f170ff19387a1b53ee62849e9513cd49a1eb1396b65ca246d"
 }
