@@ -9,7 +9,8 @@
     "include": [
       ".changes/e2e/staging-local-mariadb-dump-authentication-repair-20260827.json",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/config/repository-governance-constitution.json"
     ]
   },
   "environment_impact": {
