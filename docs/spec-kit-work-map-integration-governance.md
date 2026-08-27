@@ -228,7 +228,7 @@ The initial delivery historically used Docs Agent to publish a generated Work Ma
 The reusable convergence controls are:
 
 - pin the moving `main` line and merge that pinned ancestry into the feature branch through a normal two-parent merge commit;
-- require `behind_by = 0` and a merge base equal to the pinned `main` SHA before one-time authorization is consumed;
+- require the PR base SHA to equal the compare base and merge base, require compare status `ahead` with a positive `ahead_by`, and retain `behind_by` only as a validated numeric diagnostic before one-time authorization is consumed;
 - keep Docs Agent preview-only;
 - publish generator-owned Work Maps only through the exact-head sole writer after Recovery authorization and successful one-time writer-delegation consumption;
 - reject direct writer dispatch that cannot prove its Recovery run and exact bot-authored delegation grant;

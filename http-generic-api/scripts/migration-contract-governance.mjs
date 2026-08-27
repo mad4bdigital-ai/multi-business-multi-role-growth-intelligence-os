@@ -228,6 +228,7 @@ if (!generatedColumnContract || generatedColumnContract.enabled !== true || gene
   pushFinding(report, "generated_column_chain", "blocker", "staging-migration-contract-policy.json", "generated_column_chain_contract must enable the MariaDB static ordered generated-column writer gate");
 }
 const generatedCompatibilityContract = generatedColumnContract?.generated_expression_compatibility;
+const requiredDefaultContract = generatedCompatibilityContract?.required_default_contract;
 const ordinaryBridgeRules = Array.isArray(generatedCompatibilityContract?.bridges)
   ? generatedCompatibilityContract.bridges.filter((rule) => rule?.replacement_mode === "ordinary_column_trigger")
   : [];
@@ -242,6 +243,11 @@ const requiredSha2BridgeKeys = new Set([
 const declaredSha2BridgeKeys = new Set(ordinaryBridgeRules.map((rule) => `${rule.table}.${rule.column}`));
 const invalidOrdinaryBridgeContract = !Array.isArray(generatedCompatibilityContract?.forbidden_function_names)
   || !generatedCompatibilityContract.forbidden_function_names.map((name) => String(name).toLowerCase()).includes("sha2")
+  || requiredDefaultContract?.enabled !== true
+  || requiredDefaultContract?.static_only !== true
+  || requiredDefaultContract?.exact_literal_required !== true
+  || requiredDefaultContract?.sentinel_overwritten_by_before_trigger !== true
+  || requiredDefaultContract?.not_null_requires_default_migration !== true
   || [...requiredSha2BridgeKeys].some((key) => !declaredSha2BridgeKeys.has(key))
   || ordinaryBridgeRules.some((rule) => !rule.replacement_column_type
     || !rule.replacement_column_nullability
@@ -249,9 +255,18 @@ const invalidOrdinaryBridgeContract = !Array.isArray(generatedCompatibilityContr
     || !Array.isArray(rule.trigger_names)
     || rule.trigger_names.length !== 2
     || !Array.isArray(rule.trigger_events)
-    || rule.trigger_events.length !== 2);
+    || rule.trigger_events.length !== 2
+    || (String(rule.replacement_column_nullability).toUpperCase() === "NOT NULL"
+      ? rule.insert_omission_mode !== "required_default_before_trigger"
+        || typeof rule.replacement_column_default !== "string"
+        || !rule.replacement_column_default.trim()
+        || typeof rule.required_default_file !== "string"
+        || !rule.required_default_file.trim()
+      : rule.insert_omission_mode !== "nullable_trigger_recompute"
+        || rule.replacement_column_default !== null
+        || rule.required_default_file !== null));
 if (invalidOrdinaryBridgeContract) {
-  pushFinding(report, "generated_column_chain", "blocker", "staging-migration-contract-policy.json", "SHA2 generated-column compatibility must declare every known affected column as an exact ordinary-column/BEFORE-trigger bridge with type, nullability, expression, and two trigger events", {
+    pushFinding(report, "generated_column_chain", "blocker", "staging-migration-contract-policy.json", "SHA2 generated-column compatibility must declare every known affected column as an exact ordinary-column/BEFORE-trigger bridge with type, nullability, expression, exact required-default semantics, and two trigger events", {
     required_sha2_bridge_count: requiredSha2BridgeKeys.size,
     declared_ordinary_bridge_count: ordinaryBridgeRules.length,
     declared_sha2_bridge_keys: [...declaredSha2BridgeKeys].sort(),
