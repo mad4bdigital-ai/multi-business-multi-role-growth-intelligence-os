@@ -52,7 +52,7 @@ The statement-boundary guard requires a fence assertion before every consequenti
 
 A provider response is never treated as success by itself. A passing database postcondition may finalize the ledger, a failed postcondition enters `partial_execution` reconciliation, and an unavailable postcondition after provider return becomes `execution_outcome_unknown`. If the database mutation succeeds but ledger finalization fails, the state is `applied_unrecorded` and the migration must not be retried blindly. The bounded emergency receipt contains only run, migration, SHA, target, result, postconditions, and reconciliation state; ticket internals, credentials, SQL, and provider details are excluded.
 
-The repository test `http-generic-api/test-migration-execution-safety.mjs` exercises these invariants with non-live doubles. Passing this test is evidence of contract coverage only; it is not evidence that Production authorities, Hostinger connectivity, staging certification, or database permissions are live.
+The repository tests `http-generic-api/test-migration-execution-safety.mjs` and `http-generic-api/test-governed-migration-schema-readback-tool.mjs` exercise these invariants with non-live doubles. The schema-readback contract now distinguishes an exact durable ledger row, a migration row with a divergent checksum or statement count that is rejected before any Apply decision, and an absent ledger row that remains not-applied evidence rather than an already-applied claim. Passing these tests is evidence of contract coverage only; it is not evidence that Production authorities, Hostinger connectivity, staging certification, or database permissions are live.
 
 ## Remaining live prerequisites
 

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7429,
-    "bytes": 73277367,
-    "lines": 1703154,
+    "bytes": 73280808,
+    "lines": 1703192,
     "directories": 266,
     "categories": 13
   },
@@ -32867,9 +32867,9 @@
       "path": "docs/recovery-action-ticket-bridge.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 15230,
+      "bytes": 15582,
       "lines": 98,
-      "sha256": "643256766a442c549b016917bd77e60dc27487fe31d546eb0b8de81fa1745229",
+      "sha256": "4fb5b08287415eb8328a902ba2ddb89f1e5c09a6bcdd9047ceea22c7d3311b61",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -41095,9 +41095,9 @@
       "path": "http-generic-api/governedMigrationSchemaReadbackTool.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 11475,
-      "lines": 186,
-      "sha256": "727769ac438f2492f289480fe5d0c93c0397acb8b1ff35eb85855b8d8a4021c0",
+      "bytes": 12808,
+      "lines": 203,
+      "sha256": "33a2864df82834c1f6765161f3a91b6c95fea330bbdcaeb08ce05ccad3877be9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67726,9 +67726,9 @@
       "path": "http-generic-api/test-governed-migration-schema-readback-tool.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 5607,
-      "lines": 56,
-      "sha256": "d0d5a0e30687a419b44f931703cdab74e40068eb9d85852f23726ffc213ae3b8",
+      "bytes": 7363,
+      "lines": 77,
+      "sha256": "900fa133e34f2ae4e1e1fc3a2940e09a874fe831a0f89e4885d5be6cd714373b",
       "mode": "644",
       "executable": false,
       "generated": false

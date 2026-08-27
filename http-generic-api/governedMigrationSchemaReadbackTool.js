@@ -162,10 +162,27 @@ export async function runGovernedMigrationSchemaReadback(input = {}, deps = {}) 
   const tableRows = allTables.length ? await queryRows(pool, `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (${placeholders(allTables)}) ORDER BY TABLE_NAME`, allTables) : [];
   const columnRows = allTables.length && allColumns.length ? await queryRows(pool, `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (${placeholders(allTables)}) AND COLUMN_NAME IN (${placeholders(allColumns)}) ORDER BY TABLE_NAME, ORDINAL_POSITION`, [...allTables, ...allColumns]) : [];
   const indexRows = allTables.length && allIndexes.length ? await queryRows(pool, `SELECT TABLE_NAME, INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX, NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (${placeholders(allTables)}) AND INDEX_NAME IN (${placeholders(allIndexes)}) ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, [...allTables, ...allIndexes]) : [];
-  const ledgerRows = await queryRows(pool, `SELECT run_id, migration_file, migration_checksum_sha256, mode, applied_at, statement_count, preflight_status, preflight_risk_count, secrets_included, capability_envelope_id FROM governed_migration_ledger WHERE migration_file = ? AND migration_checksum_sha256 = ? ORDER BY applied_at DESC LIMIT 1`, [expectations.migration, expectedChecksum]);
+  const ledgerRows = await queryRows(pool, `SELECT run_id, migration_file, migration_checksum_sha256, mode, applied_at, statement_count, preflight_status, preflight_risk_count, secrets_included, capability_envelope_id FROM governed_migration_ledger WHERE migration_file = ? ORDER BY applied_at DESC LIMIT 20`, [expectations.migration]);
+  const exactLedgerRows = ledgerRows.filter((row) => String(row?.migration_checksum_sha256 || "").toLowerCase() === expectedChecksum);
+  const divergentLedger = ledgerRows.find((row) => String(row?.migration_checksum_sha256 || "").toLowerCase() !== expectedChecksum);
+  if (ledgerRows.length > 0 && exactLedgerRows.length === 0) {
+    throw readbackError("migration_ledger_checksum_mismatch", "The durable migration ledger contains a row for this migration with a different checksum; Apply is denied before any SQL execution.", 409, {
+      migration: expectations.migration,
+      expected_checksum_sha256: expectedChecksum,
+      observed_checksum_sha256: String(divergentLedger?.migration_checksum_sha256 || "").toLowerCase() || null,
+    });
+  }
+  const exactLedger = exactLedgerRows.find((row) => Number(row?.statement_count || 0) === migrationFile.statementCount) || exactLedgerRows[0] || null;
+  if (exactLedger && Number(exactLedger.statement_count || 0) !== migrationFile.statementCount) {
+    throw readbackError("migration_ledger_statement_count_mismatch", "The durable migration ledger statement count does not match the repository artifact; Apply is denied before any SQL execution.", 409, {
+      migration: expectations.migration,
+      expected_statement_count: migrationFile.statementCount,
+      observed_statement_count: Number(exactLedger.statement_count || 0),
+    });
+  }
   const ruleRows = expectations.ruleConditions.length ? await queryRows(pool, `SELECT rule_key, source_type, condition_key, status, updated_at FROM operational_alert_rule_registry WHERE (${expectations.ruleConditions.map(() => "(rule_key = ? AND source_type = ? AND condition_key = ?)").join(" OR ")}) ORDER BY rule_key, source_type`, expectations.ruleConditions.flatMap((entry) => [entry.rule_key, entry.source_type, entry.condition_key])) : [];
   const missing = buildMissing({ tables: expectations.tables, columns: expectations.columns, indexes: expectations.indexes, ruleConditions: expectations.ruleConditions, tableRows, columnRows, indexRows, ruleRows });
-  const ledger = ledgerRows[0] || null;
+  const ledger = exactLedger;
   const readbackStatus = ledger && !missing.tables.length && !missing.columns.length && !missing.indexes.length && !missing.rule_conditions.length ? "pass" : "fail";
   return {
     ok: readbackStatus === "pass",
