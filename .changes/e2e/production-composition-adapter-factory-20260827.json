@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/production-composition-adapter-factory-20260827.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
       ".github/governance/verifier-registry.json",
       "docs/recovery-action-ticket-bridge.md",
@@ -19,6 +20,7 @@
       "docs/repository-evaluation.md",
       "docs/repository-evaluation-summary.json",
       "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/runtime-bootstrap-contract.json",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/recoveryComposition.js",
