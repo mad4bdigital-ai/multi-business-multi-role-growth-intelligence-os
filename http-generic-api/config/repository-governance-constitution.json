@@ -479,6 +479,7 @@
     ".github/workflows/repository-inventory-autofix-dispatch.yml",
     ".github/workflows/repository-inventory.yml",
     ".github/workflows/repository-evaluation.yml",
+    ".github/workflows/repository-tool-lifecycle-governance.yml",
     ".changes/e2e/governed-migration-runner-lifecycle-diagnostics-20260822.json",
     ".github/ops/lib/migration-readback-diagnostics.mjs",
     "docs/governance/platform-configuration-entry-registry.json",

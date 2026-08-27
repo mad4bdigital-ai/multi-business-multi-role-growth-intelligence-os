@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7436,
-    "bytes": 73350528,
-    "lines": 1704387,
+    "bytes": 73350662,
+    "lines": 1704389,
     "directories": 266,
     "categories": 13
   },
@@ -10334,9 +10334,9 @@
       "path": ".github/derived-state-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 22459,
-      "lines": 458,
-      "sha256": "0f4ae0fdf034f83b927446fde66ee4f18e4d29a819b1fdb580e6417e99dea65c",
+      "bytes": 22527,
+      "lines": 459,
+      "sha256": "c4791e35f789842a150c4e62cf0db5b08dc79e6654efba7e91fe49dc62520c9c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -38604,9 +38604,9 @@
       "path": "http-generic-api/config/repository-governance-constitution.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 22357,
-      "lines": 521,
-      "sha256": "97e34feb41badb281953b2b5d0b5e89c52cb5548773fffa1af4fc711d02410b4",
+      "bytes": 22423,
+      "lines": 522,
+      "sha256": "d0291f97819b36dc6fce07aaa0425558d3e6380fe5af1a2753fdf838f0a64ba2",
       "mode": "644",
       "executable": false,
       "generated": false

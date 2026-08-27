@@ -229,6 +229,7 @@
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
       ".github/workflows/repository-inventory.yml",
       ".github/workflows/repository-evaluation.yml",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
       ".github/workflows/hostinger-storage-cleanup-guard.yml",
       ".github/workflows/hostinger-storage-final-work-map-readback-guard.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
