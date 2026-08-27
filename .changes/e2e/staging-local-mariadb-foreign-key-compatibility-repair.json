@@ -15,6 +15,8 @@
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/scripts/migration-contract-governance.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "http-generic-api/migrations/000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
@@ -62,6 +64,13 @@
           ],
           "tests": [
             {
+              "id": "governed-generated-artifact-refresh-detail-batch-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            },
+            {
               "id": "foreign-key-compatibility-static-guard",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -88,6 +97,8 @@
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-contract-governance.mjs",
             "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
             "http-generic-api/migrations/000_zzzzzz_mariadb_foreign_key_compatibility_user_credentials.sql",
             "http-generic-api/migrations/20260720_zzzzzz_mariadb_foreign_key_compatibility_tenant_brand_links.sql",

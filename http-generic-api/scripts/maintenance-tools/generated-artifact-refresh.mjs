@@ -19,6 +19,7 @@ const REMOTE_MCP_WRITE_SCOPE_RECIPE = "remote_mcp_write_scope_refresh";
 const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
 const TRUSTED_WRITER_AUTHORITY_MODE = "trusted_generated_artifact_writer";
 const STAGING_MANIFEST_PATH = "autopilot-portable-staging/manifest.json";
+const OPENAPI_DETAIL_BATCH_OUTPUT = "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json";
 const WORK_MAP_MANIFEST_PATTERN = /^specs\/([0-9]{3}-[a-z0-9][a-z0-9-]*)\/work-map-integration\.json$/u;
 const EXPLICIT_RECIPES = new Set([
   FRONTEND_OPENAPI_RECIPE,
@@ -39,6 +40,7 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
   "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+  OPENAPI_DETAIL_BATCH_OUTPUT,
   STAGING_MANIFEST_PATH,
 ]);
 const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
@@ -411,6 +413,7 @@ function runFrontendOpenApiRefresh() {
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
+  run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();
 
@@ -421,13 +424,16 @@ function runFrontendOpenApiRefresh() {
     ["verify_frontend_dispatch", "node", ["test-frontend-surface-dispatch.mjs"]],
     ["verify_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:check"]],
     ["verify_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:check"]],
+    ["verify_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:check"], repoRoot],
     ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
     ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
     ["verify_staging_manifest_hash_contract", "node", ["test-staging-autopilot-closure.mjs"]],
   ];
-  for (const [step, command, commandArgs] of verificationCommands) run(step, command, commandArgs, { cwd: apiDir });
+  for (const [step, command, commandArgs, workingDirectory = apiDir] of verificationCommands) {
+    run(step, command, commandArgs, { cwd: workingDirectory });
+  }
 }
 
 function runWorkMapSelfHostingBootstrap() {
