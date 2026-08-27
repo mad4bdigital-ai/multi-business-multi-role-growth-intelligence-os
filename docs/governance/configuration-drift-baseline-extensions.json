@@ -288,6 +288,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/recoveryKernel.js|approvalReservationContext|literal_declaration|approvalreservationcontext",
+      "owner": "recovery-governance",
+      "reason": "The Recovery Kernel approvalReservationContext is an internal, sanitized reservation record used to bind one approval claim to one server-issued execution ticket and idempotency key; it contains no credential value and cannot authorize runtime, database, provider, protected-ref, or Production mutation by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
