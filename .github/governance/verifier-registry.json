@@ -25,7 +25,9 @@
     {"id":"configuration_drift_currentness","steps":[{"type":"node","cwd":"http-generic-api","path":"scripts/test-configuration-drift-guard.mjs","args":[]}]},
     {"id":"generated_contract_currentness","steps":[{"type":"node","cwd":"http-generic-api","path":"test-resource-surface-openapi-automation.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-staging-autopilot-closure.mjs","args":[]}]},
     {"id":"test_authority_currentness","steps":[{"type":"node","cwd":".","path":".github/tests/repository-governance-closure.test.mjs","args":[]}]},
-    {"id":"migration_execution_safety","steps":[{"type":"node","cwd":"http-generic-api","path":"test-migration-execution-safety.mjs","args":[]}]}
+    {"id":"migration_execution_safety","steps":[{"type":"node","cwd":"http-generic-api","path":"test-migration-execution-safety.mjs","args":[]}]},
+    {"id":"exact_durable_run_reference","steps":[{"type":"node","cwd":"http-generic-api","path":"test-recovery-execution-binding.mjs","args":[]}]},
+    {"id":"production_live_fail_closed","steps":[{"type":"node","cwd":"http-generic-api","path":"test-recovery-composition.mjs","args":[]}]}
   ],
   "safety": {
     "read_only_expected": true,
