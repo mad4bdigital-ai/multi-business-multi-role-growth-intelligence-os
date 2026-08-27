@@ -1,0 +1,118 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-one-click-schema-governance-preflight",
+  "title": "Portable Staging one-click schema and governance preflight",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-one-click-schema-governance-preflight.json",
+      "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
+      "autopilot-portable-staging/README.md",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup while keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
+      "e2e_journeys": [
+        {
+          "id": "safe-local-one-click-preflight-before-compose",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging operator",
+          "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+          "terminal_outcome": "The launcher stops before local startup unless the exact detached main checkout passes all static schema/governance checks; a successful gate records redacted evidence and leaves schema apply, tunnel, Auto Deploy, Production, provider, and credential actions disabled.",
+          "steps": [
+            "Request elevation and invoke Bootstrap-Staging-One-Click.ps1 with the safe local defaults -NoTunnel and -NoAutoDeploy.",
+            "Fetch and check out the exact origin/main commit in detached mode, then verify exact SHA, origin identity, and clean working tree.",
+            "Run Staging-Schema-Governance-Preflight.ps1 with the exact checked-out SHA.",
+            "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings.",
+            "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
+            "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths."
+          ],
+          "assertions": [
+            "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
+            "The preflight invokes the schema builder only with --plan and never with --confirm.",
+            "A missing Node 22 runtime, dirty tree, SHA mismatch, remote Docker override, schema finding, governance blocker, or non-converged environment declaration fails closed before One-Click or Compose startup.",
+            "The preflight writes only redacted non-secret evidence under the ignored logs directory.",
+            "The preflight safety evidence keeps schema_bundle_applied, database_mutation, migration_apply, production_access, provider_access, data_export, credential_access, tunnel_started, and auto_deploy_installed false.",
+            "The gate does not import a schema bundle, call Cloudflare or Hostinger, access Production credentials, install a scheduled watcher, or enable production_live authority.",
+            "The portable manifest writer includes and hashes the preflight helper through its registered writer rather than a manual generated-file edit.",
+            "No immutable schema.sql or published historical migration is changed."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure-validator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "portable-manifest-writer-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-one-click-schema-governance-preflight.json",
+            "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+            "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
+            "autopilot-portable-staging/README.md",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority."
+    }
+  ]
+}
