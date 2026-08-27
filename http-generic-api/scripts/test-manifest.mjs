@@ -25,6 +25,8 @@ const upstreamCommands = [
   "node test-recovery-kernel.mjs",
   "node test-recovery-kernel-routes.mjs",
   "node test-recovery-composition.mjs",
+  "node test-production-recovery-composition-factory.mjs",
+  "node test-server-managed-recovery-binding.mjs",
   "node test-recovery-action-bridge.mjs",
   "node test-recovery-action-bridge-system-layer.mjs",
   "node test-fixed-host-local-system-tool.mjs",

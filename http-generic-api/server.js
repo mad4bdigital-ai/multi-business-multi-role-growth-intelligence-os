@@ -322,6 +322,10 @@ import { runBootstrap } from "./runtimeBootstrapContract.js";
 import { createProductionRecoveryComposition } from "./productionRecoveryCompositionFactory.js";
 import { getRecoveryCompositionRouteDependencies } from "./recoveryComposition.js";
 import {
+  createServerManagedRecoveryBindingProvider,
+  getServerManagedRecoveryBindingMode,
+} from "./serverManagedRecoveryBindingProvider.js";
+import {
   toJobSummary,
   inferLocalDispatchHttpStatus,
   createSiteMigrationJobRecord,
@@ -3167,7 +3171,13 @@ const executionFacade = createExecutionFacade({
   ACTIVE_JOB_STATUSES
 });
 
+const recoveryBindingMode = getServerManagedRecoveryBindingMode(process.env);
+const recoveryBindingProvider = recoveryBindingMode === "injected_non_live"
+  ? createServerManagedRecoveryBindingProvider({ env: process.env })
+  : null;
 const recoveryComposition = createProductionRecoveryComposition({
+  mode: recoveryBindingMode,
+  serverManagedBindingProvider: recoveryBindingProvider,
   source: "server_composition_root",
 });
 const recoveryCompositionDependencies = getRecoveryCompositionRouteDependencies(recoveryComposition);
