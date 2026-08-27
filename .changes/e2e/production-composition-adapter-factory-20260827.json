@@ -1,0 +1,140 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-composition-adapter-factory-20260827",
+  "title": "Server-managed Recovery composition adapter factory boundary",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-composition-adapter-factory-20260827.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/governance/verifier-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/recovery-action-ticket-bridge.md",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-evaluation-summary.json",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/server.js",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "http-generic-api/test-recovery-composition.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Wire the server composition root through an explicit server-managed Recovery adapter factory while preserving the existing fail-closed default, rejecting caller/GPT/Local Connector binding sources, and keeping production_live disabled until a separately certified release.",
+      "e2e_journeys": [
+        {
+          "id": "server-managed-factory-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Recovery server composition root",
+          "entrypoint": "createProductionRecoveryComposition",
+          "terminal_outcome": "The default server composition is disabled and provider-free; an explicit production_live request is rejected; only a secret-free server-managed envelope can construct the non-live injected graph; caller, GPT, Local Connector, and secret-bearing sources are rejected.",
+          "steps": [
+            "Create the default composition through the server-managed factory without any binding provider.",
+            "Assert fail-closed mode, no provider access, no database connection, no mutation authority, and no secrets in evidence.",
+            "Attempt production_live and assert RECOVERY_PRODUCTION_LIVE_DISABLED.",
+            "Supply synthetic server-managed non-live adapters and assert role-independent route dependency wiring without live activation.",
+            "Supply caller-sourced or secret-bearing envelopes and assert fail-closed rejection before adapter validation."
+          ],
+          "assertions": [
+            "server-managed factory is wired at server composition root",
+            "default mode remains fail_closed",
+            "production_live remains disabled",
+            "no caller, GPT, or Local Connector credentials are accepted",
+            "provider_accessed=false and database_mutation_performed=false",
+            "runtime, governance, and runtime_persistence role separation remains intact",
+            "secrets_included=false"
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-composition-factory-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-composition-factory.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-composition-fail-closed-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-composition.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-composition-adapter-factory-20260827.json",
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/recoveryComposition.js",
+            "http-generic-api/server.js",
+            "http-generic-api/test-production-recovery-composition-factory.mjs",
+            "http-generic-api/test-recovery-composition.mjs",
+            "http-generic-api/config/recovery-kernel-manifest.json",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "docs/recovery-action-ticket-bridge.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Perform independent staging and Production authority certification, including durable server-managed bindings, deployment attestation, provider identity, readback authority, and operational rollback/reconciliation review without accepting credentials from GPT or callers."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Do not enable production_live or configure live provider authority from this repository-only change.",
+      "blockers": [
+        "independent_production_authority_certification",
+        "server_managed_secret_binding_review",
+        "deployment_attestation_parity",
+        "durable_store_and_readback_certification",
+        "explicit_production_activation_approval"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "ssh_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "live_provider_authority_configured": false,
+    "secrets_included": false
+  }
+}

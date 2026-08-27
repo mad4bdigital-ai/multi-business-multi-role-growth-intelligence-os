@@ -332,6 +332,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/productionRecoveryCompositionFactory.js|configuredComponents|literal_declaration|configuredcomponents",
+      "owner": "repository-governance",
+      "reason": "The Recovery composition factory's configuredComponents readiness label is a non-secret, read-only authority report field. It does not discover providers, contain credentials, or grant runtime, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
