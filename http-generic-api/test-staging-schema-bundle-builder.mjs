@@ -55,6 +55,30 @@ test("schema dump uses the authenticated disposable MariaDB connection", () => {
   assert.doesNotMatch(generator, /\[containerName, \"mariadb-dump\", \"--no-data\", \"--skip-triggers\"/);
 });
 
+test("schema dump mutation guard classifies top-level mutations without rejecting schema clauses", () => {
+  assert.match(generator, /function stripLeadingSqlComments\(value\)/);
+  assert.match(generator, /function findDataMutationStatements\(sql\)/);
+  assert.match(generator, /const mutationStatements = findDataMutationStatements\(result\.stdout\)/);
+  assert.doesNotMatch(generator, /if \(\/\\b\(\?:INSERT\|REPLACE\|UPDATE\|DELETE\|LOAD\\s\+DATA\)\\b\/iu\.test\(result\.stdout\)\)/);
+
+  const schemaOnlyDump = [
+    "/* mariadb-dump header; semicolon-safe */",
+    "CREATE TABLE `events` (`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);",
+    "/*!40101 SET @saved_cs_client = @@character_set_client */;",
+  ].join("\\n");
+  const mutationDump = `${schemaOnlyDump}\nINSERT INTO \`events\` (\`id\`) VALUES (1);`;
+  const classify = (sql) => splitStatements(sql)
+    .map((source, index) => ({ index: index + 1, source: source.trim() }))
+    .filter(({ source }) => {
+      const upper = source.toUpperCase();
+      return ["INSERT ", "REPLACE ", "UPDATE ", "DELETE ", "LOAD DATA "].some((prefix) => upper.startsWith(prefix));
+    });
+
+  assert.deepEqual(classify(schemaOnlyDump), []);
+  assert.equal(classify(mutationDump).length, 1);
+  assert.match(classify(mutationDump)[0].source, /^INSERT INTO/iu);
+});
+
 test("SQL splitter preserves semicolons inside quoted literals and strips comments safely", () => {
   const sql = `-- Values are provisioned separately; this schema contains no secret payloads.\nCREATE TABLE IF NOT EXISTS \`tenant_secrets\` (\`id\` BIGINT UNSIGNED NOT NULL);\nINSERT INTO \`tenant_secrets\` (\`metadata_json\`) VALUES (JSON_OBJECT('note', 'a;b'));\n/* block comment; remains data-safe */\nUPDATE \`tenant_secrets\` SET \`metadata_json\` = '{"value":"x;y"}' WHERE \`id\` = 1;`;
   assert.deepEqual(splitStatements(sql), [

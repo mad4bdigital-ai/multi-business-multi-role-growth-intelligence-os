@@ -959,13 +959,32 @@ function roleTableSets(manifest, tables) {
   return sets;
 }
 
+function stripLeadingSqlComments(value) {
+  let current = String(value ?? "").trim();
+  while (true) {
+    const next = current.replace(/^(?:\s*(?:--[^\r\n]*(?:\r?\n|$)|#[^\r\n]*(?:\r?\n|$)|\/\*[\s\S]*?\*\/))*\s*/u, "").trim();
+    if (next === current) return current;
+    current = next;
+  }
+}
+
+function findDataMutationStatements(sql) {
+  return splitStatements(sql)
+    .map((source, index) => ({ index: index + 1, source: stripLeadingSqlComments(source) }))
+    .filter(({ source }) => /^(?:INSERT|REPLACE|UPDATE|DELETE(?:\s+FROM)?|LOAD\s+DATA)\b/iu.test(source));
+}
+
 function makeDump(role, tables, manifest) {
   const roleConfig = manifest.roles[role];
   if (!tables.length) fail(`${role} role has no tables after migration chain`);
   const names = tables.map((table) => table.name);
   const result = dockerExec([containerName, "mariadb-dump", ...dbConnectionArgs(["--no-data", "--skip-triggers", "--skip-add-locks", "--skip-lock-tables"]), buildDatabase, ...names]);
   const dump = Buffer.from(result.stdout, "utf8");
-  if (/\b(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/iu.test(result.stdout)) fail(`${role} schema dump contains data mutation statements`);
+  const mutationStatements = findDataMutationStatements(result.stdout);
+  if (mutationStatements.length) {
+    const sample = mutationStatements.slice(0, 4).map(({ index, source }) => `#${index} ${source.slice(0, 180)}`).join(" | ");
+    fail(`${role} schema dump contains data mutation statements: ${sample}`);
+  }
   if (!dump.length) fail(`${role} schema dump is empty`);
   const gz = zlib.gzipSync(dump, { level: 9 });
   const output = path.join(outputDir, roleConfig.bundle_file);
