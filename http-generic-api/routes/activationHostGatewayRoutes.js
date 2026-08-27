@@ -22,7 +22,9 @@ const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map(IS_STAGING_RUNTIME ? [
   ["/openapi.tenant-gpt.activation.staging.yaml", "openapi.tenant-gpt.activation.staging.yaml"],
   ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.staging.yaml"],
   ["/openapi.custom-gpt.activation-admin.staging.yaml", "openapi.custom-gpt.activation-admin.staging.yaml"],
+  ["/openapi.custom-gpt.recovery-admin.staging.yaml", "openapi.custom-gpt.recovery-admin.staging.yaml"],
   ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.staging.yaml"],
+  ["/admin-gpt/recovery-openapi", "openapi.custom-gpt.recovery-admin.staging.yaml"],
 ] : [
   ["/openapi.tenant-gpt.activation.yaml", "openapi.tenant-gpt.activation.yaml"],
   ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.yaml"],
@@ -43,6 +45,7 @@ const ALLOWED_EXACT_PATHS = new Set([
 const ALLOWED_PREFIXES = [
   "/activation/",
   "/tenant/activation/",
+  ...(IS_STAGING_RUNTIME ? ["/admin/recovery/staging/"] : []),
 ];
 
 const ALLOWED_TENANT_RESOLUTION_ROUTES = [

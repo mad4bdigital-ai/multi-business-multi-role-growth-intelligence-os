@@ -1,6 +1,7 @@
 import { getGovernanceDbPrivilegeReadinessSnapshot } from "./governanceDbPrivilegeReadinessRuntime.js";
 import { readMcpCatalogSchemaReadinessSafe } from "./mcpCatalogSchemaGuard.js";
 import { runRuntimePersistenceOperationalReadiness } from "./scripts/runtime-persistence-operational-readiness.mjs";
+import { buildProductionAuthorityActivationReadiness } from "./recoveryActivationReadiness.js";
 
 export const PRODUCTION_ACTIVATION_READINESS_CONTRACT =
   "mad4b.production-activation-readiness.v1";
@@ -74,6 +75,14 @@ export async function runProductionActivationReadiness({
   mcpCatalogReader = readMcpCatalogSchemaReadinessSafe,
   governanceDbReader = getGovernanceDbPrivilegeReadinessSnapshot,
   runtimePersistenceReader = runRuntimePersistenceOperationalReadiness,
+  recoveryComposition = null,
+  stagingCertification = null,
+  deploymentAttestation = null,
+  candidateSha = null,
+  unresolvedRecoveryIncidents = [],
+  adapterProvenance = null,
+  productionLiveRequested = false,
+  productionLiveEnabled = false,
 } = {}) {
   const [mcpCatalogSchema, governanceDbPrivilege, runtimePersistence] = await Promise.all([
     readDimension("mcp_catalog_schema", mcpCatalogReader),
@@ -100,6 +109,16 @@ export async function runProductionActivationReadiness({
     mutation_attestation_complete: mutationAttestationComplete,
   };
   const ready = Object.values(checks).every(Boolean);
+  const productionAuthorityReadiness = buildProductionAuthorityActivationReadiness({
+    productionLiveRequested,
+    productionLiveEnabled,
+    composition: recoveryComposition,
+    stagingCertification,
+    deploymentAttestation,
+    candidateSha,
+    unresolvedRecoveryIncidents,
+    adapterProvenance,
+  });
 
   const aggregateBoolean = (field) => dimensionEntries.some(([, result]) => result[field] === true);
 
@@ -118,12 +137,17 @@ export async function runProductionActivationReadiness({
         .map(([name]) => name),
     },
     hard_activation_blocked_until_ready: !ready,
+    production_authority_readiness: productionAuthorityReadiness,
+    production_live: productionAuthorityReadiness.production_live,
+    activation_eligible: productionAuthorityReadiness.activation_eligible,
     read_only_probe: mutationAttestationComplete,
     database_connection_performed: aggregateBoolean("database_connection_performed"),
     sql_readback_performed: aggregateBoolean("sql_readback_performed"),
     sql_mutation_performed: aggregateBoolean("sql_mutation_performed"),
+    database_mutation_performed: false,
     migration_apply_performed: aggregateBoolean("migration_apply_performed"),
     provider_mutation_performed: aggregateBoolean("provider_mutation_performed"),
+    production_mutation_performed: false,
     deployment_performed: aggregateBoolean("deployment_performed"),
     secrets_included: aggregateBoolean("secrets_included"),
   };

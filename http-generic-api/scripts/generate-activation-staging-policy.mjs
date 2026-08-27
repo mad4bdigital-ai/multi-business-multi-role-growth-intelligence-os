@@ -23,13 +23,52 @@ function payload(policy) {
   const { content_hash_sha256: _ignored, signature_algorithm: _algorithm, deployment_signature_required: _required, secrets_included: _secrets, ...rest } = policy;
   return rest;
 }
+const STAGING_RECOVERY_ROUTES = Object.freeze([
+  {
+    allowed_query_parameters: [],
+    auth_profiles: ["admin_service"],
+    method: "GET",
+    mutation: false,
+    operation_ids: ["getStagingRecoveryAdminContract"],
+    path: "/admin/recovery/staging/contract",
+    surfaces: ["admin_recovery_staging"],
+  },
+  {
+    allowed_query_parameters: [],
+    auth_profiles: ["admin_service"],
+    method: "GET",
+    mutation: false,
+    operation_ids: ["getStagingRecoveryAdminReadiness"],
+    path: "/admin/recovery/staging/readiness",
+    surfaces: ["admin_recovery_staging"],
+  },
+  {
+    allowed_query_parameters: [],
+    auth_profiles: ["admin_service"],
+    method: "GET",
+    mutation: false,
+    operation_ids: ["getStagingRecoveryCertificationStatus"],
+    path: "/admin/recovery/staging/certification",
+    surfaces: ["admin_recovery_staging"],
+  },
+]);
+
 function build() {
   const production = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+  const limits = {
+    request_body_limit_bytes: Number(production.request_body_limit_bytes),
+    response_body_limit_bytes: Number(production.response_body_limit_bytes),
+    timeout_ms: Number(production.timeout_ms),
+  };
   const staging = {
     ...production,
     policy_key: "activation_gateway_staging",
     public_host: "activation-dev.mad4b.com",
     upstream_origin: "https://dev.mad4b.com",
+    routes: [
+      ...(production.routes || []),
+      ...STAGING_RECOVERY_ROUTES.map((route) => ({ ...limits, ...route })),
+    ],
     deployment_signature_required: true,
     secrets_included: false,
   };

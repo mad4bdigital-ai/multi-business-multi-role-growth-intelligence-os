@@ -985,6 +985,21 @@ surfaces:
     selector:
       source_markers:
         - admin_recovery_production
+  admin_recovery_staging:
+    mode: canonical_copy
+    private_only: true
+    environment: staging
+    domain_service: activation
+    canonical_file: http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml
+    output_file: openapi/openapi.custom-gpt.recovery-admin.staging.yaml
+    server_url: https://activation-dev.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 3
+    warning_operation_limit: 3
+    info:
+      title: Growth Intelligence Platform - Staging Recovery Admin
+      summary: Private Staging-only Recovery readiness and certification-status surface.
+      description: This canonical Staging surface exposes only bounded GET operations. Consequential certification execution remains a separately authorized workflow and Production authority is forbidden.
   admin_core_production:
     mode: generated_from_openapi
     base_surface: admin_core

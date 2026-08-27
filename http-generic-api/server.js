@@ -320,6 +320,7 @@ import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js"
 import { getRuntimeBootstrapStatus } from "./runtimeBootstrapStatus.js";
 import { runBootstrap } from "./runtimeBootstrapContract.js";
 import { createProductionRecoveryComposition } from "./productionRecoveryCompositionFactory.js";
+import { runProductionActivationReadiness } from "./productionActivationReadiness.js";
 import { getRecoveryCompositionRouteDependencies } from "./recoveryComposition.js";
 import {
   createServerManagedRecoveryBindingProvider,
@@ -3185,6 +3186,11 @@ const runtimeBootstrapReader = (options = {}) => runBootstrap({
   ...options,
   ...recoveryComposition.runtimeBootstrapDependencies,
 });
+const productionActivationReadinessReader = () => runProductionActivationReadiness({
+  recoveryComposition,
+  productionLiveRequested: false,
+  productionLiveEnabled: false,
+});
 registerRoutes(app, {
   ...recoveryCompositionDependencies,
   // --- health ---
@@ -3198,6 +3204,7 @@ registerRoutes(app, {
   testDbConnection: testConnection,
   runtimePersistencePoolFactory: getRuntimePersistencePool,
   runtimeBootstrapReader,
+  productionActivationReadinessReader,
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,
   // --- mcp ---

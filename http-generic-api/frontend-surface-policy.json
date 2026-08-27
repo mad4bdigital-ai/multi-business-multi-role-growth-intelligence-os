@@ -194,6 +194,22 @@
       ]
     },
     {
+      "rule_id": "staging-recovery-admin-private-surface",
+      "family_key": "staging-recovery-admin",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "scope": "admin",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "The Staging Recovery Admin surface is a private API-only contract for activation-dev readiness and certification status. It is not a browser navigation surface, advertises GET-only operations, forbids Production authority, and keeps consequential certification in a separate workflow.",
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+        "test-staging-recovery-admin-surface.mjs",
+        "test-staging-recovery-route-policy.mjs",
+        "docs/governance/recovery-server-managed-authority-binding.md"
+      ]
+    },
+    {
       "rule_id": "recovery-kernel-private-admin-surface",
       "family_key": "recovery-kernel",
       "source_file": "routes/recoveryKernelRoutes.js",

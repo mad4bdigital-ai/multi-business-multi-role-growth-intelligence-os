@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "d10a2421dba9dad26a62cb239caebeeef5da815d438dfe5a345e2d9811aeff40",
+  "inputFingerprint": "e968051784119233efb3d11bf019fc278100ab4c257122eb99df3832aaaf0fa8",
   "inventory": {
-    "files": 7449,
-    "bytes": 73450423,
+    "files": 7456,
+    "bytes": 73538570,
     "directories": 266,
     "categories": 13
   },
@@ -25,7 +25,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 7412,
+      "trackedTextFilesScanned": 7419,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-sequential-test-progress-report.mjs",
@@ -202,13 +202,13 @@
           },
           {
             "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-            "bytes": 3545802
+            "bytes": 3557514
           }
         ],
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1966012
+            "bytes": 1967065
           },
           {
             "path": "docs/staging-write-route-partition-2026-08-14.json",

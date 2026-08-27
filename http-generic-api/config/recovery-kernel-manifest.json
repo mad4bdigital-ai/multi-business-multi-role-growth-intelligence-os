@@ -20,7 +20,18 @@
       "production_admin_path_available": false,
       "local_connector_status": "deferred",
       "local_connector_required": false,
-      "scope": "optional_diagnostic_only"
+      "scope": "optional_diagnostic_only",
+      "recovery_admin_surface": {
+        "contract": "mad4b.staging-recovery-admin-surface.v1",
+        "schema": "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+        "server_uri": "https://activation-dev.mad4b.com",
+        "route_prefix": "/admin/recovery/staging/",
+        "readiness_only": true,
+        "consequential_certification_workflow_separate": true,
+        "production_authority_allowed": false,
+        "mutation_advertised": false,
+        "secrets_included": false
+      }
     },
     "deferred_scope": ["local_connector"],
     "secrets_included": false
@@ -109,6 +120,9 @@
     "server_managed_live_ready": false,
     "live_provider_authority_configured": false,
     "live_authority_readiness_contract": "mad4b.recovery-live-authority-readiness.v1",
+    "staging_certification_contract": "mad4b.recovery-staging-certification.v1",
+    "production_authority_readiness_contract": "mad4b.recovery-production-authority-readiness.v1",
+    "staging_recovery_admin_surface_contract": "mad4b.staging-recovery-admin-surface.v1",
     "required_live_authority_components": ["recoveryStore", "executionTicketSigner", "approvalVerifier", "recoveryLock", "readbackVerifier", "hostLocalMutationExecutor", "deploymentIdentityProvider"],
     "live_activation_requires_separate_release": true,
     "secrets_included": false
@@ -128,6 +142,20 @@
       "mutation_class": "C0",
       "target_roles": [],
       "authority_ref": "repository_static_contract"
+    },
+    "staging_recovery_admin_contract": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": [],
+      "authority_ref": "activation_dev_staging_recovery_openapi_contract"
+    },
+    "staging_recovery_readiness": {
+      "level": "R0",
+      "mutation_class": "C0",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "staging_authority_graph_exact_sha_certification_evidence",
+      "production_authority_allowed": false,
+      "mutation_allowed": false
     },
     "recovery_manifest_get": {
       "level": "R0",

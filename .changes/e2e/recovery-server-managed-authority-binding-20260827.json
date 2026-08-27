@@ -2,12 +2,15 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "recovery-server-managed-authority-binding-20260827",
-  "title": "Repository-only server-managed Recovery authority binding and non-live readiness",
+  "title": "Repository-only Recovery authority binding plus isolated Staging Recovery Admin readiness surface",
   "delivery_mode": "single_pr",
   "secrets_included": false,
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "edge/activation-gateway/generated/route-policy.json",
+      "edge/activation-gateway/generated/route-policy.staging.json",
       ".changes/e2e/recovery-server-managed-authority-binding-20260827.json",
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
@@ -22,10 +25,29 @@
       "docs/repository-inventory-summary.json",
       "docs/repository-inventory.json",
       "docs/repository-inventory.md",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+      "http-generic-api/package.json",
+      "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/recoveryActivationReadiness.js",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
+      "http-generic-api/test-recovery-activation-readiness.mjs",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-staging-recovery-route-policy.mjs",
       "http-generic-api/config/runtime-bootstrap-contract.json",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/scripts/frontend-surface-dispatch.mjs",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/recoveryComposition.js",
       "http-generic-api/server.js",
@@ -60,7 +82,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a server-owned, injectable concrete Recovery authority binding and server-derived deployment identity wrapper with explicit non-live readiness capabilities, while preserving fail-closed defaults and hard-denying production_live.",
+      "objective": "Provide a server-owned, injectable concrete Recovery authority binding and server-derived deployment identity wrapper, plus an isolated Staging Recovery Admin contract on activation-dev for readiness and certification status, while preserving fail-closed defaults and hard-denying production_live.",
       "e2e_journeys": [
         {
           "id": "server-managed-authority-binding-non-live-readiness",
@@ -96,6 +118,27 @@
               "args": []
             },
             {
+              "id": "staging-recovery-admin-surface-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-route-policy-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-route-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-activation-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-activation-readiness.mjs",
+              "args": []
+            },
+            {
               "id": "recovery-composition-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -127,6 +170,12 @@
           "evidence_paths": [
             ".changes/e2e/recovery-server-managed-authority-binding-20260827.json",
             "http-generic-api/serverManagedRecoveryBindingProvider.js",
+            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-staging-recovery-route-policy.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json",
             ".github/governance/verifier-registry.json",
             "autopilot-portable-staging/manifest.json",
             "docs/remote-mcp-write-scope-inventory.md",

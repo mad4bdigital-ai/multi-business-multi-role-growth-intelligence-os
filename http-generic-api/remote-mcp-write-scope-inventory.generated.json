@@ -8,8 +8,8 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7455,
-  "route_count": 1094,
+  "file_count": 7462,
+  "route_count": 1097,
   "write_route_count": 664,
   "classified_write_surface_count": 42,
   "classified_write_route_count": 664,
@@ -7947,6 +7947,33 @@
       "method": "GET",
       "path": "/admin/sql/endpoint-registry/resolve-action",
       "file": "http-generic-api/routes/sqlEndpointRegistryRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
+      "source_line": 187,
+      "source_offset": 6712,
+      "method": "GET",
+      "path": "/admin/recovery/staging/contract",
+      "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
+      "source_line": 191,
+      "source_offset": 6876,
+      "method": "GET",
+      "path": "/admin/recovery/staging/readiness",
+      "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
+      "source_line": 204,
+      "source_offset": 7441,
+      "method": "GET",
+      "path": "/admin/recovery/staging/certification",
+      "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "write": false
     },
     {
