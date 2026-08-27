@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7441,
-    "bytes": 73382011,
-    "lines": 1704994,
+    "bytes": 73382924,
+    "lines": 1705008,
     "directories": 266,
     "categories": 13
   },
@@ -7709,9 +7709,9 @@
       "path": ".changes/e2e/production-composition-adapter-factory-20260827.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 6332,
-      "lines": 138,
-      "sha256": "41801f0f8a6aadf66b77cc43078b583b581b52ec896d54377ca4391b836085aa",
+      "bytes": 6526,
+      "lines": 141,
+      "sha256": "963d87747f5bbad985f8730b831d79af996cf509fa958418adf1a9d281993ef4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31447,9 +31447,9 @@
       "path": "docs/governance/configuration-drift-baseline-extensions.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 21257,
-      "lines": 344,
-      "sha256": "749e30f11a725a314b31d3ccb18775ceaaee24175abd24463a7a9a1b966c70b2",
+      "bytes": 21976,
+      "lines": 355,
+      "sha256": "5df821326ca2abbd579ab5608cedbc00b36e418a2128de088582219f59a1ad73",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -33000,7 +33000,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "a085b5666d86522c0d5161d1d3ef6f240680ba5b3fb911900ac3f4d20521e919",
+      "sha256": "fc4987d2d8567d0d4aea352da7598ab66dd242f8681d91633a6b939df12fe194",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53834,7 +53834,7 @@
       "extension": ".json",
       "bytes": 1966012,
       "lines": 59454,
-      "sha256": "6b9c2a8615b872696b7acccd4b0141e36acb04488bad7dd8557c93bdc4ba10dc",
+      "sha256": "0837b77fbf98bf3c2454b43f72620c331664844fcce0537e6d1ee916fc39671c",
       "mode": "644",
       "executable": false,
       "generated": false

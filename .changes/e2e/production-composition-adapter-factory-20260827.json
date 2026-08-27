@@ -12,6 +12,8 @@
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
       ".github/governance/verifier-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/remote-mcp-write-scope-inventory.md",
       "docs/recovery-action-ticket-bridge.md",
       "docs/repository-inventory.json",
       "docs/repository-inventory.md",
@@ -24,6 +26,7 @@
       "http-generic-api/config/runtime-bootstrap-contract.json",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/recoveryComposition.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/server.js",
       "http-generic-api/test-production-recovery-composition-factory.mjs",
       "http-generic-api/test-recovery-composition.mjs"
