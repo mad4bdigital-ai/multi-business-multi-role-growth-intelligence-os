@@ -1,0 +1,135 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-authority-composition-20260827",
+  "title": "Governed Recovery approval authority composition and challenge entrypoint",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/recovery-authority-composition-20260827.json",
+      "autopilot-portable-staging/manifest.json",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "docs/recovery-action-ticket-bridge.md",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/repository-evaluation-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "edge/activation-gateway/generated/route-policy.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+      "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a private Recovery approval-challenge contract while requiring an explicit injected authority graph before any approval or execution ticket can be used.",
+      "e2e_journeys": [
+        {
+          "id": "recovery-authority-composition-challenge-preflight",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Verified admin principal through the private Recovery surface",
+          "entrypoint": "POST /admin/recovery/kernel/approval-challenge or the fixed recovery_kernel_create_approval_challenge System Tool",
+          "terminal_outcome": "A complete injected authority graph permits a bounded challenge receipt without exposing the approval token; an incomplete graph returns a sanitized 503 before provider or database access.",
+          "steps": [
+            "Validate the verified admin principal and the exact plan/plan-hash/step reference contract.",
+            "Resolve the explicit durable Recovery and approval authorities from composition rather than discovering providers or credentials.",
+            "Run authority preflight and fail closed when the durable store or approval issuer is absent or incomplete.",
+            "Persist and return only a bounded challenge receipt; never return approval tokens, execution tickets, signatures, credentials, SQL, or provider details.",
+            "Verify that the Recovery operation remains private Production-only and is absent from shared Admin Core and Activation Admin projections."
+          ],
+          "assertions": [
+            "The approval challenge is admin-only, principal-scoped, and hidden from tenant/non-admin System Tool discovery.",
+            "The challenge input contains no caller-generated ticket, signature, credential, migration, grant, provider, or arbitrary target fields.",
+            "The default and incomplete compositions return sanitized 503 fail-closed results before database/provider invocation.",
+            "The generated Recovery production surface contains the operation while Auth Dispatcher and Activation Admin counts remain unchanged.",
+            "The repository contains no live credentials and the journey performs no Production activation, migration apply, grant apply, provider call, SSH/SQL action, or database mutation."
+          ],
+          "tests": [
+            {
+              "id": "recovery-kernel-route-approval-challenge",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-system-tool-approval-challenge",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-action-bridge-system-layer.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-composition-authority-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-custom-gpt-surface-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-custom-gpt-schemas.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/recoveryComposition.js",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/routes/recoveryKernelRoutes.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+            "canonicals/openapi/custom-gpt-surfaces.yaml",
+            "docs/recovery-action-ticket-bridge.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
