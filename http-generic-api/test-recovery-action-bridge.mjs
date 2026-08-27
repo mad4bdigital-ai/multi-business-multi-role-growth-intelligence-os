@@ -147,6 +147,27 @@ const ENV = {
   }),
 };
 
+const BRIDGE_TARGET_FINGERPRINT = deriveRoleTargetFingerprints({ env: ENV }).governance;
+const DEPLOYMENT_IDENTITY_PROVIDER = {
+  readAttestation: async () => ({
+    contract: "mad4b.recovery-runtime-attestation.v1",
+    deployment_identity_contract: "mad4b.recovery-deployment-identity-attestation.v1",
+    repository: ENV.GITHUB_REPOSITORY,
+    branch: "Production",
+    repository_sha: SHA,
+    deployment_sha: SHA,
+    recovery_manifest_hash: "e".repeat(64),
+    manifest_bound: true,
+    read_only_probe: true,
+    attestation_hash: "f".repeat(64),
+    target_fingerprint: BRIDGE_TARGET_FINGERPRINT,
+    target_fingerprints: { composite: BRIDGE_TARGET_FINGERPRINT, governance: BRIDGE_TARGET_FINGERPRINT },
+    database_connection_performed: false,
+    database_mutation_performed: false,
+    provider_mutation_performed: false,
+    secrets_included: false,
+  }),
+};
 const SIGNER = { sign: async ({ ticket_hash }) => `sig:${ticket_hash}` };
 const LOCK = {
   acquire: async () => ({ acquired: true, lease_id: "lease:bridge-001", fencing_token: "fence:bridge-001", expires_at: new Date(Date.now() + 600000).toISOString() }),
@@ -161,6 +182,7 @@ function authorities(store, executor) {
   return {
     env: ENV,
     adminPrincipal: { verified: true },
+    deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,
     recoveryStore: store,
     executionTicketSigner: SIGNER,
     approvalVerifier: APPROVAL_VERIFIER,

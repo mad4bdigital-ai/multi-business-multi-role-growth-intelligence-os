@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { validateRoleBundleBinding } from "./recoveryExecutionBinding.js";
 
 export const RECOVERY_EXECUTION_TICKET_CONTRACT = "mad4b.recovery-execution-ticket.v1";
 const SHA256_RE = /^[0-9a-f]{64}$/iu;
@@ -51,12 +52,32 @@ function normalizeTargetFingerprints(value, composite) {
   return { composite: requireSha(source.composite || composite, "target_fingerprints.composite"), ...Object.fromEntries(entries) };
 }
 
+function normalizeRoleBundleBindings(value, roles = []) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const selectedRoles = roles.filter((role) => ROLE_KEYS.includes(role));
+  const entries = selectedRoles.map((role) => {
+    const binding = source[role];
+    if (!binding) throw new Error(`role_bundle_bindings.${role} is required for a role-selective ticket.`);
+    const validation = validateRoleBundleBinding(binding, {
+      role,
+      bundleManifestSha256: binding.bundle_manifest_sha256,
+      roleBundleSha256: binding.role_bundle_sha256,
+      statementCount: binding.statement_count,
+      statementFingerprints: binding.statement_fingerprints,
+    });
+    if (!validation.ok) throw new Error(`role_bundle_bindings.${role} is invalid.`);
+    return [role, validation.binding];
+  });
+  return Object.fromEntries(entries);
+}
+
 export function buildExecutionTicketPayload(input = {}) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Execution ticket payload must be an object.");
   const targetRole = text(input.target_role || "composite", 64).toLowerCase();
   if (!ROLE_RE.test(targetRole)) throw new Error("target_role is not registered.");
   const roleSelectionRequired = input.role_selection_required === true;
   const roles = normalizeRoles(input.selected_roles, roleSelectionRequired ? targetRole : "composite");
+  const roleBundleBindings = normalizeRoleBundleBindings(input.role_bundle_bindings, roleSelectionRequired ? roles : []);
   const payload = {
     contract: RECOVERY_EXECUTION_TICKET_CONTRACT,
     inspection_run_id: input.inspection_run_id ? requireId(input.inspection_run_id, "inspection_run_id") : null,
@@ -66,6 +87,8 @@ export function buildExecutionTicketPayload(input = {}) {
     role_selection_required: roleSelectionRequired,
     role_object_count_fingerprints: normalizeFingerprints(input.role_object_count_fingerprints, roles, roleSelectionRequired),
     role_selection_hash: input.role_selection_hash ? requireSha(input.role_selection_hash, "role_selection_hash") : null,
+    role_bundle_bindings: roleBundleBindings,
+    deployment_attestation_hash: input.deployment_attestation_hash ? requireSha(input.deployment_attestation_hash, "deployment_attestation_hash") : null,
     target_fingerprints: normalizeTargetFingerprints(input.target_fingerprints, input.composite_target_fingerprint),
     production_sha: requireSha(input.production_sha || input.expected_sha, "production_sha", SHA_RE),
     target_key: text(input.target_key, 128),
@@ -118,6 +141,8 @@ export async function verifyExecutionTicket(ticket = {}, { verifier, expected = 
     } else if (key === "target_fingerprints") {
       const expectedFingerprints = normalizeTargetFingerprints(value, payload.target_fingerprints.composite);
       if (JSON.stringify(expectedFingerprints) !== JSON.stringify(payload.target_fingerprints)) throw new Error("Execution ticket target fingerprint mismatch.");
+    } else if (key === "role_bundle_bindings") {
+      if (JSON.stringify(payload.role_bundle_bindings) !== JSON.stringify(normalizeRoleBundleBindings(value, payload.selected_roles))) throw new Error("Execution ticket role-bundle binding mismatch.");
     } else if (text(payload[key], 256) !== text(value, 256)) {
       throw new Error(`Execution ticket ${key} binding mismatch.`);
     }
@@ -128,4 +153,4 @@ export async function verifyExecutionTicket(ticket = {}, { verifier, expected = 
   return { valid: true, ticket_id: buildExecutionTicketId(ticketHash), ticket_hash: ticketHash, payload, secrets_included: false };
 }
 
-export const _testingRecoveryExecutionTicket = Object.freeze({ sha256, normalizeRoles, normalizeFingerprints, normalizeTargetFingerprints });
+export const _testingRecoveryExecutionTicket = Object.freeze({ sha256, normalizeRoles, normalizeFingerprints, normalizeTargetFingerprints, normalizeRoleBundleBindings });

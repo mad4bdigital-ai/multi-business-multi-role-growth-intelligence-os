@@ -24,6 +24,7 @@ function makeCompleteAdapters() {
   );
   recoveryStore.executionTicketVerifier = executionTicketVerifier;
   return {
+    deploymentIdentityProvider: { readAttestation: asyncMethod({ read_only_probe: true, manifest_bound: true, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false }) },
     recoveryStore,
     approvalIssuer: { createChallenge: asyncMethod({ issued: true }) },
     approvalVerifier: { verify: asyncMethod(true) },
@@ -54,9 +55,11 @@ test("default Recovery composition is explicitly fail-closed and provider-free",
   assert.equal(composition.database_connection_performed, false);
   assert.equal(composition.database_mutation_performed, false);
   assert.equal(composition.mutation_authority_available, false);
+  assert.equal(composition.components.deploymentIdentityProvider, null);
   assert.equal(composition.components.recoveryStore, null);
   assert.equal(composition.hostBreakglassBroker.hostLocalMutationExecutor, null);
   assert.equal(getRecoveryCompositionRouteDependencies(composition).hostBreakglassMutationExecutor, null);
+  assert.equal(composition.runtimeBootstrapDependencies.deploymentIdentityProvider, null);
   assert.equal(composition.runtimeBootstrapDependencies.partialReceiptStore, null);
   assert.equal(composition.runtimeBootstrapDependencies.executionTicketVerifier, null);
 });
@@ -85,7 +88,9 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(composition.configured, true);
   assert.equal(composition.mode, "injected_non_live");
   assert.equal(composition.live_activation, false);
-  assert.equal(composition.provider_accessed, false);
+  assert.equal(composition.mutation_authority_available, true);
+  assert.equal(composition.authority_inventory.all_required_components_configured, true);
+  assert.equal(routeDeps.deploymentIdentityProvider, adapters.deploymentIdentityProvider);
   assert.equal(routeDeps.recoveryStore, adapters.recoveryStore);
   assert.equal(routeDeps.approvalVerifier, adapters.approvalVerifier);
   assert.equal(routeDeps.recoveryLock, adapters.recoveryLock);
@@ -95,6 +100,7 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(routeDeps.executionTicketVerifier, adapters.executionTicketVerifier);
   assert.equal(routeDeps.broker.hostLocalMutationExecutor, adapters.hostLocalMutationExecutor);
   assert.equal(routeDeps.hostBreakglassMutationExecutor, adapters.hostLocalMutationExecutor);
+  assert.equal(routeDeps.runtimeBootstrapDependencies.deploymentIdentityProvider, adapters.deploymentIdentityProvider);
   assert.equal(routeDeps.runtimeBootstrapDependencies.partialReceiptStore, adapters.partialReceiptStore);
   assert.equal(routeDeps.runtimeBootstrapDependencies.executionTicketVerifier, adapters.executionTicketVerifier);
 });

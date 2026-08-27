@@ -70,7 +70,7 @@ function assertAdminPrincipal(adminPrincipal) {
   }
 }
 
-function assertDependencies({ recoveryStore, executionTicketSigner, approvalVerifier, recoveryLock, readbackVerifier, hostBreakglassMutationExecutor }) {
+function assertDependencies({ recoveryStore, executionTicketSigner, approvalVerifier, recoveryLock, readbackVerifier, hostBreakglassMutationExecutor, deploymentIdentityProvider }) {
   const missing = [];
   if (!recoveryStore || typeof recoveryStore !== "object") {
     missing.push({ component: "recoveryStore", missing_methods: REQUIRED_STORE_METHODS });
@@ -91,7 +91,8 @@ function assertDependencies({ recoveryStore, executionTicketSigner, approvalVeri
   }
   if (!readbackVerifier || typeof readbackVerifier.verify !== "function") missing.push({ component: "readbackVerifier", missing_methods: ["verify"] });
   if (!(typeof hostBreakglassMutationExecutor === "function" || typeof hostBreakglassMutationExecutor?.execute === "function")) missing.push({ component: "hostBreakglassMutationExecutor", missing_methods: ["execute"] });
-  if (missing.length) throw bridgeError(503, "recovery_action_bridge_authority_unavailable", "The private Recovery Action bridge is fail-closed until durable ticket, approval, lock, executor, and readback authorities are all configured.", { missing_components: missing });
+  if (!deploymentIdentityProvider || typeof deploymentIdentityProvider.readAttestation !== "function") missing.push({ component: "deploymentIdentityProvider", missing_methods: ["readAttestation"] });
+  if (missing.length) throw bridgeError(503, "recovery_action_bridge_authority_unavailable", "The private Recovery Action bridge is fail-closed until durable ticket, approval, deployment identity, lock, executor, and readback authorities are all configured.", { missing_components: missing });
 }
 
 function asExecutor(value) {
@@ -146,11 +147,12 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
   recoveryLock,
   readbackVerifier,
   hostBreakglassMutationExecutor,
+  deploymentIdentityProvider,
   unsupportedBroker,
 } = {}) {
   const request = assertInput(input);
   assertAdminPrincipal(adminPrincipal);
-  assertDependencies({ recoveryStore, executionTicketSigner, approvalVerifier, recoveryLock, readbackVerifier, hostBreakglassMutationExecutor });
+  assertDependencies({ recoveryStore, executionTicketSigner, approvalVerifier, recoveryLock, readbackVerifier, hostBreakglassMutationExecutor, deploymentIdentityProvider });
 
   const existing = await recoveryStore.getRunByIdempotency(request.idempotency_key);
   if (existing) {
@@ -164,6 +166,7 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
         approvalStore,
         recoveryLock,
         readbackVerifier,
+        deploymentIdentityProvider,
         mutationExecutor: asExecutor(hostBreakglassMutationExecutor),
         unsupportedBroker,
       },
@@ -178,7 +181,7 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
       step_id: request.step_id,
       idempotency_key: request.idempotency_key,
     },
-    { recoveryStore, executionTicketSigner },
+    { recoveryStore, executionTicketSigner, deploymentIdentityProvider },
   );
 
   const execution = await executeRemediationStep(
@@ -198,6 +201,7 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
       approvalStore,
       recoveryLock,
       readbackVerifier,
+      deploymentIdentityProvider,
       mutationExecutor: asExecutor(hostBreakglassMutationExecutor),
       unsupportedBroker,
     },

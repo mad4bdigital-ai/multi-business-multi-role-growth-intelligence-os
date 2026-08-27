@@ -57,3 +57,29 @@ The repository test `http-generic-api/test-migration-execution-safety.mjs` exerc
 ## Remaining live prerequisites
 
 This bridge and its safety contract are repository changes, not a Production readiness claim. Live use remains blocked until a durable Production Recovery store, approved ticket signer/verifier, fenced lock with heartbeat, role-specific Hostinger mutation executor, same-cycle readback verifier, deployment-attestation binding, and migration-specific database preflight adapters are independently configured and reviewed. Those prerequisites are intentionally not supplied or activated by this Draft PR.
+
+## Deployment attestation and baseline ordering
+
+Consequential ticket issuance and execution now require a server-injected `deploymentIdentityProvider.readAttestation()` result. The result is checked against the immutable Production repository, branch, exact deployment SHA, Recovery manifest hash, target fingerprint, and a stable attestation hash. The hash basis excludes volatile process timestamps, while the receipt remains read-only and secret-free. The default composition still injects no provider, so the absence of this adapter returns fail-closed and cannot be converted into live authority by environment discovery.
+
+Ordinary migration execution is also subordinate to an explicit `mad4b.baseline-before-ordinary-migration.v1` proof. The proof must carry the exact SHA and target key, a canonical hash, and completed predecessors for Recovery control-plane readiness, durable full inspection, governance baseline, runtime-persistence baseline, canonical grants readback, and governance authority. Missing, reordered, stale, or caller-invented predecessor evidence blocks before the database connection. Empty-database reconstruction remains a separate sequential role-bundle flow; it is not replaced by an ordinary migration.
+
+Each selected baseline role now carries a `mad4b.role-bundle-binding.v1` containing the bundle-manifest checksum, role-bundle checksum, statement count, and statement fingerprints. The signed execution ticket binds the complete selected-role set to these bindings and to `deployment_attestation_hash`. During execution, `mad4b.role-bundle-progress.v1` records monotonic statement boundaries and transitions. Any partial execution, unknown provider outcome, or failed same-cycle verification sets `reconciliation_required: true` and `automatic_rerun_allowed: false`; retry or resume requires the existing durable receipt, exact plan/ticket/bundle/fence identity, and an explicit approval.
+
+| New contract | Safety guarantee | Live status in this Draft PR |
+| --- | --- | --- |
+| `mad4b.recovery-deployment-identity-attestation.v1` | Exact repository/branch/SHA/manifest/target binding with stable hash-only evidence. | Injectable contract and tests only; no live provider. |
+| `mad4b.baseline-before-ordinary-migration.v1` | Prevents ordinary migration apply before the declared Recovery and schema baseline predecessors. | Enforced in bootstrap apply preflight; no apply is authorized by this PR. |
+| `mad4b.role-bundle-binding.v1` | Binds every selected role bundle and statement fingerprint set to the server-issued ticket. | Implemented and tested with non-live fixtures. |
+| `mad4b.role-bundle-progress.v1` | Makes statement-boundary progress monotonic and reconciliation-first after partial/unknown outcomes. | Implemented in the baseline executor contract; durable live wiring remains absent. |
+
+These additions improve the repository’s fail-closed safety boundary but do not certify Hostinger deployment parity, database readiness, grants, or any particular migration. The existing private Recovery surface, server-issued ticket semantics, separate least-privilege grants operation, and prohibition on Local Connector fallback for Production remain unchanged.
+
+The focused coverage is in `http-generic-api/test-recovery-execution-binding.mjs`, with related assertions in the execution-ticket, Trust Model, Recovery Kernel, Action Bridge, composition, and runtime-bootstrap tests. The new test is registered in the canonical test manifest and authority registry.
+
+## References
+
+[1]: ../http-generic-api/recoveryExecutionBinding.js "Recovery execution binding contracts"
+[2]: ../http-generic-api/recoveryExecutionTicket.js "Server-issued Recovery execution ticket contract"
+[3]: ../http-generic-api/runtimeBootstrapContract.js "Runtime bootstrap and baseline execution contract"
+[4]: ../http-generic-api/config/recovery-kernel-manifest.json "Recovery Kernel manifest"

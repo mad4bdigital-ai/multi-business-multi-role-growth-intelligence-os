@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "111ee4c3c31c4454ae93915f938d49c42e3cfbcf618e44dfe410798e10c70227",
+    "source_digest": "54fdc6146115e5825735c73fc0938fb2a9ffe6e644da762fcc0743940d0601d6",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "10266a474a75c46c1fcc9942bfe074d2df6693469823dc06958af0d04be679bc",
+        "sha256": "9fdd506a75107b29b7e353991498bc7e899dc9992f64fd7177ddf4c053e256f0",
         "present": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "d6a470ac98f53a81c7e684fa34095fd9224e73eba2bee7e371096b0683d8bfc9",
+        "sha256": "ca03b3cc26183c3f5b4691c99d6f5ed23d61eea29117d3950be4eb8c27792317",
         "present": true
       },
       {
@@ -1076,7 +1076,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "fc109e8ed93a9442e394d99160e0ba2ef25e69d4a045ce87427f3b0fba00756e",
+        "sha256": "54c70770a4f348eef92af4ee08404ced5fb70e170cd4265d7aa4cad5507f702a",
         "present": true
       },
       {
@@ -1111,7 +1111,7 @@
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "a19d33c210e5c606613e6c09f3d68406c14a5deaf131d6cfd169e186cea2ba3c",
+        "sha256": "1dbfc4ee59433ed08509ef3e0f20e70ab2d42451ac17dac1830db88435042261",
         "present": true
       },
       {
@@ -3114,7 +3114,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "d6a470ac98f53a81c7e684fa34095fd9224e73eba2bee7e371096b0683d8bfc9",
+      "source_digest": "ca03b3cc26183c3f5b4691c99d6f5ed23d61eea29117d3950be4eb8c27792317",
       "mount_prefix": "/",
       "mount_order": 12992,
       "split_from_mixed_scope_file": false,

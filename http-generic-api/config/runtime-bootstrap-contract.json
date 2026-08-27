@@ -249,6 +249,25 @@
       "runtime_persistence": {"required_tables": "required_runtime_persistence_tables", "object_count_nonzero": true, "behavioral_probe": "runtime_persistence_response_chunk_readiness"}
     },
     "empty_database_execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
+    "baseline_before_ordinary_migration": {
+      "contract": "mad4b.baseline-before-ordinary-migration.v1",
+      "ordinary_migration_first_denied": true,
+      "required_predecessors": ["recovery_control_plane_ready", "durable_full_inspection", "governance_baseline_ready", "runtime_persistence_baseline_ready", "canonical_grants_readback_ready", "governance_authority_ready"],
+      "proof_source": "injected_durable_baseline_readback",
+      "proof_hash_required": true,
+      "database_independent_control_plane": true,
+      "secrets_included": false
+    },
+    "role_bundle_progress_contract": {
+      "contract": "mad4b.role-bundle-progress.v1",
+      "bundle_manifest_checksum_required": true,
+      "role_bundle_checksum_required": true,
+      "statement_fingerprint_journal_required": true,
+      "automatic_rerun_allowed": false,
+      "partial_or_unknown_requires_reconciliation": true,
+      "resume_requires_exact_ticket_plan_bundle_and_fence": true,
+      "secrets_included": false
+    },
     "behavioral_probes": [
       {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
       {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
@@ -259,7 +278,9 @@
       "ddl_rollback_claimed": false,
       "on_statement_failure": "immutable_partial_rebuild_receipt_and_reconciliation_required",
       "automatic_rerun_allowed": false,
-      "resume_requires": ["durable_partial_receipt", "same_bundle_sha", "same_target_fingerprint", "same_execution_ticket", "valid_fence", "explicit_resume_partial_baseline_approval"]
+      "resume_requires": ["durable_partial_receipt", "same_bundle_sha", "same_target_fingerprint", "same_execution_ticket", "valid_fence", "explicit_resume_partial_baseline_approval"],
+      "progress_contract": "mad4b.role-bundle-progress.v1",
+      "reconciliation_before_resume": true
     },
     "role_seed_files": {
       "runtime": [

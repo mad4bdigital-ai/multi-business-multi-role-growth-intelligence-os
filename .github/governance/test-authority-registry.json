@@ -103,6 +103,7 @@
     {"invariant_id":"recovery_survival_plane_trust_and_unsupported_contracts","protected_by_tests":["http-generic-api/test-recovery-kernel.mjs","http-generic-api/test-recovery-kernel-routes.mjs","http-generic-api/test-recovery-execution-ticket.mjs","http-generic-api/test-recovery-trust-model.mjs","http-generic-api/test-unsupported-recovery-broker.mjs","http-generic-api/test-recovery-exception-framework.mjs"],"protected_by_verifiers":[]},
     {"invariant_id":"recovery_composition_wiring","protected_by_tests":["http-generic-api/test-recovery-composition.mjs"],"protected_by_verifiers":[]},
     {"invariant_id":"migration_execution_safety","protected_by_tests":["http-generic-api/test-migration-execution-safety.mjs"],"protected_by_verifiers":["migration_execution_safety"]},
+    {"invariant_id":"recovery_deployment_attestation_and_baseline_order","protected_by_tests":["http-generic-api/test-recovery-execution-binding.mjs","http-generic-api/test-recovery-execution-ticket.mjs","http-generic-api/test-recovery-trust-model.mjs","http-generic-api/test-recovery-composition.mjs","http-generic-api/test-recovery-kernel.mjs","http-generic-api/test-runtime-bootstrap-contract.mjs"],"protected_by_verifiers":["migration_execution_safety"]},
     {"invariant_id":"tenant_system_tools_continuation_chunk_authority","protected_by_tests":["http-generic-api/test-system-tools-tenant-continuation-e2e.mjs"],"protected_by_verifiers":[]}
   ],
   "deleted_test_mode": "block_without_replacement",

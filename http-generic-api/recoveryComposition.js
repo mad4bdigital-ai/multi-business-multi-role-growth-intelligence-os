@@ -4,6 +4,7 @@ export const RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-composition.v1";
 export const RECOVERY_COMPOSITION_MODES = Object.freeze([...COMPOSITION_MODES]);
 
 const COMPONENT_KEYS = Object.freeze([
+  "deploymentIdentityProvider",
   "recoveryStore",
   "approvalIssuer",
   "approvalVerifier",
@@ -42,6 +43,7 @@ const STORE_METHODS = Object.freeze([
 ]);
 
 const REQUIRED_ADAPTERS = Object.freeze({
+  deploymentIdentityProvider: { kind: "object", methods: ["readAttestation"] },
   recoveryStore: { kind: "object", methods: STORE_METHODS },
   approvalIssuer: { kind: "object", methods: ["createChallenge"] },
   approvalVerifier: { kind: "object", methods: ["verify"] },
@@ -97,12 +99,24 @@ function immutableComponents(adapters = {}) {
 function buildFailClosedComposition(source) {
   const components = immutableComponents();
   const kernelDependencies = Object.freeze({ ...components });
+  const authorityInventory = Object.freeze({
+    contract: "mad4b.recovery-authority-inventory.v1",
+    required_components: [...COMPONENT_KEYS],
+    configured_components: [],
+    all_required_components_configured: false,
+    live_activation: false,
+    provider_accessed: false,
+    database_connection_performed: false,
+    database_mutation_performed: false,
+    secrets_included: false,
+  });
   const hostBreakglassBroker = Object.freeze({
     // Intentionally omit hostLocalExecutor so the repository's read-only inspection
     // implementation may remain available; mutation authority is explicitly null.
     hostLocalMutationExecutor: null,
   });
   const runtimeBootstrapDependencies = Object.freeze({
+    deploymentIdentityProvider: null,
     partialReceiptStore: null,
     executionTicketVerifier: null,
   });
@@ -118,6 +132,7 @@ function buildFailClosedComposition(source) {
     mutation_authority_available: false,
     components,
     component_status: componentStatus(components),
+    authority_inventory: authorityInventory,
     kernelDependencies,
     hostBreakglassBroker,
     runtimeBootstrapDependencies,
@@ -171,8 +186,20 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
       : {}),
   });
   const runtimeBootstrapDependencies = Object.freeze({
+    deploymentIdentityProvider: components.deploymentIdentityProvider,
     partialReceiptStore: components.partialReceiptStore,
     executionTicketVerifier: components.executionTicketVerifier,
+  });
+  const authorityInventory = Object.freeze({
+    contract: "mad4b.recovery-authority-inventory.v1",
+    required_components: [...COMPONENT_KEYS],
+    configured_components: [...COMPONENT_KEYS],
+    all_required_components_configured: true,
+    live_activation: false,
+    provider_accessed: false,
+    database_connection_performed: false,
+    database_mutation_performed: false,
+    secrets_included: false,
   });
   return Object.freeze({
     contract: RECOVERY_COMPOSITION_CONTRACT,
@@ -186,6 +213,7 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
     mutation_authority_available: true,
     components,
     component_status: componentStatus(components),
+    authority_inventory: authorityInventory,
     kernelDependencies,
     hostBreakglassBroker,
     runtimeBootstrapDependencies,

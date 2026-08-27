@@ -141,6 +141,7 @@ export function buildRecoveryKernelRoutes({
   mutationExecutor,
   readbackVerifier,
   executionTicketSigner,
+  deploymentIdentityProvider,
   hostBreakglassMutationExecutor,
   productionActivationReadinessExecutor,
   systemToolLookup,
@@ -196,6 +197,7 @@ export function buildRecoveryKernelRoutes({
         mutationExecutor,
         readbackVerifier,
         executionTicketSigner,
+        deploymentIdentityProvider,
         productionActivationReadinessExecutor,
         systemToolLookup: fixedSystemToolLookup,
         adminPrincipal: requestAdminPrincipal(req),
@@ -218,6 +220,7 @@ export function buildRecoveryKernelRoutes({
         approvalStore,
         recoveryLock,
         readbackVerifier,
+        deploymentIdentityProvider,
         hostBreakglassMutationExecutor,
       });
       return res.status(202).json(sanitizeRecoveryActionBridgeOutput({ ok: true, contract: "mad4b.recovery-action-bridge-route-receipt.v1", result, secrets_included: false }));

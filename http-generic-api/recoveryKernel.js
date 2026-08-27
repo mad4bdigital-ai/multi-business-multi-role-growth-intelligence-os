@@ -39,6 +39,10 @@ import {
   computeRoleSelectionProofHash,
 } from "./roleSelectionProof.js";
 import {
+  validateDeploymentIdentityAttestation,
+  validateRoleBundleBinding,
+} from "./recoveryExecutionBinding.js";
+import {
   activateExceptionLifecycle,
   approveExceptionLifecycle,
   buildDisasterRecoveryPreview,
@@ -412,6 +416,7 @@ function findingsFromInspection(inspection = {}) {
   const roleCounts = inspection.role_database_object_counts && typeof inspection.role_database_object_counts === "object" ? inspection.role_database_object_counts : {};
   const roleClassifications = inspection.role_database_object_classifications && typeof inspection.role_database_object_classifications === "object" ? inspection.role_database_object_classifications : {};
   const roleCountFingerprints = inspection.role_database_object_count_fingerprints && typeof inspection.role_database_object_count_fingerprints === "object" ? inspection.role_database_object_count_fingerprints : {};
+  const roleBundleBindings = inspection.role_bundle_bindings && typeof inspection.role_bundle_bindings === "object" ? inspection.role_bundle_bindings : {};
   const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
   const emptyRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
@@ -424,7 +429,7 @@ function findingsFromInspection(inspection = {}) {
         category: "empty_uninitialized_database",
         severity: "high",
         expected: { object_count: 0, object_kinds: ["tables", "views", "triggers", "routines", "events"] },
-        actual: { classification: roleClassifications[role], object_counts: roleCounts[role], object_count_fingerprint: roleCountFingerprints[role] || null },
+        actual: { classification: roleClassifications[role], object_counts: roleCounts[role], object_count_fingerprint: roleCountFingerprints[role] || null, role_bundle_binding: roleBundleBindings[role] || null },
         authorityRef: `${role}.baseline.rebuild_empty`,
         repairability: "deterministic",
         mutationRequired: true,
@@ -646,6 +651,44 @@ function createPlanId(input) {
   return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, finding_hash: input.finding_hash || null, role_selection_hash: input.role_selection_hash || null, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
 }
 
+async function readAndValidateDeploymentAttestation(deploymentIdentityProvider, { plan, step = null } = {}) {
+  if (!deploymentIdentityProvider || typeof deploymentIdentityProvider.readAttestation !== "function") {
+    throw kernelError(503, "RECOVERY_DEPLOYMENT_ATTESTATION_UNAVAILABLE", "A server-injected deployment identity attestation provider is required before issuing or executing a consequential Recovery ticket.", { database_connection_performed: false, database_mutation_performed: false });
+  }
+  let attestation;
+  try {
+    attestation = await deploymentIdentityProvider.readAttestation({
+      expected_sha: plan.expected_sha,
+      target_key: plan.target_key,
+      target_fingerprint: step?.target_fingerprint || plan.target_fingerprint,
+      target_role: step?.target_role || "composite",
+      manifest_hash: plan.manifest_hash,
+    });
+  } catch (error) {
+    throw kernelError(412, "RECOVERY_DEPLOYMENT_ATTESTATION_FAILED", "The injected deployment identity provider did not return a usable attestation.", { authority_error: text(error?.code || "attestation_read_failed", 128), database_connection_performed: false, database_mutation_performed: false });
+  }
+  const validation = validateDeploymentIdentityAttestation({
+    attestation,
+    expectedSha: plan.expected_sha,
+    expectedRepository: RECOVERY_KERNEL_REPOSITORY,
+    expectedBranch: RECOVERY_KERNEL_PRODUCTION_BRANCH,
+    expectedManifestHash: plan.manifest_hash,
+    expectedAttestationHash: plan.runtime_attestation_hash || "",
+    expectedTargetFingerprint: step?.target_fingerprint || plan.target_fingerprint,
+    expectedTargetRole: step?.target_role || "composite",
+  });
+  if (!validation.ok) {
+    throw kernelError(412, "RECOVERY_DEPLOYMENT_ATTESTATION_MISMATCH", "Deployment identity, manifest, target fingerprint, or runtime attestation does not match the immutable Recovery plan.", { problems: validation.problems, binding: validation.binding, database_connection_performed: false, database_mutation_performed: false });
+  }
+  return validation;
+}
+
+function roleBundleBindingsForStep(step, plan = null) {
+  if (plan?.role_bundle_bindings && typeof plan.role_bundle_bindings === "object" && Object.keys(plan.role_bundle_bindings).length) return plan.role_bundle_bindings;
+  if (!step?.role_bundle_binding) return {};
+  return { [step.target_role]: step.role_bundle_binding };
+}
+
 function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFingerprints = {}, { durable = false } = {}) {
   const rebuildFindings = findings.filter((finding) => /^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u.test(text(finding.candidate_capability, 160)));
   if (!rebuildFindings.length) return null;
@@ -669,9 +712,24 @@ function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFinge
   return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
 }
 
+function roleBundleBindingFromFinding(finding, targetRole) {
+  const raw = finding.observed_state?.actual?.role_bundle_binding || finding.observed_state?.actual?.baseline_bundle_binding || null;
+  if (!raw) return null;
+  const validation = validateRoleBundleBinding(raw, {
+    role: targetRole,
+    bundleManifestSha256: raw.bundle_manifest_sha256,
+    roleBundleSha256: raw.role_bundle_sha256,
+    statementCount: raw.statement_count,
+    statementFingerprints: raw.statement_fingerprints,
+  });
+  if (!validation.ok) throw kernelError(409, "RECOVERY_ROLE_BUNDLE_BINDING_INVALID", "A baseline Recovery step contains an invalid role-bundle binding.", { target_role: targetRole, problems: validation.problems });
+  return validation.binding;
+}
+
 function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null) {
   return findings.map((finding, index) => {
     const classified = classifyFinding(finding);
+    const roleBundleBinding = classified.mutation_class === "C5" ? roleBundleBindingFromFinding(finding, classified.target_role) : null;
     const stepBase = {
       ordinal: index + 1,
       finding_id: finding.finding_id,
@@ -691,6 +749,10 @@ function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null)
       execution_allowed: false,
       preconditions: ["production_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_use_approval"],
       postconditions: classified.capability_key ? ["schema_or_grant_readback", "ledger_or_privilege_readback", "behavioral_probe_or_readiness_pass"] : ["no_mutation", "fail_closed_record"],
+      deployment_attestation_required: Boolean(classified.capability_key),
+      baseline_order_proof_required: Boolean(classified.capability_key && classified.mutation_class !== "C5"),
+      role_bundle_binding_required: classified.mutation_class === "C5",
+      role_bundle_binding: roleBundleBinding,
       rollback: classified.capability_key === "governance.grant.repair" ? "exact_delta_revoke" : classified.capability_key ? "forward_only_or_capability_declared" : "not_applicable",
       role_selection_proof_hash: roleSelectionProof?.selection_hash || null,
       execution_ticket_required: Boolean(classified.capability_key),
@@ -786,6 +848,14 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     inspection_run_ids: [...new Set(findings.map((finding) => text(finding.inspection_run_id, 160)).filter(Boolean))],
     inspection_evidence_hashes: [...new Set(findings.map((finding) => text(finding.inspection_evidence_hash, 128)).filter(Boolean))],
     selected_rebuild_roles: [...new Set(steps.filter((step) => step.capability_key?.endsWith(".baseline.rebuild_empty")).map((step) => step.target_role))],
+    role_bundle_bindings: Object.fromEntries(steps.filter((step) => step.role_bundle_binding).map((step) => [step.target_role, step.role_bundle_binding])),
+    baseline_order_contract: {
+      contract: "mad4b.baseline-before-ordinary-migration.v1",
+      ordinary_migration_first_denied: true,
+      required_predecessors: ["recovery_control_plane_ready", "durable_full_inspection", "governance_baseline_ready", "runtime_persistence_baseline_ready", "canonical_grants_readback_ready", "governance_authority_ready"],
+      proof_required_before_ordinary_migration: true,
+      secrets_included: false,
+    },
     role_selection_proof: roleSelectionProof,
     role_selection_hash: roleSelectionProof?.selection_hash || null,
     unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
@@ -819,6 +889,8 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
       manifest_bound: manifestVerification.ok,
       target_fingerprint_bound: Boolean(targetFingerprints.composite),
       role_selection_provenance_bound: Boolean(!roleSelectionProof || (roleSelectionProof.source === "durable_full_inspection" && roleSelectionProof.selection_hash && isDurableRecoveryStore(recoveryStore))),
+      role_bundle_bindings_bound: steps.filter((step) => step.role_bundle_binding_required).every((step) => Boolean(step.role_bundle_binding)),
+      deployment_attestation_bound: Boolean(readRuntimeAttestation({ env, expectedSha }).attestation_hash),
       authority_resolved: steps.every((step) => Boolean(step.capability_key || step.classification === "unknown_fail_closed")),
       unknown_drift: findings.some((finding) => finding.repairability === "unknown_fail_closed"),
       preconditions_satisfied: findings.every((finding) => finding.repairability !== "unknown_fail_closed"),
@@ -899,7 +971,7 @@ export async function createApprovalChallenge(input = {}, { approvalIssuer, appr
   return sanitizeEvidence({ ok: true, ...challenge, approval_token_required: true, approval_token_not_returned: true, read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
 }
 
-export async function createExecutionTicket(input = {}, { recoveryStore, executionTicketSigner } = {}) {
+export async function createExecutionTicket(input = {}, { recoveryStore, executionTicketSigner, deploymentIdentityProvider } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
   const allowed = new Set(["plan_id", "plan_hash", "step_id", "idempotency_key"]);
@@ -910,6 +982,10 @@ export async function createExecutionTicket(input = {}, { recoveryStore, executi
   const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const step = ensureStep(plan, stepId);
   if (!step.consequential) throw kernelError(409, "RECOVERY_TICKET_NOT_REQUIRED", "Execution tickets are reserved for consequential Recovery steps.");
+  const deploymentAttestation = await readAndValidateDeploymentAttestation(deploymentIdentityProvider, { plan, step });
+  if (step.role_bundle_binding_required === true && !step.role_bundle_binding) {
+    throw kernelError(409, "RECOVERY_ROLE_BUNDLE_BINDING_REQUIRED", "Baseline execution tickets require an exact role-bundle binding from the durable inspection evidence.", { target_role: step.target_role, database_connection_performed: false, database_mutation_performed: false });
+  }
   requireMutationRecoveryStore(recoveryStore);
   if (!executionTicketSigner || typeof executionTicketSigner.sign !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_SIGNER_UNAVAILABLE", "A server-side execution-ticket signer is required; tickets are never self-issued or synthesized.");
   const ticket = await issueExecutionTicket({
@@ -921,6 +997,8 @@ export async function createExecutionTicket(input = {}, { recoveryStore, executi
     role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints || {},
     target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
     role_selection_hash: plan.role_selection_hash || null,
+    role_bundle_bindings: roleBundleBindingsForStep(step, plan),
+    deployment_attestation_hash: deploymentAttestation.attestation_hash,
     production_sha: plan.expected_sha,
     target_key: plan.target_key,
     plan_hash: plan.plan_hash,
@@ -1000,7 +1078,7 @@ function requireDurableRecoveryStore(recoveryStore) {
   return recoveryStore;
 }
 
-export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker, readbackVerifier } = {}) {
+export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker, readbackVerifier, deploymentIdentityProvider } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
   const allowed = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"]);
@@ -1029,10 +1107,11 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const executionTicket = await recoveryStore.getExecutionTicket(executionTicketId);
   if (!executionTicket) throw kernelError(404, "RECOVERY_EXECUTION_TICKET_NOT_FOUND", "The requested execution ticket is not available.");
   try {
-    await verifyExecutionTicket(executionTicket, { verifier: recoveryStore.executionTicketVerifier, expected: { plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, production_sha: plan.expected_sha, target_key: plan.target_key, idempotency_key: idempotencyKey, target_role: step.target_role, role_selection_hash: plan.role_selection_hash || null, target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint }, selected_roles: plan.role_selection_proof?.selected_roles || ["composite"] } });
+    await verifyExecutionTicket(executionTicket, { verifier: recoveryStore.executionTicketVerifier, expected: { plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, production_sha: plan.expected_sha, target_key: plan.target_key, idempotency_key: idempotencyKey, target_role: step.target_role, role_selection_hash: plan.role_selection_hash || null, role_bundle_bindings: roleBundleBindingsForStep(step, plan), deployment_attestation_hash: plan.runtime_attestation_hash || null, target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint }, selected_roles: plan.role_selection_proof?.selected_roles || ["composite"] } });
   } catch {
     throw kernelError(401, "RECOVERY_EXECUTION_TICKET_INVALID", "The execution ticket is absent, expired, invalid, or not bound to this exact plan step.");
   }
+  const deploymentAttestation = await readAndValidateDeploymentAttestation(deploymentIdentityProvider, { plan, step });
   const claimContext = { idempotency_key: idempotencyKey, plan_hash: plan.plan_hash, step_id: step.step_id, execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash };
   const claim = await claimExecution(recoveryStore, { ...claimContext, step_hash: step.step_hash });
   if (claim.existing) return sanitizeEvidence({ ok: false, status: "reconciliation_required", phase: "execution_outcome_unknown", idempotency_key: idempotencyKey, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, existing_claim: claim.result, reconciliation_required: true, idempotent_replay: true, database_mutation_performed: "unknown", secrets_included: false });
@@ -1122,6 +1201,8 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       lease_id: lockHandle.lease_id,
       fencing_token: lockHandle.fencing_token,
       role_selection_proof_hash: plan.role_selection_hash || null,
+      deployment_attestation_hash: deploymentAttestation.attestation_hash,
+      role_bundle_binding: step.role_bundle_binding || null,
     };
     try {
       if (step.capability_key === "unsupported_capability_execute") {

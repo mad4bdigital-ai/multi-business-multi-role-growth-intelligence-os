@@ -289,6 +289,7 @@
   "trust_roots": [
     "exact_production_sha",
     "recovery_manifest_hash",
+    "deployment_attestation_hash",
     "target_fingerprint",
     "admin_principal_binding",
     "role_fingerprint_set",
@@ -340,7 +341,7 @@
       "issuer": "injected_server_side_signer_only",
       "verifier": "injected_durable_store_verifier_only",
       "signature_or_secret_returned_to_gpt": false,
-      "bindings": ["expected_sha", "target_key", "target_fingerprint", "plan_hash", "step_hash", "step_id", "selected_roles", "role_fingerprints", "role_selection_hash", "grant_binding_hash", "operation", "idempotency_key", "nonce", "expiry"],
+      "bindings": ["expected_sha", "target_key", "target_fingerprint", "plan_hash", "step_hash", "step_id", "selected_roles", "role_fingerprints", "role_selection_hash", "role_bundle_bindings", "deployment_attestation_hash", "grant_binding_hash", "operation", "idempotency_key", "nonce", "expiry"],
       "single_use": true,
       "automatic_replay_after_unknown": false
     },
@@ -350,7 +351,10 @@
       "ticket_references_are_not_authority": true,
       "default_cli_behavior": "fail_closed",
       "immutable_partial_receipt_store_required_before_connection": true,
-      "provider_wiring_in_repository": false
+      "provider_wiring_in_repository": false,
+      "deployment_identity_attestation_required_before_ticket": true,
+      "bundle_to_ticket_binding_required_for_baseline": true,
+      "baseline_order_proof_required_for_ordinary_migration": true
     },
     "atomic_execution_contract": {
       "claim_before_approval_reservation": true,
@@ -359,7 +363,9 @@
       "unknown_provider_outcome_is_terminal_until_readback": true,
       "fenced_lease_required": true,
       "heartbeat_and_assert_before_each_provider_boundary": true,
-      "partial_receipt_persisted_before_consequential_provider_boundary": true
+      "partial_receipt_persisted_before_consequential_provider_boundary": true,
+      "deployment_identity_attestation_rechecked_before_ticket_and_provider": true,
+      "role_bundle_progress_contract": "mad4b.role-bundle-progress.v1"
     },
     "migration_execution_safety": {
       "contract": "mad4b.migration-execution-safety.v1",
@@ -372,6 +378,8 @@
       "unknown_outcome_requires_readback": true,
       "partial_execution_blocks_automatic_retry": true,
       "live_adapter_injected": false,
+      "baseline_order_contract": "mad4b.baseline-before-ordinary-migration.v1",
+      "role_bundle_binding_contract": "mad4b.role-bundle-binding.v1",
       "secrets_included": false
     },
     "exception_lifecycle_methods": ["putException", "getException", "appendExceptionEvent"],
@@ -399,6 +407,8 @@
     "sequential_role_execution": true,
     "stop_on_role_verification_failure": true,
     "role_fingerprints_bound_to_plan_and_approval": true,
+    "role_bundle_binding_bound_to_plan_and_ticket": true,
+    "role_bundle_progress_contract": "mad4b.role-bundle-progress.v1",
     "standalone_migration_first_allowed": false,
     "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
     "behavioral_probes": [

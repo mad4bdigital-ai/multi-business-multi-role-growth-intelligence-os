@@ -27,6 +27,7 @@ import {
 import { GOVERNANCE_DB_PRIVILEGE_MATRIX } from "./databasePrivilegeContracts.js";
 import { getRuntimeBootstrapStatus as readStartupStatus } from "./runtimeBootstrapStatus.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
+import { buildBaselineExecutionOrderProof } from "./recoveryExecutionBinding.js";
 
 const contract = JSON.parse(fs.readFileSync(new URL("./config/runtime-bootstrap-contract.json", import.meta.url), "utf8"));
 const recoveryContract = JSON.parse(fs.readFileSync(new URL("../.github/ops/production-runtime-recovery-routes.json", import.meta.url), "utf8"));
@@ -108,6 +109,13 @@ function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode =
     ...(new Set(["apply_migration", "apply_grants"]).has(mode) ? {
       BOOTSTRAP_EXECUTION_TICKET_ID: `ticket:bootstrap-${mode.replaceAll("_", "-")}-authority`,
       BOOTSTRAP_EXECUTION_TICKET_HASH: "a".repeat(64),
+      ...(mode === "apply_migration" ? {
+        BOOTSTRAP_BASELINE_ORDER_PROOF: JSON.stringify(buildBaselineExecutionOrderProof({
+          expectedSha: EXPECTED_SHA,
+          targetKey: TARGET_KEY,
+          completedStages: ["recovery_control_plane_ready", "durable_full_inspection", "governance_baseline_ready", "runtime_persistence_baseline_ready", "canonical_grants_readback_ready", "governance_authority_ready"],
+        })),
+      } : {}),
     } : {}),
   };
 }

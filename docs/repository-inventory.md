@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 7,427 |
-| Total bytes | 73,187,913 |
-| Counted text lines | 1,701,810 |
+| Total bytes | 73,216,895 |
+| Counted text lines | 1,702,197 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -93,7 +93,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,545,802 | 99954 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,965,990 | 59453 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,966,012 | 59454 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 1,034,267 | 23678 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 627,891 | 11900 |
@@ -120,7 +120,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/openapi/openapi.tenant-gpt.staging.yaml` | api-contracts | 135,951 | 3628 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
-| `http-generic-api/runtimeBootstrapContract.js` | api-runtime | 129,426 | 1827 |
+| `http-generic-api/runtimeBootstrapContract.js` | api-runtime | 134,434 | 1900 |
 
 ## Complete machine-readable inventory
 
