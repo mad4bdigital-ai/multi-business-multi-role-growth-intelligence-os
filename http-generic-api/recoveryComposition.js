@@ -3,9 +3,9 @@ const COMPOSITION_MODES = new Set(["fail_closed", "injected_non_live", "producti
 export const RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-composition.v1";
 export const RECOVERY_COMPOSITION_MODES = Object.freeze([...COMPOSITION_MODES]);
 export const SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-server-managed-composition-factory.v1";
-const SERVER_MANAGED_BINDING_CONTEXT = Object.freeze({
+export const SERVER_MANAGED_RECOVERY_COMPOSITION_CONTEXT = Object.freeze({
   contract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
-  binding_source: "server_managed_only",
+  binding_source: "server_managed",
   caller_credentials_accepted: false,
   gpt_credentials_accepted: false,
   local_connector_accepted: false,
@@ -29,6 +29,16 @@ const COMPONENT_KEYS = Object.freeze([
   "partialReceiptStore",
   "proofResolver",
   "migrationLedger",
+]);
+export const RECOVERY_COMPOSITION_COMPONENT_KEYS = COMPONENT_KEYS;
+export const RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS = Object.freeze([
+  "recoveryStore",
+  "executionTicketSigner",
+  "approvalVerifier",
+  "recoveryLock",
+  "readbackVerifier",
+  "hostLocalMutationExecutor",
+  "deploymentIdentityProvider",
 ]);
 
 const STORE_METHODS = Object.freeze([

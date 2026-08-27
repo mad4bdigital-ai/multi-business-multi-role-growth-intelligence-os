@@ -53,6 +53,16 @@ test("default factory is wired at the server boundary but remains fail-closed", 
   assert.equal(composition.productionRecoveryCompositionFactory.mode, "disabled");
   assert.equal(composition.productionRecoveryCompositionFactory.adapter_factory_wired, true);
   assert.equal(composition.productionRecoveryCompositionFactory.server_managed_binding_resolved, false);
+  assert.deepEqual(composition.productionRecoveryCompositionFactory.authority_readiness.missing_components, [
+    "recoveryStore",
+    "executionTicketSigner",
+    "approvalVerifier",
+    "recoveryLock",
+    "readbackVerifier",
+    "hostLocalMutationExecutor",
+    "deploymentIdentityProvider",
+  ]);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.activation_eligible, false);
   assert.equal(composition.provider_accessed, false);
   assert.equal(composition.database_mutation_performed, false);
 });
@@ -97,6 +107,9 @@ test("only a server-managed, secret-free envelope can resolve the non-live graph
   assert.equal(composition.mode, "injected_non_live");
   assert.equal(composition.live_activation, false);
   assert.equal(composition.productionRecoveryCompositionFactory.server_managed_binding_resolved, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.all_required_components_configured, true);
+  assert.deepEqual(composition.productionRecoveryCompositionFactory.authority_readiness.missing_components, []);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.activation_eligible, false);
   assert.equal(composition.mutation_authority_available, true);
   assert.equal(composition.provider_accessed, false);
   assert.equal(composition.database_connection_performed, false);
@@ -127,9 +140,21 @@ test("manifest and bootstrap contract distinguish factory wiring from live activ
   assert.equal(manifest.production_live_composition.repository_live_adapter_wiring, false);
   assert.equal(manifest.production_live_composition.server_managed_adapter_factory_wired, true);
   assert.equal(manifest.production_live_composition.live_provider_authority_configured, false);
+  assert.equal(manifest.production_live_composition.live_authority_readiness_contract, "mad4b.recovery-live-authority-readiness.v1");
+  assert.deepEqual(manifest.production_live_composition.required_live_authority_components, [
+    "recoveryStore",
+    "executionTicketSigner",
+    "approvalVerifier",
+    "recoveryLock",
+    "readbackVerifier",
+    "hostLocalMutationExecutor",
+    "deploymentIdentityProvider",
+  ]);
   assert.equal(runtimeBootstrapContract.mutation_authority.production_live_composition_enabled, false);
   assert.equal(runtimeBootstrapContract.mutation_authority.provider_wiring_in_repository, false);
   assert.equal(runtimeBootstrapContract.mutation_authority.server_managed_adapter_factory_wired, true);
+  assert.equal(runtimeBootstrapContract.mutation_authority.live_authority_readiness_contract, "mad4b.recovery-live-authority-readiness.v1");
+  assert.deepEqual(runtimeBootstrapContract.mutation_authority.required_live_authority_components, manifest.production_live_composition.required_live_authority_components);
 });
 
 test("server composition root uses the factory without caller or credential discovery", () => {

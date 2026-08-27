@@ -1,5 +1,7 @@
 import {
   createRecoveryComposition,
+  RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS,
+  SERVER_MANAGED_RECOVERY_COMPOSITION_CONTEXT,
   SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
 } from "./recoveryComposition.js";
 
@@ -11,15 +13,9 @@ export const PRODUCTION_RECOVERY_COMPOSITION_MODES = Object.freeze([
 ]);
 
 const SERVER_MANAGED_CONTEXT = Object.freeze({
+  ...SERVER_MANAGED_RECOVERY_COMPOSITION_CONTEXT,
   contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-  binding_source: "server_managed",
   requested_by_caller: false,
-  caller_credentials_accepted: false,
-  gpt_credentials_accepted: false,
-  local_connector_accepted: false,
-  provider_discovery: false,
-  database_discovery: false,
-  secrets_included: false,
 });
 
 function factoryError(code, message, details = {}) {
@@ -28,6 +24,26 @@ function factoryError(code, message, details = {}) {
   error.status = 503;
   error.details = { ...details, secrets_included: false };
   return error;
+}
+
+function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved) {
+  const componentStatus = composition.component_status || {};
+  const configuredComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured === true);
+  const missingComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured !== true);
+  return Object.freeze({
+    contract: "mad4b.recovery-live-authority-readiness.v1",
+    required_components: [...RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS],
+    configured_components: configuredComponents,
+    missing_components: missingComponents,
+    all_required_components_configured: missingComponents.length === 0,
+    server_managed_binding_resolved: serverManagedBindingResolved,
+    activation_eligible: false,
+    live_activation: false,
+    provider_accessed: false,
+    database_connection_performed: false,
+    database_mutation_performed: false,
+    secrets_included: false,
+  });
 }
 
 function failClosedComposition(source, reason) {
@@ -43,6 +59,7 @@ function failClosedComposition(source, reason) {
       live_activation: false,
       adapter_factory_wired: true,
       server_managed_binding_resolved: false,
+      authority_readiness: buildLiveAuthorityReadiness(composition, false),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -138,6 +155,7 @@ export function createProductionRecoveryComposition({
       live_activation: false,
       adapter_factory_wired: true,
       server_managed_binding_resolved: true,
+      authority_readiness: buildLiveAuthorityReadiness(composition, true),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,

@@ -201,6 +201,8 @@
     "server_managed_adapter_factory": "http-generic-api/productionRecoveryCompositionFactory.js",
     "server_managed_binding_contract": "mad4b.recovery-server-managed-composition-factory.v1",
     "live_provider_authority_configured": false,
+    "live_authority_readiness_contract": "mad4b.recovery-live-authority-readiness.v1",
+    "required_live_authority_components": ["recoveryStore", "executionTicketSigner", "approvalVerifier", "recoveryLock", "readbackVerifier", "hostLocalMutationExecutor", "deploymentIdentityProvider"],
     "live_activation_requires_separate_release": true
   },
   "migration_target_role_bindings": {
