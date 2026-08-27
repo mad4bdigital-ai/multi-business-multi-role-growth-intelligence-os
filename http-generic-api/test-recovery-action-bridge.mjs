@@ -23,7 +23,7 @@ function baseInput(overrides = {}) {
 }
 
 function makeStore() {
-  const targetFingerprint = deriveRoleTargetFingerprints({ env: ENV }).governance;
+  const targetFingerprint = deriveRoleTargetFingerprints({ env: ENV }).runtime;
   const tickets = new Map();
   const ticketStates = new Map();
   const runs = new Map();
@@ -34,22 +34,15 @@ function makeStore() {
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
-    step_hash: stableHash({
-      step_id: STEP_ID,
-      step_hash: STEP_HASH,
-      consequential: true,
-      capability_key: "governance.mcp_catalog.repair",
-      operation: "apply_migration",
-      target_role: "governance",
-      target_fingerprint: targetFingerprint,
-      mutation_class: "C3",
-    }),
+    step_hash: STEP_HASH,
     expected_sha: SHA,
     target_key: "production-runtime",
     target_fingerprint: targetFingerprint,
     composite_target_fingerprint: targetFingerprint,
     step_target_fingerprint: targetFingerprint,
-    target_role: "governance",
+    target_role: "runtime",
+    approval_version: "v1",
+    challenge_hash: "9".repeat(64),
     expires_at: new Date(Date.now() + 600000).toISOString(),
     used: false,
   };
@@ -78,7 +71,10 @@ function makeStore() {
       consequential: true,
       capability_key: "governance.mcp_catalog.repair",
       operation: "apply_migration",
-      target_role: "governance",
+      target_role: "runtime",
+      ownership_domain: "governance",
+      database_target_role: "runtime",
+      authority_ref: "20260815_custom_gpt_mcp_catalog_levels.sql",
       target_fingerprint: targetFingerprint,
       mutation_class: "C3",
     }],
@@ -147,7 +143,7 @@ const ENV = {
   }),
 };
 
-const BRIDGE_TARGET_FINGERPRINT = deriveRoleTargetFingerprints({ env: ENV }).governance;
+const BRIDGE_TARGET_FINGERPRINT = deriveRoleTargetFingerprints({ env: ENV }).runtime;
 const DEPLOYMENT_IDENTITY_PROVIDER = {
   readAttestation: async () => ({
     contract: "mad4b.recovery-runtime-attestation.v1",
@@ -176,7 +172,8 @@ const LOCK = {
   release: async () => {},
 };
 const APPROVAL_VERIFIER = { verify: async ({ token }) => token === FIXTURE_VALUE };
-const READBACK = { verify: async () => ({ postconditions_passed: true, behavioral_probe_passed: true }) };
+const READBACK = { independent_authority: true, role_aware: true, verify: async () => ({ postconditions_passed: true, structural_postconditions_passed: true, data_postconditions_passed: true, behavioral_probe_passed: true }) };
+const MIGRATION_LEDGER = { contract: "mad4b.governance-migration-ledger.v1", finalize: async () => ({ finalized: true }) };
 
 function authorities(store, executor) {
   return {
@@ -189,6 +186,7 @@ function authorities(store, executor) {
     recoveryLock: LOCK,
     readbackVerifier: READBACK,
     hostBreakglassMutationExecutor: executor,
+    migrationLedger: MIGRATION_LEDGER,
   };
 }
 

@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
-import { validateRoleBundleBinding } from "./recoveryExecutionBinding.js";
+import { buildApprovalBinding, validateRoleBundleBinding } from "./recoveryExecutionBinding.js";
 
 export const RECOVERY_EXECUTION_TICKET_CONTRACT = "mad4b.recovery-execution-ticket.v1";
 const SHA256_RE = /^[0-9a-f]{64}$/iu;
 const SHA_RE = /^[0-9a-f]{40}$/iu;
-const ID_RE = /^(?:plan|step|run|finding|ticket):[A-Za-z0-9._:-]{8,160}$/u;
+const ID_RE = /^(?:plan|step|run|finding|ticket|approval):[A-Za-z0-9._:-]{8,160}$/u;
 const ROLE_RE = /^(?:runtime|governance|runtime_persistence|composite|unknown)$/u;
 const ROLE_KEYS = Object.freeze(["runtime", "governance", "runtime_persistence"]);
 
@@ -78,6 +78,23 @@ export function buildExecutionTicketPayload(input = {}) {
   const roleSelectionRequired = input.role_selection_required === true;
   const roles = normalizeRoles(input.selected_roles, roleSelectionRequired ? targetRole : "composite");
   const roleBundleBindings = normalizeRoleBundleBindings(input.role_bundle_bindings, roleSelectionRequired ? roles : []);
+  const approvalBinding = buildApprovalBinding({
+    approvalId: input.approval_id,
+    approvalHash: input.approval_hash,
+    approvalVersion: input.approval_version,
+    planHash: input.plan_hash,
+    stepId: input.step_id,
+    stepHash: input.step_hash,
+    targetKey: input.target_key,
+    targetFingerprint: input.target_fingerprint || input.composite_target_fingerprint,
+    targetRole,
+    operation: input.operation,
+  });
+  if (input.approval_binding && typeof input.approval_binding === "object") {
+    for (const key of ["approval_id", "approval_hash", "approval_version", "plan_hash", "step_id", "step_hash", "target_key", "target_fingerprint", "target_role", "operation", "binding_hash"]) {
+      if (String(input.approval_binding[key] ?? "") !== String(approvalBinding[key] ?? "")) throw new Error(`approval_binding.${key} mismatch.`);
+    }
+  }
   const payload = {
     contract: RECOVERY_EXECUTION_TICKET_CONTRACT,
     inspection_run_id: input.inspection_run_id ? requireId(input.inspection_run_id, "inspection_run_id") : null,
@@ -88,20 +105,29 @@ export function buildExecutionTicketPayload(input = {}) {
     role_object_count_fingerprints: normalizeFingerprints(input.role_object_count_fingerprints, roles, roleSelectionRequired),
     role_selection_hash: input.role_selection_hash ? requireSha(input.role_selection_hash, "role_selection_hash") : null,
     role_bundle_bindings: roleBundleBindings,
+    approval_binding: approvalBinding,
+    approval_id: approvalBinding.approval_id,
+    approval_hash: approvalBinding.approval_hash,
+    approval_version: approvalBinding.approval_version,
     deployment_attestation_hash: input.deployment_attestation_hash ? requireSha(input.deployment_attestation_hash, "deployment_attestation_hash") : null,
     target_fingerprints: normalizeTargetFingerprints(input.target_fingerprints, input.composite_target_fingerprint),
+    target_fingerprint: approvalBinding.target_fingerprint,
     production_sha: requireSha(input.production_sha || input.expected_sha, "production_sha", SHA_RE),
     target_key: text(input.target_key, 128),
     plan_hash: requireSha(input.plan_hash, "plan_hash"),
     step_hash: requireSha(input.step_hash, "step_hash"),
     step_id: requireId(input.step_id, "step_id"),
     target_role: targetRole,
+    operation: text(input.operation, 96),
     idempotency_key: text(input.idempotency_key, 160),
     expires_at: new Date(input.expires_at || 0).toISOString(),
     nonce: text(input.nonce, 160),
   };
   if (!payload.target_key) throw new Error("target_key is required.");
   if (!payload.finding_ids.length) throw new Error("finding_ids must not be empty.");
+  if (!payload.approval_id || !payload.approval_hash || !payload.approval_version || !payload.operation) throw new Error("Single-step approval binding is required.");
+  if (!/^approval:[A-Za-z0-9._:-]{8,160}$/u.test(payload.approval_id)) throw new Error("approval_id is not a bounded Recovery identifier.");
+  if (!SHA256_RE.test(payload.approval_hash) || !SHA256_RE.test(payload.step_hash) || !SHA256_RE.test(payload.plan_hash) || !SHA256_RE.test(payload.target_fingerprints.composite)) throw new Error("approval binding digests must be full SHA-256 values.");
   if (roleSelectionRequired && (!payload.inspection_run_id || !payload.inspection_evidence_hash || !payload.role_selection_hash)) throw new Error("Role-selective tickets require durable inspection references and a canonical role-selection proof hash.");
   if (!payload.idempotency_key) throw new Error("idempotency_key is required.");
   if (!payload.nonce) throw new Error("nonce is required.");
@@ -143,6 +169,8 @@ export async function verifyExecutionTicket(ticket = {}, { verifier, expected = 
       if (JSON.stringify(expectedFingerprints) !== JSON.stringify(payload.target_fingerprints)) throw new Error("Execution ticket target fingerprint mismatch.");
     } else if (key === "role_bundle_bindings") {
       if (JSON.stringify(payload.role_bundle_bindings) !== JSON.stringify(normalizeRoleBundleBindings(value, payload.selected_roles))) throw new Error("Execution ticket role-bundle binding mismatch.");
+    } else if (key === "approval_binding") {
+      if (JSON.stringify(payload.approval_binding) !== JSON.stringify(value)) throw new Error("Execution ticket approval binding mismatch.");
     } else if (text(payload[key], 256) !== text(value, 256)) {
       throw new Error(`Execution ticket ${key} binding mismatch.`);
     }

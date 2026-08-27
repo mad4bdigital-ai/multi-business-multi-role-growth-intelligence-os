@@ -55,6 +55,46 @@
     "VERIFYING",
     "RECOVERED"
   ],
+  "execution_lifecycle_contract": {
+    "contract": "mad4b.recovery-execute-and-verify.v1",
+    "verification_before_finalization": true,
+    "fence_held_until_readback": true,
+    "readback_authority": "independent_role_aware_verifier",
+    "exact_durable_run_id_required": true,
+    "in_memory_fallback_allowed": false,
+    "provider_acknowledged_is_not_verified": true,
+    "postcondition_failure_requires_reconciliation": true,
+    "automatic_rerun_allowed": false,
+    "secrets_included": false
+  },
+  "approval_binding_contract": {
+    "contract": "mad4b.recovery-single-step-approval-binding.v1",
+    "plan_bound": true,
+    "step_bound": true,
+    "target_bound": true,
+    "single_use": true,
+    "caller_supplied_ticket_or_approval_forbidden": true,
+    "secrets_included": false
+  },
+  "migration_target_role_bindings": {
+    "20260815_custom_gpt_mcp_catalog_levels.sql": {
+      "ownership_domain": "governance",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "separate_governance_store_required": true,
+      "secrets_included": false
+    }
+  },
+  "production_live_composition": {
+    "contract": "mad4b.recovery-production-live-composition.v1",
+    "registered": true,
+    "enabled": false,
+    "default_mode": "fail_closed",
+    "denial_code": "RECOVERY_PRODUCTION_LIVE_DISABLED",
+    "repository_live_adapter_wiring": false,
+    "secrets_included": false
+  },
   "exception_classes": {
     "E0": "diagnostic",
     "E1": "target_topology",
@@ -166,13 +206,23 @@
       "execution_ticket_required": true,
       "atomic_claim_required": true,
       "approval_reservation_required": true,
+      "approval_binding_required": true,
+      "deployment_attestation_required": true,
+      "baseline_order_proof_required": true,
+      "exact_durable_run_id_required": true,
+      "independent_role_aware_readback_required": true,
+      "verification_before_finalization": true,
+      "fence_held_until_finalization": true,
+      "migration_ledger_required_before_migration_finalization": true,
       "provider_outcome_unknown_reconciliation_only": true
     },
     "remediation_step_verify": {
       "level": "R0",
       "mutation_class": "C0",
       "target_roles": ["server_resolved"],
-      "authority_ref": "same_cycle_readback_contract"
+      "authority_ref": "same_cycle_readback_contract",
+      "exact_durable_run_id_required": true,
+      "in_memory_fallback_allowed": false
     },
     "migration_execution_safety_preflight": {
       "level": "R2",
@@ -322,6 +372,7 @@
       "verifying",
       "verified",
       "partially_verified",
+      "reconciliation_required",
       "compensation_required",
       "failed_closed",
       "recovered"
@@ -341,7 +392,7 @@
       "issuer": "injected_server_side_signer_only",
       "verifier": "injected_durable_store_verifier_only",
       "signature_or_secret_returned_to_gpt": false,
-      "bindings": ["expected_sha", "target_key", "target_fingerprint", "plan_hash", "step_hash", "step_id", "selected_roles", "role_fingerprints", "role_selection_hash", "role_bundle_bindings", "deployment_attestation_hash", "grant_binding_hash", "operation", "idempotency_key", "nonce", "expiry"],
+      "bindings": ["expected_sha", "target_key", "target_fingerprint", "plan_hash", "step_hash", "step_id", "selected_roles", "role_fingerprints", "role_selection_hash", "role_bundle_bindings", "deployment_attestation_hash", "approval_binding", "grant_binding_hash", "operation", "idempotency_key", "nonce", "expiry"],
       "single_use": true,
       "automatic_replay_after_unknown": false
     },
@@ -360,12 +411,17 @@
       "claim_before_approval_reservation": true,
       "approval_reservation_before_provider": true,
       "approval_finalization_after_provider_acknowledgement": true,
+      "approval_finalization_after_same_cycle_verification": true,
+      "verification_before_execution_receipt_finalization": true,
       "unknown_provider_outcome_is_terminal_until_readback": true,
       "fenced_lease_required": true,
       "heartbeat_and_assert_before_each_provider_boundary": true,
       "partial_receipt_persisted_before_consequential_provider_boundary": true,
       "deployment_identity_attestation_rechecked_before_ticket_and_provider": true,
-      "role_bundle_progress_contract": "mad4b.role-bundle-progress.v1"
+      "role_bundle_binding_contract": "mad4b.role-bundle-progress.v1",
+      "execution_lifecycle_contract": "mad4b.recovery-execute-and-verify.v1",
+      "approval_binding_contract": "mad4b.recovery-single-step-approval-binding.v1",
+      "durable_run_reference_contract": "mad4b.recovery-durable-run-reference.v1"
     },
     "migration_execution_safety": {
       "contract": "mad4b.migration-execution-safety.v1",
@@ -380,6 +436,9 @@
       "live_adapter_injected": false,
       "baseline_order_contract": "mad4b.baseline-before-ordinary-migration.v1",
       "role_bundle_binding_contract": "mad4b.role-bundle-binding.v1",
+      "separate_governance_migration_ledger_required": true,
+      "migration_ledger_required_before_finalization": true,
+      "execution_lifecycle_contract": "mad4b.recovery-execute-and-verify.v1",
       "secrets_included": false
     },
     "exception_lifecycle_methods": ["putException", "getException", "appendExceptionEvent"],

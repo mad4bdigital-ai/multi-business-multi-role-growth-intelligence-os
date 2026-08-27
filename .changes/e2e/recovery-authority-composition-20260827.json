@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "recovery-authority-composition-20260827",
-  "title": "Governed Recovery approval authority composition and challenge entrypoint",
+  "title": "Governed Recovery approval authority composition, fenced execution lifecycle, and runtime-role safety",
   "delivery_mode": "single_pr",
   "secrets_included": false,
   "current_phase": "mvp",
@@ -47,6 +47,8 @@
       "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
       "http-generic-api/recoveryKernel.js",
       "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/config/host-breakglass-tool-contracts.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/recoveryKernelRoutes.js",
       "http-generic-api/routes/systemLayerRoutes.js",
@@ -55,6 +57,7 @@
       "http-generic-api/test-migration-execution-safety.mjs",
       "http-generic-api/test-recovery-execution-binding.mjs",
       "http-generic-api/test-recovery-execution-ticket.mjs",
+      "http-generic-api/test-recovery-action-bridge.mjs",
       "http-generic-api/test-recovery-trust-model.mjs",
       "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/test-recovery-kernel.mjs",
@@ -62,6 +65,7 @@
       "http-generic-api/test-governed-migration-execution-tool.mjs",
       "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
       "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
       "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
@@ -87,7 +91,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Expose a private Recovery approval-challenge contract and a pure Migration Execution Safety layer while requiring an explicit injected authority graph before any approval or execution ticket or migration mutation can be used.",
+      "objective": "Expose a private Recovery approval-challenge contract and a pure Migration Execution Safety layer while requiring an explicit injected authority graph, single-step approval binding, fenced execute-and-verify lifecycle, exact durable run identity, runtime-role mapping, and separate migration-ledger finalization before any mutation can be used.",
       "e2e_journeys": [
         {
           "id": "recovery-authority-composition-challenge-preflight",
@@ -104,7 +108,8 @@
             "Verify that the Recovery operation remains private Production-only and is absent from shared Admin Core and Activation Admin projections.",
             "Validate the migration artifact binding, statement journal, preflight safety gates, per-statement fence/heartbeat, durable transition ordering, unknown-outcome reconciliation, and bounded emergency receipt using non-live doubles.",
             "Validate exact deployment identity attestation and stable immutable attestation hashing before ticket issuance and again before provider dispatch.",
-            "Validate that ordinary migration apply requires a hash-bound baseline predecessor proof and that selected baseline roles carry exact bundle bindings and monotonic progress receipts."
+            "Validate that ordinary migration apply requires a hash-bound baseline predecessor proof and that selected baseline roles carry exact bundle bindings and monotonic progress receipts.",
+            "Validate that the 20260815 migration binds governance ownership to the runtime database target role, that approval claims are step-specific, that verification precedes finalization while the fence is held, and that production_live remains disabled by composition contract."
           ],
           "assertions": [
             "The approval challenge is admin-only, principal-scoped, and hidden from tenant/non-admin System Tool discovery.",
@@ -114,7 +119,8 @@
             "The repository contains no live credentials and the journey performs no Production activation, migration apply, grant apply, provider call, SSH/SQL action, or database mutation.",
             "A non-durable transition, stale schema fingerprint, blocking metadata lock, unsafe capacity profile, unsupported engine, or unresolved prior outcome fails closed before execution.",
             "A deployment SHA, manifest, branch, target fingerprint, bundle checksum, or baseline predecessor mismatch fails closed before ticket issuance or database connection.",
-            "Partial or unknown role-bundle progress requires reconciliation and never permits automatic rerun."
+            "Partial or unknown role-bundle progress requires reconciliation and never permits automatic rerun.",
+            "A missing or mismatched durable run_id, approval binding, migration ledger, role-aware readback authority, or production_live contract fails closed without an in-memory or Local Connector fallback."
           ],
           "tests": [
             {

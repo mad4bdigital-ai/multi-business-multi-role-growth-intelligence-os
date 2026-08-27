@@ -1,4 +1,4 @@
-const COMPOSITION_MODES = new Set(["fail_closed", "injected_non_live"]);
+const COMPOSITION_MODES = new Set(["fail_closed", "injected_non_live", "production_live"]);
 
 export const RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-composition.v1";
 export const RECOVERY_COMPOSITION_MODES = Object.freeze([...COMPOSITION_MODES]);
@@ -17,6 +17,7 @@ const COMPONENT_KEYS = Object.freeze([
   "executionTicketVerifier",
   "partialReceiptStore",
   "proofResolver",
+  "migrationLedger",
 ]);
 
 const STORE_METHODS = Object.freeze([
@@ -44,7 +45,7 @@ const STORE_METHODS = Object.freeze([
 
 const REQUIRED_ADAPTERS = Object.freeze({
   deploymentIdentityProvider: { kind: "object", methods: ["readAttestation"] },
-  recoveryStore: { kind: "object", methods: STORE_METHODS },
+    recoveryStore: { kind: "object", methods: STORE_METHODS },
   approvalIssuer: { kind: "object", methods: ["createChallenge"] },
   approvalVerifier: { kind: "object", methods: ["verify"] },
   approvalStore: { kind: "object", methods: ["putChallenge", "getChallenge"] },
@@ -56,6 +57,7 @@ const REQUIRED_ADAPTERS = Object.freeze({
   executionTicketVerifier: { kind: "object", methods: ["verify"] },
   partialReceiptStore: { kind: "object", methods: ["putImmutablePartialRebuildReceipt"] },
   proofResolver: { kind: "function" },
+  migrationLedger: { kind: "object", methods: ["finalize"] },
 });
 
 function compositionError(code, message, details = {}) {
@@ -175,6 +177,9 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
     throw compositionError("RECOVERY_COMPOSITION_MODE_INVALID", "Recovery composition mode is not registered.", { mode });
   }
   if (mode === "fail_closed") return buildFailClosedComposition(source);
+  if (mode === "production_live") {
+    throw compositionError("RECOVERY_PRODUCTION_LIVE_DISABLED", "production_live is registered as a contract boundary but remains disabled until independently certified live authorities are deployed; no live mutation wiring is present in this repository patch.", { live_activation: false, database_mutation_performed: false, provider_accessed: false });
+  }
   validateRecoveryCompositionAdapters(adapters);
   const components = immutableComponents(adapters);
   const kernelDependencies = Object.freeze({ ...components });

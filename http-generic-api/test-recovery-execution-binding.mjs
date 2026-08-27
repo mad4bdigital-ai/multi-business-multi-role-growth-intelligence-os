@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BASELINE_ORDER_CONTRACT,
+  buildApprovalBinding,
   buildBaselineExecutionOrderProof,
   buildRoleBundleBinding,
   createRoleBundleProgress,
   recordRoleBundleProgress,
+  validateApprovalBinding,
   validateBaselineBeforeOrdinaryMigration,
   validateDeploymentIdentityAttestation,
+  validateDurableRunReference,
+  validateExecutionLifecycleOrder,
   validateRoleBundleBinding,
+  resolveRuntimeMigrationTargetBinding,
 } from "./recoveryExecutionBinding.js";
 
 const SHA = "a".repeat(40);
@@ -109,6 +114,43 @@ test("role bundle binding rejects checksum, statement count, and role tampering"
   const result = validateRoleBundleBinding({ ...binding, role_bundle_sha256: "8".repeat(64) }, binding);
   assert.equal(result.ok, false);
   assert.ok(result.problems.includes("role_bundle_role_bundle_sha256_mismatch"));
+});
+
+test("runtime migration separates governance ownership from runtime database target role", () => {
+  const accepted = resolveRuntimeMigrationTargetBinding({ migration: "20260815_custom_gpt_mcp_catalog_levels.sql", ownershipDomain: "governance", databaseTargetRole: "runtime" });
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.ownership_domain, "governance");
+  assert.equal(accepted.database_target_role, "runtime");
+  const rejected = resolveRuntimeMigrationTargetBinding({ migration: "20260815_custom_gpt_mcp_catalog_levels.sql", ownershipDomain: "governance", databaseTargetRole: "governance" });
+  assert.equal(rejected.ok, false);
+  assert.ok(rejected.problems.includes("migration_database_target_role_mismatch"));
+});
+
+test("single-step approval binding is cryptographically target-bound and tamper-evident", () => {
+  const fields = { approvalId: "approval:test-approval-001", approvalHash: "8".repeat(64), approvalVersion: "v1", planHash: "9".repeat(64), stepId: "step:test-step-001", stepHash: "a".repeat(64), targetKey: "production-runtime", targetFingerprint: "b".repeat(64), targetRole: "runtime", operation: "apply_migration" };
+  const binding = buildApprovalBinding(fields);
+  assert.equal(validateApprovalBinding(binding, fields).ok, true);
+  const tampered = validateApprovalBinding({ ...binding, target_fingerprint: "c".repeat(64) }, fields);
+  assert.equal(tampered.ok, false);
+  assert.ok(tampered.problems.includes("approval_target_fingerprint_mismatch"));
+});
+
+test("durable run reference requires the exact run id and denies memory fallback", () => {
+  const run = { run_id: "run:durable-run-001", plan_hash: "d".repeat(64), step_id: "step:test-step-001" };
+  const accepted = validateDurableRunReference({ runId: run.run_id, run, planHash: run.plan_hash, stepId: run.step_id });
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.in_memory_fallback_allowed, false);
+  const rejected = validateDurableRunReference({ runId: "run:other-run-001", run, planHash: run.plan_hash, stepId: run.step_id });
+  assert.equal(rejected.ok, false);
+  assert.ok(rejected.problems.includes("run_id_mismatch"));
+});
+
+test("execute-and-verify lifecycle requires readback before finalization", () => {
+  const valid = validateExecutionLifecycleOrder(["provider_acknowledged", "readback_pending", "verifying", "verified", "recovered"]);
+  assert.equal(valid.ok, true);
+  const invalid = validateExecutionLifecycleOrder(["provider_acknowledged", "verified", "verifying", "recovered"]);
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.problems.includes("lifecycle_phase_order_invalid"));
 });
 
 console.log("recovery execution binding contract tests loaded");

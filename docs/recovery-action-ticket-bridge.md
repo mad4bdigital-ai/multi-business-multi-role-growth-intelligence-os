@@ -66,6 +66,18 @@ Ordinary migration execution is also subordinate to an explicit `mad4b.baseline-
 
 Each selected baseline role now carries a `mad4b.role-bundle-binding.v1` containing the bundle-manifest checksum, role-bundle checksum, statement count, and statement fingerprints. The signed execution ticket binds the complete selected-role set to these bindings and to `deployment_attestation_hash`. During execution, `mad4b.role-bundle-progress.v1` records monotonic statement boundaries and transitions. Any partial execution, unknown provider outcome, or failed same-cycle verification sets `reconciliation_required: true` and `automatic_rerun_allowed: false`; retry or resume requires the existing durable receipt, exact plan/ticket/bundle/fence identity, and an explicit approval.
 
+## Fenced execute-and-verify lifecycle
+
+The third expansion makes the execution lifecycle explicitly single-cycle and verification-first. After the provider boundary acknowledges an operation, the Recovery Kernel persists `readback_pending`, re-asserts the same fencing lease, and invokes an injected verifier that must declare both `independent_authority: true` and `role_aware: true`. The verifier runs while the fence is held. A successful readback is persisted as `verified`, any required separate Governance Migration Ledger finalization occurs next, then the execution ticket and approval reservation are finalized, and only afterward is the lock released. A provider acknowledgement alone is never a successful recovery receipt.
+
+The approval is bound to exactly one plan, one step, one target fingerprint, one target role, one operation, and one approval hash. The caller may submit an approval token reference, but cannot supply an execution-ticket ID, hash, signature, approval binding, migration selection, database identifier, or credential. Tickets are server-issued and cryptographically recomputed from the signed canonical payload; tampering with the role-specific target fingerprint fails closed during issuance or verification.
+
+Ordinary migration ownership is intentionally separate from execution target. The repository migration `20260815_custom_gpt_mcp_catalog_levels.sql` is owned by the `governance` domain but targets the `runtime` database role and uses the runtime credential binding family. This mapping is checked canonically before provider dispatch; it must not be silently converted into a governance database target. The Governance Migration Ledger is a separate durable authority from the Recovery Store and is required before a verified ordinary migration can finalize. Empty-database baseline reconstruction remains a distinct role-bundle path and is exempt from the ordinary-migration ledger paradox until its own governed ledger prerequisite is available.
+
+Verification by a separate read-only capability requires an exact durable `run_id` bound to the plan hash and step ID. Plan lookup, latest-run lookup, process memory, or an in-memory fallback cannot satisfy verification. When a same-cycle readback fails or the durable run identity is absent, the outcome is `reconciliation_required` and automatic replay is forbidden.
+
+`production_live` is registered only as a contract name for future composition compatibility. `createRecoveryComposition({ mode: "production_live" })` rejects with `RECOVERY_PRODUCTION_LIVE_DISABLED`; this Draft PR adds no environment switch, production adapter, live credential path, or operational activation.
+
 | New contract | Safety guarantee | Live status in this Draft PR |
 | --- | --- | --- |
 | `mad4b.recovery-deployment-identity-attestation.v1` | Exact repository/branch/SHA/manifest/target binding with stable hash-only evidence. | Injectable contract and tests only; no live provider. |

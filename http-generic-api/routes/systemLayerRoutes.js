@@ -2480,7 +2480,9 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         approvalStore: deps.approvalStore,
         recoveryLock: deps.recoveryLock,
         readbackVerifier: deps.readbackVerifier,
+        deploymentIdentityProvider: deps.deploymentIdentityProvider,
         hostBreakglassMutationExecutor: deps.hostBreakglassMutationExecutor,
+        migrationLedger: deps.migrationLedger,
       });
       return sanitizeRecoveryActionBridgeOutput(result);
     }

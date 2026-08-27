@@ -46,6 +46,120 @@ export const ROLE_BUNDLE_PROGRESS_CONTRACT = Object.freeze({
   resume_requires_exact_bundle_ticket_plan_and_fence: true,
   secrets_included: false,
 });
+export const APPROVAL_BINDING_CONTRACT = Object.freeze({
+  contract: "mad4b.recovery-single-step-approval-binding.v1",
+  plan_bound: true,
+  step_bound: true,
+  target_bound: true,
+  single_use: true,
+  caller_supplied_ticket_forbidden: true,
+  secrets_included: false,
+});
+export const EXECUTION_LIFECYCLE_CONTRACT = Object.freeze({
+  contract: "mad4b.recovery-execute-and-verify.v1",
+  verification_before_finalization: true,
+  fence_held_until_readback: true,
+  release_fence_after_finalization: true,
+  provider_acknowledged_is_not_verified: true,
+  postcondition_failure_requires_reconciliation: true,
+  automatic_rerun_allowed: false,
+  secrets_included: false,
+});
+export const RUNTIME_MIGRATION_TARGET_BINDINGS = Object.freeze({
+  "20260815_custom_gpt_mcp_catalog_levels.sql": Object.freeze({
+    migration: "20260815_custom_gpt_mcp_catalog_levels.sql",
+    ownership_domain: "governance",
+    database_target_role: "runtime",
+    credential_binding_prefix: "DB_",
+    required_resources: ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools"],
+    mutation_class: "schema_and_data_convergence",
+    traffic_policy: "normal",
+    rollback_class: "forward_fix_only",
+    secrets_included: false,
+  }),
+});
+export const PRODUCTION_LIVE_COMPOSITION_CONTRACT = Object.freeze({
+  contract: "mad4b.recovery-production-live-composition.v1",
+  required_authorities: ["recovery_store", "approval_authority", "ticket_signer_verifier", "fenced_lock", "host_executor", "readback_verifier", "deployment_attestation", "staging_certification"],
+  default_mode: "fail_closed",
+  live_mode_name: "production_live",
+  live_execution_enabled_by_default: false,
+  mutation_requires_explicit_live_mode: true,
+  secrets_included: false,
+});
+
+export function buildApprovalBinding({ approvalId, approvalHash, approvalVersion = "v1", planHash, stepId, stepHash, targetKey, targetFingerprint, targetRole, operation } = {}) {
+  const binding = {
+    ...APPROVAL_BINDING_CONTRACT,
+    approval_id: text(approvalId, 160),
+    approval_hash: text(approvalHash, 128).toLowerCase(),
+    approval_version: text(approvalVersion, 64),
+    plan_hash: text(planHash, 128).toLowerCase(),
+    step_id: text(stepId, 160),
+    step_hash: text(stepHash, 128).toLowerCase(),
+    target_key: text(targetKey, 160),
+    target_fingerprint: text(targetFingerprint, 128).toLowerCase(),
+    target_role: text(targetRole, 64).toLowerCase(),
+    operation: text(operation, 96),
+  };
+  return { ...binding, binding_hash: hashObject(binding) };
+}
+
+export function validateApprovalBinding(binding = {}, expected = {}) {
+  const observed = binding && typeof binding === "object" && !Array.isArray(binding) ? binding : {};
+  const canonical = buildApprovalBinding({
+    approvalId: expected.approvalId ?? observed.approval_id,
+    approvalHash: expected.approvalHash ?? observed.approval_hash,
+    approvalVersion: expected.approvalVersion ?? observed.approval_version,
+    planHash: expected.planHash ?? observed.plan_hash,
+    stepId: expected.stepId ?? observed.step_id,
+    stepHash: expected.stepHash ?? observed.step_hash,
+    targetKey: expected.targetKey ?? observed.target_key,
+    targetFingerprint: expected.targetFingerprint ?? observed.target_fingerprint,
+    targetRole: expected.targetRole ?? observed.target_role,
+    operation: expected.operation ?? observed.operation,
+  });
+  const problems = [];
+  for (const key of ["approval_id", "approval_hash", "approval_version", "plan_hash", "step_id", "step_hash", "target_key", "target_fingerprint", "target_role", "operation", "binding_hash"]) {
+    if (String(observed[key] ?? "") !== String(canonical[key] ?? "")) problems.push(`approval_${key}_mismatch`);
+  }
+  if (!observed.single_use || observed.single_use !== true) problems.push("approval_single_use_required");
+  if (observed.caller_supplied_ticket_forbidden !== true) problems.push("approval_ticket_caller_binding_invalid");
+  if (!validSha256(canonical.approval_hash) || !validSha256(canonical.target_fingerprint) || !validSha256(canonical.step_hash) || !validSha256(canonical.plan_hash)) problems.push("approval_binding_digest_invalid");
+  return { ok: problems.length === 0, contract: APPROVAL_BINDING_CONTRACT.contract, problems, binding: canonical, secrets_included: false };
+}
+
+export function resolveRuntimeMigrationTargetBinding({ migration, ownershipDomain = null, databaseTargetRole = null } = {}) {
+  const key = text(migration, 160);
+  const known = RUNTIME_MIGRATION_TARGET_BINDINGS[key] || null;
+  const problems = [];
+  if (!known) problems.push("migration_target_binding_unknown");
+  if (known && ownershipDomain && ownershipDomain !== known.ownership_domain) problems.push("migration_ownership_domain_mismatch");
+  if (known && databaseTargetRole && databaseTargetRole !== known.database_target_role) problems.push("migration_database_target_role_mismatch");
+  return { ok: problems.length === 0, contract: "mad4b.recovery-migration-target-binding.v1", migration: key, ownership_domain: known?.ownership_domain || text(ownershipDomain, 64) || null, database_target_role: known?.database_target_role || text(databaseTargetRole, 64) || null, binding: known, problems, secrets_included: false };
+}
+
+export function validateDurableRunReference({ runId, run, planHash, stepId } = {}) {
+  const problems = [];
+  const normalizedRunId = text(runId, 160);
+  if (!/^run:[A-Za-z0-9._:-]{8,160}$/u.test(normalizedRunId)) problems.push("run_id_invalid");
+  if (!run || typeof run !== "object" || Array.isArray(run)) problems.push("durable_run_missing");
+  if (run && run.run_id !== normalizedRunId) problems.push("run_id_mismatch");
+  if (run && planHash && run.plan_hash !== planHash) problems.push("run_plan_hash_mismatch");
+  if (run && stepId && run.step_id !== stepId) problems.push("run_step_id_mismatch");
+  return { ok: problems.length === 0, contract: "mad4b.recovery-durable-run-reference.v1", run_id: normalizedRunId || null, problems, in_memory_fallback_allowed: false, secrets_included: false };
+}
+
+export function validateExecutionLifecycleOrder(phases = []) {
+  const expected = ["provider_acknowledged", "readback_pending", "verifying", "verified", "recovered"];
+  const observed = Array.isArray(phases) ? phases : [];
+  const indexes = expected.map((phase) => observed.indexOf(phase));
+  const problems = [];
+  if (indexes.some((index) => index < 0)) problems.push("lifecycle_phase_missing");
+  if (indexes.some((index, i) => i > 0 && index <= indexes[i - 1])) problems.push("lifecycle_phase_order_invalid");
+  return { ok: problems.length === 0, contract: EXECUTION_LIFECYCLE_CONTRACT.contract, expected_phases: expected, observed_phases: observed, problems, secrets_included: false };
+}
+
 
 function text(value, max = 512) {
   return String(value ?? "").trim().slice(0, max);

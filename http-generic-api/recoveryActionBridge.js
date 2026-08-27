@@ -116,7 +116,8 @@ export function sanitizeRecoveryActionBridgeOutput(value) {
   return stripTicketOutput(sanitizeEvidence(value));
 }
 
-function bridgeReceipt(execution, request, { ticketIssued, forwarded } = {}) {
+function bridgeReceipt(execution, request, { ticketIssueState = "not_issued", forwarded } = {}) {
+  const normalizedTicketIssueState = ["issued_now", "preexisting", "not_issued"].includes(ticketIssueState) ? ticketIssueState : "not_issued";
   return sanitizeRecoveryActionBridgeOutput({
     ok: execution?.ok !== false,
     contract: BRIDGE_CONTRACT,
@@ -128,7 +129,8 @@ function bridgeReceipt(execution, request, { ticketIssued, forwarded } = {}) {
     step_id: execution?.step_id || request.step_id,
     idempotency_key: execution?.idempotency_key || request.idempotency_key,
     execution,
-    server_issued_execution_ticket: ticketIssued === true,
+    ticket_issue_state: normalizedTicketIssueState,
+    server_issued_execution_ticket: normalizedTicketIssueState !== "not_issued",
     execution_ticket_forwarded_internally: forwarded === true,
     execution_ticket_returned: false,
     readback_required: execution?.readback_required !== false,
@@ -149,6 +151,7 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
   hostBreakglassMutationExecutor,
   deploymentIdentityProvider,
   unsupportedBroker,
+  migrationLedger,
 } = {}) {
   const request = assertInput(input);
   assertAdminPrincipal(adminPrincipal);
@@ -169,9 +172,10 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
         deploymentIdentityProvider,
         mutationExecutor: asExecutor(hostBreakglassMutationExecutor),
         unsupportedBroker,
+        migrationLedger,
       },
     );
-    return bridgeReceipt(replay, request, { ticketIssued: true, forwarded: false });
+    return bridgeReceipt(replay, request, { ticketIssueState: "preexisting", forwarded: false });
   }
 
   const ticket = await createExecutionTicket(
@@ -179,9 +183,10 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
       plan_id: request.plan_id,
       plan_hash: request.plan_hash,
       step_id: request.step_id,
+      approval_token: request.approval_token,
       idempotency_key: request.idempotency_key,
     },
-    { recoveryStore, executionTicketSigner, deploymentIdentityProvider },
+    { recoveryStore, executionTicketSigner, deploymentIdentityProvider, approvalVerifier, approvalStore },
   );
 
   const execution = await executeRemediationStep(
@@ -204,10 +209,11 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
       deploymentIdentityProvider,
       mutationExecutor: asExecutor(hostBreakglassMutationExecutor),
       unsupportedBroker,
+      migrationLedger,
     },
   );
 
-  return bridgeReceipt(execution, request, { ticketIssued: true, forwarded: true });
+  return bridgeReceipt(execution, request, { ticketIssueState: "issued_now", forwarded: true });
 }
 
 export const _testingRecoveryActionBridge = Object.freeze({

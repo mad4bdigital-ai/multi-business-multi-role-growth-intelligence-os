@@ -42,6 +42,7 @@ function makeCompleteAdapters() {
     executionTicketVerifier,
     partialReceiptStore: { putImmutablePartialRebuildReceipt: asyncMethod({ persisted: true }) },
     proofResolver: () => ({ source: "durable_full_inspection", selected_roles: ["runtime"] }),
+    migrationLedger: { contract: "mad4b.governance-migration-ledger.v1", finalize: asyncMethod({ finalized: true }) },
   };
 }
 
@@ -81,6 +82,13 @@ test("execution-ticket verifier must be the same object bound into the durable s
   );
 });
 
+test("production_live composition is registered but permanently disabled", () => {
+  assert.throws(
+    () => createRecoveryComposition({ mode: "production_live", adapters: makeCompleteAdapters(), source: "test_production_live" }),
+    (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DISABLED" && error.status === 503,
+  );
+});
+
 test("complete injected graph remains non-live and is exposed through three bounded route dependency groups", () => {
   const adapters = makeCompleteAdapters();
   const composition = createRecoveryComposition({ mode: "injected_non_live", adapters, source: "test_injected" });
@@ -98,6 +106,7 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(routeDeps.readbackVerifier, adapters.readbackVerifier);
   assert.equal(routeDeps.executionTicketSigner, adapters.executionTicketSigner);
   assert.equal(routeDeps.executionTicketVerifier, adapters.executionTicketVerifier);
+  assert.equal(routeDeps.migrationLedger, adapters.migrationLedger);
   assert.equal(routeDeps.broker.hostLocalMutationExecutor, adapters.hostLocalMutationExecutor);
   assert.equal(routeDeps.hostBreakglassMutationExecutor, adapters.hostLocalMutationExecutor);
   assert.equal(routeDeps.runtimeBootstrapDependencies.deploymentIdentityProvider, adapters.deploymentIdentityProvider);

@@ -143,6 +143,7 @@ export function buildRecoveryKernelRoutes({
   executionTicketSigner,
   deploymentIdentityProvider,
   hostBreakglassMutationExecutor,
+  migrationLedger,
   productionActivationReadinessExecutor,
   systemToolLookup,
 } = {}) {
@@ -222,6 +223,7 @@ export function buildRecoveryKernelRoutes({
         readbackVerifier,
         deploymentIdentityProvider,
         hostBreakglassMutationExecutor,
+        migrationLedger,
       });
       return res.status(202).json(sanitizeRecoveryActionBridgeOutput({ ok: true, contract: "mad4b.recovery-action-bridge-route-receipt.v1", result, secrets_included: false }));
     } catch (error) {

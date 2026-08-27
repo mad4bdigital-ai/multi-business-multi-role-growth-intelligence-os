@@ -180,6 +180,15 @@
     "runtime_database_env_names": ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD", "DATABASE_URL"]
   },
   "mutation_authority": {
+    "execution_lifecycle_contract": "mad4b.recovery-execute-and-verify.v1",
+    "approval_binding_contract": "mad4b.recovery-single-step-approval-binding.v1",
+    "durable_run_reference_contract": "mad4b.recovery-durable-run-reference.v1",
+    "verification_before_finalization": true,
+    "fence_held_until_finalization": true,
+    "exact_durable_run_id_required": true,
+    "in_memory_run_fallback_allowed": false,
+    "separate_migration_ledger_required": true,
+    "production_live_composition_enabled": false,
     "execution_ticket_contract": "mad4b.recovery-execution-ticket.v1",
     "mutation_requires_ticket_id_and_hash": true,
     "ticket_refs_are_not_authority": true,
@@ -188,6 +197,16 @@
     "default_cli_authority": "deny",
     "default_cli_partial_receipt_store": "deny",
     "provider_wiring_in_repository": false
+  },
+  "migration_target_role_bindings": {
+    "20260815_custom_gpt_mcp_catalog_levels.sql": {
+      "ownership_domain": "governance",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
+    }
   },
   "bootstrap_credentials": {
     "host_env": "MYSQL_BOOTSTRAP_HOST",
@@ -251,6 +270,7 @@
     "empty_database_execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
     "baseline_before_ordinary_migration": {
       "contract": "mad4b.baseline-before-ordinary-migration.v1",
+      "verification_before_ordinary_migration": true,
       "ordinary_migration_first_denied": true,
       "required_predecessors": ["recovery_control_plane_ready", "durable_full_inspection", "governance_baseline_ready", "runtime_persistence_baseline_ready", "canonical_grants_readback_ready", "governance_authority_ready"],
       "proof_source": "injected_durable_baseline_readback",

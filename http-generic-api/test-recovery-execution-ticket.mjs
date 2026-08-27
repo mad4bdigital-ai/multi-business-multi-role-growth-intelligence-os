@@ -25,6 +25,10 @@ const BASE = {
   role_object_count_fingerprints: ROLE_FP,
   role_bundle_bindings: ROLE_BUNDLE_BINDINGS,
   deployment_attestation_hash: "9".repeat(64),
+  approval_id: `approval:${"5".repeat(32)}`,
+  approval_hash: "6".repeat(64),
+  approval_version: "v1",
+  operation: "database.rebuild_empty",
   target_fingerprints: { composite: "f".repeat(64), ...ROLE_FP },
   production_sha: SHA,
   target_key: "production-runtime",
@@ -72,7 +76,7 @@ test("execution ticket is signed, hash-addressed, single-use, and role-provenanc
 
 test("execution ticket tampering and cross-plan reuse fail closed", async () => {
   const ticket = await makeTicket();
-  await assert.rejects(() => verifyExecutionTicket({ ...ticket, target_key: "other-target" }, { verifier }), /hash mismatch/u);
+  await assert.rejects(() => verifyExecutionTicket({ ...ticket, target_key: "other-target" }, { verifier }), /hash mismatch|approval_binding/u);
   await assert.rejects(() => verifyExecutionTicket(ticket, { verifier, expected: { plan_hash: "8".repeat(64) } }), /binding mismatch/u);
   await assert.rejects(() => verifyExecutionTicket(ticket, { verifier, expected: { idempotency_key: "other-idempotency" } }), /binding mismatch/u);
 });
