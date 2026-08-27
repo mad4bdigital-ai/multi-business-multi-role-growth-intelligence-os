@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const DEFAULT_REGISTRY = "docs/governance/platform-configuration-entry-registry.json";
 const DEFAULT_CANDIDATES = ".artifacts/repository-tool-lifecycle/configuration-candidates/configuration-candidates.json";
+const DEFAULT_BASELINE_EXTENSION = "docs/governance/configuration-drift-baseline-extensions.json";
 const DEFAULT_OUTPUT = ".artifacts/repository-tool-lifecycle/platform-configuration-entry-guard.json";
 export const CONTRACT = "mad4b.platform-configuration-entry-guard.v1";
 const KEY_PATTERN = /^[a-z][a-z0-9]*(\.[a-z0-9]+)+$/u;
@@ -136,6 +137,18 @@ function classifyChangedCandidates(candidates, changedFiles, ignoredPrefixes, en
   return findings;
 }
 
+export function collectBaselineFingerprints({ baselineDocument = null, baselineExtensionDocument = null } = {}) {
+  const fingerprints = new Set(Array.isArray(baselineDocument?.baseline_fingerprints) ? baselineDocument.baseline_fingerprints : []);
+  for (const entry of Array.isArray(baselineExtensionDocument?.entries) ? baselineExtensionDocument.entries : []) {
+    const safeGovernanceInput = entry?.configuration_class === "ci_governance_input"
+      && entry?.contains_secret_value === false
+      && entry?.grants_runtime_mutation === false
+      && entry?.grants_production_activation === false;
+    if (safeGovernanceInput && typeof entry?.fingerprint === "string" && entry.fingerprint.trim()) fingerprints.add(entry.fingerprint.trim());
+  }
+  return fingerprints;
+}
+
 export function evaluateConfigurationEntryGuard({ repositoryRoot = ROOT, registry, candidates, changedFiles = [], baselineFingerprints = new Set() } = {}) {
   const effectiveRegistry = registry || readJson(path.join(repositoryRoot, DEFAULT_REGISTRY));
   const effectiveCandidates = candidates || readJson(path.join(repositoryRoot, DEFAULT_CANDIDATES));
@@ -194,7 +207,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const candidates = readJson(path.resolve(repositoryRoot, args.candidates || DEFAULT_CANDIDATES));
   const changedFiles = parseChangedFilesFile(args.changed_files || process.env.CHANGED_FILES_FILE);
   const baselineDocument = args.baseline_policy ? readJson(path.resolve(repositoryRoot, args.baseline_policy)) : null;
-  const baselineFingerprints = new Set(Array.isArray(baselineDocument?.baseline_fingerprints) ? baselineDocument.baseline_fingerprints : []);
+  const baselineExtensionPath = args.baseline_extension || DEFAULT_BASELINE_EXTENSION;
+  const baselineExtensionDocument = baselineExtensionPath && fs.existsSync(path.resolve(repositoryRoot, baselineExtensionPath))
+    ? readJson(path.resolve(repositoryRoot, baselineExtensionPath))
+    : null;
+  const baselineFingerprints = collectBaselineFingerprints({ baselineDocument, baselineExtensionDocument });
   const result = evaluateConfigurationEntryGuard({ repositoryRoot, registry, candidates, changedFiles, baselineFingerprints });
   const outputPath = path.resolve(repositoryRoot, args.output || DEFAULT_OUTPUT);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });

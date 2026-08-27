@@ -11,6 +11,7 @@ import {
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
 import { assessMigrationSqlPreflight, splitSqlStatements } from "./releaseReadiness.js";
+import { evaluateMigrationExecutionPreflight } from "./migrationExecutionSafety.js";
 import {
   READINESS_REPAIR_CHECKSUM as PINNED_READINESS_REPAIR_CHECKSUM,
   assessReadinessRepairState,
@@ -224,6 +225,84 @@ function authorizedReadinessEnvelope(inspection, overrides = {}) {
   };
 }
 
+function safetyPreflightForInspection(inspection) {
+  const plan = {
+    target_role: "runtime",
+    credential_binding: { role: "runtime" },
+    expected_runtime_sha: DEPLOYED_COMMIT_SHA,
+    expected_target_fingerprint: "target-fingerprint",
+    expected_schema_precondition_fingerprint: "schema-fingerprint",
+    required_mysql_version: "8.0.0",
+    artifact: {
+      migration: inspection.migration,
+      raw_artifact_sha256: inspection.artifact_binding.raw_artifact_sha256,
+      normalized_artifact_sha256: inspection.artifact_binding.normalized_artifact_sha256,
+      execution_bundle_sha256: inspection.artifact_binding.execution_bundle_sha256,
+      dependencies: [],
+    },
+    execution_profile: {
+      expected_algorithm: "INSTANT",
+      expected_lock: "NONE",
+      estimated_impact: "metadata_only",
+      traffic_mode: "traffic_safe",
+      backfill_mode: "not_applicable",
+    },
+    timeout_budget: {
+      metadata_lock_timeout_ms: 5000,
+      row_lock_timeout_ms: 5000,
+      statement_timeout_ms: 30000,
+      provider_timeout_ms: 45000,
+      recovery_lease_ttl_ms: 90000,
+      heartbeat_interval_ms: 10000,
+      workflow_timeout_ms: 120000,
+    },
+    approval: { status: "approved", approval_id: "123e4567-e89b-12d3-a456-426614174000" },
+  };
+  return evaluateMigrationExecutionPreflight({
+    plan,
+    binding: inspection.artifact_binding,
+    runtime: {
+      target_role: "runtime",
+      runtime_sha: DEPLOYED_COMMIT_SHA,
+      target_fingerprint: "target-fingerprint",
+      schema_precondition_fingerprint: "schema-fingerprint",
+      default_engine: "InnoDB",
+      server_version: "8.0.36",
+      replication: { enabled: false, lag_seconds: 0 },
+      backup: { recent_checkpoint: true },
+    },
+    metadataLocks: { blocking_metadata_locks: 0, long_running_transactions: 0, open_target_transactions: 0, lock_queue_length: 0 },
+    capacity: { free_disk_bytes: 1000000, estimated_required_bytes: 1000 },
+    session: {
+      sql_mode: "STRICT_TRANS_TABLES",
+      time_zone: "+00:00",
+      transaction_isolation: "REPEATABLE-READ",
+      character_set_client: "utf8mb4",
+      collation_connection: "utf8mb4_unicode_ci",
+      foreign_key_checks: 1,
+      autocommit: 1,
+    },
+    health: {
+      api_healthy: true,
+      db_connections_healthy: true,
+      db_latency_healthy: true,
+      no_open_recovery_incident: true,
+      no_unknown_prior_outcome: true,
+    },
+  });
+}
+
+function withSafetyDeps(deps = {}) {
+  return {
+    migrationSafetyPreflight: async ({ inspection }) => safetyPreflightForInspection(inspection),
+    ...deps,
+  };
+}
+
+async function runWithSafety(input, deps = {}) {
+  return runGovernedMigrationExecution(input, withSafetyDeps(deps));
+}
+
 function fakeResult(mode) {
   const base = {
     ok: true,
@@ -274,6 +353,8 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(inspected.atomic_runner_required, false);
   assert.equal(inspected.required_envelope, null);
   assert.equal(inspected.deployment, null);
+  assert.equal(inspected.artifact_binding.raw_artifact_sha256, CHECKSUM);
+  assert.equal(inspected.migration_execution_safety_contract.contract, "mad4b.migration-execution-safety.v1");
 }
 
 {
@@ -320,7 +401,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   let executed = false;
-  const result = await runGovernedMigrationExecution(baseInput(), {
+  const result = await runWithSafety(baseInput(), {
     execFile: async () => {
       executed = true;
       return { stdout: JSON.stringify(fakeResult("dry_run")), stderr: "" };
@@ -335,7 +416,7 @@ function fakeReadinessRepairResult(mode) {
 }
 
 {
-  const result = await runGovernedMigrationExecution(baseInput(), {
+  const result = await runWithSafety(baseInput(), {
     timeoutMs: 110000,
     execFile: async () => ({
       stdout: JSON.stringify({
@@ -352,7 +433,7 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(result.runner_timeout_ms, 45000);
 
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput(), {
+    () => runWithSafety(baseInput(), {
       execFile: async () => ({
         stdout: JSON.stringify({
           ...fakeResult("dry_run"),
@@ -369,7 +450,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput("apply"), {
+    () => runWithSafety(baseInput("apply"), {
       authorizeApply: async () => authorizedEnvelope(),
       execFile: async () => ({
         stdout: JSON.stringify({ ...fakeResult("apply"), already_applied: true }),
@@ -386,7 +467,7 @@ function fakeReadinessRepairResult(mode) {
     level: "LOG",
     message: JSON.stringify(fakeResult("dry_run"), null, 2),
   };
-  const result = await runGovernedMigrationExecution(baseInput(), {
+  const result = await runWithSafety(baseInput(), {
     execFile: async () => ({ stdout: JSON.stringify(structuredEnvelope), stderr: "" }),
   });
   assert.equal(result.ok, true);
@@ -398,7 +479,7 @@ function fakeReadinessRepairResult(mode) {
 {
   let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution({ ...baseInput("apply"), confirm: "WRONG" }, {
+    () => runWithSafety({ ...baseInput("apply"), confirm: "WRONG" }, {
       execFile: async () => {
         executed = true;
         return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
@@ -413,7 +494,7 @@ function fakeReadinessRepairResult(mode) {
 {
   let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput("apply"), {
+    () => runWithSafety(baseInput("apply"), {
       authorizeApply: async () => authorizedEnvelope({ apply_allowed: false }),
       execFile: async () => {
         executed = true;
@@ -428,7 +509,7 @@ function fakeReadinessRepairResult(mode) {
 {
   let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput("apply"), {
+    () => runWithSafety(baseInput("apply"), {
       authorizeApply: async () => authorizedEnvelope({ readback_required: false }),
       execFile: async () => {
         executed = true;
@@ -441,8 +522,44 @@ function fakeReadinessRepairResult(mode) {
 }
 
 {
+  let executed = false;
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope(),
+      execFile: async () => {
+        executed = true;
+        return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
+      },
+    }),
+    (error) => error.code === "governed_migration_safety_preflight_missing" && error.status === 503,
+  );
+  assert.equal(executed, false);
+}
+
+{
+  let executed = false;
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope(),
+      migrationSafetyPreflight: async () => ({
+        ok: false,
+        status: "blocked",
+        problems: [{ code: "metadata_lock_preflight_failed" }],
+        safety: { database_mutation_performed: false, provider_access_performed: false, credential_access_performed: false },
+      }),
+      execFile: async () => {
+        executed = true;
+        return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
+      },
+    }),
+    (error) => error.code === "governed_migration_safety_preflight_blocked" && error.status === 409,
+  );
+  assert.equal(executed, false);
+}
+
+{
   let authorized = false;
-  const result = await runGovernedMigrationExecution(baseInput("apply"), {
+  const result = await runWithSafety(baseInput("apply"), {
     authorizeApply: async (inspection) => {
       authorized = true;
       assert.equal(inspection.capabilityEnvelopeId, ENVELOPE_ID);
@@ -463,7 +580,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(readinessRepairInput(), {
+    () => runWithSafety(readinessRepairInput(), {
       execFile: async () => ({
         stdout: JSON.stringify({
           ...fakeReadinessRepairResult("dry_run"),
@@ -478,7 +595,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   let runnerPath = "";
-  const result = await runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+  const result = await runWithSafety(readinessRepairInput("apply"), atomicDeps({
     authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection),
     execFile: async (_command, args) => {
       runnerPath = args[0];
@@ -495,7 +612,7 @@ function fakeReadinessRepairResult(mode) {
 {
   let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+    () => runWithSafety(readinessRepairInput("apply"), atomicDeps({
       authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection, {
         expected_commit_sha: "b".repeat(40),
       }),
@@ -512,7 +629,7 @@ function fakeReadinessRepairResult(mode) {
 {
   let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+    () => runWithSafety(readinessRepairInput("apply"), atomicDeps({
       authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection, {
         binding_sha256: "0".repeat(64),
       }),
@@ -528,7 +645,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+    () => runWithSafety(readinessRepairInput("apply"), atomicDeps({
       authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection),
       execFile: async () => ({
         stdout: JSON.stringify({
@@ -545,7 +662,7 @@ function fakeReadinessRepairResult(mode) {
 {
   let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution({ ...baseInput(), expected_checksum_sha256: "0".repeat(64) }, {
+    () => runWithSafety({ ...baseInput(), expected_checksum_sha256: "0".repeat(64) }, {
       execFile: async () => {
         executed = true;
         return { stdout: JSON.stringify(fakeResult("dry_run")), stderr: "" };
@@ -558,7 +675,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput(), {
+    () => runWithSafety(baseInput(), {
       execFile: async () => {
         const error = new Error("runner failed");
         error.code = 9;
@@ -590,7 +707,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput(), {
+    () => runWithSafety(baseInput(), {
       executionId: "incident-20260815",
       execFile: async () => {
         const error = new Error("runner failed");
@@ -622,7 +739,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput(), {
+    () => runWithSafety(baseInput(), {
       execFile: async () => {
         const error = new Error("runner rejected the artifact");
         error.code = 1;
@@ -647,7 +764,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput(), {
+    () => runWithSafety(baseInput(), {
       executionId: "incident-225",
       timeoutMs: 25,
       execFile: async () => {
@@ -674,7 +791,7 @@ function fakeReadinessRepairResult(mode) {
 
 {
   await assert.rejects(
-    () => runGovernedMigrationExecution(baseInput(), {
+    () => runWithSafety(baseInput(), {
       executionId: "incident-1048",
       maxBuffer: 1024,
       execFile: async () => {

@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import { validateDeploymentIdentityAttestation } from "./recoveryExecutionBinding.js";
 
 export const RECOVERY_TRUST_CONTRACT = "mad4b.recovery-trust-model.v1";
 export const RECOVERY_MANIFEST_PATH = "config/recovery-kernel-manifest.json";
 export const RECOVERY_REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 export const RECOVERY_BRANCH = "Production";
+export { validateDeploymentIdentityAttestation };
 
 const SHA_RE = /^[0-9a-f]{40}$/iu;
 const HASH_RE = /^[0-9a-f]{64}$/iu;
@@ -203,6 +205,9 @@ export function readRuntimeAttestation({ env = process.env, expectedSha = null, 
   const processStart = Number.isFinite(Number(process.uptime?.())) ? new Date(Date.now() - (process.uptime() * 1000)).toISOString() : null;
   const base = {
     contract: "mad4b.recovery-runtime-attestation.v1",
+    deployment_identity_contract: "mad4b.recovery-deployment-identity-attestation.v1",
+    repository: resolvedIdentity.repository,
+    branch: resolvedIdentity.branch,
     repository_sha: resolvedIdentity.sha,
     deployment_sha: resolvedIdentity.sha,
     process_start_time: processStart,
@@ -211,6 +216,7 @@ export function readRuntimeAttestation({ env = process.env, expectedSha = null, 
     manifest_bound: manifestBinding.ok,
     role_credentials_ready: roleCredentials,
     loaded_contract_version: manifest.contract,
+    read_only_probe: true,
     target_fingerprints: deriveRoleTargetFingerprints({ env }),
     role_identity_uniqueness: roleIdentityUniqueness({ env }),
     database_connection_performed: false,
@@ -218,7 +224,8 @@ export function readRuntimeAttestation({ env = process.env, expectedSha = null, 
     provider_mutation_performed: false,
     secrets_included: false,
   };
-  return { ...base, attestation_hash: stableHash(base), parity: manifestBinding.ok && resolvedIdentity.repository === RECOVERY_REPOSITORY && resolvedIdentity.branch === RECOVERY_BRANCH, manifest_verification: manifestBinding };
+  const immutableHashBasis = { ...base, process_start_time: null };
+  return { ...base, attestation_hash: stableHash(immutableHashBasis), attestation_hash_basis: "immutable_deployment_identity", parity: manifestBinding.ok && resolvedIdentity.repository === RECOVERY_REPOSITORY && resolvedIdentity.branch === RECOVERY_BRANCH, manifest_verification: manifestBinding };
 }
 
 export function getRecoveryTrustModel({ env = process.env, expectedSha = null, identity = null } = {}) {
@@ -228,7 +235,7 @@ export function getRecoveryTrustModel({ env = process.env, expectedSha = null, i
   return {
     ok: Boolean(attestation?.parity),
     contract: RECOVERY_TRUST_CONTRACT,
-    trust_roots: ["exact_production_sha", "recovery_manifest_hash", "target_fingerprint", "admin_principal_binding"],
+    trust_roots: ["exact_production_sha", "recovery_manifest_hash", "deployment_attestation_hash", "target_fingerprint", "admin_principal_binding"],
     identity: { repository: resolvedIdentity.repository, branch: resolvedIdentity.branch, sha: resolvedIdentity.sha, exact_sha_required: true },
     manifest: { manifest_hash: manifest.manifest_hash, contract: manifest.contract, version: manifest.recovery_manifest_version, secrets_included: false },
     target_fingerprints: deriveRoleTargetFingerprints({ env }),

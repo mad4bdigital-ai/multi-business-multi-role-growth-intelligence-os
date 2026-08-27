@@ -279,9 +279,53 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-recovery-action-bridge-system-layer.mjs|APPROVAL_TOOL_NAME|literal_declaration|approval.tool.name",
+      "owner": "recovery-governance",
+      "reason": "The private Recovery system-tool integration test binds a non-secret approval-challenge tool name so the server-issued authority boundary remains regression-tested; this test fixture grants no runtime, database, provider, protected-ref, credential, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/recoveryKernel.js|approvalReservationContext|literal_declaration|approvalreservationcontext",
+      "owner": "recovery-governance",
+      "reason": "The Recovery Kernel approvalReservationContext is an internal, sanitized reservation record used to bind one approval claim to one server-issued execution ticket and idempotency key; it contains no credential value and cannot authorize runtime, database, provider, protected-ref, or Production mutation by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs|OPENAPI_DETAIL_BATCH_OUTPUT|literal_declaration|openapi.detail.batch.output",
       "owner": "repository-governance",
       "reason": "The OpenAPI detail-batch output path is a code-owned allowlist binding for the registered frontend generated-artifact writer; it limits writes to one governed tracked artifact and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|DEFAULT_BASELINE_EXTENSION|literal_declaration|baseline.extension",
+      "owner": "repository-governance",
+      "reason": "The platform configuration entry guard default extension path is a tracked, read-only governance locator used to recognize explicitly reviewed CI inputs; it contains no credential and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs|reviewedPolicyFingerprint|literal_declaration|reviewedpolicyfingerprint",
+      "owner": "repository-governance",
+      "reason": "The platform configuration guard regression fixture binds a non-secret reviewed fingerprint to prove that permanent governance extensions bypass only the intended candidate classification while unreviewed and unsafe entries remain blocked.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",

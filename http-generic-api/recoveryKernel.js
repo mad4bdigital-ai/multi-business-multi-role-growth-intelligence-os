@@ -39,6 +39,17 @@ import {
   computeRoleSelectionProofHash,
 } from "./roleSelectionProof.js";
 import {
+  buildApprovalBinding,
+  buildBaselineExecutionOrderProof,
+  EXECUTION_LIFECYCLE_CONTRACT,
+  PRODUCTION_LIVE_COMPOSITION_CONTRACT,
+  resolveRuntimeMigrationTargetBinding,
+  validateApprovalBinding,
+  validateDeploymentIdentityAttestation,
+  validateDurableRunReference,
+  validateRoleBundleBinding,
+} from "./recoveryExecutionBinding.js";
+import {
   activateExceptionLifecycle,
   approveExceptionLifecycle,
   buildDisasterRecoveryPreview,
@@ -66,6 +77,14 @@ const RUN_ID_RE = /^run:[0-9a-f]{16,64}$/u;
 const PLAN_ID_RE = /^plan:[0-9a-f]{16,64}$/u;
 const STEP_ID_RE = /^step:[0-9a-f]{16,64}$/u;
 const SENSITIVE_KEY_RE = /(password|secret|token|credential|authorization|private[_-]?key|connection[_-]?string|database|hostname|username|user)/iu;
+const STRUCTURAL_ROLE_KEYS = new Set([
+  "target_role",
+  "database_target_role",
+  "ownership_domain",
+  "role_database_object_counts",
+  "role_database_object_classifications",
+  "role_database_object_count_fingerprints",
+]);
 const SAFE_ATTESTATION_KEYS = new Set([
   "secrets_included",
   "read_only",
@@ -110,7 +129,9 @@ export const RECOVERY_STATE_PHASES = Object.freeze([
   "readback_pending",
   "verifying",
   "verified",
+  "verification_failed",
   "partially_verified",
+  "reconciliation_required",
   "compensation_required",
   "failed_closed",
   "recovered",
@@ -128,10 +149,12 @@ export const RECOVERY_STATE_TRANSITIONS = Object.freeze({
   execution_outcome_unknown: ["readback_pending", "verifying", "compensation_required", "failed_closed"],
   provider_acknowledged: ["readback_pending", "verifying", "failed_closed"],
   readback_pending: ["verifying", "partially_verified", "compensation_required", "failed_closed"],
-  verifying: ["verified", "partially_verified", "failed_closed"],
+  verifying: ["verified", "verification_failed", "partially_verified", "reconciliation_required", "failed_closed"],
   verified: ["recovered", "failed_closed"],
-  partially_verified: ["compensation_required", "failed_closed"],
-  compensation_required: ["failed_closed"],
+  verification_failed: ["reconciliation_required", "failed_closed"],
+  partially_verified: ["compensation_required", "reconciliation_required", "failed_closed"],
+  reconciliation_required: ["verifying", "recovered", "failed_closed"],
+  compensation_required: ["reconciliation_required", "failed_closed"],
   failed_closed: [],
   recovered: [],
 });
@@ -206,6 +229,7 @@ function requireId(value, pattern, field, code) {
 }
 
 function sanitizeScalar(value, key = "") {
+  if (STRUCTURAL_ROLE_KEYS.has(String(key))) return value;
   if (SAFE_ATTESTATION_KEYS.has(String(key))) return value;
   if (SENSITIVE_KEY_RE.test(key)) return "[REDACTED]";
   if (typeof value !== "string") return value;
@@ -412,6 +436,7 @@ function findingsFromInspection(inspection = {}) {
   const roleCounts = inspection.role_database_object_counts && typeof inspection.role_database_object_counts === "object" ? inspection.role_database_object_counts : {};
   const roleClassifications = inspection.role_database_object_classifications && typeof inspection.role_database_object_classifications === "object" ? inspection.role_database_object_classifications : {};
   const roleCountFingerprints = inspection.role_database_object_count_fingerprints && typeof inspection.role_database_object_count_fingerprints === "object" ? inspection.role_database_object_count_fingerprints : {};
+  const roleBundleBindings = inspection.role_bundle_bindings && typeof inspection.role_bundle_bindings === "object" ? inspection.role_bundle_bindings : {};
   const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
   const emptyRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
@@ -424,7 +449,7 @@ function findingsFromInspection(inspection = {}) {
         category: "empty_uninitialized_database",
         severity: "high",
         expected: { object_count: 0, object_kinds: ["tables", "views", "triggers", "routines", "events"] },
-        actual: { classification: roleClassifications[role], object_counts: roleCounts[role], object_count_fingerprint: roleCountFingerprints[role] || null },
+        actual: { classification: roleClassifications[role], object_counts: roleCounts[role], object_count_fingerprint: roleCountFingerprints[role] || null, role_bundle_binding: roleBundleBindings[role] || null },
         authorityRef: `${role}.baseline.rebuild_empty`,
         repairability: "deterministic",
         mutationRequired: true,
@@ -456,10 +481,13 @@ function findingsFromInspection(inspection = {}) {
 function classifyFinding(finding = {}) {
   const candidate = text(finding.candidate_capability, 160);
   const roleRebuild = candidate.match(/^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u);
-  if (roleRebuild) return { classification: "empty_uninitialized_database", capability_key: candidate, operation: "database.rebuild_empty", target_role: roleRebuild[1], authority_ref: `${roleRebuild[1]}.baseline.rebuild_empty`, mutation_class: "C5" };
-  if (candidate === "governance.mcp_catalog.repair") return { classification: "known_migration_gap", capability_key: candidate, operation: "apply_migration", target_role: "governance", authority_ref: "20260815_custom_gpt_mcp_catalog_levels.sql", mutation_class: "C3" };
-  if (candidate === "governance.grant.repair") return { classification: "known_grant_gap", capability_key: candidate, operation: "apply_grants", target_role: "governance", authority_ref: "repository grant contract", mutation_class: "C2" };
-  if (candidate === "runtime_persistence.schema.repair") return { classification: "schema_drift", capability_key: candidate, operation: "apply_migration", target_role: "runtime_persistence", authority_ref: "persistence schema bundle", mutation_class: "C3" };
+    if (roleRebuild) return { classification: "empty_uninitialized_database", capability_key: candidate, operation: "database.rebuild_empty", target_role: roleRebuild[1], ownership_domain: roleRebuild[1], database_target_role: roleRebuild[1], authority_ref: `${roleRebuild[1]}.baseline.rebuild_empty`, mutation_class: "C5" };
+  if (candidate === "governance.mcp_catalog.repair") {
+    const targetBinding = resolveRuntimeMigrationTargetBinding({ migration: "20260815_custom_gpt_mcp_catalog_levels.sql", ownershipDomain: "governance" });
+    return { classification: "known_migration_gap", capability_key: candidate, operation: "apply_migration", target_role: targetBinding.database_target_role, ownership_domain: targetBinding.ownership_domain, database_target_role: targetBinding.database_target_role, migration_target_binding: targetBinding.binding, authority_ref: "20260815_custom_gpt_mcp_catalog_levels.sql", mutation_class: "C3" };
+  }
+  if (candidate === "governance.grant.repair") return { classification: "known_grant_gap", capability_key: candidate, operation: "apply_grants", target_role: "governance", ownership_domain: "governance", database_target_role: "governance", authority_ref: "repository grant contract", mutation_class: "C2" };
+  if (candidate === "runtime_persistence.schema.repair") return { classification: "schema_drift", capability_key: candidate, operation: "apply_migration", target_role: "runtime_persistence", ownership_domain: "runtime_persistence", database_target_role: "runtime_persistence", authority_ref: "persistence schema bundle", mutation_class: "C3" };
   if (finding.repairability === "unknown_fail_closed" || finding.category === "unknown_fail_closed") return { classification: "unknown_fail_closed", capability_key: null, operation: null, target_role: finding.subject?.target_role || "unknown", authority_ref: null, mutation_class: "C0" };
   return { classification: "unknown_fail_closed", capability_key: null, operation: null, target_role: finding.subject?.target_role || "unknown", authority_ref: null, mutation_class: "C0" };
 }
@@ -507,8 +535,8 @@ async function claimExecution(recoveryStore, context) {
 async function reserveApproval(recoveryStore, context) {
   if (!recoveryStore || typeof recoveryStore.reserveApproval !== "function") throw kernelError(503, "RECOVERY_APPROVAL_RESERVATION_UNAVAILABLE", "An atomic durable approval reservation provider is required before any consequential step.");
   const result = await recoveryStore.reserveApproval(sanitizeEvidence(context));
-  if (result !== true && result?.reserved !== true) throw kernelError(409, "RECOVERY_APPROVAL_RESERVATION_DENIED", "The approval is already reserved, consumed, expired, or bound to another execution claim.");
-  return result === true ? { reserved: true } : result;
+  if (result !== true && result?.reserved !== true && result?.existing !== true) throw kernelError(409, "RECOVERY_APPROVAL_RESERVATION_DENIED", "The approval is already reserved, consumed, expired, or bound to another execution claim.");
+  return result === true ? { reserved: true } : result?.existing === true ? { reserved: true, existing: true } : result;
 }
 
 async function reserveExecutionTicket(recoveryStore, context) {
@@ -613,7 +641,7 @@ function stateEvent(run, phase, event, details = {}) {
 }
 
 function stateStatus(phase) {
-  return phase === "recovered" ? "recovered" : phase === "failed_closed" ? "failed_closed" : phase;
+  return phase === "recovered" ? "recovered" : phase === "failed_closed" ? "failed_closed" : phase === "reconciliation_required" ? "reconciliation_required" : phase;
 }
 
 async function appendStateEvent(run, phase, event, { recoveryStore, requiredDurable = false, details = {} } = {}) {
@@ -646,6 +674,44 @@ function createPlanId(input) {
   return `plan:${stableHash({ expected_sha: input.expected_sha, target_key: input.target_key, finding_ids: input.finding_ids, finding_hash: input.finding_hash || null, role_selection_hash: input.role_selection_hash || null, unsupported_capability_id: input.unsupported_capability_id || null, unsupported_capability_hash: input.unsupported_capability_hash || null }).slice(0, 32)}`;
 }
 
+async function readAndValidateDeploymentAttestation(deploymentIdentityProvider, { plan, step = null } = {}) {
+  if (!deploymentIdentityProvider || typeof deploymentIdentityProvider.readAttestation !== "function") {
+    throw kernelError(503, "RECOVERY_DEPLOYMENT_ATTESTATION_UNAVAILABLE", "A server-injected deployment identity attestation provider is required before issuing or executing a consequential Recovery ticket.", { database_connection_performed: false, database_mutation_performed: false });
+  }
+  let attestation;
+  try {
+    attestation = await deploymentIdentityProvider.readAttestation({
+      expected_sha: plan.expected_sha,
+      target_key: plan.target_key,
+      target_fingerprint: step?.target_fingerprint || plan.target_fingerprint,
+      target_role: step?.target_role || "composite",
+      manifest_hash: plan.manifest_hash,
+    });
+  } catch (error) {
+    throw kernelError(412, "RECOVERY_DEPLOYMENT_ATTESTATION_FAILED", "The injected deployment identity provider did not return a usable attestation.", { authority_error: text(error?.code || "attestation_read_failed", 128), database_connection_performed: false, database_mutation_performed: false });
+  }
+  const validation = validateDeploymentIdentityAttestation({
+    attestation,
+    expectedSha: plan.expected_sha,
+    expectedRepository: RECOVERY_KERNEL_REPOSITORY,
+    expectedBranch: RECOVERY_KERNEL_PRODUCTION_BRANCH,
+    expectedManifestHash: plan.manifest_hash,
+    expectedAttestationHash: plan.runtime_attestation_hash || "",
+    expectedTargetFingerprint: step?.target_fingerprint || plan.target_fingerprint,
+    expectedTargetRole: step?.target_role || "composite",
+  });
+  if (!validation.ok) {
+    throw kernelError(412, "RECOVERY_DEPLOYMENT_ATTESTATION_MISMATCH", "Deployment identity, manifest, target fingerprint, or runtime attestation does not match the immutable Recovery plan.", { problems: validation.problems, binding: validation.binding, database_connection_performed: false, database_mutation_performed: false });
+  }
+  return validation;
+}
+
+function roleBundleBindingsForStep(step, plan = null) {
+  if (plan?.role_bundle_bindings && typeof plan.role_bundle_bindings === "object" && Object.keys(plan.role_bundle_bindings).length) return plan.role_bundle_bindings;
+  if (!step?.role_bundle_binding) return {};
+  return { [step.target_role]: step.role_bundle_binding };
+}
+
 function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFingerprints = {}, { durable = false } = {}) {
   const rebuildFindings = findings.filter((finding) => /^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u.test(text(finding.candidate_capability, 160)));
   if (!rebuildFindings.length) return null;
@@ -669,17 +735,35 @@ function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFinge
   return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
 }
 
+function roleBundleBindingFromFinding(finding, targetRole) {
+  const raw = finding.observed_state?.actual?.role_bundle_binding || finding.observed_state?.actual?.baseline_bundle_binding || null;
+  if (!raw) return null;
+  const validation = validateRoleBundleBinding(raw, {
+    role: targetRole,
+    bundleManifestSha256: raw.bundle_manifest_sha256,
+    roleBundleSha256: raw.role_bundle_sha256,
+    statementCount: raw.statement_count,
+    statementFingerprints: raw.statement_fingerprints,
+  });
+  if (!validation.ok) throw kernelError(409, "RECOVERY_ROLE_BUNDLE_BINDING_INVALID", "A baseline Recovery step contains an invalid role-bundle binding.", { target_role: targetRole, problems: validation.problems });
+  return validation.binding;
+}
+
 function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null) {
   return findings.map((finding, index) => {
     const classified = classifyFinding(finding);
+    const roleBundleBinding = classified.mutation_class === "C5" ? roleBundleBindingFromFinding(finding, classified.target_role) : null;
     const stepBase = {
       ordinal: index + 1,
       finding_id: finding.finding_id,
       classification: classified.classification,
       capability_key: classified.capability_key,
       operation: classified.operation,
-      target_role: classified.target_role,
-      target_fingerprint: targetFingerprints[classified.target_role] || targetFingerprints.composite || null,
+      target_role: classified.database_target_role || classified.target_role,
+      ownership_domain: classified.ownership_domain || classified.target_role,
+      database_target_role: classified.database_target_role || classified.target_role,
+      migration_target_binding: classified.migration_target_binding || null,
+      target_fingerprint: targetFingerprints[classified.database_target_role || classified.target_role] || targetFingerprints.composite || null,
       role_object_count_fingerprint: text(finding.observed_state?.actual?.object_count_fingerprint, 128) || (finding.observed_state?.actual?.object_counts ? stableHash(finding.observed_state.actual.object_counts) : null),
       role_object_classification: text(finding.observed_state?.actual?.classification, 80) || null,
       inspection_run_id: text(finding.inspection_run_id, 160) || null,
@@ -689,11 +773,18 @@ function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null)
       consequential: Boolean(classified.capability_key),
       approval_required: Boolean(classified.capability_key),
       execution_allowed: false,
-      preconditions: ["production_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_use_approval"],
-      postconditions: classified.capability_key ? ["schema_or_grant_readback", "ledger_or_privilege_readback", "behavioral_probe_or_readiness_pass"] : ["no_mutation", "fail_closed_record"],
+      preconditions: ["production_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_step_approval", "deployment_attestation_match", "durable_run_identity", "independent_readback_authority", "same_fence_readback"],
+      postconditions: classified.capability_key ? (classified.operation === "apply_migration" ? ["structural_readback", "data_readback", "behavioral_readback", "ledger_readback"] : ["schema_or_grant_readback", "ledger_or_privilege_readback", "behavioral_probe_or_readiness_pass"]) : ["no_mutation", "fail_closed_record"],
+      deployment_attestation_required: Boolean(classified.capability_key),
+      baseline_order_proof_required: Boolean(classified.capability_key && classified.mutation_class !== "C5"),
+      role_bundle_binding_required: classified.mutation_class === "C5",
+      role_bundle_binding: roleBundleBinding,
       rollback: classified.capability_key === "governance.grant.repair" ? "exact_delta_revoke" : classified.capability_key ? "forward_only_or_capability_declared" : "not_applicable",
       role_selection_proof_hash: roleSelectionProof?.selection_hash || null,
       execution_ticket_required: Boolean(classified.capability_key),
+      approval_binding_required: Boolean(classified.capability_key),
+      exact_durable_run_id_required: Boolean(classified.capability_key),
+      verification_before_finalization: Boolean(classified.capability_key),
     };
     return { ...stepBase, step_id: `step:${stableHash(stepBase).slice(0, 32)}`, step_hash: stableHash(stepBase) };
   });
@@ -786,9 +877,23 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     inspection_run_ids: [...new Set(findings.map((finding) => text(finding.inspection_run_id, 160)).filter(Boolean))],
     inspection_evidence_hashes: [...new Set(findings.map((finding) => text(finding.inspection_evidence_hash, 128)).filter(Boolean))],
     selected_rebuild_roles: [...new Set(steps.filter((step) => step.capability_key?.endsWith(".baseline.rebuild_empty")).map((step) => step.target_role))],
+    role_bundle_bindings: Object.fromEntries(steps.filter((step) => step.role_bundle_binding).map((step) => [step.target_role, step.role_bundle_binding])),
+    baseline_order_contract: {
+      contract: "mad4b.baseline-before-ordinary-migration.v1",
+      ordinary_migration_first_denied: true,
+      required_predecessors: ["recovery_control_plane_ready", "durable_full_inspection", "governance_baseline_ready", "runtime_persistence_baseline_ready", "canonical_grants_readback_ready", "governance_authority_ready"],
+      proof_required_before_ordinary_migration: true,
+      secrets_included: false,
+    },
     role_selection_proof: roleSelectionProof,
     role_selection_hash: roleSelectionProof?.selection_hash || null,
-    unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
+      unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
+    execution_lifecycle_contract: EXECUTION_LIFECYCLE_CONTRACT,
+    approval_binding_contract: "mad4b.recovery-single-step-approval-binding.v1",
+    production_live_composition_contract: PRODUCTION_LIVE_COMPOSITION_CONTRACT,
+    recovery_store_boundary: { contract: "mad4b.recovery-durable-store.v1", independent_of_target_databases: true, migration_ledger_separate: true, secrets_included: false },
+    migration_target_bindings: Object.fromEntries(steps.filter((step) => step.migration_target_binding).map((step) => [step.authority_ref, step.migration_target_binding])),
+    baseline_order_proof: buildBaselineExecutionOrderProof({ expectedSha, targetKey, completedStages: [], source: "plan_declaration_only" }),
     steps,
     status: "planned",
     blast_radius: (() => {
@@ -819,6 +924,8 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
       manifest_bound: manifestVerification.ok,
       target_fingerprint_bound: Boolean(targetFingerprints.composite),
       role_selection_provenance_bound: Boolean(!roleSelectionProof || (roleSelectionProof.source === "durable_full_inspection" && roleSelectionProof.selection_hash && isDurableRecoveryStore(recoveryStore))),
+      role_bundle_bindings_bound: steps.filter((step) => step.role_bundle_binding_required).every((step) => Boolean(step.role_bundle_binding)),
+      deployment_attestation_bound: Boolean(readRuntimeAttestation({ env, expectedSha }).attestation_hash),
       authority_resolved: steps.every((step) => Boolean(step.capability_key || step.classification === "unknown_fail_closed")),
       unknown_drift: findings.some((finding) => finding.repairability === "unknown_fail_closed"),
       preconditions_satisfied: findings.every((finding) => finding.repairability !== "unknown_fail_closed"),
@@ -862,6 +969,21 @@ export async function previewRemediationPlan(input = {}, { recoveryStore } = {})
   });
 }
 
+export function assertApprovalChallengeAuthorities({ approvalIssuer, approvalStore, recoveryStore } = {}) {
+  const missing = [];
+  if (!approvalIssuer || typeof approvalIssuer.createChallenge !== "function") missing.push({ component: "approvalIssuer", missing_methods: ["createChallenge"] });
+  if (!approvalStore || typeof approvalStore.putChallenge !== "function" || typeof approvalStore.getChallenge !== "function") {
+    missing.push({ component: "approvalStore", missing_methods: ["putChallenge", "getChallenge"].filter((method) => typeof approvalStore?.[method] !== "function") });
+  }
+  if (!recoveryStore || typeof recoveryStore.getPlan !== "function" || typeof recoveryStore.putApproval !== "function" || typeof recoveryStore.getApprovalByPlanStep !== "function") {
+    missing.push({ component: "recoveryStore", missing_methods: ["getPlan", "putApproval", "getApprovalByPlanStep"].filter((method) => typeof recoveryStore?.[method] !== "function") });
+  }
+  if (missing.length) {
+    throw kernelError(503, "RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE", "Approval challenge issuance requires an injected durable plan/approval store and governed approval issuer; no token or provider action was attempted.", { missing_components: missing, database_mutation_performed: false });
+  }
+  return { ok: true, authority_ready: true, secrets_included: false };
+}
+
 export async function createApprovalChallenge(input = {}, { approvalIssuer, approvalStore, recoveryStore } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
@@ -875,7 +997,7 @@ export async function createApprovalChallenge(input = {}, { approvalIssuer, appr
   if (!step.approval_required) throw kernelError(409, "RECOVERY_APPROVAL_NOT_REQUIRED", "The selected step is read-only and does not require an approval challenge.");
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const approvalId = `approval:${stableHash({ plan_hash: plan.plan_hash, step_id: step.step_id, nonce: randomUUID() }).slice(0, 32)}`;
-  const challengeBase = { contract: "mad4b.recovery-approval-challenge.v1", approval_id: approvalId, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role, approval_class: step.mutation_class, expires_at: expiresAt, single_use: true, non_transferable: true, secrets_included: false };
+  const challengeBase = { contract: "mad4b.recovery-approval-challenge.v1", approval_id: approvalId, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: step.step_hash, expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role, approval_class: step.mutation_class, expires_at: expiresAt, single_use: true, non_transferable: true, secrets_included: false };
   const issued = approvalIssuer && typeof approvalIssuer.createChallenge === "function" ? await approvalIssuer.createChallenge(sanitizeEvidence(challengeBase)) : null;
   if (approvalStore && typeof approvalStore.putChallenge === "function") await approvalStore.putChallenge(sanitizeEvidence(challengeBase));
   const challenge = { ...challengeBase, issuer: issued ? "injected_approval_issuer" : "repository_challenge_reference_only", challenge_hash: stableHash(challengeBase), execution_ready: Boolean(issued && approvalStore && typeof approvalStore.putChallenge === "function") };
@@ -884,40 +1006,63 @@ export async function createApprovalChallenge(input = {}, { approvalIssuer, appr
   return sanitizeEvidence({ ok: true, ...challenge, approval_token_required: true, approval_token_not_returned: true, read_only_probe: true, ...noMutationAttestation({ read_only_probe: true }) });
 }
 
-export async function createExecutionTicket(input = {}, { recoveryStore, executionTicketSigner } = {}) {
+export async function createExecutionTicket(input = {}, { recoveryStore, executionTicketSigner, deploymentIdentityProvider, approvalVerifier, approvalStore } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
-  const allowed = new Set(["plan_id", "plan_hash", "step_id", "idempotency_key"]);
+  const allowed = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
-  if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Execution-ticket issuance accepts only plan, step, and idempotency references.", { fields: unexpected });
+  if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Execution-ticket issuance accepts only plan, step, approval, and idempotency references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
   const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
   const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const step = ensureStep(plan, stepId);
   if (!step.consequential) throw kernelError(409, "RECOVERY_TICKET_NOT_REQUIRED", "Execution tickets are reserved for consequential Recovery steps.");
+  const deploymentAttestation = await readAndValidateDeploymentAttestation(deploymentIdentityProvider, { plan, step });
+  if (step.role_bundle_binding_required === true && !step.role_bundle_binding) {
+    throw kernelError(409, "RECOVERY_ROLE_BUNDLE_BINDING_REQUIRED", "Baseline execution tickets require an exact role-bundle binding from the durable inspection evidence.", { target_role: step.target_role, database_connection_performed: false, database_mutation_performed: false });
+  }
   requireMutationRecoveryStore(recoveryStore);
   if (!executionTicketSigner || typeof executionTicketSigner.sign !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_SIGNER_UNAVAILABLE", "A server-side execution-ticket signer is required; tickets are never self-issued or synthesized.");
-  const ticket = await issueExecutionTicket({
-    inspection_run_id: plan.role_selection_proof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
-    inspection_evidence_hash: plan.role_selection_proof?.inspection_evidence_hash || plan.finding_hash,
-    finding_ids: plan.finding_ids,
-    selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
-    role_selection_required: step.mutation_class === "C5",
-    role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints || {},
-    target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
-    role_selection_hash: plan.role_selection_hash || null,
-    production_sha: plan.expected_sha,
-    target_key: plan.target_key,
-    plan_hash: plan.plan_hash,
-    step_hash: step.step_hash,
-    step_id: step.step_id,
-    target_role: step.target_role,
-    idempotency_key: text(input.idempotency_key, 160),
-    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    nonce: randomUUID(),
-  }, { signer: executionTicketSigner });
-  await recoveryStore.putExecutionTicket(ticket);
-  return sanitizeEvidence({ ok: true, ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, expires_at: ticket.expires_at, single_use: true, signature_not_returned: true, secrets_included: false });
+  const approvalToken = assertApprovalTokenShape(input.approval_token);
+  const approvalResult = await verifyAndBuildApprovalBinding(plan, step, approvalToken, { approvalVerifier, approvalStore, recoveryStore });
+  const approvalReservationContext = { ...approvalResult.context, approval_id: approvalResult.approval.approval_id, approval_hash: approvalResult.binding.approval_hash, approval_binding_hash: approvalResult.binding.binding_hash, idempotency_key: text(input.idempotency_key, 160), execution_ticket_id: null };
+  if (!approvalReservationContext.idempotency_key) throw kernelError(400, "RECOVERY_IDEMPOTENCY_KEY_REQUIRED", "A caller-supplied idempotency_key is required before approval reservation and ticket issuance.");
+  await reserveApproval(recoveryStore, approvalReservationContext);
+  try {
+    const ticket = await issueExecutionTicket({
+      inspection_run_id: plan.role_selection_proof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
+      inspection_evidence_hash: plan.role_selection_proof?.inspection_evidence_hash || plan.finding_hash,
+      finding_ids: plan.finding_ids,
+      selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+      role_selection_required: step.mutation_class === "C5",
+      role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints || {},
+      target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
+      role_selection_hash: plan.role_selection_hash || null,
+      role_bundle_bindings: roleBundleBindingsForStep(step, plan),
+      deployment_attestation_hash: deploymentAttestation.attestation_hash,
+      approval_id: approvalResult.binding.approval_id,
+      approval_hash: approvalResult.binding.approval_hash,
+      approval_version: approvalResult.binding.approval_version,
+      approval_binding: approvalResult.binding,
+      production_sha: plan.expected_sha,
+      target_key: plan.target_key,
+      target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
+      plan_hash: plan.plan_hash,
+      step_hash: step.step_hash,
+      step_id: step.step_id,
+      target_role: step.target_role,
+      operation: step.operation,
+      idempotency_key: approvalReservationContext.idempotency_key,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      nonce: randomUUID(),
+    }, { signer: executionTicketSigner });
+    const reservedContext = { ...approvalReservationContext, execution_ticket_id: ticket.ticket_id, execution_ticket_hash: ticket.ticket_hash };
+    await recoveryStore.putExecutionTicket(ticket);
+    return sanitizeEvidence({ ok: true, ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, expires_at: ticket.expires_at, single_use: true, approval_binding_hash: approvalResult.binding.binding_hash, signature_not_returned: true, secrets_included: false, reservation_context: { approval_id: reservedContext.approval_id, execution_ticket_id: reservedContext.execution_ticket_id } });
+  } catch (error) {
+    await releaseApprovalReservation(recoveryStore, approvalReservationContext).catch(() => {});
+    throw error;
+  }
 }
 
 function assertApprovalTokenShape(value) {
@@ -939,6 +1084,45 @@ async function verifyApproval(approval, token, context, { approvalVerifier, appr
     return (await approvalVerifier.verify({ token, approval: sanitizeEvidence(approval), context: sanitizeEvidence(context) })) === true;
   }
   return false;
+}
+
+async function resolveApprovalForStep(plan, step, { recoveryStore, approvalStore } = {}) {
+  const storedDecision = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
+    ? await recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id)
+    : null;
+  const latestApproval = [...APPROVALS.values()].reverse().find((entry) => entry.plan_id === plan.plan_id && entry.step_id === step.step_id);
+  const approval = storedDecision || latestApproval
+    || (approvalStore && typeof approvalStore.getChallenge === "function" ? await approvalStore.getChallenge(plan.plan_hash, step.step_id) : null);
+  if (!approval) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not bound to this exact plan step.");
+  return approval;
+}
+
+function approvalContextForStep(plan, step, approval) {
+  return {
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    step_hash: step.step_hash,
+    expected_sha: plan.expected_sha,
+    target_key: plan.target_key,
+    target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
+    composite_target_fingerprint: plan.target_fingerprint,
+    step_target_fingerprint: step.target_fingerprint,
+    target_role: step.target_role,
+    operation: step.operation,
+    approval_id: approval?.approval_id || null,
+    approval_hash: approval?.challenge_hash || approval?.approval_hash || null,
+  };
+}
+
+async function verifyAndBuildApprovalBinding(plan, step, token, { approvalVerifier, approvalStore, recoveryStore } = {}) {
+  const approval = await resolveApprovalForStep(plan, step, { recoveryStore, approvalStore });
+  const context = approvalContextForStep(plan, step, approval);
+  const valid = await verifyApproval(approval, token, context, { approvalVerifier, approvalStore });
+  if (!valid) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not cryptographically bound to this exact plan step.");
+  const approvalBinding = buildApprovalBinding({ approvalId: approval.approval_id, approvalHash: context.approval_hash, approvalVersion: approval.approval_version || "v1", planHash: plan.plan_hash, stepId: step.step_id, stepHash: step.step_hash, targetKey: plan.target_key, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, operation: step.operation });
+  const validation = validateApprovalBinding(approvalBinding, { approvalId: approval.approval_id, approvalHash: context.approval_hash, approvalVersion: approval.approval_version || "v1", planHash: plan.plan_hash, stepId: step.step_id, stepHash: step.step_hash, targetKey: plan.target_key, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, operation: step.operation });
+  if (!validation.ok) throw kernelError(409, "RECOVERY_APPROVAL_BINDING_INVALID", "The approved step does not contain a complete canonical single-step approval binding.", { problems: validation.problems });
+  return { approval, context, binding: validation.binding };
 }
 
 async function acquireLock(targetKey, planHash, { recoveryLock } = {}) {
@@ -985,7 +1169,7 @@ function requireDurableRecoveryStore(recoveryStore) {
   return recoveryStore;
 }
 
-export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker, readbackVerifier } = {}) {
+export async function executeRemediationStep(input = {}, { env = process.env, adminPrincipal, approvalVerifier, approvalStore, recoveryLock, mutationExecutor, recoveryStore, unsupportedBroker, readbackVerifier, deploymentIdentityProvider, migrationLedger } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
   const allowed = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key", "execution_ticket_id"]);
@@ -1010,39 +1194,55 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const executionTicketId = text(input.execution_ticket_id, 160);
   if (!executionTicketId) throw kernelError(400, "RECOVERY_EXECUTION_TICKET_REQUIRED", "A single-use signed execution ticket is required for every consequential recovery step.");
   if (!readbackVerifier || typeof readbackVerifier.verify !== "function") throw kernelError(503, "RECOVERY_READBACK_UNAVAILABLE", "A same-cycle readback verifier is required before any consequential provider execution.");
+  if (readbackVerifier.independent_authority !== true || readbackVerifier.role_aware !== true || readbackVerifier.mutation_authority === true) throw kernelError(503, "RECOVERY_READBACK_AUTHORITY_INVALID", "A role-aware readback verifier independent from mutation authority is required before any consequential provider execution.");
+  if (step.operation === "apply_migration" && (!migrationLedger || migrationLedger.contract !== "mad4b.governance-migration-ledger.v1" || typeof migrationLedger.finalize !== "function")) throw kernelError(503, "RECOVERY_MIGRATION_LEDGER_UNAVAILABLE", "A separate durable Governance Migration Ledger is required before a migration execution can begin.");
   if (typeof recoveryStore.getExecutionTicket !== "function" || !recoveryStore.executionTicketVerifier || typeof recoveryStore.executionTicketVerifier.verify !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_STORE_UNAVAILABLE", "A durable execution-ticket store and verifier are required before any consequential step.");
   const executionTicket = await recoveryStore.getExecutionTicket(executionTicketId);
   if (!executionTicket) throw kernelError(404, "RECOVERY_EXECUTION_TICKET_NOT_FOUND", "The requested execution ticket is not available.");
+  const approvalToken = assertApprovalTokenShape(input.approval_token);
+  let approvalResult;
   try {
-    await verifyExecutionTicket(executionTicket, { verifier: recoveryStore.executionTicketVerifier, expected: { plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, production_sha: plan.expected_sha, target_key: plan.target_key, idempotency_key: idempotencyKey, target_role: step.target_role, role_selection_hash: plan.role_selection_hash || null, target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint }, selected_roles: plan.role_selection_proof?.selected_roles || ["composite"] } });
-  } catch {
-    throw kernelError(401, "RECOVERY_EXECUTION_TICKET_INVALID", "The execution ticket is absent, expired, invalid, or not bound to this exact plan step.");
+    approvalResult = await verifyAndBuildApprovalBinding(plan, step, approvalToken, { approvalVerifier, approvalStore, recoveryStore });
+    if (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true || plan.proof?.role_selection_provenance_bound !== true) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift, unverified provenance, or unsatisfied preconditions; mutation is denied.");
+    if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
+    const targetBinding = step.operation === "apply_migration" ? resolveRuntimeMigrationTargetBinding({ migration: step.authority_ref, ownershipDomain: step.ownership_domain, databaseTargetRole: step.database_target_role || step.target_role }) : { ok: true };
+    if (!targetBinding.ok) throw kernelError(409, "RECOVERY_MIGRATION_TARGET_BINDING_INVALID", "The migration ownership domain and database target role are not canonically bound.", { problems: targetBinding.problems });
+    assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
+  } catch (error) {
+    throw error;
   }
+  const approval = approvalResult.approval;
+  const approvalContext = approvalResult.context;
+  const approvalBinding = approvalResult.binding;
+  const executionTicketExpected = {
+    plan_hash: plan.plan_hash,
+    step_hash: step.step_hash,
+    step_id: step.step_id,
+    production_sha: plan.expected_sha,
+    target_key: plan.target_key,
+    idempotency_key: idempotencyKey,
+    target_role: step.target_role,
+    operation: step.operation,
+    approval_id: approvalBinding.approval_id,
+    approval_hash: approvalBinding.approval_hash,
+    approval_version: approvalBinding.approval_version,
+    approval_binding: approvalBinding,
+    role_selection_hash: plan.role_selection_hash || null,
+    role_bundle_bindings: roleBundleBindingsForStep(step, plan),
+    deployment_attestation_hash: plan.runtime_attestation_hash || null,
+    target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
+    selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+  };
+  try {
+    await verifyExecutionTicket(executionTicket, { verifier: recoveryStore.executionTicketVerifier, expected: executionTicketExpected });
+  } catch (error) {
+    throw kernelError(401, "RECOVERY_EXECUTION_TICKET_INVALID", "The execution ticket is absent, expired, invalid, or not bound to this exact approved plan step.", { binding_failure: text(error?.message || "ticket_binding_failed", 160) });
+  }
+  const deploymentAttestation = await readAndValidateDeploymentAttestation(deploymentIdentityProvider, { plan, step });
   const claimContext = { idempotency_key: idempotencyKey, plan_hash: plan.plan_hash, step_id: step.step_id, execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash };
   const claim = await claimExecution(recoveryStore, { ...claimContext, step_hash: step.step_hash });
   if (claim.existing) return sanitizeEvidence({ ok: false, status: "reconciliation_required", phase: "execution_outcome_unknown", idempotency_key: idempotencyKey, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, existing_claim: claim.result, reconciliation_required: true, idempotent_replay: true, database_mutation_performed: "unknown", secrets_included: false });
-  let approvalToken;
-  let approval;
-  let approvalContext;
-  try {
-    approvalToken = assertApprovalTokenShape(input.approval_token);
-    const storedDecision = recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function"
-      ? await recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id)
-      : null;
-    const latestApproval = [...APPROVALS.values()].reverse().find((entry) => entry.plan_id === plan.plan_id && entry.step_id === step.step_id);
-    approval = storedDecision || latestApproval
-      || (approvalStore && typeof approvalStore.getChallenge === "function" ? await approvalStore.getChallenge(plan.plan_hash, step.step_id) : null);
-    approvalContext = { plan_hash: plan.plan_hash, step_id: step.step_id, step_hash: stableHash(step), expected_sha: plan.expected_sha, target_key: plan.target_key, target_fingerprint: plan.target_fingerprint, composite_target_fingerprint: plan.target_fingerprint, step_target_fingerprint: step.target_fingerprint, target_role: step.target_role };
-    const approvalValid = await verifyApproval(approval, approvalToken, approvalContext, { approvalVerifier, approvalStore });
-    if (!approvalValid) throw kernelError(401, "RECOVERY_APPROVAL_INVALID", "Approval is absent, expired, already used, or not cryptographically bound to this plan step.");
-    if (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true || plan.proof?.role_selection_provenance_bound !== true) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift, unverified provenance, or unsatisfied preconditions; mutation is denied.");
-    if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
-    assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
-  } catch (error) {
-    await recoveryStore.releaseExecutionClaim(claimContext).catch(() => {});
-    throw error;
-  }
-  const approvalReservationContext = { ...approvalContext, approval_id: approval.approval_id, idempotency_key: idempotencyKey, execution_ticket_id: executionTicketId };
+  const approvalReservationContext = { ...approvalContext, approval_id: approval.approval_id, approval_hash: approvalBinding.approval_hash, approval_binding_hash: approvalBinding.binding_hash, idempotency_key: idempotencyKey, execution_ticket_id: executionTicketId };
   let providerBoundaryStarted = false;
   try {
     await reserveApproval(recoveryStore, approvalReservationContext);
@@ -1107,6 +1307,8 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       lease_id: lockHandle.lease_id,
       fencing_token: lockHandle.fencing_token,
       role_selection_proof_hash: plan.role_selection_hash || null,
+      deployment_attestation_hash: deploymentAttestation.attestation_hash,
+      role_bundle_binding: step.role_bundle_binding || null,
     };
     try {
       if (step.capability_key === "unsupported_capability_execute") {
@@ -1140,24 +1342,80 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       await appendStateEvent(run, "execution_outcome_unknown", "post_provider_fence_lost", { recoveryStore, requiredDurable: true, details: { error_code: text(error?.code || "RECOVERY_LOCK_FENCE_LOST", 128) } });
       throw kernelError(409, "RECOVERY_EXECUTION_OUTCOME_UNKNOWN", "The provider returned but the execution fence was lost; recovery is reconciliation-only.", { run_id: run.run_id });
     }
-    try {
-      await finalizeExecutionTicket(recoveryStore, { ticket_id: executionTicketId, ticket_hash: executionTicket.ticket_hash, plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, idempotency_key: idempotencyKey, provider_acknowledged: true });
-      executionTicketReserved = false;
-      await finalizeApproval(recoveryStore, { ...approvalReservationContext, provider_acknowledged: true });
-    } catch (error) {
-      run.evidence.execution_outcome = "unknown";
-      run.evidence.execution_error = { code: text(error?.code || "RECOVERY_APPROVAL_FINALIZATION_FAILED", 128), message: "Provider acknowledgement was received but approval finalization was not durably confirmed; reconciliation is required and replay is forbidden.", secrets_included: false };
-      await appendStateEvent(run, "execution_outcome_unknown", "approval_finalization_failed", { recoveryStore, requiredDurable: true, details: { error_code: text(error?.code || "RECOVERY_APPROVAL_FINALIZATION_FAILED", 128) } });
-      throw kernelError(502, "RECOVERY_EXECUTION_OUTCOME_UNKNOWN", "Provider acknowledgement cannot be safely replayed because approval finalization is not durably confirmed.", { run_id: run.run_id });
-    }
-    approval.used = true;
-    run.evidence.approval_finalized = true;
     run.evidence.provider_receipt = sanitizeEvidence(result);
     run.evidence.database_mutation_performed = result?.database_mutation_performed === true;
     run.evidence.verification_required = true;
     await appendStateEvent(run, "provider_acknowledged", "provider_acknowledged", { recoveryStore, requiredDurable: true, details: { database_mutation_performed: run.evidence.database_mutation_performed } });
-    await appendStateEvent(run, run.evidence.database_mutation_performed ? "readback_pending" : "verifying", run.evidence.database_mutation_performed ? "readback_required" : "verification_pending", { recoveryStore, requiredDurable: true });
-    const receipt = sanitizeEvidence({ ok: true, contract: "mad4b.recovery-remediation-execution-receipt.v1", run_id: run.run_id, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, status: run.status, phase: run.phase, idempotency_key: idempotencyKey,       execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash, mutation_attestation: { ...noMutationAttestation({ read_only_probe: false }), database_mutation_performed: result?.database_mutation_performed === true }, readback_required: true, approval_reserved: true, secrets_included: false });
+    await appendStateEvent(run, "readback_pending", "readback_required", { recoveryStore, requiredDurable: true });
+    await heartbeatLease(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "before_same_cycle_readback" });
+    await assertLeaseFence(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "before_same_cycle_readback" });
+    await appendStateEvent(run, "verifying", "same_cycle_readback_started", { recoveryStore, requiredDurable: true, details: { fencing_token: lockHandle.fencing_token, readback_authority: "independent_role_aware_verifier" } });
+    let verification;
+    try {
+      verification = await readbackVerifier.verify({
+        plan: sanitizeEvidence(plan),
+        step: sanitizeEvidence(step),
+        run: sanitizeEvidence(run),
+        target_role: step.target_role,
+        fencing_token: lockHandle.fencing_token,
+        same_cycle: true,
+        independent_authority: true,
+        role_aware: true,
+      });
+    } catch (error) {
+      run.evidence.execution_outcome = "acknowledged_unverified";
+      run.evidence.verification_state = "unavailable";
+      run.evidence.reconciliation_required = true;
+      const errorCode = text(error?.code || "RECOVERY_READBACK_FAILED", 128);
+      await appendStateEvent(run, "verification_failed", "same_cycle_readback_unavailable", { recoveryStore, requiredDurable: true, details: { error_code: errorCode } });
+      await appendStateEvent(run, "reconciliation_required", "readback_reconciliation_required", { recoveryStore, requiredDurable: true, details: { error_code: errorCode, automatic_rerun_allowed: false } });
+      throw kernelError(502, "RECOVERY_READBACK_UNAVAILABLE", "The provider acknowledged the operation but same-cycle readback was unavailable; reconciliation is required and replay is forbidden.", { run_id: run.run_id });
+    }
+    run.evidence.verification = sanitizeEvidence(verification);
+    const verificationPassed = verification?.postconditions_passed === true && verification?.behavioral_probe_passed !== false;
+    run.evidence.verification_state = verificationPassed ? "verified" : "failed";
+    run.evidence.execution_outcome = verificationPassed ? "verified" : "acknowledged_unverified";
+    run.evidence.reconciliation_required = !verificationPassed;
+    if (!verificationPassed) {
+      await appendStateEvent(run, "verification_failed", "same_cycle_readback_failed", { recoveryStore, requiredDurable: true, details: { structural: verification?.structural_postconditions_passed === true, data: verification?.data_postconditions_passed === true, behavioral: verification?.behavioral_probe_passed === true } });
+      await appendStateEvent(run, "reconciliation_required", "verification_reconciliation_required", { recoveryStore, requiredDurable: true, details: { automatic_rerun_allowed: false } });
+    } else {
+      await appendStateEvent(run, "verified", "same_cycle_postconditions_verified", { recoveryStore, requiredDurable: true, details: { structural: verification?.structural_postconditions_passed !== false, data: verification?.data_postconditions_passed !== false, behavioral: verification?.behavioral_probe_passed !== false } });
+    }
+    if (verificationPassed && run.evidence.database_mutation_performed === true && step.operation === "apply_migration") {
+      if (!migrationLedger || typeof migrationLedger.finalize !== "function" || migrationLedger.contract !== "mad4b.governance-migration-ledger.v1") {
+        throw kernelError(503, "RECOVERY_MIGRATION_LEDGER_UNAVAILABLE", "A separate durable Governance Migration Ledger is required before a verified migration execution can finalize.", { run_id: run.run_id, migration_ledger_required: true });
+      }
+      const ledgerResult = await migrationLedger.finalize(sanitizeEvidence({
+        migration: step.authority_ref,
+        plan_hash: plan.plan_hash,
+        step_hash: step.step_hash,
+        run_id: run.run_id,
+        execution_ticket_id: executionTicketId,
+        artifact_binding: step.migration_target_binding || null,
+        verification: verification,
+        target_role: step.target_role,
+        ownership_domain: step.ownership_domain || step.target_role,
+        database_target_role: step.database_target_role || step.target_role,
+        secrets_included: false,
+      }));
+      if (ledgerResult !== true && ledgerResult?.finalized !== true && ledgerResult?.already_finalized !== true) throw kernelError(503, "RECOVERY_MIGRATION_LEDGER_FINALIZATION_FAILED", "The separate Governance Migration Ledger did not confirm finalization; reconciliation is required.", { run_id: run.run_id });
+      run.evidence.migration_ledger_finalization = { finalized: true, separate_store: true, secrets_included: false };
+    } else {
+      run.evidence.migration_ledger_finalization = { status: verificationPassed ? "not_applicable" : "not_attempted", separate_store: true, secrets_included: false };
+    }
+    await heartbeatLease(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "before_execution_finalization" });
+    await assertLeaseFence(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "before_execution_finalization" });
+    const outcome = verificationPassed ? "verified" : "executed_unverified";
+    await finalizeExecutionTicket(recoveryStore, { ticket_id: executionTicketId, ticket_hash: executionTicket.ticket_hash, plan_hash: plan.plan_hash, step_hash: step.step_hash, step_id: step.step_id, idempotency_key: idempotencyKey, provider_acknowledged: true, verification_state: run.evidence.verification_state, outcome });
+    executionTicketReserved = false;
+    await finalizeApproval(recoveryStore, { ...approvalReservationContext, provider_acknowledged: true, verification_state: run.evidence.verification_state, outcome });
+    approval.used = true;
+    run.evidence.approval_finalized = true;
+    run.evidence.finalization_order = ["same_cycle_readback", "migration_ledger_if_required", "execution_receipt", "ticket_consumed", "approval_consumed"];
+    if (verificationPassed) await appendStateEvent(run, "recovered", "recovery_completed_after_same_cycle_readback", { recoveryStore, requiredDurable: true, details: { fence_held_until_finalization: true } });
+    await assertLeaseFence(recoveryLock, lockHandle, { target_key: plan.target_key, plan_hash: plan.plan_hash, step_id: step.step_id, boundary: "after_execution_finalization" });
+    const receipt = sanitizeEvidence({ ok: verificationPassed, contract: "mad4b.recovery-remediation-execution-receipt.v1", run_id: run.run_id, plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, status: verificationPassed ? "recovered" : "reconciliation_required", phase: run.phase, idempotency_key: idempotencyKey, execution_ticket_id: executionTicketId, execution_ticket_hash: executionTicket.ticket_hash, approval_binding_hash: approvalBinding.binding_hash, mutation_attestation: { ...noMutationAttestation({ read_only_probe: false }), database_mutation_performed: result?.database_mutation_performed === true }, provider_outcome: "acknowledged", verification_state: run.evidence.verification_state, verification: sanitizeEvidence(verification), readback_required: false, readback_performed_same_cycle: true, fence_held_until_finalization: true, approval_consumed_for_execution: true, reconciliation_required: !verificationPassed, automatic_rerun_allowed: false, secrets_included: false });
     await recoveryStore.putIdempotencyReceipt(idempotencyKey, receipt);
     return receipt;
   } catch (error) {
@@ -1193,32 +1451,36 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
 export async function verifyRemediationStep(input = {}, { readbackVerifier, recoveryStore } = {}) {
   assertObject(input);
   assertNoForbiddenKeys(input);
-  const allowed = new Set(["plan_id", "plan_hash", "step_id"]);
+  const allowed = new Set(["plan_id", "plan_hash", "step_id", "run_id"]);
   const unexpected = Object.keys(input).filter((key) => !allowed.has(key));
-  if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Step verification accepts only plan and step references.", { fields: unexpected });
+  if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "Step verification accepts only an exact durable run_id with plan and step references.", { fields: unexpected });
   const planId = requireId(input.plan_id, PLAN_ID_RE, "plan_id", "RECOVERY_PLAN_ID_INVALID");
   const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
   const step = ensureStep(plan, stepId);
-  if (!readbackVerifier || typeof readbackVerifier.verify !== "function") throw kernelError(503, "RECOVERY_READBACK_UNAVAILABLE", "No same-cycle readback verifier is configured; recovery remains unverified.");
+  const runId = text(input.run_id, 160);
+  if (!/^run:[A-Za-z0-9._:-]{8,160}$/u.test(runId)) throw kernelError(400, "RECOVERY_RUN_ID_REQUIRED", "An exact durable run_id is required for verification; plan/step lookup and in-memory fallback are forbidden.");
+  if (!readbackVerifier || typeof readbackVerifier.verify !== "function") throw kernelError(503, "RECOVERY_READBACK_UNAVAILABLE", "No independent role-aware readback verifier is configured; recovery remains unverified.");
+  if (readbackVerifier.mutation_authority === true) throw kernelError(503, "RECOVERY_READBACK_AUTHORITY_INVALID", "Verification requires an authority independent from mutation execution.");
   requireDurableRecoveryStore(recoveryStore);
-  const run = (await recoveryStore.getRunByPlanStep?.(plan.plan_id, step.step_id))
-    || [...RUNS.values()].reverse().find((candidate) => candidate.plan_id === plan.plan_id && candidate.step_id === step.step_id);
-  if (!run) throw kernelError(404, "RECOVERY_RUN_NOT_FOUND", "No durable execution run is available for the requested plan step.");
-  const result = await readbackVerifier.verify({ plan: sanitizeEvidence(plan), step: sanitizeEvidence(step), run: sanitizeEvidence(run) });
+  if (typeof recoveryStore.getRun !== "function") throw kernelError(503, "RECOVERY_DURABLE_RUN_LOOKUP_UNAVAILABLE", "Durable run lookup is required; in-memory verification fallback is forbidden.");
+  const run = await recoveryStore.getRun(runId);
+  const runReference = validateDurableRunReference({ runId, run, planHash: plan.plan_hash, stepId: step.step_id });
+  if (!runReference.ok) throw kernelError(404, "RECOVERY_DURABLE_RUN_NOT_FOUND", "The exact durable execution run is absent or not bound to this plan step.", { problems: runReference.problems });
+  const result = await readbackVerifier.verify({ plan: sanitizeEvidence(plan), step: sanitizeEvidence(step), run: sanitizeEvidence(run), run_id: runId, same_cycle: false, reconciliation: true, independent_authority: true, role_aware: true });
   const passed = result?.postconditions_passed === true && result?.behavioral_probe_passed !== false;
-  run.evidence = { ...(run.evidence || {}), verification: sanitizeEvidence(result), postconditions_passed: passed };
+  run.evidence = { ...(run.evidence || {}), verification: sanitizeEvidence(result), postconditions_passed: passed, verification_state: passed ? "verified" : "failed" };
   run.completed_at = new Date().toISOString();
   if (passed) {
-    if (run.phase === "readback_pending") await appendStateEvent(run, "verifying", "readback_started", { recoveryStore, requiredDurable: true });
+    if (run.phase === "readback_pending" || run.phase === "reconciliation_required") await appendStateEvent(run, "verifying", "durable_reconciliation_readback_started", { recoveryStore, requiredDurable: true });
     if (run.phase === "verifying") await appendStateEvent(run, "verified", "postconditions_verified", { recoveryStore, requiredDurable: true });
     if (run.phase === "verified") await appendStateEvent(run, "recovered", "recovery_completed", { recoveryStore, requiredDurable: true });
   } else {
     if (run.phase === "readback_pending" || run.phase === "verifying") await appendStateEvent(run, "partially_verified", "postconditions_incomplete", { recoveryStore, requiredDurable: true, details: { compensation_required: true } });
-    if (run.phase === "partially_verified" || run.phase === "compensation_required") await appendStateEvent(run, "failed_closed", "recovery_failed_closed_after_readback", { recoveryStore, requiredDurable: true });
+    if (run.phase === "partially_verified" || run.phase === "compensation_required") await appendStateEvent(run, "reconciliation_required", "reconciliation_still_required", { recoveryStore, requiredDurable: true, details: { automatic_rerun_allowed: false } });
   }
   await writeRun(run, { recoveryStore });
-  return sanitizeEvidence({ ok: passed, contract: "mad4b.recovery-remediation-verification.v1", plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, status: run.status, phase: run.phase, postconditions: sanitizeEvidence(result), recovered: passed, durability: { durable: true, source: "injected_recovery_store" }, ...noMutationAttestation({ read_only_probe: true }) });
+  return sanitizeEvidence({ ok: passed, contract: "mad4b.recovery-remediation-verification.v1", plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id, run_id: runId, status: run.status, phase: run.phase, postconditions: sanitizeEvidence(result), recovered: passed, durability: { durable: true, exact_run_id: true, in_memory_fallback_allowed: false, source: "injected_recovery_store" }, ...noMutationAttestation({ read_only_probe: true }) });
 }
 
 export async function getRecoveryRun(input = {}, { recoveryStore } = {}) {

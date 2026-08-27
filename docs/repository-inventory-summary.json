@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7419,
-    "bytes": 73067494,
-    "lines": 1699590,
+    "files": 7438,
+    "bytes": 73356131,
+    "lines": 1704468,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2195,
+      "tests-and-specs": 2198,
       "documentation": 1915,
-      "api-runtime": 1513,
-      "database-migrations": 823,
-      "root-and-other": 337,
+      "api-runtime": 1516,
+      "database-migrations": 833,
+      "root-and-other": 340,
       "api-contracts": 192,
       "ci-workflows": 170,
       "ci-config": 135,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2516,
-      ".mjs": 1767,
-      ".js": 1019,
-      ".json": 887,
-      ".sql": 838,
+      ".mjs": 1770,
+      ".js": 1022,
+      ".json": 890,
+      ".sql": 848,
       ".yml": 173,
       ".yaml": 120,
       ".ps1": 20,
@@ -61,10 +61,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3854,
+      "http-generic-api": 3870,
       "docs": 1819,
       "specs": 880,
-      ".changes": 306,
+      ".changes": 309,
       ".github": 305,
       "canonicals": 70,
       "local-connector": 23,
@@ -256,9 +256,9 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 823,
+    "migrations": 833,
     "apiContracts": 192,
-    "testSpecFiles": 2285
+    "testSpecFiles": 2288
   },
   "largestFiles": [
     {
@@ -270,14 +270,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3541976,
-      "lines": 99855
+      "bytes": 3545802,
+      "lines": 99954
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1963307,
-      "lines": 59371
+      "bytes": 1966012,
+      "lines": 59454
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -288,14 +288,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 1031291,
-      "lines": 23627
+      "bytes": 1034267,
+      "lines": 23678
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 626229,
-      "lines": 11866
+      "bytes": 627891,
+      "lines": 11900
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",

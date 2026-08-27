@@ -10,6 +10,7 @@ const sql = [
 ].join("\n");
 const checksum = createHash("sha256").update(sql, "utf8").digest("hex");
 const executedSql = [];
+let ledgerRows = [{ run_id: "run-1", migration_file: "20260704_operational_alert_lifecycle_fingerprints.sql", migration_checksum_sha256: checksum, mode: "apply", applied_at: "2026-07-07T00:00:00.000Z", statement_count: 3, preflight_status: "pass", preflight_risk_count: 0, secrets_included: 0, capability_envelope_id: "env-1" }];
 const fakePool = {
   async query(query, params = []) {
     executedSql.push({ query, params });
@@ -29,7 +30,7 @@ const fakePool = {
       { TABLE_NAME: "operational_alert_lifecycle_events", INDEX_NAME: "uq_operational_alert_lifecycle_event_idempotency", COLUMN_NAME: "alert_id", SEQ_IN_INDEX: 1, NON_UNIQUE: 0 },
       { TABLE_NAME: "operational_alert_lifecycle_events", INDEX_NAME: "idx_operational_alert_lifecycle_event_operation_resource", COLUMN_NAME: "operation_fingerprint_sha256", SEQ_IN_INDEX: 1, NON_UNIQUE: 1 },
     ]];
-    if (/FROM governed_migration_ledger/i.test(query)) return [[{ run_id: "run-1", migration_file: "20260704_operational_alert_lifecycle_fingerprints.sql", migration_checksum_sha256: checksum, mode: "apply", applied_at: "2026-07-07T00:00:00.000Z", statement_count: 3, preflight_status: "pass", preflight_risk_count: 0, secrets_included: 0, capability_envelope_id: "env-1" }]];
+    if (/FROM governed_migration_ledger/i.test(query)) return [ledgerRows];
     if (/FROM operational_alert_rule_registry/i.test(query)) return [[{ rule_key: "alert_execution_failed", source_type: "execution_log", condition_key: "execution_status=failed AND no later success for the same operation and resource fingerprints", status: "active", updated_at: "2026-07-07T00:00:00.000Z" }]];
     throw new Error(`Unexpected SQL: ${query}`);
   },
@@ -47,6 +48,26 @@ assert.equal(result.ledger.found, true);
 assert.deepEqual(result.expectations.missing, { tables: [], columns: [], indexes: [], rule_conditions: [] });
 assert(executedSql.every(({ query }) => !/SELECT\s+\*/i.test(query)), "readback tool must not use SELECT *");
 assert(executedSql.every(({ query }) => !/\bDELETE\b|\bUPDATE\b|\bINSERT\b|\bALTER\b|\bDROP\b/i.test(query)), "readback tool must not execute mutation SQL");
+
+ledgerRows = [{ ...ledgerRows[0], migration_checksum_sha256: "0".repeat(64) }];
+await assert.rejects(
+  () => runGovernedMigrationSchemaReadback({ migration: "20260704_operational_alert_lifecycle_fingerprints.sql", expected_checksum_sha256: checksum, expected_statement_count: 3 }, { pool: fakePool, readFile, migrationsDir: "/tmp" }),
+  (error) => error.code === "migration_ledger_checksum_mismatch" && error.status === 409,
+);
+
+ledgerRows = [];
+const missingLedgerResult = await runGovernedMigrationSchemaReadback({ migration: "20260704_operational_alert_lifecycle_fingerprints.sql", expected_checksum_sha256: checksum, expected_statement_count: 3 }, { pool: fakePool, readFile, migrationsDir: "/tmp" });
+assert.equal(missingLedgerResult.ok, false);
+assert.equal(missingLedgerResult.readback_status, "fail");
+assert.deepEqual(missingLedgerResult.ledger, { found: false });
+
+ledgerRows = [{ run_id: "run-1", migration_file: "20260704_operational_alert_lifecycle_fingerprints.sql", migration_checksum_sha256: checksum, statement_count: 99 }];
+await assert.rejects(
+  () => runGovernedMigrationSchemaReadback({ migration: "20260704_operational_alert_lifecycle_fingerprints.sql", expected_checksum_sha256: checksum, expected_statement_count: 3 }, { pool: fakePool, readFile, migrationsDir: "/tmp" }),
+  (error) => error.code === "migration_ledger_statement_count_mismatch" && error.status === 409,
+);
+
+ledgerRows = [{ run_id: "run-1", migration_file: "20260704_operational_alert_lifecycle_fingerprints.sql", migration_checksum_sha256: checksum, mode: "apply", applied_at: "2026-07-07T00:00:00.000Z", statement_count: 3, preflight_status: "pass", preflight_risk_count: 0, secrets_included: 0, capability_envelope_id: "env-1" }];
 await assert.rejects(() => runGovernedMigrationSchemaReadback({ migration: "20260704_operational_alert_lifecycle_fingerprints.sql", expected_checksum_sha256: "0".repeat(64), expected_statement_count: 3 }, { pool: fakePool, readFile, migrationsDir: "/tmp" }), /checksum/i);
 await assert.rejects(() => runGovernedMigrationSchemaReadback({ migration: "20260704_operational_alert_lifecycle_fingerprints.sql", expected_checksum_sha256: checksum, expected_statement_count: 3, expected_columns: [{ table: "operational_alerts;DROP", column: "x" }] }, { pool: fakePool, readFile, migrationsDir: "/tmp" }), /expected_columns\.table/);
 const routesSource = readFileSync("routes/gptToolsRoutes.js", "utf8");

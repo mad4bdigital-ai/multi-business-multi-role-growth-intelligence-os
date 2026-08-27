@@ -23,7 +23,7 @@ function baseInput(overrides = {}) {
 }
 
 function makeStore() {
-  const targetFingerprint = deriveRoleTargetFingerprints({ env: ENV }).governance;
+  const targetFingerprint = deriveRoleTargetFingerprints({ env: ENV }).runtime;
   const tickets = new Map();
   const ticketStates = new Map();
   const runs = new Map();
@@ -34,22 +34,15 @@ function makeStore() {
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
-    step_hash: stableHash({
-      step_id: STEP_ID,
-      step_hash: STEP_HASH,
-      consequential: true,
-      capability_key: "governance.mcp_catalog.repair",
-      operation: "apply_migration",
-      target_role: "governance",
-      target_fingerprint: targetFingerprint,
-      mutation_class: "C3",
-    }),
+    step_hash: STEP_HASH,
     expected_sha: SHA,
     target_key: "production-runtime",
     target_fingerprint: targetFingerprint,
     composite_target_fingerprint: targetFingerprint,
     step_target_fingerprint: targetFingerprint,
-    target_role: "governance",
+    target_role: "runtime",
+    approval_version: "v1",
+    challenge_hash: "9".repeat(64),
     expires_at: new Date(Date.now() + 600000).toISOString(),
     used: false,
   };
@@ -78,7 +71,10 @@ function makeStore() {
       consequential: true,
       capability_key: "governance.mcp_catalog.repair",
       operation: "apply_migration",
-      target_role: "governance",
+      target_role: "runtime",
+      ownership_domain: "governance",
+      database_target_role: "runtime",
+      authority_ref: "20260815_custom_gpt_mcp_catalog_levels.sql",
       target_fingerprint: targetFingerprint,
       mutation_class: "C3",
     }],
@@ -147,6 +143,27 @@ const ENV = {
   }),
 };
 
+const BRIDGE_TARGET_FINGERPRINT = deriveRoleTargetFingerprints({ env: ENV }).runtime;
+const DEPLOYMENT_IDENTITY_PROVIDER = {
+  readAttestation: async () => ({
+    contract: "mad4b.recovery-runtime-attestation.v1",
+    deployment_identity_contract: "mad4b.recovery-deployment-identity-attestation.v1",
+    repository: ENV.GITHUB_REPOSITORY,
+    branch: "Production",
+    repository_sha: SHA,
+    deployment_sha: SHA,
+    recovery_manifest_hash: "e".repeat(64),
+    manifest_bound: true,
+    read_only_probe: true,
+    attestation_hash: "f".repeat(64),
+    target_fingerprint: BRIDGE_TARGET_FINGERPRINT,
+    target_fingerprints: { composite: BRIDGE_TARGET_FINGERPRINT, governance: BRIDGE_TARGET_FINGERPRINT },
+    database_connection_performed: false,
+    database_mutation_performed: false,
+    provider_mutation_performed: false,
+    secrets_included: false,
+  }),
+};
 const SIGNER = { sign: async ({ ticket_hash }) => `sig:${ticket_hash}` };
 const LOCK = {
   acquire: async () => ({ acquired: true, lease_id: "lease:bridge-001", fencing_token: "fence:bridge-001", expires_at: new Date(Date.now() + 600000).toISOString() }),
@@ -155,18 +172,21 @@ const LOCK = {
   release: async () => {},
 };
 const APPROVAL_VERIFIER = { verify: async ({ token }) => token === FIXTURE_VALUE };
-const READBACK = { verify: async () => ({ postconditions_passed: true, behavioral_probe_passed: true }) };
+const READBACK = { independent_authority: true, role_aware: true, verify: async () => ({ postconditions_passed: true, structural_postconditions_passed: true, data_postconditions_passed: true, behavioral_probe_passed: true }) };
+const MIGRATION_LEDGER = { contract: "mad4b.governance-migration-ledger.v1", finalize: async () => ({ finalized: true }) };
 
 function authorities(store, executor) {
   return {
     env: ENV,
     adminPrincipal: { verified: true },
+    deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,
     recoveryStore: store,
     executionTicketSigner: SIGNER,
     approvalVerifier: APPROVAL_VERIFIER,
     recoveryLock: LOCK,
     readbackVerifier: READBACK,
     hostBreakglassMutationExecutor: executor,
+    migrationLedger: MIGRATION_LEDGER,
   };
 }
 

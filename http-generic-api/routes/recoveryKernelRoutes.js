@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
+  assertApprovalChallengeAuthorities,
   callRecoveryKernelCapability,
+  createApprovalChallenge,
   getRecoveryEvidence,
   getRecoveryRun,
   sanitizeEvidence,
@@ -139,7 +141,9 @@ export function buildRecoveryKernelRoutes({
   mutationExecutor,
   readbackVerifier,
   executionTicketSigner,
+  deploymentIdentityProvider,
   hostBreakglassMutationExecutor,
+  migrationLedger,
   productionActivationReadinessExecutor,
   systemToolLookup,
 } = {}) {
@@ -194,6 +198,7 @@ export function buildRecoveryKernelRoutes({
         mutationExecutor,
         readbackVerifier,
         executionTicketSigner,
+        deploymentIdentityProvider,
         productionActivationReadinessExecutor,
         systemToolLookup: fixedSystemToolLookup,
         adminPrincipal: requestAdminPrincipal(req),
@@ -216,13 +221,37 @@ export function buildRecoveryKernelRoutes({
         approvalStore,
         recoveryLock,
         readbackVerifier,
+        deploymentIdentityProvider,
         hostBreakglassMutationExecutor,
+        migrationLedger,
       });
       return res.status(202).json(sanitizeRecoveryActionBridgeOutput({ ok: true, contract: "mad4b.recovery-action-bridge-route-receipt.v1", result, secrets_included: false }));
     } catch (error) {
       return errorResponse(res, error, "recovery_action_bridge_failed");
     }
   };
+
+  router.post("/admin/recovery/kernel/approval-challenge", async (req, res) => {
+    try {
+      const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id"], ["plan_id", "plan_hash", "step_id"]);
+      assertApprovalChallengeAuthorities({ recoveryStore, approvalIssuer, approvalStore });
+      const result = await createApprovalChallenge(body, {
+        recoveryStore,
+        approvalIssuer,
+        approvalStore,
+      });
+      return res.status(201).json(sanitizeEvidence({
+        ok: true,
+        contract: "mad4b.recovery-approval-challenge-route-receipt.v1",
+        result,
+        approval_token_not_returned: true,
+        execution_ticket_not_returned: true,
+        secrets_included: false,
+      }));
+    } catch (error) {
+      return errorResponse(res, error, "recovery_approval_challenge_failed");
+    }
+  });
 
   router.post("/admin/recovery/kernel/execute-approved", executeApprovedBridge);
   // Keep the historical path as a server-issued-ticket alias. Caller-supplied

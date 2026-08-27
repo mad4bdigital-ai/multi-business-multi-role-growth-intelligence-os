@@ -93,7 +93,7 @@ test("causal finding graph records unknown drift without inventing a repair capa
 test("trust model exposes capability levels and dependency policy without database authority", () => {
   const model = getRecoveryTrustModel({ env: ENV, expectedSha: SHA });
   assert.equal(model.ok, true);
-  assert.deepEqual(model.trust_roots, ["exact_production_sha", "recovery_manifest_hash", "target_fingerprint", "admin_principal_binding"]);
+  assert.deepEqual(model.trust_roots, ["exact_production_sha", "recovery_manifest_hash", "deployment_attestation_hash", "target_fingerprint", "admin_principal_binding"]);
   assert.equal(model.database_independent_control_plane, true);
   assert.ok(model.dependency_graph.some((edge) => edge.prohibited === true));
   assert.equal(model.secrets_included, false);

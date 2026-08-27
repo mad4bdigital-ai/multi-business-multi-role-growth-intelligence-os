@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
+import {
+  buildMigrationArtifactBinding,
+  MIGRATION_EXECUTION_SAFETY_CONTRACT,
+} from "./migrationExecutionSafety.js";
 
 const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -147,7 +151,21 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
   const migrationPath = path.join(migrationsDir, normalized.migration);
   const sql = await (deps.readFile || fs.readFile)(migrationPath, "utf8");
   const checksum = createHash("sha256").update(sql, "utf8").digest("hex");
-  const statementCount = splitGovernedMigrationStatements(sql).length;
+  const statements = splitGovernedMigrationStatements(sql);
+  const statementCount = statements.length;
+  const artifactBinding = buildMigrationArtifactBinding({
+    migration: normalized.migration,
+    rawSql: sql,
+    statements,
+    expectedRawArtifactSha256: checksum,
+  });
+  if (!artifactBinding.ok) {
+    throw toolError("migration_artifact_binding_mismatch", "Migration artifact binding did not remain stable during inspection.", 409, {
+      migration: normalized.migration,
+      mismatches: artifactBinding.mismatches,
+      secrets_included: false,
+    });
+  }
 
   if (checksum !== normalized.expectedChecksum) {
     throw toolError("migration_checksum_mismatch", "Merged migration checksum does not match the approved checksum.", 409, {
@@ -194,6 +212,8 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
     migrationPath,
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
+    artifact_binding: artifactBinding.binding,
+    migration_execution_safety_contract: MIGRATION_EXECUTION_SAFETY_CONTRACT,
     required_confirmation: requiredConfirmation,
     runner_path: MIGRATION_RUNNER_PATHS[normalized.migration] || DEFAULT_RUNNER_PATH,
     atomic_runner_required: atomicRunnerRequired,
@@ -521,6 +541,43 @@ function capabilityMismatch(code, message, capability, inspection, extra = {}) {
   });
 }
 
+function assertMigrationSafetyPreflight(preflight, inspection) {
+  if (!preflight || preflight.ok !== true || preflight.status !== "pass") {
+    throw toolError(
+      "governed_migration_safety_preflight_blocked",
+      "Migration execution safety preflight did not pass; no runner dispatch is allowed.",
+      409,
+      {
+        migration: inspection.migration,
+        status: preflight?.status || "missing",
+        problems: Array.isArray(preflight?.problems) ? preflight.problems.slice(0, 64) : [],
+        retry_without_readback_allowed: false,
+        secrets_included: false,
+      },
+    );
+  }
+  if (preflight.safety?.database_mutation_performed !== false || preflight.safety?.provider_access_performed !== false || preflight.safety?.credential_access_performed !== false) {
+    throw toolError(
+      "governed_migration_safety_preflight_side_effect",
+      "Migration safety preflight reported a side effect and is not admissible for apply.",
+      409,
+      { migration: inspection.migration, retry_without_readback_allowed: false, secrets_included: false },
+    );
+  }
+  return {
+    ok: true,
+    status: "pass",
+    contract: MIGRATION_EXECUTION_SAFETY_CONTRACT.contract,
+    artifact_binding: inspection.artifact_binding,
+    safety: {
+      database_mutation_performed: false,
+      provider_access_performed: false,
+      credential_access_performed: false,
+      secrets_included: false,
+    },
+  };
+}
+
 function assertApplyCapability(capability, inspection) {
   if (!capability || !capability.envelope_id) {
     throw toolError("governed_migration_apply_capability_envelope_unresolved", "Apply authorizer did not return a capability envelope.", 403);
@@ -579,12 +636,25 @@ function assertApplyCapability(capability, inspection) {
 export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   const inspection = await inspectGovernedMigrationExecution(input, deps);
   let capability = null;
+  let safetyPreflight = null;
   if (inspection.mode === "apply") {
     if (typeof deps.authorizeApply !== "function") {
       throw toolError("governed_migration_apply_authorizer_missing", "Apply authorization callback is required.", 500);
     }
     capability = await deps.authorizeApply(inspection);
     assertApplyCapability(capability, inspection);
+    if (typeof deps.migrationSafetyPreflight !== "function") {
+      throw toolError(
+        "governed_migration_safety_preflight_missing",
+        "Apply requires an injected migration execution safety preflight.",
+        503,
+        { migration: inspection.migration, contract: MIGRATION_EXECUTION_SAFETY_CONTRACT.contract, secrets_included: false },
+      );
+    }
+    safetyPreflight = assertMigrationSafetyPreflight(
+      await deps.migrationSafetyPreflight({ inspection, artifactBinding: inspection.artifact_binding, capability }),
+      inspection,
+    );
   }
 
   const configuredRunner = deps.runnerPathByMigration?.[inspection.migration];
@@ -681,6 +751,7 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
     runner_timeout_ms: timeoutMs,
     runner_capture_limit_bytes: maxBuffer,
     capability_envelope_id: approvedCapabilityEnvelopeId || null,
+    migration_safety_preflight: safetyPreflight,
     required_envelope: inspection.required_envelope,
     deployed_commit_sha: inspection.deployment?.commit_sha || null,
     checksum_verified_before_execution: true,

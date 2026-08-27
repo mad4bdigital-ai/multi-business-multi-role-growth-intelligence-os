@@ -6,6 +6,13 @@ import { fileURLToPath } from "node:url";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 import { allowedGrantPrivilegesForRole } from "./databasePrivilegeContracts.js";
+import {
+  BASELINE_ORDER_CONTRACT,
+  validateBaselineBeforeOrdinaryMigration,
+  buildRoleBundleBinding,
+  createRoleBundleProgress,
+  recordRoleBundleProgress,
+} from "./recoveryExecutionBinding.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONTRACT_PATH = path.join(HERE, "config", "runtime-bootstrap-contract.json");
@@ -196,6 +203,8 @@ function mutationEvidenceTemplate(migration, statementCount, grantsTotal = 0) {
       state: "none",
       operations_completed: [],
       failed_operation: null,
+      role_bundle_progress: {},
+      reconciliation_required: false,
     },
     ddl_privilege_preflight: [],
     secrets_included: false,
@@ -250,6 +259,29 @@ export function parseJsonArray(value, label) {
   }
   if (!Array.isArray(parsed)) throw bootstrapError(`${label}_invalid`, `${label} must be a JSON array`);
   return parsed;
+}
+
+function parseJsonObject(value, label) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    throw bootstrapError(`${label}_missing`, `${label} is required`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(String(value));
+  } catch (error) {
+    throw bootstrapError(`${label}_invalid_json`, `${label} must be valid JSON`, { cause: error?.message || "parse_failed" });
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw bootstrapError(`${label}_invalid`, `${label} must be a JSON object`);
+  return parsed;
+}
+
+function validateBaselineOrderProofFromEnvironment(env, { expectedSha, targetKey } = {}) {
+  const proof = parseJsonObject(env.BOOTSTRAP_BASELINE_ORDER_PROOF, "bootstrap_baseline_order_proof");
+  const validation = validateBaselineBeforeOrdinaryMigration({ proof, expectedSha, targetKey });
+  if (!validation.ok) {
+    throw bootstrapError("bootstrap_baseline_order_proof_invalid", "Ordinary migration apply requires a valid completed baseline-order proof; no database connection was opened.", { problems: validation.problems, required_predecessors: validation.required_predecessors, database_connection_performed: false, database_mutation_performed: false });
+  }
+  return validation;
 }
 
 function requireString(value, code, field) {
@@ -1161,7 +1193,11 @@ export function validateBundleManifestPath(repoRoot, configuredPath, contract = 
 
 function readBundleManifest(manifestPath, expectedSha, contract, role = "runtime") {
   let manifest;
-  try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")); } catch (error) {
+  let manifestBytes;
+  try {
+    manifestBytes = fs.readFileSync(manifestPath);
+    manifest = JSON.parse(manifestBytes.toString("utf8"));
+  } catch (error) {
     throw bootstrapError("bootstrap_bundle_manifest_unreadable", "Schema bundle manifest is unreadable", { cause: error?.message || "parse_failed" });
   }
   if (manifest.contract !== contract.baseline_bundle.manifest_contract) throw bootstrapError("bootstrap_bundle_contract_invalid", "Schema bundle manifest contract is not canonical");
@@ -1188,41 +1224,62 @@ function readBundleManifest(manifestPath, expectedSha, contract, role = "runtime
   if (!fs.existsSync(bundlePath)) throw bootstrapError("bootstrap_bundle_file_missing", "Schema bundle file is missing", { role, file: bundleFile });
   const observed = crypto.createHash("sha256").update(fs.readFileSync(bundlePath)).digest("hex");
   if (observed !== String(roleConfig.sha256).toLowerCase()) throw bootstrapError("bootstrap_bundle_checksum_mismatch", "Schema bundle checksum does not match manifest", { role });
-  return { manifest, bundlePath, role: { ...roleConfig, file: bundleFile } };
+  const manifestSha256 = crypto.createHash("sha256").update(manifestBytes).digest("hex");
+  return { manifest, manifest_sha256: manifestSha256, bundlePath, role: { ...roleConfig, file: bundleFile } };
 }
 
 export function validateSchemaBundleManifest(manifestPath, expectedSha, contract = readRuntimeBootstrapContract(), role = "runtime") {
   return readBundleManifest(manifestPath, expectedSha, contract, role);
 }
 
-async function applyRoleBundle(connection, database, manifestPath, expectedSha, contract, role, mutationEvidence) {
+async function applyRoleBundle(connection, database, manifestPath, expectedSha, contract, role, mutationEvidence, progressRegistry = null) {
   const bundle = readBundleManifest(manifestPath, expectedSha, contract, role);
   const sql = zlib.gunzipSync(fs.readFileSync(bundle.bundlePath)).toString("utf8");
   const statements = assertSqlArtifactSafe(sql, { allowData: false });
+  const bundleBinding = buildRoleBundleBinding({
+    role,
+    bundleManifestSha256: bundle.manifest_sha256,
+    roleBundleSha256: bundle.role.sha256,
+    statementCount: statements.length,
+    statementFingerprints: statements.map((statement) => sha256Hex(statement)),
+  });
+  let progress = createRoleBundleProgress({ role, bundleBinding });
+  const saveProgress = () => {
+    mutationEvidence.baseline.role_bundle_progress[role] = progress;
+    if (progressRegistry) progressRegistry[role] = progress;
+  };
+  saveProgress();
   markMutationAttempt(mutationEvidence, "baseline");
   for (const [index, statement] of statements.entries()) {
     try {
       await connection.query(statement);
+      progress = recordRoleBundleProgress(progress, { state: "executing", completedBoundary: index + 1, providerOutcome: "acknowledged" });
+      saveProgress();
       mutationEvidence.baseline.operations_completed.push(`${role}:${index + 1}`);
     } catch (error) {
+      progress = recordRoleBundleProgress(progress, { state: "partial_execution", completedBoundary: index, providerOutcome: "unknown", reconciliationRequired: true });
+      saveProgress();
       mutationEvidence.baseline.failed_operation = `${role}:${index + 1}`;
-      throw withMutationEvidence(bootstrapError("bootstrap_schema_bundle_mutation_failed", "Schema bundle application failed after mutation began", { role, operation_index: index + 1, mysql_code: error?.code || null }), mutationEvidence);
+      mutationEvidence.baseline.reconciliation_required = true;
+      throw withMutationEvidence(bootstrapError("bootstrap_schema_bundle_mutation_failed", "Schema bundle application failed after mutation began", { role, operation_index: index + 1, role_bundle_binding: bundleBinding, role_bundle_progress: progress, reconciliation_required: true, automatic_rerun_allowed: false, mysql_code: error?.code || null }), mutationEvidence);
     }
   }
+  progress = recordRoleBundleProgress(progress, { state: "completed", completedBoundary: statements.length, providerOutcome: "acknowledged" });
+  saveProgress();
   markMutationComplete(mutationEvidence, "baseline");
-  return { role, file: bundle.role.file, sha256: bundle.role.sha256, table_count: bundle.role.table_count || bundle.role.tables.length, statement_count: statements.length, status: "schema_bundle_applied" };
+  return { role, file: bundle.role.file, sha256: bundle.role.sha256, manifest_sha256: bundle.manifest_sha256, role_bundle_binding: bundleBinding, role_bundle_progress: progress, table_count: bundle.role.table_count || bundle.role.tables.length, statement_count: statements.length, status: "schema_bundle_applied" };
 }
 
-async function applyRuntimeBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence) {
-  return applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "runtime", mutationEvidence);
+async function applyRuntimeBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence, progressRegistry = null) {
+  return applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "runtime", mutationEvidence, progressRegistry);
 }
 
-async function applyGovernanceBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence) {
-  return applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "governance", mutationEvidence);
+async function applyGovernanceBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence, progressRegistry = null) {
+  return applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "governance", mutationEvidence, progressRegistry);
 }
 
-async function applyRuntimePersistenceBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence) {
-  const applied = await applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "runtime_persistence", mutationEvidence);
+async function applyRuntimePersistenceBundle(connection, database, manifestPath, expectedSha, contract, mutationEvidence, progressRegistry = null) {
+  const applied = await applyRoleBundle(connection, database, manifestPath, expectedSha, contract, "runtime_persistence", mutationEvidence, progressRegistry);
   const recoveryMigration = contract.baseline_bundle.runtime_persistence_readback_migration;
   if (!contract.postconditions?.[recoveryMigration]) {
     throw bootstrapError("bootstrap_persistence_postcondition_contract_missing", "Runtime persistence has no repository-owned same-cycle readback contract");
@@ -1401,6 +1458,8 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
     grant_mutation_performed: false,
     startup_hook_required: true,
     normal_route_bypass: false,
+    baseline_order_contract: BASELINE_ORDER_CONTRACT,
+    baseline_order_proof: null,
     secrets_included: false,
   };
   if (mode === "plan") return result;
@@ -1416,8 +1475,11 @@ export function buildPlan(env = process.env, contract = readRuntimeBootstrapCont
   if (roleSelectiveRebuild) validateRoleRebuildConfirmation(env, source.sha, target, contract);
   else if (mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
+  const baselineOrderProof = mode === "apply_migration" && !roleSelectiveRebuild
+    ? validateBaselineOrderProofFromEnvironment(env, { expectedSha: source.sha, targetKey: target.key })
+    : null;
   const operation = roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : mode === "apply_grants" ? "grants" : "read_only";
-  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection || roleSelectiveRebuild ? "inspection_derived_role_selection" : "explicit", full_inspection: fullInspection, operation, migration_role: spec?.role || null, selected_rebuild_roles: requestedRebuildRoles, role_selection_source: (fullInspection || roleSelectiveRebuild) ? (requestedRebuildRoles ? "plan_bound_role_selection" : ROLE_SELECTION_FROM_INSPECTION) : null, role_selection_enum: BOOTSTRAP_ROLE_KEYS, credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0), secrets_included: false };
+  return { ...result, status: "preflight_ready_for_explicit_invocation", target_key: target.key, database_binding_present: true, target_binding: describeTargetBinding(target, target.target_source || REPOSITORY_TARGET_SOURCE), migration, migration_selected: Boolean(migration), migration_selection: fullInspection || roleSelectiveRebuild ? "inspection_derived_role_selection" : "explicit", full_inspection: fullInspection, operation, migration_role: spec?.role || null, selected_rebuild_roles: requestedRebuildRoles, role_selection_source: (fullInspection || roleSelectiveRebuild) ? (requestedRebuildRoles ? "plan_bound_role_selection" : ROLE_SELECTION_FROM_INSPECTION) : null, role_selection_enum: BOOTSTRAP_ROLE_KEYS, credentials: { host_configured: credentials.host_configured, user_configured: credentials.user_configured, password_configured: Boolean(String(env.MYSQL_BOOTSTRAP_PASSWORD || "")), separate_from_runtime: credentials.separate_from_runtime, credential_source: credentials.credential_source, separate_from_target_principal: credentials.separate_from_target_principal, role_credentials: [...roleCredentials].map(([role, value]) => ({ role, credential_source: value.credential_source, user_configured: Boolean(value.user), password_configured: Boolean(value.password), host_configured: Boolean(value.host) })) }, baseline_order_contract: BASELINE_ORDER_CONTRACT, baseline_order_proof: baselineOrderProof, migration_catalog: fullInspection ? migrationCatalogEvidence(contract) : undefined, mutation_evidence: mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0), secrets_included: false };
 }
 
 export async function runBootstrap({ env = process.env, contract = readRuntimeBootstrapContract(), repoRoot = path.resolve(HERE, ".."), connectionFactory, partialReceiptStore = null, executionTicketVerifier = null } = {}) {
@@ -1633,6 +1695,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     if (roleSelectiveRebuild) {
       let manifestPath = null;
       const roleConnections = roleConnectionBindings({ connection, ledgerConnection, persistenceExecutor, target, governanceDatabase, persistenceDatabase });
+      const roleBundleProgress = {};
       const roleFingerprintsBefore = Object.fromEntries(Object.entries(roleDatabaseObjectCounts).map(([role, counts]) => [role, objectCountsFingerprint(counts)]));
       roleRebuildEvidence = {
         contract: "mad4b.role-selective-baseline-rebuild.v1",
@@ -1667,24 +1730,34 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         const ddlPreflight = await assertDdlPrivilegePreflight(binding.connection, binding.database, bundleSql, bundle.role.tables, { kind: "baseline_bundle", role });
         mutationEvidence.ddl_privilege_preflight.push(ddlPreflight);
         const applied = role === "runtime"
-          ? await applyRuntimeBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence)
+          ? await applyRuntimeBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence, roleBundleProgress)
           : role === "governance"
-            ? await applyGovernanceBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence)
-            : await applyRuntimePersistenceBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence);
+            ? await applyGovernanceBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence, roleBundleProgress)
+            : await applyRuntimePersistenceBundle(binding.connection, binding.database, manifestPath, source.sha, contract, mutationEvidence, roleBundleProgress);
         const seeds = [];
         for (const seed of roleSeedEntries(contract, role)) seeds.push(await applySeedFile(binding.connection, repoRoot, seed, mutationEvidence));
         const afterRoleCounts = await databaseObjectCounts(binding.connection, binding.database);
         const afterRoleClassification = classifyDatabaseObjectCount(afterRoleCounts);
         const afterTables = await requiredTableEvidence(binding.connection, binding.database, roleBaselineTables(contract, role));
         if (afterRoleClassification === "zero_objects" || afterTables.some((entry) => !entry.present)) {
-          throw bootstrapError("bootstrap_role_rebuild_verification_failed", "A selected role did not pass same-cycle object and required-table verification; sequential reconstruction stopped before the next role.", { role, after_classification: afterRoleClassification, required_table_verification_passed: afterTables.every((entry) => entry.present), selected_roles: selectedRebuildRoles });
+          if (roleBundleProgress[role]) {
+            roleBundleProgress[role] = recordRoleBundleProgress(roleBundleProgress[role], { state: "reconciliation_required", completedBoundary: roleBundleProgress[role].last_completed_boundary, providerOutcome: "acknowledged", reconciliationRequired: true, objectFingerprintAfterFailure: objectCountsFingerprint(afterRoleCounts) });
+            mutationEvidence.baseline.role_bundle_progress[role] = roleBundleProgress[role];
+            mutationEvidence.baseline.reconciliation_required = true;
+          }
+          throw bootstrapError("bootstrap_role_rebuild_verification_failed", "A selected role did not pass same-cycle object and required-table verification; sequential reconstruction stopped before the next role.", { role, after_classification: afterRoleClassification, required_table_verification_passed: afterTables.every((entry) => entry.present), role_bundle_progress: roleBundleProgress[role] || null, reconciliation_required: true, automatic_rerun_allowed: false, selected_roles: selectedRebuildRoles });
         }
-        const roleResult = { role, before_object_count_fingerprint: beforeRoleFingerprint, after_object_counts: afterRoleCounts, after_object_classification: afterRoleClassification, required_table_evidence: afterTables, bundle: applied, seeds, verification: { object_count_nonzero: afterRoleClassification !== "zero_objects", required_tables_present: afterTables.every((entry) => entry.present), provider_accessed: false, secrets_included: false } };
+        if (roleBundleProgress[role]) {
+          roleBundleProgress[role] = recordRoleBundleProgress(roleBundleProgress[role], { state: "verified", completedBoundary: roleBundleProgress[role].statement_count, providerOutcome: "verified" });
+          mutationEvidence.baseline.role_bundle_progress[role] = roleBundleProgress[role];
+        }
+        const roleResult = { role, before_object_count_fingerprint: beforeRoleFingerprint, after_object_counts: afterRoleCounts, after_object_classification: afterRoleClassification, required_table_evidence: afterTables, bundle: applied, role_bundle_binding: applied.role_bundle_binding || null, role_bundle_progress: roleBundleProgress[role] || applied.role_bundle_progress || null, seeds, verification: { object_count_nonzero: afterRoleClassification !== "zero_objects", required_tables_present: afterTables.every((entry) => entry.present), provider_accessed: false, secrets_included: false } };
         roleRebuildResults.push(roleResult);
         migrationResults.push(roleResult);
       }
       markMutationComplete(mutationEvidence, "baseline");
       roleRebuildEvidence.roles_completed = roleRebuildResults.map((item) => item.role);
+      roleRebuildEvidence.role_bundle_progress = Object.fromEntries(Object.entries(roleBundleProgress).map(([role, progress]) => [role, progress]));
       roleRebuildEvidence.verification = roleRebuildResults.map((item) => item.verification);
       roleRebuildEvidence.evidence_hash = sha256Hex(JSON.stringify(roleRebuildEvidence));
       return {

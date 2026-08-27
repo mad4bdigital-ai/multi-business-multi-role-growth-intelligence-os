@@ -6,10 +6,15 @@ import {
   issueExecutionTicket,
   verifyExecutionTicket,
 } from "./recoveryExecutionTicket.js";
+import { buildRoleBundleBinding } from "./recoveryExecutionBinding.js";
 
 const SHA = "a".repeat(40);
 const HASH = "b".repeat(64);
 const ROLE_FP = { governance: "c".repeat(64), runtime_persistence: "d".repeat(64) };
+const ROLE_BUNDLE_BINDINGS = {
+  governance: buildRoleBundleBinding({ role: "governance", bundleManifestSha256: "1".repeat(64), roleBundleSha256: "2".repeat(64), statementCount: 2, statementFingerprints: ["3".repeat(64), "4".repeat(64)] }),
+  runtime_persistence: buildRoleBundleBinding({ role: "runtime_persistence", bundleManifestSha256: "5".repeat(64), roleBundleSha256: "6".repeat(64), statementCount: 2, statementFingerprints: ["7".repeat(64), "8".repeat(64)] }),
+};
 const BASE = {
   inspection_run_id: `run:${"1".repeat(32)}`,
   inspection_evidence_hash: "e".repeat(64),
@@ -18,6 +23,12 @@ const BASE = {
   role_selection_required: true,
   role_selection_hash: "a1".repeat(32),
   role_object_count_fingerprints: ROLE_FP,
+  role_bundle_bindings: ROLE_BUNDLE_BINDINGS,
+  deployment_attestation_hash: "9".repeat(64),
+  approval_id: `approval:${"5".repeat(32)}`,
+  approval_hash: "6".repeat(64),
+  approval_version: "v1",
+  operation: "database.rebuild_empty",
   target_fingerprints: { composite: "f".repeat(64), ...ROLE_FP },
   production_sha: SHA,
   target_key: "production-runtime",
@@ -55,6 +66,8 @@ test("execution ticket is signed, hash-addressed, single-use, and role-provenanc
       idempotency_key: BASE.idempotency_key,
       selected_roles: ["governance", "runtime_persistence"],
       target_fingerprints: BASE.target_fingerprints,
+      role_bundle_bindings: BASE.role_bundle_bindings,
+      deployment_attestation_hash: BASE.deployment_attestation_hash,
     },
   });
   assert.equal(verified.valid, true);
@@ -63,7 +76,7 @@ test("execution ticket is signed, hash-addressed, single-use, and role-provenanc
 
 test("execution ticket tampering and cross-plan reuse fail closed", async () => {
   const ticket = await makeTicket();
-  await assert.rejects(() => verifyExecutionTicket({ ...ticket, target_key: "other-target" }, { verifier }), /hash mismatch/u);
+  await assert.rejects(() => verifyExecutionTicket({ ...ticket, target_key: "other-target" }, { verifier }), /hash mismatch|approval_binding/u);
   await assert.rejects(() => verifyExecutionTicket(ticket, { verifier, expected: { plan_hash: "8".repeat(64) } }), /binding mismatch/u);
   await assert.rejects(() => verifyExecutionTicket(ticket, { verifier, expected: { idempotency_key: "other-idempotency" } }), /binding mismatch/u);
 });
@@ -81,4 +94,12 @@ test("role-selective ticket requires durable inspection references and complete 
   assert.throws(() => buildExecutionTicketPayload({ ...BASE, role_object_count_fingerprints: { governance: ROLE_FP.governance } }), /Every selected rebuild role/u);
   const payload = buildExecutionTicketPayload(BASE);
   assert.equal(computeExecutionTicketHash(payload).length, 64);
+  assert.deepEqual(payload.role_bundle_bindings, ROLE_BUNDLE_BINDINGS);
+  assert.equal(payload.deployment_attestation_hash, BASE.deployment_attestation_hash);
+});
+
+test("role-bundle binding tampering changes the signed payload and fails verification", async () => {
+  const ticket = await makeTicket();
+  const tampered = { ...ticket, role_bundle_bindings: { ...ticket.role_bundle_bindings, governance: { ...ticket.role_bundle_bindings.governance, role_bundle_sha256: "a".repeat(64) } } };
+  await assert.rejects(() => verifyExecutionTicket(tampered, { verifier }), /hash mismatch|role-bundle|invalid/u);
 });
