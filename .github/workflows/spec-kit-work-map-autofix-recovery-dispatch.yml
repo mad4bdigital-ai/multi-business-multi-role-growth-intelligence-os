@@ -142,12 +142,20 @@ jobs:
           grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"
 
           compare_file="${REPORT_DIR}/main-comparison.json"
-          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${REQUESTED_HEAD_SHA}" > "${compare_file}"
-          compare_status="$(jq -r '.status' "${compare_file}")"
-          compare_base_sha="$(jq -r '.base_commit.sha' "${compare_file}")"
-          merge_base_sha="$(jq -r '.merge_base_commit.sha' "${compare_file}")"
-          ahead_by="$(jq -r '.ahead_by' "${compare_file}")"
-          behind_by="$(jq -r '.behind_by' "${compare_file}")"
+          if ! gh api "repos/${GITHUB_REPOSITORY}/compare/main...${REQUESTED_HEAD_SHA}" > "${compare_file}"; then
+            echo "Exact-head main comparison API request failed."
+            exit 1
+          fi
+          compare_status="$(jq -er '.status' "${compare_file}")"
+          compare_base_sha="$(jq -er '.base_commit.sha' "${compare_file}")"
+          merge_base_sha="$(jq -er '.merge_base_commit.sha' "${compare_file}")"
+          ahead_by="$(jq -er '.ahead_by' "${compare_file}")"
+          behind_by="$(jq -er '.behind_by' "${compare_file}")"
+          printf 'Freshness proof: base_ref_sha=%s compare_base_sha=%s merge_base_sha=%s status=%s ahead_by=%s behind_by=%s\n' \
+            "${base_ref_sha}" "${compare_base_sha}" "${merge_base_sha}" "${compare_status}" "${ahead_by}" "${behind_by}"
+          test "${base_ref_sha}" =~ ^[0-9a-f]{40}$
+          test "${compare_base_sha}" =~ ^[0-9a-f]{40}$
+          test "${merge_base_sha}" =~ ^[0-9a-f]{40}$
           test "${compare_base_sha}" = "${base_ref_sha}"
           test "${merge_base_sha}" = "${base_ref_sha}"
           test "${compare_status}" = "ahead"

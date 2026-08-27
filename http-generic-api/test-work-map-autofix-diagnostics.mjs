@@ -144,8 +144,8 @@ assert.match(bootstrapWorkflow, /test "\$\{current_head_sha\}" = "\$\{REQUESTED_
 assert.match(bootstrapWorkflow, /grep -Fq "\$\{AUTHORIZATION_MARKER\}"/u);
 assert.match(bootstrapWorkflow, /compare\/main\.\.\.\$\{REQUESTED_HEAD_SHA\}/u);
 assert.match(bootstrapWorkflow, /base_ref_sha="\$\(jq -r '\.base\.sha'/u);
-assert.match(bootstrapWorkflow, /compare_base_sha="\$\(jq -r '\.base_commit\.sha'/u);
-assert.match(bootstrapWorkflow, /merge_base_sha="\$\(jq -r '\.merge_base_commit\.sha'/u);
+assert.match(bootstrapWorkflow, /compare_base_sha="\$\(jq -e?r '\.base_commit\.sha'/u);
+assert.match(bootstrapWorkflow, /merge_base_sha="\$\(jq -e?r '\.merge_base_commit\.sha'/u);
 assert.match(bootstrapWorkflow, /test "\$\{compare_base_sha\}" = "\$\{base_ref_sha\}"/u);
 assert.match(bootstrapWorkflow, /test "\$\{merge_base_sha\}" = "\$\{base_ref_sha\}"/u);
 assert.match(bootstrapWorkflow, /test "\$\{compare_status\}" = "ahead"/u);
@@ -200,8 +200,8 @@ assert.match(recoveryWorkflow, /test "\$\{current_head_sha\}" = "\$\{REQUESTED_H
 assert.match(recoveryWorkflow, /grep -Fq "\$\{AUTHORIZATION_MARKER\}"/u);
 assert.match(recoveryWorkflow, /compare\/main\.\.\.\$\{REQUESTED_HEAD_SHA\}/u);
 assert.match(recoveryWorkflow, /base_ref_sha="\$\(jq -r '\.base\.sha'/u);
-assert.match(recoveryWorkflow, /compare_base_sha="\$\(jq -r '\.base_commit\.sha'/u);
-assert.match(recoveryWorkflow, /merge_base_sha="\$\(jq -r '\.merge_base_commit\.sha'/u);
+assert.match(recoveryWorkflow, /compare_base_sha="\$\(jq -e?r '\.base_commit\.sha'/u);
+assert.match(recoveryWorkflow, /merge_base_sha="\$\(jq -e?r '\.merge_base_commit\.sha'/u);
 assert.match(recoveryWorkflow, /test "\$\{compare_base_sha\}" = "\$\{base_ref_sha\}"/u);
 assert.match(recoveryWorkflow, /test "\$\{merge_base_sha\}" = "\$\{base_ref_sha\}"/u);
 assert.match(recoveryWorkflow, /test "\$\{compare_status\}" = "ahead"/u);
