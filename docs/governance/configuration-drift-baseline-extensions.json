@@ -200,6 +200,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-recovery-action-bridge-system-layer.mjs|APPROVAL_TOOL_NAME|literal_declaration|approval.tool.name",
+      "owner": "recovery-governance",
+      "reason": "The private Recovery system-tool integration test binds a non-secret approval-challenge tool name so the server-issued authority boundary remains regression-tested; this test fixture grants no runtime, database, provider, protected-ref, credential, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
