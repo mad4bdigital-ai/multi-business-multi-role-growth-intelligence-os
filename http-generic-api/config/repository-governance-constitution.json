@@ -346,6 +346,7 @@
     ".changes/e2e/host-local-inspection-adapter-20260824.json",
     ".changes/e2e/fixed-admin-host-local-inspection-20260825.json",
     ".changes/e2e/recovery-action-ticket-bridge-20260826.json",
+    ".changes/e2e/recovery-authority-composition-20260827.json",
     ".changes/e2e/staging-migration-125-json-path-contract.json",
     ".changes/e2e/staging-local-allowlist-id-contract.json",
     ".changes/e2e/staging-local-secret-reference-uniqueness.json",
