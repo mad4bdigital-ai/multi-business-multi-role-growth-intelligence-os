@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7429,
-    "bytes": 73276489,
-    "lines": 1703142,
+    "bytes": 73276599,
+    "lines": 1703143,
     "directories": 266,
     "categories": 13
   },
@@ -34649,9 +34649,9 @@
       "path": "docs/write-scope-shadow-evidence-2026-08-15.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 18075,
-      "lines": 464,
-      "sha256": "4ba0e783831ab787ecf86c20f97c730771445a074c61da8ee969aa1cab4904b8",
+      "bytes": 18185,
+      "lines": 465,
+      "sha256": "40e200d51add52e57c96db3dde9dd618bd1e781feace3e60a916359c4e67e78b",
       "mode": "644",
       "executable": false,
       "generated": false
