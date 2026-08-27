@@ -112,7 +112,11 @@
     {
       "id": "production",
       "status": "blocked",
-      "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority."
+      "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority.",
+      "blockers": [
+        "Production deployment and provider mutation require a separate explicit authorization and evidence.",
+        "This local launcher gate does not read Production credentials, set production_live=true, or activate a provider executor."
+      ]
     }
   ]
 }
