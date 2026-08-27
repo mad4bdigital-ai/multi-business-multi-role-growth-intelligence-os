@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-local-mariadb-dump-authentication-repair-20260827",
+  "title": "Staging-local MariaDB 11.4 schema dump authentication repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-local-mariadb-dump-authentication-repair-20260827.json",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/config/repository-governance-constitution.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure every disposable MariaDB 11.4 schema operation, including role-specific mariadb-dump, uses the generated local root password while preserving schema-only and downstream isolation.",
+      "e2e_journeys": [
+        {
+          "id": "authenticated-disposable-schema-dump-and-windows-replay-gate",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed CI and staging-local Windows migration operator",
+          "entrypoint": "Exact-SHA static validation followed by a freshly authorized disposable Windows Docker MariaDB 11.4 schema-only replay",
+          "terminal_outcome": "The builder authenticates apply, inspection, and role-specific schema-dump operations against the disposable database, writes a schema-only manifest, or fails closed before downstream automation.",
+          "steps": [
+            "Run builder syntax, regression, plan, migration-governance, and environment-impact checks on the exact source head.",
+            "Verify that the disposable MariaDB root password is passed to mariadb, mariadb-admin, and mariadb-dump without accessing external credentials.",
+            "Run a fresh exact-SHA Windows preflight after any merged source change.",
+            "Run one freshly authorized disposable local Windows Docker MariaDB 11.4 schema-only replay and preserve stdout, stderr, evidence, and manifest.",
+            "Stop before AutoPilot, importer, readback, data export/import, deployment, provider, Hostinger, Cloudflare, or production operations."
+          ],
+          "assertions": [
+            "mariadb-dump uses the same generated disposable root password as the schema apply and table inspection commands.",
+            "The fix changes no immutable schema.sql and no published historical migration.",
+            "Static checks perform no database connection, database mutation, provider access, credential access, data export, or runtime mutation.",
+            "The Windows replay is limited to a disposable local MariaDB 11.4 schema-only build and fails closed on any error.",
+            "AutoPilot, importer, readback, production, provider, runtime, and credential actions remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder-authenticated-dump-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-contract-governance",
+              "runner": "node",
+              "path": "http-generic-api/scripts/migration-contract-governance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/scripts/migration-contract-governance.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
