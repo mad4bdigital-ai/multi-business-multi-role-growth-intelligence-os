@@ -1,0 +1,139 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-prelive-topology-closure-20260828",
+  "title": "Recovery pre-live evidence and registration topology closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/recovery-prelive-topology-closure-20260828.json",
+      "canonicals/openapi/registration-topology-closure.yaml",
+      "http-generic-api/runtimeEnvironmentResolver.js",
+      "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/scripts/validate-registration-topology.mjs",
+      "http-generic-api/test-runtime-environment-resolver.mjs",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make all remaining Recovery readiness gaps fail closed in repository code: explicit runtime class, signed external registration/OAuth/network/Worker evidence, replay-store topology, and complete Core/Recovery registration collision modeling without enabling Production.",
+      "e2e_journeys": [
+        {
+          "id": "staging-prelive-evidence-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery readiness authority",
+          "entrypoint": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+          "terminal_outcome": "Staging Recovery readiness remains blocked unless the same signed evidence envelope binds ChatGPT registration, OAuth browser flow, origin network isolation, deployed Worker provenance, deployment SHA, runtime class, and target fingerprint.",
+          "steps": [
+            "Resolve a security-sensitive runtime only when its deployment class is explicit.",
+            "Read one immutable signed evidence snapshot from the deployment-owned authority.",
+            "Validate actual ChatGPT registration and OAuth browser round-trip evidence.",
+            "Validate that the origin is network-restricted to the signed Gateway path.",
+            "Validate that the deployed Cloudflare Worker bundle and policy belong to the same exact source SHA.",
+            "Require a replay store whose scope matches the deployment topology.",
+            "Keep production_live false and perform no provider or database mutation."
+          ],
+          "assertions": [
+            "Generic staging or production labels cannot establish security-sensitive runtime-class authority.",
+            "Local Windows/Docker Staging may use the durable single-filesystem replay store; hosted multi-instance Staging requires shared_deployment replay scope.",
+            "Missing or drifted registration, OAuth, network, or deployed Worker evidence blocks readiness.",
+            "All evidence is bound to exact deployment SHA, target fingerprint, freshness and signed authority.",
+            "Production authority remains disabled and no live action is performed by repository tests."
+          ],
+          "tests": [
+            {
+              "id": "runtime-environment-resolver",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-environment-resolver.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-admin-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "registration-topology-validator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/validate-registration-topology.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "canonicals/openapi/registration-topology-closure.yaml",
+            "http-generic-api/recoveryReadinessEvidence.js",
+            "http-generic-api/trustedIngressContract.js",
+            "http-generic-api/scripts/validate-registration-topology.mjs",
+            "http-generic-api/test-runtime-environment-resolver.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs"
+          ]
+        },
+        {
+          "id": "core-recovery-registration-collision-closure",
+          "end_to_end": true,
+          "level": "repository_contract",
+          "actor": "Registration topology validator",
+          "entrypoint": "http-generic-api/scripts/validate-registration-topology.mjs",
+          "terminal_outcome": "Admin Core, Tenant Core and Production Recovery registrations sharing auth.mad4b.com are represented explicitly and every host collision requires an approved pair without changing routing.",
+          "steps": [
+            "Load the base Custom GPT surface registry.",
+            "Apply the non-overriding canonical registration topology extension.",
+            "Bind Production and Staging Core projections to explicit registration sets and action slots.",
+            "Validate member schemas, operation budgets, audience/auth profile, server host and output parity.",
+            "Reject any same-environment host collision not listed as an explicit pair."
+          ],
+          "assertions": [
+            "Production Recovery remains a standalone private registration and is not embedded into Admin Core.",
+            "Admin Core and Tenant Core are represented for both Production auth.mad4b.com and Staging dev.mad4b.com.",
+            "The extension cannot override existing registration sets or route policy.",
+            "production_live remains false and routing_changed remains false."
+          ],
+          "tests": [
+            {
+              "id": "registration-topology-validator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/validate-registration-topology.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "canonicals/openapi/registration-topology-closure.yaml",
+            "http-generic-api/scripts/validate-registration-topology.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Repository topology modeling must not grant Production Recovery execution or production_live authority.",
+      "blockers": [
+        "Production activation requires separate governed promotion and operational evidence.",
+        "Actual ChatGPT registration, OAuth browser round-trip, network isolation and deployed Worker evidence must be observed live before Staging certification can pass.",
+        "No provider, DB, SSH, SQL, migration, grant, deployment or secret mutation is authorized by this PR."
+      ]
+    }
+  ]
+}
