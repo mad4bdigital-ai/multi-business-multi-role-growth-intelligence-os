@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "e48a1e9e600af31b7fa7dc861adb84a6e65eda90ee1efbdbca29365675583f95"
+      "sha256": "923e992b5bc186718f18c672d13bbaea9dbbb68052f0e4ccc8ab80b67472bd73"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "b9135ecd2634b71308a18dfe8ead17516cf7130c96af28b8cf23d96fe62640f3"
+      "sha256": "65bb6fcd58838f441f40deaa15f4b88d0c60ed258d6e020dd3292b4fa28f7925"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -310,7 +310,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-GitTransport.ps1",
-      "sha256": "0328d6b7914aa8058b5f090dd10ffe1b54f5b0bf8789b2370bbc4a210aace768"
+      "sha256": "37893b6f2e5117422e8d46cb9fc3a16c75fe1d35ad4f6406cfe1225b94715c2b"
     },
     {
       "path": "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
