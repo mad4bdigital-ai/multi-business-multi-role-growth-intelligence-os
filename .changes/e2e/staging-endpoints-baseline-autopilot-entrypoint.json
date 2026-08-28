@@ -15,8 +15,8 @@
       "http-generic-api/schema.sql",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/scripts/staging-role-grant-plan.mjs",
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
-      "http-generic-api/test-staging-database-recovery-contract.mjs",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "autopilot-portable-staging/Recover-StagingDatabases.ps1",
@@ -133,8 +133,8 @@
             {
               "id": "staging-database-recovery-contract",
               "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-staging-database-recovery-contract.mjs",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/staging-database-recovery-contract.mjs",
               "args": []
             }
           ],
@@ -143,8 +143,8 @@
             "autopilot-portable-staging/Recover-StagingDatabases.ps1",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
             "http-generic-api/scripts/staging-role-grant-plan.mjs",
-            "http-generic-api/databasePrivilegeContracts.js",
-            "http-generic-api/test-staging-database-recovery-contract.mjs"
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+            "http-generic-api/databasePrivilegeContracts.js"
           ]
         }
       ]
