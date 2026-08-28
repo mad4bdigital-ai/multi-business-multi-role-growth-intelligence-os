@@ -26,7 +26,7 @@ function factoryError(code, message, details = {}) {
   return error;
 }
 
-function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved) {
+function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, bindingCapabilities = {}) {
   const componentStatus = composition.component_status || {};
   const configuredComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured === true);
   const missingComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured !== true);
@@ -37,6 +37,10 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved) 
     missing_components: missingComponents,
     all_required_components_configured: missingComponents.length === 0,
     server_managed_binding_resolved: serverManagedBindingResolved,
+    adapter_present: bindingCapabilities.adapter_present === true,
+    durability_capable: bindingCapabilities.durability_capable === true,
+    attestation_capable: bindingCapabilities.attestation_capable === true,
+    live_ready: false,
     activation_eligible: false,
     live_activation: false,
     provider_accessed: false,
@@ -155,7 +159,7 @@ export function createProductionRecoveryComposition({
       live_activation: false,
       adapter_factory_wired: true,
       server_managed_binding_resolved: true,
-      authority_readiness: buildLiveAuthorityReadiness(composition, true),
+      authority_readiness: buildLiveAuthorityReadiness(composition, true, envelope.capabilities),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,

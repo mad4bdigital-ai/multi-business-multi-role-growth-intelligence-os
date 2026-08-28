@@ -3,6 +3,12 @@ import express from "express";
 import { buildTenantGptOAuthMetadataRoutes } from "./routes/tenantGptOAuthMetadataRoutes.js";
 import { REMOTE_MCP_SUPPORTED_SCOPES } from "./remoteMcpScopeCatalog.js";
 
+const SYNTHETIC_RUNTIME_ENV = Object.freeze({
+  DEPLOYMENT_ENVIRONMENT: "test",
+  REMOTE_MCP_ENVIRONMENT: "test",
+  NODE_ENV: "test",
+});
+
 function startServer(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, "127.0.0.1", () => {
@@ -31,6 +37,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_ENABLED: "true",
       REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
@@ -71,6 +78,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_ENABLED: "false",
       REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
@@ -96,6 +104,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_ENABLED: "false",
       REMOTE_MCP_OAUTH_ENABLED: "true",
       REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
@@ -120,6 +129,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_OAUTH_ENABLED: "false",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
     },
@@ -138,6 +148,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_OAUTH_ENABLED: "true",
       REMOTE_MCP_OAUTH_DCR_ENABLED: "false",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
@@ -164,6 +175,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_OAUTH_ENABLED: "true",
       REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
@@ -183,6 +195,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      ...SYNTHETIC_RUNTIME_ENV,
       REMOTE_MCP_OAUTH_ENABLED: "true",
       REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
       REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",

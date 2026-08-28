@@ -15,8 +15,8 @@ export const TENANT_GPT_ACTIVATION_RESOURCE = TENANT_GPT_IS_STAGING_RUNTIME
   ? (ACTIVATION_STAGING_ENABLED ? (process.env.TENANT_GPT_STAGING_ACTIVATION_RESOURCE_URL || "https://activation-dev.mad4b.com") : "")
   : "https://activation.mad4b.com";
 export const TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER = TENANT_GPT_IS_STAGING_RUNTIME
-  ? (ACTIVATION_STAGING_ENABLED ? (process.env.TENANT_GPT_STAGING_ACTIVATION_AUTHORIZATION_SERVER_URL || TENANT_GPT_ACTIVATION_RESOURCE) : "")
-  : "https://activation.mad4b.com";
+  ? (ACTIVATION_STAGING_ENABLED ? TENANT_GPT_AUTHORIZATION_SERVER : "")
+  : "https://auth.mad4b.com";
 export const TENANT_GPT_LEGACY_AUDIENCE = "mad4b-tenant-gpt";
 export const TENANT_GPT_ACTIVATION_LEGACY_AUDIENCE_CUTOFF =
   process.env.TENANT_GPT_ACTIVATION_LEGACY_AUDIENCE_CUTOFF || "2026-10-31T23:59:59.000Z";
@@ -100,6 +100,14 @@ export function resolveTenantGptOAuthResourceProfile({
     requested_resource_present: Boolean(explicitResource),
     secrets_included: false,
   };
+}
+
+export function resolveTenantGptOAuthIssuer(resource) {
+  const normalizedResource = normalizeTenantGptOAuthResource(resource);
+  if (!normalizedResource) return "";
+  if (normalizedResource === TENANT_GPT_ACTIVATION_RESOURCE) return TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER;
+  if (normalizedResource === TENANT_GPT_CORE_RESOURCE) return TENANT_GPT_AUTHORIZATION_SERVER;
+  return "";
 }
 
 export function tenantGptLegacyAudienceCutoffMs() {

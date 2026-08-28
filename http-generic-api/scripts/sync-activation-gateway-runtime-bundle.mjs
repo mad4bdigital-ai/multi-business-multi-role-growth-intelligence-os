@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -14,6 +15,7 @@ const files = [
   "src/worker.mjs",
   "src/gateway.mjs",
   "generated/route-policy.json",
+  "generated/route-policy.staging.json",
 ];
 
 function normalizeText(value) {
@@ -80,3 +82,36 @@ const result = {
 };
 console.log(JSON.stringify(result, null, 2));
 if (!result.ok) process.exitCode = 1;
+
+// Build an isolated, source-attested Staging deployment tree. Never deploy here.
+// The bundle digest covers the canonical source set BEFORE identity injection
+// (avoids a self-referential hash); output_hashes cover the actual emitted bytes.
+if (process.argv.includes("--build-staging")) {
+  if (!result.ok) throw new Error("Gateway runtime bundle must be current before building");
+  const outputIndex = process.argv.indexOf("--output-dir");
+  const output = outputIndex < 0 ? "" : process.argv[outputIndex + 1];
+  if (!output || !path.isAbsolute(output) || path.resolve(output).startsWith(`${repoRoot}${path.sep}`)) {
+    throw new Error("An isolated absolute --output-dir outside the repository is required");
+  }
+  const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: repoRoot, encoding: "utf8" });
+  if (dirty.trim()) throw new Error("Worker build requires a clean exact source commit");
+  const sourceSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const buildFiles = ["src/worker-staging.mjs", "src/gateway.mjs", "generated/route-policy.staging.json"];
+  const sources = await Promise.all(buildFiles.map(async (name) => ({ path: name, content: await readNormalized(path.join(sourceRoot, name)) })));
+  const identity = { source_sha: sourceSha, bundle_sha256: sha256(JSON.stringify(sources)) };
+  await fs.mkdir(output, { recursive: false, mode: 0o700 });
+  const outputs = [];
+  for (const source of sources) {
+    const content = source.path === "src/worker-staging.mjs"
+      ? source.content.replace("/* WORKER_BUILD_IDENTITY */ null", JSON.stringify(identity)) : source.content;
+    await fs.mkdir(path.dirname(path.join(output, source.path)), { recursive: true });
+    await fs.writeFile(path.join(output, source.path), content, { flag: "wx" });
+    outputs.push({ path: source.path, sha256: sha256(content) });
+  }
+  await fs.writeFile(path.join(output, "worker-build-manifest.json"), JSON.stringify({
+    contract: "mad4b.staging-worker-build.v1", ...identity,
+    digest_scope: "canonical_source_set_before_identity_injection",
+    output_hashes: outputs, entrypoint: "src/worker-staging.mjs", deployment_performed: false,
+  }, null, 2));
+  console.log(JSON.stringify({ staging_build: identity, output_dir: output, deployment_performed: false }));
+}

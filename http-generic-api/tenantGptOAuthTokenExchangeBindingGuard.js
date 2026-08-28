@@ -6,8 +6,8 @@ import {
 } from "./tenantGptAccessTokenProfile.js";
 import { TENANT_GPT_OAUTH_CLIENT_ID, TENANT_GPT_SCOPE } from "./tenantGptOAuthPreset.js";
 import {
-  TENANT_GPT_AUTHORIZATION_SERVER,
   normalizeTenantGptOAuthResource,
+  resolveTenantGptOAuthIssuer,
 } from "./tenantGptOAuthResourceProfile.js";
 
 const REQUIRED_CODE_BINDING_CLAIMS = Object.freeze([
@@ -122,9 +122,15 @@ function issueTenantGptAccessToken(payload, {
     error.code = "tenant_gpt_access_token_input_invalid";
     throw error;
   }
+  const issuer = resolveTenantGptOAuthIssuer(normalizedResource);
+  if (!issuer) {
+    const error = new Error("Tenant GPT OAuth issuer is unavailable for the requested resource.");
+    error.code = "oauth_issuer_unavailable";
+    throw error;
+  }
   return jwt.sign(
     {
-      iss: TENANT_GPT_AUTHORIZATION_SERVER,
+      iss: issuer,
       aud: normalizedResource,
       azp: normalizedClientId,
       client_id: normalizedClientId,

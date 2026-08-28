@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const CONTRACT = "mad4b.repository-governance-closure.v2";
 const SHA_RE = /^[0-9a-f]{40}$/u;
@@ -156,6 +157,25 @@ function resolveRelativeImport(fromFile, specifier, tracked) {
   const candidates = [base, `${base}.js`, `${base}.mjs`, `${base}.cjs`, `${base}.ts`, `${base}.tsx`, `${base}.json`, path.posix.join(base, "index.js"), path.posix.join(base, "index.mjs"), path.posix.join(base, "index.ts")];
   return { resolved: candidates.find((candidate) => tracked.has(candidate)) || candidates[0], escaped: false };
 }
+function moduleSpecifiers(file, content) {
+  if (!/\.(?:[cm]?js|tsx?)$/u.test(file)) return [];
+  const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, false);
+  const values = [];
+  function visit(node) {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+      values.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
+      || ts.isIdentifier(node.expression) && node.expression.text === "require")) {
+      if (node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) values.push(node.arguments[0].text);
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)
+      && node.moduleReference.expression && ts.isStringLiteralLike(node.moduleReference.expression)) {
+      values.push(node.moduleReference.expression.text);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return values;
+}
 function buildSemanticGraph(inventory, baseSha, semanticRegistry) {
   const maxBytes = Number(semanticRegistry.dependency_extraction?.max_file_bytes || 2 * 1024 * 1024);
   const extensionAllow = new Set(semanticRegistry.dependency_extraction?.extensions || []);
@@ -163,14 +183,11 @@ function buildSemanticGraph(inventory, baseSha, semanticRegistry) {
   const deletedOrRenamed = new Set(inventory.changes.flatMap((entry) => ["D", "R"].includes(entry.status) && entry.old_path ? [entry.old_path] : []));
   const changedCurrent = new Set(inventory.changes.flatMap((entry) => entry.new_path ? [entry.new_path] : []));
   const edges = [], unresolved = [], dangling = [];
-  const importRe = /(?:\bfrom\s+|\bimport\s*\(|\brequire\s*\()\s*["']([^"']+)["']/gmu;
   for (const file of tracked) {
     if (extensionAllow.size && !extensionAllow.has(path.extname(file).toLowerCase())) continue;
     const content = readCandidateFile(file, maxBytes);
     if (!content) continue;
-    let match;
-    while ((match = importRe.exec(content))) {
-      const specifier = match[1];
+    for (const specifier of moduleSpecifiers(file, content)) {
       if (!specifier.startsWith(".")) continue;
       const resolution = resolveRelativeImport(file, specifier, tracked);
       if (!resolution) continue;
@@ -425,6 +442,14 @@ function selfTest() {
   check(getPath(value, "constructor.prototype") === undefined, "constructor/prototype traversal must be rejected");
   const escaped = resolveRelativeImport("a/b.js", "../../../outside.js", new Set());
   check(escaped?.escaped === true, "relative dependency escape must fail closed");
+  const imports = moduleSpecifiers("example.mjs", [
+    'import "./side-effect.js";', 'export { value } from "./export.js";',
+    'const fixture = `import { value } from "./not-a-dependency.js";`;',
+    '// import("./comment.js")', 'const actual = import("./dynamic.js");',
+    'const loaded = require("./common.cjs");',
+    'const template = `${import("./interpolated.js")}`;',
+  ].join("\n"));
+  check(JSON.stringify(imports) === JSON.stringify(["./side-effect.js", "./export.js", "./dynamic.js", "./common.cjs", "./interpolated.js"]), "AST dependency extraction must distinguish fixture strings from executable imports");
   const invalid = validateRegistry({
     contract: "mad4b.repository-governance-policy-registry.v1",
     execution_model: "declarative_registered_assertions",

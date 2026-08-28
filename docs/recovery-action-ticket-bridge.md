@@ -85,6 +85,8 @@ Verification by a separate read-only capability requires an exact durable `run_i
 | `mad4b.role-bundle-binding.v1` | Binds every selected role bundle and statement fingerprint set to the server-issued ticket. | Implemented and tested with non-live fixtures. |
 | `mad4b.role-bundle-progress.v1` | Makes statement-boundary progress monotonic and reconciliation-first after partial/unknown outcomes. | Implemented in the baseline executor contract; durable live wiring remains absent. |
 | `mad4b.recovery-server-managed-composition-factory.v1` | Makes the server composition boundary explicit and rejects caller/provider discovery or secret-bearing bindings. | Factory wired at the server root; default remains fail-closed and live authority is not configured. |
+| `mad4b.recovery-server-managed-authority-binding.v1` | Validates a complete server-managed concrete adapter bundle and exposes only non-secret readiness capabilities. | Repository/test binding only; `live_ready` and `activation_eligible` remain false. |
+| `mad4b.recovery-server-managed-deployment-identity-provider.v1` | Reads deployment identity from a server-owned source without forwarding caller `expected_sha` or other authority inputs. | Wrapper and tests only; no runtime identity read or live certification. |
 
 These additions improve the repository’s fail-closed safety boundary but do not certify Hostinger deployment parity, database readiness, grants, or any particular migration. The existing private Recovery surface, server-issued ticket semantics, separate least-privilege grants operation, and prohibition on Local Connector fallback for Production remain unchanged.
 
@@ -98,3 +100,7 @@ The focused coverage is in `http-generic-api/test-recovery-execution-binding.mjs
 [4]: ../http-generic-api/config/recovery-kernel-manifest.json "Recovery Kernel manifest"
 [5]: ../http-generic-api/productionRecoveryCompositionFactory.js "Server-managed Recovery composition factory"
 [6]: ../http-generic-api/recoveryComposition.js "Recovery composition and live authority component contracts"
+[7]: ../http-generic-api/serverManagedRecoveryAuthorityBinding.js "Server-managed concrete Recovery authority binding"
+[8]: ../http-generic-api/serverManagedRecoveryBindingProvider.js "Server-managed Recovery binding provider"
+[9]: ../http-generic-api/serverManagedDeploymentIdentityProvider.js "Server-managed deployment identity provider"
+[10]: governance/recovery-server-managed-authority-binding.md "Server-managed Recovery authority binding guide"

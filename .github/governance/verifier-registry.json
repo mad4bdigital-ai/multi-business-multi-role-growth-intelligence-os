@@ -29,7 +29,9 @@
     {"id":"migration_execution_safety","steps":[{"type":"node","cwd":"http-generic-api","path":"test-migration-execution-safety.mjs","args":[]}]},
     {"id":"exact_durable_run_reference","steps":[{"type":"node","cwd":"http-generic-api","path":"test-recovery-execution-binding.mjs","args":[]}]},
     {"id":"production_live_fail_closed","steps":[{"type":"node","cwd":"http-generic-api","path":"test-recovery-composition.mjs","args":[]}]},
-    {"id":"production_recovery_composition_factory","steps":[{"type":"node","cwd":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}]}
+    {"id":"production_recovery_composition_factory","steps":[{"type":"node","cwd":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}]},
+    {"id":"server_managed_recovery_authority_binding","steps":[{"type":"node","cwd":"http-generic-api","path":"test-server-managed-recovery-binding.mjs","args":[]}]},
+    {"id":"staging_recovery_admin_surface","steps":[{"type":"node","cwd":"http-generic-api","path":"scripts/validate-staging-recovery-admin-openapi.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-staging-recovery-admin-surface.mjs","args":[]},{"type":"node","cwd":"http-generic-api","path":"test-staging-recovery-route-policy.mjs","args":[]}]}
   ],
   "safety": {
     "read_only_expected": true,

@@ -1,5 +1,7 @@
-import { createPublicKey, verify as verifySignature } from "node:crypto";
+import { createHash, createPublicKey, verify as verifySignature } from "node:crypto";
+import { RECOVERY_REPLAY_STORE_CONTRACT } from "./recoveryReadinessEvidence.js";
 import { resolveTrustedRequestHost } from "./trustedRequestHost.js";
+import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
 
 const DEFAULT_ATTESTATION_HEADER = "x-mad4b-ingress-attestation";
 const DEFAULT_MAX_CLOCK_SKEW_SECONDS = 30;
@@ -20,8 +22,9 @@ function boundedSeconds(value, fallback, maximum) {
 }
 
 function baseReadiness(env = process.env) {
-  const environment = String(env?.NODE_ENV || env?.REMOTE_MCP_ENVIRONMENT || "staging").trim().toLowerCase();
-  const productionLike = ["production", "prod", "canary"].includes(environment);
+  const runtime = resolveRuntimeEnvironment(env);
+  const environment = runtime.ok ? runtime.environment_key : null;
+  const productionLike = environment === "production";
   const mode = text(env?.REMOTE_MCP_TRUSTED_INGRESS_MODE || "legacy_assertion", 32).toLowerCase();
   const proxyHeadersEnabled = flag(env?.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS);
   const stripCallerHeaders = flag(env?.REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS);
@@ -29,6 +32,17 @@ function baseReadiness(env = process.env) {
   return {
     environment,
     production_like: productionLike,
+    runtime_identity_ok: runtime.ok,
+    runtime_identity_reason: runtime.ok ? null : runtime.reason,
+    runtime_identity: runtime.ok ? {
+      environment_key: runtime.environment_key,
+      runtime_class: runtime.runtime_class,
+      deployment_model: runtime.deployment_model,
+      branch: runtime.branch,
+      authority_mode: runtime.authority_mode,
+      public_gateway: runtime.public_gateway,
+      upstream_service: runtime.upstream_service,
+    } : null,
     attestation_mode: mode,
     proxy_headers_enabled: proxyHeadersEnabled,
     ingress_attested: mode === "signature" ? false : legacyAttested,
@@ -56,6 +70,7 @@ function decodeBase64Url(value) {
 }
 
 function parseSignedAttestation(value) {
+  if (typeof value !== "string" || value.length > 8192) return { ok: false, code: "attestation_format_invalid" };
   const parts = String(value || "").trim().split(".");
   if (parts.length !== 2) return { ok: false, code: "attestation_format_invalid" };
   const payloadBytes = decodeBase64Url(parts[0]);
@@ -111,7 +126,9 @@ function verifySignedAttestation(env, request) {
   }
   let valid = false;
   try {
-    valid = verifySignature(null, parsed.payloadBytes, createPublicKey(publicKeyPem), parsed.signatureBytes);
+    const key = createPublicKey(publicKeyPem);
+    if (key.asymmetricKeyType !== "ed25519") return { ok: false, code: "attestation_key_invalid" };
+    valid = verifySignature(null, parsed.payloadBytes, key, parsed.signatureBytes);
   } catch {
     return { ok: false, code: "attestation_key_invalid" };
   }
@@ -119,6 +136,7 @@ function verifySignedAttestation(env, request) {
   return {
     ok: true,
     code: null,
+    claims,
     key_id: text(claims.key_id, 128),
     canonical_host: canonicalHost,
     audience,
@@ -128,9 +146,44 @@ function verifySignedAttestation(env, request) {
   };
 }
 
+// Recovery is stricter than legacy OAuth metadata: host assertions and legacy
+// mode never confer provenance. The durable claim is consumed after ALL bindings.
+export async function verifyRecoveryGatewayIngress({ env = process.env, request, policy, replayStore } = {}) {
+  const runtime = resolveRuntimeEnvironment(env);
+  if (!runtime.ok || runtime.environment_key !== "staging") return { ok: false, code: "ingress_runtime_invalid" };
+  const proof = verifySignedAttestation(env, request);
+  if (!proof.ok) return proof;
+  const c = proof.claims;
+  const requestPath = String(request?.originalUrl || request?.url || "");
+  const authDigest = createHash("sha256").update(JSON.stringify([
+    request?.headers?.authorization || "", request?.headers?.["x-api-key"] || "",
+  ])).digest("hex");
+  if (request?.method !== "GET" || !requestPath.startsWith("/admin/recovery/staging/") || requestPath.includes("?")
+    || c.method !== request.method || c.path !== requestPath
+    || c.request_id !== request.headers?.["x-request-id"]
+    || c.policy_hash !== policy?.content_hash_sha256
+    || c.worker_build_sha !== c.deployment_sha
+    || !/^[a-f0-9]{64}$/.test(c.worker_bundle_sha256 || "")
+    || c.auth_digest !== authDigest
+    || c.body_digest !== createHash("sha256").update("").digest("hex")
+    || request.headers?.["transfer-encoding"] || Number(request.headers?.["content-length"] || 0) !== 0
+    || c.key_id !== env.REMOTE_MCP_TRUSTED_INGRESS_KEY_ID
+    || c.exp <= Date.now() / 1000) return { ok: false, code: "ingress_request_binding_invalid" };
+  if (replayStore?.contract !== RECOVERY_REPLAY_STORE_CONTRACT || typeof replayStore.claim !== "function") {
+    return { ok: false, code: "ingress_replay_authority_missing" };
+  }
+  try {
+    if (await replayStore.claim({ issuer: c.iss, key_id: c.key_id, jti: c.jti, expires_at: c.exp }) !== true) {
+      return { ok: false, code: "ingress_replayed" };
+    }
+  } catch { return { ok: false, code: "ingress_replay_authority_unavailable" }; }
+  return { ok: true, code: null, replay_protection: "durable_atomic_claim", secrets_included: false };
+}
+
 export function buildTrustedIngressReadiness(env = process.env) {
   const readiness = baseReadiness(env);
-  const ready = readiness.proxy_headers_enabled
+  const ready = readiness.runtime_identity_ok
+    && readiness.proxy_headers_enabled
     && readiness.ingress_attested
     && readiness.caller_headers_stripped;
   return {
@@ -156,9 +209,16 @@ export function assertTrustedIngressReadyForProduction(env = process.env, reques
         replay_protection: "bounded_ttl_only",
         secrets_included: false,
       },
-      ready: base.proxy_headers_enabled && attestation.ok === true && base.caller_headers_stripped,
+      ready: base.runtime_identity_ok && base.proxy_headers_enabled && attestation.ok === true && base.caller_headers_stripped,
     };
     readiness.failure_mode = readiness.ready ? "accepted" : (base.production_like ? "fail_closed" : "staging_attestation_pending");
+  }
+  if (!base.runtime_identity_ok) {
+    const error = new Error("Runtime identity is missing, unknown, or conflicting; trusted ingress cannot be established.");
+    error.status = 503;
+    error.code = "RUNTIME_IDENTITY_INVALID";
+    error.details = readiness;
+    throw error;
   }
   if (readiness.production_like && !readiness.ready) {
     const error = new Error("Trusted ingress attestation is required before production or canary OAuth metadata is served.");

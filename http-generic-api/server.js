@@ -320,7 +320,13 @@ import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js"
 import { getRuntimeBootstrapStatus } from "./runtimeBootstrapStatus.js";
 import { runBootstrap } from "./runtimeBootstrapContract.js";
 import { createProductionRecoveryComposition } from "./productionRecoveryCompositionFactory.js";
+import { runProductionActivationReadiness } from "./productionActivationReadiness.js";
 import { getRecoveryCompositionRouteDependencies } from "./recoveryComposition.js";
+import {
+  createServerManagedRecoveryBindingProvider,
+  getServerManagedRecoveryBindingMode,
+  resolveServerManagedRecoveryReadiness,
+} from "./serverManagedRecoveryBindingProvider.js";
 import {
   toJobSummary,
   inferLocalDispatchHttpStatus,
@@ -3167,13 +3173,26 @@ const executionFacade = createExecutionFacade({
   ACTIVE_JOB_STATUSES
 });
 
+const recoveryBindingMode = getServerManagedRecoveryBindingMode(process.env);
+const recoveryBindingProvider = recoveryBindingMode === "injected_non_live"
+  ? createServerManagedRecoveryBindingProvider({ env: process.env })
+  : null;
 const recoveryComposition = createProductionRecoveryComposition({
+  mode: recoveryBindingMode,
+  serverManagedBindingProvider: recoveryBindingProvider,
   source: "server_composition_root",
 });
-const recoveryCompositionDependencies = getRecoveryCompositionRouteDependencies(recoveryComposition);
+const recoveryReadinessAuthority = resolveServerManagedRecoveryReadiness({ env: process.env });
+const recoveryCompositionDependencies = getRecoveryCompositionRouteDependencies(recoveryComposition, recoveryReadinessAuthority);
 const runtimeBootstrapReader = (options = {}) => runBootstrap({
   ...options,
   ...recoveryComposition.runtimeBootstrapDependencies,
+});
+const productionActivationReadinessReader = async () => runProductionActivationReadiness({
+  ...await recoveryCompositionDependencies.recoveryReadinessEvidenceReader(),
+  recoveryComposition,
+  productionLiveRequested: false,
+  productionLiveEnabled: false,
 });
 registerRoutes(app, {
   ...recoveryCompositionDependencies,
@@ -3188,6 +3207,7 @@ registerRoutes(app, {
   testDbConnection: testConnection,
   runtimePersistencePoolFactory: getRuntimePersistencePool,
   runtimeBootstrapReader,
+  productionActivationReadinessReader,
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,
   // --- mcp ---

@@ -1,0 +1,248 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-server-managed-authority-binding-20260827",
+  "title": "Repository-only Recovery authority binding plus isolated Staging Recovery Admin readiness surface",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "edge/activation-gateway/generated/route-policy.json",
+      "edge/activation-gateway/generated/route-policy.staging.json",
+      ".changes/e2e/recovery-server-managed-authority-binding-20260827.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/governance/verifier-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/governance/recovery-server-managed-authority-binding.md",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/recovery-action-ticket-bridge.md",
+      "docs/repository-evaluation-summary.json",
+      "docs/repository-evaluation.json",
+      "docs/repository-evaluation.md",
+      "docs/repository-inventory-summary.json",
+      "docs/repository-inventory.json",
+      "docs/repository-inventory.md",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+      "http-generic-api/package.json",
+      "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/recoveryActivationReadiness.js",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
+      "http-generic-api/test-recovery-activation-readiness.mjs",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-staging-recovery-route-policy.mjs",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/scripts/frontend-surface-dispatch.mjs",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/server.js",
+      "http-generic-api/serverManagedDeploymentIdentityProvider.js",
+      "http-generic-api/serverManagedRecoveryAuthorityBinding.js",
+      "http-generic-api/serverManagedRecoveryBindingProvider.js",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-server-managed-recovery-binding.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+      "edge/activation-gateway/src/gateway.mjs",
+      "edge/activation-gateway/src/worker-staging.mjs",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/runtimeEnvironmentResolver.js",
+      "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_staging_certification_performed": false,
+    "production_authority_activation_performed": false,
+    "database_mutation_performed": false,
+    "provider_accessed": false,
+    "ssh_or_sql_executed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a server-owned, injectable concrete Recovery authority binding and server-derived deployment identity wrapper, plus an isolated Staging Recovery Admin contract on activation-dev for readiness and certification status, while preserving fail-closed defaults and hard-denying production_live.",
+      "e2e_journeys": [
+        {
+          "id": "server-managed-authority-binding-non-live-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Recovery server composition root",
+          "entrypoint": "server-managed binding resolver and Recovery composition factory",
+          "terminal_outcome": "A complete server-managed concrete test bundle can be validated as an injected non-live composition; missing authorities, wrong verifier identity, untrusted binding origins, caller/GPT/Local Connector/raw SQL inputs, unresolved deployment identity, wrong SHA, and production_live requests fail closed before any provider or database boundary.",
+          "steps": [
+            "Resolve the binding only from an explicit server-owned resolver or deployment module; never from a request body, GPT action, Local Connector, credential, database discovery, or provider discovery.",
+            "Validate every Recovery component and require the exact execution-ticket verifier object to be retained by the durable Recovery Store.",
+            "Validate the server-derived deployment identity wrapper without forwarding expected_sha or caller-controlled target identity to its source.",
+            "Report adapter_present, durability_capable, and attestation_capable as non-secret structural capabilities while keeping live_ready and activation_eligible false.",
+            "Exercise missing-authority, test/dummy-origin, caller-input, credential-shaped-field, wrong-SHA, unresolved-identity, and production_live denial paths.",
+            "Run focused and existing Recovery lifecycle regressions for approval-to-ticket ordering, fenced execute-and-verify, exact durable run identity, role mapping, baseline ordering, artifact binding, readback, and reconciliation."
+          ],
+          "assertions": [
+            "Production and unknown environments resolve the binding mode to disabled; injected_non_live is allowlisted only for explicitly named non-live environments.",
+            "The complete graph is structurally configured but live_ready=false, activation_eligible=false, provider_accessed=false, database_connection_performed=false, database_mutation_performed=false, and secrets_included=false.",
+            "Every missing live authority is reported and the graph is rejected before route exposure.",
+            "The Recovery Store executionTicketVerifier is the exact same object as the composition executionTicketVerifier.",
+            "Deployment identity is server-derived, exact repository/Production branch/SHA scoped, manifest-bound, read-only, non-mutating, and secret-free; caller expected_sha is not forwarded as authority.",
+            "Caller, GPT, Local Connector, raw SQL, credential-shaped, test, dummy, fake, and in-memory binding sources are rejected or unavailable.",
+            "production_live throws RECOVERY_PRODUCTION_LIVE_DISABLED.",
+            "No live staging certification, Production activation, provider call, database connection, database mutation, SQL, SSH, migration, grant, or workflow dispatch is performed.",
+            "Signed immutable readiness evidence reaches the real server composition dependencies, including Production read-only evidence without enabling its mutation graph.",
+            "Worker-to-origin Recovery uses Ed25519 request binding and durable atomic replay claims; self-asserted gateway hosts and flags, wrong path/auth/request ID, missing build identity and stale proofs are rejected.",
+            "Staging final readiness requires signed current external registration and OAuth evidence; repository tests never certify the live deployment.",
+            "Worker origin readiness reports server-derived deployment SHA and canonical policy hash; Staging route timeouts and body limits are positive integers."
+          ],
+          "tests": [
+            {
+              "id": "server-managed-recovery-binding-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-managed-recovery-binding.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-admin-surface-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-route-policy-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-route-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-activation-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-activation-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-composition-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-factory-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-composition-factory.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-execute-and-verify-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-execution-safety-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-migration-execution-safety.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/recovery-server-managed-authority-binding-20260827.json",
+            "http-generic-api/serverManagedRecoveryBindingProvider.js",
+            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-staging-recovery-route-policy.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            ".github/governance/verifier-registry.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/serverManagedRecoveryAuthorityBinding.js",
+            "http-generic-api/serverManagedDeploymentIdentityProvider.js",
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/recoveryComposition.js",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/recoveryExecutionBinding.js",
+            "http-generic-api/config/recovery-kernel-manifest.json",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-server-managed-recovery-binding.mjs",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+            "docs/governance/recovery-server-managed-authority-binding.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Perform separately authorized live staging certification of durable server-managed bindings, deployment attestation parity, authority capability, and readback without changing the repository-only guarantees in this phase."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Do not configure live Production authority or enable production_live from this repository-only change.",
+      "blockers": [
+        "independent_live_staging_certification",
+        "durable_store_capability_certification",
+        "server_derived_deployment_attestation_parity",
+        "hostinger_executor_and_readback_certification",
+        "separate_production_activation_approval"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "production_live_enabled": false,
+    "live_activation": false,
+    "live_provider_authority_configured": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "ssh_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "credentials_accessed": false,
+    "secrets_included": false
+  }
+}

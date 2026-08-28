@@ -6,12 +6,12 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "53ff4db4c534017fa6e4cd703a63dac9f0fabe9cdb98256c2c9a3829cf6582fd",
-    "dispatch_artifact_sha256": "f4403caf96ca814c2d01fe783aee27d462ac5e2239d0ed9b4c127ebf378ca7ec"
+    "dispatch_source_digest": "c0e887d0df4094fd53de2b3b235322ab20e6170ae7634c749b309b1b67f1d09a",
+    "dispatch_artifact_sha256": "fefddce5b16ce9dfc95eb90b5f1c87bc4eb27ba3d0988bc4ed883ee93c0895ea"
   },
   "coverage": {
-    "operation_count": 1059,
-    "mounted_family_count": 172,
+    "operation_count": 1062,
+    "mounted_family_count": 173,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 315,
@@ -28,12 +28,12 @@
     "priority_family_counts": {
       "P1_surface_decision": 0,
       "P2_detail_traceability": 74,
-      "P3_observe": 98
+      "P3_observe": 99
     },
     "surface_decision_family_counts": {
       "api_only": 39,
       "embedded_ui": 6,
-      "internal_only": 120,
+      "internal_only": 121,
       "legacy_compatibility": 6,
       "unified_ui": 1
     },
@@ -6040,6 +6040,43 @@
         "routes/sqlCachePolicyRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "staging-recovery-admin",
+      "label": "staging recovery admin",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 3,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/stagingRecoveryAdminRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-staging-recovery-admin-surface.mjs"
       ]
     },
     {

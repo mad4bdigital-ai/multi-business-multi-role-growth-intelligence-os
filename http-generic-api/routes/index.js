@@ -70,6 +70,7 @@ import { buildDeploymentInfoRoutes } from "./deploymentInfoRoutes.js";
 import { buildRuntimeBreakglassRoutes } from "./runtimeBreakglassRoutes.js";
 import { buildAdminHostBreakglassRoutes } from "./adminHostBreakglassRoutes.js";
 import { buildRecoveryKernelRoutes } from "./recoveryKernelRoutes.js";
+import { buildStagingRecoveryAdminRoutes } from "./stagingRecoveryAdminRoutes.js";
 import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
 import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
@@ -166,11 +167,12 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 export function registerRoutes(app, deps) {
   app.use(createOpenApiMutationGovernanceMiddleware({ env: deps?.env || process.env }));
   app.use(buildTenantGptOAuthMetadataRoutes(deps));
-  app.use(buildActivationHostGatewayRoutes());
+  app.use(buildActivationHostGatewayRoutes({ env: deps?.env || process.env, ingressReplayStore: deps?.ingressReplayStore, deploymentAttestationReader: deps?.deploymentAttestationReader }));
   app.use(buildDeploymentInfoRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey }));
   app.use(buildRuntimeBreakglassRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey, env: deps?.env || process.env }));
   app.use(buildAdminHostBreakglassRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRecoveryKernelRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildStagingRecoveryAdminRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminOnboardingRoutes({ ...deps, requireAdminPrincipal }));

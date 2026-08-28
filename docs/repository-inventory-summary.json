@@ -3,37 +3,37 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7442,
-    "bytes": 73387765,
-    "lines": 1705096,
+    "files": 7467,
+    "bytes": 73787791,
+    "lines": 1713287,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2199,
-      "documentation": 1915,
-      "api-runtime": 1517,
+      "tests-and-specs": 2206,
+      "documentation": 1916,
+      "api-runtime": 1527,
       "database-migrations": 833,
-      "root-and-other": 342,
-      "api-contracts": 192,
+      "root-and-other": 345,
+      "api-contracts": 194,
       "ci-workflows": 170,
       "ci-config": 135,
-      "schemas-and-data": 77,
+      "schemas-and-data": 79,
       "connectors-and-edge": 29,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2516,
-      ".mjs": 1771,
-      ".js": 1023,
-      ".json": 892,
+      ".md": 2517,
+      ".mjs": 1780,
+      ".js": 1031,
+      ".json": 897,
       ".sql": 848,
       ".yml": 173,
-      ".yaml": 120,
-      ".ps1": 20,
+      ".yaml": 121,
+      ".ps1": 21,
       ".ts": 16,
       ".cs": 14,
       ".jsx": 9,
@@ -61,14 +61,14 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3872,
-      "docs": 1819,
+      "http-generic-api": 3891,
+      "docs": 1820,
       "specs": 880,
-      ".changes": 311,
+      ".changes": 315,
       ".github": 305,
       "canonicals": 70,
+      "autopilot-portable-staging": 23,
       "local-connector": 23,
-      "autopilot-portable-staging": 22,
       "apps": 19,
       "scripts": 19,
       "schemas": 17,
@@ -162,9 +162,12 @@
         "openapi:gap-closure-plan:check",
         "openapi:auth:write",
         "openapi:auth:check",
+        "openapi:staging-recovery:check",
         "schemas:generate",
         "schemas:check",
         "schemas:builder-guard",
+        "registration:topology:check",
+        "test:activation:identity",
         "openapi:response-objects:guard",
         "openapi:lint:compat",
         "test:openapi:response-objects",
@@ -257,8 +260,8 @@
   "surfaces": {
     "workflows": 170,
     "migrations": 833,
-    "apiContracts": 192,
-    "testSpecFiles": 2289
+    "apiContracts": 194,
+    "testSpecFiles": 2296
   },
   "largestFiles": [
     {
@@ -270,14 +273,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3545802,
-      "lines": 99954
+      "bytes": 3557514,
+      "lines": 100287
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1966012,
-      "lines": 59454
+      "bytes": 1967068,
+      "lines": 59481
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -294,8 +297,8 @@
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 627891,
-      "lines": 11900
+      "bytes": 628792,
+      "lines": 11916
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -330,8 +333,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 275265,
-      "lines": 6537
+      "bytes": 276835,
+      "lines": 6574
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",

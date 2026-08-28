@@ -6,10 +6,18 @@ on:
       - main
       - Production
     paths:
-      - "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml"
-      - "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml"
-      - "http-generic-api/scripts/build-staging-admin-openapi.mjs"
+      - "canonicals/openapi/custom-gpt-surfaces.yaml"
+      - "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml"
+      - "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml"
+      - "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml"
+      - "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/generate-activation-staging-policy.mjs"
+      - "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs"
+      - "http-generic-api/routes/rootDiscoveryRoutes.js"
       - "http-generic-api/test-staging-independent-schema-contract.mjs"
+      - "http-generic-api/test-staging-recovery-route-policy.mjs"
+      - "http-generic-api/test-staging-recovery-admin-surface.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - ".github/workflows/staging-admin-schema-contract.yml"
@@ -17,10 +25,18 @@ on:
     branches:
       - main
     paths:
-      - "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml"
-      - "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml"
-      - "http-generic-api/scripts/build-staging-admin-openapi.mjs"
+      - "canonicals/openapi/custom-gpt-surfaces.yaml"
+      - "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml"
+      - "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml"
+      - "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml"
+      - "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/generate-activation-staging-policy.mjs"
+      - "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs"
+      - "http-generic-api/routes/rootDiscoveryRoutes.js"
       - "http-generic-api/test-staging-independent-schema-contract.mjs"
+      - "http-generic-api/test-staging-recovery-route-policy.mjs"
+      - "http-generic-api/test-staging-recovery-admin-surface.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - ".github/workflows/staging-admin-schema-contract.yml"
@@ -51,10 +67,15 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
       - name: Install production dependencies
         run: npm ci
-      - name: Regenerate and verify canonical Staging Admin schema
+      - name: Verify generated composite Staging Admin schema
         run: |
           set -euo pipefail
-          node scripts/build-staging-admin-openapi.mjs
-          git diff --exit-code -- openapi/openapi.custom-gpt.staging-admin.yaml
-      - name: Run independent schema contract tests
-        run: node test-staging-independent-schema-contract.mjs
+          npm run schemas:check
+          node scripts/validate-staging-recovery-admin-openapi.mjs
+          node scripts/generate-activation-staging-policy.mjs --check
+      - name: Run Registration Graph and Recovery contract tests
+        run: |
+          set -euo pipefail
+          node test-staging-independent-schema-contract.mjs
+          node test-staging-recovery-route-policy.mjs
+          node test-staging-recovery-admin-surface.mjs

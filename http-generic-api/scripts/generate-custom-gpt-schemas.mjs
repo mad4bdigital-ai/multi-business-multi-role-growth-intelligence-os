@@ -65,6 +65,7 @@ function runSplitGenerator(outputDir) {
 function generatedSchemaArtifacts(registry) {
   return Object.entries(registry.surfaces)
     .filter(([, surface]) => ["generated_from_openapi", "canonical_copy"].includes(surface.mode))
+    .filter(([, surface]) => surface.registration_status !== "embedded")
     .map(([surfaceKey, surface]) => ({
       kind: "openapi",
       surfaceKey,
@@ -101,12 +102,212 @@ function collectDocOperations(doc) {
   return operations;
 }
 
+const COMPONENT_TYPES = ["schemas", "responses", "parameters", "requestBodies", "headers", "examples", "links", "callbacks"];
+
+function cloneWithRenamedComponentRefs(value, prefix) {
+  if (Array.isArray(value)) return value.map((item) => cloneWithRenamedComponentRefs(item, prefix));
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string") {
+      return value.replace(
+        /^#\/components\/(schemas|responses|parameters|requestBodies|headers|examples|links|callbacks)\/([^/]+)$/u,
+        (_match, type, key) => `#/components/${type}/${prefix}${key}`,
+      );
+    }
+    return value;
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneWithRenamedComponentRefs(child, prefix)]));
+}
+
+function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
+  const embedded = Object.entries(registry.surfaces)
+    .filter(([, surface]) => surface.registration_status === "embedded" && surface.embed_into);
+  const embeddedByTarget = new Map();
+  for (const [surfaceKey, surface] of embedded) {
+    const targetSurface = registry.surfaces[surface.embed_into];
+    if (!targetSurface) throw new Error(`${surfaceKey}: embed_into surface is missing: ${surface.embed_into}`);
+    if (surface.registration_set !== targetSurface.registration_set) {
+      throw new Error(`${surfaceKey}: embedded registration_set must match ${surface.embed_into}`);
+    }
+    const targetPath = path.join(schemaOutputDir, targetSurface.output_file);
+    const sourcePath = path.join(schemaOutputDir, surface.output_file);
+    if (!fs.existsSync(targetPath)) throw new Error(`${surfaceKey}: target schema missing: ${targetSurface.output_file}`);
+    if (!fs.existsSync(sourcePath)) throw new Error(`${surfaceKey}: embedded schema missing: ${surface.output_file}`);
+    const targetDoc = YAML.parse(fs.readFileSync(targetPath, "utf8"));
+    const sourceDoc = YAML.parse(fs.readFileSync(sourcePath, "utf8"));
+    const serverMatches = targetDoc?.servers?.[0]?.url === sourceDoc?.servers?.[0]?.url;
+    if (!serverMatches && surface.embedded_server_policy !== "gateway_alias_rewrite") {
+      throw new Error(`${surfaceKey}: embedded server URI does not match target ${surface.embed_into}`);
+    }
+    const prefix = `${surfaceKey.replace(/[^A-Za-z0-9]/gu, "")}_`;
+    const renamedSource = cloneWithRenamedComponentRefs(sourceDoc, prefix);
+    for (const [pathKey, pathItem] of Object.entries(renamedSource.paths || {})) {
+      if (targetDoc.paths?.[pathKey]) throw new Error(`${surfaceKey}: embedded path collides with target: ${pathKey}`);
+      const operations = Object.fromEntries(Object.entries(pathItem || {}).map(([method, operation]) => {
+        if (!METHOD_NAMES.has(method)) return [method, operation];
+        return [method, {
+          ...operation,
+          "x-mad4b-embedded-surface": surfaceKey,
+          "x-mad4b-registration-set": surface.registration_set,
+        }];
+      }));
+      targetDoc.paths = targetDoc.paths || {};
+      targetDoc.paths[pathKey] = operations;
+    }
+    for (const tag of renamedSource.tags || []) {
+      targetDoc.tags = targetDoc.tags || [];
+      if (!targetDoc.tags.some((current) => current.name === tag.name)) targetDoc.tags.push(tag);
+    }
+    const sourceBearer = sourceDoc.components?.securitySchemes?.backendBearerAuth;
+    const targetBearer = targetDoc.components?.securitySchemes?.backendBearerAuth;
+    if (sourceBearer && targetBearer
+      && (sourceBearer.type !== targetBearer.type || sourceBearer.scheme !== targetBearer.scheme)) {
+      throw new Error(`${surfaceKey}: embedded security scheme is incompatible with target bearer scheme`);
+    }
+    for (const type of COMPONENT_TYPES) {
+      const sourceComponents = renamedSource.components?.[type] || {};
+      if (!Object.keys(sourceComponents).length) continue;
+      targetDoc.components = targetDoc.components || {};
+      targetDoc.components[type] = targetDoc.components[type] || {};
+      for (const [key, value] of Object.entries(sourceComponents)) {
+        if (type === "securitySchemes" && key === "backendBearerAuth" && targetDoc.components[type][key]) continue;
+        const renamedKey = `${prefix}${key}`;
+        if (targetDoc.components[type][renamedKey]) throw new Error(`${surfaceKey}: renamed component unexpectedly collides: ${type}/${renamedKey}`);
+        targetDoc.components[type][renamedKey] = value;
+      }
+    }
+    const set = registry.registration_sets?.[surface.registration_set];
+    const generation = targetDoc["x-custom-gpt-generation"] || {};
+    generation.registration_set = surface.registration_set;
+    generation.embedded_surfaces = [...new Set([...(generation.embedded_surfaces || []), surfaceKey])].sort();
+    generation.registration_members = [...(set?.members || [])];
+    generation.operation_count = collectDocOperations(targetDoc).length;
+    generation.warning_budget_exceeded = generation.operation_count > Number(set?.warning_operation_limit || targetSurface.warning_operation_limit || targetSurface.hard_operation_limit || 30);
+    targetDoc["x-custom-gpt-generation"] = generation;
+    targetDoc["x-mad4b-registration"] = {
+      registration_set: surface.registration_set,
+      action_slot: surface.action_slot,
+      audience: set?.audience || "admin",
+      environment: set?.environment || targetSurface.environment,
+      server_uri: set?.server_uri || targetSurface.server_url,
+      embedded_source_server_uris: [
+        ...new Set([
+          ...((targetDoc["x-mad4b-registration"]?.embedded_source_server_uris || [])),
+          sourceDoc?.servers?.[0]?.url,
+        ].filter(Boolean)),
+      ],
+      members: [...(set?.members || [])],
+      tenant_surfaces_forbidden: [...(set?.tenant_surfaces_forbidden || [])],
+      secrets_included: false,
+    };
+    fs.writeFileSync(targetPath, YAML.stringify(targetDoc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
+    embeddedByTarget.set(surface.embed_into, [...(embeddedByTarget.get(surface.embed_into) || []), surfaceKey]);
+  }
+  return embeddedByTarget;
+}
+
+function materializeRegistrationMetadata(registry, schemaOutputDir) {
+  for (const [setKey, set] of Object.entries(registry.registration_sets || {})) {
+    const outputSurface = registry.surfaces?.[set.output_surface];
+    if (!outputSurface?.output_file) continue;
+    const outputPath = path.join(schemaOutputDir, outputSurface.output_file);
+    if (!fs.existsSync(outputPath)) throw new Error(`${setKey}: registration output is missing: ${outputSurface.output_file}`);
+    const document = YAML.parse(fs.readFileSync(outputPath, "utf8"));
+    const operationCount = collectDocOperations(document).length;
+    document["x-mad4b-registration"] = {
+      ...(document["x-mad4b-registration"] || {}),
+      registration_set: setKey,
+      action_slot: set.action_slot,
+      audience: set.audience,
+      auth_profile: set.auth_profile || null,
+      environment: set.environment,
+      server_uri: set.server_uri,
+      gateway_host: set.gateway_host,
+      members: [...set.members],
+      operation_count: operationCount,
+      hard_operation_limit: Number(set.hard_operation_limit),
+      warning_operation_limit: Number(set.warning_operation_limit),
+      tenant_surfaces_forbidden: [...(set.tenant_surfaces_forbidden || [])],
+      secrets_included: false,
+    };
+    const generation = document["x-custom-gpt-generation"] || {};
+    document["x-custom-gpt-generation"] = {
+      ...generation,
+      registration_set: setKey,
+      registration_members: [...set.members],
+      operation_count: operationCount,
+      hard_operation_limit: Number(set.hard_operation_limit),
+      warning_operation_limit: Number(set.warning_operation_limit),
+      warning_budget_exceeded: operationCount > Number(set.warning_operation_limit),
+      secrets_included: false,
+    };
+    fs.writeFileSync(outputPath, YAML.stringify(document, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
+  }
+}
+
+function validateRegistrationSets(registry, schemaOutputDir) {
+  const seenEmbedded = new Set();
+  for (const [setKey, set] of Object.entries(registry.registration_sets || {})) {
+    if (!Array.isArray(set.members) || !set.members.length) throw new Error(`${setKey}: registration set must have members`);
+    const memberSet = new Set(set.members);
+    if (memberSet.size !== set.members.length) throw new Error(`${setKey}: duplicate registration member`);
+    const outputSurface = registry.surfaces[set.output_surface];
+    if (!outputSurface) throw new Error(`${setKey}: output_surface is missing`);
+    const outputPath = path.join(schemaOutputDir, outputSurface.output_file);
+    const outputDoc = YAML.parse(fs.readFileSync(outputPath, "utf8"));
+    const outputOperations = collectDocOperations(outputDoc);
+    let embeddedOperationCount = 0;
+    for (const surfaceKey of set.members) {
+      const rawSurface = registry.surfaces[surfaceKey];
+      if (!rawSurface) throw new Error(`${setKey}: member surface is missing: ${surfaceKey}`);
+      const baseSurface = rawSurface.base_surface ? registry.surfaces[rawSurface.base_surface] || {} : {};
+      const surface = { ...baseSurface, ...rawSurface };
+      if (surface.registration_set !== setKey) throw new Error(`${surfaceKey}: registration_set mismatch`);
+      if (surface.registration_status !== "embedded" && surface.server_url !== set.server_uri) {
+        throw new Error(`${surfaceKey}: server URI differs from registration set`);
+      }
+      if (surface.registration_status === "embedded" && surface.embedded_server_policy !== "gateway_alias_rewrite"
+        && surface.server_url !== set.server_uri) {
+        throw new Error(`${surfaceKey}: embedded server URI mismatch lacks an explicit alias policy`);
+      }
+      if (surface.registration_status === "embedded") {
+        seenEmbedded.add(surfaceKey);
+        if (surface.embed_into !== set.output_surface) throw new Error(`${surfaceKey}: embed_into must equal output_surface`);
+        const schemaPath = path.join(schemaOutputDir, surface.output_file);
+        if (!fs.existsSync(schemaPath)) throw new Error(`${setKey}: member schema missing: ${surface.output_file}`);
+        const embeddedDoc = YAML.parse(fs.readFileSync(schemaPath, "utf8"));
+        const embeddedOperations = collectDocOperations(embeddedDoc);
+        embeddedOperationCount += embeddedOperations.length;
+        for (const entry of embeddedOperations) {
+          const operationPresent = outputOperations.some((candidate) => candidate.operation?.operationId === entry.operation?.operationId);
+          if (!operationPresent) throw new Error(`${setKey}: embedded operation is missing from output: ${entry.operation?.operationId || entry.pathKey}`);
+        }
+      }
+    }
+    const totalOperations = outputOperations.length;
+    if (totalOperations < embeddedOperationCount) throw new Error(`${setKey}: output operation count is below embedded member count`);
+    const hardLimit = Number(set.hard_operation_limit || 30);
+    if (totalOperations > hardLimit) throw new Error(`${setKey}: ${totalOperations} operations exceeds hard limit ${hardLimit}`);
+    for (const forbidden of set.tenant_surfaces_forbidden || []) {
+      if (memberSet.has(forbidden)) throw new Error(`${setKey}: Tenant surface cannot be an Admin registration member: ${forbidden}`);
+    }
+  }
+  for (const [surfaceKey, surface] of Object.entries(registry.surfaces)) {
+    if (surface.registration_status === "embedded" && !seenEmbedded.has(surfaceKey)) throw new Error(`${surfaceKey}: embedded surface is not owned by a registration set`);
+  }
+}
+
 function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
   const artifacts = [];
   for (const [policyKey, policy] of Object.entries(registry.gateway_policies || {})) {
-    const members = Object.entries(registry.surfaces)
-      .filter(([, surface]) => surface.gateway_policy === policyKey)
-      .map(([surfaceKey, surface]) => ({ surfaceKey, surface }));
+    const configuredSurfaceKeys = Array.isArray(policy.surface_keys) ? policy.surface_keys : null;
+    const members = (configuredSurfaceKeys
+      ? configuredSurfaceKeys.map((surfaceKey) => [surfaceKey, registry.surfaces[surfaceKey]])
+      : Object.entries(registry.surfaces).filter(([, surface]) => surface.gateway_policy === policyKey))
+      .map(([surfaceKey, surface]) => {
+        if (!surface) throw new Error(`${policyKey}: configured surface is missing: ${surfaceKey}`);
+        const baseSurface = surface.base_surface ? registry.surfaces[surface.base_surface] || {} : {};
+        return { surfaceKey, surface: { ...baseSurface, ...surface } };
+      });
     if (members.length === 0) throw new Error(`${policyKey}: no surfaces reference this gateway policy`);
 
     const byRoute = new Map();
@@ -135,6 +336,7 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
         current.operation_ids.push(operation.operationId);
         current.auth_profiles.push(surface.auth_profile);
         current.surfaces.push(surfaceKey);
+        if (operation?.["x-mad4b-embedded-surface"]) current.surfaces.push(operation["x-mad4b-embedded-surface"]);
         current.allowed_query_parameters.push(...queryParameters);
         byRoute.set(key, current);
       }
@@ -147,6 +349,11 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
         auth_profiles: [...new Set(route.auth_profiles)].sort(),
         surfaces: [...new Set(route.surfaces)].sort(),
         allowed_query_parameters: [...new Set(route.allowed_query_parameters)].sort(),
+        freshness_class: route.mutation
+          ? "mutation_strict"
+          : route.surfaces.some((surface) => surface.startsWith("admin_recovery"))
+            ? "recovery_strict"
+            : "read_strict",
       }))
       .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 
@@ -195,9 +402,18 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       public_host: policy.public_host,
       upstream_origin: policy.upstream_origin,
       mutation_stale_policy: policy.mutation_stale_policy,
-      read_stale_grace_seconds: Number(policy.read_stale_grace_seconds || 0),
+      read_stale_grace_seconds: 0,
+      ready_provenance: {
+        required: true,
+        health_path: "/health",
+        require_policy_hash: true,
+        require_source_commit: true,
+      },
       source_registry: "canonicals/openapi/custom-gpt-surfaces.yaml",
-      source_surfaces: members.map(({ surfaceKey }) => surfaceKey).sort(),
+      source_surfaces: [...new Set(members.flatMap(({ surfaceKey }) => {
+        const set = registry.registration_sets && Object.values(registry.registration_sets).find((candidate) => candidate.output_surface === surfaceKey);
+        return set ? set.members : [surfaceKey];
+      }))].sort(),
       oauth_handoff_routes: oauthHandoffRoutes,
       routes,
     };
@@ -249,6 +465,9 @@ function main() {
   try {
     runSplitGenerator(schemaOutputDir);
     materializeCanonicalCopies(registry, schemaOutputDir);
+    mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir);
+    materializeRegistrationMetadata(registry, schemaOutputDir);
+    validateRegistrationSets(registry, schemaOutputDir);
     const schemaArtifacts = generatedSchemaArtifacts(registry);
     const policyArtifacts = generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir);
     const artifacts = [...schemaArtifacts, ...policyArtifacts];

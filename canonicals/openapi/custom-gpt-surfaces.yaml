@@ -8,6 +8,110 @@ oauth_client_contract:
   authorization_server: https://auth.mad4b.com
   activation_gateway_alias: true
   consent_model: one_client_resource_bound
+registration_sets:
+  admin_activation_production:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: production
+    server_uri: https://activation.mad4b.com
+    public_host: activation.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    gateway_host: activation.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_activation
+    output_surface: activation_admin_production
+    members:
+      - activation_admin_production
+    tenant_surfaces_forbidden:
+      - tenant_activation_production
+    hard_operation_limit: 20
+    warning_operation_limit: 16
+  production_recovery:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: production
+    server_uri: https://auth.mad4b.com
+    public_host: auth.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    gateway_host: auth.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: recovery_kernel
+    output_surface: admin_recovery_production
+    members:
+      - admin_recovery_production
+    tenant_surfaces_forbidden:
+      - tenant_activation_production
+    hard_operation_limit: 12
+    warning_operation_limit: 12
+  admin_activation_staging:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: staging
+    server_uri: https://activation-dev.mad4b.com
+    public_host: activation-dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
+    gateway_host: activation-dev.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_activation
+    output_surface: activation_admin_staging
+    members:
+      - activation_admin_staging
+      - admin_recovery_staging
+    tenant_surfaces_forbidden:
+      - tenant_activation_staging
+    hard_operation_limit: 20
+    warning_operation_limit: 16
+  tenant_activation_production:
+    registration_class: custom_gpt_tenant_actions
+    consumer_principal_class: tenant_gpt
+    audience: tenant
+    auth_profile: tenant_oauth
+    environment: production
+    server_uri: https://activation.mad4b.com
+    public_host: activation.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    gateway_host: activation.mad4b.com
+    scope_authority: tenant
+    oauth_issuer: https://auth.mad4b.com
+    action_slot: tenant_activation
+    output_surface: tenant_activation_production
+    members:
+      - tenant_activation_production
+    hard_operation_limit: 30
+    warning_operation_limit: 26
+  tenant_activation_staging:
+    registration_class: custom_gpt_tenant_actions
+    consumer_principal_class: tenant_gpt
+    audience: tenant
+    auth_profile: tenant_oauth
+    environment: staging
+    server_uri: https://activation-dev.mad4b.com
+    public_host: activation-dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
+    gateway_host: activation-dev.mad4b.com
+    scope_authority: tenant
+    oauth_issuer: https://dev.mad4b.com
+    action_slot: tenant_activation
+    output_surface: tenant_activation_staging
+    members:
+      - tenant_activation_staging
+    hard_operation_limit: 30
+    warning_operation_limit: 26
+registration_host_collision_policy:
+  mode: explicit_pairs_only
+  allowed_pairs:
+    - [admin_activation_production, tenant_activation_production]
+    - [admin_activation_staging, tenant_activation_staging]
+  rationale: Admin and Tenant registrations may share a gateway host only when action_slot, audience, and auth_profile remain distinct and explicitly registered.
 surfaces:
   admin_core:
     mode: generated_from_openapi
@@ -961,6 +1065,9 @@ surfaces:
     warning_operation_limit: 24
   admin_recovery_production:
     mode: generated_from_openapi
+    registration_status: standalone
+    registration_set: production_recovery
+    action_slot: recovery_kernel
     base_surface: admin_core
     source_surface_key: admin_recovery_production
     private_only: true
@@ -985,6 +1092,25 @@ surfaces:
     selector:
       source_markers:
         - admin_recovery_production
+  admin_recovery_staging:
+    mode: canonical_copy
+    registration_status: embedded
+    embed_into: activation_admin_staging
+    registration_set: admin_activation_staging
+    action_slot: admin_activation
+    private_only: true
+    environment: staging
+    domain_service: activation
+    canonical_file: http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml
+    output_file: openapi/openapi.custom-gpt.recovery-admin.staging.yaml
+    server_url: https://activation-dev.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 3
+    warning_operation_limit: 3
+    info:
+      title: Growth Intelligence Platform - Staging Recovery Admin
+      summary: Private Staging-only Recovery readiness and certification-status surface.
+      description: This canonical Staging surface exposes only bounded GET operations. Consequential certification execution remains a separately authorized workflow and Production authority is forbidden.
   admin_core_production:
     mode: generated_from_openapi
     base_surface: admin_core
@@ -1007,24 +1133,36 @@ surfaces:
       description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven. Environment is resolved from the fail-closed domain-family policy.
   activation_admin_production:
     mode: generated_from_openapi
+    registration_set: admin_activation_production
+    action_slot: admin_activation
     base_surface: activation_admin
     environment: production
     domain_service: activation
+    server_url: https://activation.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 20
+    warning_operation_limit: 16
     output_file: openapi/openapi.custom-gpt.activation-admin.production.yaml
     info:
       title: Growth Intelligence Platform - Activation Admin Actions - production
       summary: Admin/service Activation orchestration and read surfaces. (production).
-      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
+      description: Activation Admin transport with a distinct Production registration slot. Production Recovery remains separately registered on auth.mad4b.com; no consequential Recovery operation is re-exposed through this Activation Gateway.
   activation_admin_staging:
     mode: generated_from_openapi
+    registration_set: admin_activation_staging
+    action_slot: admin_activation
     base_surface: activation_admin
     environment: staging
     domain_service: activation
+    server_url: https://activation-dev.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 20
+    warning_operation_limit: 16
     output_file: openapi/openapi.custom-gpt.activation-admin.staging.yaml
     info:
       title: Growth Intelligence Platform - Activation Admin Actions - staging
       summary: Admin/service Activation orchestration and read surfaces. (staging).
-      description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
+      description: Activation Admin transport with the embedded Staging Recovery readiness member. Authentication and business authorization remain on dev.mad4b.com through the Activation Gateway upstream. Consequential Recovery execution is not advertised by the Staging member. Environment is resolved from the fail-closed domain-family policy.
   tenant_core_production:
     mode: generated_from_openapi
     base_surface: tenant_core
@@ -1047,9 +1185,15 @@ surfaces:
       description: Tenant Core transport. Prefer bounded operation preview/execute/status for known intents; use listTools then callTool only as a governed fallback for unknown or unclassified intents. For SQL-registered tools such as connect_activate, pass activation mode and integration_modes through tool_args. Environment is resolved from the fail-closed domain-family policy.
   tenant_activation_production:
     mode: generated_from_openapi
+    registration_set: tenant_activation_production
+    action_slot: tenant_activation
     base_surface: tenant_activation
     environment: production
     domain_service: activation
+    server_url: https://activation.mad4b.com
+    auth_profile: tenant_oauth
+    hard_operation_limit: 30
+    warning_operation_limit: 26
     output_file: openapi/openapi.tenant-gpt.activation.production.yaml
     info:
       title: Growth Intelligence Platform - Tenant Activation Actions - production
@@ -1057,9 +1201,15 @@ surfaces:
       description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
   tenant_activation_staging:
     mode: generated_from_openapi
+    registration_set: tenant_activation_staging
+    action_slot: tenant_activation
     base_surface: tenant_activation
     environment: staging
     domain_service: activation
+    server_url: https://activation-dev.mad4b.com
+    auth_profile: tenant_oauth
+    hard_operation_limit: 30
+    warning_operation_limit: 26
     output_file: openapi/openapi.tenant-gpt.activation.staging.yaml
     info:
       title: Growth Intelligence Platform - Tenant Activation Actions - staging
@@ -1067,6 +1217,10 @@ surfaces:
       description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com. Environment is resolved from the fail-closed domain-family policy.
 gateway_policies:
   activation_gateway:
+    environment: production
+    surface_keys:
+      - activation_admin_production
+      - tenant_activation_production
     public_host: activation.mad4b.com
     upstream_origin: https://auth.mad4b.com
     oauth_handoff_routes:

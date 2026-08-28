@@ -13,6 +13,8 @@
 // frontend-surface-operation: PATCH /
 // frontend-surface-operation: DELETE /
 
+process.env.NODE_ENV = "production";
+process.env.REMOTE_MCP_ENVIRONMENT = "production";
 import assert from "node:assert/strict";
 import express from "express";
 import YAML from "yaml";

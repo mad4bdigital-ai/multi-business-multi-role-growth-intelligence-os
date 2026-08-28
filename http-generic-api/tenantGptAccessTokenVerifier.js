@@ -5,9 +5,9 @@ import {
 } from "./tenantGptAccessTokenProfile.js";
 import {
   TENANT_GPT_ACTIVATION_RESOURCE,
-  TENANT_GPT_AUTHORIZATION_SERVER,
   TENANT_GPT_LEGACY_AUDIENCE,
   normalizeTenantGptOAuthResource,
+  resolveTenantGptOAuthIssuer,
   tenantGptLegacyAudienceCutoffMs,
 } from "./tenantGptOAuthResourceProfile.js";
 import {
@@ -89,12 +89,13 @@ export function verifyTenantGptAccessToken(token, {
 } = {}) {
   const resource = normalizeTenantGptOAuthResource(expectedResource);
   if (!resource) throw tokenFailure("tenant_gpt_resource_invalid", "Protected resource configuration is invalid.");
-
+  const issuer = resolveTenantGptOAuthIssuer(resource);
+  if (!issuer) throw tokenFailure("tenant_gpt_issuer_invalid", "Protected resource issuer configuration is invalid.");
   const jwtSecret = requireTenantGptJwtSecret();
   let payload;
   try {
     payload = jwt.verify(String(token || ""), jwtSecret, {
-      issuer: TENANT_GPT_AUTHORIZATION_SERVER,
+      issuer,
       clockTimestamp: Math.floor(Number(nowMs) / 1000),
     });
   } catch {
@@ -136,7 +137,7 @@ export function verifyTenantGptAccessToken(token, {
     ? resource
     : TENANT_GPT_LEGACY_AUDIENCE;
   const tokenProfile = validateTenantGptAccessTokenProfile(payload, {
-    expectedIssuer: TENANT_GPT_AUTHORIZATION_SERVER,
+    expectedIssuer: issuer,
     expectedAudience: verifiedAudience,
     audienceMode: compatibility.audience_mode,
     nowMs,
@@ -148,7 +149,7 @@ export function verifyTenantGptAccessToken(token, {
   return {
     payload,
     verification: {
-      issuer: TENANT_GPT_AUTHORIZATION_SERVER,
+      issuer,
       audience: verifiedAudience,
       expected_resource: resource,
       audience_mode: compatibility.audience_mode,

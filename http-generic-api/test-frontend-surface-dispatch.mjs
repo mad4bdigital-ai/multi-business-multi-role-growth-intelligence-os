@@ -15,11 +15,18 @@ function write(root, relative, content) {
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-dispatch-"));
 const apiRoot = path.join(fixtureRoot, "http-generic-api");
 fs.mkdirSync(apiRoot, { recursive: true });
+const fixtureImports = Object.freeze({
+  tenant: JSON.stringify("./tenantRoutes.js"),
+  admin: JSON.stringify("./adminRoutes.js"),
+  mixed: JSON.stringify("./mixedRoutes.js"),
+  dynamic: JSON.stringify("./dynamicTeamRoutes.js"),
+  optional: JSON.stringify("./optionalRoutes.js"),
+});
 write(apiRoot, "routes/index.js", `
-import { buildTenantRoutes } from "./tenantRoutes.js";
-import { buildAdminRoutes } from "./adminRoutes.js";
-import { buildMixedRoutes } from "./mixedRoutes.js";
-import { buildDynamicTeamRoutes } from "./dynamicTeamRoutes.js";
+import { buildTenantRoutes } from ${fixtureImports.tenant};
+import { buildAdminRoutes } from ${fixtureImports.admin};
+import { buildMixedRoutes } from ${fixtureImports.mixed};
+import { buildDynamicTeamRoutes } from ${fixtureImports.dynamic};
 export function registerRoutes(app) {
   app.use(buildTenantRoutes());
   app.use(buildTenantRoutes());
@@ -489,7 +496,7 @@ assert.equal(parseMountedRouteFiles(fs.readFileSync(path.join(apiRoot, "routes/i
 assert.deepEqual(
   parseMountedRouteFiles(`
     function registerOptionalRoutes(app) {
-      import("./optionalRoutes.js").then(({ buildOptionalRoutes }) => {
+        import(${fixtureImports.optional}).then(({ buildOptionalRoutes }) => {
         app.use(buildOptionalRoutes());
       });
     }
@@ -500,6 +507,8 @@ assert.deepEqual(
 const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
 assert.equal(plan.schema_version, "frontend-surface-dispatch-v1");
 assert.equal(plan.baseline.ref, "fixture-sha");
+const defaultBaselinePlan = buildDispatchPlan({ apiRoot });
+assert.equal(defaultBaselinePlan.baseline.ref, "main");
 assert.equal(plan.coverage.mounted_route_file_count, 5);
 assert.equal(plan.coverage.mounted_family_count, 8);
 assert.equal(plan.coverage.mixed_scope_route_file_count, 1);

@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "59391c5348168442f5c9d7fa29a29ffd9e8eec30d8ba07460b0b8a75b6e3aa4d",
+  "content_hash_sha256": "a1078af3f85c4082fb639c5d352aa6d69dfac1d0423f8054db88f9443aa35cf6",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -66,6 +66,12 @@
   "policy_key": "activation_gateway",
   "public_host": "activation.mad4b.com",
   "read_stale_grace_seconds": 0,
+  "ready_provenance": {
+    "health_path": "/health",
+    "require_policy_hash": true,
+    "require_source_commit": true,
+    "required": true
+  },
   "routes": [
     {
       "allowed_query_parameters": [
@@ -77,6 +83,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -86,7 +93,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -102,6 +109,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -111,7 +119,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -120,6 +128,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -129,7 +138,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -138,6 +147,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -147,7 +157,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -156,6 +166,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -165,7 +176,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -183,6 +194,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -192,7 +204,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -201,6 +213,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -210,7 +223,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -219,6 +232,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -228,7 +242,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -246,6 +260,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -255,7 +270,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -269,6 +284,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -278,7 +294,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -294,6 +310,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -303,7 +320,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -321,6 +338,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -330,7 +348,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -354,6 +372,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -363,7 +382,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -375,6 +394,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -384,7 +404,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -393,6 +413,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -402,7 +423,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -418,6 +439,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -427,7 +449,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -436,6 +458,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -445,7 +468,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -457,6 +480,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -466,7 +490,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -475,6 +499,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -484,7 +509,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -493,6 +518,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -502,7 +528,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -511,6 +537,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -520,7 +547,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -529,6 +556,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -538,7 +566,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -547,6 +575,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -556,7 +585,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -572,6 +601,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -581,7 +611,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     }
@@ -591,23 +621,23 @@
   "source_openapi_sha256": "904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007",
   "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
   "source_surfaces": [
-    "activation_admin",
-    "tenant_activation"
+    "activation_admin_production",
+    "tenant_activation_production"
   ],
-  "surface_registry_sha256": "3ba9485974d6c3f8e6ee346a94174ab0962f9e6f70cba1b4ba34b47628654ee0",
+  "surface_registry_sha256": "487135377e9c6e66b16f3cf21b7fa834fa2dc12a80e6d4101ccf6292bbeb3880",
   "surface_registry_version": 2,
   "upstream_origin": "https://auth.mad4b.com",
   "warning_budget": [
     {
       "exceeded": false,
       "operation_count": 9,
-      "surface": "activation_admin",
+      "surface": "activation_admin_production",
       "warning_limit": 16
     },
     {
       "exceeded": false,
       "operation_count": 15,
-      "surface": "tenant_activation",
+      "surface": "tenant_activation_production",
       "warning_limit": 26
     }
   ]

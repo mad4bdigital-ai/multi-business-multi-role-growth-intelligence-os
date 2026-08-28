@@ -169,9 +169,15 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
+      - name: Install repository governance dependencies
+        run: npm ci --ignore-scripts --include=dev
+
       - name: Install connector dependencies
         working-directory: http-generic-api
         run: npm ci
+
+      - name: Install repository governance dependencies
+        run: npm ci --ignore-scripts --include=dev
 
       - name: Execute active workstream tests
         if: needs.evaluate.outputs.mode == 'workstream'

@@ -107,6 +107,7 @@
           "http-generic-api/Dockerfile.staging",
           "http-generic-api/.env.staging.example",
           "http-generic-api/scripts/staging-*.mjs",
+          "http-generic-api/scripts/generate-activation-staging-policy.mjs",
           "http-generic-api/scripts/build-staging-schema-bundle.mjs",
           "http-generic-api/test-staging-*.mjs",
           "STAGING-*.md"
@@ -155,6 +156,9 @@
           "http-generic-api/frontend-operation-governance-tests.json",
           "http-generic-api/scripts/frontend-surface-dispatch.mjs",
           "http-generic-api/scripts/split-openapi.mjs",
+          "http-generic-api/scripts/generate-custom-gpt-schemas.mjs",
+          "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
+          "http-generic-api/scripts/validate-registration-topology.mjs",
           "specs/020-platform-resource-identity-brand-governance/**"
         ],
         "exclude_patterns": [
@@ -212,6 +216,7 @@
           "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
           "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
           "http-generic-api/scripts/environment-impact-closure.mjs",
+          "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
           "http-generic-api/scripts/spec011-disposable-migration-authorization-binding.mjs",
           "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
           "http-generic-api/scripts/audit-staging-migration-preuse.mjs",
