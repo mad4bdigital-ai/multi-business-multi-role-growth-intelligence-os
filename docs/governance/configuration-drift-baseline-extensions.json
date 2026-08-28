@@ -387,6 +387,83 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "edge/activation-gateway/src/gateway.mjs|policyHashRequired|literal_declaration|policyhashrequired",
+      "owner": "gateway-governance",
+      "reason": "The gateway policyHashRequired predicate is a code-owned fail-closed policy contract. It only requires attested policy/source evidence for readiness and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/activation-gateway-runtime/src/gateway.mjs|policyHashRequired|literal_declaration|policyhashrequired",
+      "owner": "gateway-governance",
+      "reason": "The synchronized runtime gateway policyHashRequired predicate is a code-owned fail-closed policy contract and does not grant runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/routes/stagingRecoveryAdminRoutes.js|STAGING_RECOVERY_ADMIN_HOST|literal_declaration|staging.recovery.admin.host",
+      "owner": "recovery-governance",
+      "reason": "The canonical Staging Recovery Admin host is a non-secret route-boundary identity constant. It prevents direct-origin access and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/routes/stagingRecoveryAdminRoutes.js|environment|literal_declaration|environment",
+      "owner": "recovery-governance",
+      "reason": "The route environment claim is a derived, server-side attestation field used only to reject missing or mismatched Staging identity; it does not accept caller authority or grant mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/routes/stagingRecoveryAdminRoutes.js|requestHost|literal_declaration|requesthost",
+      "owner": "recovery-governance",
+      "reason": "The requestHost value is derived from the trusted request-host resolver for a fail-closed route boundary; it is not a configurable authority and grants no mutation capability.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/runtimeEnvironmentResolver.js|RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT|literal_declaration|runtime.environment.resolver.contract",
+      "owner": "runtime-governance",
+      "reason": "The runtime environment resolver contract identifier is a non-secret code-owned compatibility label for fail-closed identity resolution and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/trustedIngressContract.js|environment|literal_declaration|environment",
+      "owner": "gateway-governance",
+      "reason": "The trusted-ingress environment field is a derived server-side identity value used for fail-closed readiness reporting; it is not caller configuration and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

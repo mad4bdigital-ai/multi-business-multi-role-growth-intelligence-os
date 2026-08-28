@@ -3,23 +3,23 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7456,
-    "bytes": 73538570,
-    "lines": 1708383,
+    "files": 7465,
+    "bytes": 73692061,
+    "lines": 1711405,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2203,
+      "tests-and-specs": 2206,
       "documentation": 1916,
-      "api-runtime": 1522,
+      "api-runtime": 1525,
       "database-migrations": 833,
-      "root-and-other": 343,
+      "root-and-other": 345,
       "api-contracts": 194,
       "ci-workflows": 170,
       "ci-config": 135,
-      "schemas-and-data": 78,
+      "schemas-and-data": 79,
       "connectors-and-edge": 29,
       "applications": 19,
       "source": 12,
@@ -27,13 +27,13 @@
     },
     "byExtension": {
       ".md": 2517,
-      ".mjs": 1776,
-      ".js": 1028,
-      ".json": 894,
+      ".mjs": 1780,
+      ".js": 1030,
+      ".json": 896,
       ".sql": 848,
       ".yml": 173,
       ".yaml": 121,
-      ".ps1": 20,
+      ".ps1": 21,
       ".ts": 16,
       ".cs": 14,
       ".jsx": 9,
@@ -61,14 +61,14 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3883,
+      "http-generic-api": 3889,
       "docs": 1820,
       "specs": 880,
-      ".changes": 313,
+      ".changes": 315,
       ".github": 305,
       "canonicals": 70,
+      "autopilot-portable-staging": 23,
       "local-connector": 23,
-      "autopilot-portable-staging": 22,
       "apps": 19,
       "scripts": 19,
       "schemas": 17,
@@ -166,6 +166,8 @@
         "schemas:generate",
         "schemas:check",
         "schemas:builder-guard",
+        "registration:topology:check",
+        "test:activation:identity",
         "openapi:response-objects:guard",
         "openapi:lint:compat",
         "test:openapi:response-objects",
@@ -259,7 +261,7 @@
     "workflows": 170,
     "migrations": 833,
     "apiContracts": 194,
-    "testSpecFiles": 2293
+    "testSpecFiles": 2296
   },
   "largestFiles": [
     {
@@ -271,13 +273,13 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3557514,
+      "bytes": 3557512,
       "lines": 100287
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1967065,
+      "bytes": 1967066,
       "lines": 59481
     },
     {

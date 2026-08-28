@@ -75,12 +75,21 @@ const SCOPES_BY_HOST = {
   },
   "dev.mad4b.com": {
     scope: "staging-tenant-and-admin-gpt",
-    schema_file: "openapi.tenant-gpt.staging.yaml",
+    schema_file: "openapi.tenant-gpt.auth.staging.yaml",
     primary_paths: ["/health", "/connect/status", "/connect/activate"],
     schema_variants: {
-      tenant: "openapi.tenant-gpt.staging.yaml",
-      admin: "openapi.custom-gpt.staging-admin.yaml"
-    }
+      tenant: "openapi.tenant-gpt.auth.staging.yaml",
+      admin: "openapi.custom-gpt.auth-dispatcher.staging.yaml",
+    },
+  },
+  "activation-dev.mad4b.com": {
+    scope: "staging-activation",
+    schema_file: "openapi.tenant-gpt.activation.staging.yaml",
+    primary_paths: ["/health", "/tenant/activation/session-context", "/activation/session-context"],
+    schema_variants: {
+      tenant_activation: "openapi.tenant-gpt.activation.staging.yaml",
+      admin_activation: "openapi.custom-gpt.activation-admin.staging.yaml",
+    },
   },
   "mcp_dev.mad4b.com": {
     scope: "staging-remote-mcp",
@@ -200,7 +209,7 @@ export function buildRootDiscoveryRoutes(deps = {}) {
 
   router.get("/tenant-gpt/activation-openapi", async (req, res) => {
     const host = requestHost(req);
-    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com") {
+    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com" && host !== "activation-dev.mad4b.com") {
       return res.status(404).json({
         ok: false,
         error: {
@@ -211,7 +220,9 @@ export function buildRootDiscoveryRoutes(deps = {}) {
     }
 
     try {
-      const schema = await readPublicSchemaFile("openapi.tenant-gpt.activation.yaml");
+      const schema = await readPublicSchemaFile(host === "activation-dev.mad4b.com"
+        ? "openapi.tenant-gpt.activation.staging.yaml"
+        : "openapi.tenant-gpt.activation.yaml");
       return res
         .status(200)
         .type("application/yaml")
@@ -230,7 +241,7 @@ export function buildRootDiscoveryRoutes(deps = {}) {
 
   router.get("/admin-gpt/activation-openapi", async (req, res) => {
     const host = requestHost(req);
-    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com") {
+    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com" && host !== "activation-dev.mad4b.com") {
       return res.status(404).json({
         ok: false,
         error: {
@@ -241,7 +252,9 @@ export function buildRootDiscoveryRoutes(deps = {}) {
     }
 
     try {
-      const schema = await readPublicSchemaFile("openapi.custom-gpt.activation-admin.yaml");
+      const schema = await readPublicSchemaFile(host === "activation-dev.mad4b.com"
+        ? "openapi.custom-gpt.activation-admin.staging.yaml"
+        : "openapi.custom-gpt.activation-admin.yaml");
       return res
         .status(200)
         .type("application/yaml")

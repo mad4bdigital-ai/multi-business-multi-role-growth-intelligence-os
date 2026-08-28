@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "ad348e966db899d24e9a7cdd3f79cef1dc7d4a952325d045d4a5fca649b59cdd"
+      "sha256": "fdbd49fb0c041f0650a594652299735f9433f60a756d49dec98686d23f8e75ae"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "50dfb3c59fb2942cad935e181739804774acbceb5fc46bd07e0ce73cf864480c"
+      "sha256": "c3c7dcf826102c3e9e6a464e009947ef01a8d0c2eb3a00cb7f3ce13df5e7c98e"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -190,7 +190,7 @@
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",
-      "sha256": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee"
+      "sha256": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf"
     },
     {
       "path": "http-generic-api/routes/workspaceResourceRoutes.js",
@@ -250,7 +250,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "311314fb0e2952b84bb2dae85e63ce90ba4321dce540c8cce3dc759183d20c52"
+      "sha256": "14d0787e675f1b7940cd1d97d179369e3f0a8a3e8793dcd101a6e695b92ab983"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",

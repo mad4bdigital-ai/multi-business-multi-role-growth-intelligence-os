@@ -25,7 +25,7 @@ const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 // frontend-surface-operation: get /admin/recovery/staging/contract
 // frontend-surface-operation: get /admin/recovery/staging/readiness
 // frontend-surface-operation: get /admin/recovery/staging/certification
-const schemaPath = path.join(apiRoot, "openapi", "openapi.custom-gpt.recovery-admin.staging.yaml");
+const schemaPath = path.join(apiRoot, "openapi", "openapi.custom-gpt.activation-admin.staging.yaml");
 
 function completeStagingComposition() {
   const componentStatus = Object.fromEntries(RECOVERY_COMPOSITION_COMPONENT_KEYS.map((key) => [key, { configured: true, missing_methods: [] }]));
@@ -91,15 +91,14 @@ function listen(app) {
   });
 }
 
-test("Staging Recovery OpenAPI is bounded to one staging URI and three GET operations", () => {
+test("Staging Recovery is embedded in the bounded Staging Admin Activation schema", () => {
   const document = YAML.parse(fs.readFileSync(schemaPath, "utf8"));
   const result = validateStagingRecoveryAdminOpenApi({ document, source: fs.readFileSync(schemaPath, "utf8") });
   assert.equal(result.valid, true);
   assert.equal(result.server_uri, STAGING_RECOVERY_ADMIN_SERVER_URI);
-  assert.equal(result.path_count, 3);
-  assert.equal(result.operation_count, 3);
-  assert.deepEqual(result.methods, ["GET"]);
-  assert.equal(result.mutation_advertised, false);
+  assert.equal(result.operation_count, 12);
+  assert.equal(result.embedded_recovery_operation_count, 3);
+  assert.deepEqual(result.recovery_methods, ["GET"]);
   assert.equal(result.production_authority_allowed, false);
 });
 

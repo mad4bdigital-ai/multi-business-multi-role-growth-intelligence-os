@@ -1,12 +1,12 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "f5889fb5aaa9fcb06e93bb86419231a7a9ef0e21ff80b6546404bfbf8e3056b8",
+    "ref": null,
+    "source_digest": "48ca20dd5389d05b5169f2e31a65aba9ce10da52f981f202a89527e68ff6ef92",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d",
+        "sha256": "487135377e9c6e66b16f3cf21b7fa834fa2dc12a80e6d4101ccf6292bbeb3880",
         "present": true
       },
       {
@@ -381,7 +381,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "cb7cdf7212bd631119276d836bf60ad0140d16a9bd5b74e63bce5bc77e243f9d",
+        "sha256": "b341237b088405fe1515998aafe799af9ae62cd27d47336b122436ebc38e78ed",
         "present": true
       },
       {
@@ -831,7 +831,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee",
+        "sha256": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "f8533bdb174a67f5ead62ec6e55a81e6b2edd170890cc74d0301096ec005ab76",
+        "sha256": "d1d725832bc1250896eb529d3861d6000eedc16dd7a5ed98e8b3a7dd1278409f",
         "present": true
       },
       {
@@ -1026,7 +1026,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "74b01848fceaa71d3f4c7e6c302cc412061628cb5660c33291d9ac6166a76542",
+        "sha256": "eb19e996bc39f96eb3708a1aad51ed56a4f1c2a0870255850c1297220a14aae8",
         "present": true
       },
       {
@@ -1081,7 +1081,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "3620d708689bf7e44e0b48834edcee13b00c1e52e838e97a49bc321fa032781d",
+        "sha256": "1570a3d6660d3589716357c386b261fff0142f4df9170d5e5b82fe703e3b15c2",
         "present": true
       },
       {
@@ -1136,7 +1136,7 @@
       },
       {
         "file": "test-staging-recovery-admin-surface.mjs",
-        "sha256": "2ff357a965000bb5ac9afdb4b986b152c4a1661da7857a1562d632cd4f0156c3",
+        "sha256": "00771fa980724350670698e79108e0c614ae1403fc5e53d39f51fc31f0785796",
         "present": true
       },
       {
@@ -1694,7 +1694,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "74b01848fceaa71d3f4c7e6c302cc412061628cb5660c33291d9ac6166a76542",
+      "source_digest": "eb19e996bc39f96eb3708a1aad51ed56a4f1c2a0870255850c1297220a14aae8",
       "mount_prefix": "/",
       "mount_order": 12663,
       "split_from_mixed_scope_file": false,
@@ -3728,7 +3728,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "f8533bdb174a67f5ead62ec6e55a81e6b2edd170890cc74d0301096ec005ab76",
+      "source_digest": "d1d725832bc1250896eb529d3861d6000eedc16dd7a5ed98e8b3a7dd1278409f",
       "mount_prefix": "/",
       "mount_order": 13149,
       "split_from_mixed_scope_file": false,
@@ -9058,7 +9058,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee",
+      "source_digest": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf",
       "mount_prefix": "/",
       "mount_order": 14379,
       "split_from_mixed_scope_file": true,
@@ -9266,7 +9266,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "cfa6e576862498302d87576e6a86bff7cb1f821767b272a7efc0bec9df2f6cee",
+      "source_digest": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf",
       "mount_prefix": "/",
       "mount_order": 14379,
       "split_from_mixed_scope_file": true,

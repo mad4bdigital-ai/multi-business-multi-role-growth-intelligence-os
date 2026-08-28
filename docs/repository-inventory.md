@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 7,456 |
-| Total bytes | 73,538,570 |
-| Counted text lines | 1,708,383 |
+| Tracked files | 7,465 |
+| Total bytes | 73,692,061 |
+| Counted text lines | 1,711,405 |
 | Directories | 266 |
 | Categories | 13 |
 
@@ -17,15 +17,15 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,203 |
+| `tests-and-specs` | 2,206 |
 | `documentation` | 1,916 |
-| `api-runtime` | 1,522 |
+| `api-runtime` | 1,525 |
 | `database-migrations` | 833 |
-| `root-and-other` | 343 |
+| `root-and-other` | 345 |
 | `api-contracts` | 194 |
 | `ci-workflows` | 170 |
 | `ci-config` | 135 |
-| `schemas-and-data` | 78 |
+| `schemas-and-data` | 79 |
 | `connectors-and-edge` | 29 |
 | `applications` | 19 |
 | `source` | 12 |
@@ -36,13 +36,13 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,517 |
-| `.mjs` | 1,776 |
-| `.js` | 1,028 |
-| `.json` | 894 |
+| `.mjs` | 1,780 |
+| `.js` | 1,030 |
+| `.json` | 896 |
 | `.sql` | 848 |
 | `.yml` | 173 |
 | `.yaml` | 121 |
-| `.ps1` | 20 |
+| `.ps1` | 21 |
 | `.ts` | 16 |
 | `.cs` | 14 |
 | `.jsx` | 9 |
@@ -76,7 +76,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 170 |
 | Database migrations | 833 |
 | API/OpenAPI contracts | 194 |
-| Test/spec files (paths) | 2,293 |
+| Test/spec files (paths) | 2,296 |
 | package.json manifests | 3 |
 
 ## Package manifests
@@ -84,7 +84,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `edge/activation-gateway/package.json` | `mad4b-activation-gateway` | `—` | 8 | 0 | 1 |
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 79 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 81 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 22 | 0 | 4 |
 
 ## Largest tracked files
@@ -92,8 +92,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,557,514 | 100287 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,967,065 | 59481 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,557,512 | 100287 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,967,066 | 59481 |
 | `docs/staging-write-route-partition-2026-08-14.json` | documentation | 1,535,977 | 47056 |
 | `http-generic-api/openapi.yaml` | api-contracts | 1,034,267 | 23678 |
 | `http-generic-api/frontend-surface-policy.json` | api-runtime | 628,792 | 11916 |

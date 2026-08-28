@@ -301,13 +301,21 @@ const TENANT_USER_TOOL_SIGNATURES = new Set([
   "POST /system/tools/call",
 ]);
 export function canonicalOpenApiSecurityAlternatives(openapiAuth, runtimeAlternatives = [], signature = "") {
-  if (openapiAuth?.source_file === "openapi/openapi.custom-gpt.recovery-admin.staging.yaml") {
+  if ([
+    "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+    "openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+  ].includes(openapiAuth?.source_file)) {
     return [["backendBearerAuth"]];
   }
   if (openapiAuth?.source_file === "openapi/openapi.custom-gpt.staging-admin.yaml") {
     return [["backendApiKeyAuth"]];
   }
-  const tenantSchema = ["openapi/openapi.tenant-gpt.auth.yaml", "openapi/openapi.tenant-gpt.staging.yaml"].includes(openapiAuth?.source_file);
+  const tenantSchema = [
+    "openapi/openapi.tenant-gpt.auth.yaml",
+    "openapi/openapi.tenant-gpt.staging.yaml",
+    "openapi/openapi.tenant-gpt.auth.staging.yaml",
+    "openapi/openapi.tenant-gpt.activation.staging.yaml",
+  ].includes(openapiAuth?.source_file);
   if (tenantSchema && TENANT_USER_TOOL_SIGNATURES.has(signature)) {
     return [["userJwtAuth"]];
   }
