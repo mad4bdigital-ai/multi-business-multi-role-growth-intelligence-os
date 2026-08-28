@@ -45,7 +45,7 @@ function identityFor(environmentKey, runtimeVariant) {
       environment: "staging",
       environment_key: "staging",
       runtime_class: runtimeVariant === "staging_local_windows_docker" ? "local_windows_docker" : "staging_hosted",
-      deployment_model: "main_local_staging",
+      deployment_model: runtimeVariant === "staging_local_windows_docker" ? "main_local_staging" : "main_hosted_staging",
       source_branch: "main",
       branch: "main",
       authority_mode: "non_live",
@@ -81,6 +81,7 @@ export function resolveRuntimeEnvironment(env = process.env) {
       contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
       environment_key: null,
       runtime_variant: null,
+      runtime_class_explicit: false,
       reason: "runtime_environment_missing",
       values: [],
       secrets_included: false,
@@ -95,6 +96,7 @@ export function resolveRuntimeEnvironment(env = process.env) {
       contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
       environment_key: null,
       runtime_variant: null,
+      runtime_class_explicit: false,
       reason: "runtime_environment_unknown",
       values: evidence,
       unknown_values: unknown,
@@ -109,6 +111,7 @@ export function resolveRuntimeEnvironment(env = process.env) {
       contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
       environment_key: null,
       runtime_variant: null,
+      runtime_class_explicit: false,
       reason: "runtime_environment_conflict",
       values: evidence,
       canonical_values: canonicalValues,
@@ -118,25 +121,54 @@ export function resolveRuntimeEnvironment(env = process.env) {
 
   const environmentKey = canonicalValues[0];
   const rawVariants = [...new Set(evidence.map((entry) => entry.value))];
-  // `staging` declares the environment only. A hosted/local runtime declaration
-  // is explicit; never silently select local when another source declares hosted.
   if (rawVariants.includes("staging_hosted") && rawVariants.includes("staging_local_windows_docker")) {
-    return Object.freeze({ ok: false, contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
-      environment_key: null, runtime_variant: null, reason: "runtime_class_conflict", values: evidence, secrets_included: false });
+    return Object.freeze({
+      ok: false,
+      contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
+      environment_key: null,
+      runtime_variant: null,
+      runtime_class_explicit: false,
+      reason: "runtime_class_conflict",
+      values: evidence,
+      secrets_included: false,
+    });
   }
+
   const runtimeVariant = rawVariants.includes("staging_local_windows_docker")
     ? "staging_local_windows_docker"
-    : rawVariants[0];
+    : rawVariants.includes("staging_hosted")
+      ? "staging_hosted"
+      : rawVariants.includes("production_hostinger_autodeploy")
+        ? "production_hostinger_autodeploy"
+        : rawVariants[0];
   const identity = identityFor(environmentKey, runtimeVariant);
+  const runtimeClassExplicit = environmentKey === "staging"
+    ? rawVariants.includes("staging_local_windows_docker") || rawVariants.includes("staging_hosted")
+    : environmentKey === "production"
+      ? rawVariants.includes("production_hostinger_autodeploy")
+      : true;
   return Object.freeze({
     ok: true,
     contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
     ...identity,
     runtime_variant: runtimeVariant,
+    runtime_class_explicit: runtimeClassExplicit,
     reason: null,
     values: evidence,
     unknown_values: [],
     secrets_included: false,
+  });
+}
+
+export function resolveRuntimeEnvironmentStrict(env = process.env) {
+  const resolved = resolveRuntimeEnvironment(env);
+  if (!resolved.ok || !["staging", "production"].includes(resolved.environment_key) || resolved.runtime_class_explicit) return resolved;
+  return Object.freeze({
+    ...resolved,
+    ok: false,
+    runtime_class: null,
+    deployment_model: null,
+    reason: "runtime_class_ambiguous",
   });
 }
 
