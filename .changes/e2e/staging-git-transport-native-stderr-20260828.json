@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-git-transport-native-stderr-20260828",
-  "title": "Windows Staging Git transport handling, fetch isolation, and remote-read exit capture",
+  "title": "Windows Staging Git transport handling, fetch isolation, and process-native exit capture",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "secrets_included": false,
@@ -32,7 +32,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep the Windows Staging Git transport robust to native stdout/stderr stream behavior, isolate bootstrap fetch from repository auto-maintenance and submodule recursion, and stabilize read-only ls-remote exit capture while preserving exact non-zero fail-closed behavior, exact-SHA verification, and bounded retries.",
+      "objective": "Keep the Windows Staging Git transport robust to native stdout/stderr stream behavior, isolate bootstrap fetch from repository auto-maintenance and submodule recursion, and capture Git exit authority from System.Diagnostics.Process.ExitCode instead of PowerShell native stream state while preserving exact non-zero fail-closed behavior, exact-SHA verification, and bounded retries.",
       "e2e_journeys": [
         {
           "id": "windows-bootstrap-git-stderr-success-path",
@@ -40,18 +40,20 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-          "terminal_outcome": "Bootstrap accepts a successful Git fetch that emits progress/protocol text on stderr, continues to exact checkout and preflight, and still fails closed for a non-zero Git exit code or exhausted retryable transport failure.",
+          "terminal_outcome": "Bootstrap accepts a successful Git fetch that emits progress/protocol text on stderr, continues to exact checkout and preflight, and still fails closed for a non-zero native process exit code or exhausted retryable transport failure.",
           "steps": [
             "Invoke the shared Staging Git transport from Bootstrap under Windows PowerShell 5.1 ErrorActionPreference=Stop.",
-            "Capture Git stdout and stderr without allowing a successful stderr diagnostic to terminate the invocation.",
-            "Read an explicit exit marker emitted immediately after Git and accept the operation only when the marker is zero.",
+            "Resolve git.exe as an application and launch it through System.Diagnostics.Process with UseShellExecute=false.",
+            "Drain stdout and stderr independently without routing native stderr through the PowerShell error stream.",
+            "Read Process.ExitCode after the Git process exits and advance only when that native process exit code is zero.",
             "Continue the existing exact SHA checkout and schema/governance preflight only after the transport operation succeeds.",
             "Preserve the existing retry and fail-closed behavior for non-zero retryable or non-retryable Git failures."
           ],
           "assertions": [
-            "The transport sets Continue only inside the native Git capture scope and does not weaken the global fail-closed policy.",
-            "The transport records an explicit exit marker and branches on the captured exit code rather than on stderr presence.",
-            "A non-zero exit code remains STAGING_GIT_OPERATION_FAILED and retryable transport errors remain bounded by the existing attempt limit.",
+            "The transport does not use PowerShell 2>&1 native redirection plus LASTEXITCODE as deployment authority.",
+            "UseShellExecute remains false and both process output streams are redirected and drained independently.",
+            "A non-zero Process.ExitCode remains STAGING_GIT_OPERATION_FAILED and retryable transport errors remain bounded by the existing attempt limit.",
+            "Windows argv quoting preserves argument data when ProcessStartInfo.ArgumentList is unavailable on Windows PowerShell 5.1.",
             "The fix does not read or print GitHub tokens, credentials, or local environment secrets.",
             "The fix performs no Docker, MariaDB, schema apply, data import/export, provider, Hostinger, Cloudflare, or Production operation.",
             "No immutable schema.sql or published historical migration is changed."
@@ -86,6 +88,7 @@
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs"
           ]
         },
@@ -95,17 +98,17 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-          "terminal_outcome": "The shared Staging Git transport performs bootstrap fetch with repository auto-maintenance and submodule recursion disabled, accepts only a zero Git exit code, preserves exact origin/main SHA verification, and makes no Production or provider mutation.",
+          "terminal_outcome": "The shared Staging Git transport performs bootstrap fetch with repository auto-maintenance and submodule recursion disabled, accepts only a zero native process exit code, preserves exact origin/main SHA verification, and makes no Production or provider mutation.",
           "steps": [
             "Invoke the shared Staging Git transport for the bootstrap fetch path.",
             "Apply --no-auto-maintenance and --no-recurse-submodules only to fetch invocations.",
-            "Preserve the existing HTTP/protocol transport options, credential redaction, bounded retry policy, and explicit exit-code handling.",
+            "Preserve the existing HTTP/protocol transport options, credential redaction, bounded retry policy, and process-native exit-code handling.",
             "Continue to exact-SHA checkout and Staging preflight only after a successful fetch.",
             "Require live Staging certification before this Staging-impacting change is treated as merge-ready."
           ],
           "assertions": [
             "Fetch invocations include --no-auto-maintenance and --no-recurse-submodules without weakening other Git command behavior.",
-            "A non-zero Git exit code remains fail-closed and retryable failures remain bounded by the existing attempt limit.",
+            "A non-zero Git process exit code remains fail-closed and retryable failures remain bounded by the existing attempt limit.",
             "Exact origin/main and requested SHA verification remains required after transport success.",
             "No GitHub token, credential payload, or local environment secret is read into evidence or printed.",
             "No Docker, MariaDB, schema apply, migration, grant, provider, Hostinger, Cloudflare, Production deployment, Branch Protection, or Rulesets mutation is authorized by this change.",
@@ -149,18 +152,18 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-          "terminal_outcome": "Auto Deploy reads origin/main through the shared transport, snapshots Git LASTEXITCODE immediately after buffered native output, accepts only exit code zero, and retries a structurally valid ls-remote/non-zero anomaly only within the existing bounded retry budget.",
+          "terminal_outcome": "Auto Deploy reads origin/main through the shared transport, obtains Git authority from System.Diagnostics.Process.ExitCode, accepts only exit code zero, and retries a structurally valid ls-remote/non-zero anomaly only within the existing bounded retry budget.",
           "steps": [
             "Resolve origin/main through Invoke-StagingGit ls-remote on Windows PowerShell 5.1.",
-            "Buffer native stdout/stderr inside the Continue-only capture scope.",
-            "Snapshot LASTEXITCODE immediately after Git returns and before any buffered output is emitted as PowerShell objects.",
-            "Advance only when the snapshotted exit code is zero.",
-            "If ls-remote returns a complete ref line with a non-zero exit, classify it only as a bounded read-only exit anomaly and retry; never promote that attempt to success.",
+            "Launch git.exe with ProcessStartInfo UseShellExecute=false and separately redirected stdout/stderr.",
+            "Drain both native streams asynchronously and wait for the process to exit without routing stderr through the PowerShell error stream.",
+            "Snapshot Process.ExitCode and advance only when that native process exit code is zero.",
+            "If ls-remote returns a complete ref line with a genuine non-zero process exit, classify it only as a bounded read-only exit anomaly and retry; never promote that attempt to success.",
             "Preserve exact-SHA, origin identity, eligibility workflow, and Staging-only authority gates."
           ],
           "assertions": [
-            "A non-zero Git exit code is never accepted as success, including when ls-remote output contains a valid SHA/ref line.",
-            "The native exit code is captured before PowerShell enumerates or re-emits buffered native output.",
+            "A non-zero Git Process.ExitCode is never accepted as success, including when ls-remote output contains a valid SHA/ref line.",
+            "PowerShell LASTEXITCODE and native stderr redirection are not used as the authority source for the shared Git process.",
             "Read-only exit anomalies use the existing maximum-attempt and exponential-backoff bounds.",
             "Fetch retains --no-auto-maintenance and --no-recurse-submodules isolation from the prior fix.",
             "No credentials, GitHub tokens, or local environment secrets are printed or included in evidence.",
