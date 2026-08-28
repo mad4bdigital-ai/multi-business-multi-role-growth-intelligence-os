@@ -310,7 +310,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-GitTransport.ps1",
-      "sha256": "e47d250d5bbc136ffd614e955b9a05ea4442073d6dd58441233e5e4811481469"
+      "sha256": "8a16fa56abd48ed1896c3cd6edf5447dcdd28bc4a31d1fbbe716ad0b50308222"
     },
     {
       "path": "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
