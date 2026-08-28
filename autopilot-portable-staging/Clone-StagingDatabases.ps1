@@ -13,6 +13,7 @@ $ApiPath = Join-Path $RepoRoot "http-generic-api"
 $EnvFile = Join-Path $ApiPath ".env.staging"
 $ComposeBase = Join-Path $ApiPath "docker-compose.yml"
 $ComposeStaging = Join-Path $ApiPath "docker-compose.staging.yml"
+$RoleMigrationManifestPath = Join-Path $ApiPath "config\staging-database-role-migration-manifest.json"
 $BundleStatePath = Join-Path $DumpDirectory "schema-import-state.json"
 $script:ImportMutex = $null
 
@@ -140,6 +141,7 @@ function Assert-ContainsSet([string[]]$Required, [string[]]$Actual, [string]$Lab
 Require (Test-Path -LiteralPath $EnvFile) "Missing local .env.staging; run Start-AutoPilot.ps1 first."
 Require (Test-Path -LiteralPath $ComposeBase) "Missing base Compose file."
 Require (Test-Path -LiteralPath $ComposeStaging) "Missing staging Compose file."
+Require (Test-Path -LiteralPath $RoleMigrationManifestPath -PathType Leaf) "Missing canonical Staging role migration manifest."
 Require (Test-Path -LiteralPath $DumpDirectory -PathType Container) "DumpDirectory must be an existing local directory."
 Require (-not ($DumpDirectory -match '(?i)(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com|hostinger|production)')) "Production/provider paths are forbidden as dump sources."
 Require ($env:DOCKER_HOST -eq $null -or $env:DOCKER_HOST -eq "") "DOCKER_HOST is forbidden."
@@ -169,6 +171,14 @@ Require ($bundleManifest.production_accessed -eq $false -and $bundleManifest.pro
 Require ($bundleManifest.validation.required_tables_checked -eq $true -and $bundleManifest.validation.runtime_exclusions_checked -eq $true -and $bundleManifest.validation.three_role_partition_checked -eq $true) "Schema bundle validation metadata is incomplete."
 $requiredRuntimeCensus = @($bundleManifest.validation.required_runtime_table_census)
 Require ($requiredRuntimeCensus.Count -eq 18) "Schema bundle runtime census must declare exactly 18 registry tables."
+$roleMigrationManifest = Read-Json $RoleMigrationManifestPath
+Require ([string]$roleMigrationManifest.contract -eq "mad4b.staging.database-role-migration-manifest.v1") "Unsupported canonical Staging role migration manifest contract."
+$canonicalRuntimeCensus = @($roleMigrationManifest.validation.required_runtime_table_census)
+Require ($canonicalRuntimeCensus.Count -eq 18) "Canonical Staging role manifest must declare exactly 18 runtime census tables."
+Assert-SetEqual $canonicalRuntimeCensus $requiredRuntimeCensus "schema bundle runtime census projection"
+$requiredRuntimeSupportTables = @($roleMigrationManifest.validation.required_runtime_support_tables)
+Require ($requiredRuntimeSupportTables.Count -eq 11) "Canonical Staging role manifest must declare exactly 11 runtime support tables."
+Assert-ContainsSet $requiredRuntimeSupportTables @($roleMigrationManifest.roles.runtime.required_tables) "canonical runtime support declaration"
 $canonicalSeedManifest = $bundleManifest.canonical_seed_lifecycle
 Require ([string]$canonicalSeedManifest.contract -eq "mad4b.staging.canonical-seed-manifest.v1") "Canonical seed manifest contract is missing."
 Require ([string]$canonicalSeedManifest.target_role -eq "runtime" -and [string]$canonicalSeedManifest.replay_mode -eq "explicit_local_staging_only") "Canonical seed replay policy is invalid."
@@ -204,7 +214,7 @@ foreach ($item in $roleConfig) {
 }
 $runtimeRole = $bundleManifest.roles.runtime
 Assert-ContainsSet $requiredRuntimeCensus @($runtimeRole.tables) "runtime required 18-table census"
-Assert-ContainsSet @($bundleManifest.validation.required_runtime_support_tables) @($runtimeRole.tables) "runtime support"
+Assert-ContainsSet $requiredRuntimeSupportTables @($runtimeRole.tables) "runtime support"
 
 $compose = @("-f", $ComposeBase, "-f", $ComposeStaging, "--env-file", $EnvFile)
 & docker compose @compose config --quiet
@@ -299,7 +309,7 @@ try {
     if ($item.Key -eq "runtime") { $runtimeTableNames = @($actualTables) }
   }
   Assert-ContainsSet $requiredRuntimeCensus @($runtimeTableNames) "post-import 18-table census"
-  Assert-ContainsSet @($bundleManifest.validation.required_runtime_support_tables) @($runtimeTableNames) "post-import runtime support"
+  Assert-ContainsSet $requiredRuntimeSupportTables @($runtimeTableNames) "post-import runtime support"
   $mcpColumnsText = Invoke-DatabaseQuery $runtimeService $compose "SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME) FROM information_schema.columns WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('admin_platform_endpoint_tools', 'tenant_platform_endpoint_tools') AND COLUMN_NAME = 'mcp_catalog_level' ORDER BY TABLE_NAME"
   $mcpColumns = Get-TableNames $mcpColumnsText
   Assert-SetEqual @($canonicalSeedManifest.mcp_catalog_required_columns) @($mcpColumns) "MCP catalog column"
@@ -318,7 +328,7 @@ try {
   $state.canonical_seed_readback = [ordered]@{
     status = "passed"
     required_runtime_table_census = @($requiredRuntimeCensus)
-    required_runtime_support_tables = @($bundleManifest.validation.required_runtime_support_tables)
+    required_runtime_support_tables = @($requiredRuntimeSupportTables)
     mcp_catalog_columns = @($mcpColumns)
     canonical_row_counts = $canonicalRowCounts
     support_row_counts = $supportRowCounts
