@@ -23,6 +23,7 @@ const policy = JSON.parse(read("http-generic-api/config/domain-family-policy.jso
 const deploymentPolicy = JSON.parse(read("http-generic-api/config/deployment-branch-policy.json"));
 const autopilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
 const certification = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
+const gitTransport = read("autopilot-portable-staging/Staging-GitTransport.ps1");
 const authorityClosure = read("http-generic-api/scripts/staging-environment-authority-closure.mjs");
 const liveCertification = read("http-generic-api/scripts/staging-live-certification.mjs");
 const windowsPreflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1");
@@ -82,6 +83,24 @@ assert.match(certification, /STAGING_CERT_EXPECTED_COMMIT/);
 assert.match(certification, /STAGING_CERT_REQUIRE_READY=false/);
 assert.match(certification, /STAGING_CERTIFICATION_BLOCKED/);
 assert.match(certification, /STAGING_CERTIFICATION_DEGRADED/);
+
+assert.match(gitTransport, /\$nativeOutput = @\(& git @transportArguments 2>&1\)/);
+assert.match(gitTransport, /\$nativeExitCode = \$LASTEXITCODE/);
+assert.ok(
+  gitTransport.indexOf("$nativeExitCode = $LASTEXITCODE") < gitTransport.indexOf("output = @($nativeOutput"),
+  "native exit code must be snapshotted before buffered output is emitted",
+);
+assert.match(gitTransport, /Test-StagingGitReadOnlyExitAnomaly/);
+assert.match(gitTransport, /\$Arguments\[0\] -ne "ls-remote"/);
+assert.match(gitTransport, /bounded retry evidence/);
+assert.match(gitTransport, /if \(\$lastExitCode -eq 0\)/);
+assert.match(gitTransport, /\$isReadOnlyExitAnomaly = Test-StagingGitReadOnlyExitAnomaly/);
+assert.match(gitTransport, /-not \(\$isRetryable -or \$isReadOnlyExitAnomaly\)/);
+assert.match(gitTransport, /retry_class=\{3\}/);
+assert.match(gitTransport, /read_only_exit_anomaly/);
+assert.match(gitTransport, /native_capture = "buffer_output_then_snapshot_exit_before_emit"/);
+assert.match(gitTransport, /ls_remote_nonzero_ref_policy = "bounded_retry_never_accept_nonzero"/);
+
 assert.match(authorityClosure, /deployment-branch-policy\.json/);
 assert.match(authorityClosure, /runtime-environment-invariant-contract\.json/);
 assert.match(authorityClosure, /runtime-db-write-authority-profiles\.json/);
