@@ -84,21 +84,29 @@ assert.match(certification, /STAGING_CERT_REQUIRE_READY=false/);
 assert.match(certification, /STAGING_CERTIFICATION_BLOCKED/);
 assert.match(certification, /STAGING_CERTIFICATION_DEGRADED/);
 
-assert.match(gitTransport, /\$nativeOutput = @\(& git @transportArguments 2>&1\)/);
-assert.match(gitTransport, /\$nativeExitCode = \$LASTEXITCODE/);
-assert.ok(
-  gitTransport.indexOf("$nativeExitCode = $LASTEXITCODE") < gitTransport.indexOf("output = @($nativeOutput"),
-  "native exit code must be snapshotted before buffered output is emitted",
-);
+assert.match(gitTransport, /System\.Diagnostics\.ProcessStartInfo/);
+assert.match(gitTransport, /System\.Diagnostics\.Process/);
+assert.match(gitTransport, /UseShellExecute = \$false/);
+assert.match(gitTransport, /RedirectStandardOutput = \$true/);
+assert.match(gitTransport, /RedirectStandardError = \$true/);
+assert.match(gitTransport, /ReadToEndAsync\(\)/);
+assert.match(gitTransport, /\$process\.ExitCode/);
+assert.match(gitTransport, /ConvertTo-StagingProcessArgument/);
+assert.match(gitTransport, /Join-StagingProcessArguments/);
+assert.doesNotMatch(gitTransport, /\$nativeOutput = @\(& git @transportArguments 2>&1\)/);
+assert.doesNotMatch(gitTransport, /\$nativeExitCode = \$LASTEXITCODE/);
+assert.match(gitTransport, /__staging_git_exit_marker/);
 assert.match(gitTransport, /Test-StagingGitReadOnlyExitAnomaly/);
 assert.match(gitTransport, /\$Arguments\[0\] -ne "ls-remote"/);
-assert.match(gitTransport, /bounded retry evidence/);
+assert.match(gitTransport, /bounded retry/);
 assert.match(gitTransport, /if \(\$lastExitCode -eq 0\)/);
 assert.match(gitTransport, /\$isReadOnlyExitAnomaly = Test-StagingGitReadOnlyExitAnomaly/);
 assert.match(gitTransport, /-not \(\$isRetryable -or \$isReadOnlyExitAnomaly\)/);
 assert.match(gitTransport, /retry_class=\{3\}/);
 assert.match(gitTransport, /read_only_exit_anomaly/);
-assert.match(gitTransport, /native_capture = "buffer_output_then_snapshot_exit_before_emit"/);
+assert.match(gitTransport, /native_capture = "system_diagnostics_process_exitcode"/);
+assert.match(gitTransport, /process_shell_execute = \$false/);
+assert.match(gitTransport, /process_stdout_stderr_redirected = \$true/);
 assert.match(gitTransport, /ls_remote_nonzero_ref_policy = "bounded_retry_never_accept_nonzero"/);
 
 assert.match(authorityClosure, /deployment-branch-policy\.json/);
