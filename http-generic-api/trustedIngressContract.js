@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify as verifySignature } from "node:crypto";
 import { RECOVERY_REPLAY_STORE_CONTRACT } from "./recoveryReadinessEvidence.js";
 import { resolveTrustedRequestHost } from "./trustedRequestHost.js";
-import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
+import { resolveRuntimeEnvironment, resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 
 const DEFAULT_ATTESTATION_HEADER = "x-mad4b-ingress-attestation";
 const DEFAULT_MAX_CLOCK_SKEW_SECONDS = 30;
@@ -37,6 +37,7 @@ function baseReadiness(env = process.env) {
     runtime_identity: runtime.ok ? {
       environment_key: runtime.environment_key,
       runtime_class: runtime.runtime_class,
+      runtime_class_explicit: runtime.runtime_class_explicit,
       deployment_model: runtime.deployment_model,
       branch: runtime.branch,
       authority_mode: runtime.authority_mode,
@@ -149,8 +150,11 @@ function verifySignedAttestation(env, request) {
 // Recovery is stricter than legacy OAuth metadata: host assertions and legacy
 // mode never confer provenance. The durable claim is consumed after ALL bindings.
 export async function verifyRecoveryGatewayIngress({ env = process.env, request, policy, replayStore } = {}) {
-  const runtime = resolveRuntimeEnvironment(env);
+  const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || runtime.environment_key !== "staging") return { ok: false, code: "ingress_runtime_invalid" };
+  if (runtime.runtime_class !== "local_windows_docker" && replayStore?.scope !== "shared_deployment") {
+    return { ok: false, code: "ingress_replay_scope_invalid" };
+  }
   const proof = verifySignedAttestation(env, request);
   if (!proof.ok) return proof;
   const c = proof.claims;
