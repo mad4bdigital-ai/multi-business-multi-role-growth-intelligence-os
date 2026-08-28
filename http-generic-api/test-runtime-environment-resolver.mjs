@@ -23,10 +23,9 @@ assert.equal(docker.runtime_class_explicit, true);
 assert.equal(docker.deployment_model, "main_local_staging");
 assert.equal(resolveRuntimeEnvironmentStrict({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" }).ok, true);
 assert.equal(resolveRuntimeEnvironment({ DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", REMOTE_MCP_ENVIRONMENT: "staging_hosted" }).reason, "runtime_class_conflict");
-const hosted = resolveRuntimeEnvironment({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_hosted" });
-assert.equal(hosted.runtime_class, "staging_hosted");
-assert.equal(hosted.runtime_class_explicit, true);
-assert.equal(hosted.deployment_model, "main_hosted_staging");
+assert.equal(resolveRuntimeEnvironment({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_hosted" }).runtime_class, "staging_hosted");
+assert.equal(resolveRuntimeEnvironment({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_hosted" }).runtime_class_explicit, true);
+assert.equal(resolveRuntimeEnvironment({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_hosted" }).deployment_model, "main_hosted_staging");
 
 const production = resolveRuntimeEnvironment({ NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" });
 assert.equal(production.ok, true);
