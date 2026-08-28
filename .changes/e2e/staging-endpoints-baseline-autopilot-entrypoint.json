@@ -114,6 +114,7 @@
           "terminal_outcome": "All three local Staging database roles are reinitialized from a repository-built schema-only bundle, exact least-privilege grants are read back, prior bind-mounted data remains preserved in a timestamped backup, and the same exact commit is certified ready.",
           "steps": [
             "Verify exact main SHA, clean tracked tree, local Docker context, and Staging-only safety flags.",
+            "Construct RESET and GRANT confirmation strings with braced ${ExpectedCommit} interpolation so the literal colon after the SHA cannot alter PowerShell variable binding.",
             "Build and dry-run the three-role schema bundle using disposable MariaDB without Production/provider access.",
             "Stop the local Compose project without -v and move runtime, governance, and persistence data directories to a timestamped recovery backup instead of deleting them.",
             "Start fresh local database containers from the current ignored .env.staging identities and prove each role can authenticate.",
@@ -123,6 +124,7 @@
           ],
           "assertions": [
             "Reset and grant reconciliation require separate exact-SHA Staging-local confirmations.",
+            "RESET and GRANT confirmation builders use the braced ${ExpectedCommit}: form and the contract verifier rejects the legacy unbraced $ExpectedCommit: form.",
             "No docker compose down -v, database-directory deletion, Production access, provider access, Hostinger mutation, or Cloudflare mutation is allowed.",
             "The backup directory is preserved on success and failure and is never automatically deleted.",
             "Grant scope is sourced from repository-owned databasePrivilegeContracts.js and permits only SELECT, INSERT, UPDATE, and DELETE as declared per role/table.",

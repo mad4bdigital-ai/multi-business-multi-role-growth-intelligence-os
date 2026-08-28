@@ -7,8 +7,10 @@ const recovery = fs.readFileSync(path.join(root, "autopilot-portable-staging/Rec
 const grantPlan = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-role-grant-plan.mjs"), "utf8");
 const grantContracts = fs.readFileSync(path.join(root, "http-generic-api/databasePrivilegeContracts.js"), "utf8");
 
-assert.match(recovery, /RESET_LOCAL_STAGING_DATABASES:\$ExpectedCommit:staging_local_windows_docker/);
-assert.match(recovery, /APPLY_STAGING_ROLE_GRANTS:\$ExpectedCommit:staging_local_windows_docker/);
+assert.match(recovery, /RESET_LOCAL_STAGING_DATABASES:\$\{ExpectedCommit\}:staging_local_windows_docker/);
+assert.match(recovery, /APPLY_STAGING_ROLE_GRANTS:\$\{ExpectedCommit\}:staging_local_windows_docker/);
+assert.doesNotMatch(recovery, /RESET_LOCAL_STAGING_DATABASES:\$ExpectedCommit:staging_local_windows_docker/);
+assert.doesNotMatch(recovery, /APPLY_STAGING_ROLE_GRANTS:\$ExpectedCommit:staging_local_windows_docker/);
 assert.match(recovery, /origin\/main moved away from ExpectedCommit/);
 assert.match(recovery, /Tracked working tree changes are forbidden/);
 assert.match(recovery, /DOCKER_HOST is forbidden/);
