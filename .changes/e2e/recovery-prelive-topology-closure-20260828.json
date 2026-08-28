@@ -101,7 +101,7 @@
         {
           "id": "core-recovery-registration-collision-closure",
           "end_to_end": true,
-          "level": "repository_contract",
+          "level": "synthetic_runtime",
           "actor": "Registration topology validator",
           "entrypoint": "http-generic-api/scripts/validate-registration-topology.mjs",
           "terminal_outcome": "Admin Core, Tenant Core and Production Recovery registrations sharing auth.mad4b.com are represented explicitly and every host collision requires an approved pair without changing routing.",
