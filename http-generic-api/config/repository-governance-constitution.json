@@ -186,6 +186,15 @@
       ]
     },
     {
+      "id": "edge_worker_runtime",
+      "patterns": [
+        "edge/**/*.mjs",
+        "edge/**/*.js",
+        "http-generic-api/activation-gateway-runtime/**/*.mjs",
+        "http-generic-api/activation-gateway-runtime/**/*.js"
+      ]
+    },
+    {
       "id": "typescript_runtime",
       "patterns": [
         "src/**/*.ts",

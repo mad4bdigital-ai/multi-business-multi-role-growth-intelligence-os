@@ -15,11 +15,18 @@ function write(root, relative, content) {
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-dispatch-"));
 const apiRoot = path.join(fixtureRoot, "http-generic-api");
 fs.mkdirSync(apiRoot, { recursive: true });
+const fixtureImports = Object.freeze({
+  tenant: JSON.stringify("./tenantRoutes.js"),
+  admin: JSON.stringify("./adminRoutes.js"),
+  mixed: JSON.stringify("./mixedRoutes.js"),
+  dynamic: JSON.stringify("./dynamicTeamRoutes.js"),
+  optional: JSON.stringify("./optionalRoutes.js"),
+});
 write(apiRoot, "routes/index.js", `
-import { buildTenantRoutes } from "./tenantRoutes.js";
-import { buildAdminRoutes } from "./adminRoutes.js";
-import { buildMixedRoutes } from "./mixedRoutes.js";
-import { buildDynamicTeamRoutes } from "./dynamicTeamRoutes.js";
+import { buildTenantRoutes } from ${fixtureImports.tenant};
+import { buildAdminRoutes } from ${fixtureImports.admin};
+import { buildMixedRoutes } from ${fixtureImports.mixed};
+import { buildDynamicTeamRoutes } from ${fixtureImports.dynamic};
 export function registerRoutes(app) {
   app.use(buildTenantRoutes());
   app.use(buildTenantRoutes());
@@ -489,7 +496,7 @@ assert.equal(parseMountedRouteFiles(fs.readFileSync(path.join(apiRoot, "routes/i
 assert.deepEqual(
   parseMountedRouteFiles(`
     function registerOptionalRoutes(app) {
-      import("./optionalRoutes.js").then(({ buildOptionalRoutes }) => {
+        import(${fixtureImports.optional}).then(({ buildOptionalRoutes }) => {
         app.use(buildOptionalRoutes());
       });
     }
