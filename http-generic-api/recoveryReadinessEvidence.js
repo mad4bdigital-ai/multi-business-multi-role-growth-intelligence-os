@@ -189,7 +189,7 @@ export async function expectedStagingGatewayDeployment() {
   };
 }
 
-export async function evaluateExternalStagingEvidence(snapshot) {
+export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIdentity = null) {
   const expected = await expectedStagingRegistration();
   const gateway = await expectedStagingGatewayDeployment();
   const registration = snapshot?.registrationEvidence;
@@ -223,7 +223,18 @@ export async function evaluateExternalStagingEvidence(snapshot) {
       && worker?.worker_build_sha === snapshot?.candidateSha
       && worker?.policy_source_sha === snapshot?.candidateSha
       && SHA256.test(worker?.worker_bundle_sha256 || "")
-      && worker?.deployed_bundle_sha256 === worker?.worker_bundle_sha256,
+      // The stamped source-set digest is not the final release bundle digest.
+      // Compare the observed deployment to the signed release artifact instead.
+      && SHA256.test(worker?.release_bundle_sha256 || "")
+      && worker?.deployed_bundle_sha256 === worker?.release_bundle_sha256,
+    gateway_request_build_binding: ingressBuildIdentity?.deployment_sha === snapshot?.candidateSha
+      && ingressBuildIdentity?.worker_build_sha === worker?.worker_build_sha
+      && SHA256.test(ingressBuildIdentity?.worker_bundle_sha256 || "")
+      && ingressBuildIdentity.worker_bundle_sha256 === worker?.worker_bundle_sha256
+      && ingressBuildIdentity?.policy_hash === gateway.policy_hash
+      && ingressBuildIdentity?.gateway_host === gateway.gateway_host
+      && Number.isInteger(ingressBuildIdentity?.expires_at)
+      && ingressBuildIdentity.expires_at > Date.now() / 1000,
   };
   return { ready: Object.values(checks).every(Boolean), checks, blocking_failures: Object.keys(checks).filter((key) => !checks[key]) };
 }

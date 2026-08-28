@@ -181,7 +181,10 @@ export async function verifyRecoveryGatewayIngress({ env = process.env, request,
       return { ok: false, code: "ingress_replayed" };
     }
   } catch { return { ok: false, code: "ingress_replay_authority_unavailable" }; }
-  return { ok: true, code: null, replay_protection: "durable_atomic_claim", secrets_included: false };
+  return { ok: true, code: null, replay_protection: "durable_atomic_claim", secrets_included: false,
+    build_identity: Object.freeze({ deployment_sha: c.deployment_sha, worker_build_sha: c.worker_build_sha,
+      worker_bundle_sha256: c.worker_bundle_sha256, policy_hash: c.policy_hash,
+      gateway_host: proof.canonical_host, expires_at: proof.expires_at }) };
 }
 
 export function buildTrustedIngressReadiness(env = process.env) {

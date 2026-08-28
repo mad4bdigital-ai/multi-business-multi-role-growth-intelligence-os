@@ -12,6 +12,9 @@
       "canonicals/openapi/registration-topology-closure.yaml",
       "http-generic-api/runtimeEnvironmentResolver.js",
       "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "docs/governance/recovery-server-managed-authority-binding.md",
       "http-generic-api/trustedIngressContract.js",
       "http-generic-api/scripts/validate-registration-topology.mjs",
       "http-generic-api/test-runtime-environment-resolver.mjs",
@@ -48,6 +51,8 @@
             "Validate actual ChatGPT registration and OAuth browser round-trip evidence.",
             "Validate that the origin is network-restricted to the signed Gateway path.",
             "Validate that the deployed Cloudflare Worker bundle and policy belong to the same exact source SHA.",
+            "Compare the deployed artifact digest to the signed release artifact, separately from the stamped source-set digest.",
+            "Bind readiness to the current verified Gateway request's build identity, policy, host and expiry.",
             "Require a replay store whose scope matches the deployment topology.",
             "Keep production_live false and perform no provider or database mutation."
           ],
@@ -56,6 +61,7 @@
             "Local Windows/Docker Staging may use the durable single-filesystem replay store; hosted multi-instance Staging requires shared_deployment replay scope.",
             "Missing or drifted registration, OAuth, network, or deployed Worker evidence blocks readiness.",
             "All evidence is bound to exact deployment SHA, target fingerprint, freshness and signed authority.",
+            "Different source-set and release-artifact digests are valid; deployed artifact drift or request-build substitution blocks readiness.",
             "Production authority remains disabled and no live action is performed by repository tests."
           ],
           "tests": [

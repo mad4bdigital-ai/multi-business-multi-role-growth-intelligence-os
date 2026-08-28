@@ -304,6 +304,8 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     ingressReplayStore: {
     ...store.replayStore, claim: (...args) => { replayClaims++; return store.replayStore.claim(...args); },
   } }));
+  let observedIngress;
+  app.use((req, _res, next) => { observedIngress = req.activationHostGateway?.ingress_build_identity; next(); });
   let guards = 0;
   app.use(buildStagingRecoveryAdminRoutes({ env,
     requireBackendApiKey: (_req, _res, next) => { guards++; next(); },
@@ -323,6 +325,11 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     assert.equal(response.status, 200);
     assert.equal((await response.json()).production_authority, false);
     assert.equal(guards, 2);
+    assert.equal(observedIngress.worker_build_sha, identity.source_sha);
+    assert.equal(observedIngress.worker_bundle_sha256, identity.bundle_sha256);
+    assert.equal(observedIngress.policy_hash, policy.content_hash_sha256);
+    assert.equal(observedIngress.gateway_host, policy.public_host);
+    assert.equal(Object.hasOwn(observedIngress, "auth_digest"), false);
     assert.notEqual(captured.get("x-mad4b-ingress-attestation"), "caller-forgery");
     const replay = await fetch(`${origin.url}${pathname}`, { headers: captured });
     assert.equal(replay.status, 403);
@@ -384,10 +391,13 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
       workerDeploymentEvidence: { ...binding, observed_in: "cloudflare_workers", deployment_verified: true,
         gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash,
         worker_build_sha: cert.deployment_sha, policy_source_sha: cert.deployment_sha,
-        worker_bundle_sha256: "1".repeat(64), deployed_bundle_sha256: "1".repeat(64) },
+        worker_bundle_sha256: "1".repeat(64), release_bundle_sha256: "2".repeat(64), deployed_bundle_sha256: "2".repeat(64) },
       unresolvedRecoveryIncidents: [], secrets_included: false,
     };
-    async function read(value) {
+    const ingress = { deployment_sha: cert.deployment_sha, worker_build_sha: cert.deployment_sha,
+      worker_bundle_sha256: "1".repeat(64), policy_hash: gateway.policy_hash,
+      gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 30 };
+    async function read(value, ingressBuildIdentity = ingress) {
       const id = await store.putCertification({ payload: value, signature: sign(null, Buffer.from(readinessEvidencePayload(value)), keys.privateKey).toString("base64url") });
       const authority = createRecoveryReadinessAuthorities({ evidenceStore: store, recordId: id,
         publicKey: keys.publicKey.export({ format: "pem", type: "spki" }), keyId: payload.key_id, issuer: payload.issuer,
@@ -397,17 +407,32 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
           target_fingerprint: cert.target_fingerprint, secrets_included: false }) },
         targetIdentityProvider: { readIdentity: async () => ({ environment: "staging", runtime_class: "local_windows_docker", target_fingerprint: cert.target_fingerprint }) },
       });
-      return buildStagingRecoveryAdminReadiness({ recoveryComposition: completeStagingComposition(), ...recoveryReadinessRouteDependencies(authority) });
+      return buildStagingRecoveryAdminReadiness({ recoveryComposition: completeStagingComposition(),
+        ...recoveryReadinessRouteDependencies(authority), ingressBuildIdentity });
     }
     const ready = await read(payload);
     assert.equal(ready.ready, true, JSON.stringify(ready));
     assert.equal(ready.production_live.enabled, false);
+    assert.notEqual(payload.workerDeploymentEvidence.worker_bundle_sha256, payload.workerDeploymentEvidence.deployed_bundle_sha256,
+      "the source-set and emitted deployment bytes legitimately have different hashes");
+    assert.equal((await read(payload, null)).ready, false, "signed evidence alone cannot bind the current Gateway request");
+    for (const patch of [
+      { deployment_sha: "f".repeat(40) }, { worker_build_sha: "f".repeat(40) },
+      { worker_bundle_sha256: "f".repeat(64) }, { policy_hash: "f".repeat(64) },
+      { gateway_host: "activation.mad4b.com" }, { expires_at: Math.floor(Date.now() / 1000) - 1 },
+    ]) {
+      const blocked = await read(payload, { ...ingress, ...patch });
+      assert.equal(blocked.ready, false, JSON.stringify(patch));
+      assert.ok(blocked.external_evidence.blocking_failures.includes("gateway_request_build_binding"));
+    }
     for (const patch of [
       { registrationEvidence: null }, { oauthEvidence: null }, { networkEvidence: null }, { workerDeploymentEvidence: null },
       { registrationEvidence: { ...payload.registrationEvidence, schema_sha256: "f".repeat(64) } },
       { oauthEvidence: { ...payload.oauthEvidence, resource: "https://activation.mad4b.com" } },
       { networkEvidence: { ...payload.networkEvidence, direct_origin_publicly_reachable: true } },
-      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, deployed_bundle_sha256: "2".repeat(64) } },
+      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, deployed_bundle_sha256: "3".repeat(64) } },
+      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, release_bundle_sha256: null } },
+      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, worker_bundle_sha256: "3".repeat(64) } },
       { adapterProvenance: { durability_capable: true } },
       { adapterProvenance: { ...payload.adapterProvenance, deployment_sha: "f".repeat(40) } },
     ]) assert.equal((await read({ ...payload, ...patch })).ready, false);

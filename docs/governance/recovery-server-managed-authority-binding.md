@@ -136,7 +136,11 @@ The first-class certification store contract exposes `putCertification` and
 immutable files, bounded reads, file and directory fsync, and atomic exclusive replay
 claims. It must run on a dedicated persistent Linux filesystem (Docker volume for
 local Staging). Every origin replica must share the same atomic replay authority.
-Independent per-host volumes are **not** a distributed replay store. Expired claim files
+Independent per-host volumes are **not** a distributed replay store.
+The security authority now requires an explicit runtime class: generic `staging`
+alone is insufficient. Hosted Staging requires an atomic replay authority declaring
+`scope: shared_deployment`; local Windows/Docker Staging may use `single_filesystem`.
+Expired claim files
 require separately managed retention; this reader never deletes evidence. A failed
 write, full disk, missing record or unavailable store fails closed.
 
@@ -191,6 +195,24 @@ the source-set digest is the final Wrangler bundle digest. The policy signer mus
 deployment must consume the emitted entrypoint, not the unstamped source entrypoint.
 The actual deployed bundle and release integration still need operational attestation.
 
+The signed `workerDeploymentEvidence` keeps three distinct values:
+
+| Field | Meaning / verification |
+| --- | --- |
+| `worker_bundle_sha256` | Stamped source-set digest, also signed in the policy and ingress proof |
+| `release_bundle_sha256` | Expected final artifact digest from the governed release pipeline |
+| `deployed_bundle_sha256` | Observed deployed artifact digest; must equal `release_bundle_sha256` |
+
+The source-set and final artifact digests need not be equal. A legacy record lacking
+`release_bundle_sha256` cannot establish readiness; it must be reissued by the approved
+evidence authority. This patch does not synthesize release or deployment evidence.
+Both readiness and certification-status reads also bind the current, verified Gateway
+request to the signed snapshot's build SHA and source-set digest, the canonical policy
+and Gateway host, and the proof's unexpired lifetime. A signed certification for one
+build cannot establish live readiness through a different build's otherwise valid
+ingress proof. Only the verified public build identity is propagated; authorization
+digests, signatures and replay tokens are not copied into the readiness context.
+
 Staging `/ready` now reads origin `/health` with the Staging host context. Origin uses
 the independent deployment reader and canonical policy hash, without requiring a
 previous certification record. Missing deployment authority returns 503. The policy
@@ -208,8 +230,8 @@ top-level fields in the generated Production policy.
 | Production readiness sources | One verified snapshot plus recomputed artifact parity | Official source/target release manifests; Production remains disabled |
 | ChatGPT registration | Compare signed observation to actual generated schema/operation hashes | Observe the external 12-operation Action; do not infer it from generation |
 | OAuth round trip | Require signed, exact-target evidence for all six stages | Real browser authorization, callback, token and resource observation |
-| Runtime class conflict | Explicit `staging_hosted` versus `staging_local_windows_docker` is rejected | Select the deployment's class; generic `staging` is an environment-only qualifier |
-| Production Admin Core collision | No Production topology change | Separate Production topology review before expanding registrations |
+| Runtime class conflict | Conflicting classes are rejected; security authorities require an explicit class | Select the deployment's class; generic `staging` alone grants no security authority |
+| Production Admin Core collision | PR #7746 models Core registrations in a non-overriding topology extension and checks same-host pairs | Real registrations still need operational review; no Production routing change |
 | Exact-head CI / owner | No bypass or reuse of old owner attestation | Fresh CI and owner decision on the final head |
 
 No synthetic signed test record is a live certificate. No registration, browser login,
