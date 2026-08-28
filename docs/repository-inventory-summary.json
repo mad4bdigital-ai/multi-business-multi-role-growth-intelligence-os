@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7465,
-    "bytes": 73703211,
-    "lines": 1711603,
+    "bytes": 73703379,
+    "lines": 1711606,
     "directories": 266,
     "categories": 13
   },
@@ -273,7 +273,7 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3557512,
+      "bytes": 3557514,
       "lines": 100287
     },
     {

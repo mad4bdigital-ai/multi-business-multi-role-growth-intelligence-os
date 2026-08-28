@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 7465,
-    "bytes": 73703211,
-    "lines": 1711603,
+    "bytes": 73703379,
+    "lines": 1711606,
     "directories": 266,
     "categories": 13
   },
@@ -40816,9 +40816,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3557512,
+      "bytes": 3557514,
       "lines": 100287,
-      "sha256": "c2e732e467e7e1b9e0c55f973bf5a402691e438f5a11175a22c2a203b1153822",
+      "sha256": "29be3e1b2c38ce76cc8d866fa099e302ad51054418ffd4e359ba11d8ca611214",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -58196,9 +58196,9 @@
       "path": "http-generic-api/scripts/frontend-surface-dispatch.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 82797,
-      "lines": 1692,
-      "sha256": "1570a3d6660d3589716357c386b261fff0142f4df9170d5e5b82fe703e3b15c2",
+      "bytes": 82847,
+      "lines": 1693,
+      "sha256": "f6523536bed7020290eea5483f4e07ee0dcbe07497b7217305bc64b6cdacc717",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67183,9 +67183,9 @@
       "path": "http-generic-api/test-frontend-surface-dispatch.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 34098,
-      "lines": 701,
-      "sha256": "adaa52178a8557891855e96d2a413a9a15a456a843764d80e82c79e279ebe936",
+      "bytes": 34214,
+      "lines": 703,
+      "sha256": "b655e22cc30a89acbbb80dc86fe5326c747b12cb09f894098cddf9ae78ba57b7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87821,7 +87821,7 @@
       "extension": ".json",
       "bytes": 291182,
       "lines": 7445,
-      "sha256": "6e2f2f693c0e08c14b8bf08069116d05bf2defa86305af57c146365a77fe2505",
+      "sha256": "1349d59a66cb850a07786b4051a497c540d11415ab2a4cb454b5e548352a902f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87832,7 +87832,7 @@
       "extension": ".json",
       "bytes": 14748,
       "lines": 668,
-      "sha256": "789fbf82af705e2d8c6389180fca2b631c748dd01ca699a73ff33d3e5697a9ae",
+      "sha256": "6fe00ab477277041dfcce8a5f21c160957ba5ddbb70d954d77137f14e0580508",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -87843,7 +87843,7 @@
       "extension": ".json",
       "bytes": 276835,
       "lines": 6574,
-      "sha256": "ebb147c36930b2d961dd2e93a0a1bcb17a08ffd7c8ec2d52eaca8c92ddd71abc",
+      "sha256": "88116139aefde6cb5287905d410da593bc68135f3647880777720518d151298b",
       "mode": "644",
       "executable": false,
       "generated": false

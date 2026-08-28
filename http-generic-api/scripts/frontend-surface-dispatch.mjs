@@ -1315,7 +1315,7 @@ function taskFor(family) {
   };
 }
 
-export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = null } = {}) {
+export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = "main" } = {}) {
   const generatorPath = fileURLToPath(import.meta.url);
   const indexPath = path.join(apiRoot, "routes", "index.js");
   const openapiPath = path.join(apiRoot, "openapi.yaml");
@@ -1636,13 +1636,14 @@ export function syncDispatchPlan({ apiRoot = process.cwd(), mode = "write", outp
   const target = path.resolve(apiRoot, output);
   const openapiIndexTarget = path.resolve(apiRoot, DEFAULT_OPENAPI_INDEX);
   const persistedBaselineRef = mode === "check" ? readJson(target, {})?.baseline?.ref : null;
-  let plan = buildDispatchPlan({ apiRoot, baselineRef: baselineRef || persistedBaselineRef });
+  const effectiveBaselineRef = baselineRef || persistedBaselineRef || "main";
+  let plan = buildDispatchPlan({ apiRoot, baselineRef: effectiveBaselineRef });
   const expectedOpenApiIndex = runtimeOpenApiContent(plan);
   const openapiIndexDrift = readText(openapiIndexTarget) !== expectedOpenApiIndex;
   if (mode === "write") {
     fs.mkdirSync(path.dirname(openapiIndexTarget), { recursive: true });
     fs.writeFileSync(openapiIndexTarget, expectedOpenApiIndex);
-    plan = buildDispatchPlan({ apiRoot, baselineRef: baselineRef || persistedBaselineRef });
+    plan = buildDispatchPlan({ apiRoot, baselineRef: effectiveBaselineRef });
   }
   const content = `${JSON.stringify(plan, null, 2)}\n`;
   const current = readText(target);

@@ -500,6 +500,8 @@ assert.deepEqual(
 const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
 assert.equal(plan.schema_version, "frontend-surface-dispatch-v1");
 assert.equal(plan.baseline.ref, "fixture-sha");
+const defaultBaselinePlan = buildDispatchPlan({ apiRoot });
+assert.equal(defaultBaselinePlan.baseline.ref, "main");
 assert.equal(plan.coverage.mounted_route_file_count, 5);
 assert.equal(plan.coverage.mounted_family_count, 8);
 assert.equal(plan.coverage.mixed_scope_route_file_count, 1);
