@@ -185,10 +185,11 @@ jobs:
             Source base: `${{ inputs.base_sha }}`.
             Scope is restricted to `docs/auto-docs-agent/**`.
             Generated note risk: `${{ steps.agent.outputs.risk }}`.
-            Auto-merge candidate: `${{ steps.agent.outputs.auto_merge_candidate }}`.
+            Governance-finalizer candidate: `${{ steps.agent.outputs.auto_merge_candidate }}`.
+            Native GitHub auto-merge is intentionally not registered. Derived State Closure and the Governance Finalizer own any automated merge decision.
             Work Maps are excluded and remain owned by the governed Spec Kit Work Map Autofix writer.
 
-      - name: Register governed auto-merge for safe impact notes
+      - name: Record governance-finalizer eligibility for safe impact notes
         if: >-
           steps.target.outputs.stale != 'true' &&
           steps.agent.outputs.should_write == 'true' &&
@@ -198,23 +199,18 @@ jobs:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
           PR_NUMBER: ${{ steps.create_followup.outputs.pull-request-number }}
-          TARGET_BRANCH: main
-          REQUIRED_CHECK_CONTEXT: Derived State Closure
         shell: bash
         run: |
           set -euo pipefail
-          node .github/ops/github-followup-automerge-readiness.mjs
-          pr_head_sha="$(
-            gh api \
-              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
-              --jq '.head.sha'
-          )"
-          [[ "$pr_head_sha" =~ ^[a-f0-9]{40}$ ]]
-          gh pr merge "$PR_NUMBER" \
-            --auto \
-            --squash \
-            --delete-branch \
-            --match-head-commit "$pr_head_sha"
+          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$current_main_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+            gh pr close "$PR_NUMBER" --comment "Closing stale Docs Agent follow-up: main moved from ${EXPECTED_HEAD_SHA} to ${current_main_sha} before governance finalization."
+            echo "Refused stale Docs Agent finalization."
+            exit 0
+          fi
+          pr_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          [[ "$pr_head_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "Docs Agent PR ${PR_NUMBER} head ${pr_head_sha} is eligible for governance finalization after Derived State Closure; native auto-merge remains disabled."
 
       - name: Record manual-review requirement
         if: >-
