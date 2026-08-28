@@ -72,6 +72,7 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".github/workflows/e2e-phase-governance.yml",
       ".github/workflows/staging-admin-schema-contract.yml",
       "http-generic-api/recoveryReadinessEvidence.js",
       ".changes/e2e/repository-generated-artifact-queue-readiness.json",

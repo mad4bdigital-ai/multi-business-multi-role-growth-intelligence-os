@@ -333,6 +333,7 @@
     "waiver_requires_digest_and_expiry": true
   },
   "control_plane_paths": [
+    ".github/workflows/e2e-phase-governance.yml",
     ".github/workflows/staging-admin-schema-contract.yml",
     "http-generic-api/recoveryReadinessEvidence.js",
     ".changes/e2e/repository-generated-artifact-queue-readiness.json",
