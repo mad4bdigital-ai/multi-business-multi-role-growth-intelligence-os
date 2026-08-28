@@ -192,7 +192,7 @@ if (missingMutations.length) fail(`mutations outside operation registry: ${missi
 const inventory = JSON.parse(read(inventoryPath));
 assert.equal(inventory.unclassified_write_route_count, 0, "unclassified_write_route_count must remain zero");
 assert.equal(inventory.readiness?.write_activation_allowed, false, "write activation must remain disabled in inventory");
-execFileSync(process.execPath, [path.join(repoRoot, "scripts/remote-mcp-write-scope-inventory.mjs"), "--check"], {
+execFileSync(process.execPath, [path.join(repoRoot, "scripts/remote-mcp-write-scope-semantic-currentness.mjs")], {
   cwd: repoRoot,
   stdio: "inherit",
 });
