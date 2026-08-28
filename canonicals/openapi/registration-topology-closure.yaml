@@ -84,15 +84,19 @@ surface_bindings:
   admin_core_production:
     registration_set: admin_core_production
     action_slot: admin_core
+    server_url: https://auth.mad4b.com
   tenant_core_production:
     registration_set: tenant_core_production
     action_slot: tenant_core
+    server_url: https://auth.mad4b.com
   admin_core_staging:
     registration_set: admin_core_staging
     action_slot: admin_core
+    server_url: https://dev.mad4b.com
   tenant_core_staging:
     registration_set: tenant_core_staging
     action_slot: tenant_core
+    server_url: https://dev.mad4b.com
 allowed_host_collision_pairs:
   - [admin_core_production, tenant_core_production]
   - [admin_core_production, production_recovery]
