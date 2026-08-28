@@ -226,29 +226,20 @@ jobs:
             --title "Surface contract agent: automated remediation" \
             --body "<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->
 
-Automated, checksum-bound surface-contract remediation from exact main ${EXPECTED_HEAD_SHA}. Scope is registered documentation and generated evidence only. Spec manifests are intentionally excluded because their environment impact is not uniformly repository-only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Remediator auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
+Automated, checksum-bound surface-contract remediation from exact main ${EXPECTED_HEAD_SHA}. Scope is registered documentation and generated evidence only. Spec manifests are intentionally excluded because their environment impact is not uniformly repository-only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Governance-finalizer eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}. Native GitHub auto-merge is intentionally not registered; Derived State Closure and the Governance Finalizer own any automated merge decision.")
           echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
           PR_NUMBER="$(gh pr view "$PR_URL" --json number --jq '.number')"
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
           if [ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]; then
-            TARGET_BRANCH=main \
-            REQUIRED_CHECK_CONTEXT="Derived State Closure" \
-            EXPECTED_HEAD_SHA="$EXPECTED_HEAD_SHA" \
-            PR_NUMBER="$PR_NUMBER" \
-            node .github/ops/github-followup-automerge-readiness.mjs
-
             current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
             if [[ "$current_main_sha" != "$EXPECTED_HEAD_SHA" ]]; then
               gh pr close "$PR_URL" --comment "Closing stale surface remediation PR: main moved from ${EXPECTED_HEAD_SHA} to ${current_main_sha}. A newer exact-head run owns regeneration."
               exit 0
             fi
             pr_head_sha="$(gh pr view "$PR_URL" --json headRefOid --jq '.headRefOid')"
-            if ! gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then
-              echo "::error::Failed to register exact-head governed auto-merge."
-              exit 1
-            fi
-            echo "Registered exact-head governed auto-merge for ${PR_URL}."
+            [[ "$pr_head_sha" =~ ^[0-9a-f]{40}$ ]]
+            echo "Surface remediation PR ${PR_NUMBER} head ${pr_head_sha} is eligible for governance finalization after Derived State Closure; native auto-merge remains disabled."
           else
             echo "PR remains open because manual review or new-gap review is required."
           fi
