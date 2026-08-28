@@ -4,6 +4,8 @@ import path from "node:path";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname, "..");
 const recovery = fs.readFileSync(path.join(root, "autopilot-portable-staging/Recover-StagingDatabases.ps1"), "utf8");
+const clone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.ps1"), "utf8");
+const roleManifest = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/staging-database-role-migration-manifest.json"), "utf8"));
 const grantPlan = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-role-grant-plan.mjs"), "utf8");
 const grantContracts = fs.readFileSync(path.join(root, "http-generic-api/databasePrivilegeContracts.js"), "utf8");
 
@@ -44,6 +46,16 @@ assert.match(recovery, /hostinger_mutation = \$false/);
 assert.match(recovery, /cloudflare_mutation = \$false/);
 assert.match(recovery, /secrets_included = \$false/);
 
+assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
+assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 11);
+assert.match(clone, /staging-database-role-migration-manifest\.json/);
+assert.match(clone, /Assert-SetEqual \$canonicalRuntimeCensus \$requiredRuntimeCensus "schema bundle runtime census projection"/);
+assert.match(clone, /\$requiredRuntimeSupportTables = @\(\$roleMigrationManifest\.validation\.required_runtime_support_tables\)/);
+assert.match(clone, /Assert-ContainsSet \$requiredRuntimeSupportTables @\(\$runtimeRole\.tables\) "runtime support"/);
+assert.match(clone, /Assert-ContainsSet \$requiredRuntimeSupportTables @\(\$runtimeTableNames\) "post-import runtime support"/);
+assert.doesNotMatch(clone, /\$bundleManifest\.validation\.required_runtime_support_tables/);
+
 assert.match(grantPlan, /BOOTSTRAP_ROLE_GRANT_POLICIES/);
 assert.match(grantPlan, /runtime_persistence/);
 assert.match(grantPlan, /broad_schema_grants_allowed: false/);
@@ -61,6 +73,7 @@ console.log(JSON.stringify({
   exact_sha_required: true,
   explicit_reset_confirmation_required: true,
   explicit_grant_confirmation_required: true,
+  canonical_runtime_support_contract_required: true,
   repository_owned_grant_matrix: true,
   certification_ready_required: true,
   production_accessed: false,
