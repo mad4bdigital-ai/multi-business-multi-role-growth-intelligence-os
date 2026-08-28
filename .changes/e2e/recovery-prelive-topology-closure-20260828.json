@@ -15,7 +15,8 @@
       "http-generic-api/trustedIngressContract.js",
       "http-generic-api/scripts/validate-registration-topology.mjs",
       "http-generic-api/test-runtime-environment-resolver.mjs",
-      "http-generic-api/test-staging-recovery-admin-surface.mjs"
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-server-managed-recovery-binding.mjs"
     ]
   },
   "environment_impact": {
@@ -73,6 +74,13 @@
               "args": []
             },
             {
+              "id": "server-managed-recovery-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-managed-recovery-binding.mjs",
+              "args": []
+            },
+            {
               "id": "registration-topology-validator",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -86,7 +94,8 @@
             "http-generic-api/trustedIngressContract.js",
             "http-generic-api/scripts/validate-registration-topology.mjs",
             "http-generic-api/test-runtime-environment-resolver.mjs",
-            "http-generic-api/test-staging-recovery-admin-surface.mjs"
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-server-managed-recovery-binding.mjs"
           ]
         },
         {
