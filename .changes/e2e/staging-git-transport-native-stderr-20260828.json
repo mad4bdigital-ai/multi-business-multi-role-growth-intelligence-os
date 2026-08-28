@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-git-transport-native-stderr-20260828",
-  "title": "Windows Staging Git transport handling and fetch isolation",
+  "title": "Windows Staging Git transport handling, fetch isolation, and remote-read exit capture",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "secrets_included": false,
@@ -11,6 +11,8 @@
       ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
       "autopilot-portable-staging/Staging-GitTransport.ps1",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
       ".github/derived-state-governance.json",
       "autopilot-portable-staging/manifest.json"
@@ -30,7 +32,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep the Windows Staging Git transport robust to successful native stderr diagnostics and isolate bootstrap fetch from repository auto-maintenance and submodule recursion while preserving exact exit-code failure handling, exact-SHA verification, and bounded retries.",
+      "objective": "Keep the Windows Staging Git transport robust to native stdout/stderr stream behavior, isolate bootstrap fetch from repository auto-maintenance and submodule recursion, and stabilize read-only ls-remote exit capture while preserving exact non-zero fail-closed behavior, exact-SHA verification, and bounded retries.",
       "e2e_journeys": [
         {
           "id": "windows-bootstrap-git-stderr-success-path",
@@ -140,6 +142,60 @@
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs"
           ]
+        },
+        {
+          "id": "windows-staging-ls-remote-exit-capture",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging operator",
+          "entrypoint": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+          "terminal_outcome": "Auto Deploy reads origin/main through the shared transport, snapshots Git LASTEXITCODE immediately after buffered native output, accepts only exit code zero, and retries a structurally valid ls-remote/non-zero anomaly only within the existing bounded retry budget.",
+          "steps": [
+            "Resolve origin/main through Invoke-StagingGit ls-remote on Windows PowerShell 5.1.",
+            "Buffer native stdout/stderr inside the Continue-only capture scope.",
+            "Snapshot LASTEXITCODE immediately after Git returns and before any buffered output is emitted as PowerShell objects.",
+            "Advance only when the snapshotted exit code is zero.",
+            "If ls-remote returns a complete ref line with a non-zero exit, classify it only as a bounded read-only exit anomaly and retry; never promote that attempt to success.",
+            "Preserve exact-SHA, origin identity, eligibility workflow, and Staging-only authority gates."
+          ],
+          "assertions": [
+            "A non-zero Git exit code is never accepted as success, including when ls-remote output contains a valid SHA/ref line.",
+            "The native exit code is captured before PowerShell enumerates or re-emits buffered native output.",
+            "Read-only exit anomalies use the existing maximum-attempt and exponential-backoff bounds.",
+            "Fetch retains --no-auto-maintenance and --no-recurse-submodules isolation from the prior fix.",
+            "No credentials, GitHub tokens, or local environment secrets are printed or included in evidence.",
+            "No Docker, database, migration, provider, Hostinger, Cloudflare, Production, branch-protection, or ruleset mutation is authorized by this patch."
+          ],
+          "tests": [
+            {
+              "id": "staging-autopilot-closure-validator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
+            "autopilot-portable-staging/Staging-GitTransport.ps1",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "autopilot-portable-staging/manifest.json"
+          ]
         }
       ]
     },
@@ -149,7 +205,7 @@
       "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority.",
       "blockers": [
         "Production and provider actions require separate explicit authorization and independent evidence.",
-        "This transport fix only changes local Staging Git process behavior and never activates production_live authority."
+        "Live Staging certification remains required after this Staging-impacting change is merged and deployed."
       ]
     }
   ]
