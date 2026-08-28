@@ -75,7 +75,7 @@
         "Governed Production Promotion"
       ],
       "required_check_producer": "trusted_github_app_attestor",
-      "required_check_evidence": "exact_current_merge_candidate",
+      "required_check_evidence": "source_base_merge_candidate_executed_sha",
       "required_check_activation": "promotion_authority_controls_release",
       "attestation_source_workflow": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "attestation_source_events": [
@@ -532,7 +532,9 @@
     "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
     ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",
     ".changes/e2e/spec018-residual-readiness-evidence.json",
-    ".github/workflows/spec-011-delegation-mariadb-certification.yml"
+    ".github/workflows/spec-011-delegation-mariadb-certification.yml",
+    ".changes/e2e/recovery-prelive-topology-closure-20260828.json",
+    "canonicals/openapi/registration-topology-closure.yaml"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
