@@ -8,8 +8,11 @@
   "scope": {
     "include": [
       ".changes/e2e/remote-mcp-oauth-path-format-guard.json",
+      ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
+      ".github/derived-state-governance.json",
       "http-generic-api/**",
       "scripts/remote-mcp-write-scope-inventory.mjs",
+      "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
       "scripts/test-remote-mcp-write-scope-inventory.mjs"
     ]
   },
@@ -27,29 +30,32 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep future OpenAPI, Custom GPT surface, OAuth, and Remote MCP write paths fail-closed, generated-artifact synchronized, and covered by deterministic local and CI contracts without activating write scopes.",
+      "objective": "Keep future OpenAPI, Custom GPT surface, OAuth, and Remote MCP write paths fail-closed, semantically synchronized, and covered by deterministic local and CI contracts without activating write scopes or treating observability-only inventory counters as semantic drift.",
       "e2e_journeys": [
         {
           "id": "verify-future-path-format-and-governance-coverage",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository maintainer and deterministic CI guard",
-          "entrypoint": "A changed OpenAPI, OAuth, Custom GPT surface, migration, route, or write-inventory artifact is evaluated by the local path guard and its required contract tests.",
-          "terminal_outcome": "Every source operation is marker-covered or explicitly excluded, generated registries match their source fingerprints, write inventory remains classified with activation disabled, and parity contracts pass.",
+          "entrypoint": "A changed OpenAPI, OAuth, Custom GPT surface, migration, route, workflow, semantic-currentness verifier, or write-inventory artifact is evaluated by the local path guard and its required contract tests.",
+          "terminal_outcome": "Every source operation is marker-covered or explicitly excluded, generated registries match their source fingerprints, the Remote MCP write inventory is semantically current with write activation disabled, and parity contracts pass.",
           "steps": [
-            "Load the canonical OpenAPI source, v2 Custom GPT surface registry, operation registry, and write-scope inventory.",
+            "Load the canonical OpenAPI source, Custom GPT surface registry, operation registry, write-scope inventory, and registered derived-state semantic-currentness contract.",
             "Check source-operation marker and exclusion coverage against the historical baseline so a new unmarked path fails closed.",
             "Regenerate and compare operation and surface artifacts without applying migrations or calling providers.",
-            "Run OAuth token exchange, activation coverage, mutation governance, and shared-policy parity fixtures.",
+            "Regenerate the Remote MCP inventory in scratch space and compare its semantic projection, ignoring only the explicitly reviewed observability-only file_count and tracked-files-scanned Markdown row.",
+            "Run OAuth token exchange, activation coverage, mutation governance, inventory self-test, and shared-policy parity fixtures.",
             "Report deterministic pass or fail evidence with no write-scope activation and no secret values."
           ],
           "assertions": [
             "A new source OpenAPI operation requires a surface marker or a bounded exclusion record.",
             "Operation registry and generated artifacts must match the current source fingerprint.",
             "unclassified_write_route_count remains zero and write activation remains disabled.",
+            "Remote MCP route, scope, policy, or classification drift remains merge-blocking even when observability-only file_count drift is ignored.",
+            "The workflow and local path guard use the registered semantic currentness verifier rather than a raw byte-level inventory check.",
             "Tenant GPT OAuth token exchange remains PKCE S256-bound and testable without a live provider or database migration.",
             "Internal OAuth, SSO, and scope-catalog ledgers remain outside tenant or admin activation surfaces.",
-            "All checks are deterministic, bounded, and secret-free."
+            "All checks are deterministic, bounded, read-only, and secret-free."
           ],
           "tests": [
             {
@@ -64,6 +70,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/ci-path-format-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-write-scope-semantic-currentness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
               "args": []
             },
             {
@@ -89,11 +102,14 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
+            ".github/derived-state-governance.json",
             "http-generic-api/scripts/ci-path-format-guard.mjs",
             "http-generic-api/test-remote-mcp-oauth-path-format-guard.mjs",
             "http-generic-api/openapi/source-operation-coverage.baseline.json",
             "http-generic-api/openapi/openapi-mutation-policy.generated.json",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
             "http-generic-api/scripts/activation-surface-coverage-check.mjs",
             "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
             "http-generic-api/test-remote-mcp-incremental-consent.mjs"
@@ -109,7 +125,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale artifacts, concurrent refresh, ingress drift, and path-registry conflicts with bounded recovery evidence."
+      "objective": "Exercise stale semantic artifacts, concurrent refresh, ingress drift, and path-registry conflicts with bounded recovery evidence."
     },
     {
       "id": "canary",
