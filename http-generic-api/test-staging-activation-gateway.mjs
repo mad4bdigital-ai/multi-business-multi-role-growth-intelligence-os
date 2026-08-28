@@ -46,11 +46,16 @@ try {
   assert.match(adminSchemaText, /registration_set: admin_activation_staging/);
   const retiredRecoverySchema = await get("/openapi.custom-gpt.recovery-admin.staging.yaml", "activation-dev.mad4b.com");
   assert.equal(retiredRecoverySchema.status, 404, "standalone Recovery schema must not remain a public registration artifact");
-  const alternateHost = await getWithHeaders("/openapi.tenant-gpt.activation.staging.yaml", {
+  const conflictingHostClaims = await getWithHeaders("/openapi.tenant-gpt.activation.staging.yaml", {
     "x-forwarded-host": "untrusted.invalid",
     "x-original-host": "activation-dev.mad4b.com",
   });
-  assert.equal(alternateHost.status, 200, "gateway must choose the first trusted non-empty host candidate");
+  assert.equal(conflictingHostClaims.status, 404, "gateway must reject conflicting trusted host claims");
+  const consistentHostClaims = await getWithHeaders("/openapi.tenant-gpt.activation.staging.yaml", {
+    "x-forwarded-host": "activation-dev.mad4b.com",
+    "x-original-host": "activation-dev.mad4b.com",
+  });
+  assert.equal(consistentHostClaims.status, 200, "gateway may accept repeated identical trusted host claims");
   const wrongHost = await get("/openapi.tenant-gpt.activation.staging.yaml", "dev.mad4b.com");
   assert.equal(wrongHost.status, 404);
   const forbidden = await get("/auth/login", "activation-dev.mad4b.com");

@@ -73,6 +73,40 @@ assert.equal(verification.sourceCommit, "a".repeat(40));
 assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_version);
 
 {
+  const handler = createActivationGateway({
+    policy,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ok: true,
+      policyHash: policy.content_hash_sha256,
+      sourceCommit: "a".repeat(40),
+      deploymentId: "upstream-test-001",
+    }), { status: 200, headers: { "content-type": "application/json" } }),
+    cryptoImpl: webcrypto,
+    now: () => Date.parse("2029-01-01T00:00:00.000Z"),
+    logger: { info() {} },
+  });
+  const response = await handler(new Request("https://activation.mad4b.com/ready"), validEnv, {});
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.upstreamEvidenceVerified, true);
+  assert.equal(body.upstreamSourceCommit, "a".repeat(40));
+}
+
+{
+  const handler = createActivationGateway({
+    policy,
+    fetchImpl: async () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } }),
+    cryptoImpl: webcrypto,
+    now: () => Date.parse("2029-01-01T00:00:00.000Z"),
+    logger: { info() {} },
+  });
+  const response = await handler(new Request("https://activation.mad4b.com/ready"), validEnv, {});
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.error.code, "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISSING");
+}
+
+{
   const attestation = JSON.parse(validEnv.ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON);
   const first = attestation.signature_b64url[0];
   attestation.signature_b64url = `${first === "A" ? "B" : "A"}${attestation.signature_b64url.slice(1)}`;

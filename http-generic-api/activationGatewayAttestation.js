@@ -35,6 +35,7 @@ export function policyPayload(policy) {
     upstream_origin: policy.upstream_origin,
     mutation_stale_policy: policy.mutation_stale_policy,
     read_stale_grace_seconds: policy.read_stale_grace_seconds,
+    ready_provenance: policy.ready_provenance,
     source_registry: policy.source_registry,
     source_surfaces: policy.source_surfaces,
     oauth_handoff_routes: policy.oauth_handoff_routes,

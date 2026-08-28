@@ -51,6 +51,15 @@ function validateRegistrationSets(registry, errors, evidence) {
     }
     if (new Set(members).size !== members.length) fail(errors, `${setKey}: duplicate member surface`);
     if (!set.server_uri || !hostOf(set.server_uri)) fail(errors, `${setKey}: server_uri is invalid`);
+    if (!new Set(["admin_service", "tenant"]).has(set.audience)) fail(errors, `${setKey}: audience must be semantic admin_service or tenant`);
+    if (!new Set(["admin_gpt", "tenant_gpt"]).has(set.consumer_principal_class)) fail(errors, `${setKey}: consumer_principal_class is invalid`);
+    if (!set.public_host || !hostOf(`https://${set.public_host}`)) fail(errors, `${setKey}: public_host is invalid`);
+    if (!set.upstream_origin || !hostOf(set.upstream_origin)) fail(errors, `${setKey}: upstream_origin is invalid`);
+    if (!set.gateway_host || set.gateway_host !== hostOf(`https://${set.public_host}`)) fail(errors, `${setKey}: gateway_host must match public_host`);
+    if (!new Set(["admin_service", "tenant"]).has(set.scope_authority)) fail(errors, `${setKey}: scope_authority is invalid`);
+    if (set.scope_authority !== set.audience) fail(errors, `${setKey}: scope_authority must match audience`);
+    if (set.audience === "tenant" && (!set.oauth_issuer || !hostOf(set.oauth_issuer))) fail(errors, `${setKey}: tenant registration requires oauth_issuer`);
+    if (set.audience === "admin_service" && set.oauth_issuer) fail(errors, `${setKey}: admin registration must not declare oauth_issuer`);
     const outputSurface = registry.surfaces?.[set.output_surface];
     if (!outputSurface) {
       fail(errors, `${setKey}: output_surface is missing: ${set.output_surface}`);
@@ -109,8 +118,8 @@ function validateRegistrationSets(registry, errors, evidence) {
     const authProfiles = new Set(memberProfiles.map(({ surface }) => surface.auth_profile).filter(Boolean));
     if (authProfiles.size > 1) fail(errors, `${setKey}: members mix auth profiles: ${[...authProfiles].join(", ")}`);
     if (set.auth_profile && [...authProfiles].some((profile) => profile !== set.auth_profile)) fail(errors, `${setKey}: members do not match declared auth_profile`);
-    if (set.audience === "admin" && [...authProfiles].some((profile) => profile !== "admin_service")) fail(errors, `${setKey}: admin registration must use admin_service`);
-    if (set.audience === "tenant" && [...authProfiles].some((profile) => profile !== "tenant_oauth")) fail(errors, `${setKey}: tenant registration must use tenant_oauth`);
+    if (set.audience === "admin_service" && (set.consumer_principal_class !== "admin_gpt" || [...authProfiles].some((profile) => profile !== "admin_service"))) fail(errors, `${setKey}: admin registration must use admin_gpt/admin_service`);
+    if (set.audience === "tenant" && (set.consumer_principal_class !== "tenant_gpt" || [...authProfiles].some((profile) => profile !== "tenant_oauth"))) fail(errors, `${setKey}: tenant registration must use tenant_gpt/tenant_oauth`);
 
     const memberHosts = new Set(memberProfiles.map(({ surface }) => hostOf(surface.server_url)).filter(Boolean));
     if (memberHosts.size > 1) fail(errors, `${setKey}: members resolve to different server hosts`);
@@ -130,7 +139,12 @@ function validateRegistrationSets(registry, errors, evidence) {
       gateway_host: set.gateway_host,
       action_slot: set.action_slot,
       audience: set.audience,
+      consumer_principal_class: set.consumer_principal_class,
       auth_profiles: [...authProfiles].sort(),
+      public_host: set.public_host,
+      upstream_origin: set.upstream_origin,
+      scope_authority: set.scope_authority,
+      oauth_issuer: set.oauth_issuer || null,
       members,
       member_operation_count: memberOperationCount,
       generated_operation_count: outputOps.length,
@@ -197,10 +211,17 @@ function validateGatewayPolicies(registry, errors, evidence) {
         fail(errors, `${policyKey}: warning budget count for ${surfaceKey} does not match generated schema`);
       }
     }
+    if (!policy.ready_provenance?.required || policy.ready_provenance.require_policy_hash !== true || policy.ready_provenance.require_source_commit !== true) {
+      fail(errors, `${policyKey}: ready provenance must require policy hash and source commit`);
+    }
+    if ((policy.routes || []).some((route) => !["mutation_strict", "recovery_strict", "read_strict"].includes(route.freshness_class))) {
+      fail(errors, `${policyKey}: every route must declare a strict freshness_class`);
+    }
     if (policyKey === "activation_gateway_staging") {
       const recoveryRoutes = (policy.routes || []).filter((route) => String(route.path).startsWith("/admin/recovery/staging/"));
       if (recoveryRoutes.length !== 3 || recoveryRoutes.some((route) => route.mutation !== false)) fail(errors, `${policyKey}: Recovery route set is not exactly three GET-only routes`);
       if (policy.public_host !== "activation-dev.mad4b.com" || policy.upstream_origin !== "https://dev.mad4b.com") fail(errors, `${policyKey}: public/upstream identity is not canonical`);
+      if (Number(policy.read_stale_grace_seconds) !== 0) fail(errors, `${policyKey}: stale read grace must be zero`);
     }
     evidence.gateway_policies[policyKey] = {
       public_host: policy.public_host,

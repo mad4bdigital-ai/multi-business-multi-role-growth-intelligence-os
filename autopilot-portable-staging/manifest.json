@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "13c03d31712edb9fa3d953bcc74e121b118e9114aa68edb33f8ef74f68b53880"
+      "sha256": "d765168c4d60b3c8c8034a62f10f7e4a0d92dd110bac4eb8ab0f3399a662e57c"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "6fae32256b60d952ff10471921ed091ab3f948c5dfff48e2c79722b4fcb1e7c5"
+      "sha256": "50dfb3c59fb2942cad935e181739804774acbceb5fc46bd07e0ce73cf864480c"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -226,11 +226,11 @@
     },
     {
       "path": "http-generic-api/tenantGptOAuthPreset.js",
-      "sha256": "f32170c09ffa8c94c8bfbc1055bfb102bbb617e2e9b2bc1b59e678c19bb3af4a"
+      "sha256": "77a760c50cd16c056b026c1e8dd7c0fdba5e141f3299675ba1c559e795992d22"
     },
     {
       "path": "http-generic-api/tenantGptOAuthResourceProfile.js",
-      "sha256": "3f598f26a308442b74b1d1170fde3e18bea3947ed22efb5e000674e2689d1d68"
+      "sha256": "28ad2d7f62e6350910e9ab9c149a0d67e65d6d152a159f5d193664cde91f97ec"
     },
     {
       "path": "http-generic-api/test-canonical-business-operation-registry.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "35dd165c9929f7e807b6ee0900bdf3325904f2e5ce8fad0d7dbc4c840daa743d"
+      "sha256": "5d8cd8fb3d9fb4489225ff53df6c856147d662fc418ca2e0793c860f816b8e26"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -310,7 +310,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-GitTransport.ps1",
-      "sha256": "3ff503800a5f9727f286ff10b3b8b05125d81c47f473cd11b3a2a59958862928"
+      "sha256": "e47d250d5bbc136ffd614e955b9a05ea4442073d6dd58441233e5e4811481469"
     },
     {
       "path": "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",

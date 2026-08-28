@@ -22,9 +22,25 @@ function Invoke-StagingGit([string[]]$Arguments) {
     $lastOutput = @()
     $lastExitCode = 1
     for ($attempt = 1; $attempt -le $script:StagingGitMaxAttempts; $attempt++) {
-        $rawOutput = @(& git @transportArguments 2>&1)
-        $lastExitCode = $LASTEXITCODE
-        $lastOutput = @($rawOutput | ForEach-Object { [string]$_ })
+        $invocationOutput = @(& {
+            # Windows PowerShell 5.1 can promote native stderr to a terminating
+            # NativeCommandError when the caller uses ErrorActionPreference=Stop.
+            # Git writes progress/protocol diagnostics to stderr even on success;
+            # capture that stream without weakening the exit-code gate.
+            $ErrorActionPreference = "Continue"
+            & git @transportArguments 2>&1
+            [pscustomobject]@{ __staging_git_exit_marker = $true; exit_code = $LASTEXITCODE }
+        })
+        $marker = $invocationOutput | Select-Object -Last 1
+        if ($null -eq $marker -or $marker.PSObject.Properties.Name -notcontains "__staging_git_exit_marker") {
+            throw "STAGING_GIT_OPERATION_FAILED: git $($Arguments -join ' ') did not return an exit marker"
+        }
+        $lastExitCode = [int]$marker.exit_code
+        if ($invocationOutput.Count -gt 1) {
+            $lastOutput = @($invocationOutput[0..($invocationOutput.Count - 2)] | ForEach-Object { [string]$_ })
+        } else {
+            $lastOutput = @()
+        }
         if ($lastExitCode -eq 0) {
             return [pscustomobject]@{
                 exit_code = 0

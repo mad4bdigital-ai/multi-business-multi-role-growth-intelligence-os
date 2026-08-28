@@ -78,6 +78,25 @@ assert.deepEqual(registry.registration_host_collision_policy.allowed_pairs, [
   ["admin_activation_staging", "tenant_activation_staging"],
 ]);
 assert.deepEqual(registry.registration_sets.admin_activation_staging.tenant_surfaces_forbidden, ["tenant_activation_staging"]);
+for (const key of ["admin_activation_production", "production_recovery", "admin_activation_staging"]) {
+  const set = registry.registration_sets[key];
+  assert.equal(set.consumer_principal_class, "admin_gpt", `${key} must be Admin GPT-owned`);
+  assert.equal(set.audience, "admin_service", `${key} must use semantic admin_service audience`);
+  assert.equal(set.scope_authority, "admin_service", `${key} must use Admin scope authority`);
+  assert.equal(set.oauth_issuer, null, `${key} must not advertise tenant OAuth issuer`);
+  assert.ok(set.public_host && set.upstream_origin, `${key} must bind public and upstream hosts`);
+}
+for (const key of ["tenant_activation_production", "tenant_activation_staging"]) {
+  const set = registry.registration_sets[key];
+  assert.equal(set.consumer_principal_class, "tenant_gpt", `${key} must be Tenant GPT-owned`);
+  assert.equal(set.audience, "tenant", `${key} must use tenant audience`);
+  assert.equal(set.scope_authority, "tenant", `${key} must use tenant scope authority`);
+  assert.ok(set.oauth_issuer, `${key} must declare an OAuth issuer`);
+  assert.ok(set.public_host && set.upstream_origin, `${key} must bind public and upstream hosts`);
+}
+assert.equal(registry.registration_sets.admin_activation_staging.public_host, "activation-dev.mad4b.com");
+assert.equal(registry.registration_sets.admin_activation_staging.upstream_origin, "https://dev.mad4b.com");
+assert.equal(registry.registration_sets.production_recovery.server_uri, "https://auth.mad4b.com");
 const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
 const environmentSurfaceKeys = baseSurfaceKeys.flatMap((base) => [
   `${base}_production`,
@@ -231,7 +250,7 @@ for (const environment of ["production", "staging"]) {
   const set = registry.registration_sets[`admin_activation_${environment}`];
   const output = loadYaml(registry.surfaces[set.output_surface].output_file);
   assert.equal(output.servers?.[0]?.url, set.server_uri);
-  assert.equal(output["x-mad4b-registration"]?.audience, "admin");
+  assert.equal(output["x-mad4b-registration"]?.audience, "admin_service");
   assert(!set.members.includes(`tenant_activation_${environment}`), `${environment} Tenant Activation must remain a separate registration slot`);
 }
 for (const environment of ["production", "staging"]) {

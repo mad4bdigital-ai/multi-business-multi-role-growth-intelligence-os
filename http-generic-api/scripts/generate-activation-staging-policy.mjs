@@ -86,6 +86,11 @@ function buildRoutes(registry, surfaceKeys, limits) {
       auth_profiles: [...new Set(route.auth_profiles)].sort(),
       surfaces: [...new Set(route.surfaces)].sort(),
       allowed_query_parameters: [...new Set(route.allowed_query_parameters)].sort(),
+      freshness_class: route.mutation
+        ? "mutation_strict"
+        : route.surfaces.some((surface) => surface.startsWith("admin_recovery"))
+          ? "recovery_strict"
+          : "read_strict",
     }))
     .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 }
@@ -121,6 +126,13 @@ function build() {
     surface_registry_sha256: sha256(fs.readFileSync(registryPath, "utf8")),
     source_surfaces: effectiveSourceSurfaces(registry, routeSurfaces),
     warning_budget: buildWarningBudget(registry, routeSurfaces),
+    read_stale_grace_seconds: 0,
+    ready_provenance: {
+      required: true,
+      health_path: "/health",
+      require_policy_hash: true,
+      require_source_commit: true,
+    },
     routes: buildRoutes(registry, routeSurfaces, limits),
     deployment_signature_required: true,
     secrets_included: false,

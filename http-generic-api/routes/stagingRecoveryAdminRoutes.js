@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  attestationMatches,
   buildRecoveryAuthorityReadiness,
   evaluateStagingRecoveryCertification,
   RECOVERY_STAGING_CERTIFICATION_CONTRACT,
@@ -50,11 +51,15 @@ function errorResponse(res, req, status, code, message) {
 
 function publicAttestation(attestation) {
   if (!isObject(attestation)) return null;
+  const environment = typeof attestation.environment === "string" && attestation.environment.trim()
+    ? attestation.environment.trim()
+    : null;
   return {
     repository: attestation.repository || null,
     branch: attestation.branch || null,
     sha: attestation.sha || attestation.commit_sha || null,
-    environment: attestation.environment || "staging",
+    environment,
+    environment_match: environment === "staging" && attestation.environment_match !== false,
     repository_match: attestation.repository_match === true,
     branch_match: attestation.branch_match === true,
     sha_match: attestation.sha_match === true,
@@ -110,6 +115,7 @@ export async function buildStagingRecoveryAdminReadiness({
   recoveryComposition = null,
   stagingCertificationReader = null,
   deploymentAttestationReader = null,
+  targetFingerprintReader = null,
   expectedSha = null,
   expectedTargetFingerprint = null,
 } = {}) {
@@ -125,15 +131,30 @@ export async function buildStagingRecoveryAdminReadiness({
   if (typeof deploymentAttestationReader === "function") {
     attestation = await deploymentAttestationReader();
   }
-  const certificationResult = certification?.contract === RECOVERY_STAGING_CERTIFICATION_CONTRACT
-    && Object.hasOwn(certification, "valid")
-    ? certification
-    : evaluateStagingRecoveryCertification({
-      certification,
-      expectedSha: expectedSha || attestation?.sha || attestation?.commit_sha || null,
-      expectedTargetFingerprint,
+  let currentTargetFingerprint = expectedTargetFingerprint;
+  if (typeof targetFingerprintReader === "function") {
+    currentTargetFingerprint = await targetFingerprintReader();
+  }
+  const currentSha = expectedSha || attestation?.sha || attestation?.commit_sha || null;
+  const attestationValid = isObject(attestation)
+    && attestation.environment === "staging"
+    && attestationMatches({
+      attestation,
+      expectedSha: currentSha,
+      expectedBranch: "main",
+      expectedEnvironment: "staging",
     });
-  const ready = authorityGraph.ready === true && certificationResult.valid === true;
+  const certificationResult = evaluateStagingRecoveryCertification({
+    certification,
+    expectedSha: currentSha,
+    expectedTargetFingerprint: currentTargetFingerprint,
+    requireExpectedTargetFingerprint: true,
+  });
+  const ready = authorityGraph.ready === true
+    && attestationValid
+    && certificationResult.valid === true
+    && certificationResult.evidence?.deployment_sha === attestation?.sha
+    && certificationResult.evidence?.target_fingerprint === currentTargetFingerprint;
   return {
     contract: STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT,
     status: ready ? "ready" : "blocked",
@@ -148,7 +169,11 @@ export async function buildStagingRecoveryAdminReadiness({
       certification_id: certificationResult.evidence?.certification_id || null,
       deployment_sha: certificationResult.evidence?.deployment_sha || null,
       target_fingerprint: certificationResult.evidence?.target_fingerprint || null,
-      blocking_failures: certificationResult.blocking_failures || [],
+      blocking_failures: [
+        ...(certificationResult.blocking_failures || []),
+        ...(!attestationValid ? ["deployment_attestation"] : []),
+        ...(!currentTargetFingerprint ? ["target_fingerprint_binding"] : []),
+      ],
       fingerprint: certificationResult.certification_fingerprint || null,
     },
     deployment_attestation: publicAttestation(attestation),
@@ -177,12 +202,23 @@ export function buildStagingRecoveryAdminRoutes({
   recoveryComposition = null,
   stagingCertificationReader = null,
   deploymentAttestationReader = null,
+  targetFingerprintReader = null,
   trustedHostResolver = resolveTrustedRequestHost,
 } = {}) {
   const router = Router();
   const hostProfile = resolveActivationGatewayHostProfile(env);
   const staging = isStagingEnvironment(env) && hostProfile.ok && hostProfile.profile?.gateway_key === "activation_gateway_staging";
-  const guards = [requireBackendApiKey, requireAdminPrincipal].filter((guard) => typeof guard === "function");
+  const missingGuards = [
+    ["requireBackendApiKey", requireBackendApiKey],
+    ["requireAdminPrincipal", requireAdminPrincipal],
+  ].filter(([, guard]) => typeof guard !== "function").map(([name]) => name);
+  if (missingGuards.length) {
+    const error = new Error(`Staging Recovery requires all server-managed guards: ${missingGuards.join(", ")}`);
+    error.code = "RECOVERY_STAGING_GUARD_MISSING";
+    error.missing_guards = missingGuards;
+    throw error;
+  }
+  const guards = [requireBackendApiKey, requireAdminPrincipal];
 
   router.use((req, res, next) => {
     // Scope the environment isolation guard to this surface's exact paths.
@@ -212,6 +248,7 @@ export function buildStagingRecoveryAdminRoutes({
         recoveryComposition,
         stagingCertificationReader,
         deploymentAttestationReader,
+        targetFingerprintReader,
       });
       return res.status(200).json({ ok: result.ready, ...result });
     } catch (error) {
@@ -225,6 +262,7 @@ export function buildStagingRecoveryAdminRoutes({
         recoveryComposition,
         stagingCertificationReader,
         deploymentAttestationReader,
+        targetFingerprintReader,
       });
       return res.status(200).json({
         ok: result.certification.valid,

@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7464,
+  "file_count": 7471,
   "route_count": 1097,
   "write_route_count": 664,
   "classified_write_surface_count": 42,
@@ -7951,8 +7951,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 191,
-      "source_offset": 7021,
+      "source_line": 241,
+      "source_offset": 9638,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7960,8 +7960,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 195,
-      "source_offset": 7185,
+      "source_line": 245,
+      "source_offset": 9802,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7969,8 +7969,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 208,
-      "source_offset": 7750,
+      "source_line": 259,
+      "source_offset": 10400,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -9112,8 +9112,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-authorization-server:0",
-      "source_line": 140,
-      "source_offset": 5260,
+      "source_line": 179,
+      "source_offset": 7196,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -9121,8 +9121,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-protected-resource:1",
-      "source_line": 179,
-      "source_offset": 7242,
+      "source_line": 201,
+      "source_offset": 8306,
       "method": "GET",
       "path": "/.well-known/oauth-protected-resource",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",

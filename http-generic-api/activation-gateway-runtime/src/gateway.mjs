@@ -76,6 +76,7 @@ export function policyPayload(policy) {
     upstream_origin: policy.upstream_origin,
     mutation_stale_policy: policy.mutation_stale_policy,
     read_stale_grace_seconds: policy.read_stale_grace_seconds,
+    ready_provenance: policy.ready_provenance,
     source_registry: policy.source_registry,
     source_surfaces: policy.source_surfaces,
     oauth_handoff_routes: policy.oauth_handoff_routes,
@@ -298,6 +299,41 @@ async function boundedResponseBody(response, limit) {
   return buffer;
 }
 
+async function verifyUpstreamReadinessEvidence(response, policy, verification) {
+  if (!response.ok) return { ok: false, upstreamReady: false, nonReady: true };
+  const required = policy.ready_provenance?.required !== false;
+  const body = await boundedResponseBody(response, 64 * 1024);
+  let evidence;
+  try {
+    evidence = JSON.parse(new TextDecoder().decode(body));
+  } catch {
+    return { ok: false, code: "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISSING" };
+  }
+  const policyHash = evidence?.policyHash || evidence?.policy_hash_sha256 || response.headers.get("x-activation-gateway-policy-hash");
+  const sourceCommit = evidence?.sourceCommit || evidence?.source_commit || response.headers.get("x-mad4b-deployment-sha");
+  const policyHashRequired = policy.ready_provenance?.require_policy_hash !== false;
+  const sourceCommitRequired = policy.ready_provenance?.require_source_commit !== false;
+  const policyHashMatches = !policyHashRequired || policyHash === policy.content_hash_sha256;
+  const sourceCommitMatches = !sourceCommitRequired || sourceCommit === verification.sourceCommit;
+  if (required && ((policyHashRequired && !policyHash) || (sourceCommitRequired && !sourceCommit))) {
+    return { ok: false, code: "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISSING" };
+  }
+  if (required && (!policyHashMatches || !sourceCommitMatches)) {
+    return {
+      ok: false,
+      code: "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH",
+      details: { policy_hash_matches: policyHashMatches, source_commit_matches: sourceCommitMatches },
+    };
+  }
+  return {
+    ok: true,
+    upstreamReady: true,
+    policyHash,
+    sourceCommit,
+    deploymentId: evidence?.deploymentId || evidence?.deployment_id || null,
+  };
+}
+
 export function createActivationGateway({
   policy,
   fetchImpl = fetch,
@@ -368,19 +404,37 @@ export function createActivationGateway({
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         try {
-          const upstream = await fetchImpl(new URL("/health", policy.upstream_origin), {
+          const upstream = await fetchImpl(new URL(policy.ready_provenance?.health_path || "/health", policy.upstream_origin), {
             method: "GET",
             headers: { "x-request-id": requestId },
             redirect: "manual",
             signal: controller.signal,
           });
           upstreamStatus = upstream.status;
-          status = upstream.ok ? 200 : 503;
+          const evidence = await verifyUpstreamReadinessEvidence(upstream, policy, verification);
+          if (!evidence.ok) {
+            status = evidence.nonReady ? 503 : 503;
+            return jsonResponse(status, evidence.nonReady
+              ? {
+                ok: false,
+                service: "activation-gateway",
+                upstreamReady: false,
+                upstreamEvidenceVerified: false,
+                policyHash: policy.content_hash_sha256,
+                secretsIncluded: false,
+              }
+              : errorBody(evidence.code, "The upstream deployment evidence could not be verified.", requestId, evidence.details), requestId);
+          }
+          status = 200;
           return jsonResponse(status, {
-            ok: upstream.ok,
+            ok: true,
             service: "activation-gateway",
-            upstreamReady: upstream.ok,
+            upstreamReady: true,
+            upstreamEvidenceVerified: true,
             policyHash: policy.content_hash_sha256,
+            upstreamPolicyHash: evidence.policyHash,
+            upstreamSourceCommit: evidence.sourceCommit,
+            upstreamDeploymentId: evidence.deploymentId,
             secretsIncluded: false,
           }, requestId);
         } finally {
@@ -447,12 +501,10 @@ export function createActivationGateway({
       operationIds = route.operation_ids || [];
 
       if (verification.stale) {
-        const graceMs = Number(policy.read_stale_grace_seconds || 0) * 1000;
-        const withinReadGrace = !route.mutation && now() < verification.expiresAtMs + graceMs;
-        if (!withinReadGrace) {
-          status = 503;
-          return jsonResponse(status, errorBody("GATEWAY_POLICY_STALE", "The Activation Gateway policy is stale.", requestId), requestId);
-        }
+        status = 503;
+        return jsonResponse(status, errorBody("GATEWAY_POLICY_STALE", "The Activation Gateway policy is stale; no route is served during the stale interval.", requestId, {
+          freshness_class: route.freshness_class || (route.mutation ? "mutation_strict" : "read_strict"),
+        }), requestId);
       }
 
       const allowedQuery = new Set(route.allowed_query_parameters || []);

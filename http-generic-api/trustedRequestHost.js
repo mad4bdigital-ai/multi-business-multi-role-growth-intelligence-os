@@ -29,11 +29,15 @@ export function resolveTrustedRequestHost(requestOrHeaders = {}, env = process.e
   const headers = requestOrHeaders?.headers || requestOrHeaders || {};
 
   if (trustedProxyHostHeadersEnabled(env)) {
-    const originalHost = headerValue(headers, "x-original-host");
-    if (originalHost) return normalizeTrustedRequestHost(originalHost);
-
-    const forwardedHost = headerValue(headers, "x-forwarded-host");
-    if (forwardedHost) return normalizeTrustedRequestHost(forwardedHost);
+    const proxyClaims = [
+      headerValue(headers, "x-original-host"),
+      headerValue(headers, "x-forwarded-host"),
+      headerValue(headers, "x-host"),
+    ].filter(Boolean).map(normalizeTrustedRequestHost);
+    if (proxyClaims.some((claim) => !claim)) return "";
+    const distinctProxyClaims = [...new Set(proxyClaims)];
+    if (distinctProxyClaims.length > 1) return "";
+    if (distinctProxyClaims.length === 1) return distinctProxyClaims[0];
   }
 
   return normalizeTrustedRequestHost(

@@ -11,6 +11,7 @@ import {
 } from "./routes/stagingRecoveryAdminRoutes.js";
 import {
   RECOVERY_CERTIFICATION_TRACE_STEPS,
+  certificationPayloadHash,
   evaluateStagingRecoveryCertification,
 } from "./recoveryActivationReadiness.js";
 import { RECOVERY_COMPOSITION_COMPONENT_KEYS } from "./recoveryComposition.js";
@@ -53,36 +54,34 @@ function validCertification() {
     "lost_fence", "provider_timeout_unknown_outcome", "partial_execution_reconciliation", "readback_failure",
     "artifact_drift", "schema_precondition_drift",
   ].map((key) => [key, { status: "pass" }]));
-  return evaluateStagingRecoveryCertification({
-    certification: {
-      contract: "mad4b.recovery-staging-certification.v1",
-      certification_id: "cert:staging:surface-001",
-      status: "passed",
-      result: "pass",
-      environment_key: "staging",
-      deployment_sha: "a".repeat(40),
-      runtime_sha: "a".repeat(40),
-      branch: "main",
-      target_fingerprint: "target:" + "b".repeat(64),
-      server_identity_fingerprint: "server:" + "c".repeat(64),
-      provider_environment: "staging",
-      authority_graph: { ready: true, test_or_mock_adapter_detected: false },
-      lifecycle_trace: lifecycleTrace,
-      negative_tests: { all_passed: true, cases: negativeCases },
-      audit_evidence: { durable: true, evidence_hash: "d".repeat(64) },
-      artifact_integrity: { valid: true },
-      expires_at: new Date(Date.now() + 3600000).toISOString(),
-      safety: {
-        production_mutation_performed: false,
-        secrets_included: false,
-        caller_credentials_accepted: false,
-        local_connector_production_authority: false,
-      },
+  const certification = {
+    contract: "mad4b.recovery-staging-certification.v1",
+    certification_id: "cert:staging:surface-001",
+    status: "passed",
+    result: "pass",
+    environment_key: "staging",
+    deployment_sha: "a".repeat(40),
+    runtime_sha: "a".repeat(40),
+    branch: "main",
+    target_fingerprint: "target:" + "b".repeat(64),
+    server_identity_fingerprint: "server:" + "c".repeat(64),
+    provider_environment: "staging",
+    authority_graph: { ready: true, test_or_mock_adapter_detected: false },
+    lifecycle_trace: lifecycleTrace,
+    negative_tests: { all_passed: true, cases: negativeCases },
+    audit_evidence: { durable: true, evidence_hash: "d".repeat(64) },
+    artifact_integrity: { valid: true },
+    expires_at: new Date(Date.now() + 3600000).toISOString(),
+    safety: {
+      production_mutation_performed: false,
       secrets_included: false,
+      caller_credentials_accepted: false,
+      local_connector_production_authority: false,
     },
-    expectedSha: "a".repeat(40),
-    expectedTargetFingerprint: "target:" + "b".repeat(64),
-  });
+    secrets_included: false,
+  };
+  certification.audit_evidence.canonical_payload_hash = certificationPayloadHash(certification);
+  return certification;
 }
 
 function listen(app) {
@@ -128,11 +127,13 @@ test("Staging Recovery readiness accepts only bounded server evidence and never 
   const result = await buildStagingRecoveryAdminReadiness({
     recoveryComposition: completeStagingComposition(),
     stagingCertificationReader: async () => validCertification(),
+    targetFingerprintReader: async () => "target:" + "b".repeat(64),
     deploymentAttestationReader: async () => ({
       repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
       branch: "main",
       sha: "a".repeat(40),
       environment: "staging",
+      target_fingerprint: "target:" + "b".repeat(64),
       repository_match: true,
       branch_match: true,
       sha_match: true,
@@ -148,6 +149,25 @@ test("Staging Recovery readiness accepts only bounded server evidence and never 
   assert.equal(result.live_certification.consequential_provider_execution_performed, false);
   assert.equal(result.database_mutation_performed, false);
   assert.equal(result.provider_mutation_performed, false);
+});
+
+test("Staging Recovery construction fails closed when either server-managed guard is missing", () => {
+  assert.throws(
+    () => buildStagingRecoveryAdminRoutes({
+      env: { NODE_ENV: "staging" },
+      requireAdminPrincipal: (_req, _res, next) => next(),
+    }),
+    (error) => error?.code === "RECOVERY_STAGING_GUARD_MISSING"
+      && error.missing_guards.includes("requireBackendApiKey"),
+  );
+  assert.throws(
+    () => buildStagingRecoveryAdminRoutes({
+      env: { NODE_ENV: "staging" },
+      requireBackendApiKey: (_req, _res, next) => next(),
+    }),
+    (error) => error?.code === "RECOVERY_STAGING_GUARD_MISSING"
+      && error.missing_guards.includes("requireAdminPrincipal"),
+  );
 });
 
 test("Staging Recovery routes are reachable only in declared staging runtime", async () => {

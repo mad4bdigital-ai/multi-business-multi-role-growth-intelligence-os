@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "1d0436b9e9a52f9525b2735b6af69c46c568807bea4c8bfc45642e3e36d5b32b",
+  "content_hash_sha256": "1512108fbc8a5059c704cd81a96313f4575dc034a658f86433910db3f47cbc68",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -66,6 +66,12 @@
   "policy_key": "activation_gateway_staging",
   "public_host": "activation-dev.mad4b.com",
   "read_stale_grace_seconds": 0,
+  "ready_provenance": {
+    "health_path": "/health",
+    "require_policy_hash": true,
+    "require_source_commit": true,
+    "required": true
+  },
   "routes": [
     {
       "allowed_query_parameters": [
@@ -77,6 +83,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -102,6 +109,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -120,6 +128,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -138,6 +147,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -156,6 +166,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -183,6 +194,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -201,6 +213,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -219,6 +232,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -246,6 +260,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -264,6 +279,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "recovery_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -283,6 +299,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "recovery_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -302,6 +319,7 @@
       "auth_profiles": [
         "admin_service"
       ],
+      "freshness_class": "recovery_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -326,6 +344,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -351,6 +370,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -378,6 +398,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -411,6 +432,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -432,6 +454,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -450,6 +473,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -475,6 +499,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -493,6 +518,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -514,6 +540,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -532,6 +559,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -550,6 +578,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -568,6 +597,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -586,6 +616,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -604,6 +635,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "mutation_strict",
       "method": "POST",
       "mutation": true,
       "operation_ids": [
@@ -629,6 +661,7 @@
       "auth_profiles": [
         "tenant_oauth"
       ],
+      "freshness_class": "read_strict",
       "method": "GET",
       "mutation": false,
       "operation_ids": [
@@ -652,7 +685,7 @@
     "admin_recovery_staging",
     "tenant_activation_staging"
   ],
-  "surface_registry_sha256": "eaa8101f89a28630f9255f8042461c3e2faf7c6ededa7fd459f7e229ddce788c",
+  "surface_registry_sha256": "487135377e9c6e66b16f3cf21b7fa834fa2dc12a80e6d4101ccf6292bbeb3880",
   "surface_registry_version": 2,
   "upstream_origin": "https://dev.mad4b.com",
   "warning_budget": [

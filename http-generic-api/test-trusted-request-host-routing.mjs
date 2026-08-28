@@ -65,7 +65,12 @@ assert.equal(resolveTrustedRequestHost({
   host: "internal.example.test",
   "x-original-host": "auth.mad4b.com",
   "x-forwarded-host": "activation.mad4b.com",
-}, { REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" }), "auth.mad4b.com");
+}, { REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" }), "");
+assert.equal(resolveTrustedRequestHost({
+  host: "internal.example.test",
+  "x-original-host": "activation.mad4b.com",
+  "x-forwarded-host": "activation.mad4b.com",
+}, { REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" }), "activation.mad4b.com");
 assert.equal(resolveTrustedRequestHost({
   host: "auth.mad4b.com",
   "x-forwarded-host": "activation.mad4b.com,evil.example.test",

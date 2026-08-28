@@ -11,11 +11,16 @@ oauth_client_contract:
 registration_sets:
   admin_activation_production:
     registration_class: custom_gpt_admin_actions
-    audience: admin
+    consumer_principal_class: admin_gpt
+    audience: admin_service
     auth_profile: admin_service
     environment: production
     server_uri: https://activation.mad4b.com
+    public_host: activation.mad4b.com
+    upstream_origin: https://auth.mad4b.com
     gateway_host: activation.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
     action_slot: admin_activation
     output_surface: activation_admin_production
     members:
@@ -26,11 +31,16 @@ registration_sets:
     warning_operation_limit: 16
   production_recovery:
     registration_class: custom_gpt_admin_actions
-    audience: admin
+    consumer_principal_class: admin_gpt
+    audience: admin_service
     auth_profile: admin_service
     environment: production
     server_uri: https://auth.mad4b.com
+    public_host: auth.mad4b.com
+    upstream_origin: https://auth.mad4b.com
     gateway_host: auth.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
     action_slot: recovery_kernel
     output_surface: admin_recovery_production
     members:
@@ -41,11 +51,16 @@ registration_sets:
     warning_operation_limit: 12
   admin_activation_staging:
     registration_class: custom_gpt_admin_actions
-    audience: admin
+    consumer_principal_class: admin_gpt
+    audience: admin_service
     auth_profile: admin_service
     environment: staging
     server_uri: https://activation-dev.mad4b.com
+    public_host: activation-dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
     gateway_host: activation-dev.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
     action_slot: admin_activation
     output_surface: activation_admin_staging
     members:
@@ -57,11 +72,16 @@ registration_sets:
     warning_operation_limit: 16
   tenant_activation_production:
     registration_class: custom_gpt_tenant_actions
+    consumer_principal_class: tenant_gpt
     audience: tenant
     auth_profile: tenant_oauth
     environment: production
     server_uri: https://activation.mad4b.com
+    public_host: activation.mad4b.com
+    upstream_origin: https://auth.mad4b.com
     gateway_host: activation.mad4b.com
+    scope_authority: tenant
+    oauth_issuer: https://auth.mad4b.com
     action_slot: tenant_activation
     output_surface: tenant_activation_production
     members:
@@ -70,11 +90,16 @@ registration_sets:
     warning_operation_limit: 26
   tenant_activation_staging:
     registration_class: custom_gpt_tenant_actions
+    consumer_principal_class: tenant_gpt
     audience: tenant
     auth_profile: tenant_oauth
     environment: staging
     server_uri: https://activation-dev.mad4b.com
+    public_host: activation-dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
     gateway_host: activation-dev.mad4b.com
+    scope_authority: tenant
+    oauth_issuer: https://dev.mad4b.com
     action_slot: tenant_activation
     output_surface: tenant_activation_staging
     members:

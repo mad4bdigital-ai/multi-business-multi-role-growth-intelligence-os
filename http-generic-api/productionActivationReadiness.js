@@ -79,6 +79,8 @@ export async function runProductionActivationReadiness({
   stagingCertification = null,
   deploymentAttestation = null,
   candidateSha = null,
+  candidateTargetFingerprint = null,
+  promotionArtifactParity = null,
   unresolvedRecoveryIncidents = [],
   adapterProvenance = null,
   productionLiveRequested = false,
@@ -116,6 +118,8 @@ export async function runProductionActivationReadiness({
     stagingCertification,
     deploymentAttestation,
     candidateSha,
+    candidateTargetFingerprint,
+    promotionArtifactParity,
     unresolvedRecoveryIncidents,
     adapterProvenance,
   });

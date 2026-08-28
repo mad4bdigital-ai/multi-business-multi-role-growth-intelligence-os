@@ -457,7 +457,7 @@ try {
       `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&code_challenge=${encodeURIComponent(PKCE_CHALLENGE)}&code_challenge_method=S256`,
       { headers: { "x-original-host": "auth.mad4b.com", "x-forwarded-host": "activation.mad4b.com" } },
     );
-    assert("authorize rejects conflicting trusted host headers", result.status === 400, `${result.status}`);
+    assert("authorize rejects conflicting trusted host headers", result.status === 404, `${result.status}`);
   }
 
   {

@@ -349,6 +349,11 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
         auth_profiles: [...new Set(route.auth_profiles)].sort(),
         surfaces: [...new Set(route.surfaces)].sort(),
         allowed_query_parameters: [...new Set(route.allowed_query_parameters)].sort(),
+        freshness_class: route.mutation
+          ? "mutation_strict"
+          : route.surfaces.some((surface) => surface.startsWith("admin_recovery"))
+            ? "recovery_strict"
+            : "read_strict",
       }))
       .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 
@@ -397,7 +402,13 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       public_host: policy.public_host,
       upstream_origin: policy.upstream_origin,
       mutation_stale_policy: policy.mutation_stale_policy,
-      read_stale_grace_seconds: Number(policy.read_stale_grace_seconds || 0),
+      read_stale_grace_seconds: 0,
+      ready_provenance: {
+        required: true,
+        health_path: "/health",
+        require_policy_hash: true,
+        require_source_commit: true,
+      },
       source_registry: "canonicals/openapi/custom-gpt-surfaces.yaml",
       source_surfaces: [...new Set(members.flatMap(({ surfaceKey }) => {
         const set = registry.registration_sets && Object.values(registry.registration_sets).find((candidate) => candidate.output_surface === surfaceKey);

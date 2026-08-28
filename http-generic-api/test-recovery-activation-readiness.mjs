@@ -6,6 +6,7 @@ import {
   RECOVERY_STAGING_CERTIFICATION_CONTRACT,
   buildProductionAuthorityActivationReadiness,
   buildRecoveryAuthorityReadiness,
+  certificationPayloadHash,
   evaluateStagingRecoveryCertification,
 } from "./recoveryActivationReadiness.js";
 import { RECOVERY_COMPOSITION_COMPONENT_KEYS } from "./recoveryComposition.js";
@@ -61,7 +62,7 @@ function validCertification({ deploymentSha = SHA, expiresAt = new Date(Date.now
     artifact_drift: { status: "pass" },
     schema_precondition_drift: { status: "pass" },
   };
-  return {
+  const certification = {
     contract: RECOVERY_STAGING_CERTIFICATION_CONTRACT,
     certification_id: "cert:staging:001",
     status: "passed",
@@ -96,6 +97,25 @@ function validCertification({ deploymentSha = SHA, expiresAt = new Date(Date.now
     },
     secrets_included: false,
   };
+  certification.audit_evidence.canonical_payload_hash = certificationPayloadHash(certification);
+  return certification;
+}
+
+function validParity({ sourceSha = SHA, targetSha = SHA, sourceTarget = TARGET, targetTarget = TARGET } = {}) {
+  return {
+    verified: true,
+    source_environment: "staging",
+    target_environment: "production",
+    source_sha: sourceSha,
+    target_sha: targetSha,
+    source_target_fingerprint: sourceTarget,
+    target_target_fingerprint: targetTarget,
+    source_artifact_set_hash: "artifact:" + "f".repeat(64),
+    target_artifact_set_hash: "artifact:" + "f".repeat(64),
+    source_manifest_hash: "manifest:" + "e".repeat(64),
+    target_manifest_hash: "manifest:" + "e".repeat(64),
+    generated_artifacts_verified: true,
+  };
 }
 
 function validAttestation({ sha = SHA } = {}) {
@@ -108,6 +128,8 @@ function validAttestation({ sha = SHA } = {}) {
     repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     branch: "Production",
     sha,
+    environment: "production",
+    target_fingerprint: TARGET,
     secrets_included: false,
   };
 }
@@ -152,18 +174,15 @@ test("staging certification rejects stale, wrong-SHA, and cross-target evidence"
 });
 
 test("production activation eligibility requires every gate and never enables live mode", () => {
-  const certification = evaluateStagingRecoveryCertification({
-    certification: validCertification(),
-    expectedSha: SHA,
-    expectedTargetFingerprint: TARGET,
-  });
   const result = buildProductionAuthorityActivationReadiness({
     productionLiveRequested: true,
     productionLiveEnabled: true,
     composition: completeComposition(),
-    stagingCertification: certification,
+    stagingCertification: validCertification(),
     deploymentAttestation: validAttestation(),
     candidateSha: SHA,
+    candidateTargetFingerprint: TARGET,
+    promotionArtifactParity: validParity(),
     unresolvedRecoveryIncidents: [],
   });
   assert.equal(result.contract, RECOVERY_PRODUCTION_AUTHORITY_READINESS_CONTRACT);
@@ -178,12 +197,28 @@ test("production activation eligibility requires every gate and never enables li
   assert.equal(result.secrets_included, false);
 });
 
-test("production activation remains blocked for missing authority, stale cert, wrong SHA, mock, or incident", () => {
-  const certification = evaluateStagingRecoveryCertification({
+test("persisted evaluated certification cannot bypass raw re-evaluation", () => {
+  const persistedVerdict = evaluateStagingRecoveryCertification({
     certification: validCertification(),
     expectedSha: SHA,
     expectedTargetFingerprint: TARGET,
   });
+  const result = buildProductionAuthorityActivationReadiness({
+    productionLiveRequested: true,
+    composition: completeComposition(),
+    stagingCertification: persistedVerdict,
+    deploymentAttestation: validAttestation(),
+    candidateSha: SHA,
+    candidateTargetFingerprint: TARGET,
+  });
+  assert.equal(result.activation_eligible, false);
+  assert.equal(result.checks.staging_certification_valid, false);
+  assert.ok(result.blocking_reasons.includes("RECOVERY_STAGING_CERTIFICATION_REQUIRED"));
+  assert.equal(result.production_live.enabled, false);
+});
+
+test("production activation remains blocked for missing authority, stale cert, wrong SHA, mock, or incident", () => {
+  const certification = validCertification();
   const cases = [
     {
       name: "missing authority",
@@ -192,7 +227,7 @@ test("production activation remains blocked for missing authority, stale cert, w
     },
     {
       name: "stale certification",
-      options: { stagingCertification: evaluateStagingRecoveryCertification({ certification: validCertification({ expiresAt: new Date(Date.now() - 1000).toISOString() }), expectedSha: SHA, expectedTargetFingerprint: TARGET }) },
+      options: { stagingCertification: validCertification({ expiresAt: new Date(Date.now() - 1000).toISOString() }) },
       reason: "RECOVERY_STAGING_CERTIFICATION_EXPIRED",
     },
     {
@@ -218,6 +253,8 @@ test("production activation remains blocked for missing authority, stale cert, w
       stagingCertification: certification,
       deploymentAttestation: validAttestation(),
       candidateSha: SHA,
+      candidateTargetFingerprint: TARGET,
+      promotionArtifactParity: validParity(),
       ...item.options,
     });
     assert.equal(result.activation_eligible, false, item.name);
@@ -248,8 +285,10 @@ test("server readiness reader exposes authority readiness without accepting live
     productionLiveRequested: true,
     productionLiveEnabled: true,
     candidateSha: SHA,
-    stagingCertification: evaluateStagingRecoveryCertification({ certification: validCertification(), expectedSha: SHA, expectedTargetFingerprint: TARGET }),
+    candidateTargetFingerprint: TARGET,
+    stagingCertification: validCertification(),
     deploymentAttestation: validAttestation(),
+    promotionArtifactParity: validParity(),
   });
   assert.equal(result.ok, true);
   assert.equal(result.production_authority_readiness.activation_eligible, true);

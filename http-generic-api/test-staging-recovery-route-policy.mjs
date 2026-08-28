@@ -23,11 +23,19 @@ test("staging route policy exposes only bounded Staging Recovery GET routes", ()
   assert.equal(staging.policy_key, "activation_gateway_staging");
   assert.equal(staging.public_host, "activation-dev.mad4b.com");
   assert.equal(staging.upstream_origin, "https://dev.mad4b.com");
+  assert.equal(staging.read_stale_grace_seconds, 0);
+  assert.deepEqual(staging.ready_provenance, {
+    required: true,
+    health_path: "/health",
+    require_policy_hash: true,
+    require_source_commit: true,
+  });
   for (const [routePath, operationId] of EXPECTED) {
     const route = staging.routes.find((entry) => entry.path === routePath);
     assert.ok(route, `missing staging route ${routePath}`);
     assert.equal(route.method, "GET", routePath);
     assert.equal(route.mutation, false, routePath);
+    assert.equal(route.freshness_class, "recovery_strict", routePath);
     assert.deepEqual(route.operation_ids, [operationId], routePath);
     assert.deepEqual(route.surfaces, ["activation_admin_staging", "admin_recovery_staging"], routePath);
     assert.deepEqual(route.allowed_query_parameters, [], routePath);

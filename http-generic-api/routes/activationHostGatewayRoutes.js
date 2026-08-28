@@ -100,6 +100,11 @@ function requestHost(req, preferredHost = "", env = process.env) {
   return preferred && trusted === preferred ? preferred : trusted;
 }
 
+function hasTrustedProxyHostClaim(req, env = process.env) {
+  if (String(env?.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS || "").trim().toLowerCase() !== "true") return false;
+  return ["x-original-host", "x-forwarded-host", "x-host"].some((name) => Object.hasOwn(req?.headers || {}, name));
+}
+
 function requestPath(req) {
   const rawPath = String(req.path || req.url || "/").split("?")[0].trim() || "/";
   return rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
@@ -205,6 +210,13 @@ export function buildActivationHostGatewayRoutes({
     if (!schemaFile) return next();
 
     const host = requestHost(req, config.activationHost, env);
+    if (!host && hasTrustedProxyHostClaim(req, env)) {
+      return res.status(404).json(errorResponse(
+        "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
+        "Conflicting or malformed trusted host claims are not accepted.",
+        req,
+      ));
+    }
     if (!isActivationSchemaHost(host, config)) return next();
 
     await serveActivationSchema(req, res, schemaFile);
@@ -215,6 +227,13 @@ export function buildActivationHostGatewayRoutes({
     if (!gatewayEnabled) return next();
 
     const host = requestHost(req, config.activationHost, env);
+    if (!host && hasTrustedProxyHostClaim(req, env)) {
+      return res.status(404).json(errorResponse(
+        "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
+        "Conflicting or malformed trusted host claims are not accepted.",
+        req,
+      ));
+    }
     if (host !== config.activationHost) return next();
 
     const pathname = requestPath(req);

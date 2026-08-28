@@ -82,6 +82,26 @@ function digest(value) {
   return crypto.createHash("sha256").update(JSON.stringify(stable(value)), "utf8").digest("hex");
 }
 
+export function certificationPayloadHash(certification) {
+  return digest({
+    contract: certification?.contract || null,
+    certification_id: certification?.certification_id || null,
+    environment_key: certification?.environment_key || null,
+    deployment_sha: certification?.deployment_sha || null,
+    runtime_sha: certification?.runtime_sha || null,
+    branch: certification?.branch || null,
+    target_fingerprint: certification?.target_fingerprint || null,
+    server_identity_fingerprint: certification?.server_identity_fingerprint || null,
+    provider_environment: certification?.provider_environment || null,
+    lifecycle_trace: certification?.lifecycle_trace || null,
+    negative_tests: certification?.negative_tests || null,
+    authority_graph: certification?.authority_graph || null,
+    artifact_integrity: certification?.artifact_integrity || null,
+    safety: certification?.safety || null,
+    expires_at: certification?.expires_at || null,
+  });
+}
+
 function bounded(value, max = 160) {
   return String(value || "").trim().slice(0, max);
 }
@@ -183,6 +203,7 @@ export function evaluateStagingRecoveryCertification({
   expectedSha = null,
   expectedBranch = "main",
   expectedTargetFingerprint = null,
+  requireExpectedTargetFingerprint = false,
 } = {}) {
   const checks = {
     contract: certification?.contract === RECOVERY_STAGING_CERTIFICATION_CONTRACT,
@@ -194,6 +215,7 @@ export function evaluateStagingRecoveryCertification({
       && (!certification.runtime_sha || certification.runtime_sha === certification.deployment_sha),
     exact_branch: certification?.branch === expectedBranch,
     target_fingerprint: nonEmpty(certification?.target_fingerprint)
+      && (!requireExpectedTargetFingerprint || nonEmpty(expectedTargetFingerprint))
       && (!expectedTargetFingerprint || certification.target_fingerprint === expectedTargetFingerprint),
     server_identity_fingerprint: nonEmpty(certification?.server_identity_fingerprint),
     provider_environment: certification?.provider_environment === "staging",
@@ -204,6 +226,8 @@ export function evaluateStagingRecoveryCertification({
       && negativeTestsPass(certification?.negative_tests?.cases),
     audit_evidence: certification?.audit_evidence?.durable === true
       && nonEmpty(certification.audit_evidence.evidence_hash),
+    canonical_payload_hash: nonEmpty(certification?.audit_evidence?.canonical_payload_hash)
+      && certification.audit_evidence.canonical_payload_hash === certificationPayloadHash(certification),
     artifact_integrity: certification?.artifact_integrity?.valid === true,
     freshness: certification?.expires_at
       ? Number.isFinite(Date.parse(certification.expires_at)) && Date.parse(certification.expires_at) > Date.now()
@@ -224,6 +248,7 @@ export function evaluateStagingRecoveryCertification({
     target_fingerprint: certification?.target_fingerprint || null,
     provider_environment: certification?.provider_environment || null,
     evidence_hash: certification?.audit_evidence?.evidence_hash || null,
+    canonical_payload_hash: certification?.audit_evidence?.canonical_payload_hash || null,
     expires_at: certification?.expires_at || null,
   };
   return {
@@ -241,7 +266,19 @@ export function evaluateStagingRecoveryCertification({
   };
 }
 
-function attestationMatches({ attestation, expectedSha, expectedBranch }) {
+export function artifactParityMatches({ parity, certification, candidateSha, candidateTargetFingerprint }) {
+  if (!object(parity) || parity.verified !== true) return false;
+  if (parity.source_environment !== "staging" || parity.target_environment !== "production") return false;
+  if (!nonEmpty(parity.source_sha) || !nonEmpty(parity.target_sha) || parity.target_sha !== candidateSha) return false;
+  if (parity.source_sha !== certification?.evidence?.deployment_sha) return false;
+  if (parity.source_target_fingerprint !== certification?.evidence?.target_fingerprint) return false;
+  if (parity.target_target_fingerprint !== candidateTargetFingerprint) return false;
+  if (!nonEmpty(parity.source_artifact_set_hash) || parity.source_artifact_set_hash !== parity.target_artifact_set_hash) return false;
+  if (!nonEmpty(parity.source_manifest_hash) || parity.source_manifest_hash !== parity.target_manifest_hash) return false;
+  return parity.generated_artifacts_verified === true;
+}
+
+export function attestationMatches({ attestation, expectedSha, expectedBranch, expectedEnvironment, expectedTargetFingerprint = null }) {
   if (!object(attestation)) return false;
   return attestation.repository_match === true
     && attestation.branch_match === true
@@ -250,6 +287,8 @@ function attestationMatches({ attestation, expectedSha, expectedBranch }) {
     && attestation.read_only === true
     && (!expectedSha || attestation.sha === expectedSha)
     && (!expectedBranch || attestation.branch === expectedBranch)
+    && (!expectedEnvironment || attestation.environment === expectedEnvironment)
+    && (!expectedTargetFingerprint || attestation.target_fingerprint === expectedTargetFingerprint)
     && attestation.secrets_included === false;
 }
 
@@ -261,6 +300,8 @@ export function buildProductionAuthorityActivationReadiness({
   deploymentAttestation = null,
   candidateSha = null,
   candidateBranch = "Production",
+  candidateTargetFingerprint = null,
+  promotionArtifactParity = null,
   unresolvedRecoveryIncidents = [],
   adapterProvenance = null,
 } = {}) {
@@ -269,14 +310,29 @@ export function buildProductionAuthorityActivationReadiness({
     environmentKey: "production",
     adapterProvenance,
   });
-  const certification = stagingCertification?.contract === RECOVERY_STAGING_CERTIFICATION_CONTRACT
-    && Object.hasOwn(stagingCertification, "valid")
-    ? stagingCertification
-    : evaluateStagingRecoveryCertification({ certification: stagingCertification, expectedSha: candidateSha, expectedBranch: "main" });
+  const rawCertification = stagingCertification?.raw_certification
+    || stagingCertification?.certification_evidence
+    || stagingCertification;
+  const rawCertificationPresent = object(rawCertification)
+    && rawCertification.result === "pass"
+    && rawCertification.status === "passed"
+    && nonEmpty(rawCertification.deployment_sha)
+    && nonEmpty(rawCertification.environment_key);
+  const certificationExpectedSha = promotionArtifactParity?.source_sha || candidateSha;
+  const certificationExpectedTargetFingerprint = promotionArtifactParity?.source_target_fingerprint || candidateTargetFingerprint;
+  const certification = evaluateStagingRecoveryCertification({
+    certification: rawCertification,
+    expectedSha: certificationExpectedSha,
+    expectedBranch: "main",
+    expectedTargetFingerprint: certificationExpectedTargetFingerprint,
+    requireExpectedTargetFingerprint: true,
+  });
   const attestationValid = attestationMatches({
     attestation: deploymentAttestation,
     expectedSha: candidateSha,
     expectedBranch: candidateBranch,
+    expectedEnvironment: "production",
+    expectedTargetFingerprint: candidateTargetFingerprint,
   });
   const noOpenIncident = Array.isArray(unresolvedRecoveryIncidents) && unresolvedRecoveryIncidents.length === 0;
   const checks = {
@@ -285,21 +341,38 @@ export function buildProductionAuthorityActivationReadiness({
     all_authorities_ready: authorityGraph.ready === true,
     deployment_attestation_valid: attestationValid,
     exact_sha_certified: Boolean(candidateSha)
-      && certification.evidence?.deployment_sha === candidateSha
-      && deploymentAttestation?.sha === candidateSha,
+      && (promotionArtifactParity
+        ? promotionArtifactParity.target_sha === candidateSha
+          && promotionArtifactParity.source_sha === certification.evidence?.deployment_sha
+          && deploymentAttestation?.sha === candidateSha
+        : certification.evidence?.deployment_sha === candidateSha
+          && deploymentAttestation?.sha === candidateSha),
+    target_fingerprint_bound: Boolean(candidateTargetFingerprint)
+      && deploymentAttestation?.target_fingerprint === candidateTargetFingerprint
+      && (promotionArtifactParity
+        ? certification.evidence?.target_fingerprint === promotionArtifactParity.source_target_fingerprint
+        : certification.evidence?.target_fingerprint === candidateTargetFingerprint),
+    artifact_parity_bound: !productionLiveRequested || artifactParityMatches({
+      parity: promotionArtifactParity,
+      certification,
+      candidateSha,
+      candidateTargetFingerprint,
+    }),
     no_unresolved_recovery_incident: noOpenIncident,
     no_test_or_mock_adapter: authorityGraph.test_or_mock_adapter_detected === false,
   };
   const blockingReasons = [];
   if (!checks.production_live_requested) blockingReasons.push("production_live_not_requested");
   if (!checks.staging_certification_valid) {
-    blockingReasons.push(certification.blocking_failures?.includes("freshness")
+    blockingReasons.push(rawCertificationPresent && certification.blocking_failures?.includes("freshness")
       ? PRODUCTION_LIVE_BLOCKERS.certification_expired
       : PRODUCTION_LIVE_BLOCKERS.certification_missing);
   }
   if (!checks.all_authorities_ready) blockingReasons.push(PRODUCTION_LIVE_BLOCKERS.authority_graph_incomplete);
   if (!checks.deployment_attestation_valid) blockingReasons.push(PRODUCTION_LIVE_BLOCKERS.deployment_attestation_mismatch);
   if (!checks.exact_sha_certified) blockingReasons.push(PRODUCTION_LIVE_BLOCKERS.exact_sha_mismatch);
+  if (!checks.target_fingerprint_bound) blockingReasons.push("RECOVERY_TARGET_FINGERPRINT_MISMATCH");
+  if (!checks.artifact_parity_bound) blockingReasons.push("RECOVERY_ARTIFACT_PARITY_REQUIRED");
   if (!checks.no_unresolved_recovery_incident) blockingReasons.push(PRODUCTION_LIVE_BLOCKERS.recovery_incident_open);
   if (!checks.no_test_or_mock_adapter) blockingReasons.push(PRODUCTION_LIVE_BLOCKERS.test_or_mock_adapter);
   const eligible = Object.values(checks).every(Boolean);
@@ -322,6 +395,8 @@ export function buildProductionAuthorityActivationReadiness({
       repository_match: deploymentAttestation?.repository_match === true,
       branch_match: deploymentAttestation?.branch_match === true,
       sha_match: deploymentAttestation?.sha_match === true,
+      environment_match: deploymentAttestation?.environment === "production",
+      target_fingerprint: deploymentAttestation?.target_fingerprint || null,
       manifest_bound: deploymentAttestation?.manifest_bound === true,
       valid: attestationValid,
     },
@@ -345,4 +420,7 @@ export const _testingRecoveryActivationReadiness = Object.freeze({
   negativeTestsPass,
   forbiddenAdapterMarker,
   digest,
+  certificationPayloadHash,
+  attestationMatches,
+  artifactParityMatches,
 });
