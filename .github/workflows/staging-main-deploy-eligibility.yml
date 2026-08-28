@@ -99,9 +99,9 @@ jobs:
           npm run frontend:dispatch:check
           npm run ci:path-guard
 
-      - name: Verify remote MCP inventory is current
+      - name: Verify remote MCP semantic inventory currentness
         run: |
-          npm run write-scopes:inventory:check
+          node scripts/remote-mcp-write-scope-semantic-currentness.mjs
           npm run write-scopes:inventory:test
 
       - name: Publish fail-closed eligibility evidence
@@ -125,6 +125,8 @@ jobs:
             ref: expectedRef,
             exact_head_sha: expectedHeadSha,
             derived_state_closure: true,
+            remote_mcp_semantic_currentness: true,
+            postmerge_observability_drift_blocking: false,
             environment_authority_closure: {
               contract: authority.contract,
               converged: authority.converged,
