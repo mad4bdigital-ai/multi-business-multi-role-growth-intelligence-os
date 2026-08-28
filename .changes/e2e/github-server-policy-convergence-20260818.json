@@ -17,6 +17,7 @@
       ".github/governance/verifier-registry.json",
       ".github/governance/semantic-verifier-requirements.json",
       ".github/governance/test-authority-registry.json",
+      ".github/ops/github-followup-automerge-readiness.mjs",
       ".github/tests/derived-state-closure.test.mjs",
       ".github/tests/repository-governance-closure.test.mjs",
       ".github/tests/repository-governance-objection-gate.test.mjs",
@@ -34,6 +35,7 @@
       "http-generic-api/githubRepositoryGovernanceAttestation.js",
       "http-generic-api/githubRepositoryPolicyController.js",
       "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
       "http-generic-api/test-github-repository-governance-attestation.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
       "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
@@ -75,7 +77,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, and enforceable main/Production server-policy plans without creating a parallel authority.",
+      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, native auto-merge disabled by policy, exact App-bound server-rule verification, and a sole immediate non-bypass Governance Finalizer merge path for main while Production retains its separately governed promotion authority.",
       "e2e_journeys": [
         {
           "id": "semantic-exact-candidate-to-trusted-server-attestation",
@@ -83,7 +85,7 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance maintainer",
           "entrypoint": "Pull request to main and governed Production promotion",
-          "terminal_outcome": "A pull request is classified semantically, evaluated on GitHub's exact merge candidate, resolved through registered policy and verifier authorities, finalized by a trusted default-branch workflow, and only then may the GitHub App publish the required status on the exact candidate; critical governance/control-plane changes still require an independent manual merge decision, ownership-neutral generated Spec evidence does not inherit unrelated feature-change obligations, and Production uses the same App gate only after proving the current merge-candidate tree equals the certified release-candidate tree.",
+          "terminal_outcome": "A pull request is classified semantically, evaluated on GitHub's exact merge candidate, resolved through registered policy and verifier authorities, finalized by a trusted default-branch workflow, and only then may the GitHub App publish the required status on the exact candidate; for objection-free main PRs the same finalizer may perform one immediate exact-head merge only after proving the active Ruleset, App binding, status creator, candidate identity, no bypass actors, and repository native auto-merge disabled. Critical governance/control-plane changes still require an independent manual merge decision, and Production remains outside generic finalizer merge authority until its separately governed promotion proof is satisfied.",
           "steps": [
             "Load the canonical Constitution, policy registry, semantic surface registry, verifier registry, evidence producer registry, waiver ledger, E2E schema, and deployment environment authority.",
             "Classify changed paths, executable classes, semantic facets, and Git-native add/delete/rename/copy identity.",
@@ -93,14 +95,16 @@
             "Run the canonical producer on the exact GitHub merge candidate and record source head, base, merge candidate, executed SHA, PR number, workflow and run identity.",
             "Finalize canonical producer evidence using producer_id as the canonical evidence identity while rejecting conflicting or duplicate producer identities.",
             "Check every tracked JavaScript module recursively instead of a shallow filename glob.",
-            "Resolve critical surface risk from the canonical surface_classes field, fail closed on malformed governance report shape, and emit a manual objection that disables auto-merge for control-plane self-amendment.",
+            "Resolve critical surface risk from the canonical surface_classes field, fail closed on malformed governance report shape, and emit a manual objection that prevents automated finalization for control-plane self-amendment.",
             "Apply E2E contract-change requirements to non-governance changes owned by each Spec instead of inheriting the global PR feature class from unrelated runtime changes.",
             "Block workflow-surface growth above the base/target ratchet while retaining a target of 160 workflows.",
             "Validate the shared-runtime environment impact against the canonical deployment authority, requiring cross-environment review and live Staging certification while keeping Production mutation forbidden.",
             "Have the Derived State Closure detector consume the exact-candidate producer evidence and emit read-only detector evidence.",
             "Have the trusted default-branch workflow_run finalizer re-read the live PR identity and call the governed backend attestor.",
-            "Have the GitHub App publish Derived State Closure for main or Governed Production Promotion for Production, with same-cycle status readback.",
-            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation."
+            "Have the GitHub App publish Derived State Closure for main or Governed Production Promotion for Production, with same-cycle status readback, and expose the resolved App id plus status creator id to the finalizer.",
+            "For objection-free main only, have the central finalizer verifier require repository allow_auto_merge=false, active pull_request/required_status_checks/non_fast_forward rules, no merge_queue, exactly one active managed governance Ruleset, zero bypass actors, Derived State Closure bound to the exact attestor App id, exact base/head/candidate identity, and a success status on the exact candidate from the same-cycle attestor status creator.",
+            "Allow the Governance Finalizer to execute gh pr merge only without --auto and without --admin, bound by --match-head-commit to the exact source head, then require same-cycle merged-state and merge-commit readback.",
+            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation; generic main finalizer merge authority never applies to Production."
           ],
           "assertions": [
             "The Constitution is the runtime source of truth for both main and Production branch policy.",
@@ -111,17 +115,21 @@
             "The canonical evidence identity contains source_head_sha, base_sha, merge_candidate_sha, executed_sha, and pr_number, and executed_sha equals merge_candidate_sha for main.",
             "Canonical producer evidence is keyed by producer_id; legacy id remains compatibility-only, conflicting identities fail closed, and duplicate producer evidence is rejected.",
             "The canonical required producer is Policy Objection CI; legacy CI remains supplemental diagnostics only.",
-            "Critical governance/control-plane paths are resolved from canonical surface_classes and always produce a non-waiverable manual merge objection; missing surface_classes fails closed instead of silently allowing auto-merge.",
+            "Critical governance/control-plane paths are resolved from canonical surface_classes and always produce a non-waiverable manual merge objection; missing surface_classes fails closed instead of silently allowing automated finalization.",
             "A governance-only Spec binding or generated evidence refresh does not require its feature contract to change merely because unrelated runtime changes make the overall PR feature-class; non-governance changes owned by that Spec still require the contract and uncovered runtime still fails closed.",
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
-            "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof.",
+            "Repository native auto-merge must be disabled before main automated finalization; generated writers cannot register auto-merge and the finalizer never uses --auto.",
+            "The finalizer merge actor has no admin/ruleset-bypass path; the active managed Ruleset must contain zero bypass actors and the merge command never uses --admin.",
+            "The finalizer verifier reads active branch rules and the managed Ruleset, requires Derived State Closure to be bound to the exact attestor App id, and requires the exact candidate success status to be created by the status creator returned from the same-cycle attestation.",
+            "Main automated finalization is allowed only when manual_count=0 and base SHA, source head SHA, and merge-candidate SHA remain exactly attested; same-cycle merged-state readback is mandatory.",
+            "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof; the generic main finalizer merge job does not run for Production.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
             "The E2E schema formally recognizes environment_impact while the environment closure retains contextual fail-closed policy enforcement.",
             "Repository governance schemas are classified as repository-only control-plane surfaces rather than staging or Production runtime mutations.",
             "Shared-runtime impact declares staging and production, records cross-environment review, requires live Staging certification, and keeps production_mutation_allowed false.",
             "The executable universe remains fail-closed: changed executables require semantic classes and registered verifier authority; unsupported language-level validation is not inferred from filenames.",
             "Semantic facets such as auth_profile, db_effect, provider_effect, and route resolve through the declarative semantic-verifier-requirements registry to registered safe verifiers, with missing mappings failing closed.",
-            "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, protected-ref mutation, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR."
+            "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, repository-setting mutation, protected-ref mutation outside an independently authorized merge, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR."
           ],
           "tests": [
             {
@@ -179,6 +187,13 @@
               "working_directory": "http-generic-api",
               "path": "test-github-repository-governance-attestation.mjs",
               "args": []
+            },
+            {
+              "id": "github-finalizer-exact-head-merge-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-derived-state-converged-automerge-source-event.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -191,6 +206,7 @@
             ".github/governance/test-authority-registry.json",
             ".github/governance/evidence-producers.json",
             ".github/derived-state-governance.json",
+            ".github/ops/github-followup-automerge-readiness.mjs",
             ".github/workflows/policy-objection-ci.yml",
             ".github/workflows/derived-state-closure.yml",
             ".github/workflows/derived-state-converged-automerge.yml",
@@ -215,6 +231,7 @@
             "http-generic-api/githubRepositoryPolicyController.js",
             "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
             "http-generic-api/githubRepositoryGovernanceAttestation.js",
+            "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
             "docs/repository-ci-surface-policy.json",
             "docs/work-maps/README.md",
             "docs/work-maps/repository-automation-map.md"
