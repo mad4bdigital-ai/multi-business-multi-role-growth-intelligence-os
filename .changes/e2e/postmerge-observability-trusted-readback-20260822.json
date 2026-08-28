@@ -10,6 +10,7 @@
       ".changes/e2e/postmerge-observability-trusted-readback-20260822.json",
       ".github/workflows/repository-inventory.yml",
       ".github/workflows/repository-evaluation.yml",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
       "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -30,7 +31,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep repository inventory and evaluation evidence authoritative while classifying known post-merge observability staleness as advisory and non-blocking, and preserve fail-closed behavior for unclassified readback failures.",
+      "objective": "Keep repository inventory, evaluation, and Staging deploy eligibility evidence authoritative while classifying known post-merge observability staleness as advisory and non-blocking, and preserve fail-closed behavior for semantic or unclassified readback failures.",
       "e2e_journeys": [
         {
           "id": "postmerge-observability-advisory",
@@ -67,6 +68,52 @@
             ".github/workflows/repository-evaluation.yml",
             "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
             "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        },
+        {
+          "id": "staging-main-eligibility-semantic-inventory",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Main Deploy Eligibility",
+          "entrypoint": "A push to main runs .github/workflows/staging-main-deploy-eligibility.yml on the exact main commit.",
+          "terminal_outcome": "Staging eligibility blocks on Remote MCP semantic currentness and inventory regression integrity, while observability-only drift already classified by derived-state policy remains non-blocking and cannot falsely deny an otherwise eligible exact main commit.",
+          "steps": [
+            "Verify exact main identity, Staging environment authority, environment impact, derived-state closure, and Staging topology as before.",
+            "Run the registered Remote MCP semantic currentness projection as a blocking check.",
+            "Run Remote MCP inventory regression tests as a blocking check.",
+            "Do not use the full byte-for-byte inventory freshness command as a Staging deployment blocker because it includes declared observability-only fields.",
+            "Publish eligibility evidence only after all semantic and safety gates pass."
+          ],
+          "assertions": [
+            "Remote MCP semantic drift remains fail-closed and blocks Staging eligibility.",
+            "Unclassified inventory verification failures remain fail-closed through the semantic projection or regression tests.",
+            "Known post-merge observability-only drift is not promoted into a Staging deployment blocker.",
+            "Eligibility evidence states remote_mcp_semantic_currentness=true and postmerge_observability_drift_blocking=false.",
+            "No database, migration, provider, Hostinger, Cloudflare, Branch Protection, Ruleset, Production deployment, or secret mutation is authorized by this correction."
+          ],
+          "tests": [
+            {
+              "id": "postmerge-observability-advisory-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-postmerge-observability-advisory-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/postmerge-observability-trusted-readback-20260822.json",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
+            "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
             ".github/derived-state-governance.json"
           ]
         }
