@@ -36,18 +36,18 @@ function ConvertTo-StagingProcessArgument([AllowNull()][string]$Argument) {
             continue
         }
         if ($character -eq '"') {
-            if ($backslashCount -gt 0) { $quoted += (('\\' * ($backslashCount * 2)) -join '') }
+            if ($backslashCount -gt 0) { $quoted += (('\' * ($backslashCount * 2)) -join '') }
             $quoted += '\"'
             $backslashCount = 0
             continue
         }
         if ($backslashCount -gt 0) {
-            $quoted += (('\\' * $backslashCount) -join '')
+            $quoted += (('\' * $backslashCount) -join '')
             $backslashCount = 0
         }
         $quoted += $character
     }
-    if ($backslashCount -gt 0) { $quoted += (('\\' * ($backslashCount * 2)) -join '') }
+    if ($backslashCount -gt 0) { $quoted += (('\' * ($backslashCount * 2)) -join '') }
     $quoted += '"'
     return $quoted
 }
