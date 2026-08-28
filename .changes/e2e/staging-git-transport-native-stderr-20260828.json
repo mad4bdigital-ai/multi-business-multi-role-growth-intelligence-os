@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-git-transport-native-stderr-20260828",
-  "title": "Windows Staging Git native stderr transport handling",
+  "title": "Windows Staging Git transport handling and fetch isolation",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "secrets_included": false,
@@ -30,7 +30,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prevent Windows PowerShell from treating successful native Git stderr diagnostics as terminating errors while preserving exact exit-code failure handling and bounded retries.",
+      "objective": "Keep the Windows Staging Git transport robust to successful native stderr diagnostics and isolate bootstrap fetch from repository auto-maintenance and submodule recursion while preserving exact exit-code failure handling, exact-SHA verification, and bounded retries.",
       "e2e_journeys": [
         {
           "id": "windows-bootstrap-git-stderr-success-path",
@@ -86,6 +86,60 @@
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs"
           ]
+        },
+        {
+          "id": "windows-staging-fetch-housekeeping-isolation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging operator",
+          "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+          "terminal_outcome": "The shared Staging Git transport performs bootstrap fetch with repository auto-maintenance and submodule recursion disabled, accepts only a zero Git exit code, preserves exact origin/main SHA verification, and makes no Production or provider mutation.",
+          "steps": [
+            "Invoke the shared Staging Git transport for the bootstrap fetch path.",
+            "Apply --no-auto-maintenance and --no-recurse-submodules only to fetch invocations.",
+            "Preserve the existing HTTP/protocol transport options, credential redaction, bounded retry policy, and explicit exit-code handling.",
+            "Continue to exact-SHA checkout and Staging preflight only after a successful fetch.",
+            "Require live Staging certification before this Staging-impacting change is treated as merge-ready."
+          ],
+          "assertions": [
+            "Fetch invocations include --no-auto-maintenance and --no-recurse-submodules without weakening other Git command behavior.",
+            "A non-zero Git exit code remains fail-closed and retryable failures remain bounded by the existing attempt limit.",
+            "Exact origin/main and requested SHA verification remains required after transport success.",
+            "No GitHub token, credential payload, or local environment secret is read into evidence or printed.",
+            "No Docker, MariaDB, schema apply, migration, grant, provider, Hostinger, Cloudflare, Production deployment, Branch Protection, or Rulesets mutation is authorized by this change.",
+            "Production mutation authority remains false."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure-validator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
+            "autopilot-portable-staging/Staging-GitTransport.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/scripts/environment-impact-closure.mjs"
+          ]
         }
       ]
     },
@@ -95,7 +149,7 @@
       "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority.",
       "blockers": [
         "Production and provider actions require separate explicit authorization and independent evidence.",
-        "This transport fix only handles local Git process output and never activates production_live authority."
+        "This transport fix only changes local Staging Git process behavior and never activates production_live authority."
       ]
     }
   ]

@@ -8,6 +8,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(SCRIPT_DIR, "..");
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const REGISTRY_PATH = path.join(REPO_ROOT, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
+const TOPOLOGY_EXTENSION_PATH = path.join(REPO_ROOT, "canonicals", "openapi", "registration-topology-closure.yaml");
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const POLICY_FILES = {
   activation_gateway: path.join(REPO_ROOT, "edge", "activation-gateway", "generated", "route-policy.json"),
@@ -37,6 +38,72 @@ function hostOf(url) {
 
 function fail(errors, message) {
   errors.push(message);
+}
+
+function applyTopologyExtension(registry, errors, evidence) {
+  if (!fs.existsSync(TOPOLOGY_EXTENSION_PATH)) {
+    fail(errors, "registration topology closure extension is missing");
+    return registry;
+  }
+  const extension = loadYaml(TOPOLOGY_EXTENSION_PATH);
+  if (extension?.contract !== "mad4b.registration-topology-closure.v1" || Number(extension?.version) !== 1) {
+    fail(errors, "registration topology closure contract/version is invalid");
+  }
+  if (extension?.safety?.production_live !== false || extension?.safety?.routing_changed !== false
+    || extension?.safety?.provider_accessed !== false || extension?.safety?.database_mutation_performed !== false
+    || extension?.safety?.secrets_included !== false) {
+    fail(errors, "registration topology closure must remain repository-only, non-live and non-mutating");
+  }
+
+  const merged = {
+    ...registry,
+    registration_sets: { ...(registry.registration_sets || {}) },
+    surfaces: Object.fromEntries(Object.entries(registry.surfaces || {}).map(([key, value]) => [key, { ...value }])),
+    registration_host_collision_policy: {
+      ...(registry.registration_host_collision_policy || {}),
+      allowed_pairs: [...(registry.registration_host_collision_policy?.allowed_pairs || [])],
+    },
+  };
+  for (const [setKey, set] of Object.entries(extension.registration_sets || {})) {
+    if (merged.registration_sets[setKey]) {
+      fail(errors, `topology extension may not override existing registration_set ${setKey}`);
+      continue;
+    }
+    merged.registration_sets[setKey] = set;
+  }
+  for (const [surfaceKey, binding] of Object.entries(extension.surface_bindings || {})) {
+    const surface = merged.surfaces[surfaceKey];
+    if (!surface) {
+      fail(errors, `topology extension references missing surface ${surfaceKey}`);
+      continue;
+    }
+    if (surface.registration_set && surface.registration_set !== binding.registration_set) {
+      fail(errors, `${surfaceKey}: topology extension conflicts with existing registration_set`);
+      continue;
+    }
+    if (surface.action_slot && surface.action_slot !== binding.action_slot) {
+      fail(errors, `${surfaceKey}: topology extension conflicts with existing action_slot`);
+      continue;
+    }
+    merged.surfaces[surfaceKey] = { ...surface, ...binding };
+  }
+  for (const pair of extension.allowed_host_collision_pairs || []) {
+    if (!Array.isArray(pair) || pair.length !== 2 || pair.some((value) => typeof value !== "string" || !value)) {
+      fail(errors, "topology extension collision pairs must contain exactly two registration set keys");
+      continue;
+    }
+    merged.registration_host_collision_policy.allowed_pairs.push(pair);
+  }
+  evidence.topology_extension = {
+    contract: extension?.contract || null,
+    path: path.relative(REPO_ROOT, TOPOLOGY_EXTENSION_PATH).replaceAll(path.sep, "/"),
+    sha256: crypto.createHash("sha256").update(fs.readFileSync(TOPOLOGY_EXTENSION_PATH)).digest("hex"),
+    added_registration_sets: Object.keys(extension.registration_sets || {}).sort(),
+    bound_surfaces: Object.keys(extension.surface_bindings || {}).sort(),
+    production_live: false,
+    routing_changed: false,
+  };
+  return merged;
 }
 
 function validateRegistrationSets(registry, errors, evidence) {
@@ -158,6 +225,12 @@ function validateRegistrationSets(registry, errors, evidence) {
     if (surface.registration_set && !allSetKeys.has(surface.registration_set)) fail(errors, `${surfaceKey}: references unknown registration_set ${surface.registration_set}`);
   }
 
+  const requiredCoreBindings = ["admin_core_production", "tenant_core_production", "admin_core_staging", "tenant_core_staging"];
+  for (const surfaceKey of requiredCoreBindings) {
+    const surface = registry.surfaces?.[surfaceKey];
+    if (!surface?.registration_set || !surface?.action_slot) fail(errors, `${surfaceKey}: Core projection must have an explicit registration_set and action_slot`);
+  }
+
   const byHost = new Map();
   for (const [setKey, set] of Object.entries(sets)) {
     const host = hostOf(set.server_uri);
@@ -234,9 +307,10 @@ function validateGatewayPolicies(registry, errors, evidence) {
   }
 }
 
-const registry = loadYaml(REGISTRY_PATH);
+const rawRegistry = loadYaml(REGISTRY_PATH);
 const errors = [];
 const evidence = { registration_sets: {}, gateway_policies: {}, secrets_included: false };
+const registry = applyTopologyExtension(rawRegistry, errors, evidence);
 validateRegistrationSets(registry, errors, evidence);
 validateGatewayPolicies(registry, errors, evidence);
 if (errors.length > 0) {

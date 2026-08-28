@@ -68,6 +68,7 @@
             "Require OpenAPI Auto Sync push events to dispatch an exact-head workflow_dispatch writer rather than mutating from the push job.",
             "Require Surface Contract push and schedule events to dispatch an exact-head workflow_dispatch writer rather than mutating from the event job.",
             "Require each mutating writer to verify checked-out HEAD and current main against expected_head_sha and reject main or Production as a target branch.",
+            "Require generated writers to stop at reviewable PR creation; they may classify finalizer eligibility but may not register or execute a merge.",
             "Run focused automation-overlap and repository lifecycle regressions against the candidate tree."
           ],
           "assertions": [
@@ -77,6 +78,7 @@
             "Docs Agent Main Follow-up is registered in the same shared queue and performs mutation only through an explicit expected-head workflow_dispatch path.",
             "OpenAPI Auto Sync and Surface Contract event jobs only delegate to exact-head writers; their writer jobs reject stale main snapshots.",
             "All mutating generated-artifact writers reject main and Production as target branches before repository mutation.",
+            "Generated writers contain no gh pr merge invocation and never enable GitHub native auto-merge.",
             "The policy declares required_queue=max for repository-generated-artifacts.",
             "No direct protected-branch write, force push, provider call, database mutation, migration execution, deployment, or secret expansion is introduced."
           ],
@@ -112,24 +114,28 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail regression coverage when a governed generated-artifact lifecycle can be silently dropped, mutate from an unpinned event snapshot, or target a protected branch.",
+      "objective": "Fail regression coverage when a generated-artifact writer can silently drop work, mutate from an unpinned snapshot, target a protected branch, or regain merge authority outside the trusted exact-candidate Governance Finalizer.",
       "e2e_journeys": [
         {
           "id": "generated-artifact-queue-and-lifecycle-ratchet",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Automation Overlap Guard and Repository Tool Lifecycle Governance",
-          "entrypoint": "A pull request changing generated-artifact workflows, overlap policy, or focused governance tests",
-          "terminal_outcome": "The candidate is rejected if any registered repository-generated-artifact workflow drops multi-pending queue protection or reintroduces pull-request mutation, branch-specific work literals, missing expected-head verification, or protected-target mutation.",
+          "actor": "Automation Overlap Guard, Repository Tool Lifecycle Governance, and Governance Finalizer",
+          "entrypoint": "A pull request changing generated-artifact workflows, finalizer workflow, server-readiness verifier, overlap policy, or focused governance tests",
+          "terminal_outcome": "The candidate is rejected if any generated writer drops queue/exact-head protection, regains native auto-merge authority, or if the finalizer can merge without exact Trusted GitHub App status and active server-policy proof.",
           "steps": [
             "Read the declared required_queue value and registered workflow inventory from the candidate policy.",
             "Read each registered workflow source from the same candidate tree.",
-            "Assert the exact concurrency group, cancel-in-progress=false, and queue=max contract across all four workflows.",
+            "Assert the exact concurrency group, cancel-in-progress=false, and queue=max contract across all four generated-artifact workflows.",
             "Assert Docs Agent pull-request preview remains read-only and branch-name-independent.",
-            "Assert every repository writer uses workflow_dispatch, expected_head_sha, exact checkout/readback, and protected-target rejection.",
-            "Classify every tracked and untracked follow-up mutation, permit only explicit documentation evidence, prefer a trusted scoped repository identity, and verify repository auto-merge capability before exact-head registration.",
-            "Require the Recovery-delegated Work Map sole writer to publish its bounded exact-head commit with the same trusted repository identity so all required pull-request checks actually execute.",
-            "Require generated-artifact auto-merge registration to pass the shared registry and server-readiness verifier before any follow-up can become mergeable.",
+            "Assert every generated repository writer uses workflow_dispatch, expected_head_sha, exact checkout/readback, and protected-target rejection.",
+            "Classify every tracked and untracked follow-up mutation and permit only explicitly registered generated evidence.",
+            "Require OpenAPI, Docs Agent, and Surface Contract producers to stop after PR creation and finalizer-eligibility reporting; forbid github-followup-automerge-readiness and gh pr merge in those producer workflows.",
+            "Require repository native auto-merge to be disabled before any automated finalization.",
+            "Require the Governance Finalizer to consume exact source/base/candidate evidence, obtain Trusted GitHub App attestation, pass app_id and status_creator_id into the central live verifier, and merge only main PRs with manual_count=0.",
+            "Require the live verifier to read active branch rules plus the managed Ruleset, reject bypass actors and merge queue, bind Derived State Closure to the exact attestor App id, prove the exact-candidate success status came from the same-cycle status creator, and re-read exact base/head/candidate identity before allowing immediate merge.",
+            "Require the finalizer merge command to use --squash and --match-head-commit but never --auto or --admin, followed by same-cycle merged-state readback.",
+            "Require the Recovery-delegated Work Map sole writer to publish its bounded exact-head commit with the trusted repository identity so pull-request governance can execute normally.",
             "Run the real-repository automation overlap analysis and lifecycle guard against the candidate tree."
           ],
           "assertions": [
@@ -137,8 +143,11 @@
             "The regression covers all four registered repository-generated-artifact workflows.",
             "The existing Work Map writer queue=max ratchet remains intact.",
             "Pull-request preview and repository mutation remain separated.",
-            "Generated JSON evidence is auto-merge eligible only through an explicit filename allowlist; schemas, runtime changes, arbitrary JSON, manual-review findings, blocking gaps, stale heads, and missing trusted identity remain fail-closed.",
-            "Disabled repository auto-merge, absent server-side main protection, missing Derived State Closure, manual-review labels, and approval-blocked action_required runs block auto-merge registration rather than degrading to warnings.",
+            "Generated JSON evidence is automated-finalization eligible only through an explicit filename allowlist; schemas, runtime changes, arbitrary JSON, manual-review findings, blocking gaps, stale heads, and missing trusted identity remain fail-closed.",
+            "Enabled repository native auto-merge, absent server-side main protection, missing active required rules, missing or ambiguous managed Ruleset, bypass actors, merge queue, missing App-bound Derived State Closure, candidate/status creator mismatch, manual-review labels, and approval-blocked action_required runs all fail closed.",
+            "Generated writers never call gh pr merge and cannot consume the central finalizer merge-readiness authority.",
+            "The Governance Finalizer is the sole automated merge surface for main and cannot use --auto or --admin.",
+            "Production remains outside generic finalizer merge authority and retains its separately governed promotion path.",
             "The Work Map writer fails before checkout when its trusted credential is absent and preserves bot-authored one-time delegation, exact target binding, sole-writer authority, bounded files, and post-push readback.",
             "Evidence contains no secrets."
           ],
@@ -165,17 +174,24 @@
               "args": []
             },
             {
-              "id": "repository-followup-surface-exact-head-automerge",
+              "id": "repository-followup-surface-finalizer-eligibility",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-surface-contract-auto-remediation.mjs",
               "args": []
             },
             {
-              "id": "repository-followup-convergence-automerge-capability",
+              "id": "repository-followup-finalizer-exact-candidate-merge",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-derived-state-converged-automerge-source-event.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-followup-docs-producer-merge-free",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
               "args": []
             },
             {
@@ -191,7 +207,16 @@
             ".github/governance/generated-artifact-registry.json",
             ".github/ops/generated-artifact-governance.mjs",
             ".github/ops/github-followup-automerge-readiness.mjs",
-            "http-generic-api/test-automation-overlap-analyzer.mjs"
+            ".github/workflows/derived-state-converged-automerge.yml",
+            ".github/workflows/docs-agent-main-followup.yml",
+            ".github/workflows/openapi-auto-sync.yml",
+            ".github/workflows/surface-contract-auto-remediation.yml",
+            "docs/repo-autosync-permissions.md",
+            "http-generic-api/test-automation-overlap-analyzer.mjs",
+            "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+            "http-generic-api/test-repo-maintenance-sync.mjs",
+            "http-generic-api/test-surface-contract-auto-remediation.mjs",
+            "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
           ]
         }
       ]

@@ -36,7 +36,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Repair the live review-policy source parity pin and add a deterministic Git blob regression guard while preserving read-only readiness, no provider mutation, no database mutation, no migration apply, and no Production activation.",
+      "objective": "Repair the live review-policy source parity pin and make readiness fail closed on a blocked or non-executable GitHub policy plan while preserving read-only readiness, no provider mutation, no database mutation, no migration apply, and no Production activation.",
       "e2e_journeys": [
         {
           "id": "live-policy-source-parity-contract",
@@ -44,11 +44,14 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance CI",
           "entrypoint": "The live policy activation contract test runs on the exact PR candidate.",
-          "terminal_outcome": "The runner pins both reviewed source blobs to their actual repository Git blob SHA values and the contract fails closed if either pin drifts.",
+          "terminal_outcome": "The runner pins both reviewed source blobs to their actual repository Git blob SHA values and cannot declare ready_for_apply or create an Apply envelope unless the exact controller plan has an executable create/update operation, zero activation blockers, every declared precondition true, exact target-SHA binding, and mutation_executed=false.",
           "steps": [
             "Read the live activation runner and policy target contract.",
             "Compute Git blob SHA values for migration 1051 and the envelope creator from repository bytes.",
             "Assert that the runner pins match the computed values.",
+            "Validate the exact controller plan after readback and before readiness success.",
+            "Fail closed when the operation is blocked, activation blockers are present or unreadable, any current or future plan precondition is not true, the plan SHA is not the exact target, or the plan reports mutation.",
+            "Revalidate the same executable-plan gate in Apply before consuming the readiness marker or creating, approving, or authorizing an envelope.",
             "Run environment-impact closure and governance closure on the exact candidate.",
             "Keep readiness read-only and leave Branch Protection, Rulesets, database, migration, provider, and Production effects disabled."
           ],
@@ -56,6 +59,9 @@
             "The envelope creator pin equals the current repository blob SHA 3ee2196a86cc66d5dc7de771b6fdaccd8fa45f14.",
             "The migration 1051 pin equals the current repository blob SHA a705b4425c962b65efae3f92a7e9ef20706e0841.",
             "A stale source pin fails the contract before runtime parity or any external call.",
+            "ready_for_apply is impossible unless plan.operation is create_ruleset or update_ruleset, activation_blockers is a readable empty array, every plan precondition is true, the expected plan SHA matches the exact target SHA, and mutation_executed is false.",
+            "Apply rechecks the executable plan before readiness-marker consumption and before any capability envelope creation or authorization.",
+            "A blocked plan produces fail-closed diagnostic evidence and grants no Apply authority.",
             "Environment impact is explicitly declared for staging and production.",
             "Live staging certification remains required and production mutation remains false.",
             "No Branch Protection or Rulesets Apply, migration, grant, SQL/DB mutation, provider mutation, credential payload read, force-push, or Production activation occurs."

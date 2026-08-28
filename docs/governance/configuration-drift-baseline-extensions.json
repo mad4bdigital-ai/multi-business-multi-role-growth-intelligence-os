@@ -70,6 +70,83 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedAttestorAppId|environment_reference|expected.attestor.app.id",
+      "owner": "repository-governance",
+      "reason": "Expected attestor App ID is a non-secret server-policy identity binding used to fail closed unless exact-candidate readiness is attested by the designated GitHub App; it grants no merge, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedBaseHead|environment_reference|expected.head.sha",
+      "owner": "repository-governance",
+      "reason": "Expected base-head SHA is a read-only freshness binding used to reject a finalizer decision if the governed main base moved after candidate construction; it grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedCandidate|environment_reference|expected.candidate.sha",
+      "owner": "repository-governance",
+      "reason": "Expected merge-candidate SHA is a read-only exact-candidate identity binding; any mismatch fails closed before finalizer merge authority can be exercised.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedPrHead|environment_reference|expected.pr.head.sha",
+      "owner": "repository-governance",
+      "reason": "Expected PR-head SHA is a read-only exact-head binding used to reject stale finalizer evidence when the pull-request source changes; it grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedStatusCreatorId|environment_reference|expected.status.creator.id",
+      "owner": "repository-governance",
+      "reason": "Expected status creator ID is a non-secret GitHub identity binding used to reject a required-check status emitted by an unexpected principal; it cannot itself authorize merge or any runtime, provider, database, protected-ref, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|managedRulesetName|environment_reference|managed.ruleset.name",
+      "owner": "repository-governance",
+      "reason": "Managed Ruleset name is a non-secret server-policy selector used only to verify the expected main-branch ruleset and its no-bypass protection before finalization; it grants no ruleset mutation or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|requiredContext|environment_reference|required.check.context",
+      "owner": "repository-governance",
+      "reason": "Required check context is an exact, read-only status identity used by the finalizer verifier; it narrows which App-bound exact-candidate attestation is acceptable and does not grant merge, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs|DEFAULT_BASELINE_EXTENSION|literal_declaration|baseline.extension",
       "owner": "repository-governance",
       "reason": "The default baseline-extension path is the code-owned locator for the permanent configuration governance extension authority. It selects a tracked report-only contract, contains no credential, and grants no runtime, database, protected-ref, or Production mutation authority.",

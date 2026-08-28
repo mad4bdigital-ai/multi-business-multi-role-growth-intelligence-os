@@ -14,6 +14,7 @@ on:
       - "http-generic-api/scripts/ci-path-format-guard.mjs"
       - "http-generic-api/openapi/source-operation-coverage.baseline.json"
       - "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      - "http-generic-api/test-remote-mcp-oauth-path-format-guard.mjs"
       - "http-generic-api/test-trusted-ingress-contract.mjs"
       - "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs"
       - "http-generic-api/test-shared-mutation-policy.mjs"
@@ -23,8 +24,10 @@ on:
       - "http-generic-api/openapi/openapi-mutation-policy.generated.json"
       - "canonicals/openapi/custom-gpt-surfaces.yaml"
       - "scripts/remote-mcp-write-scope-inventory.mjs"
+      - "scripts/remote-mcp-write-scope-semantic-currentness.mjs"
       - "scripts/test-remote-mcp-write-scope-inventory.mjs"
       - "docs/remote-mcp-write-scope-inventory.md"
+      - ".github/derived-state-governance.json"
       - "edge/activation-gateway/**"
       - ".github/workflows/remote-mcp-oauth-path-format-guard.yml"
   push:
@@ -41,6 +44,7 @@ on:
       - "http-generic-api/scripts/ci-path-format-guard.mjs"
       - "http-generic-api/openapi/source-operation-coverage.baseline.json"
       - "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      - "http-generic-api/test-remote-mcp-oauth-path-format-guard.mjs"
       - "http-generic-api/test-trusted-ingress-contract.mjs"
       - "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs"
       - "http-generic-api/test-shared-mutation-policy.mjs"
@@ -50,8 +54,10 @@ on:
       - "http-generic-api/openapi/openapi-mutation-policy.generated.json"
       - "canonicals/openapi/custom-gpt-surfaces.yaml"
       - "scripts/remote-mcp-write-scope-inventory.mjs"
+      - "scripts/remote-mcp-write-scope-semantic-currentness.mjs"
       - "scripts/test-remote-mcp-write-scope-inventory.mjs"
       - "docs/remote-mcp-write-scope-inventory.md"
+      - ".github/derived-state-governance.json"
       - "edge/activation-gateway/**"
       - ".github/workflows/remote-mcp-oauth-path-format-guard.yml"
   workflow_dispatch:
@@ -142,7 +148,7 @@ jobs:
 
       - name: Verify write-scope inventory classification
         run: |
-          npm run write-scopes:inventory:check
+          node scripts/remote-mcp-write-scope-semantic-currentness.mjs
           npm run write-scopes:inventory:test
 
       - name: Verify trusted ingress contract

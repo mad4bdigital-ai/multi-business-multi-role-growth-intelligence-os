@@ -118,6 +118,7 @@ export async function buildStagingRecoveryAdminReadiness({
   deploymentAttestationReader = null,
   targetFingerprintReader = null,
   recoveryReadinessEvidenceReader = null,
+  ingressBuildIdentity = null,
   expectedSha = null,
   expectedTargetFingerprint = null,
 } = {}) {
@@ -155,7 +156,7 @@ export async function buildStagingRecoveryAdminReadiness({
     expectedTargetFingerprint: currentTargetFingerprint,
     requireExpectedTargetFingerprint: true,
   });
-  const externalEvidence = await evaluateExternalStagingEvidence(snapshot);
+  const externalEvidence = await evaluateExternalStagingEvidence(snapshot, ingressBuildIdentity);
   const ready = authorityGraph.ready === true
     && externalEvidence.ready
     && attestationValid
@@ -261,6 +262,7 @@ export function buildStagingRecoveryAdminRoutes({
         deploymentAttestationReader,
         targetFingerprintReader,
         recoveryReadinessEvidenceReader,
+        ingressBuildIdentity: req.activationHostGateway?.ingress_build_identity,
       });
       return res.status(200).json({ ok: result.ready, ...result });
     } catch (error) {
@@ -276,6 +278,7 @@ export function buildStagingRecoveryAdminRoutes({
         deploymentAttestationReader,
         targetFingerprintReader,
         recoveryReadinessEvidenceReader,
+        ingressBuildIdentity: req.activationHostGateway?.ingress_build_identity,
       });
       return res.status(200).json({
         ok: result.certification.valid,

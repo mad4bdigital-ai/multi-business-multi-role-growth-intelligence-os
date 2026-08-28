@@ -70,23 +70,16 @@ assert.match(docsAgentMainFollowup, /steps\.target\.outputs\.stale != 'true'/);
 assert.match(docsAgentMainFollowup, /main\|Production\)/);
 assert.doesNotMatch(docsAgentMainFollowup, /docs\/work-maps/);
 for (const marker of [
-  "Register governed auto-merge for safe impact notes",
+  "Record governance-finalizer eligibility for safe impact notes",
   "GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}",
-  "TARGET_BRANCH: main",
-  "REQUIRED_CHECK_CONTEXT: Derived State Closure",
-  "node .github/ops/github-followup-automerge-readiness.mjs",
-  "gh pr merge \"$PR_NUMBER\"",
-  "--auto",
-  "--squash",
-  "--delete-branch",
-  "--match-head-commit \"$pr_head_sha\"",
+  "Native GitHub auto-merge is intentionally not registered",
+  "Derived State Closure and the Governance Finalizer own any automated merge decision.",
 ]) {
-  assert.ok(docsAgentMainFollowup.includes(marker), `Docs Agent guarded auto-merge contract missing ${marker}`);
+  assert.ok(docsAgentMainFollowup.includes(marker), `Docs Agent governance-finalizer contract missing ${marker}`);
 }
-const docsReadinessIndex = docsAgentMainFollowup.indexOf("node .github/ops/github-followup-automerge-readiness.mjs");
-const docsAutoMergeIndex = docsAgentMainFollowup.indexOf("gh pr merge \"$PR_NUMBER\"");
-assert.ok(docsReadinessIndex >= 0, "Docs Agent follow-up must invoke the central auto-merge readiness verifier");
-assert.ok(docsAutoMergeIndex > docsReadinessIndex, "Docs Agent follow-up must prove readiness before registering auto-merge");
+assert.doesNotMatch(docsAgentMainFollowup, /node \.github\/ops\/github-followup-automerge-readiness\.mjs/);
+assert.doesNotMatch(docsAgentMainFollowup, /gh pr merge/);
+assert.doesNotMatch(docsAgentMainFollowup, /--auto/);
 assert.doesNotMatch(docsAgentMainFollowup, /secrets\.REPO_AUTOSYNC_TOKEN\s*\|\|\s*github\.token/);
 assert.doesNotMatch(docsAgentMainFollowup, /--force(?:-with-lease)?/);
 
@@ -277,5 +270,3 @@ for (const marker of [
 }
 assert.doesNotMatch(runbook, /docs-agent-write|docs-agent-automerge/);
 assert.ok(testManifest.includes("node test-supervisor-runtime-assurance-automation.mjs"));
-
-console.log("supervisor runtime assurance automation contract OK");

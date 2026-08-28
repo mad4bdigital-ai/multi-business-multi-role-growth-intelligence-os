@@ -3,13 +3,14 @@ import { open, mkdir, readFile } from "node:fs/promises";
 import YAML from "yaml";
 import path from "node:path";
 import { constants } from "node:fs";
-import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
+import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 
 export const RECOVERY_READINESS_EVIDENCE_CONTRACT = "mad4b.recovery-readiness-evidence.v1";
 export const RECOVERY_CERTIFICATION_STORE_CONTRACT = "mad4b.recovery-certification-evidence-store.v1";
 export const RECOVERY_REPLAY_STORE_CONTRACT = "mad4b.recovery-ingress-replay-store.v1";
 const MAX_BYTES = 1024 * 1024;
 const SHA256 = /^[a-f0-9]{64}$/;
+const SHA40 = /^[a-f0-9]{40}$/;
 const authorities = new WeakSet();
 const stable = (v) => Array.isArray(v) ? v.map(stable) : v && typeof v === "object"
   ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])])) : v;
@@ -21,7 +22,7 @@ function fail(code) { throw Object.assign(new Error(code), { code, status: 503 }
 // the parity verdict from complete manifest entries; never trust a cached verdict.
 export function producePromotionArtifactParity({ source, target } = {}) {
   function normalize(manifest, environment) {
-    if (manifest?.environment !== environment || !/^[a-f0-9]{40}$/.test(manifest.sha || "")
+    if (manifest?.environment !== environment || !SHA40.test(manifest.sha || "")
       || !manifest.target_fingerprint || !Array.isArray(manifest.artifacts) || !manifest.artifacts.length
       || manifest.generated_artifacts_verified !== true || !SHA256.test(manifest.manifest_hash || "")) return null;
     const files = manifest.artifacts.map((entry) => ({ path: entry.path, sha256: entry.sha256 })).sort((a, b) => String(a.path).localeCompare(String(b.path)));
@@ -46,7 +47,7 @@ export function producePromotionArtifactParity({ source, target } = {}) {
 
 // Deployment-owned, dedicated persistent directory only. No request chooses a path.
 // O_EXCL claims are shared across processes on the SAME filesystem. Multi-host
-// deployments must use a shared atomic store, never independent local volumes.
+// deployments must inject a shared atomic store with replayStore.scope=shared_deployment.
 export function createFileRecoveryEvidenceStore({ directory } = {}) {
   if (!path.isAbsolute(directory || "")) fail("RECOVERY_EVIDENCE_DIRECTORY_INVALID");
   const root = path.resolve(directory);
@@ -54,13 +55,13 @@ export function createFileRecoveryEvidenceStore({ directory } = {}) {
     await mkdir(root, { recursive: true, mode: 0o700 });
     const handle = await open(path.join(root, name), "wx", 0o600);
     try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
-    // Persist the directory entry before acknowledging durable storage.
     const directoryHandle = await open(root, "r");
     try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
   }
   return Object.freeze({
     contract: RECOVERY_CERTIFICATION_STORE_CONTRACT,
     durability: "persistent_filesystem",
+    scope: "single_filesystem",
     async putCertification(record) {
       const bytes = readinessEvidencePayload(record);
       if (Buffer.byteLength(bytes) > MAX_BYTES) fail("RECOVERY_EVIDENCE_TOO_LARGE");
@@ -85,6 +86,7 @@ export function createFileRecoveryEvidenceStore({ directory } = {}) {
     },
     replayStore: Object.freeze({
       contract: RECOVERY_REPLAY_STORE_CONTRACT,
+      scope: "single_filesystem",
       async claim({ issuer, key_id, jti, expires_at }) {
         if (!issuer || !key_id || !jti || !Number.isInteger(expires_at) || expires_at <= Date.now() / 1000) return false;
         const id = hash(readinessEvidencePayload([issuer, key_id, jti]));
@@ -99,13 +101,15 @@ export function createRecoveryReadinessAuthorities({
   evidenceStore, deploymentIdentityProvider, targetIdentityProvider,
   recordId, publicKey, keyId, issuer, env = process.env,
 } = {}) {
-  const runtime = resolveRuntimeEnvironment(env);
+  const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || !["staging", "production"].includes(runtime.environment_key)) fail("RECOVERY_EVIDENCE_RUNTIME_INVALID");
   if (evidenceStore?.contract !== RECOVERY_CERTIFICATION_STORE_CONTRACT
     || typeof evidenceStore.getCertification !== "function" || typeof evidenceStore.putCertification !== "function"
     || typeof deploymentIdentityProvider?.readAttestation !== "function"
     || typeof targetIdentityProvider?.readIdentity !== "function" || !SHA256.test(recordId || "")
     || !keyId || !issuer) fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+  if (runtime.environment_key === "staging" && runtime.runtime_class !== "local_windows_docker"
+    && evidenceStore.replayStore?.scope !== "shared_deployment") fail("RECOVERY_REPLAY_STORE_SCOPE_INSUFFICIENT");
   const verificationKey = createPublicKey(publicKey);
   if (verificationKey.asymmetricKeyType !== "ed25519") fail("RECOVERY_EVIDENCE_KEY_INVALID");
   async function readSnapshot() {
@@ -130,11 +134,14 @@ export function createRecoveryReadinessAuthorities({
       deploymentAttestation: attestation,
       candidateSha: attestation.sha,
       candidateTargetFingerprint: target.target_fingerprint,
+      runtimeClass: runtime.runtime_class,
       promotionArtifactParity: producePromotionArtifactParity(payload.promotionManifests),
       adapterProvenance: payload.adapterProvenance?.environment === runtime.environment_key
         && payload.adapterProvenance?.deployment_sha === attestation.sha ? payload.adapterProvenance : null,
       registrationEvidence: payload.registrationEvidence || null,
       oauthEvidence: payload.oauthEvidence || null,
+      networkEvidence: payload.networkEvidence || null,
+      workerDeploymentEvidence: payload.workerDeploymentEvidence || null,
       unresolvedRecoveryIncidents: Array.isArray(payload.unresolvedRecoveryIncidents) ? payload.unresolvedRecoveryIncidents : ["incident_evidence_missing"],
       evidence_id: recordId,
       authenticity_verified: true,
@@ -172,10 +179,23 @@ export async function expectedStagingRegistration() {
   };
 }
 
-export async function evaluateExternalStagingEvidence(snapshot) {
+export async function expectedStagingGatewayDeployment() {
+  const bytes = await readFile(new URL("./activation-gateway-runtime/generated/route-policy.staging.json", import.meta.url));
+  const policy = JSON.parse(bytes.toString("utf8"));
+  return {
+    policy_hash: policy.content_hash_sha256,
+    gateway_host: policy.public_host,
+    upstream_origin: policy.upstream_origin,
+  };
+}
+
+export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIdentity = null) {
   const expected = await expectedStagingRegistration();
+  const gateway = await expectedStagingGatewayDeployment();
   const registration = snapshot?.registrationEvidence;
   const oauth = snapshot?.oauthEvidence;
+  const network = snapshot?.networkEvidence;
+  const worker = snapshot?.workerDeploymentEvidence;
   const bound = (evidence) => evidence?.deployment_sha === snapshot?.candidateSha
     && evidence?.target_fingerprint === snapshot?.candidateTargetFingerprint
     && SHA256.test(evidence?.evidence_hash || "")
@@ -187,6 +207,34 @@ export async function evaluateExternalStagingEvidence(snapshot) {
     oauth_browser_round_trip: bound(oauth) && oauth?.issuer === "https://dev.mad4b.com"
       && oauth?.resource === "https://activation-dev.mad4b.com"
       && ["authorize", "login_consent", "code", "callback", "token", "resource"].every((step) => oauth?.steps?.[step] === "pass"),
+    origin_network_isolation: bound(network)
+      && network?.environment === "staging"
+      && network?.gateway_host === gateway.gateway_host
+      && network?.upstream_origin === gateway.upstream_origin
+      && network?.gateway_only === true
+      && network?.signed_ingress_required === true
+      && network?.network_restriction_verified === true
+      && network?.direct_origin_publicly_reachable === false,
+    deployed_worker_provenance: bound(worker)
+      && worker?.observed_in === "cloudflare_workers"
+      && worker?.deployment_verified === true
+      && worker?.gateway_host === gateway.gateway_host
+      && worker?.policy_hash === gateway.policy_hash
+      && worker?.worker_build_sha === snapshot?.candidateSha
+      && worker?.policy_source_sha === snapshot?.candidateSha
+      && SHA256.test(worker?.worker_bundle_sha256 || "")
+      // The stamped source-set digest is not the final release bundle digest.
+      // Compare the observed deployment to the signed release artifact instead.
+      && SHA256.test(worker?.release_bundle_sha256 || "")
+      && worker?.deployed_bundle_sha256 === worker?.release_bundle_sha256,
+    gateway_request_build_binding: ingressBuildIdentity?.deployment_sha === snapshot?.candidateSha
+      && ingressBuildIdentity?.worker_build_sha === worker?.worker_build_sha
+      && SHA256.test(ingressBuildIdentity?.worker_bundle_sha256 || "")
+      && ingressBuildIdentity.worker_bundle_sha256 === worker?.worker_bundle_sha256
+      && ingressBuildIdentity?.policy_hash === gateway.policy_hash
+      && ingressBuildIdentity?.gateway_host === gateway.gateway_host
+      && Number.isInteger(ingressBuildIdentity?.expires_at)
+      && ingressBuildIdentity.expires_at > Date.now() / 1000,
   };
   return { ready: Object.values(checks).every(Boolean), checks, blocking_failures: Object.keys(checks).filter((key) => !checks[key]) };
 }

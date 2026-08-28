@@ -109,7 +109,7 @@ test("signed durable evidence reaches real composition dependencies without enab
   try {
     const store = createFileRecoveryEvidenceStore({ directory });
     const keys = generateKeyPairSync("ed25519");
-    const target = { environment: "staging", runtime_class: "staging_hosted", target_fingerprint: "target:server-owned" };
+    const target = { environment: "staging", runtime_class: "local_windows_docker", target_fingerprint: "target:server-owned" };
     const deploymentIdentityProvider = createServerManagedDeploymentIdentityProvider({ environment: "staging",
       readServerAttestation: async () => ({ ...validAttestation(), environment: "staging", branch: "main", target_fingerprint: target.target_fingerprint }),
     });
@@ -129,13 +129,15 @@ test("signed durable evidence reaches real composition dependencies without enab
     const reopened = createFileRecoveryEvidenceStore({ directory });
     assert.deepEqual(await reopened.getCertification(recordId), record);
     const options = { evidenceStore: reopened, deploymentIdentityProvider, targetIdentityProvider: { readIdentity: async () => target },
-      recordId, publicKey: keys.publicKey.export({ type: "spki", format: "pem" }), keyId: payload.key_id, issuer: payload.issuer, env: { NODE_ENV: "staging" } };
+      recordId, publicKey: keys.publicKey.export({ type: "spki", format: "pem" }), keyId: payload.key_id, issuer: payload.issuer,
+      env: { NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" } };
     const authority = createRecoveryReadinessAuthorities(options);
     const deps = getRecoveryCompositionRouteDependencies(createRecoveryComposition(), authority);
     assert.deepEqual(await deps.stagingCertificationReader(), payload.stagingCertification);
     assert.equal((await deps.deploymentAttestationReader()).branch, "main");
     assert.equal(await deps.targetFingerprintReader(), target.target_fingerprint);
     const snapshot = await deps.recoveryReadinessEvidenceReader();
+    assert.equal(snapshot.runtimeClass, "local_windows_docker");
     assert.equal(snapshot.promotionArtifactParity.verified, true);
     assert.notEqual(snapshot.promotionArtifactParity.source_sha, snapshot.promotionArtifactParity.target_sha);
     const drift = structuredClone(payload.promotionManifests);
@@ -152,7 +154,12 @@ test("signed durable evidence reaches real composition dependencies without enab
       const alteredId = await store.putCertification({ ...record, payload: modified });
       await assert.rejects(createRecoveryReadinessAuthorities({ ...options, recordId: alteredId }).readSnapshot(), /SIGNATURE_OR_FRESHNESS_INVALID/);
     }
-    await assert.rejects(createRecoveryReadinessAuthorities({ ...options, targetIdentityProvider: { readIdentity: async () => ({ ...target, runtime_class: "local_windows_docker" }) } }).readSnapshot(), /TARGET_MISMATCH/);
+    await assert.rejects(createRecoveryReadinessAuthorities({ ...options, targetIdentityProvider: { readIdentity: async () => ({ ...target, runtime_class: "staging_hosted" }) } }).readSnapshot(), /TARGET_MISMATCH/);
+    assert.throws(() => createRecoveryReadinessAuthorities({ ...options, env: { NODE_ENV: "staging" } }), /RECOVERY_EVIDENCE_RUNTIME_INVALID/);
+    assert.throws(() => createRecoveryReadinessAuthorities({ ...options,
+      env: { NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_hosted" },
+      targetIdentityProvider: { readIdentity: async () => ({ ...target, runtime_class: "staging_hosted" }) },
+    }), /RECOVERY_REPLAY_STORE_SCOPE_INSUFFICIENT/);
     const claims = { issuer: "gateway", key_id: "test", jti: "race", expires_at: Math.floor(Date.now() / 1000) + 60 };
     const raced = await Promise.all(Array.from({ length: 8 }, () => reopened.replayStore.claim(claims)));
     assert.equal(raced.filter(Boolean).length, 1);

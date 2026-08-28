@@ -44,6 +44,8 @@ jobs:
       base_sha: ${{ steps.final.outputs.base_sha }}
       candidate_sha: ${{ steps.final.outputs.candidate_sha }}
       manual_count: ${{ steps.final.outputs.manual_count }}
+      attestor_app_id: ${{ steps.final.outputs.attestor_app_id }}
+      status_creator_id: ${{ steps.final.outputs.status_creator_id }}
     env:
       GH_TOKEN: ${{ github.token }}
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -150,6 +152,10 @@ jobs:
           test "$(jq -r '.candidate_sha' "$response")" = "$candidate_sha"
           test "$(jq -r '.source_provenance.artifact_digest_sha256' "$response")" = "$evidence_digest"
           test "$(jq -r '.same_cycle_readback_proven' "$response")" = "true"
+          attestor_app_id="$(jq -r '.app_id // empty' "$response")"
+          status_creator_id="$(jq -r '.status_creator_id // empty' "$response")"
+          [[ "$attestor_app_id" =~ ^[1-9][0-9]*$ ]]
+          [[ "$status_creator_id" =~ ^[1-9][0-9]*$ ]]
           {
             echo "branch=$branch"
             echo "pr_number=$pr_number"
@@ -157,40 +163,52 @@ jobs:
             echo "base_sha=$base_sha"
             echo "candidate_sha=$candidate_sha"
             echo "manual_count=$manual_count"
+            echo "attestor_app_id=$attestor_app_id"
+            echo "status_creator_id=$status_creator_id"
           } >> "$GITHUB_OUTPUT"
 
-  register:
-    name: Register objection-free exact-head auto-merge
+  merge:
+    name: Merge objection-free exact head through server policy
     needs: attest
     if: needs.attest.outputs.branch == 'main' && needs.attest.outputs.manual_count == '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
-      - name: Checkout governance readiness verifier
+      - name: Checkout governance finalizer readiness verifier
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ needs.attest.outputs.source_head_sha }}
           fetch-depth: 1
+          persist-credentials: false
 
-      - name: Register guarded auto-merge only for unchanged Ready PR
+      - name: Merge exact attested Ready PR without native auto-merge
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
           REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
           PR_NUMBER: ${{ needs.attest.outputs.pr_number }}
-          EXPECTED_HEAD_SHA: ${{ needs.attest.outputs.source_head_sha }}
+          PR_HEAD_SHA: ${{ needs.attest.outputs.source_head_sha }}
           BASE_SHA: ${{ needs.attest.outputs.base_sha }}
           CANDIDATE_SHA: ${{ needs.attest.outputs.candidate_sha }}
+          ATTESTOR_APP_ID: ${{ needs.attest.outputs.attestor_app_id }}
+          STATUS_CREATOR_ID: ${{ needs.attest.outputs.status_creator_id }}
         shell: bash
         run: |
           set -euo pipefail
           if [[ "$REPO_AUTOSYNC_TOKEN_PRESENT" != "true" || -z "$GH_TOKEN" ]]; then
-            echo "REPO_AUTOSYNC_TOKEN is required so an auto-merge produces a normal push event and full post-merge CI." >&2
+            echo "REPO_AUTOSYNC_TOKEN is required for the exact-head governed merge so the resulting push starts normal post-merge CI." >&2
             exit 1
           fi
+          for value in "$PR_HEAD_SHA" "$BASE_SHA" "$CANDIDATE_SHA"; do [[ "$value" =~ ^[0-9a-f]{40}$ ]]; done
+          [[ "$ATTESTOR_APP_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$STATUS_CREATOR_ID" =~ ^[1-9][0-9]*$ ]]
 
           TARGET_BRANCH=main \
           REQUIRED_CHECK_CONTEXT="Derived State Closure" \
           EXPECTED_HEAD_SHA="$BASE_SHA" \
+          EXPECTED_PR_HEAD_SHA="$PR_HEAD_SHA" \
+          EXPECTED_CANDIDATE_SHA="$CANDIDATE_SHA" \
+          EXPECTED_ATTESTOR_APP_ID="$ATTESTOR_APP_ID" \
+          EXPECTED_STATUS_CREATOR_ID="$STATUS_CREATOR_ID" \
           PR_NUMBER="$PR_NUMBER" \
           node .github/ops/github-followup-automerge-readiness.mjs
 
@@ -199,10 +217,31 @@ jobs:
           test "$(jq -r '.state' "$pr")" = "open"
           test "$(jq -r '.draft' "$pr")" = "false"
           test "$(jq -r '.base.ref' "$pr")" = "main"
-          test "$(jq -r '.head.sha' "$pr")" = "$EXPECTED_HEAD_SHA"
           test "$(jq -r '.base.sha' "$pr")" = "$BASE_SHA"
+          test "$(jq -r '.head.sha' "$pr")" = "$PR_HEAD_SHA"
           test "$(jq -r '.merge_commit_sha' "$pr")" = "$CANDIDATE_SHA"
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}" --jq '[.labels[].name]')"
           jq -e 'index("do-not-auto-merge")==null and index("manual-merge")==null and index("manual-review")==null and index("security-review")==null' <<<"$labels" >/dev/null
-          gh pr merge "$PR_NUMBER" --auto --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA"
-          gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=registered candidate_sha=${CANDIDATE_SHA} source_head_sha=${EXPECTED_HEAD_SHA} exact_candidate=true blocking_objections=0 manual_objections=0 server_protection_verified=true" >/dev/null
+
+          set +e
+          gh pr merge "$PR_NUMBER" --squash --delete-branch --match-head-commit "$PR_HEAD_SHA"
+          merge_rc=$?
+          set -e
+
+          pr_readback="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          readback_head_sha="$(jq -r '.head.sha // empty' <<<"$pr_readback")"
+          readback_base_ref="$(jq -r '.base.ref // empty' <<<"$pr_readback")"
+          readback_merged_at="$(jq -r '.merged_at // empty' <<<"$pr_readback")"
+          readback_merge_commit_sha="$(jq -r '.merge_commit_sha // empty' <<<"$pr_readback")"
+
+          if [[ "$readback_head_sha" != "$PR_HEAD_SHA" \
+             || "$readback_base_ref" != "main" \
+             || -z "$readback_merged_at" \
+             || ! "$readback_merge_commit_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Governed exact-head merge was not proven by same-cycle PR readback: rc=${merge_rc}, expected_head=${PR_HEAD_SHA}, readback_head=${readback_head_sha:-none}, base=${readback_base_ref:-none}, merged_at=${readback_merged_at:-none}, merge_commit=${readback_merge_commit_sha:-none}."
+            exit "${merge_rc:-1}"
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${readback_merge_commit_sha}" >/dev/null
+          gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=merged candidate_sha=${CANDIDATE_SHA} source_head_sha=${PR_HEAD_SHA} merge_commit_sha=${readback_merge_commit_sha} exact_candidate=true blocking_objections=0 manual_objections=0 server_protection_verified=true native_auto_merge=false" >/dev/null
+          echo "Governed exact-head merge verified for PR ${PR_NUMBER}; command_rc=${merge_rc}, merge_commit=${readback_merge_commit_sha}."

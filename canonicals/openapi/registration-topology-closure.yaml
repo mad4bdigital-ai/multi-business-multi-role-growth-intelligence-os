@@ -1,0 +1,110 @@
+version: 1
+contract: mad4b.registration-topology-closure.v1
+purpose: Complete environment-bound Core registration topology without changing runtime routing or Production authority.
+registration_sets:
+  admin_core_production:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: production
+    server_uri: https://auth.mad4b.com
+    public_host: auth.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    gateway_host: auth.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_core
+    output_surface: admin_core_production
+    members:
+      - admin_core_production
+    tenant_surfaces_forbidden:
+      - tenant_core_production
+      - tenant_activation_production
+    hard_operation_limit: 30
+    warning_operation_limit: 30
+  tenant_core_production:
+    registration_class: custom_gpt_tenant_actions
+    consumer_principal_class: tenant_gpt
+    audience: tenant
+    auth_profile: tenant_oauth
+    environment: production
+    server_uri: https://auth.mad4b.com
+    public_host: auth.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    gateway_host: auth.mad4b.com
+    scope_authority: tenant
+    oauth_issuer: https://auth.mad4b.com
+    action_slot: tenant_core
+    output_surface: tenant_core_production
+    members:
+      - tenant_core_production
+    hard_operation_limit: 30
+    warning_operation_limit: 30
+  admin_core_staging:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: staging
+    server_uri: https://dev.mad4b.com
+    public_host: dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
+    gateway_host: dev.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_core
+    output_surface: admin_core_staging
+    members:
+      - admin_core_staging
+    tenant_surfaces_forbidden:
+      - tenant_core_staging
+      - tenant_activation_staging
+    hard_operation_limit: 30
+    warning_operation_limit: 30
+  tenant_core_staging:
+    registration_class: custom_gpt_tenant_actions
+    consumer_principal_class: tenant_gpt
+    audience: tenant
+    auth_profile: tenant_oauth
+    environment: staging
+    server_uri: https://dev.mad4b.com
+    public_host: dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
+    gateway_host: dev.mad4b.com
+    scope_authority: tenant
+    oauth_issuer: https://dev.mad4b.com
+    action_slot: tenant_core
+    output_surface: tenant_core_staging
+    members:
+      - tenant_core_staging
+    hard_operation_limit: 30
+    warning_operation_limit: 30
+surface_bindings:
+  admin_core_production:
+    registration_set: admin_core_production
+    action_slot: admin_core
+    server_url: https://auth.mad4b.com
+  tenant_core_production:
+    registration_set: tenant_core_production
+    action_slot: tenant_core
+    server_url: https://auth.mad4b.com
+  admin_core_staging:
+    registration_set: admin_core_staging
+    action_slot: admin_core
+    server_url: https://dev.mad4b.com
+  tenant_core_staging:
+    registration_set: tenant_core_staging
+    action_slot: tenant_core
+    server_url: https://dev.mad4b.com
+allowed_host_collision_pairs:
+  - [admin_core_production, tenant_core_production]
+  - [admin_core_production, production_recovery]
+  - [tenant_core_production, production_recovery]
+  - [admin_core_staging, tenant_core_staging]
+safety:
+  production_live: false
+  routing_changed: false
+  provider_accessed: false
+  database_mutation_performed: false
+  secrets_included: false

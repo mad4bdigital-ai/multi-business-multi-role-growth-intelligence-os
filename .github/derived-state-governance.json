@@ -74,6 +74,7 @@
     "automation_control_paths": [
       ".github/workflows/e2e-phase-governance.yml",
       ".github/workflows/staging-admin-schema-contract.yml",
+      ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
       "http-generic-api/recoveryReadinessEvidence.js",
       ".changes/e2e/repository-generated-artifact-queue-readiness.json",
       ".changes/e2e/configuration-drift-guard-20260815.json",
@@ -272,7 +273,9 @@
       "docs/governance/spec018-runtime-readiness-evidence-closeout.md",
       ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",
       ".changes/e2e/spec018-residual-readiness-evidence.json",
-      ".github/workflows/spec-011-delegation-mariadb-certification.yml"
+      ".github/workflows/spec-011-delegation-mariadb-certification.yml",
+      ".changes/e2e/recovery-prelive-topology-closure-20260828.json",
+      "canonicals/openapi/registration-topology-closure.yaml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",

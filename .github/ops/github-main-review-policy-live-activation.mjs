@@ -244,6 +244,36 @@ async function exactPlan() {
   assert.ok(binding);
   return { readback, plan, binding, secrets_included: false };
 }
+function requireExecutablePolicyPlan(planned) {
+  const plan = planned?.plan;
+  const operation = String(plan?.operation || "").trim();
+  const blockersReadable = Array.isArray(plan?.activation_blockers);
+  const blockers = blockersReadable
+    ? [...new Set(plan.activation_blockers.map((value) => String(value || "").trim()).filter(Boolean))].sort()
+    : ["activation_blockers_unreadable"];
+  const preconditions = plan?.preconditions;
+  const preconditionsReadable = Boolean(preconditions && typeof preconditions === "object" && !Array.isArray(preconditions));
+  const failedPreconditions = preconditionsReadable
+    ? Object.entries(preconditions).filter(([, value]) => value !== true).map(([key]) => key).sort()
+    : ["preconditions_unreadable"];
+  const plannedSha = String(plan?.expected_commit_sha || plan?.expected_main_sha || "").trim().toLowerCase();
+  const operationAllowed = ["create_ruleset", "update_ruleset"].includes(operation);
+  const targetBound = plannedSha === targetSha;
+  if (!operationAllowed || blockers.length > 0 || failedPreconditions.length > 0 || !targetBound || plan?.mutation_executed !== false) {
+    const error = new Error(`GitHub review policy plan is not executable for ${TARGET_BRANCH}`);
+    error.code = "github_review_policy_readiness_blocked";
+    error.details = {
+      operation: operation || null,
+      activation_blockers: blockers,
+      failed_preconditions: failedPreconditions,
+      expected_commit_sha_matches_target: targetBound,
+      plan_mutation_executed: plan?.mutation_executed ?? null,
+      secrets_included: false,
+    };
+    throw error;
+  }
+  return { operation, activation_blockers: [], failed_preconditions: [], expected_commit_sha_matches_target: true, plan_mutation_executed: false, secrets_included: false };
+}
 async function requireReadinessMarker() {
   const comments = await githubJson(`/repos/${REPO}/issues/${ISSUE}/comments?per_page=100`);
   const expected = `${READY_PREFIX}target_branch=${TARGET_BRANCH} target_sha=${targetSha} policy_fingerprint=${policyFingerprint} binding_sha256=${binding.binding_sha256}`;
@@ -290,7 +320,8 @@ async function readiness() {
     await writeJson("summary.json", summaryBase({ result: "already_enforced", server_policy_gate_complete: true, apply_sent_by_this_run: false }));
     return;
   }
-  await writeJson("summary.json", summaryBase({ result: "ready_for_apply", resource_uri: binding.resource_uri, migration_1051_verified: true, envelope_created_by_this_run: false, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false }));
+  stage = "policy_plan_preconditions"; const planReadiness = requireExecutablePolicyPlan(planned); await writeJson("policy-plan-readiness.json", planReadiness);
+  await writeJson("summary.json", summaryBase({ result: "ready_for_apply", resource_uri: binding.resource_uri, migration_1051_verified: true, plan_operation: planReadiness.operation, activation_blocker_count: 0, failed_precondition_count: 0, envelope_created_by_this_run: false, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false }));
 }
 async function apply() {
   stage = "source_runtime_parity"; await writeJson("source-runtime-parity.json", await verifySourceAndRuntimeParity());
@@ -299,6 +330,7 @@ async function apply() {
   if (planned.readback?.proof?.server_policy_gate_complete === true) {
     await writeJson("summary.json", summaryBase({ result: "already_enforced", server_policy_gate_complete: true, apply_sent_by_this_run: false })); return;
   }
+  stage = "policy_plan_preconditions"; await writeJson("policy-plan-readiness.json", requireExecutablePolicyPlan(planned));
   stage = "readiness_marker"; await requireReadinessMarker();
   stage = "envelope_create_approve_authorize"; await writeJson("capability-envelope.json", await createApplyEnvelope());
   assert.equal(await currentRefSha(TARGET_BRANCH), targetSha, `${TARGET_BRANCH} moved after envelope authorization`);

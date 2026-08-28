@@ -300,6 +300,7 @@ export function buildActivationHostGatewayRoutes({
       via_trusted_gateway: recoveryIngress?.ok === true,
       ingress_signature_verified: recoveryIngress?.ok === true,
       ingress_replay_protection: recoveryIngress?.replay_protection || null,
+      ingress_build_identity: recoveryIngress?.build_identity || null,
       gateway_key: config.profile?.gateway_key || null,
       environment: config.runtime?.environment_key || null,
       public_host: config.profile?.public_host || null,

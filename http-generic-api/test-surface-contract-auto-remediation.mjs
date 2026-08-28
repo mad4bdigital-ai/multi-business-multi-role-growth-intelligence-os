@@ -23,7 +23,7 @@ const safeItem = {
     { action_key: "document_surface_contract", targets: ["docs/example.md"] },
     { action_key: "verify_tool_registry_binding", targets: ["example_tool"] },
     { action_key: "verify_readback_view", targets: ["v_example"] },
-    { action_key: "add_explicit_safety_markers", targets: ["no_external_write"] },
+    { action_key: "add_explicit_safety_markers", targets: ["no_external_side_effects"] },
   ],
   safety: {
     executes_provider_calls: false,
@@ -206,18 +206,20 @@ assert(workflow.includes("id: gap_gate"), "workflow must evaluate the new-gap ga
 assert(workflow.includes("node scripts/surface-contract-gap-triage.mjs --check\n"), "generated triage outputs must remain a blocking consistency check");
 assert(!workflow.includes("node scripts/surface-contract-gap-triage.mjs --check --enforce-new-gaps"), "new-gap review findings must not prevent creation of the remediation PR");
 assert(workflow.includes('grep -Fq "surface-contract-gap-triage: blocking new high/critical gaps:"'), "only the known new-gap finding may be downgraded to review evidence");
-assert(workflow.includes('NEW_GAP_BLOCKING: ${{ steps.gap_gate.outputs.blocking }}'), "new-gap evidence must be carried into PR and merge decisions");
-assert(workflow.includes('[ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]'), "new gaps must prevent automated merge");
+assert(workflow.includes('NEW_GAP_BLOCKING: ${{ steps.gap_gate.outputs.blocking }}'), "new-gap evidence must be carried into PR and finalization decisions");
+assert(workflow.includes('[ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]'), "new gaps must prevent automated finalization eligibility");
 assert(workflow.includes('exit "$status"'), "unexpected triage failures must remain blocking");
 assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "surface remediation must require the trusted dedicated identity for PR creation");
 assert(workflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "surface remediation checkout must use the trusted identity");
 assert(!workflow.includes("REPO_AUTOSYNC_TOKEN || github.token"), "surface remediation must never fall back to GITHUB_TOKEN for writes");
-assert(workflow.includes("github-followup-automerge-readiness.mjs"), "safe remediation must verify protected main and server-side required checks before auto-merge");
 assert(workflow.includes("Skipping stale surface remediation before branch creation"), "surface remediation must reject stale main before branch mutation");
-assert(workflow.includes("Closing stale surface remediation PR"), "surface remediation must close an exact-head PR if main advances before registration");
-assert(workflow.includes('if ! gh pr merge "$PR_URL" --auto --squash --delete-branch --match-head-commit "$pr_head_sha"; then'), "surface remediation must fail closed when exact-head auto-merge registration fails");
-assert(workflow.includes("::error::Failed to register exact-head governed auto-merge."), "auto-merge registration failure must be an error rather than a warning");
-assert(!workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "unexpected registration failure must not be downgraded to a warning");
+assert(workflow.includes("Closing stale surface remediation PR"), "surface remediation must close an exact-head PR if main advances before finalization");
+assert(workflow.includes("Governance-finalizer eligible:"), "surface remediation PR body must record finalizer eligibility rather than native auto-merge authority");
+assert(workflow.includes("Native GitHub auto-merge is intentionally not registered"), "surface remediation must explicitly defer merge to Derived State Closure and the Governance Finalizer");
+assert(workflow.includes("eligible for governance finalization after Derived State Closure"), "safe surface remediation must expose finalizer eligibility only after exact-head checks");
+assert(!workflow.includes("node .github/ops/github-followup-automerge-readiness.mjs"), "surface remediation producer must not consume final merge readiness authority");
+assert(!workflow.includes("gh pr merge"), "surface remediation producer must not merge its own PR");
+assert(!workflow.includes("--auto"), "surface remediation producer must not register native GitHub auto-merge");
 assert(!workflow.includes('gh workflow run ci.yml --ref "$BRANCH" || true'), "surface remediation must not mask a missing trusted pull-request CI event with an ignored manual dispatch");
 assert(!workflow.includes("http-generic-api/migrations/*.sql\n          git add"), "workflow must not stage migration SQL");
 

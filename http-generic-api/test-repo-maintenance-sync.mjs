@@ -46,13 +46,16 @@ assert(!workflow.includes("platform-work-map-generator.mjs --write"), "OpenAPI a
 assert(workflow.includes("git status --porcelain=v1 -z --untracked-files=all"), "auto-sync eligibility must classify the complete tracked and untracked mutation set");
 assert(workflow.includes('changed_files+=("${entry:3}")'), "auto-sync classification must preserve generated paths containing spaces");
 assert(workflow.includes("generated-artifact-governance.mjs"), "OpenAPI writer must delegate output authorization to the central registry verifier");
-assert(workflow.includes("github-followup-automerge-readiness.mjs"), "OpenAPI auto-merge must verify server-side branch protection");
 assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "OpenAPI follow-up writes must use the trusted writer identity");
 assert(workflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "OpenAPI PR creation must use the trusted writer identity");
 assert(!workflow.includes("REPO_AUTOSYNC_TOKEN || github.token"), "OpenAPI follow-up writing must never fall back to GITHUB_TOKEN");
 assert(!workflow.includes("continue-on-error: true"), "PR creation failure must remain a blocking writer failure");
-assert(workflow.includes("--match-head-commit"), "auto-sync merge registration must remain bound to the exact reviewed head");
-assert(!workflow.includes("docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md"), "auto-merge eligibility must not use the retired broad Markdown allowlist");
+assert(workflow.includes("Record governance-finalizer eligibility for registered safe generated artifacts"), "safe generated artifacts must defer merge authority to the Governance Finalizer");
+assert(workflow.includes("Native GitHub auto-merge is intentionally not registered"), "OpenAPI follow-up must explicitly retire native auto-merge registration");
+assert(!workflow.includes("node .github/ops/github-followup-automerge-readiness.mjs"), "OpenAPI producer must not consume final merge readiness authority");
+assert(!workflow.includes("gh pr merge"), "OpenAPI producer must not merge its own follow-up PR");
+assert(!workflow.includes("--auto"), "OpenAPI producer must not register native GitHub auto-merge");
+assert(!workflow.includes("docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md"), "automated finalization eligibility must not use the retired broad Markdown allowlist");
 
 const maintenanceArtifact = classifyGeneratedArtifact("docs/repo-maintenance-status.md", registry);
 assert.equal(maintenanceArtifact?.id, "repository-maintenance-status");
@@ -72,24 +75,27 @@ assert.throws(
 assert.throws(
   () => assertOwnerCanWrite("openapi_auto_sync", "canonicals/example/generated.md", registry),
   /unknown|unregistered/i,
-  "unclassified canonical Markdown must not regain generic auto-merge authority",
+  "unclassified canonical Markdown must not regain generic automated-finalization authority",
 );
 
 assert(docsFollowupWorkflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "Docs Agent checkout and PR creation must use REPO_AUTOSYNC_TOKEN");
 assert(!docsFollowupWorkflow.includes('token: ${{ secrets.GITHUB_TOKEN }}'), "Docs Agent writer must not use GITHUB_TOKEN");
 assert(docsFollowupWorkflow.includes("--untracked-files=all"), "Docs Agent scope guard must include untracked outputs");
 assert(docsFollowupWorkflow.includes("generated-artifact-governance.mjs"), "Docs Agent must prove owner authorization for every generated path");
-assert(docsFollowupWorkflow.includes("github-followup-automerge-readiness.mjs"), "Docs Agent safe auto-merge must require server-side readiness");
-assert(docsFollowupWorkflow.includes("--match-head-commit"), "Docs Agent auto-merge must be exact-head bound");
+assert(docsFollowupWorkflow.includes("Record governance-finalizer eligibility for safe impact notes"), "Docs Agent safe follow-up must defer merge authority to the Governance Finalizer");
+assert(docsFollowupWorkflow.includes("Native GitHub auto-merge is intentionally not registered"), "Docs Agent must explicitly retire native auto-merge registration");
+assert(!docsFollowupWorkflow.includes("node .github/ops/github-followup-automerge-readiness.mjs"), "Docs Agent producer must not consume final merge readiness authority");
+assert(!docsFollowupWorkflow.includes("gh pr merge"), "Docs Agent producer must not merge its own follow-up PR");
+assert(!docsFollowupWorkflow.includes("--auto"), "Docs Agent producer must not register native GitHub auto-merge");
 assert(docsFollowupWorkflow.includes("docs-agent-followup-source:"), "Docs Agent follow-ups must retain a source-SHA marker for reconciliation");
 assert(docsFollowupWorkflow.includes("steps.agent.outputs.should_write == 'true'"), "Docs Agent must not open empty follow-up PRs");
 assert(!docsFollowupWorkflow.includes("--admin"));
 assert(!docsFollowupWorkflow.includes("--force"));
 
 assert(permissionRunbook.includes("Allow GitHub Actions to create and approve pull requests"), "permission runbook must document the required GitHub setting");
-assert(permissionRunbook.includes("REPO_AUTOSYNC_TOKEN"), "permission runbook must document the dedicated auto-merge credential");
-assert(permissionRunbook.includes("required for automated merge"), "permission runbook must explain why GITHUB_TOKEN cannot perform auto-merge");
-assert(permissionRunbook.includes("Allow auto-merge"), "permission runbook must document the independent repository auto-merge setting");
+assert(permissionRunbook.includes("REPO_AUTOSYNC_TOKEN"), "permission runbook must document the dedicated governed writer/merge credential");
+assert(permissionRunbook.includes("Disable Allow auto-merge"), "permission runbook must require native repository auto-merge to be disabled");
+assert(permissionRunbook.includes("Governance Finalizer"), "permission runbook must identify the sole automated merge authority");
 assert(permissionRunbook.includes("action_required"), "permission runbook must classify blocked follow-up checks separately from test failures");
 assert(
   permissionRunbook.includes("Actions: Read and write")

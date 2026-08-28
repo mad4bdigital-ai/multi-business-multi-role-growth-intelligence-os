@@ -6,7 +6,18 @@ $script:StagingGitInitialDelaySeconds = 2
 $script:StagingGitMaxDelaySeconds = 15
 
 function Get-StagingGitTransportArguments([string[]]$Arguments) {
-    return @("-c", "protocol.version=0", "-c", "http.version=HTTP/1.1") + @($Arguments)
+    $commandArguments = @($Arguments)
+    if ($commandArguments.Count -gt 0 -and $commandArguments[0] -eq "fetch") {
+        $tail = @()
+        if ($commandArguments.Count -gt 1) {
+            $tail = @($commandArguments[1..($commandArguments.Count - 1)])
+        }
+        $fetchOptions = @()
+        if ($tail -notcontains "--no-auto-maintenance") { $fetchOptions += "--no-auto-maintenance" }
+        if ($tail -notcontains "--no-recurse-submodules") { $fetchOptions += "--no-recurse-submodules" }
+        $commandArguments = @("fetch") + $fetchOptions + $tail
+    }
+    return @("-c", "protocol.version=0", "-c", "http.version=HTTP/1.1") + $commandArguments
 }
 
 function Test-StagingGitRetryableFailure([string]$Message) {
@@ -79,6 +90,7 @@ function Test-StagingGitTransportContract {
         initial_delay_seconds = $script:StagingGitInitialDelaySeconds
         max_delay_seconds = $script:StagingGitMaxDelaySeconds
         transport = "protocol.version=0,http.version=HTTP/1.1"
+        fetch_isolation = "--no-auto-maintenance,--no-recurse-submodules"
         retryable_errors = "connection reset,empty reply,recv failure,early eof,unexpected disconnect,timeout,remote hung up,resolve host,failed to connect,connection closed"
     }
 }

@@ -23,7 +23,7 @@ import YAML from "yaml";
 import { webcrypto, generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
-import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
+import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, expectedStagingGatewayDeployment, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
 import { buildActivationHostGatewayRoutes } from "./routes/activationHostGatewayRoutes.js";
 import { createActivationGateway, stableJson } from "../edge/activation-gateway/src/gateway.mjs";
 
@@ -157,6 +157,8 @@ test("Staging Recovery readiness accepts only bounded server evidence and never 
   });
   assert.equal(result.ready, false, "module-only certification cannot stand in for signed external registration and OAuth evidence");
   assert(result.external_evidence.blocking_failures.includes("actual_chatgpt_registration"));
+  assert(result.external_evidence.blocking_failures.includes("origin_network_isolation"));
+  assert(result.external_evidence.blocking_failures.includes("deployed_worker_provenance"));
   assert.equal(result.environment, "staging");
   assert.equal(result.production_live.enabled, false);
   assert.equal(result.production_live.eligible, false);
@@ -245,7 +247,6 @@ test("Staging Recovery rejects self-asserted Gateway identity and isolates Produ
     requireAdminPrincipal: (_req, _res, next) => next(),
     recoveryComposition: completeStagingComposition(),
   }));
-  // The Staging-only guard must not intercept unrelated public health routes.
   productionApp.get("/version", (_req, res) => res.status(200).json({ ok: true, route: "version" }));
   const production = await listen(productionApp);
   try {
@@ -286,7 +287,8 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     ACTIVATION_GATEWAY_INGRESS_KEY_ID: "isolated-ingress-key",
   };
   const env = {
-    NODE_ENV: "staging", ACTIVATION_STAGING_GATEWAY_ENABLED: "true", REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
+    NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+    ACTIVATION_STAGING_GATEWAY_ENABLED: "true", REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
     REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressKeys.publicKey.export({ format: "pem", type: "spki" }),
     REMOTE_MCP_TRUSTED_INGRESS_KEY_ID: "isolated-ingress-key",
     REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST: policy.public_host,
@@ -302,6 +304,8 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     ingressReplayStore: {
     ...store.replayStore, claim: (...args) => { replayClaims++; return store.replayStore.claim(...args); },
   } }));
+  let observedIngress;
+  app.use((req, _res, next) => { observedIngress = req.activationHostGateway?.ingress_build_identity; next(); });
   let guards = 0;
   app.use(buildStagingRecoveryAdminRoutes({ env,
     requireBackendApiKey: (_req, _res, next) => { guards++; next(); },
@@ -321,6 +325,11 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     assert.equal(response.status, 200);
     assert.equal((await response.json()).production_authority, false);
     assert.equal(guards, 2);
+    assert.equal(observedIngress.worker_build_sha, identity.source_sha);
+    assert.equal(observedIngress.worker_bundle_sha256, identity.bundle_sha256);
+    assert.equal(observedIngress.policy_hash, policy.content_hash_sha256);
+    assert.equal(observedIngress.gateway_host, policy.public_host);
+    assert.equal(Object.hasOwn(observedIngress, "auth_digest"), false);
     assert.notEqual(captured.get("x-mad4b-ingress-attestation"), "caller-forgery");
     const replay = await fetch(`${origin.url}${pathname}`, { headers: captured });
     assert.equal(replay.status, 403);
@@ -360,12 +369,13 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
   } finally { await new Promise((resolve) => origin.server.close(resolve)); await rm(directory, { recursive: true, force: true }); }
 });
 
-test("readiness consumes one signed snapshot; missing actual registration or OAuth proof blocks certification", async () => {
+test("readiness consumes one signed snapshot; every external pre-live proof is mandatory", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "recovery-readiness-"));
   try {
     const store = createFileRecoveryEvidenceStore({ directory });
     const keys = generateKeyPairSync("ed25519");
     const cert = validCertification();
+    const gateway = await expectedStagingGatewayDeployment();
     const binding = { deployment_sha: cert.deployment_sha, target_fingerprint: cert.target_fingerprint,
       evidence_hash: "e".repeat(64), expires_at: cert.expires_at };
     const payload = {
@@ -375,27 +385,54 @@ test("readiness consumes one signed snapshot; missing actual registration or OAu
       registrationEvidence: { ...await expectedStagingRegistration(), ...binding, observed_in: "chatgpt" },
       oauthEvidence: { ...binding, issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com",
         steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((key) => [key, "pass"])) },
+      networkEvidence: { ...binding, environment: "staging", gateway_host: gateway.gateway_host,
+        upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true,
+        network_restriction_verified: true, direct_origin_publicly_reachable: false },
+      workerDeploymentEvidence: { ...binding, observed_in: "cloudflare_workers", deployment_verified: true,
+        gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash,
+        worker_build_sha: cert.deployment_sha, policy_source_sha: cert.deployment_sha,
+        worker_bundle_sha256: "1".repeat(64), release_bundle_sha256: "2".repeat(64), deployed_bundle_sha256: "2".repeat(64) },
       unresolvedRecoveryIncidents: [], secrets_included: false,
     };
-    async function read(value) {
+    const ingress = { deployment_sha: cert.deployment_sha, worker_build_sha: cert.deployment_sha,
+      worker_bundle_sha256: "1".repeat(64), policy_hash: gateway.policy_hash,
+      gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 30 };
+    async function read(value, ingressBuildIdentity = ingress) {
       const id = await store.putCertification({ payload: value, signature: sign(null, Buffer.from(readinessEvidencePayload(value)), keys.privateKey).toString("base64url") });
       const authority = createRecoveryReadinessAuthorities({ evidenceStore: store, recordId: id,
         publicKey: keys.publicKey.export({ format: "pem", type: "spki" }), keyId: payload.key_id, issuer: payload.issuer,
-        env: { NODE_ENV: "staging" },
+        env: { NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" },
         deploymentIdentityProvider: { readAttestation: async () => ({ sha: cert.deployment_sha, branch: "main", environment: "staging",
           repository_match: true, branch_match: true, sha_match: true, manifest_bound: true, read_only: true,
           target_fingerprint: cert.target_fingerprint, secrets_included: false }) },
-        targetIdentityProvider: { readIdentity: async () => ({ environment: "staging", runtime_class: "staging_hosted", target_fingerprint: cert.target_fingerprint }) },
+        targetIdentityProvider: { readIdentity: async () => ({ environment: "staging", runtime_class: "local_windows_docker", target_fingerprint: cert.target_fingerprint }) },
       });
-      return buildStagingRecoveryAdminReadiness({ recoveryComposition: completeStagingComposition(), ...recoveryReadinessRouteDependencies(authority) });
+      return buildStagingRecoveryAdminReadiness({ recoveryComposition: completeStagingComposition(),
+        ...recoveryReadinessRouteDependencies(authority), ingressBuildIdentity });
     }
     const ready = await read(payload);
     assert.equal(ready.ready, true, JSON.stringify(ready));
     assert.equal(ready.production_live.enabled, false);
+    assert.notEqual(payload.workerDeploymentEvidence.worker_bundle_sha256, payload.workerDeploymentEvidence.deployed_bundle_sha256,
+      "the source-set and emitted deployment bytes legitimately have different hashes");
+    assert.equal((await read(payload, null)).ready, false, "signed evidence alone cannot bind the current Gateway request");
     for (const patch of [
-      { registrationEvidence: null }, { oauthEvidence: null },
+      { deployment_sha: "f".repeat(40) }, { worker_build_sha: "f".repeat(40) },
+      { worker_bundle_sha256: "f".repeat(64) }, { policy_hash: "f".repeat(64) },
+      { gateway_host: "activation.mad4b.com" }, { expires_at: Math.floor(Date.now() / 1000) - 1 },
+    ]) {
+      const blocked = await read(payload, { ...ingress, ...patch });
+      assert.equal(blocked.ready, false, JSON.stringify(patch));
+      assert.ok(blocked.external_evidence.blocking_failures.includes("gateway_request_build_binding"));
+    }
+    for (const patch of [
+      { registrationEvidence: null }, { oauthEvidence: null }, { networkEvidence: null }, { workerDeploymentEvidence: null },
       { registrationEvidence: { ...payload.registrationEvidence, schema_sha256: "f".repeat(64) } },
       { oauthEvidence: { ...payload.oauthEvidence, resource: "https://activation.mad4b.com" } },
+      { networkEvidence: { ...payload.networkEvidence, direct_origin_publicly_reachable: true } },
+      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, deployed_bundle_sha256: "3".repeat(64) } },
+      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, release_bundle_sha256: null } },
+      { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, worker_bundle_sha256: "3".repeat(64) } },
       { adapterProvenance: { durability_capable: true } },
       { adapterProvenance: { ...payload.adapterProvenance, deployment_sha: "f".repeat(40) } },
     ]) assert.equal((await read({ ...payload, ...patch })).ready, false);
