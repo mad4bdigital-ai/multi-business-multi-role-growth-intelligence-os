@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
 import { resolveActivationGatewayHostProfile } from "../activationGatewayHostProfile.js";
 import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
+import { verifyRecoveryGatewayIngress } from "../trustedIngressContract.js";
+import stagingPolicy from "../activation-gateway-runtime/generated/route-policy.staging.json" with { type: "json" };
 const DEFAULT_HOST_PROFILE = resolveActivationGatewayHostProfile(process.env);
 export const ACTIVATION_HOST_GATEWAY_HOST = String(
   DEFAULT_HOST_PROFILE.profile?.public_host
@@ -176,6 +178,8 @@ export function buildActivationHostGatewayRoutes({
   activationHost = null,
   enabled = undefined,
   env = process.env,
+  ingressReplayStore = null,
+  deploymentAttestationReader = null,
 } = {}) {
   const config = buildGatewayConfig(env, activationHost);
   const gatewayEnabled = config.supported && (enabled === undefined
@@ -223,7 +227,7 @@ export function buildActivationHostGatewayRoutes({
     return undefined;
   });
 
-  router.use((req, res, next) => {
+  router.use(async (req, res, next) => {
     if (!gatewayEnabled) return next();
 
     const host = requestHost(req, config.activationHost, env);
@@ -237,6 +241,24 @@ export function buildActivationHostGatewayRoutes({
     if (host !== config.activationHost) return next();
 
     const pathname = requestPath(req);
+    let recoveryIngress = null;
+    if (config.staging && pathname === "/health" && req.method === "GET") {
+      try {
+        const attestation = typeof deploymentAttestationReader === "function" ? await deploymentAttestationReader() : null;
+        if (attestation?.environment !== "staging" || attestation?.branch !== "main"
+          || !/^[a-f0-9]{40}$/.test(attestation?.sha || "") || attestation?.manifest_bound !== true
+          || attestation?.read_only !== true || attestation?.secrets_included !== false) throw new Error("attestation unavailable");
+        return res.status(200).set("Cache-Control", "no-store").json({ ok: true,
+          policyHash: stagingPolicy.content_hash_sha256, sourceCommit: attestation.sha,
+          service: "activation-origin", secretsIncluded: false });
+      } catch { return res.status(503).json(errorResponse("GATEWAY_ORIGIN_ATTESTATION_UNAVAILABLE", "Server deployment evidence is unavailable.", req)); }
+    }
+    if (config.staging && pathname.startsWith("/admin/recovery/staging/")) {
+      recoveryIngress = await verifyRecoveryGatewayIngress({ env, request: req, policy: stagingPolicy, replayStore: ingressReplayStore });
+      if (!recoveryIngress.ok) return res.status(403).json(errorResponse(
+        "RECOVERY_TRUSTED_INGRESS_REQUIRED", "A fresh signed Gateway request and durable replay claim are required.", req,
+      ));
+    }
 
     // Activation transport remains bearer-token based and stateless. Only the
     // three Tenant GPT OAuth handoff operations may enter the shared authRoutes
@@ -250,7 +272,7 @@ export function buildActivationHostGatewayRoutes({
       req.activationHostGateway = {
         host,
         enforced: true,
-        via_trusted_gateway: true,
+        via_trusted_gateway: false,
         gateway_key: config.profile?.gateway_key || null,
         environment: config.runtime?.environment_key || null,
         public_host: config.profile?.public_host || null,
@@ -275,7 +297,9 @@ export function buildActivationHostGatewayRoutes({
     req.activationHostGateway = {
       host,
       enforced: true,
-      via_trusted_gateway: true,
+      via_trusted_gateway: recoveryIngress?.ok === true,
+      ingress_signature_verified: recoveryIngress?.ok === true,
+      ingress_replay_protection: recoveryIngress?.replay_protection || null,
       gateway_key: config.profile?.gateway_key || null,
       environment: config.runtime?.environment_key || null,
       public_host: config.profile?.public_host || null,

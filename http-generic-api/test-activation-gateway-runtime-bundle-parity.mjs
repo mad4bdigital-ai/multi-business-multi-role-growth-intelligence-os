@@ -18,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const canonicalRoot = path.join(repoRoot, "edge", "activation-gateway");
 const runtimeRoot = path.join(__dirname, "activation-gateway-runtime");
-const files = ["src/worker.mjs", "src/gateway.mjs", "generated/route-policy.json"];
+const files = ["src/worker.mjs", "src/gateway.mjs", "generated/route-policy.json", "generated/route-policy.staging.json"];
 
 for (const relativePath of files) {
   const canonical = fs.readFileSync(path.join(canonicalRoot, ...relativePath.split("/")), "utf8").replace(/\r\n?/g, "\n");

@@ -1,3 +1,4 @@
+import { recoveryReadinessRouteDependencies } from "./recoveryReadinessEvidence.js";
 const COMPOSITION_MODES = new Set(["fail_closed", "injected_non_live", "production_live"]);
 
 export const RECOVERY_COMPOSITION_CONTRACT = "mad4b.recovery-composition.v1";
@@ -247,7 +248,7 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
   });
 }
 
-export function getRecoveryCompositionRouteDependencies(composition = buildFailClosedComposition("route_dependency_default")) {
+export function getRecoveryCompositionRouteDependencies(composition = buildFailClosedComposition("route_dependency_default"), readinessAuthority = null) {
   if (!composition || composition.contract !== RECOVERY_COMPOSITION_CONTRACT) {
     throw compositionError("RECOVERY_COMPOSITION_INVALID", "Routes require the canonical Recovery composition contract.");
   }
@@ -257,6 +258,7 @@ export function getRecoveryCompositionRouteDependencies(composition = buildFailC
     broker: composition.hostBreakglassBroker,
     hostBreakglassMutationExecutor: composition.hostBreakglassBroker.hostLocalMutationExecutor || null,
     runtimeBootstrapDependencies: composition.runtimeBootstrapDependencies,
+    ...recoveryReadinessRouteDependencies(readinessAuthority),
   });
 }
 

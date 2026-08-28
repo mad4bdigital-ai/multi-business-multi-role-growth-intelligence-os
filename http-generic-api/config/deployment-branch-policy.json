@@ -148,8 +148,6 @@
           "http-generic-api/scripts/host-breakglass-*.mjs",
           "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
           "http-generic-api/scripts/generate-deployment-manifest.mjs",
-          "http-generic-api/scripts/generate-custom-gpt-schemas.mjs",
-          "http-generic-api/scripts/validate-registration-topology.mjs",
           "edge/**",
           "canonicals/openapi/**",
           "http-generic-api/frontend-operation-governance.generated.json",
@@ -158,6 +156,9 @@
           "http-generic-api/frontend-operation-governance-tests.json",
           "http-generic-api/scripts/frontend-surface-dispatch.mjs",
           "http-generic-api/scripts/split-openapi.mjs",
+          "http-generic-api/scripts/generate-custom-gpt-schemas.mjs",
+          "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
+          "http-generic-api/scripts/validate-registration-topology.mjs",
           "specs/020-platform-resource-identity-brand-governance/**"
         ],
         "exclude_patterns": [

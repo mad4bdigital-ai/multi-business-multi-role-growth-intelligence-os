@@ -11,6 +11,7 @@ const ALIASES = Object.freeze({
   prod: "production",
   production_hostinger_autodeploy: "production",
   staging: "staging",
+  staging_hosted: "staging",
   staging_local_windows_docker: "staging",
   test: "test",
   ci: "ci",
@@ -117,6 +118,12 @@ export function resolveRuntimeEnvironment(env = process.env) {
 
   const environmentKey = canonicalValues[0];
   const rawVariants = [...new Set(evidence.map((entry) => entry.value))];
+  // `staging` declares the environment only. A hosted/local runtime declaration
+  // is explicit; never silently select local when another source declares hosted.
+  if (rawVariants.includes("staging_hosted") && rawVariants.includes("staging_local_windows_docker")) {
+    return Object.freeze({ ok: false, contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
+      environment_key: null, runtime_variant: null, reason: "runtime_class_conflict", values: evidence, secrets_included: false });
+  }
   const runtimeVariant = rawVariants.includes("staging_local_windows_docker")
     ? "staging_local_windows_docker"
     : rawVariants[0];

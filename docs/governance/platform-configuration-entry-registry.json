@@ -1207,7 +1207,11 @@
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",
       "risk_class": "high",
-      "scope_types": ["platform", "production", "staging"],
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
       "binding_ref": "http-generic-api/trustedIngressContract.js",
       "resolver_ref": "http-generic-api/trustedIngressContract.js",
       "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
@@ -1221,7 +1225,11 @@
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",
       "risk_class": "high",
-      "scope_types": ["platform", "production", "staging"],
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
       "binding_ref": "http-generic-api/trustedIngressContract.js",
       "resolver_ref": "http-generic-api/trustedIngressContract.js",
       "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
@@ -1235,7 +1243,11 @@
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",
       "risk_class": "high",
-      "scope_types": ["platform", "production", "staging"],
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
       "binding_ref": "http-generic-api/trustedIngressContract.js",
       "resolver_ref": "http-generic-api/trustedIngressContract.js",
       "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
@@ -1258,6 +1270,57 @@
       "resolver_ref": "http-generic-api/scripts/governed-migration-runner.mjs",
       "readback_ref": "http-generic-api/test-governed-migration-runner-integrity.mjs",
       "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "activation.gateway.ingress.private.key.jwk",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "edge/activation-gateway/src/gateway.mjs",
+      "resolver_ref": "edge/activation-gateway/src/gateway.mjs",
+      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "activation.gateway.ingress.key.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "edge/activation-gateway/src/gateway.mjs",
+      "resolver_ref": "edge/activation-gateway/src/gateway.mjs",
+      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "remote.mcp.trusted.ingress.key.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false

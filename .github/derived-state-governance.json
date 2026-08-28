@@ -72,6 +72,8 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".github/workflows/staging-admin-schema-contract.yml",
+      "http-generic-api/recoveryReadinessEvidence.js",
       ".changes/e2e/repository-generated-artifact-queue-readiness.json",
       ".changes/e2e/configuration-drift-guard-20260815.json",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json",

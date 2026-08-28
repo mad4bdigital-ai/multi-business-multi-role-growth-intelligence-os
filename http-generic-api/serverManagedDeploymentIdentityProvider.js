@@ -20,7 +20,7 @@ function text(value, max = 512) {
   return String(value ?? "").trim().slice(0, max);
 }
 
-function sanitizeAttestation(value) {
+function sanitizeAttestation(value, environment = "production") {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw providerError(
       "RECOVERY_SERVER_DEPLOYMENT_ATTESTATION_INVALID",
@@ -29,14 +29,16 @@ function sanitizeAttestation(value) {
   }
   const repository = text(value.repository || value.deployment_repository, 200);
   const branch = text(value.branch || value.deployment_branch, 100);
-  const sha = text(value.deployment_sha || value.repository_sha || value.commit_sha, 64).toLowerCase();
+  const sha = text(value.sha || value.deployment_sha || value.repository_sha || value.commit_sha, 64).toLowerCase();
   const manifestHash = text(value.recovery_manifest_hash || value.manifest_hash, 128).toLowerCase();
   const attestationHash = text(value.attestation_hash, 128).toLowerCase();
-  if (repository !== RECOVERY_REPOSITORY || branch !== RECOVERY_BRANCH) {
+  const expectedBranch = environment === "staging" ? "main" : RECOVERY_BRANCH;
+  if (!["staging", "production"].includes(environment) || (value.environment && value.environment !== environment)
+    || repository !== RECOVERY_REPOSITORY || branch !== expectedBranch) {
     throw providerError(
       "RECOVERY_SERVER_DEPLOYMENT_IDENTITY_SCOPE_MISMATCH",
       "The server-derived deployment identity is not bound to the canonical Recovery repository and Production branch.",
-      { repository, branch, expected_repository: RECOVERY_REPOSITORY, expected_branch: RECOVERY_BRANCH },
+      { repository, branch, expected_repository: RECOVERY_REPOSITORY, expected_branch: expectedBranch },
     );
   }
   if (!SHA40.test(sha) || !SHA256.test(manifestHash) || !SHA256.test(attestationHash)) {
@@ -51,22 +53,40 @@ function sanitizeAttestation(value) {
       "Only a manifest-bound, read-only, non-mutating server attestation can enter Recovery composition.",
     );
   }
+  const targetFingerprints = {};
+  for (const role of ["runtime", "governance", "runtime_persistence"]) {
+    const fingerprint = value.target_fingerprints?.[role];
+    if (fingerprint === undefined) continue;
+    if (typeof fingerprint !== "string" || !SHA256.test(fingerprint)) {
+      throw providerError("RECOVERY_SERVER_DEPLOYMENT_TARGET_INVALID", "Role-specific deployment target fingerprints must be SHA256 digests.");
+    }
+    targetFingerprints[role] = fingerprint.toLowerCase();
+  }
   return Object.freeze({
-    ...value,
     repository,
     branch,
+    environment,
+    sha,
+    target_fingerprint: text(value.target_fingerprint) || null,
+    target_fingerprints: Object.freeze(targetFingerprints),
+    repository_match: true,
+    branch_match: true,
+    sha_match: true,
+    manifest_bound: true,
+    read_only: true,
     deployment_sha: sha,
     repository_sha: sha,
     recovery_manifest_hash: manifestHash,
     attestation_hash: attestationHash,
     read_only_probe: true,
+    database_connection_performed: value.database_connection_performed === true,
     database_mutation_performed: false,
     provider_mutation_performed: false,
     secrets_included: false,
   });
 }
 
-export function createServerManagedDeploymentIdentityProvider({ readServerAttestation = null } = {}) {
+export function createServerManagedDeploymentIdentityProvider({ readServerAttestation = null, environment = "production" } = {}) {
   if (typeof readServerAttestation !== "function") return null;
   return Object.freeze({
     contract: SERVER_MANAGED_DEPLOYMENT_IDENTITY_PROVIDER_CONTRACT,
@@ -82,7 +102,7 @@ export function createServerManagedDeploymentIdentityProvider({ readServerAttest
           { cause_code: error?.code || "server_attestation_read_failed" },
         );
       }
-      return sanitizeAttestation(attestation);
+      return sanitizeAttestation(attestation, environment);
     },
   });
 }

@@ -8,6 +8,7 @@ import {
 import { resolveRuntimeEnvironment } from "../runtimeEnvironmentResolver.js";
 import { resolveActivationGatewayHostProfile } from "../activationGatewayHostProfile.js";
 import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
+import { evaluateExternalStagingEvidence } from "../recoveryReadinessEvidence.js";
 
 export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v1";
 export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.com";
@@ -116,23 +117,26 @@ export async function buildStagingRecoveryAdminReadiness({
   stagingCertificationReader = null,
   deploymentAttestationReader = null,
   targetFingerprintReader = null,
+  recoveryReadinessEvidenceReader = null,
   expectedSha = null,
   expectedTargetFingerprint = null,
 } = {}) {
+  const snapshot = typeof recoveryReadinessEvidenceReader === "function" ? await recoveryReadinessEvidenceReader() : null;
   const authorityGraph = buildRecoveryAuthorityReadiness({
     composition: recoveryComposition,
     environmentKey: "staging",
+    adapterProvenance: recoveryReadinessEvidenceReader ? snapshot?.adapterProvenance || {} : null,
   });
-  let certification = null;
-  if (typeof stagingCertificationReader === "function") {
+  let certification = snapshot?.stagingCertification || null;
+  if (!recoveryReadinessEvidenceReader && typeof stagingCertificationReader === "function") {
     certification = await stagingCertificationReader();
   }
-  let attestation = null;
-  if (typeof deploymentAttestationReader === "function") {
+  let attestation = snapshot?.deploymentAttestation || null;
+  if (!recoveryReadinessEvidenceReader && typeof deploymentAttestationReader === "function") {
     attestation = await deploymentAttestationReader();
   }
-  let currentTargetFingerprint = expectedTargetFingerprint;
-  if (typeof targetFingerprintReader === "function") {
+  let currentTargetFingerprint = snapshot?.candidateTargetFingerprint || expectedTargetFingerprint;
+  if (!recoveryReadinessEvidenceReader && typeof targetFingerprintReader === "function") {
     currentTargetFingerprint = await targetFingerprintReader();
   }
   const currentSha = expectedSha || attestation?.sha || attestation?.commit_sha || null;
@@ -143,6 +147,7 @@ export async function buildStagingRecoveryAdminReadiness({
       expectedSha: currentSha,
       expectedBranch: "main",
       expectedEnvironment: "staging",
+      expectedTargetFingerprint: currentTargetFingerprint,
     });
   const certificationResult = evaluateStagingRecoveryCertification({
     certification,
@@ -150,7 +155,9 @@ export async function buildStagingRecoveryAdminReadiness({
     expectedTargetFingerprint: currentTargetFingerprint,
     requireExpectedTargetFingerprint: true,
   });
+  const externalEvidence = await evaluateExternalStagingEvidence(snapshot);
   const ready = authorityGraph.ready === true
+    && externalEvidence.ready
     && attestationValid
     && certificationResult.valid === true
     && certificationResult.evidence?.deployment_sha === attestation?.sha
@@ -162,6 +169,7 @@ export async function buildStagingRecoveryAdminReadiness({
     environment: "staging",
     server_uri: STAGING_RECOVERY_ADMIN_SERVER_URI,
     authority_graph: authorityGraph,
+    external_evidence: externalEvidence,
     certification: {
       contract: certificationResult.contract,
       status: certificationResult.status,
@@ -203,9 +211,10 @@ export function buildStagingRecoveryAdminRoutes({
   stagingCertificationReader = null,
   deploymentAttestationReader = null,
   targetFingerprintReader = null,
+  recoveryReadinessEvidenceReader = null,
   trustedHostResolver = resolveTrustedRequestHost,
 } = {}) {
-  const router = Router();
+  const router = Router({ caseSensitive: true, strict: true });
   const hostProfile = resolveActivationGatewayHostProfile(env);
   const staging = isStagingEnvironment(env) && hostProfile.ok && hostProfile.profile?.gateway_key === "activation_gateway_staging";
   const missingGuards = [
@@ -229,6 +238,8 @@ export function buildStagingRecoveryAdminRoutes({
     const requestHost = typeof trustedHostResolver === "function" ? trustedHostResolver(req, env) : "";
     const gatewayIdentity = req?.activationHostGateway;
     const gatewayIdentityValid = gatewayIdentity?.via_trusted_gateway === true
+      && gatewayIdentity.ingress_signature_verified === true
+      && gatewayIdentity.ingress_replay_protection === "durable_atomic_claim"
       && gatewayIdentity.gateway_key === "activation_gateway_staging"
       && gatewayIdentity.environment === "staging"
       && gatewayIdentity.public_host === STAGING_RECOVERY_ADMIN_HOST;
@@ -249,6 +260,7 @@ export function buildStagingRecoveryAdminRoutes({
         stagingCertificationReader,
         deploymentAttestationReader,
         targetFingerprintReader,
+        recoveryReadinessEvidenceReader,
       });
       return res.status(200).json({ ok: result.ready, ...result });
     } catch (error) {
@@ -263,6 +275,7 @@ export function buildStagingRecoveryAdminRoutes({
         stagingCertificationReader,
         deploymentAttestationReader,
         targetFingerprintReader,
+        recoveryReadinessEvidenceReader,
       });
       return res.status(200).json({
         ok: result.certification.valid,

@@ -30,11 +30,9 @@ try {
   assert.match(schemaText, /https:\/\/activation-dev\.mad4b\.com/);
   assert.doesNotMatch(schemaText, /https:\/\/auth\.mad4b\.com\/(?:auth|oauth)(?:\/|$)|https:\/\/activation\.mad4b\.com(?:\/|$)|https:\/\/mcp\.mad4b\.com(?:\/|$)/);
   const recoveryContract = await get("/admin/recovery/staging/contract", "activation-dev.mad4b.com");
-  assert.equal(recoveryContract.status, 200);
+  assert.equal(recoveryContract.status, 403, "host headers alone never prove Gateway ingress");
   const recoveryContractBody = await recoveryContract.json();
-  assert.equal(recoveryContractBody.environment, "staging");
-  assert.equal(recoveryContractBody.production_authority, false);
-  assert.equal(recoveryContractBody.database_mutation_performed, false);
+  assert.equal(recoveryContractBody.error.code, "RECOVERY_TRUSTED_INGRESS_REQUIRED");
   const directOriginRecovery = await get("/admin/recovery/staging/contract", "dev.mad4b.com");
   assert.equal(directOriginRecovery.status, 404);
 
@@ -61,7 +59,7 @@ try {
   const forbidden = await get("/auth/login", "activation-dev.mad4b.com");
   assert.equal(forbidden.status, 404);
   const health = await get("/health", "activation-dev.mad4b.com");
-  assert.equal(health.status, 404, "gateway must not impersonate app health without downstream route");
+  assert.equal(health.status, 503, "gateway must not report origin readiness without server deployment evidence");
   const localDockerEnv = {
     NODE_ENV: "staging",
     REMOTE_MCP_ENVIRONMENT: "staging",

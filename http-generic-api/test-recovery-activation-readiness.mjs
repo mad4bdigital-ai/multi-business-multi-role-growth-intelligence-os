@@ -26,6 +26,14 @@ function completeComposition(overrides = {}) {
     mode: "production_live",
     configured: true,
     live_activation: true,
+    adapter_provenance: {
+      contract: "mad4b.recovery-adapter-provenance.v1", environment: (overrides.mode === "injected_non_live" ? "staging" : "production"),
+      deployment_sha: "a".repeat(40),
+      components: Object.fromEntries(RECOVERY_COMPOSITION_COMPONENT_KEYS.map((key) => [key, {
+        authority_class: "server_managed", implementation_id: `server-adapter:${key}`,
+        artifact_sha256: "d".repeat(64), storage_class: "durable",
+      }])),
+    },
     component_status: { ...componentStatus, ...(overrides.component_status || {}) },
     productionRecoveryCompositionFactory: {
       authority_readiness: {

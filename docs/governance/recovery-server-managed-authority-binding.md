@@ -106,6 +106,117 @@ No live staging certification or Production authority activation is claimed. The
 
 ## References
 
+## Runtime evidence and ingress hardening (2026-08-28)
+
+This section supersedes earlier statements describing a standalone Recovery Action or
+unwired readiness readers. Admin Staging registers the **combined 12-operation** schema
+`openapi.custom-gpt.activation-admin.staging.yaml`; the 3-operation Recovery source is
+embedded and is not a separately advertised Action.
+
+### Composition and evidence authority
+
+The existing deployment-owned `RECOVERY_SERVER_MANAGED_BINDING_MODULE` may export a
+separate `createRecoveryReadinessAuthorities(context)` function. It must return the
+canonical object built by `createRecoveryReadinessAuthorities` from
+`recoveryReadinessEvidence.js`. It is called with environment, runtime class,
+`read_only=true`, and `production_live=false`; it must not construct mutation adapters.
+The server resolves this export even when the execution graph is disabled, validates
+it, and passes its dependencies through `getRecoveryCompositionRouteDependencies`.
+Missing exports supply null evidence, never synthetic readiness.
+
+The constructor requires a deployment identity provider, an independent target identity
+provider, an immutable certification record ID, and a pinned Ed25519 verification key,
+key ID and issuer. These are server deployment configuration, never route arguments.
+`createServerManagedDeploymentIdentityProvider({ environment: "staging", ... })` binds
+to `main`; the default Production provider still binds to `Production`. Both emit the
+same `sha`/`environment`/`read_only` attestation shape without copying arbitrary source fields.
+
+The first-class certification store contract exposes `putCertification` and
+`getCertification`. The included filesystem implementation uses content-addressed
+immutable files, bounded reads, file and directory fsync, and atomic exclusive replay
+claims. It must run on a dedicated persistent Linux filesystem (Docker volume for
+local Staging). Every origin replica must share the same atomic replay authority.
+Independent per-host volumes are **not** a distributed replay store. Expired claim files
+require separately managed retention; this reader never deletes evidence. A failed
+write, full disk, missing record or unavailable store fails closed.
+
+The signed envelope covers certification, exact deployment and target, typed adapter
+provenance, external registration, OAuth evidence, unresolved incidents, expiry, and
+promotion source/target artifact manifests. Reads reverify the signature and expiry,
+then compare the live server target and deployment. Production parity is recomputed
+from sorted, unique manifest entries, rather than trusting `verified:true`. Different
+source and target commit SHAs are supported only when the signed artifact manifests
+match. The official release pipeline must supply complete manifests; this patch does
+not create a live promotion record or authorize a promotion.
+
+Typed provenance requires a contract, environment, exact deployment SHA, and each
+adapter's implementation ID, artifact SHA256, authority class and storage class.
+Durability booleans or the absence of words like `mock` are no longer sufficient.
+
+### Gateway provenance and build
+
+For Staging Recovery GETs, the Worker strips caller ingress headers and issues a fresh
+Ed25519 proof binding issuer, audience, host, deployment SHA, compiled Worker identity,
+policy hash, method, exact path, request ID, authorization digest, empty-body digest,
+key ID, issue/expiry times and random JTI. The proof expires within 30 seconds and no
+later than the policy. Origin verifies all bindings and atomically consumes the JTI
+before marking `via_trusted_gateway=true`. Missing replay authority is a denial.
+Recovery's Router is case-sensitive and strict to prevent trailing-slash/case aliases
+from bypassing its exact-path guard. Production routing is unchanged.
+
+New deployment-owned bindings (no values are included or provisioned here):
+
+| Binding | Owner / purpose |
+| --- | --- |
+| `ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK` | Worker secret, Ed25519 signing key |
+| `ACTIVATION_GATEWAY_INGRESS_KEY_ID` | Worker signing key identifier |
+| `REMOTE_MCP_TRUSTED_INGRESS_KEY_ID` | Origin pinned identifier for its existing ingress public key |
+
+The existing origin ingress issuer/audience/canonical-host/deployment-SHA configuration
+must match Staging. Network restriction to the authorized ingress must be verified
+operationally; no firewall or provider settings are changed by this patch.
+
+The checked-in Staging Worker has no build identity and fails closed. Build an isolated
+deployment tree from a **clean exact commit**, without deploying:
+
+```sh
+node http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs --check --build-staging --output-dir /absolute/new/output-directory
+```
+
+The builder stamps the source SHA and a canonical source-set SHA256 into the emitted
+entrypoint. The digest explicitly excludes identity injection to avoid self-reference;
+the manifest separately records SHA256 for the emitted bytes. This is not a claim that
+the source-set digest is the final Wrangler bundle digest. The policy signer must sign
+`worker_build_sha` and `worker_bundle_sha256` along with the existing policy claims, and
+deployment must consume the emitted entrypoint, not the unstamped source entrypoint.
+The actual deployed bundle and release integration still need operational attestation.
+
+Staging `/ready` now reads origin `/health` with the Staging host context. Origin uses
+the independent deployment reader and canonical policy hash, without requiring a
+previous certification record. Missing deployment authority returns 503. The policy
+generator takes timeout/body limits from the canonical registry, not nonexistent
+top-level fields in the generated Production policy.
+
+### Acceptance boundaries
+
+| Gap | Repository behavior | Evidence still required before live certification |
+| --- | --- | --- |
+| Three readiness readers | Server-root dependencies wired | Install the deployment-owned authority module |
+| Durable certification authenticity | Signed immutable records, verified on read | Approved signer, persistent volume and real certification record |
+| Trusted ingress and replay | Real Worker-to-Express crypto tests, strict paths, atomic replay | Provision keys, shared store and network restrictions |
+| Worker/policy source binding | Clean-source build producer and runtime signature checks | Deploy emitted artifact through the governed release path |
+| Production readiness sources | One verified snapshot plus recomputed artifact parity | Official source/target release manifests; Production remains disabled |
+| ChatGPT registration | Compare signed observation to actual generated schema/operation hashes | Observe the external 12-operation Action; do not infer it from generation |
+| OAuth round trip | Require signed, exact-target evidence for all six stages | Real browser authorization, callback, token and resource observation |
+| Runtime class conflict | Explicit `staging_hosted` versus `staging_local_windows_docker` is rejected | Select the deployment's class; generic `staging` is an environment-only qualifier |
+| Production Admin Core collision | No Production topology change | Separate Production topology review before expanding registrations |
+| Exact-head CI / owner | No bypass or reuse of old owner attestation | Fresh CI and owner decision on the final head |
+
+No synthetic signed test record is a live certificate. No registration, browser login,
+key provisioning, DB/provider access, SSH, SQL, deployment, merge or Production activation
+is performed by this repository repair. OAuth redirect behavior is deliberately not
+relaxed without evidence of the actual browser path and registered callback.
+
 [1]: ../../http-generic-api/recoveryComposition.js "Recovery composition contract"
 [2]: ../../http-generic-api/productionRecoveryCompositionFactory.js "Production Recovery composition factory"
 [3]: ../../http-generic-api/serverManagedRecoveryBindingProvider.js "Server-managed Recovery binding provider"

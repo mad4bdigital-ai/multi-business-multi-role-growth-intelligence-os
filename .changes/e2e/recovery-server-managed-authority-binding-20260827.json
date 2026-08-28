@@ -54,18 +54,27 @@
       "http-generic-api/serverManagedDeploymentIdentityProvider.js",
       "http-generic-api/serverManagedRecoveryAuthorityBinding.js",
       "http-generic-api/serverManagedRecoveryBindingProvider.js",
-      "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-production-recovery-composition-factory.mjs",
       "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/test-server-managed-recovery-binding.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
-      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+      "edge/activation-gateway/src/gateway.mjs",
+      "edge/activation-gateway/src/worker-staging.mjs",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/runtimeEnvironmentResolver.js",
+      "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false,
@@ -107,7 +116,11 @@
             "Deployment identity is server-derived, exact repository/Production branch/SHA scoped, manifest-bound, read-only, non-mutating, and secret-free; caller expected_sha is not forwarded as authority.",
             "Caller, GPT, Local Connector, raw SQL, credential-shaped, test, dummy, fake, and in-memory binding sources are rejected or unavailable.",
             "production_live throws RECOVERY_PRODUCTION_LIVE_DISABLED.",
-            "No live staging certification, Production activation, provider call, database connection, database mutation, SQL, SSH, migration, grant, or workflow dispatch is performed."
+            "No live staging certification, Production activation, provider call, database connection, database mutation, SQL, SSH, migration, grant, or workflow dispatch is performed.",
+            "Signed immutable readiness evidence reaches the real server composition dependencies, including Production read-only evidence without enabling its mutation graph.",
+            "Worker-to-origin Recovery uses Ed25519 request binding and durable atomic replay claims; self-asserted gateway hosts and flags, wrong path/auth/request ID, missing build identity and stale proofs are rejected.",
+            "Staging final readiness requires signed current external registration and OAuth evidence; repository tests never certify the live deployment.",
+            "Worker origin readiness reports server-derived deployment SHA and canonical policy hash; Staging route timeouts and body limits are positive integers."
           ],
           "tests": [
             {

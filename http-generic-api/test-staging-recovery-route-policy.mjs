@@ -34,6 +34,9 @@ test("staging route policy exposes only bounded Staging Recovery GET routes", ()
     const route = staging.routes.find((entry) => entry.path === routePath);
     assert.ok(route, `missing staging route ${routePath}`);
     assert.equal(route.method, "GET", routePath);
+    for (const field of ["request_body_limit_bytes", "response_body_limit_bytes", "timeout_ms"]) {
+      assert(Number.isSafeInteger(route[field]) && route[field] > 0, `${routePath}: ${field} must be bounded`);
+    }
     assert.equal(route.mutation, false, routePath);
     assert.equal(route.freshness_class, "recovery_strict", routePath);
     assert.deepEqual(route.operation_ids, [operationId], routePath);

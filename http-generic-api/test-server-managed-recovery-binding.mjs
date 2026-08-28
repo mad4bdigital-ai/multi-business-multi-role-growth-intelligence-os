@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { generateKeyPairSync, sign } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, producePromotionArtifactParity, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
+import { getRecoveryCompositionRouteDependencies, createRecoveryComposition } from "./recoveryComposition.js";
 import {
   createProductionRecoveryComposition,
 } from "./productionRecoveryCompositionFactory.js";
@@ -84,6 +90,74 @@ function validAttestation(sha = "a".repeat(40)) {
     secrets_included: false,
   };
 }
+
+test("deployment normalization preserves role bindings and strips arbitrary source fields", async () => {
+  const provider = createServerManagedDeploymentIdentityProvider({ readServerAttestation: async () => ({
+    ...validAttestation(), target_fingerprints: { runtime: "d".repeat(64), governance: "e".repeat(64) },
+    unrelated_internal_data: "not-public",
+  }) });
+  const attestation = await provider.readAttestation();
+  assert.equal(attestation.target_fingerprints.runtime, "d".repeat(64));
+  assert.equal(attestation.target_fingerprints.governance, "e".repeat(64));
+  assert.equal(Object.hasOwn(attestation, "unrelated_internal_data"), false);
+  assert.equal(validateDeploymentIdentityAttestation({ attestation, expectedSha: "a".repeat(40),
+    expectedManifestHash: "b".repeat(64), expectedTargetRole: "runtime", expectedTargetFingerprint: "d".repeat(64) }).ok, true);
+});
+
+test("signed durable evidence reaches real composition dependencies without enabling mutation", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "recovery-evidence-"));
+  try {
+    const store = createFileRecoveryEvidenceStore({ directory });
+    const keys = generateKeyPairSync("ed25519");
+    const target = { environment: "staging", runtime_class: "staging_hosted", target_fingerprint: "target:server-owned" };
+    const deploymentIdentityProvider = createServerManagedDeploymentIdentityProvider({ environment: "staging",
+      readServerAttestation: async () => ({ ...validAttestation(), environment: "staging", branch: "main", target_fingerprint: target.target_fingerprint }),
+    });
+    const payload = {
+      contract: RECOVERY_READINESS_EVIDENCE_CONTRACT, issuer: "certification-workflow", key_id: "test-signing-key",
+      environment: "staging", deployment_sha: "a".repeat(40), target_fingerprint: target.target_fingerprint,
+      expires_at: new Date(Date.now() + 60000).toISOString(), stagingCertification: { certification_id: "not-a-live-certificate" },
+      promotionManifests: { source: { environment: "staging", sha: "a".repeat(40), target_fingerprint: target.target_fingerprint,
+        artifacts: [{ path: "server.js", sha256: "d".repeat(64) }], manifest_hash: "e".repeat(64), generated_artifacts_verified: true },
+        target: { environment: "production", sha: "b".repeat(40), target_fingerprint: "production-target",
+        artifacts: [{ path: "server.js", sha256: "d".repeat(64) }], manifest_hash: "e".repeat(64), generated_artifacts_verified: true } }, adapterProvenance: { contract: "explicit-evidence", environment: "staging", deployment_sha: "a".repeat(40) },
+      unresolvedRecoveryIncidents: [], secrets_included: false,
+    };
+    const record = { payload, signature: sign(null, Buffer.from(readinessEvidencePayload(payload)), keys.privateKey).toString("base64url") };
+    const recordId = await store.putCertification(record);
+    assert.equal(await store.putCertification(record), recordId);
+    const reopened = createFileRecoveryEvidenceStore({ directory });
+    assert.deepEqual(await reopened.getCertification(recordId), record);
+    const options = { evidenceStore: reopened, deploymentIdentityProvider, targetIdentityProvider: { readIdentity: async () => target },
+      recordId, publicKey: keys.publicKey.export({ type: "spki", format: "pem" }), keyId: payload.key_id, issuer: payload.issuer, env: { NODE_ENV: "staging" } };
+    const authority = createRecoveryReadinessAuthorities(options);
+    const deps = getRecoveryCompositionRouteDependencies(createRecoveryComposition(), authority);
+    assert.deepEqual(await deps.stagingCertificationReader(), payload.stagingCertification);
+    assert.equal((await deps.deploymentAttestationReader()).branch, "main");
+    assert.equal(await deps.targetFingerprintReader(), target.target_fingerprint);
+    const snapshot = await deps.recoveryReadinessEvidenceReader();
+    assert.equal(snapshot.promotionArtifactParity.verified, true);
+    assert.notEqual(snapshot.promotionArtifactParity.source_sha, snapshot.promotionArtifactParity.target_sha);
+    const drift = structuredClone(payload.promotionManifests);
+    drift.target.artifacts[0].sha256 = "f".repeat(64);
+    assert.equal(producePromotionArtifactParity(drift).verified, false);
+    drift.target.artifacts.push(drift.target.artifacts[0]);
+    assert.equal(producePromotionArtifactParity(drift), null);
+    assert.deepEqual(snapshot.adapterProvenance, payload.adapterProvenance);
+    assert.equal(snapshot.authenticity_verified, true);
+    assert.equal(deps.recoveryComposition.mode, "fail_closed", "read-only evidence never enables execution");
+    assert.throws(() => getRecoveryCompositionRouteDependencies(createRecoveryComposition(), { readSnapshot: async () => ({ valid: true }) }), /UNTRUSTED/);
+    for (const changes of [{ target_fingerprint: "wrong" }, { environment: "production" }, { expires_at: "2000-01-01T00:00:00.000Z" }]) {
+      const modified = { ...payload, ...changes };
+      const alteredId = await store.putCertification({ ...record, payload: modified });
+      await assert.rejects(createRecoveryReadinessAuthorities({ ...options, recordId: alteredId }).readSnapshot(), /SIGNATURE_OR_FRESHNESS_INVALID/);
+    }
+    await assert.rejects(createRecoveryReadinessAuthorities({ ...options, targetIdentityProvider: { readIdentity: async () => ({ ...target, runtime_class: "local_windows_docker" }) } }).readSnapshot(), /TARGET_MISMATCH/);
+    const claims = { issuer: "gateway", key_id: "test", jti: "race", expires_at: Math.floor(Date.now() / 1000) + 60 };
+    const raced = await Promise.all(Array.from({ length: 8 }, () => reopened.replayStore.claim(claims)));
+    assert.equal(raced.filter(Boolean).length, 1);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
 
 test("default server-managed mode remains disabled and exposes no binding", () => {
   assert.equal(getServerManagedRecoveryBindingMode({ NODE_ENV: "production", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "disabled");

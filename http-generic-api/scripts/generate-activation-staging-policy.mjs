@@ -110,11 +110,15 @@ function payload(policy) {
 function build() {
   const production = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
   const registry = loadRegistry();
+  const canonicalLimits = registry.gateway_policies?.activation_gateway;
   const limits = {
-    request_body_limit_bytes: Number(production.request_body_limit_bytes),
-    response_body_limit_bytes: Number(production.response_body_limit_bytes),
-    timeout_ms: Number(production.timeout_ms),
+    request_body_limit_bytes: Number(canonicalLimits?.request_body_limit_bytes),
+    response_body_limit_bytes: Number(canonicalLimits?.response_body_limit_bytes),
+    timeout_ms: Number(canonicalLimits?.timeout_ms),
   };
+  if (Object.values(limits).some((value) => !Number.isSafeInteger(value) || value <= 0)) {
+    throw new Error("Staging gateway requires positive canonical body limits and timeout");
+  }
   const routeSurfaces = ["activation_admin_staging", "tenant_activation_staging"];
   const staging = {
     ...production,

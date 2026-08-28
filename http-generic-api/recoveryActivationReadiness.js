@@ -142,7 +142,18 @@ export function buildRecoveryAuthorityReadiness({
       ? composition.productionRecoveryCompositionFactory.authority_readiness
       : object(composition?.capabilities) ? composition.capabilities : {};
   const normalizedCapabilities = capabilitySource;
-  const provenance = object(adapterProvenance) ? adapterProvenance : {};
+  const provenance = object(adapterProvenance) ? adapterProvenance : composition?.adapter_provenance || {};
+  const typedProvenance = provenance.contract === "mad4b.recovery-adapter-provenance.v1"
+    && provenance.environment === environmentKey
+    && /^[a-f0-9]{40}$/.test(provenance.deployment_sha || "")
+    && RECOVERY_COMPOSITION_COMPONENT_KEYS.every((key) => {
+      const entry = provenance.components?.[key];
+      return entry?.authority_class === "server_managed"
+        && nonEmpty(entry.implementation_id)
+        && /^[a-f0-9]{64}$/.test(entry.artifact_sha256 || "")
+        && ["durable", "stateless"].includes(entry.storage_class)
+        && (!/Store$|Lock$|Ledger$/.test(key) || entry.storage_class === "durable");
+    });
   const provenanceMarkers = Object.values(provenance).some((entry) => forbiddenAdapterMarker(entry));
   const explicitTestOrMock = composition?.test_only === true
     || composition?.mock === true
@@ -161,6 +172,7 @@ export function buildRecoveryAuthorityReadiness({
   if (!durable) reasons.push("recovery_authority_durability_not_attested");
   if (!attestation) reasons.push("recovery_authority_attestation_not_attested");
   if (explicitTestOrMock) reasons.push("test_or_mock_adapter_detected");
+  if (!typedProvenance) reasons.push("typed_adapter_provenance_missing_or_invalid");
   if (!stagingModeValid) reasons.push(environmentKey === "staging"
     ? "staging_requires_injected_non_live_composition"
     : "production_requires_separately_enabled_live_composition");

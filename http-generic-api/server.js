@@ -325,6 +325,7 @@ import { getRecoveryCompositionRouteDependencies } from "./recoveryComposition.j
 import {
   createServerManagedRecoveryBindingProvider,
   getServerManagedRecoveryBindingMode,
+  resolveServerManagedRecoveryReadiness,
 } from "./serverManagedRecoveryBindingProvider.js";
 import {
   toJobSummary,
@@ -3181,12 +3182,14 @@ const recoveryComposition = createProductionRecoveryComposition({
   serverManagedBindingProvider: recoveryBindingProvider,
   source: "server_composition_root",
 });
-const recoveryCompositionDependencies = getRecoveryCompositionRouteDependencies(recoveryComposition);
+const recoveryReadinessAuthority = resolveServerManagedRecoveryReadiness({ env: process.env });
+const recoveryCompositionDependencies = getRecoveryCompositionRouteDependencies(recoveryComposition, recoveryReadinessAuthority);
 const runtimeBootstrapReader = (options = {}) => runBootstrap({
   ...options,
   ...recoveryComposition.runtimeBootstrapDependencies,
 });
-const productionActivationReadinessReader = () => runProductionActivationReadiness({
+const productionActivationReadinessReader = async () => runProductionActivationReadiness({
+  ...await recoveryCompositionDependencies.recoveryReadinessEvidenceReader(),
   recoveryComposition,
   productionLiveRequested: false,
   productionLiveEnabled: false,

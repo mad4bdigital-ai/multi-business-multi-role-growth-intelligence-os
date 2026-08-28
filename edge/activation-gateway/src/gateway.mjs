@@ -89,7 +89,7 @@ export async function policyHash(policy, cryptoImpl = crypto) {
   return hex(digest);
 }
 
-export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = crypto, now = () => Date.now() } = {}) {
+export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = crypto, now = () => Date.now(), workerBuildIdentity = null } = {}) {
   const calculatedHash = await policyHash(policy, cryptoImpl);
   if (calculatedHash !== policy.content_hash_sha256) {
     return { ok: false, code: "GATEWAY_POLICY_HASH_MISMATCH", stale: true };
@@ -122,6 +122,14 @@ export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = cr
   if (Number(attestation.surface_registry_version) !== Number(policy.surface_registry_version)) {
     return { ok: false, code: "GATEWAY_POLICY_REGISTRY_VERSION_MISMATCH", stale: true };
   }
+  const requireBuild = policy.policy_key === "activation_gateway_staging";
+  if (requireBuild && (!/^[a-f0-9]{40}$/.test(workerBuildIdentity?.source_sha || "")
+    || !/^[a-f0-9]{64}$/.test(workerBuildIdentity?.bundle_sha256 || "")
+    || workerBuildIdentity.source_sha !== attestation.source_commit
+    || attestation.worker_build_sha !== workerBuildIdentity.source_sha
+    || attestation.worker_bundle_sha256 !== workerBuildIdentity.bundle_sha256)) {
+    return { ok: false, code: "GATEWAY_WORKER_BUILD_MISMATCH", stale: true };
+  }
 
   try {
     const publicKey = await cryptoImpl.subtle.importKey(
@@ -137,6 +145,10 @@ export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = cr
       expires_at: attestation.expires_at,
       source_commit: attestation.source_commit,
       surface_registry_version: Number(attestation.surface_registry_version),
+      ...(requireBuild ? {
+        worker_build_sha: attestation.worker_build_sha,
+        worker_bundle_sha256: attestation.worker_bundle_sha256,
+      } : {}),
     });
     const verified = await cryptoImpl.subtle.verify(
       { name: "Ed25519" },
@@ -163,6 +175,41 @@ export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = cr
     attestation,
     code: stale ? "GATEWAY_POLICY_STALE" : null,
   };
+}
+
+export async function signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl = crypto, now = () => Date.now()) {
+  if (!env.ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK || !env.ACTIVATION_GATEWAY_INGRESS_KEY_ID
+    || workerBuildIdentity?.source_sha !== verification.sourceCommit
+    || !/^[a-f0-9]{64}$/.test(workerBuildIdentity?.bundle_sha256 || "")) {
+    throw Object.assign(new Error("Gateway ingress signing authority unavailable"), { code: "GATEWAY_INGRESS_AUTHORITY_MISSING" });
+  }
+  const headers = forwardedRequestHeaders(request, policy, requestId);
+  const iat = Math.floor(now() / 1000);
+  const digest = async (value) => hex(await cryptoImpl.subtle.digest("SHA-256", utf8(value)));
+  const payload = {
+    iss: `https://${policy.public_host}`,
+    aud: policy.upstream_origin,
+    host: policy.public_host,
+    deployment_sha: verification.sourceCommit,
+    worker_build_sha: workerBuildIdentity.source_sha,
+    worker_bundle_sha256: workerBuildIdentity.bundle_sha256,
+    policy_hash: policy.content_hash_sha256,
+    method: request.method,
+    path: new URL(request.url).pathname + new URL(request.url).search,
+    request_id: requestId,
+    auth_digest: await digest(JSON.stringify([headers.get("authorization") || "", headers.get("x-api-key") || ""])),
+    body_digest: await digest(""),
+    iat, exp: Math.min(iat + 30, Math.floor(verification.expiresAtMs / 1000)),
+    jti: cryptoImpl.randomUUID(),
+    key_id: env.ACTIVATION_GATEWAY_INGRESS_KEY_ID,
+  };
+  if (!Number.isInteger(payload.exp) || payload.exp <= iat) throw new Error("Gateway policy expires before ingress proof");
+  const key = await cryptoImpl.subtle.importKey("jwk", JSON.parse(env.ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK), { name: "Ed25519" }, false, ["sign"]);
+  const bytes = utf8(JSON.stringify(payload));
+  const signature = new Uint8Array(await cryptoImpl.subtle.sign("Ed25519", key, bytes));
+  const b64 = (v) => btoa(String.fromCharCode(...v)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  headers.set("x-mad4b-ingress-attestation", `${b64(bytes)}.${b64(signature)}`);
+  return headers;
 }
 
 function safeRequestId(request) {
@@ -341,6 +388,7 @@ export function createActivationGateway({
   cryptoImpl = crypto,
   now = () => Date.now(),
   logger = console,
+  workerBuildIdentity = null,
 } = {}) {
   if (!policy || typeof policy !== "object") throw new Error("Activation gateway policy is required");
   const indexes = buildRouteIndexes(policy);
@@ -355,7 +403,7 @@ export function createActivationGateway({
       return { ...verificationState.value, stale, code: stale ? "GATEWAY_POLICY_STALE" : null };
     }
     verificationState.key = _attestKey;
-    verificationState.value = await verifyAttestation(policy, env, { cryptoImpl, now });
+    verificationState.value = await verifyAttestation(policy, env, { cryptoImpl, now, workerBuildIdentity });
     return verificationState.value;
   }
 
@@ -386,6 +434,8 @@ export function createActivationGateway({
           policyHash: policy.content_hash_sha256,
           deploymentId: verification.deploymentId,
           sourceCommit: verification.sourceCommit,
+          workerBuildSha: workerBuildIdentity?.source_sha || null,
+          workerBundleSha256: workerBuildIdentity?.bundle_sha256 || null,
           surfaceRegistryVersion: verification.surfaceRegistryVersion,
           sourceOpenapiSha256: policy.source_openapi_sha256,
           surfaceRegistrySha256: policy.surface_registry_sha256,
@@ -406,7 +456,8 @@ export function createActivationGateway({
         try {
           const upstream = await fetchImpl(new URL(policy.ready_provenance?.health_path || "/health", policy.upstream_origin), {
             method: "GET",
-            headers: { "x-request-id": requestId },
+            headers: policy.policy_key === "activation_gateway_staging"
+              ? forwardedRequestHeaders(request, policy, requestId) : { "x-request-id": requestId },
             redirect: "manual",
             signal: controller.signal,
           });
@@ -524,7 +575,9 @@ export function createActivationGateway({
       try {
         upstream = await fetchImpl(target, {
           method: request.method,
-          headers: forwardedRequestHeaders(request, policy, requestId),
+          headers: policy.policy_key === "activation_gateway_staging" && url.pathname.startsWith("/admin/recovery/staging/")
+            ? await signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl, now)
+            : forwardedRequestHeaders(request, policy, requestId),
           body,
           redirect: "manual",
           signal: controller.signal,

@@ -6,6 +6,7 @@ import {
   validateRecoveryCompositionAdapters,
 } from "./recoveryComposition.js";
 import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
+import { recoveryReadinessRouteDependencies } from "./recoveryReadinessEvidence.js";
 
 export const SERVER_MANAGED_BINDING_PROVIDER_CONTRACT = "mad4b.recovery-server-managed-binding-provider.v1";
 export const SERVER_MANAGED_BINDING_MODULE_ENV = "RECOVERY_SERVER_MANAGED_BINDING_MODULE";
@@ -171,6 +172,24 @@ export function getServerManagedRecoveryBindingMode(env = process.env) {
   // gate explicitly and independently.
   if (!runtime.ok || !["staging", "test", "ci"].includes(runtime.environment_key)) return "disabled";
   return requested === "injected_non_live" ? "injected_non_live" : "disabled";
+}
+
+// Separate read-only export: resolving evidence must not instantiate a mutation
+// binding, including when the production composition is deliberately disabled.
+export function resolveServerManagedRecoveryReadiness({ env = process.env, modulePath = null } = {}) {
+  const runtime = resolveRuntimeEnvironment(env);
+  const configured = resolveModulePath(modulePath, env);
+  if (!configured || !runtime.ok || !["staging", "production"].includes(runtime.environment_key)) return null;
+  const module = require(configured);
+  if (typeof module.createRecoveryReadinessAuthorities !== "function") return null;
+  const authority = module.createRecoveryReadinessAuthorities(Object.freeze({
+    environment: runtime.environment_key,
+    runtime_class: runtime.runtime_class,
+    read_only: true,
+    production_live: false,
+  }));
+  recoveryReadinessRouteDependencies(authority);
+  return authority;
 }
 
 export function createServerManagedRecoveryBindingProvider({ env = process.env, modulePath = null, resolver = null } = {}) {
