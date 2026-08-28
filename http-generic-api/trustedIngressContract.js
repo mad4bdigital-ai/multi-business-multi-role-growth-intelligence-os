@@ -1,5 +1,6 @@
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { resolveTrustedRequestHost } from "./trustedRequestHost.js";
+import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
 
 const DEFAULT_ATTESTATION_HEADER = "x-mad4b-ingress-attestation";
 const DEFAULT_MAX_CLOCK_SKEW_SECONDS = 30;
@@ -20,8 +21,9 @@ function boundedSeconds(value, fallback, maximum) {
 }
 
 function baseReadiness(env = process.env) {
-  const environment = String(env?.NODE_ENV || env?.REMOTE_MCP_ENVIRONMENT || "staging").trim().toLowerCase();
-  const productionLike = ["production", "prod", "canary"].includes(environment);
+  const runtime = resolveRuntimeEnvironment(env);
+  const environment = runtime.ok ? runtime.environment_key : null;
+  const productionLike = environment === "production";
   const mode = text(env?.REMOTE_MCP_TRUSTED_INGRESS_MODE || "legacy_assertion", 32).toLowerCase();
   const proxyHeadersEnabled = flag(env?.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS);
   const stripCallerHeaders = flag(env?.REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS);
@@ -29,6 +31,17 @@ function baseReadiness(env = process.env) {
   return {
     environment,
     production_like: productionLike,
+    runtime_identity_ok: runtime.ok,
+    runtime_identity_reason: runtime.ok ? null : runtime.reason,
+    runtime_identity: runtime.ok ? {
+      environment_key: runtime.environment_key,
+      runtime_class: runtime.runtime_class,
+      deployment_model: runtime.deployment_model,
+      branch: runtime.branch,
+      authority_mode: runtime.authority_mode,
+      public_gateway: runtime.public_gateway,
+      upstream_service: runtime.upstream_service,
+    } : null,
     attestation_mode: mode,
     proxy_headers_enabled: proxyHeadersEnabled,
     ingress_attested: mode === "signature" ? false : legacyAttested,
@@ -130,7 +143,8 @@ function verifySignedAttestation(env, request) {
 
 export function buildTrustedIngressReadiness(env = process.env) {
   const readiness = baseReadiness(env);
-  const ready = readiness.proxy_headers_enabled
+  const ready = readiness.runtime_identity_ok
+    && readiness.proxy_headers_enabled
     && readiness.ingress_attested
     && readiness.caller_headers_stripped;
   return {
@@ -156,9 +170,16 @@ export function assertTrustedIngressReadyForProduction(env = process.env, reques
         replay_protection: "bounded_ttl_only",
         secrets_included: false,
       },
-      ready: base.proxy_headers_enabled && attestation.ok === true && base.caller_headers_stripped,
+      ready: base.runtime_identity_ok && base.proxy_headers_enabled && attestation.ok === true && base.caller_headers_stripped,
     };
     readiness.failure_mode = readiness.ready ? "accepted" : (base.production_like ? "fail_closed" : "staging_attestation_pending");
+  }
+  if (!base.runtime_identity_ok) {
+    const error = new Error("Runtime identity is missing, unknown, or conflicting; trusted ingress cannot be established.");
+    error.status = 503;
+    error.code = "RUNTIME_IDENTITY_INVALID";
+    error.details = readiness;
+    throw error;
   }
   if (readiness.production_like && !readiness.ready) {
     const error = new Error("Trusted ingress attestation is required before production or canary OAuth metadata is served.");

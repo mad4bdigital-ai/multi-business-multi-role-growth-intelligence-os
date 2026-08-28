@@ -10,6 +10,7 @@ const {
 const ACTIVATION_RESOURCE = "https://activation.mad4b.com";
 const AUTH_RESOURCE = "https://auth.mad4b.com";
 const ISSUER = "https://auth.mad4b.com";
+const CORE_ISSUER = "https://auth.mad4b.com";
 const LEGACY_AUDIENCE = "mad4b-tenant-gpt";
 const CUTOFF_MS = Date.parse("2026-10-31T23:59:59.000Z");
 const TEST_NOW_MS = Date.parse("2026-08-01T00:01:00.000Z");
@@ -92,6 +93,18 @@ assert("strict bearer lifetime is one hour", strict.verification.lifetime_second
 assert("strict subject binding is verified", strict.verification.subject_verified === true);
 assert("strict verification emits exactly one compatibility metric decision", strictEvidence.length === 1);
 assert("strict compatibility decision contains no secrets", strictEvidence[0]?.secrets_included === false);
+
+const coreToken = signToken({
+  iss: CORE_ISSUER,
+  aud: AUTH_RESOURCE,
+  resource: AUTH_RESOURCE,
+});
+const core = verifyTenantGptAccessToken(coreToken, {
+  expectedResource: AUTH_RESOURCE,
+  nowMs: TEST_NOW_MS,
+});
+assert("Tenant Core resource uses Auth issuer", core.verification.issuer === CORE_ISSUER);
+assert("Tenant Core resource audience is preserved", core.verification.audience === AUTH_RESOURCE);
 
 const wrongAudience = captureDecision(signToken({ aud: AUTH_RESOURCE, resource: AUTH_RESOURCE }));
 assert(

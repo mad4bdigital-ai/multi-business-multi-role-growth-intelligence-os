@@ -29,10 +29,11 @@ test("staging route policy exposes only bounded Staging Recovery GET routes", ()
     assert.equal(route.method, "GET", routePath);
     assert.equal(route.mutation, false, routePath);
     assert.deepEqual(route.operation_ids, [operationId], routePath);
-    assert.deepEqual(route.surfaces, ["admin_recovery_staging"], routePath);
+    assert.deepEqual(route.surfaces, ["activation_admin_staging", "admin_recovery_staging"], routePath);
     assert.deepEqual(route.allowed_query_parameters, [], routePath);
     assert.equal(production.routes.some((entry) => entry.path === routePath), false, `Production policy must not expose ${routePath}`);
   }
+  assert.deepEqual(staging.source_surfaces, ["activation_admin_staging", "admin_recovery_staging", "tenant_activation_staging"]);
   assert.equal(staging.secrets_included, false);
 });
 

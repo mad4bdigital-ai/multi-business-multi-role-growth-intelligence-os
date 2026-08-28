@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER,
+  TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID,
   TENANT_GPT_ACTIVATION_RESOURCE,
   TENANT_GPT_AUTHORIZATION_SERVER,
   TENANT_GPT_CORE_RESOURCE,
@@ -51,8 +52,46 @@ function tenantProtectedResourceMetadata(resource) {
     scopes_supported: TENANT_GPT_SCOPE_LINKS,
     bearer_methods_supported: ["header"],
     ...(resource === TENANT_GPT_ACTIVATION_RESOURCE
-      ? { resource_documentation: `${TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER}/tenant-gpt/activation-openapi` }
+      ? { resource_documentation: `${TENANT_GPT_ACTIVATION_RESOURCE}/tenant-gpt/activation-openapi` }
       : {}),
+  };
+}
+
+function tenantAuthorizationServerMetadata(resource, { refreshReady, operationalReadiness, trustedIngress } = {}) {
+  const isActivation = resource === TENANT_GPT_ACTIVATION_RESOURCE;
+  const issuer = isActivation ? TENANT_GPT_ACTIVATION_AUTHORIZATION_SERVER : TENANT_GPT_AUTHORIZATION_SERVER;
+  return {
+    issuer,
+    authorization_endpoint: `${issuer}/auth/oauth/authorize`,
+    token_endpoint: `${issuer}/auth/oauth/token`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", ...(refreshReady?.ready ? ["refresh_token"] : [])],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
+    scopes_supported: TENANT_GPT_SCOPE_LINKS,
+    code_challenge_methods_supported: ["S256"],
+    resource_parameter_supported: true,
+    "x-mad4b-oauth-compatibility": {
+      environment: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production",
+      profile: isActivation ? "tenant_activation" : "tenant_core",
+      resource,
+      confidential_client_id: isActivation ? TENANT_GPT_ACTIVATION_OAUTH_CLIENT_ID : TENANT_GPT_OAUTH_CLIENT_ID,
+      pkce_optional_only_for_confidential_client: true,
+      client_secret_required_without_pkce: true,
+      state_required: true,
+      redirect_uri_exact_match_required: true,
+    },
+    refresh_ready: refreshReady?.ready === true,
+    trusted_ingress: trustedIngress || null,
+    operational_readiness: operationalReadiness || null,
+    refresh_readiness: {
+      enabled: refreshReady?.enabled === true,
+      migration_present: refreshReady?.migration_present === true,
+      indexes_present: refreshReady?.indexes_present === true,
+      secret_ready: refreshReady?.secret_ready === true,
+      transaction_probe_ready: refreshReady?.transaction_probe_ready === true,
+      reason: refreshReady?.reason || null,
+      secrets_included: false,
+    },
   };
 }
 
@@ -135,45 +174,28 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
     });
   });
 
-  // Existing Tenant GPT/Activation authorization-server metadata remains
-  // unchanged for backwards compatibility.
+  // Authorization-server metadata is selected by the canonical request host.
+  // It must never return the Tenant Core issuer for an Activation request.
   router.get("/.well-known/oauth-authorization-server", async (req, res) => {
     const trustedIngress = trustedIngressOrError(res, env, req);
     if (!trustedIngress.ok) return undefined;
+    const requestHost = resolveRemoteMcpEffectiveRequestHost(req, env);
+    const coreHost = resourceHost(TENANT_GPT_CORE_RESOURCE);
+    const activationHost = resourceHost(TENANT_GPT_ACTIVATION_RESOURCE);
+    const resource = requestHost === activationHost && TENANT_GPT_ACTIVATION_RESOURCE
+      ? TENANT_GPT_ACTIVATION_RESOURCE
+      : requestHost === coreHost
+        ? TENANT_GPT_CORE_RESOURCE
+        : "";
+    if (!resource) return notFound(res, "TENANT_GPT_AUTHORIZATION_SERVER_NOT_FOUND");
     const pool = typeof deps.getPool === "function" ? deps.getPool() : null;
     const refreshReady = await tenantGptRefreshReady(env, pool);
     const operationalReadiness = await buildTenantGptOperationalReadiness({ env, pool });
-    return res.status(200).json({
-      issuer: TENANT_GPT_AUTHORIZATION_SERVER,
-      authorization_endpoint: `${TENANT_GPT_AUTHORIZATION_SERVER}/auth/oauth/authorize`,
-      token_endpoint: `${TENANT_GPT_AUTHORIZATION_SERVER}/auth/oauth/token`,
-      response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code", ...(refreshReady.ready ? ["refresh_token"] : [])],
-      token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
-      scopes_supported: TENANT_GPT_SCOPE_LINKS,
-      code_challenge_methods_supported: ["S256"],
-      resource_parameter_supported: true,
-      "x-mad4b-oauth-compatibility": {
-        environment: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production",
-        confidential_client_id: TENANT_GPT_OAUTH_CLIENT_ID,
-        pkce_optional_only_for_confidential_client: true,
-        client_secret_required_without_pkce: true,
-        state_required: true,
-        redirect_uri_exact_match_required: true,
-      },
-      refresh_ready: refreshReady.ready,
-      trusted_ingress: trustedIngress.readiness,
-      operational_readiness: operationalReadiness,
-      refresh_readiness: {
-        enabled: refreshReady.enabled,
-        migration_present: refreshReady.migration_present,
-        indexes_present: refreshReady.indexes_present === true,
-        secret_ready: refreshReady.secret_ready === true,
-        transaction_probe_ready: refreshReady.transaction_probe_ready === true,
-        reason: refreshReady.reason,
-        secrets_included: false,
-      },
-    });
+    return res.status(200).json(tenantAuthorizationServerMetadata(resource, {
+      refreshReady,
+      operationalReadiness,
+      trustedIngress: trustedIngress.readiness,
+    }));
   });
 
   router.get("/.well-known/oauth-protected-resource", (req, res) => {

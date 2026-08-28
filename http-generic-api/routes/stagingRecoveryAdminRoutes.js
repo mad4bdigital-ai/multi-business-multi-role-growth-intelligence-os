@@ -4,9 +4,13 @@ import {
   evaluateStagingRecoveryCertification,
   RECOVERY_STAGING_CERTIFICATION_CONTRACT,
 } from "../recoveryActivationReadiness.js";
+import { resolveRuntimeEnvironment } from "../runtimeEnvironmentResolver.js";
+import { resolveActivationGatewayHostProfile } from "../activationGatewayHostProfile.js";
+import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 
 export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v1";
 export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.com";
+export const STAGING_RECOVERY_ADMIN_HOST = "activation-dev.mad4b.com";
 
 const STAGING_ENVIRONMENT_KEYS = new Set(["staging", "staging_local_windows_docker"]);
 const STAGING_RECOVERY_PATHS = Object.freeze([
@@ -20,9 +24,8 @@ function isObject(value) {
 }
 
 function isStagingEnvironment(env = process.env) {
-  return STAGING_ENVIRONMENT_KEYS.has(String(
-    env.NODE_ENV || env.REMOTE_MCP_ENVIRONMENT || env.DEPLOYMENT_ENVIRONMENT || "",
-  ).trim().toLowerCase());
+  const resolved = resolveRuntimeEnvironment(env);
+  return resolved.ok && resolved.environment_key === "staging";
 }
 
 function requestId(req) {
@@ -174,9 +177,11 @@ export function buildStagingRecoveryAdminRoutes({
   recoveryComposition = null,
   stagingCertificationReader = null,
   deploymentAttestationReader = null,
+  trustedHostResolver = resolveTrustedRequestHost,
 } = {}) {
   const router = Router();
-  const staging = isStagingEnvironment(env);
+  const hostProfile = resolveActivationGatewayHostProfile(env);
+  const staging = isStagingEnvironment(env) && hostProfile.ok && hostProfile.profile?.gateway_key === "activation_gateway_staging";
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter((guard) => typeof guard === "function");
 
   router.use((req, res, next) => {
@@ -185,6 +190,15 @@ export function buildStagingRecoveryAdminRoutes({
     // such as /version when the application is running outside Staging.
     if (!STAGING_RECOVERY_PATHS.includes(String(req?.path || ""))) return next();
     if (!staging) return errorResponse(res, req, 404, "RECOVERY_STAGING_SURFACE_UNAVAILABLE", "The Staging Recovery surface is not available outside a declared Staging runtime.");
+    const requestHost = typeof trustedHostResolver === "function" ? trustedHostResolver(req, env) : "";
+    const gatewayIdentity = req?.activationHostGateway;
+    const gatewayIdentityValid = gatewayIdentity?.via_trusted_gateway === true
+      && gatewayIdentity.gateway_key === "activation_gateway_staging"
+      && gatewayIdentity.environment === "staging"
+      && gatewayIdentity.public_host === STAGING_RECOVERY_ADMIN_HOST;
+    if (requestHost !== STAGING_RECOVERY_ADMIN_HOST || !gatewayIdentityValid) {
+      return errorResponse(res, req, 404, "RECOVERY_STAGING_HOST_UNAVAILABLE", "The Staging Recovery surface is available only through the dedicated Activation Gateway host.");
+    }
     return next();
   });
 
@@ -234,6 +248,7 @@ export function buildStagingRecoveryAdminRoutes({
 export const _testingStagingRecoveryAdminRoutes = Object.freeze({
   STAGING_ENVIRONMENT_KEYS,
   STAGING_RECOVERY_PATHS,
+  STAGING_RECOVERY_ADMIN_HOST,
   isStagingEnvironment,
   publicAttestation,
 });

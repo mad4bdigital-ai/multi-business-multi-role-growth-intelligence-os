@@ -6,6 +6,8 @@
  * Run: node test-auth-oauth-routes.mjs
  */
 
+process.env.NODE_ENV = "test";
+process.env.REMOTE_MCP_ENVIRONMENT = "test";
 process.env.JWT_SECRET = "oauth_route_test_secret_32_characters_long";
 process.env.TENANT_GPT_SSO_SIGNING_SECRET = "tenant_gpt_sso_test_secret_32_characters_long";
 process.env.TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED = "true";
@@ -392,7 +394,7 @@ try {
     assert("authorization metadata publishes the platform issuer", authorizationMetadata.issuer === AUTH_RESOURCE, JSON.stringify(authorizationMetadata));
     assert("authorization metadata publishes the authorization endpoint", authorizationMetadata.authorization_endpoint === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(authorizationMetadata));
     assert("authorization metadata publishes the token endpoint", authorizationMetadata.token_endpoint === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(authorizationMetadata));
-    assert("authorization metadata declares Production environment", authorizationMetadata["x-mad4b-oauth-compatibility"]?.environment === "production", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata retains the Production host profile in synthetic test", authorizationMetadata["x-mad4b-oauth-compatibility"]?.environment === "production", JSON.stringify(authorizationMetadata));
     assert("authorization metadata declares the Production confidential client", authorizationMetadata["x-mad4b-oauth-compatibility"]?.confidential_client_id === "mad4b-tenant-gpt", JSON.stringify(authorizationMetadata));
     assert("authorization metadata declares resource support", authorizationMetadata.resource_parameter_supported === true, JSON.stringify(authorizationMetadata));
 
@@ -402,7 +404,7 @@ try {
     const protectedResource = JSON.parse(protectedResourceResult.text);
     assert("protected resource metadata is public", protectedResourceResult.status === 200, `${protectedResourceResult.status}`);
     assert("protected resource metadata identifies Activation", protectedResource.resource === ACTIVATION_RESOURCE, JSON.stringify(protectedResource));
-    assert("protected resource metadata links the Activation authorization server", protectedResource.authorization_servers?.includes(ACTIVATION_AUTHORIZATION_SERVER), JSON.stringify(protectedResource));
+    assert("protected resource metadata links the Auth authorization server", protectedResource.authorization_servers?.includes(AUTH_RESOURCE), JSON.stringify(protectedResource));
     assert("protected resource metadata requires bearer header usage", protectedResource.bearer_methods_supported?.includes("header"), JSON.stringify(protectedResource));
   }
 

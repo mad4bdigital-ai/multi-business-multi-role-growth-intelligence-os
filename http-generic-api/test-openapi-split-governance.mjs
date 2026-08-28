@@ -7,8 +7,9 @@ const REGISTRY_PATH = "../canonicals/openapi/custom-gpt-surfaces.yaml";
 const registry = YAML.parse(readFileSync(REGISTRY_PATH, "utf8"));
 const domainPolicy = JSON.parse(readFileSync("config/domain-family-policy.json", "utf8"));
 const GENERATED_SURFACES = Object.entries(registry.surfaces)
-  .filter(([, surface]) => surface.mode === "generated_from_openapi")
+  .filter(([, surface]) => surface.mode === "generated_from_openapi" && surface.registration_status !== "embedded")
   .map(([surfaceKey, surface]) => ({ surfaceKey, ...surface }));
+const EMBEDDED_SOURCE_TEXT = readFileSync("openapi/openapi.custom-gpt.recovery-admin.staging.yaml", "utf8");
 
 function collectOperations(doc) {
   const operations = [];
@@ -62,7 +63,21 @@ assert.deepEqual(registry.shared_surface_allowlist, ["listSystemTools", "callSys
 assert.equal(registry.oauth_client_contract.authorization_server, "https://auth.mad4b.com");
 assert.equal(registry.oauth_client_contract.activation_gateway_alias, true);
 assert.equal(registry.oauth_client_contract.consent_model, "one_client_resource_bound");
-assert.equal(GENERATED_SURFACES.length, 13, "registry must define four base, eight standard environment-specific, and one private Production generated surface");
+assert.equal(GENERATED_SURFACES.length, 13, "registry must define the generated base/environment surfaces plus standalone Production Recovery; Staging Recovery remains embedded");
+assert(registry.registration_sets?.admin_activation_production, "registry must define Production Admin Activation registration set");
+assert(registry.registration_sets?.production_recovery, "registry must define standalone Production Recovery registration set");
+assert(registry.registration_sets?.admin_activation_staging, "registry must define Staging Admin Activation registration set");
+assert(registry.registration_sets?.tenant_activation_production, "registry must define Production Tenant Activation registration set");
+assert(registry.registration_sets?.tenant_activation_staging, "registry must define Staging Tenant Activation registration set");
+assert.deepEqual(registry.registration_sets.admin_activation_production.members, ["activation_admin_production"]);
+assert.deepEqual(registry.registration_sets.production_recovery.members, ["admin_recovery_production"]);
+assert.deepEqual(registry.registration_sets.admin_activation_staging.members, ["activation_admin_staging", "admin_recovery_staging"]);
+assert.deepEqual(registry.registration_sets.tenant_activation_staging.members, ["tenant_activation_staging"]);
+assert.deepEqual(registry.registration_host_collision_policy.allowed_pairs, [
+  ["admin_activation_production", "tenant_activation_production"],
+  ["admin_activation_staging", "tenant_activation_staging"],
+]);
+assert.deepEqual(registry.registration_sets.admin_activation_staging.tenant_surfaces_forbidden, ["tenant_activation_staging"]);
 const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
 const environmentSurfaceKeys = baseSurfaceKeys.flatMap((base) => [
   `${base}_production`,
@@ -71,7 +86,13 @@ const environmentSurfaceKeys = baseSurfaceKeys.flatMap((base) => [
 for (const key of [...baseSurfaceKeys, ...environmentSurfaceKeys]) assert(registry.surfaces[key], `registry must define ${key}`);
 assert(registry.surfaces.admin_recovery_production, "registry must define the private Production Recovery surface");
 assert.equal(registry.surfaces.admin_recovery_production.private_only, true);
+assert.equal(registry.surfaces.admin_recovery_production.registration_status, "standalone");
+assert.equal(registry.surfaces.admin_recovery_production.registration_set, "production_recovery");
+assert.equal(registry.surfaces.admin_recovery_production.action_slot, "recovery_kernel");
+assert.equal(registry.surfaces.admin_recovery_production.embed_into, undefined);
 assert.equal(registry.surfaces.admin_recovery_production.environment, "production");
+assert.equal(registry.surfaces.admin_recovery_staging.registration_status, "embedded");
+assert.equal(registry.surfaces.admin_recovery_staging.embed_into, "activation_admin_staging");
 assert.equal(registry.surfaces.admin_recovery_production.base_surface, "admin_core");
 assert.equal(registry.surfaces.admin_recovery_production_staging, undefined, "private Recovery surface must not have a Staging projection");
 for (const surface of GENERATED_SURFACES) {
@@ -117,7 +138,12 @@ for (const requiredAlias of ["activateSession", "listTools", "callTool", "writeS
   assert(mainText.includes(`x-tenant-gpt-operationId: ${requiredAlias}`), `tenant alias must be declared in main OpenAPI: ${requiredAlias}`);
 }
 
-const knownSurfaceKeys = new Set(GENERATED_SURFACES.map((surface) => surface.surfaceKey));
+const knownSurfaceKeys = new Set([
+  ...GENERATED_SURFACES.map((surface) => surface.surfaceKey),
+  ...Object.entries(registry.surfaces)
+    .filter(([, surface]) => surface.registration_status === "embedded")
+    .map(([surfaceKey]) => surfaceKey),
+]);
 const sourceMarkedOperations = collectOperations(YAML.parse(mainText)).filter((entry) => Array.isArray(entry.operation?.["x-custom-gpt-surfaces"]));
 assert(sourceMarkedOperations.length > 0, "source OpenAPI must contain dynamic Custom GPT surface markers");
 for (const entry of sourceMarkedOperations) {
@@ -157,11 +183,14 @@ for (const surface of GENERATED_SURFACES) {
 
   for (const entry of operations) {
     const pair = `${entry.method.toUpperCase()} ${entry.pathKey}`;
-    assert(mainText.includes(`${entry.pathKey}:`), `${surface.output_file} contains a split-only path: ${pair}`);
+    const embeddedSource = entry.operation?.["x-mad4b-embedded-surface"] ? EMBEDDED_SOURCE_TEXT : mainText;
+    assert(embeddedSource.includes(`${entry.pathKey}:`) || mainText.includes(`${entry.pathKey}:`), `${surface.output_file} contains a split-only path: ${pair}`);
     const operationId = entry.operation?.operationId;
     assert(operationId, `${surface.output_file} operation must define operationId: ${pair}`);
     assert(
-      mainText.includes(`operationId: ${operationId}`) || mainText.includes(`x-tenant-gpt-operationId: ${operationId}`),
+      embeddedSource.includes(`operationId: ${operationId}`)
+        || mainText.includes(`operationId: ${operationId}`)
+        || mainText.includes(`x-tenant-gpt-operationId: ${operationId}`),
       `${surface.output_file} contains a split-only operationId: ${operationId}`,
     );
   }
@@ -176,6 +205,17 @@ const adminCore = loadYaml(registry.surfaces.admin_core.output_file);
 const tenantCore = loadYaml(registry.surfaces.tenant_core.output_file);
 const adminActivation = loadYaml(registry.surfaces.activation_admin.output_file);
 const tenantActivation = loadYaml(registry.surfaces.tenant_activation.output_file);
+const adminActivationProduction = loadYaml(registry.surfaces.activation_admin_production.output_file);
+const adminActivationStaging = loadYaml(registry.surfaces.activation_admin_staging.output_file);
+const adminRecoveryProduction = loadYaml(registry.surfaces.admin_recovery_production.output_file);
+assert.equal(Object.keys(adminActivationProduction.paths).filter((path) => path.startsWith("/admin/recovery/kernel/")).length, 0);
+assert.equal(Object.keys(adminRecoveryProduction.paths).filter((path) => path.startsWith("/admin/recovery/kernel/")).length, 6);
+assert.equal(Object.keys(adminActivationStaging.paths).filter((path) => path.startsWith("/admin/recovery/staging/")).length, 3);
+assert.equal(adminActivationProduction["x-mad4b-registration"]?.registration_set, "admin_activation_production");
+assert.equal(adminActivationStaging["x-mad4b-registration"]?.registration_set, "admin_activation_staging");
+assert.equal(adminActivationProduction["x-custom-gpt-generation"]?.operation_count, 9);
+assert.equal(adminRecoveryProduction["x-custom-gpt-generation"]?.operation_count, 6);
+assert.equal(adminActivationStaging["x-custom-gpt-generation"]?.operation_count, 12);
 assert.equal(Object.keys(adminCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(tenantCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(adminActivation.paths).every((path) => path.startsWith("/activation")), true);
@@ -187,6 +227,13 @@ assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authoriz
 assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://auth.mad4b.com/auth/oauth/token");
 assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://activation.mad4b.com/auth/oauth/authorize");
 assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
+for (const environment of ["production", "staging"]) {
+  const set = registry.registration_sets[`admin_activation_${environment}`];
+  const output = loadYaml(registry.surfaces[set.output_surface].output_file);
+  assert.equal(output.servers?.[0]?.url, set.server_uri);
+  assert.equal(output["x-mad4b-registration"]?.audience, "admin");
+  assert(!set.members.includes(`tenant_activation_${environment}`), `${environment} Tenant Activation must remain a separate registration slot`);
+}
 for (const environment of ["production", "staging"]) {
   const authHost = domainPolicy.environments[environment].hostnames.auth.hostname;
   const activationHost = domainPolicy.environments[environment].hostnames.activation.hostname;
@@ -228,6 +275,9 @@ assert(splitScript.includes("validateUniqueTenantAliases"), "split generator mus
 assert(splitScript.includes("selector.operation_ids") && splitScript.includes("selector.tenant_operation_ids") && splitScript.includes("selector.include_tags"));
 assert(orchestrator.includes("generateGatewayPolicies"), "orchestrator must generate gateway policy from Activation surfaces");
 assert(orchestrator.includes("materializeCanonicalCopies"), "orchestrator must materialize canonical-copy surfaces");
+assert(orchestrator.includes("registration_status"), "orchestrator must distinguish embedded surfaces from standalone artifacts");
+assert(orchestrator.includes("registration_sets"), "orchestrator must validate registration sets");
+assert(orchestrator.includes("mergeEmbeddedCanonicalSurfaces"), "orchestrator must merge embedded canonical members into their action slot");
 assert(!splitScript.includes("YAML.parse(fs.readFileSync(tenantPath"), "generated tenant artifacts must never become source-of-truth");
 assert(!splitScript.includes("remoteMcp"), "Custom GPT splitter must remain independent from Remote MCP runtime");
 

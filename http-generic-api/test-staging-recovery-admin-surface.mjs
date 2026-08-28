@@ -152,15 +152,24 @@ test("Staging Recovery readiness accepts only bounded server evidence and never 
 
 test("Staging Recovery routes are reachable only in declared staging runtime", async () => {
   const stagingApp = express();
+  stagingApp.use((req, _res, next) => {
+    req.activationHostGateway = {
+      via_trusted_gateway: true,
+      gateway_key: "activation_gateway_staging",
+      environment: "staging",
+      public_host: "activation-dev.mad4b.com",
+    };
+    next();
+  });
   stagingApp.use(buildStagingRecoveryAdminRoutes({
-    env: { NODE_ENV: "staging" },
+    env: { NODE_ENV: "staging", REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" },
     requireBackendApiKey: (_req, _res, next) => next(),
     requireAdminPrincipal: (_req, _res, next) => next(),
     recoveryComposition: completeStagingComposition(),
   }));
   const staging = await listen(stagingApp);
   try {
-    const response = await fetch(`${staging.url}/admin/recovery/staging/contract`);
+    const response = await fetch(`${staging.url}/admin/recovery/staging/contract`, { headers: { "x-forwarded-host": "activation-dev.mad4b.com" } });
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.contract, STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT);
@@ -168,13 +177,35 @@ test("Staging Recovery routes are reachable only in declared staging runtime", a
     assert.equal(body.production_authority, false);
     assert.equal(body.secrets_included, false);
 
-    const readinessResponse = await fetch(`${staging.url}/admin/recovery/staging/readiness`);
+    const readinessResponse = await fetch(`${staging.url}/admin/recovery/staging/readiness`, { headers: { "x-forwarded-host": "activation-dev.mad4b.com" } });
     const readinessBody = await readinessResponse.json();
     assert.equal(readinessResponse.status, 200);
     assert.equal(readinessBody.production_live.enabled, false);
     assert.equal(readinessBody.database_mutation_performed, false);
+
+    const wrongHostResponse = await fetch(`${staging.url}/admin/recovery/staging/contract`, { headers: { "x-forwarded-host": "dev.mad4b.com" } });
+    const wrongHostBody = await wrongHostResponse.json();
+    assert.equal(wrongHostResponse.status, 404);
+    assert.equal(wrongHostBody.error.code, "RECOVERY_STAGING_HOST_UNAVAILABLE");
   } finally {
     await new Promise((resolve) => staging.server.close(resolve));
+  }
+
+  const directOriginApp = express();
+  directOriginApp.use(buildStagingRecoveryAdminRoutes({
+    env: { NODE_ENV: "staging", REMOTE_MCP_ENVIRONMENT: "staging" },
+    requireBackendApiKey: (_req, _res, next) => next(),
+    requireAdminPrincipal: (_req, _res, next) => next(),
+    recoveryComposition: completeStagingComposition(),
+  }));
+  const directOrigin = await listen(directOriginApp);
+  try {
+    const response = await fetch(`${directOrigin.url}/admin/recovery/staging/contract`, { headers: { host: "activation-dev.mad4b.com" } });
+    const body = await response.json();
+    assert.equal(response.status, 404);
+    assert.equal(body.error.code, "RECOVERY_STAGING_HOST_UNAVAILABLE");
+  } finally {
+    await new Promise((resolve) => directOrigin.server.close(resolve));
   }
 
   const productionApp = express();

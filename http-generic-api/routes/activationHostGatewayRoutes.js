@@ -3,51 +3,75 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
-
-const IS_STAGING_RUNTIME = String(process.env.NODE_ENV || "").trim().toLowerCase() === "staging"
-  || String(process.env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase() === "staging";
+import { resolveActivationGatewayHostProfile } from "../activationGatewayHostProfile.js";
+import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
+const DEFAULT_HOST_PROFILE = resolveActivationGatewayHostProfile(process.env);
 export const ACTIVATION_HOST_GATEWAY_HOST = String(
-  process.env.ACTIVATION_HOST_GATEWAY_HOST
-    || (IS_STAGING_RUNTIME ? "activation-dev.mad4b.com" : "activation.mad4b.com"),
+  DEFAULT_HOST_PROFILE.profile?.public_host
+    || process.env.ACTIVATION_HOST_GATEWAY_HOST
+    || "activation.mad4b.com",
 ).trim().toLowerCase();
-const AUTH_HOST = IS_STAGING_RUNTIME
-  ? String(process.env.ACTIVATION_STAGING_AUTH_HOST || ACTIVATION_HOST_GATEWAY_HOST).trim().toLowerCase()
-  : "auth.mad4b.com";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
 const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
 
-const ACTIVATION_SCHEMA_FILES_BY_PATH = new Map(IS_STAGING_RUNTIME ? [
-  ["/openapi.tenant-gpt.activation.staging.yaml", "openapi.tenant-gpt.activation.staging.yaml"],
-  ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.staging.yaml"],
-  ["/openapi.custom-gpt.activation-admin.staging.yaml", "openapi.custom-gpt.activation-admin.staging.yaml"],
-  ["/openapi.custom-gpt.recovery-admin.staging.yaml", "openapi.custom-gpt.recovery-admin.staging.yaml"],
-  ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.staging.yaml"],
-  ["/admin-gpt/recovery-openapi", "openapi.custom-gpt.recovery-admin.staging.yaml"],
-] : [
-  ["/openapi.tenant-gpt.activation.yaml", "openapi.tenant-gpt.activation.yaml"],
-  ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.yaml"],
-  ["/openapi.custom-gpt.activation-admin.yaml", "openapi.custom-gpt.activation-admin.yaml"],
-  ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.yaml"],
-]);
+function buildGatewayConfig(env = process.env, activationHostOverride = null) {
+  const hostProfile = resolveActivationGatewayHostProfile(env);
+  const runtime = hostProfile.runtime;
+  const profile = hostProfile.profile;
+  const staging = runtime?.environment_key === "staging";
+  const productionLike = ["production", "test", "ci"].includes(runtime?.environment_key);
+  const activationHost = String(
+    activationHostOverride || profile?.public_host || env.ACTIVATION_HOST_GATEWAY_HOST || "",
+  ).trim().toLowerCase();
+  const hostOverrideAllowed = !activationHostOverride || ["test", "ci"].includes(runtime?.environment_key);
+  const activationHostMatchesProfile = Boolean(profile?.public_host) && activationHost === profile.public_host;
+  const authHost = String(profile?.oauth_issuer_host || "").trim().toLowerCase();
+  const upstreamHost = String(profile?.upstream_host || "").trim().toLowerCase();
+  const supported = hostProfile.ok && hostOverrideAllowed && activationHostMatchesProfile && (staging || productionLike);
+  const schemaFilesByPath = new Map(staging ? [
+    ["/openapi.tenant-gpt.activation.staging.yaml", "openapi.tenant-gpt.activation.staging.yaml"],
+    ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.staging.yaml"],
+    ["/openapi.custom-gpt.activation-admin.staging.yaml", "openapi.custom-gpt.activation-admin.staging.yaml"],
+    ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.staging.yaml"],
+  ] : productionLike ? [
+    ["/openapi.tenant-gpt.activation.yaml", "openapi.tenant-gpt.activation.yaml"],
+    ["/tenant-gpt/activation-openapi", "openapi.tenant-gpt.activation.yaml"],
+    ["/openapi.custom-gpt.activation-admin.yaml", "openapi.custom-gpt.activation-admin.yaml"],
+    ["/admin-gpt/activation-openapi", "openapi.custom-gpt.activation-admin.yaml"],
+  ] : []);
+  return Object.freeze({
+    runtime,
+    hostProfile,
+    profile,
+    supported,
+    staging,
+    activationHost,
+    authHost,
+    upstreamHost,
+    schemaFilesByPath,
+    schemaHosts: supported ? (staging ? [activationHost] : [activationHost, authHost]) : [],
+    allowedExactPaths: supported ? new Set([
+      "/",
+      "/health",
+      "/privacy-policy",
+      "/status",
+      "/tenant-gpt/oauth-preset",
+      "/terms-of-use",
+      ...schemaFilesByPath.keys(),
+    ]) : new Set(),
+    allowedPrefixes: supported ? [
+      "/activation/",
+      "/tenant/activation/",
+      ...(staging
+        ? ["/admin/recovery/staging/"]
+        : productionLike ? ["/admin/recovery/kernel/"] : []),
+    ] : [],
+  });
+}
 
-const ALLOWED_EXACT_PATHS = new Set([
-  "/",
-  "/health",
-  "/privacy-policy",
-  "/status",
-  "/tenant-gpt/oauth-preset",
-  "/terms-of-use",
-  ...ACTIVATION_SCHEMA_FILES_BY_PATH.keys(),
-]);
-
-const ALLOWED_PREFIXES = [
-  "/activation/",
-  "/tenant/activation/",
-  ...(IS_STAGING_RUNTIME ? ["/admin/recovery/staging/"] : []),
-];
-
+const DEFAULT_GATEWAY_CONFIG = buildGatewayConfig(process.env);
 const ALLOWED_TENANT_RESOLUTION_ROUTES = [
   { methods: new Set(["GET"]), pattern: /^\/tenant\/resolution\/problem-cards$/ },
   { methods: new Set(["GET", "POST"]), pattern: /^\/tenant\/resolution\/cases$/ },
@@ -70,17 +94,10 @@ function normalizedRequestHost(value) {
     .replace(/:\d+$/, "");
 }
 
-function requestHost(req, preferredHost = "") {
-  const candidates = [
-    req.headers?.["x-forwarded-host"],
-    req.headers?.["x-original-host"],
-    req.headers?.["x-host"],
-    req.headers?.[":authority"],
-    req.headers?.host,
-  ].map(normalizedRequestHost).filter(Boolean);
+function requestHost(req, preferredHost = "", env = process.env) {
+  const trusted = resolveTrustedRequestHost(req, env);
   const preferred = normalizedRequestHost(preferredHost);
-  const firstCandidate = candidates.find((candidate) => Boolean(candidate)) || "";
-  return (preferred && candidates.includes(preferred)) ? preferred : firstCandidate;
+  return preferred && trusted === preferred ? preferred : trusted;
 }
 
 function requestPath(req) {
@@ -116,25 +133,26 @@ function errorResponse(code, message, req) {
   };
 }
 
-function isActivationSchemaHost(host, activationHost) {
-  return host === activationHost || host === AUTH_HOST;
+function isActivationSchemaHost(host, config) {
+  return config.schemaHosts.includes(host);
 }
 
-function isActivationHostAllowedPath(pathname, method) {
-  return ALLOWED_EXACT_PATHS.has(pathname)
-    || ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+function isActivationHostAllowedPath(pathname, method, config = DEFAULT_GATEWAY_CONFIG) {
+  if (!config.supported) return false;
+  return config.allowedExactPaths.has(pathname)
+    || config.allowedPrefixes.some((prefix) => pathname.startsWith(prefix))
     || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
       route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
 }
 
-function isTenantGptProtectedPath(pathname, method) {
+function isTenantGptProtectedPath(pathname, method, config = DEFAULT_GATEWAY_CONFIG) {
   return pathname.startsWith("/tenant/activation/")
     || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
       route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
 }
 
-export function activationHostGatewayAllowsOperation(method, pathname) {
-  return isActivationHostAllowedPath(pathname, method);
+export function activationHostGatewayAllowsOperation(method, pathname, { env = process.env, activationHost = null } = {}) {
+  return isActivationHostAllowedPath(pathname, method, buildGatewayConfig(env, activationHost));
 }
 
 function routeKey(method, pathname) {
@@ -150,9 +168,14 @@ function isAuthPath(pathname) {
 }
 
 export function buildActivationHostGatewayRoutes({
-  activationHost = ACTIVATION_HOST_GATEWAY_HOST,
-  enabled = !IS_STAGING_RUNTIME || String(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true",
+  activationHost = null,
+  enabled = undefined,
+  env = process.env,
 } = {}) {
+  const config = buildGatewayConfig(env, activationHost);
+  const gatewayEnabled = config.supported && (enabled === undefined
+    ? !config.staging || String(env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true"
+    : enabled === true);
   const router = Router();
 
   async function serveActivationSchema(req, res, schemaFile) {
@@ -175,24 +198,24 @@ export function buildActivationHostGatewayRoutes({
   }
 
   router.use(async (req, res, next) => {
-    if (!enabled || !["GET", "HEAD"].includes(req.method)) return next();
+    if (!gatewayEnabled || !["GET", "HEAD"].includes(req.method)) return next();
 
     const pathname = requestPath(req);
-    const schemaFile = ACTIVATION_SCHEMA_FILES_BY_PATH.get(pathname);
+    const schemaFile = config.schemaFilesByPath.get(pathname);
     if (!schemaFile) return next();
 
-    const host = requestHost(req, activationHost);
-    if (!isActivationSchemaHost(host, activationHost)) return next();
+    const host = requestHost(req, config.activationHost, env);
+    if (!isActivationSchemaHost(host, config)) return next();
 
     await serveActivationSchema(req, res, schemaFile);
     return undefined;
   });
 
   router.use((req, res, next) => {
-    if (!enabled) return next();
+    if (!gatewayEnabled) return next();
 
-    const host = requestHost(req, activationHost);
-    if (host !== activationHost) return next();
+    const host = requestHost(req, config.activationHost, env);
+    if (host !== config.activationHost) return next();
 
     const pathname = requestPath(req);
 
@@ -208,6 +231,11 @@ export function buildActivationHostGatewayRoutes({
       req.activationHostGateway = {
         host,
         enforced: true,
+        via_trusted_gateway: true,
+        gateway_key: config.profile?.gateway_key || null,
+        environment: config.runtime?.environment_key || null,
+        public_host: config.profile?.public_host || null,
+        upstream_origin: config.profile?.upstream_origin || null,
         tenant_gpt_oauth_handoff: true,
         operation_id: oauthHandoff.operation_id,
         secrets_included: false,
@@ -217,7 +245,7 @@ export function buildActivationHostGatewayRoutes({
 
     delete req.headers.cookie;
 
-    if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname, req.method)) {
+    if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname, req.method, config)) {
       return res.status(404).json(errorResponse(
         "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
         "This host only serves the environment-bound Activation transport routes and Activation OpenAPI schemas.",
@@ -228,10 +256,15 @@ export function buildActivationHostGatewayRoutes({
     req.activationHostGateway = {
       host,
       enforced: true,
+      via_trusted_gateway: true,
+      gateway_key: config.profile?.gateway_key || null,
+      environment: config.runtime?.environment_key || null,
+      public_host: config.profile?.public_host || null,
+      upstream_origin: config.profile?.upstream_origin || null,
       secrets_included: false,
     };
 
-    if (isTenantGptProtectedPath(pathname, req.method)) {
+    if (isTenantGptProtectedPath(pathname, req.method, config)) {
       return requireActivationTenantGptAccessToken(req, res, next);
     }
 
@@ -241,11 +274,17 @@ export function buildActivationHostGatewayRoutes({
   return router;
 }
 
-export function activationHostGatewayAllowedPaths() {
+export function activationHostGatewayAllowedPaths({ env = process.env, activationHost = null } = {}) {
+  const config = buildGatewayConfig(env, activationHost);
   return {
-    host: ACTIVATION_HOST_GATEWAY_HOST,
-    exact_paths: [...ALLOWED_EXACT_PATHS],
-    path_prefixes: [...ALLOWED_PREFIXES],
+    host: config.activationHost,
+    environment_key: config.runtime?.environment_key || null,
+    runtime_variant: config.runtime?.runtime_variant || null,
+    runtime_class: config.runtime?.runtime_class || null,
+    gateway_key: config.profile?.gateway_key || null,
+    authority_mode: config.runtime?.authority_mode || null,
+    exact_paths: [...config.allowedExactPaths],
+    path_prefixes: [...config.allowedPrefixes],
     tenant_gpt_oauth_routes: [...TENANT_GPT_OAUTH_HANDOFF_ROUTES.entries()].map(([key, value]) => {
       const splitAt = key.indexOf(" ");
       return {
@@ -254,9 +293,9 @@ export function activationHostGatewayAllowedPaths() {
         operation_id: value.operation_id,
       };
     }),
-    schema_hosts: [ACTIVATION_HOST_GATEWAY_HOST, AUTH_HOST],
-    oauth_host: ACTIVATION_HOST_GATEWAY_HOST,
-    oauth_upstream_host: AUTH_HOST,
+    schema_hosts: [...config.schemaHosts],
+    oauth_host: config.activationHost,
+    oauth_upstream_host: config.upstreamHost,
     secrets_included: false,
   };
 }

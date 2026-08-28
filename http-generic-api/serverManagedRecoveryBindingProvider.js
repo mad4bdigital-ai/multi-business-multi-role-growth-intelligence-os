@@ -5,6 +5,7 @@ import {
   SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
   validateRecoveryCompositionAdapters,
 } from "./recoveryComposition.js";
+import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
 
 export const SERVER_MANAGED_BINDING_PROVIDER_CONTRACT = "mad4b.recovery-server-managed-binding-provider.v1";
 export const SERVER_MANAGED_BINDING_MODULE_ENV = "RECOVERY_SERVER_MANAGED_BINDING_MODULE";
@@ -163,13 +164,12 @@ function normalizeEnvelope(envelope, moduleIdHash) {
 }
 
 export function getServerManagedRecoveryBindingMode(env = process.env) {
-  const environment = text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV, 64).toLowerCase();
-  const productionEnvironment = ["production", "prod", "production_hostinger_autodeploy"].includes(environment);
-  const explicitlyNonLiveEnvironment = ["staging_local_windows_docker", "test", "ci"].includes(environment);
+  const runtime = resolveRuntimeEnvironment(env);
   const requested = text(env[SERVER_MANAGED_BINDING_MODE_ENV], 64).toLowerCase();
-  // This repository-only wiring must never enable a Recovery binding in Production or an unknown environment.
-  // A later operational release must change this gate explicitly and independently.
-  if (productionEnvironment || !explicitlyNonLiveEnvironment) return "disabled";
+  // This repository-only wiring must never enable a Recovery binding in Production or
+  // an unknown/conflicting environment. A later operational release must change this
+  // gate explicitly and independently.
+  if (!runtime.ok || !["staging", "test", "ci"].includes(runtime.environment_key)) return "disabled";
   return requested === "injected_non_live" ? "injected_non_live" : "disabled";
 }
 

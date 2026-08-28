@@ -3273,7 +3273,7 @@ x-custom-gpt-generation:
   source_openapi: http-generic-api/openapi.yaml
   source_openapi_sha256: 904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d
+  registry_sha256: eaa8101f89a28630f9255f8042461c3e2faf7c6ededa7fd459f7e229ddce788c
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: unspecified

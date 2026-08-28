@@ -3,7 +3,7 @@ info:
   title: Growth Intelligence Platform - Activation Admin Actions - production
   version: 3.0.0-platform
   summary: Admin/service Activation orchestration and read surfaces. (production).
-  description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
+  description: Activation Admin transport with a distinct Production registration slot. Production Recovery remains separately registered on auth.mad4b.com; no consequential Recovery operation is re-exposed through this Activation Gateway.
 servers:
   - url: https://activation.mad4b.com
     description: activation_admin_production surface
@@ -1699,7 +1699,7 @@ x-custom-gpt-generation:
   source_openapi: http-generic-api/openapi.yaml
   source_openapi_sha256: 904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d
+  registry_sha256: eaa8101f89a28630f9255f8042461c3e2faf7c6ededa7fd459f7e229ddce788c
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: production
@@ -1828,4 +1828,23 @@ x-custom-gpt-generation:
   warning_operation_limit: 16
   warning_budget_exceeded: false
   hard_operation_limit: 20
+  secrets_included: false
+  registration_set: admin_activation_production
+  registration_members:
+    - activation_admin_production
+x-mad4b-registration:
+  registration_set: admin_activation_production
+  action_slot: admin_activation
+  audience: admin
+  auth_profile: admin_service
+  environment: production
+  server_uri: https://activation.mad4b.com
+  gateway_host: activation.mad4b.com
+  members:
+    - activation_admin_production
+  operation_count: 9
+  hard_operation_limit: 20
+  warning_operation_limit: 16
+  tenant_surfaces_forbidden:
+    - tenant_activation_production
   secrets_included: false

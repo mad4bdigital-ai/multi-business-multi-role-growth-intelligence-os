@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "cf0d6d242deb14287ac5092742df945d99687969659af066dd8fc9959bb501b3",
+  "content_hash_sha256": "1d0436b9e9a52f9525b2735b6af69c46c568807bea4c8bfc45642e3e36d5b32b",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -83,12 +83,12 @@
         "readActivationAwareness"
       ],
       "path": "/activation/awareness",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -108,12 +108,12 @@
         "readActivationDynamicTabDetail"
       ],
       "path": "/activation/dynamic-tabs/detail",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -126,12 +126,12 @@
         "runHardActivation"
       ],
       "path": "/activation/hard-run",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -144,12 +144,12 @@
         "runLegacyFullHardActivation"
       ],
       "path": "/activation/hard-run/legacy-full",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -162,12 +162,12 @@
         "getActivationHardRunSummary"
       ],
       "path": "/activation/hard-run/summary",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -189,12 +189,12 @@
         "readActivationOperationalAttention"
       ],
       "path": "/activation/operational-attention",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -207,12 +207,12 @@
         "getActivationPlatformAccess"
       ],
       "path": "/activation/platform-access",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -225,12 +225,12 @@
         "acknowledgeActivationRun"
       ],
       "path": "/activation/runs/{runId}/ack",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -252,12 +252,69 @@
         "getActivationSessionContext"
       ],
       "path": "/activation/session-context",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getStagingRecoveryCertificationStatus"
+      ],
+      "path": "/admin/recovery/staging/certification",
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
+      "surfaces": [
+        "activation_admin_staging",
+        "admin_recovery_staging"
+      ],
+      "timeout_ms": null
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getStagingRecoveryAdminContract"
+      ],
+      "path": "/admin/recovery/staging/contract",
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
+      "surfaces": [
+        "activation_admin_staging",
+        "admin_recovery_staging"
+      ],
+      "timeout_ms": null
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "getStagingRecoveryAdminReadiness"
+      ],
+      "path": "/admin/recovery/staging/readiness",
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
+      "surfaces": [
+        "activation_admin_staging",
+        "admin_recovery_staging"
+      ],
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -275,12 +332,12 @@
         "readTenantActivationAwareness"
       ],
       "path": "/tenant/activation/awareness",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -300,12 +357,12 @@
         "readTenantActivationDynamicTabDetail"
       ],
       "path": "/tenant/activation/dynamic-tabs/detail",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -327,12 +384,12 @@
         "readTenantActivationOperationalAttention"
       ],
       "path": "/tenant/activation/operational-attention",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -360,12 +417,12 @@
         "activateSession"
       ],
       "path": "/tenant/activation/session-context",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -381,12 +438,12 @@
         "listSessions"
       ],
       "path": "/tenant/activation/sessions",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -399,12 +456,12 @@
         "writeGptSessionTurns"
       ],
       "path": "/tenant/activation/sessions/{id}/turns",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -424,12 +481,12 @@
         "listTenantResolutionCases"
       ],
       "path": "/tenant/resolution/cases",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -442,12 +499,12 @@
         "createTenantResolutionCase"
       ],
       "path": "/tenant/resolution/cases",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -463,12 +520,12 @@
         "getTenantResolutionCase"
       ],
       "path": "/tenant/resolution/cases/{caseId}",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -481,12 +538,12 @@
         "runTenantResolutionDiagnosticAction"
       ],
       "path": "/tenant/resolution/cases/{caseId}/diagnostics",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -499,12 +556,12 @@
         "applyTenantTaskSourceRepair"
       ],
       "path": "/tenant/resolution/cases/{caseId}/task-source-repair/apply",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -517,12 +574,12 @@
         "previewTenantTaskSourceRepair"
       ],
       "path": "/tenant/resolution/cases/{caseId}/task-source-repair/preview",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -535,12 +592,12 @@
         "verifyTenantTaskSourceRepair"
       ],
       "path": "/tenant/resolution/cases/{caseId}/task-source-repair/verify",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [],
@@ -553,12 +610,12 @@
         "transitionTenantResolutionCase"
       ],
       "path": "/tenant/resolution/cases/{caseId}/transitions",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
+      "request_body_limit_bytes": null,
+      "response_body_limit_bytes": null,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_staging"
       ],
-      "timeout_ms": 30000
+      "timeout_ms": null
     },
     {
       "allowed_query_parameters": [
@@ -578,64 +635,10 @@
         "readTenantResolutionProblemCards"
       ],
       "path": "/tenant/resolution/problem-cards",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
-      "surfaces": [
-        "tenant_activation"
-      ],
-      "timeout_ms": 30000
-    },
-    {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "admin_service"
-      ],
-      "method": "GET",
-      "mutation": false,
-      "operation_ids": [
-        "getStagingRecoveryAdminContract"
-      ],
-      "path": "/admin/recovery/staging/contract",
       "request_body_limit_bytes": null,
       "response_body_limit_bytes": null,
       "surfaces": [
-        "admin_recovery_staging"
-      ],
-      "timeout_ms": null
-    },
-    {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "admin_service"
-      ],
-      "method": "GET",
-      "mutation": false,
-      "operation_ids": [
-        "getStagingRecoveryAdminReadiness"
-      ],
-      "path": "/admin/recovery/staging/readiness",
-      "request_body_limit_bytes": null,
-      "response_body_limit_bytes": null,
-      "surfaces": [
-        "admin_recovery_staging"
-      ],
-      "timeout_ms": null
-    },
-    {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "admin_service"
-      ],
-      "method": "GET",
-      "mutation": false,
-      "operation_ids": [
-        "getStagingRecoveryCertificationStatus"
-      ],
-      "path": "/admin/recovery/staging/certification",
-      "request_body_limit_bytes": null,
-      "response_body_limit_bytes": null,
-      "surfaces": [
-        "admin_recovery_staging"
+        "tenant_activation_staging"
       ],
       "timeout_ms": null
     }
@@ -645,23 +648,24 @@
   "source_openapi_sha256": "904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007",
   "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
   "source_surfaces": [
-    "activation_admin",
-    "tenant_activation"
+    "activation_admin_staging",
+    "admin_recovery_staging",
+    "tenant_activation_staging"
   ],
-  "surface_registry_sha256": "09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d",
+  "surface_registry_sha256": "eaa8101f89a28630f9255f8042461c3e2faf7c6ededa7fd459f7e229ddce788c",
   "surface_registry_version": 2,
   "upstream_origin": "https://dev.mad4b.com",
   "warning_budget": [
     {
       "exceeded": false,
-      "operation_count": 9,
-      "surface": "activation_admin",
+      "operation_count": 12,
+      "surface": "activation_admin_staging",
       "warning_limit": 16
     },
     {
       "exceeded": false,
       "operation_count": 15,
-      "surface": "tenant_activation",
+      "surface": "tenant_activation_staging",
       "warning_limit": 26
     }
   ]

@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "6e0889a250b8e015e77192cb15c53c0c601e88cc5f8159ef6500c0f815f1107c",
+  "content_hash_sha256": "3331ae52164a74c207895e6ad013147c37fa5eb4932bd50a465a607673f63a0a",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -86,7 +86,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -111,7 +111,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -129,7 +129,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -147,7 +147,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -165,7 +165,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -192,7 +192,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -210,7 +210,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -228,7 +228,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -255,7 +255,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "activation_admin"
+        "activation_admin_production"
       ],
       "timeout_ms": 30000
     },
@@ -278,7 +278,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -303,7 +303,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -330,7 +330,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -363,7 +363,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -384,7 +384,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -402,7 +402,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -427,7 +427,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -445,7 +445,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -466,7 +466,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -484,7 +484,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -502,7 +502,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -520,7 +520,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -538,7 +538,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -556,7 +556,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     },
@@ -581,7 +581,7 @@
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
-        "tenant_activation"
+        "tenant_activation_production"
       ],
       "timeout_ms": 30000
     }
@@ -591,23 +591,23 @@
   "source_openapi_sha256": "904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007",
   "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
   "source_surfaces": [
-    "activation_admin",
-    "tenant_activation"
+    "activation_admin_production",
+    "tenant_activation_production"
   ],
-  "surface_registry_sha256": "09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d",
+  "surface_registry_sha256": "eaa8101f89a28630f9255f8042461c3e2faf7c6ededa7fd459f7e229ddce788c",
   "surface_registry_version": 2,
   "upstream_origin": "https://auth.mad4b.com",
   "warning_budget": [
     {
       "exceeded": false,
       "operation_count": 9,
-      "surface": "activation_admin",
+      "surface": "activation_admin_production",
       "warning_limit": 16
     },
     {
       "exceeded": false,
       "operation_count": 15,
-      "surface": "tenant_activation",
+      "surface": "tenant_activation_production",
       "warning_limit": 26
     }
   ]

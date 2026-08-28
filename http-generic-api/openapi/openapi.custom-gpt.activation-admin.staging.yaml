@@ -3,7 +3,7 @@ info:
   title: Growth Intelligence Platform - Activation Admin Actions - staging
   version: 3.0.0-platform
   summary: Admin/service Activation orchestration and read surfaces. (staging).
-  description: Activation-only admin transport. Authentication and business authorization remain on dev.mad4b.com. Recovery Kernel and Production reconstruction remain on the Auth Admin governed surfaces and are not exposed here. Environment is resolved from the fail-closed domain-family policy.
+  description: Activation Admin transport with the embedded Staging Recovery readiness member. Authentication and business authorization remain on dev.mad4b.com through the Activation Gateway upstream. Consequential Recovery execution is not advertised by the Staging member. Environment is resolved from the fail-.
 servers:
   - url: https://activation-dev.mad4b.com
     description: activation_admin_staging surface
@@ -12,6 +12,8 @@ tags:
     description: Once-per-session activation probes, session history, and scope context.
   - name: runtime-verification
     description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
+  - name: staging-recovery
+    description: Staging-only Recovery authority and certification evidence.
 components:
   securitySchemes:
     backendBearerAuth:
@@ -897,6 +899,191 @@ components:
           $ref: "#/components/schemas/ErrorObject"
         execution_guardrail:
           type: boolean
+    adminrecoverystaging_ErrorObject:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        request_id:
+          type:
+            - string
+            - "null"
+    adminrecoverystaging_ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - error
+        - environment
+        - production_authority
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          $ref: "#/components/schemas/adminrecoverystaging_ErrorObject"
+        environment:
+          type: string
+          const: staging
+        production_authority:
+          type: boolean
+          const: false
+        database_mutation_performed:
+          type: boolean
+          const: false
+        provider_mutation_performed:
+          type: boolean
+          const: false
+        secrets_included:
+          type: boolean
+          const: false
+    adminrecoverystaging_StagingRecoveryContract:
+      type: object
+      additionalProperties: true
+      required:
+        - contract
+        - surface
+        - environment
+        - server_uri
+        - operation_policy
+        - paths
+        - secrets_included
+      properties:
+        contract:
+          type: string
+          const: mad4b.staging-recovery-admin-surface.v1
+        surface:
+          type: string
+          const: staging_recovery_admin
+        environment:
+          type: string
+          const: staging
+        server_uri:
+          type: string
+          const: https://activation-dev.mad4b.com
+        operation_policy:
+          type: object
+          additionalProperties: true
+        paths:
+          type: array
+          items:
+            type: string
+        secrets_included:
+          type: boolean
+          const: false
+    adminrecoverystaging_ReadinessResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - contract
+        - status
+        - ready
+        - environment
+        - production_live
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        contract:
+          type: string
+          const: mad4b.staging-recovery-admin-surface.v1
+        status:
+          type: string
+          enum:
+            - ready
+            - blocked
+        ready:
+          type: boolean
+        environment:
+          type: string
+          const: staging
+        production_live:
+          type: object
+          required:
+            - requested
+            - eligible
+            - enabled
+          properties:
+            requested:
+              type: boolean
+              const: false
+            eligible:
+              type: boolean
+              const: false
+            enabled:
+              type: boolean
+              const: false
+        database_mutation_performed:
+          type: boolean
+          const: false
+        provider_mutation_performed:
+          type: boolean
+          const: false
+        production_mutation_performed:
+          type: boolean
+          const: false
+        secrets_included:
+          type: boolean
+          const: false
+    adminrecoverystaging_CertificationStatusResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - contract
+        - environment
+        - certification
+        - live_certification
+        - production_live
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        contract:
+          type: string
+          const: mad4b.staging-recovery-admin-surface.v1
+        environment:
+          type: string
+          const: staging
+        certification:
+          type: object
+          additionalProperties: true
+        live_certification:
+          type: object
+          additionalProperties: true
+        production_live:
+          type: object
+          required:
+            - requested
+            - eligible
+            - enabled
+          properties:
+            requested:
+              type: boolean
+              const: false
+            eligible:
+              type: boolean
+              const: false
+            enabled:
+              type: boolean
+              const: false
+        database_mutation_performed:
+          type: boolean
+          const: false
+        provider_mutation_performed:
+          type: boolean
+          const: false
+        secrets_included:
+          type: boolean
+          const: false
   responses:
     Unauthorized:
       description: Invalid or missing backend API key
@@ -904,6 +1091,24 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    adminrecoverystaging_Unauthorized:
+      description: Missing or invalid backend authorization.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+    adminrecoverystaging_Forbidden:
+      description: Principal is not authorized for the private Staging surface.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+    adminrecoverystaging_NotFound:
+      description: Surface is not available outside a declared Staging runtime.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
 security:
   - backendBearerAuth: []
 paths:
@@ -1694,12 +1899,87 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/recovery/staging/contract:
+    get:
+      tags:
+        - staging-recovery
+      operationId: getStagingRecoveryAdminContract
+      x-openai-isConsequential: false
+      summary: Read the Staging Recovery surface contract
+      description: Returns the bounded Staging-only Recovery surface contract. It never executes a provider or database operation.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Staging Recovery contract.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryContract"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "404":
+          $ref: "#/components/responses/adminrecoverystaging_NotFound"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
+  /admin/recovery/staging/readiness:
+    get:
+      tags:
+        - staging-recovery
+      operationId: getStagingRecoveryAdminReadiness
+      x-openai-isConsequential: false
+      summary: Read Staging Recovery authority readiness
+      description: Returns server-managed authority, certification, attestation, and environment-isolation readiness without enabling Production or performing a mutation.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Bounded Staging Recovery readiness.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ReadinessResponse"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "404":
+          $ref: "#/components/responses/adminrecoverystaging_NotFound"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
+  /admin/recovery/staging/certification:
+    get:
+      tags:
+        - staging-recovery
+      operationId: getStagingRecoveryCertificationStatus
+      x-openai-isConsequential: false
+      summary: Read Staging Recovery certification status
+      description: Returns bounded certification status only. A missing or expired certification remains blocked and does not trigger execution.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Bounded Staging Recovery certification status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_CertificationStatusResponse"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "404":
+          $ref: "#/components/responses/adminrecoverystaging_NotFound"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
   source_openapi_sha256: 904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d
+  registry_sha256: eaa8101f89a28630f9255f8042461c3e2faf7c6ededa7fd459f7e229ddce788c
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
   environment: staging
@@ -1824,8 +2104,33 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 9
+  operation_count: 12
   warning_operation_limit: 16
   warning_budget_exceeded: false
   hard_operation_limit: 20
   secrets_included: false
+  registration_set: admin_activation_staging
+  embedded_surfaces:
+    - admin_recovery_staging
+  registration_members:
+    - activation_admin_staging
+    - admin_recovery_staging
+x-mad4b-registration:
+  registration_set: admin_activation_staging
+  action_slot: admin_activation
+  audience: admin
+  environment: staging
+  server_uri: https://activation-dev.mad4b.com
+  embedded_source_server_uris:
+    - https://activation-dev.mad4b.com
+  members:
+    - activation_admin_staging
+    - admin_recovery_staging
+  tenant_surfaces_forbidden:
+    - tenant_activation_staging
+  secrets_included: false
+  auth_profile: admin_service
+  gateway_host: activation-dev.mad4b.com
+  operation_count: 12
+  hard_operation_limit: 20
+  warning_operation_limit: 16

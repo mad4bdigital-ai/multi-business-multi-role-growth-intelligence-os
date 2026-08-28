@@ -88,7 +88,10 @@ function validAttestation(sha = "a".repeat(40)) {
 test("default server-managed mode remains disabled and exposes no binding", () => {
   assert.equal(getServerManagedRecoveryBindingMode({ NODE_ENV: "production", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "disabled");
   assert.equal(getServerManagedRecoveryBindingMode({ NODE_ENV: "unknown", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "disabled");
-  assert.equal(getServerManagedRecoveryBindingMode({ DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "injected_non_live");
+  assert.equal(getServerManagedRecoveryBindingMode({ NODE_ENV: "staging", REMOTE_MCP_ENVIRONMENT: "staging", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "injected_non_live");
+  assert.equal(getServerManagedRecoveryBindingMode({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "injected_non_live");
+  assert.equal(getServerManagedRecoveryBindingMode({ NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "production", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "disabled");
+  assert.equal(getServerManagedRecoveryBindingMode({ DEPLOYMENT_ENVIRONMENT: "unknown", RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live" }), "disabled");
   const status = getServerManagedRecoveryBindingStatus({ env: {} });
   assert.equal(status.module_configured, false);
   assert.equal(status.secrets_included, false);
