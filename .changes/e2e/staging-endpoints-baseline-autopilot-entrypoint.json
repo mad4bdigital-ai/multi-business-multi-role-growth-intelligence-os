@@ -16,10 +16,14 @@
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/scripts/staging-role-grant-plan.mjs",
       "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+      "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+      "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
       "autopilot-portable-staging/Recover-StagingDatabases.ps1",
+      "autopilot-portable-staging/manifest.json",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
     ]
   },
@@ -34,7 +38,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make endpoints migration pre-use columns explicit in the canonical baseline, make direct Start-AutoPilot schema bundle flags fail-closed and schema-only, and provide a reversible local-Staging database recovery lifecycle with repository-owned least-privilege role grants.",
+      "objective": "Make endpoints migration pre-use columns explicit in the canonical baseline, make direct Start-AutoPilot schema bundle flags fail-closed and schema-only, and provide a reversible local-Staging database recovery lifecycle with repository-owned least-privilege role grants and role-closed portable view replay.",
       "e2e_journeys": [
         {
           "id": "endpoints-baseline-before-migration-023",
@@ -111,7 +115,7 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Staging recovery operator",
           "entrypoint": "Recover-StagingDatabases.ps1 runs from an exact clean eligible main checkout with separate reset and grant confirmations.",
-          "terminal_outcome": "All three local Staging database roles are reinitialized from a repository-built schema-only bundle, exact least-privilege grants are read back, prior bind-mounted data remains preserved in a timestamped backup, and the same exact commit is certified ready.",
+          "terminal_outcome": "All three local Staging database roles are reinitialized from a repository-built schema-only bundle, role-local views are replayed only with their owning objects, true cross-role views are excluded with evidence, exact least-privilege grants are read back, prior bind-mounted data remains preserved in a timestamped backup, and the same exact commit is certified ready.",
           "steps": [
             "Verify exact main SHA, clean tracked tree, local Docker context, and Staging-only safety flags.",
             "Construct RESET and GRANT confirmation strings with braced ${ExpectedCommit} interpolation so the literal colon after the SHA cannot alter PowerShell variable binding.",
@@ -120,8 +124,11 @@
             "Stop the local Compose project without -v and move runtime, governance, and persistence data directories to a timestamped recovery backup instead of deleting them.",
             "Start fresh local database containers from the current ignored .env.staging identities and prove each role can authenticate through a bounded 60 x 2s readiness loop that treats transient Windows PowerShell native stderr as retryable but still requires native exit code 0 and SELECT 1.",
             "Construct every host-side MariaDB user option as an explicit expandable PowerShell string so docker.exe receives the configured identity rather than the literal token $user or $runtimeUser.",
-            "Replay each schema-only role bundle as its authenticated least-privilege Staging identity while deterministically rebinding any mariadb-dump explicit account DEFINER token to CURRENT_USER; never grant SET USER and never switch schema replay to root.",
-            "Apply the schema-only bundle through Clone-StagingDatabases.ps1.",
+            "Validate original bundle checksums and compute an offline role replay plan without connecting to Docker, MariaDB, Production, or provider surfaces.",
+            "Resolve final MariaDB view dependencies recursively, keep same-role views with the role that owns their dependency closure, topologically order view-on-view dependencies, and exclude true cross-role views instead of granting cross-database authority.",
+            "Remove disposable staging_schema_build qualifiers and rebind explicit dump account DEFINER tokens to CURRENT_USER without granting SET USER or switching replay to root.",
+            "On apply only, emit temporary prepared schema-only bundles with provenance and invoke the previously verified Clone-StagingDatabases.Legacy.ps1 importer through the public Clone-StagingDatabases.ps1 wrapper.",
+            "Copy schema-import-state.json back to the canonical dump directory, persist role-schema-replay-plan.json evidence, remove only the temporary replay workspace, and keep the official portable manifest current.",
             "Derive the exact role grant plan from BOOTSTRAP_ROLE_GRANT_POLICIES, revoke broad/default grants, grant only registered table privileges, and read back no global/schema/column/role/grant-option authority.",
             "Restart the exact existing Staging image without rebuilding and require certification_status=ready before recovery completes."
           ],
@@ -133,7 +140,12 @@
             "The backup directory is preserved on success and failure and is never automatically deleted.",
             "Fresh MariaDB self-auth readiness remains bounded to 60 attempts with a 2-second delay; expected transient native stderr cannot terminate the loop, and a nonzero native exit code never counts as ready.",
             "Host-side PowerShell MariaDB calls use explicit expanded --user=<identity> arguments and the contract rejects bare -u$user or -u$runtimeUser native arguments.",
-            "Schema view replay replaces only explicit account DEFINER tokens with CURRENT_USER so the authenticated role owns recreated views without SET USER authority, root replay, or privilege escalation.",
+            "The role replay planner remains offline and non-mutating and binds its plan to the exact source commit and original schema bundle checksums.",
+            "Runtime-only, Governance-only, and Runtime Persistence-only views remain with their owning role, while view-on-view dependencies are ordered before their consumers.",
+            "A view whose dependency closure spans isolated roles is excluded from replay with explicit evidence rather than receiving cross-role or cross-database grants.",
+            "Prepared SQL contains neither staging_schema_build qualifiers nor explicit account DEFINER tokens and rebinds recreated views to CURRENT_USER.",
+            "The public Clone entrypoint delegates the existing Docker, environment, STAGING_DB_COPY_APPROVED, local-context, and non-root replay guards to the preserved Legacy importer instead of weakening them.",
+            "SET USER grants, root schema replay, broad schema grants, and cross-role grants remain forbidden.",
             "Grant scope is sourced from repository-owned databasePrivilegeContracts.js and permits only SELECT, INSERT, UPDATE, and DELETE as declared per role/table.",
             "No global privilege, schema-wide privilege, column privilege, applicable role, or GRANT OPTION remains after reconciliation.",
             "Recovery cannot report success unless the exact commit returns certification_status=ready."
@@ -151,9 +163,13 @@
             ".changes/e2e/staging-endpoints-baseline-autopilot-entrypoint.json",
             "autopilot-portable-staging/Recover-StagingDatabases.ps1",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+            "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+            "autopilot-portable-staging/manifest.json",
             "http-generic-api/config/staging-database-role-migration-manifest.json",
             "http-generic-api/scripts/staging-role-grant-plan.mjs",
             "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+            "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
             "http-generic-api/databasePrivilegeContracts.js"
           ]
         }
