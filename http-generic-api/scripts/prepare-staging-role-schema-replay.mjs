@@ -282,12 +282,50 @@ function main() {
     if (!options.outputDirectory) fail("--output-directory is required unless --plan is used");
     const outputDirectory = path.resolve(options.outputDirectory);
     fs.mkdirSync(outputDirectory, { recursive: true });
+    const preparedManifest = structuredClone(bundleManifest);
+    const originalRoleSha256 = {};
     for (const role of roleKeys) {
-      const file = `${role}.schema.replay.sql`;
+      const file = String(bundleManifest.roles[role].file);
       const target = path.join(outputDirectory, file);
-      fs.writeFileSync(target, plan.roles[role].sql, { encoding: "utf8", mode: 0o600 });
+      const gzip = zlib.gzipSync(Buffer.from(plan.roles[role].sql, "utf8"), { level: 9, mtime: 0 });
+      fs.writeFileSync(target, gzip, { mode: 0o600 });
+      originalRoleSha256[role] = normalizeName(bundleManifest.roles[role].sha256);
+      preparedManifest.roles[role] = {
+        ...preparedManifest.roles[role],
+        file,
+        sha256: sha256(gzip),
+        compressed_bytes: gzip.length,
+        table_count: plan.roles[role].expected_objects.length,
+        tables: plan.roles[role].expected_objects,
+      };
       publicPlan.roles[role].output_file = target;
+      publicPlan.roles[role].prepared_bundle_sha256 = preparedManifest.roles[role].sha256;
     }
+    preparedManifest.replay_preparation = {
+      contract: "mad4b.staging.role-schema-replay-plan.v1",
+      plan_sha256: publicPlan.plan_sha256,
+      builder_database: plan.builder_database,
+      excluded_cross_role_views: plan.excluded_cross_role_views,
+      excluded_cross_role_view_count: plan.excluded_cross_role_view_count,
+      original_role_sha256: originalRoleSha256,
+      definer_rebound_to_current_user: true,
+      disposable_builder_qualifier_removed: true,
+      cross_role_grants_added: false,
+      root_replay_used: false,
+      production_accessed: false,
+      provider_accessed: false,
+      data_exported: false,
+      secrets_included: false,
+    };
+    preparedManifest.production_accessed = false;
+    preparedManifest.provider_accessed = false;
+    preparedManifest.data_exported = false;
+    preparedManifest.secrets_included = false;
+    const manifestTarget = path.join(outputDirectory, "staging-schema-bundle-manifest.json");
+    const manifestText = `${JSON.stringify(preparedManifest, null, 2)}\n`;
+    fs.writeFileSync(manifestTarget, manifestText, { encoding: "utf8", mode: 0o600 });
+    publicPlan.prepared_manifest_file = manifestTarget;
+    publicPlan.prepared_manifest_sha256 = sha256(Buffer.from(manifestText, "utf8"));
   }
   process.stdout.write(`${JSON.stringify(publicPlan, null, 2)}\n`);
 }
