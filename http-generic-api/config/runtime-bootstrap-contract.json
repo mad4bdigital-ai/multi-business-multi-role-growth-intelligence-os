@@ -322,6 +322,7 @@
     "role_seed_files": {
       "runtime": [
         {"file": "039_sprint43_data_integrity_and_missing_tables.sql", "sha256": "719d43521a0aca776f8967332e6b2e2c68101644150135d49580708b84c3b308", "statement_count": 13},
+        {"file": "1023_sprint69_sql_cache_runtime_policy.sql", "sha256": "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7", "statement_count": 2},
         {"file": "1043_sprint69_dynamic_container_hvac_activity_seed.sql", "sha256": "ea95dba9c2968c43535cda20aca5649d02098fc2027adbad094b6f99caaa9c47", "statement_count": 1}
       ],
       "governance": [],
