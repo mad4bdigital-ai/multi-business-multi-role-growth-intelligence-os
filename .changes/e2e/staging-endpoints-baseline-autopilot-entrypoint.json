@@ -84,12 +84,14 @@
           "entrypoint": "Start-AutoPilot.ps1 accepts RequireSchemaBundle and ApplySchemaBundle.",
           "terminal_outcome": "The direct entrypoint validates or applies the three-role schema-only bundle through Clone-StagingDatabases before certification and never accesses Production.",
           "steps": [
+            "Probe all three role bundle files through an explicitly array-wrapped missing-file set so zero, one, or many missing files are valid under Set-StrictMode Latest.",
             "Require all three role bundle files when either schema flag is set.",
             "Invoke Clone-StagingDatabases.ps1 in schema_only mode with the exact expected commit.",
             "Apply only when ApplySchemaBundle is explicitly set; otherwise perform dry-run validation.",
             "Persist schema seed status in AutoPilot state and continue same-cycle certification."
           ],
           "assertions": [
+            "Bundle presence probing never dereferences Count on a null or scalar pipeline result.",
             "Missing bundle is fail-closed when RequireSchemaBundle or ApplySchemaBundle is set.",
             "The direct entrypoint uses schema_only mode and explicit local apply semantics.",
             "No Production/provider mutation is introduced."
@@ -130,7 +132,7 @@
             "On apply only, emit temporary prepared schema-only bundles with provenance and invoke the previously verified Clone-StagingDatabases.Legacy.ps1 importer through the public Clone-StagingDatabases.ps1 wrapper.",
             "Copy schema-import-state.json back to the canonical dump directory, persist role-schema-replay-plan.json evidence, remove only the temporary replay workspace, and keep the official portable manifest current.",
             "Derive the exact role grant plan from BOOTSTRAP_ROLE_GRANT_POLICIES, revoke broad/default grants, grant only registered table privileges, and read back no global/schema/column/role/grant-option authority.",
-            "Restart the exact existing Staging image without rebuilding and require certification_status=ready before recovery completes."
+            "Restart through Smart exact-provenance image selection so a matching image is reused when present and the exact commit/tree/context image is built when absent, then require certification_status=ready before recovery completes."
           ],
           "assertions": [
             "Reset and grant reconciliation require separate exact-SHA Staging-local confirmations.",
@@ -148,6 +150,7 @@
             "SET USER grants, root schema replay, broad schema grants, and cross-role grants remain forbidden.",
             "Grant scope is sourced from repository-owned databasePrivilegeContracts.js and permits only SELECT, INSERT, UPDATE, and DELETE as declared per role/table.",
             "No global privilege, schema-wide privilege, column privilege, applicable role, or GRANT OPTION remains after reconciliation.",
+            "Recovery restart does not require a pre-existing exact-provenance app image and still fails closed if Smart cannot produce or verify one.",
             "Recovery cannot report success unless the exact commit returns certification_status=ready."
           ],
           "tests": [
