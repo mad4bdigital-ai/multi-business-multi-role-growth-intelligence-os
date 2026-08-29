@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { buildReplayPlanFromBundleTexts } from "./prepare-staging-role-schema-replay.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname, "..");
 const recovery = fs.readFileSync(path.join(root, "autopilot-portable-staging/Recover-StagingDatabases.ps1"), "utf8");
 const clone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.ps1"), "utf8");
+const legacyClone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"), "utf8");
+const replayPlanner = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs"), "utf8");
 const roleManifest = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/staging-database-role-migration-manifest.json"), "utf8"));
 const grantPlan = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-role-grant-plan.mjs"), "utf8");
 const grantContracts = fs.readFileSync(path.join(root, "http-generic-api/databasePrivilegeContracts.js"), "utf8");
@@ -46,10 +49,6 @@ assert.match(recovery, /hostinger_mutation = \$false/);
 assert.match(recovery, /cloudflare_mutation = \$false/);
 assert.match(recovery, /secrets_included = \$false/);
 
-// Windows PowerShell 5.1 can promote transient native stderr into a
-// terminating NativeCommandError when ErrorActionPreference is Stop. The
-// readiness loop must suppress only that expected probe surface, preserve the
-// native exit code, restore fail-closed semantics, and remain bounded.
 assert.match(recovery, /for \(\$attempt = 1; \$attempt -le 60; \$attempt\+\+\)/);
 assert.match(recovery, /\$previousErrorActionPreference = \$ErrorActionPreference/);
 assert.match(recovery, /\$ErrorActionPreference = "Continue"/);
@@ -59,36 +58,122 @@ assert.match(recovery, /if \(\$probeExitCode -eq 0 -and \$result -eq "1"\) \{ re
 assert.doesNotMatch(recovery, /if \(\$LASTEXITCODE -eq 0 -and \$result -eq "1"\) \{ return \}/);
 assert.match(recovery, /Start-Sleep -Seconds 2/);
 assert.match(recovery, /Fresh local database did not accept the configured role identity/);
-
-// Windows PowerShell does not interpolate a variable embedded in a bare
-// native argument such as -u$user. Every host-side MariaDB call must construct
-// the user option as an explicit expandable string before docker.exe receives
-// it. The shell-contained import command is separate and expands inside its
-// already-double-quoted PowerShell command string.
 assert.match(recovery, /"--user=\$user"/);
 assert.doesNotMatch(recovery, /--protocol=socket\s+-u\$user\b/);
-assert.equal((clone.match(/"--user=\$user"/g) || []).length, 2);
-assert.equal((clone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
-assert.doesNotMatch(clone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 
-// mariadb-dump preserves the disposable builder account as an explicit view
-// DEFINER. The local role importer must rebind only that account token to the
-// authenticated role rather than granting SET USER or replaying schema as root.
-assert.match(clone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
-assert.match(clone, /mariadb --protocol=socket -u'\$user' '\$db'/);
-assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
+assert.match(clone, /prepare-staging-role-schema-replay\.mjs/);
+assert.match(clone, /Clone-StagingDatabases\.Legacy\.ps1/);
+assert.match(clone, /--plan/);
+assert.match(clone, /--output-directory/);
+assert.match(clone, /Role schema replay plan changed between validation and preparation/);
+assert.match(clone, /database_connection_used -eq \$false/);
+assert.match(clone, /database_mutation -eq \$false/);
+assert.match(clone, /grant_mutation -eq \$false/);
+assert.match(clone, /ROLE_SCHEMA_REPLAY_PLAN_VALIDATED/);
+assert.match(clone, /ROLE_SCHEMA_REPLAY_COMPLETED/);
+assert.match(clone, /role-schema-replay-plan\.json/);
+assert.match(clone, /schema-import-state\.json/);
+assert.match(clone, /Copy-Item -LiteralPath \$preparedStatePath -Destination \$RecoveryStatePath -Force/);
+assert.match(clone, /Remove-Item -LiteralPath \$tempRoot -Recurse -Force/);
 assert.doesNotMatch(clone, /mariadb[^\r\n]*-uroot/i);
-assert.match(clone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
+assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
+
+assert.equal((legacyClone.match(/"--user=\$user"/g) || []).length, 2);
+assert.equal((legacyClone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
+assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
+assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
+assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
+assert.doesNotMatch(legacyClone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
+assert.doesNotMatch(legacyClone, /mariadb[^\r\n]*-uroot/i);
+assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
 assert.equal(roleManifest.validation.required_runtime_support_tables.length, 11);
-assert.match(clone, /staging-database-role-migration-manifest\.json/);
-assert.match(clone, /Assert-SetEqual \$canonicalRuntimeCensus \$requiredRuntimeCensus "schema bundle runtime census projection"/);
-assert.match(clone, /\$requiredRuntimeSupportTables = @\(\$roleMigrationManifest\.validation\.required_runtime_support_tables\)/);
-assert.match(clone, /Assert-ContainsSet \$requiredRuntimeSupportTables @\(\$runtimeRole\.tables\) "runtime support"/);
-assert.match(clone, /Assert-ContainsSet \$requiredRuntimeSupportTables @\(\$runtimeTableNames\) "post-import runtime support"/);
-assert.doesNotMatch(clone, /\$bundleManifest\.validation\.required_runtime_support_tables/);
+assert.match(legacyClone, /staging-database-role-migration-manifest\.json/);
+assert.match(legacyClone, /Assert-SetEqual \$canonicalRuntimeCensus \$requiredRuntimeCensus "schema bundle runtime census projection"/);
+assert.match(legacyClone, /\$requiredRuntimeSupportTables = @\(\$roleMigrationManifest\.validation\.required_runtime_support_tables\)/);
+assert.match(legacyClone, /Assert-ContainsSet \$requiredRuntimeSupportTables @\(\$runtimeRole\.tables\) "runtime support"/);
+assert.match(legacyClone, /Assert-ContainsSet \$requiredRuntimeSupportTables @\(\$runtimeTableNames\) "post-import runtime support"/);
+assert.doesNotMatch(legacyClone, /\$bundleManifest\.validation\.required_runtime_support_tables/);
+
+assert.match(replayPlanner, /DEFINER=CURRENT_USER/);
+assert.match(replayPlanner, /staging_schema_build/);
+assert.match(replayPlanner, /cross_role/);
+assert.match(replayPlanner, /disposable_builder_qualifier_removed: true/);
+assert.match(replayPlanner, /cross_role_grants_added: false/);
+assert.match(replayPlanner, /root_replay_used: false/);
+assert.match(replayPlanner, /database_connection_used: false/);
+assert.match(replayPlanner, /grant_mutation: false/);
+assert.doesNotMatch(replayPlanner, /child_process|spawnSync|execSync|mariadb\b|docker\b/);
+assert.doesNotMatch(replayPlanner, /GRANT\s+SET\s+USER/i);
+
+const fixtureRoleManifest = {
+  contract: "mad4b.staging.database-role-migration-manifest.v1",
+  roles: {
+    runtime: { required_tables: ["runtime_t"] },
+    governance: { required_tables: ["governance_t"] },
+    runtime_persistence: { required_tables: ["persistence_t"] },
+  },
+};
+const fixtureBundleManifest = {
+  contract: "mad4b.staging.schema-bundle-output.v1",
+  source_commit: "a".repeat(40),
+  schema_only: true,
+  production_accessed: false,
+  provider_accessed: false,
+  secrets_included: false,
+  roles: {
+    runtime: { tables: ["runtime_t", "v_runtime", "v_runtime_child", "v_governance", "v_cross"] },
+    governance: { tables: ["governance_t"] },
+    runtime_persistence: { tables: ["persistence_t"] },
+  },
+};
+const view = (name, body) => `/*!50001 CREATE ALGORITHM=UNDEFINED */\n/*!50013 DEFINER=\`root\`@\`localhost\` SQL SECURITY DEFINER */\n/*!50001 VIEW \`${name}\` AS ${body} */`;
+const fixtureRuntime = [
+  "SET NAMES utf8mb4",
+  "CREATE TABLE `runtime_t` (`id` INT)",
+  "DROP TABLE IF EXISTS `v_runtime`",
+  "/*!50001 CREATE TABLE `v_runtime` (`id` INT) */",
+  "DROP TABLE IF EXISTS `v_runtime_child`",
+  "/*!50001 CREATE TABLE `v_runtime_child` (`id` INT) */",
+  "DROP TABLE IF EXISTS `v_governance`",
+  "/*!50001 CREATE TABLE `v_governance` (`id` INT) */",
+  "DROP TABLE IF EXISTS `v_cross`",
+  "/*!50001 CREATE TABLE `v_cross` (`id` INT) */",
+  view("v_runtime", "SELECT `staging_schema_build`.`runtime_t`.`id` AS `id` FROM `staging_schema_build`.`runtime_t`"),
+  view("v_runtime_child", "SELECT `staging_schema_build`.`v_runtime`.`id` AS `id` FROM `staging_schema_build`.`v_runtime`"),
+  view("v_governance", "SELECT `staging_schema_build`.`governance_t`.`id` AS `id` FROM `staging_schema_build`.`governance_t`"),
+  view("v_cross", "SELECT r.`id` FROM `staging_schema_build`.`runtime_t` r JOIN `staging_schema_build`.`governance_t` g ON g.`id` = r.`id`"),
+].join(";\n") + ";\n";
+const fixturePlan = buildReplayPlanFromBundleTexts({
+  roleManifest: fixtureRoleManifest,
+  bundleManifest: fixtureBundleManifest,
+  bundleTexts: {
+    runtime: fixtureRuntime,
+    governance: "CREATE TABLE `governance_t` (`id` INT);\n",
+    runtime_persistence: "CREATE TABLE `persistence_t` (`id` INT);\n",
+  },
+});
+assert.deepEqual(fixturePlan.roles.runtime.views, ["v_runtime", "v_runtime_child"]);
+assert.deepEqual(fixturePlan.roles.governance.views, ["v_governance"]);
+assert.deepEqual(fixturePlan.roles.runtime_persistence.views, []);
+assert.deepEqual(fixturePlan.excluded_cross_role_views.map((item) => item.name), ["v_cross"]);
+assert.deepEqual(fixturePlan.excluded_cross_role_views[0].dependency_roles, ["governance", "runtime"]);
+assert.equal(fixturePlan.roles.runtime.sql.includes("staging_schema_build"), false);
+assert.equal(fixturePlan.roles.governance.sql.includes("staging_schema_build"), false);
+assert.equal(fixturePlan.roles.runtime.sql.includes("DEFINER=CURRENT_USER"), true);
+assert.equal(fixturePlan.roles.governance.sql.includes("DEFINER=CURRENT_USER"), true);
+assert.equal(fixturePlan.roles.runtime.sql.includes("DEFINER=`root`@`localhost`"), false);
+assert.equal(fixturePlan.roles.runtime.sql.includes("v_governance"), false);
+assert.equal(fixturePlan.roles.runtime.sql.includes("v_cross"), false);
+assert.equal(fixturePlan.roles.governance.sql.includes("v_governance"), true);
+assert.equal(fixturePlan.database_connection_used, false);
+assert.equal(fixturePlan.database_mutation, false);
+assert.equal(fixturePlan.grant_mutation, false);
+assert.equal(fixturePlan.production_accessed, false);
+assert.equal(fixturePlan.provider_accessed, false);
+assert.equal(fixturePlan.secrets_included, false);
 
 assert.match(grantPlan, /BOOTSTRAP_ROLE_GRANT_POLICIES/);
 assert.match(grantPlan, /runtime_persistence/);
@@ -111,6 +196,11 @@ console.log(JSON.stringify({
   windows_powershell_transient_db_probe_safe: true,
   windows_powershell_native_user_argument_safe: true,
   schema_view_definer_rebound_to_authenticated_role: true,
+  schema_view_builder_qualifier_removed: true,
+  schema_view_role_dependency_closure: true,
+  cross_role_views_excluded_from_isolated_replay: true,
+  cross_role_grants_added: false,
+  root_replay_used: false,
   repository_owned_grant_matrix: true,
   certification_ready_required: true,
   production_accessed: false,
