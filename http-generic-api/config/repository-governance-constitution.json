@@ -535,7 +535,8 @@
     ".changes/e2e/spec018-residual-readiness-evidence.json",
     ".github/workflows/spec-011-delegation-mariadb-certification.yml",
     ".changes/e2e/recovery-prelive-topology-closure-20260828.json",
-    "canonicals/openapi/registration-topology-closure.yaml"
+    "canonicals/openapi/registration-topology-closure.yaml",
+    ".changes/e2e/staging-unqualified-view-dependency-replay-20260829.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",

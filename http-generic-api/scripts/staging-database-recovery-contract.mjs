@@ -100,6 +100,7 @@ assert.doesNotMatch(legacyClone, /\$bundleManifest\.validation\.required_runtime
 assert.match(replayPlanner, /DEFINER=CURRENT_USER/);
 assert.match(replayPlanner, /staging_schema_build/);
 assert.match(replayPlanner, /cross_role/);
+assert.match(replayPlanner, /unqualifiedRelationPattern/);
 assert.match(replayPlanner, /disposable_builder_qualifier_removed: true/);
 assert.match(replayPlanner, /cross_role_grants_added: false/);
 assert.match(replayPlanner, /root_replay_used: false/);
@@ -124,7 +125,7 @@ const fixtureBundleManifest = {
   provider_accessed: false,
   secrets_included: false,
   roles: {
-    runtime: { tables: ["runtime_t", "v_runtime", "v_runtime_child", "v_governance", "v_cross"] },
+    runtime: { tables: ["runtime_t", "v_runtime", "v_runtime_child", "v_governance", "v_cross", "v_activation_agent_skill_grants", "v_effective_agent_skill_grants"] },
     governance: { tables: ["governance_t"] },
     runtime_persistence: { tables: ["persistence_t"] },
   },
@@ -141,10 +142,16 @@ const fixtureRuntime = [
   "/*!50001 CREATE TABLE `v_governance` (`id` INT) */",
   "DROP TABLE IF EXISTS `v_cross`",
   "/*!50001 CREATE TABLE `v_cross` (`id` INT) */",
+  "DROP TABLE IF EXISTS `v_activation_agent_skill_grants`",
+  "/*!50001 CREATE TABLE `v_activation_agent_skill_grants` (`id` INT) */",
+  "DROP TABLE IF EXISTS `v_effective_agent_skill_grants`",
+  "/*!50001 CREATE TABLE `v_effective_agent_skill_grants` (`id` INT) */",
   view("v_runtime", "SELECT `staging_schema_build`.`runtime_t`.`id` AS `id` FROM `staging_schema_build`.`runtime_t`"),
   view("v_runtime_child", "SELECT `staging_schema_build`.`v_runtime`.`id` AS `id` FROM `staging_schema_build`.`v_runtime`"),
   view("v_governance", "SELECT `staging_schema_build`.`governance_t`.`id` AS `id` FROM `staging_schema_build`.`governance_t`"),
   view("v_cross", "SELECT r.`id` FROM `staging_schema_build`.`runtime_t` r JOIN `staging_schema_build`.`governance_t` g ON g.`id` = r.`id`"),
+  view("v_effective_agent_skill_grants", "SELECT `runtime_t`.`id` AS `id` FROM `runtime_t`"),
+  view("v_activation_agent_skill_grants", "SELECT `e`.`id` AS `id` FROM ((`v_effective_agent_skill_grants` `e` JOIN `runtime_t` `t` ON (`t`.`id` = `e`.`id`)))"),
 ].join(";\n") + ";\n";
 const fixturePlan = buildReplayPlanFromBundleTexts({
   roleManifest: fixtureRoleManifest,
@@ -155,7 +162,8 @@ const fixturePlan = buildReplayPlanFromBundleTexts({
     runtime_persistence: "CREATE TABLE `persistence_t` (`id` INT);\n",
   },
 });
-assert.deepEqual(fixturePlan.roles.runtime.views, ["v_runtime", "v_runtime_child"]);
+assert.deepEqual(fixturePlan.roles.runtime.views, ["v_effective_agent_skill_grants", "v_activation_agent_skill_grants", "v_runtime", "v_runtime_child"]);
+assert.ok(fixturePlan.roles.runtime.views.indexOf("v_effective_agent_skill_grants") < fixturePlan.roles.runtime.views.indexOf("v_activation_agent_skill_grants"));
 assert.deepEqual(fixturePlan.roles.governance.views, ["v_governance"]);
 assert.deepEqual(fixturePlan.roles.runtime_persistence.views, []);
 assert.deepEqual(fixturePlan.excluded_cross_role_views.map((item) => item.name), ["v_cross"]);
@@ -198,6 +206,7 @@ console.log(JSON.stringify({
   schema_view_definer_rebound_to_authenticated_role: true,
   schema_view_builder_qualifier_removed: true,
   schema_view_role_dependency_closure: true,
+  schema_view_unqualified_dependency_ordering: true,
   cross_role_views_excluded_from_isolated_replay: true,
   cross_role_grants_added: false,
   root_replay_used: false,
