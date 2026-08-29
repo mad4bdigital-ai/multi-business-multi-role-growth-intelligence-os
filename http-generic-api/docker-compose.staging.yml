@@ -8,6 +8,9 @@ services:
   runtime-db:
     image: mariadb:11.4
     restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
       MARIADB_DATABASE: ${DB_NAME:?set DB_NAME in .env.staging}
       MARIADB_USER: ${DB_USER:?set DB_USER in .env.staging}
@@ -24,6 +27,9 @@ services:
   governance-db:
     image: mariadb:11.4
     restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
       MARIADB_DATABASE: ${GOVERNANCE_DB_NAME:?set GOVERNANCE_DB_NAME in .env.staging}
       MARIADB_USER: ${GOVERNANCE_DB_USER:?set GOVERNANCE_DB_USER in .env.staging}
@@ -40,6 +46,9 @@ services:
   persistence-db:
     image: mariadb:11.4
     restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
       MARIADB_DATABASE: ${RUNTIME_PERSISTENCE_DB_NAME:?set RUNTIME_PERSISTENCE_DB_NAME in .env.staging}
       MARIADB_USER: ${RUNTIME_PERSISTENCE_DB_USER:?set RUNTIME_PERSISTENCE_DB_USER in .env.staging}
