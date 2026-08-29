@@ -126,7 +126,7 @@ function Wait-DatabaseSelfAuth([object]$Role) {
             # stderr into a terminating NativeCommandError while the script is
             # globally fail-closed with ErrorActionPreference=Stop.
             $ErrorActionPreference = "Continue"
-            $result = (& docker compose @script:ComposeArgs exec -T -e "MYSQL_PWD=$password" $Role.Service mariadb --protocol=socket -u$user $database --batch --skip-column-names -e "SELECT 1;" 2>$null | Out-String).Trim()
+            $result = (& docker compose @script:ComposeArgs exec -T -e "MYSQL_PWD=$password" $Role.Service mariadb --protocol=socket "--user=$user" $database --batch --skip-column-names -e "SELECT 1;" 2>$null | Out-String).Trim()
             $probeExitCode = $LASTEXITCODE
         } finally {
             $ErrorActionPreference = $previousErrorActionPreference

@@ -108,7 +108,7 @@ function Invoke-DatabaseQuery([object]$Item, [string[]]$ComposeArgs, [string]$Sq
   $db = Read-Env $Item.Database
   $user = Read-Env $Item.User
   $password = Read-Env $Item.Password
-  $result = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$password" $Item.Service mariadb --protocol=socket -u$user $db --batch --skip-column-names --raw --binary-mode -e $Sql | Out-String).Trim()
+  $result = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$password" $Item.Service mariadb --protocol=socket "--user=$user" $db --batch --skip-column-names --raw --binary-mode -e $Sql | Out-String).Trim()
   if ($LASTEXITCODE -ne 0) { Fail "Runtime database query failed for $($Item.Key)" }
   return $result
 }
@@ -289,7 +289,7 @@ try {
     $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
     $seedSql = Get-Content -Raw -LiteralPath $seedPath
     Test-SafeCanonicalSeed $seedSql ([string]$seed.file)
-    $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimePassword" $runtimeService.Service mariadb --protocol=socket -u$runtimeUser $runtimeDb --binary-mode
+    $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimePassword" $runtimeService.Service mariadb --protocol=socket "--user=$runtimeUser" $runtimeDb --binary-mode
     if ($LASTEXITCODE -ne 0) { Fail "Canonical seed apply failed: $($seed.file); state remains applying for explicit recovery." }
     $state.canonical_seed_applied_files = @($state.canonical_seed_applied_files + [string]$seed.file)
     Write-JsonAtomic $BundleStatePath $state
@@ -302,7 +302,7 @@ try {
     $db = Read-Env $item.Database
     $user = Read-Env $item.User
     $password = Read-Env $item.Password
-    $tableText = (& docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service mariadb --protocol=socket -u$user $db --batch --skip-column-names -e "SHOW FULL TABLES") | Out-String
+    $tableText = (& docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service mariadb --protocol=socket "--user=$user" $db --batch --skip-column-names -e "SHOW FULL TABLES") | Out-String
     Require ($LASTEXITCODE -eq 0) "Post-import table readback failed for $($item.Key)"
     $actualTables = Get-TableNames $tableText
     Assert-SetEqual $item.ExpectedTables $actualTables $item.Key

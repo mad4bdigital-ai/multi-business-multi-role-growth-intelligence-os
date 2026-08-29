@@ -60,6 +60,17 @@ assert.doesNotMatch(recovery, /if \(\$LASTEXITCODE -eq 0 -and \$result -eq "1"\)
 assert.match(recovery, /Start-Sleep -Seconds 2/);
 assert.match(recovery, /Fresh local database did not accept the configured role identity/);
 
+// Windows PowerShell does not interpolate a variable embedded in a bare
+// native argument such as -u$user. Every host-side MariaDB call must construct
+// the user option as an explicit expandable string before docker.exe receives
+// it. The shell-contained import command is separate and expands inside its
+// already-double-quoted PowerShell command string.
+assert.match(recovery, /"--user=\$user"/);
+assert.doesNotMatch(recovery, /--protocol=socket\s+-u\$user\b/);
+assert.equal((clone.match(/"--user=\$user"/g) || []).length, 2);
+assert.equal((clone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
+assert.doesNotMatch(clone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
+
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
 assert.equal(roleManifest.validation.required_runtime_support_tables.length, 11);
@@ -89,6 +100,7 @@ console.log(JSON.stringify({
   explicit_grant_confirmation_required: true,
   canonical_runtime_support_contract_required: true,
   windows_powershell_transient_db_probe_safe: true,
+  windows_powershell_native_user_argument_safe: true,
   repository_owned_grant_matrix: true,
   certification_ready_required: true,
   production_accessed: false,
