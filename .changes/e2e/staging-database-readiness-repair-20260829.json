@@ -37,7 +37,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Repair the three causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, and converge MariaDB database default collation.",
+      "objective": "Repair the causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility and MySQL-primary SQL-cache policy visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, and converge MariaDB database default collation.",
       "e2e_journeys": [
         {
           "id": "local-staging-readiness-repair",
@@ -45,18 +45,19 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging recovery operator",
           "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
-          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, and Auto Pilot certification can reach ready without destructive reset or Production/provider access.",
+          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, SQL-cache runtime policy can load from MySQL primary authority, and Auto Pilot certification can reach ready without destructive reset or Production/provider access.",
           "steps": [
             "Bind the repair to exact local HEAD and origin/main and reject remote Docker contexts or unsafe mutation flags.",
             "Recreate only database containers when the Staging MariaDB server collation command changes while preserving bind-mounted data directories.",
             "Set database defaults to utf8mb4_unicode_ci and read them back without altering recovered table data.",
-            "Reconcile repository-owned local Staging grants so the runtime principal retains its existing bounded write tables plus SELECT-only access to the two MCP catalog tables.",
+            "Reconcile repository-owned local Staging grants so the runtime principal retains its existing bounded write tables plus SELECT-only access to the two MCP catalog tables and sql_cache_runtime_policies.",
             "Use repository-only environment branch authority for local Staging Governance readiness while leaving Production SQL-first behavior unchanged.",
             "Restart Auto Pilot at the exact commit and require certification_status=ready."
           ],
           "assertions": [
             "Production BOOTSTRAP_ROLE_GRANT_POLICIES remain unchanged.",
             "admin_platform_endpoint_tools and tenant_platform_endpoint_tools receive SELECT only in local Staging.",
+            "sql_cache_runtime_policies receives SELECT only in local Staging so runtime policy refresh can use MySQL primary authority without granting write access.",
             "No schema-wide, global, column, GRANT OPTION, or applicable-role privilege is introduced.",
             "Local Staging Governance readiness does not require SELECT on platform_runtime_config through the runtime principal.",
             "All three local MariaDB services are started with utf8mb4_unicode_ci as server default and the repair readback confirms the database default.",
