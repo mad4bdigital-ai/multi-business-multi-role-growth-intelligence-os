@@ -80,6 +80,14 @@ assert.match(repair, /Tracked working tree changes are forbidden/);
 assert.match(repair, /DOCKER_HOST is forbidden/);
 assert.match(repair, /DOCKER_CONTEXT is forbidden/);
 assert.match(repair, /ALTER DATABASE \$databaseIdentifier CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci/);
+assert.match(repair, /1023_sprint69_sql_cache_runtime_policy\.sql/);
+assert.match(repair, /50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7/);
+assert.match(repair, /Reconcile-SqlCacheRuntimePolicy/);
+assert.match(repair, /sql_cache_policy_v2 must exist exactly once after reconciliation/);
+assert.match(repair, /Local Staging SQL cache policy must remain required=false/);
+assert.match(repair, /immutable endpoints denylist/);
+assert.match(repair, /root_identity_used_for_seed = \$inserted/);
+assert.match(repair, /runtime_write_authority_required = \$false/);
 assert.match(repair, /REVOKE ALL PRIVILEGES, GRANT OPTION/);
 assert.match(repair, /TABLE_PRIVILEGES/);
 assert.match(repair, /SCHEMA_PRIVILEGES/);
@@ -101,6 +109,7 @@ console.log(JSON.stringify({
   production_bootstrap_grants_unchanged: true,
   staging_mcp_catalog_select_only: true,
   staging_sql_cache_policy_select_only: true,
+  staging_sql_cache_policy_seed_reconciled_by_root_only: true,
   staging_governance_authority_repository_only: true,
   staging_mariadb_collation_pinned: true,
   non_destructive_resume_repair: true,
