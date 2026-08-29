@@ -52,6 +52,10 @@ Require (Test-Path -LiteralPath $RoleManifestPath -PathType Leaf) "Canonical Sta
 Require (Test-Path -LiteralPath $PlannerPath -PathType Leaf) "Role schema replay planner is missing."
 Require (Test-Path -LiteralPath $LegacyImporterPath -PathType Leaf) "Verified legacy Staging importer is missing."
 Require (-not ($DumpDirectory -match '(?i)(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com|hostinger|production)')) "Production/provider paths are forbidden as dump sources."
+try { $bundleManifest = Get-Content -Raw -LiteralPath $BundleManifestPath | ConvertFrom-Json }
+catch { Fail "Schema bundle manifest is invalid JSON." }
+Require ([string]$bundleManifest.contract -eq "mad4b.staging.schema-bundle-output.v1") "Unsupported schema bundle manifest contract."
+Require ([string]$bundleManifest.source_commit -eq $ExpectedCommit.ToLowerInvariant()) "Schema bundle source_commit does not match ExpectedCommit."
 Require-Command "node"
 Require-Command "powershell.exe"
 
