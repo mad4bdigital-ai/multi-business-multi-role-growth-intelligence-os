@@ -74,11 +74,11 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "3005cbcc2e0ae07cb82512668a52492df53ca3d023b83c5dc7dac26a110a788b"
+      "sha256": "76c4399adba411c6bf6eb49c93190c6e91d02e950f2ac3fac2d8a26d714ea888"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "6a79420881dc556d5d622245fd138c7e0a92271729e51df62f5ed4657fb75a1a"
+      "sha256": "71acdedf975952d47616c24e9d2154794470255eb7e4eb93eb0bf9615201e674"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -318,7 +318,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "d312f9a745fbe8da36464232b0166b5864a6222b88203f3c178d86a8de610ce5"
+      "sha256": "f6cca4769be3a37c9011ab58b5caca3600a3714b5f9ac7b53f2b05f9412ecae3"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "5d55f94c3dde640a083fc70fe8cc161bc7bf0f03394b17ab580bbcba0d42a2a0"
+      "sha256": "3adf53938e0e24cc1132e6425bfcb4fe47d9238e07f77f0a350c5ee9d7c4d081"
     }
   ],
   "safety": {
