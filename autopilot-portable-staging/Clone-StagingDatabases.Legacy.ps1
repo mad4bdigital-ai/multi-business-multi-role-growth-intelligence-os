@@ -117,14 +117,14 @@ function Invoke-DatabaseScalar([object]$Item, [string[]]$ComposeArgs, [string]$S
   if ([string]::IsNullOrWhiteSpace($value)) { Fail "Runtime database scalar query returned no value for $($Item.Key)" }
   return $value.Trim()
 }
-function Test-SafeCanonicalSeed([string]$Sql, [string]$File) {
+function Test-SafeSeed([string]$Sql, [string]$File) {
   $forbidden = @(
     '(?im)^\s*GRANT\b', '(?im)^\s*REVOKE\b', '(?im)^\s*CREATE\s+USER\b',
     '(?im)^\s*ALTER\s+USER\b', '(?im)^\s*DROP\s+DATABASE\b', '(?im)^\s*CREATE\s+DATABASE\b',
     '(?im)^\s*LOAD\s+DATA\b', '(?im)\bINTO\s+(?:OUTFILE|DUMPFILE)\b'
   )
-  foreach ($pattern in $forbidden) { if ($Sql -match $pattern) { Fail "Canonical seed contains forbidden authority/external-data SQL: $File" } }
-  Require ($Sql -match '(?im)\b(?:INSERT|UPDATE)\b') "Canonical seed contains no deterministic seed statements: $File"
+  foreach ($pattern in $forbidden) { if ($Sql -match $pattern) { Fail "Seed contains forbidden authority/external-data SQL: $File" } }
+  Require ($Sql -match '(?im)\b(?:INSERT|UPDATE)\b') "Seed contains no deterministic seed statements: $File"
 }
 function Assert-CountAtLeast([string]$Value, [int]$Minimum, [string]$Label) {
   $parsed = 0
@@ -157,7 +157,6 @@ Require ((Read-Env "DATABASE_MUTATED") -eq "false") "DATABASE_MUTATED must be ex
 if ($Mode -eq "sanitized_data") {
   Require $AllowSanitizedData.IsPresent "sanitized_data requires -AllowSanitizedData."
   Require ($env:STAGING_DB_COPY_APPROVED -eq "true") "Set STAGING_DB_COPY_APPROVED=true only after independent review."
-  # Legacy runtime.sanitized.sql.gz, governance.sanitized.sql.gz, and persistence.sanitized.sql.gz artifacts are intentionally blocked here.
   Fail "sanitized_data import is not part of the zero-click governed schema lifecycle; use a separately reviewed data-restore procedure."
 }
 
@@ -171,6 +170,7 @@ Require ($bundleManifest.production_accessed -eq $false -and $bundleManifest.pro
 Require ($bundleManifest.validation.required_tables_checked -eq $true -and $bundleManifest.validation.runtime_exclusions_checked -eq $true -and $bundleManifest.validation.three_role_partition_checked -eq $true) "Schema bundle validation metadata is incomplete."
 $requiredRuntimeCensus = @($bundleManifest.validation.required_runtime_table_census)
 Require ($requiredRuntimeCensus.Count -eq 18) "Schema bundle runtime census must declare exactly 18 registry tables."
+
 $roleMigrationManifest = Read-Json $RoleMigrationManifestPath
 Require ([string]$roleMigrationManifest.contract -eq "mad4b.staging.database-role-migration-manifest.v1") "Unsupported canonical Staging role migration manifest contract."
 $canonicalRuntimeCensus = @($roleMigrationManifest.validation.required_runtime_table_census)
@@ -179,6 +179,7 @@ Assert-SetEqual $canonicalRuntimeCensus $requiredRuntimeCensus "schema bundle ru
 $requiredRuntimeSupportTables = @($roleMigrationManifest.validation.required_runtime_support_tables)
 Require ($requiredRuntimeSupportTables.Count -eq 11) "Canonical Staging role manifest must declare exactly 11 runtime support tables."
 Assert-ContainsSet $requiredRuntimeSupportTables @($roleMigrationManifest.roles.runtime.required_tables) "canonical runtime support declaration"
+
 $canonicalSeedManifest = $bundleManifest.canonical_seed_lifecycle
 Require ([string]$canonicalSeedManifest.contract -eq "mad4b.staging.canonical-seed-manifest.v1") "Canonical seed manifest contract is missing."
 Require ([string]$canonicalSeedManifest.target_role -eq "runtime" -and [string]$canonicalSeedManifest.replay_mode -eq "explicit_local_staging_only") "Canonical seed replay policy is invalid."
@@ -190,15 +191,33 @@ foreach ($seed in $canonicalSeedRows) {
   $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
   Require (Test-Path -LiteralPath $seedPath -PathType Leaf) "Canonical seed source is missing: $($seed.file)"
   Require ((Get-Sha256 $seedPath) -eq ([string]$seed.sha256).ToLowerInvariant()) "Canonical seed hash mismatch: $($seed.file)"
-  Test-SafeCanonicalSeed (Get-Content -Raw -LiteralPath $seedPath) ([string]$seed.file)
+  Test-SafeSeed (Get-Content -Raw -LiteralPath $seedPath) ([string]$seed.file)
 }
 Require (@($canonicalSeedManifest.mcp_catalog_required_columns).Count -eq 2) "Canonical MCP catalog column contract is incomplete."
+
+$authoritySeedManifest = $roleMigrationManifest.authority_seed_lifecycle
+Require ([string]$authoritySeedManifest.contract -eq "mad4b.staging.authority-seed-manifest.v1") "Authority seed manifest contract is missing."
+Require ([string]$authoritySeedManifest.target_role -eq "runtime") "Authority seed target role must be runtime."
+Require ([string]$authoritySeedManifest.execution_identity -eq "local_database_root") "Authority seed identity must be local database root."
+Require ([string]$authoritySeedManifest.replay_mode -eq "explicit_local_staging_only") "Authority seed replay policy is invalid."
+Require ($authoritySeedManifest.production_access_forbidden -eq $true -and $authoritySeedManifest.provider_access_forbidden -eq $true -and $authoritySeedManifest.runtime_write_authority_forbidden -eq $true -and $authoritySeedManifest.readback_required -eq $true) "Authority seed safety/readback policy is not fail-closed."
+$authoritySeedRows = @($authoritySeedManifest.seed_files)
+Require ($authoritySeedRows.Count -eq 1) "Authority seed manifest must contain exactly one reviewed seed."
+Require ([string]$authoritySeedRows[0].file -eq "1023_sprint69_sql_cache_runtime_policy.sql") "Unexpected authority seed file."
+Require ([string]$authoritySeedRows[0].sha256 -eq "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7") "SQL cache authority seed manifest checksum is not canonical."
+Require ([int]$authoritySeedRows[0].statement_count -eq 2) "SQL cache authority seed statement count is not canonical."
+foreach ($seed in $authoritySeedRows) {
+  $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
+  Require (Test-Path -LiteralPath $seedPath -PathType Leaf) "Authority seed source is missing: $($seed.file)"
+  Require ((Get-Sha256 $seedPath) -eq ([string]$seed.sha256).ToLowerInvariant()) "Authority seed hash mismatch: $($seed.file)"
+  Test-SafeSeed (Get-Content -Raw -LiteralPath $seedPath) ([string]$seed.file)
+}
 $manifestSha = Get-Sha256 $manifestPath
 
 $roleConfig = @(
-  @{ Key = "runtime"; Service = "runtime-db"; Database = "DB_NAME"; User = "DB_USER"; Password = "DB_PASSWORD"; File = "runtime.schema.sql.gz" },
-  @{ Key = "governance"; Service = "governance-db"; Database = "GOVERNANCE_DB_NAME"; User = "GOVERNANCE_DB_USER"; Password = "GOVERNANCE_DB_PASSWORD"; File = "governance.schema.sql.gz" },
-  @{ Key = "runtime_persistence"; Service = "persistence-db"; Database = "RUNTIME_PERSISTENCE_DB_NAME"; User = "RUNTIME_PERSISTENCE_DB_USER"; Password = "RUNTIME_PERSISTENCE_DB_PASSWORD"; File = "persistence.schema.sql.gz" }
+  @{ Key = "runtime"; Service = "runtime-db"; Database = "DB_NAME"; User = "DB_USER"; Password = "DB_PASSWORD"; RootPassword = "RUNTIME_DB_ROOT_PASSWORD"; File = "runtime.schema.sql.gz" },
+  @{ Key = "governance"; Service = "governance-db"; Database = "GOVERNANCE_DB_NAME"; User = "GOVERNANCE_DB_USER"; Password = "GOVERNANCE_DB_PASSWORD"; RootPassword = "GOVERNANCE_DB_ROOT_PASSWORD"; File = "governance.schema.sql.gz" },
+  @{ Key = "runtime_persistence"; Service = "persistence-db"; Database = "RUNTIME_PERSISTENCE_DB_NAME"; User = "RUNTIME_PERSISTENCE_DB_USER"; Password = "RUNTIME_PERSISTENCE_DB_PASSWORD"; RootPassword = "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD"; File = "persistence.schema.sql.gz" }
 )
 $services = @()
 foreach ($item in $roleConfig) {
@@ -210,7 +229,7 @@ foreach ($item in $roleConfig) {
   Require (Test-Path -LiteralPath $source -PathType Leaf) "Missing required schema_only bundle: $($item.File)"
   Require ((Get-Sha256 $source) -eq ([string]$role.sha256).ToLowerInvariant()) "Bundle hash mismatch: $($item.File)"
   Require (Test-GzipFile $source) "Bundle gzip validation failed: $($item.File)"
-  $services += [pscustomobject]@{ Key = $item.Key; Service = $item.Service; Database = $item.Database; User = $item.User; Password = $item.Password; File = $item.File; Source = $source; ExpectedTables = @($role.tables) }
+  $services += [pscustomobject]@{ Key = $item.Key; Service = $item.Service; Database = $item.Database; User = $item.User; Password = $item.Password; RootPassword = $item.RootPassword; File = $item.File; Source = $source; ExpectedTables = @($role.tables) }
 }
 $runtimeRole = $bundleManifest.roles.runtime
 Assert-ContainsSet $requiredRuntimeCensus @($runtimeRole.tables) "runtime required 18-table census"
@@ -222,7 +241,7 @@ Require ($LASTEXITCODE -eq 0) "Staging Compose model is invalid."
 $plan = @($services | ForEach-Object { [pscustomobject]@{ database = $_.Key; service = $_.Service; dump = $_.Source; mode = "schema_only"; source_commit = $ExpectedCommit.ToLowerInvariant(); manifest_sha256 = $manifestSha } })
 $plan | ConvertTo-Json -Depth 6
 if (-not $Apply) {
-  Write-Host "DRY-RUN only. Manifest, hashes, gzip, role mappings, and safety metadata passed. No database or file mutation was performed."
+  Write-Host "DRY-RUN only. Manifest, hashes, gzip, role mappings, seed authority separation, and safety metadata passed. No database or file mutation was performed."
   exit 0
 }
 
@@ -238,7 +257,7 @@ try {
 
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
-  if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
+  if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
     Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha"
     exit 0
   }
@@ -256,6 +275,12 @@ try {
     canonical_seed_files = @($canonicalSeedRows | ForEach-Object { [string]$_.file })
     canonical_seed_status = "pending"
     canonical_seed_applied_files = @()
+    authority_seed_contract = [string]$authoritySeedManifest.contract
+    authority_seed_files = @($authoritySeedRows | ForEach-Object { [string]$_.file })
+    authority_seed_status = "pending"
+    authority_seed_applied_files = @()
+    authority_seed_execution_identity = "local_database_root"
+    runtime_write_authority_expanded = $false
     canonical_seed_readback = [ordered]@{ status = "pending"; required_runtime_table_census = @(); required_runtime_support_tables = @(); mcp_catalog_columns = @(); canonical_row_counts = @{} }
     production_accessed = $false
     provider_accessed = $false
@@ -271,8 +296,6 @@ try {
     $containerPath = "/tmp/$($item.File)"
     & docker compose @compose cp $item.Source "$($item.Service):$containerPath"
     Require ($LASTEXITCODE -eq 0) "Failed to copy bundle into $($item.Service)"
-    # mariadb-dump preserves the disposable root DEFINER on view DDL. Rebind only the
-    # DEFINER token to the authenticated Staging role at replay time; do not grant SET USER.
     & docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service sh -lc "gzip -dc '$containerPath' | sed -E 's/DEFINER=[^ ]+/DEFINER=CURRENT_USER/g' | mariadb --protocol=socket -u'$user' '$db'"
     if ($LASTEXITCODE -ne 0) { Fail "Schema import failed for role $($item.Key); state remains applying for explicit recovery." }
     & docker compose @compose exec -T $item.Service rm -f $containerPath
@@ -282,23 +305,38 @@ try {
   }
 
   $runtimeService = $services | Where-Object { $_.Key -eq "runtime" } | Select-Object -First 1
-  Require ($null -ne $runtimeService) "Runtime role service is missing for canonical seed phase."
+  Require ($null -ne $runtimeService) "Runtime role service is missing for seed phase."
   $runtimeDb = Read-Env $runtimeService.Database
   $runtimeUser = Read-Env $runtimeService.User
   $runtimePassword = Read-Env $runtimeService.Password
-  Require ($runtimeDb -notmatch '(?i)(production|hostinger)' -and $runtimeUser -notmatch '(?i)(production|hostinger)') "Canonical seed target identity is not Staging-local."
+  $runtimeRootPassword = Read-Env $runtimeService.RootPassword
+  Require ($runtimeDb -notmatch '(?i)(production|hostinger)' -and $runtimeUser -notmatch '(?i)(production|hostinger)') "Seed target identity is not Staging-local."
+
   foreach ($seed in $canonicalSeedRows) {
     $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
     $seedSql = Get-Content -Raw -LiteralPath $seedPath
-    Test-SafeCanonicalSeed $seedSql ([string]$seed.file)
+    Test-SafeSeed $seedSql ([string]$seed.file)
     $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimePassword" $runtimeService.Service mariadb --protocol=socket "--user=$runtimeUser" $runtimeDb --binary-mode
     if ($LASTEXITCODE -ne 0) { Fail "Canonical seed apply failed: $($seed.file); state remains applying for explicit recovery." }
     $state.canonical_seed_applied_files = @($state.canonical_seed_applied_files + [string]$seed.file)
     Write-JsonAtomic $BundleStatePath $state
   }
-  $state.canonical_seed_status = "applied"
+  $state.canonical_seed_status = "completed"
+  Write-JsonAtomic $BundleStatePath $state
+
+  foreach ($seed in $authoritySeedRows) {
+    $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
+    $seedSql = Get-Content -Raw -LiteralPath $seedPath
+    Test-SafeSeed $seedSql ([string]$seed.file)
+    $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimeRootPassword" $runtimeService.Service mariadb --protocol=socket -uroot $runtimeDb --binary-mode
+    if ($LASTEXITCODE -ne 0) { Fail "Authority seed apply failed: $($seed.file); state remains applying for explicit recovery." }
+    $state.authority_seed_applied_files = @($state.authority_seed_applied_files + [string]$seed.file)
+    Write-JsonAtomic $BundleStatePath $state
+  }
+  $state.authority_seed_status = "completed"
   Write-JsonAtomic $BundleStatePath $state
   Write-Host "STAGING_CANONICAL_SEEDS_COMPLETED: files=$($state.canonical_seed_applied_files -join ',') target=runtime-db"
+  Write-Host "STAGING_AUTHORITY_SEEDS_COMPLETED: files=$($state.authority_seed_applied_files -join ',') identity=local_database_root runtime_write_authority_expanded=false"
 
   foreach ($item in $services) {
     $db = Read-Env $item.Database
@@ -320,13 +358,13 @@ try {
     business_type_profiles = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM business_type_profiles WHERE active IS NULL OR active IN ('1','true','yes','active')") 1 "business_type_profiles"
     brand_paths = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM brand_paths WHERE active IS NULL OR active IN ('1','true','yes','active')") 1 "brand_paths"
     hvac_activity = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM business_activity_types WHERE business_activity_type_key = 'hvac_air_conditioning_services' AND status = 'active'") 1 "hvac business activity"
+    sql_cache_runtime_policy = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM sql_cache_runtime_policies WHERE policy_key = 'sql_cache_policy_v2' AND revision >= 1 AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.required')) IN ('false','0') AND FIND_IN_SET('endpoints', REPLACE(JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.table_blocklist')), ' ', '')) > 0") 1 "sql_cache_policy_v2"
   }
   $supportRowCounts = [ordered]@{
     connected_systems_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM connected_systems") 0 "connected_systems"
     admin_tool_catalog_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM admin_platform_endpoint_tools WHERE mcp_catalog_level IS NOT NULL") 0 "admin tool catalog"
     tenant_tool_catalog_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM tenant_platform_endpoint_tools WHERE mcp_catalog_level IS NOT NULL") 0 "tenant tool catalog"
   }
-  $state.canonical_seed_status = "completed"
   $state.canonical_seed_readback = [ordered]@{
     status = "passed"
     required_runtime_table_census = @($requiredRuntimeCensus)
@@ -341,7 +379,7 @@ try {
   $state.database_mutated = $true
   Write-JsonAtomic $BundleStatePath $state
   Write-Host "STAGING_SCHEMA_IMPORT_COMPLETED: commit=$ExpectedCommit roles=runtime,governance,runtime_persistence verification=exact_table_sets"
-  Write-Host "Provider mutation, Production access, and migrations were not used."
+  Write-Host "Provider mutation, Production access, and ordinary migration apply were not used."
 } catch {
   if ($null -ne $state) {
     $state.status = "failed"

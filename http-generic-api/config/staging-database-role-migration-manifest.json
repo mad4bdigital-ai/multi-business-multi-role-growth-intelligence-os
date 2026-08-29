@@ -137,6 +137,31 @@
       "tenant_platform_endpoint_tools.mcp_catalog_level"
     ]
   },
+  "authority_seed_lifecycle": {
+    "contract": "mad4b.staging.authority-seed-manifest.v1",
+    "target_role": "runtime",
+    "execution_identity": "local_database_root",
+    "replay_mode": "explicit_local_staging_only",
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "runtime_write_authority_forbidden": true,
+    "seed_files": [
+      {
+        "file": "1023_sprint69_sql_cache_runtime_policy.sql",
+        "sha256": "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7",
+        "statement_count": 2
+      }
+    ],
+    "readback_required": true,
+    "readback": {
+      "table": "sql_cache_runtime_policies",
+      "policy_key": "sql_cache_policy_v2",
+      "exact_row_count": 1,
+      "minimum_revision": 1,
+      "required": false,
+      "required_blocked_tables": ["endpoints"]
+    }
+  },
   "validation": {
     "required_role_count": 3,
     "required_runtime_table_census": [
