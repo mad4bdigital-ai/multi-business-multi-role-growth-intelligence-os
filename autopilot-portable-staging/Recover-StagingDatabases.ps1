@@ -117,8 +117,21 @@ function Wait-DatabaseSelfAuth([object]$Role) {
     $user = Read-Env $script:EnvFile $Role.User
     $password = Read-Env $script:EnvFile $Role.Password
     for ($attempt = 1; $attempt -le 60; $attempt++) {
-        $result = (& docker compose @script:ComposeArgs exec -T -e "MYSQL_PWD=$password" $Role.Service mariadb --protocol=socket -u$user $database --batch --skip-column-names -e "SELECT 1;" 2>$null | Out-String).Trim()
-        if ($LASTEXITCODE -eq 0 -and $result -eq "1") { return }
+        $result = ""
+        $probeExitCode = 1
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            # Fresh MariaDB initialization can legitimately reject the first
+            # socket probes. Windows PowerShell 5.1 otherwise promotes native
+            # stderr into a terminating NativeCommandError while the script is
+            # globally fail-closed with ErrorActionPreference=Stop.
+            $ErrorActionPreference = "Continue"
+            $result = (& docker compose @script:ComposeArgs exec -T -e "MYSQL_PWD=$password" $Role.Service mariadb --protocol=socket -u$user $database --batch --skip-column-names -e "SELECT 1;" 2>$null | Out-String).Trim()
+            $probeExitCode = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        if ($probeExitCode -eq 0 -and $result -eq "1") { return }
         Start-Sleep -Seconds 2
     }
     Fail "Fresh local database did not accept the configured role identity: $($Role.Key)"
