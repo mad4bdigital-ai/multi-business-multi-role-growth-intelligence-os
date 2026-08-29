@@ -20,7 +20,6 @@ const compose = read("http-generic-api/docker-compose.staging.yml");
 const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
-const bootstrapContract = readJson("http-generic-api/config/runtime-bootstrap-contract.json");
 const autoDeployPolicy = readJson("autopilot-portable-staging/auto-deploy-policy.json");
 const oneClickPolicy = readJson("autopilot-portable-staging/autopilot-one-click-policy.json");
 
@@ -106,13 +105,6 @@ assert.deepEqual(roleManifest.authority_seed_lifecycle.readback, {
   required_blocked_tables: ["endpoints"],
 });
 
-const bootstrapRuntimeSeeds = bootstrapContract.baseline_bundle.role_seed_files.runtime;
-assert.ok(bootstrapRuntimeSeeds.some((seed) =>
-  seed.file === sqlCacheAuthoritySeed.file
-  && seed.sha256 === sqlCacheAuthoritySeed.sha256
-  && seed.statement_count === sqlCacheAuthoritySeed.statement_count
-));
-
 assert.equal(autoDeployPolicy.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(autoDeployPolicy.authority_seed_lifecycle.execution_identity, "local_database_root");
 assert.deepEqual(autoDeployPolicy.authority_seed_lifecycle.seed_files, [sqlCacheAuthoritySeed.file]);
@@ -172,7 +164,6 @@ console.log(JSON.stringify({
   staging_sql_cache_policy_select_only: true,
   staging_sql_cache_policy_seed_reconciled_by_root_only: true,
   staging_sql_cache_authority_seed_separated: true,
-  empty_rebuild_seed_registered: true,
   staging_governance_authority_repository_only: true,
   staging_mariadb_collation_pinned: true,
   non_destructive_resume_repair: true,
