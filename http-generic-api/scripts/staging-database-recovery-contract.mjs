@@ -204,7 +204,8 @@ assert.throws(() => buildReplayPlanFromBundleTexts({
   },
 }), /view v_unknown_relation references unknown builder object missing_relation/);
 
-assert.match(grantPlan, /BOOTSTRAP_ROLE_GRANT_POLICIES/);
+assert.match(grantPlan, /STAGING_ROLE_GRANT_POLICIES/);
+assert.doesNotMatch(grantPlan, /const spec = BOOTSTRAP_ROLE_GRANT_POLICIES\[role\]/);
 assert.match(grantPlan, /runtime_persistence/);
 assert.match(grantPlan, /broad_schema_grants_allowed: false/);
 assert.match(grantPlan, /grant_option_allowed: false/);

@@ -41,6 +41,33 @@ export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
   runtime_persistence: buildGrantSpec(["governed_tool_response_chunks"], ["SELECT", "INSERT", "UPDATE", "DELETE"], "always"),
 });
 
+// Local Staging keeps the production bootstrap grant surface unchanged while
+// adding only the two read-only MCP catalog tables that the running Staging app
+// must be able to inspect and serve. This preserves least privilege: no broad
+// schema grant and no write authority is added to either catalog table.
+export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
+  runtime: buildGrantSpec(
+    [
+      "customer_sessions",
+      "gpt_session_turns",
+      "actions",
+      "dynamic_audit_scheduler_runs",
+      "execution_log",
+      "json_assets",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+    ],
+    ["SELECT", "INSERT", "UPDATE"],
+    "always",
+    {
+      admin_platform_endpoint_tools: ["SELECT"],
+      tenant_platform_endpoint_tools: ["SELECT"],
+    },
+  ),
+  governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance,
+  runtime_persistence: BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence,
+});
+
 export const ROLE_GRANT_PRIVILEGE_ALLOWLIST = Object.freeze({
   runtime: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   governance: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
