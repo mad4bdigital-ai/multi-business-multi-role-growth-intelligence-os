@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-database-readiness-repair-20260829",
+  "title": "Non-destructive local Staging database readiness repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-database-readiness-repair-20260829.json",
+      "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/scripts/staging-role-grant-plan.mjs",
+      "http-generic-api/environmentBranchAuthority.js",
+      "http-generic-api/governanceDbPrivilegeReadinessService.js",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair the three causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, and converge MariaDB database default collation.",
+      "e2e_journeys": [
+        {
+          "id": "local-staging-readiness-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, and Auto Pilot certification can reach ready without destructive reset or Production/provider access.",
+          "steps": [
+            "Bind the repair to exact local HEAD and origin/main and reject remote Docker contexts or unsafe mutation flags.",
+            "Recreate only database containers when the Staging MariaDB server collation command changes while preserving bind-mounted data directories.",
+            "Set database defaults to utf8mb4_unicode_ci and read them back without altering recovered table data.",
+            "Reconcile repository-owned local Staging grants so the runtime principal retains its existing bounded write tables plus SELECT-only access to the two MCP catalog tables.",
+            "Use repository-only environment branch authority for local Staging Governance readiness while leaving Production SQL-first behavior unchanged.",
+            "Restart Auto Pilot at the exact commit and require certification_status=ready."
+          ],
+          "assertions": [
+            "Production BOOTSTRAP_ROLE_GRANT_POLICIES remain unchanged.",
+            "admin_platform_endpoint_tools and tenant_platform_endpoint_tools receive SELECT only in local Staging.",
+            "No schema-wide, global, column, GRANT OPTION, or applicable-role privilege is introduced.",
+            "Local Staging Governance readiness does not require SELECT on platform_runtime_config through the runtime principal.",
+            "All three local MariaDB services are started with utf8mb4_unicode_ci as server default and the repair readback confirms the database default.",
+            "The repair performs no database reset, schema replay, data-directory move, backup deletion, Production access, Hostinger/Cloudflare mutation, or provider mutation."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-readiness-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+            "http-generic-api/test-staging-database-readiness-repair.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This repair grants no Production deployment, provider mutation, credential access, or production_live authority.",
+      "blockers": [
+        "Production remains outside this pull request and requires a separate governed promotion lifecycle.",
+        "No Production, Hostinger, Cloudflare, provider, production database, or deployment mutation is authorized by this declaration."
+      ]
+    }
+  ]
+}
