@@ -128,6 +128,7 @@
     "provider_access_forbidden": true,
     "seed_files": [
       "039_sprint43_data_integrity_and_missing_tables.sql",
+      "1023_sprint69_sql_cache_runtime_policy.sql",
       "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
       "20260815_custom_gpt_mcp_catalog_levels.sql"
     ],
