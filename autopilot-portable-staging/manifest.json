@@ -26,7 +26,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "sha256": "8a97d7450c67b8fa8cb1c02c203e9736a3c95156d4bf0cd4049248cf9d5579fe"
+      "sha256": "8dc34831b3e42728abc64b287adb97a5333e1b775e5bd644559755958645fd99"
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "9347e40fdd0a514f5e7b0cac50e3e48fa498d643bfc0f89cbda4ea2b17faa0d5"
+      "sha256": "1793f533d0fc1710649080247753492661bee578f556dd9d49b5567f0535fe23"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
