@@ -16,7 +16,8 @@
       "http-generic-api/governanceDbPrivilegeReadinessService.js",
       "http-generic-api/docker-compose.staging.yml",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
-      ".github/governance/test-authority-registry.json"
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -73,7 +74,8 @@
           "evidence_paths": [
             "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
             "http-generic-api/test-staging-database-readiness-repair.mjs",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs"
           ]
         }
       ]
