@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-unqualified-view-dependency-replay-20260829",
+  "title": "Staging recovery replay unqualified view dependency ordering",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-unqualified-view-dependency-replay-20260829.json",
+      "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve fail-closed role-aware Staging schema replay while ordering unqualified same-role view dependencies before dependent views without expanding grants or replay authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-role-schema-replay-unqualified-view-ordering",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+          "terminal_outcome": "A MariaDB dump view that references another same-role view through an unqualified backticked FROM or JOIN relation is emitted after its dependency, while cross-role views remain excluded and replay authority remains non-root and Staging-only.",
+          "steps": [
+            "Parse qualified disposable-builder dependencies and unqualified backticked FROM or JOIN relations from the role schema dump.",
+            "Build the same-role dependency graph and topologically emit the parent view before a lexical child-before-parent dependent view.",
+            "Run the Staging database recovery contract fixture that mirrors v_activation_agent_skill_grants depending on v_effective_agent_skill_grants.",
+            "Verify cross-role exclusion, CURRENT_USER definer rebinding, no grant expansion, no root replay, and no Production or provider access."
+          ],
+          "assertions": [
+            "v_effective_agent_skill_grants is ordered before v_activation_agent_skill_grants even though lexical order would place the child first.",
+            "Qualified disposable-builder dependency discovery remains supported.",
+            "Cross-role views remain excluded from isolated role replay and no cross-role grants are added.",
+            "Replay remains bound to CURRENT_USER and does not use root replay or SET USER authority.",
+            "The change performs no Production, Hostinger, Cloudflare, provider, migration Apply, database recovery rerun, or credential mutation."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This Staging-only replay ordering repair grants no Production deployment, provider mutation, credential access, or production_live authority.",
+      "blockers": [
+        "Production remains outside this pull request and requires a separate governed promotion and operational evidence.",
+        "No Production, Hostinger, Cloudflare, provider, migration Apply, root replay, or recovery execution is authorized by this declaration."
+      ]
+    }
+  ]
+}
