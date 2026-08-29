@@ -82,16 +82,22 @@
           "level": "synthetic_runtime",
           "actor": "Portable Windows AutoPilot",
           "entrypoint": "Start-AutoPilot.ps1 accepts RequireSchemaBundle and ApplySchemaBundle.",
-          "terminal_outcome": "The direct entrypoint validates or applies the three-role schema-only bundle through Clone-StagingDatabases before certification and never accesses Production.",
+          "terminal_outcome": "The direct entrypoint validates or applies only an exact-commit three-role schema-only bundle through Clone-StagingDatabases before certification, ignores stale optional recovery bundles during normal resume, and never accesses Production.",
           "steps": [
             "Probe all three role bundle files through an explicitly array-wrapped missing-file set so zero, one, or many missing files are valid under Set-StrictMode Latest.",
-            "Require all three role bundle files when either schema flag is set.",
-            "Invoke Clone-StagingDatabases.ps1 in schema_only mode with the exact expected commit.",
+            "Require the schema bundle manifest alongside all three role bundle files before treating the local bundle as complete.",
+            "Read staging-schema-bundle-manifest.json and bind its contract and source_commit to the exact expected commit before invoking Clone-StagingDatabases.ps1.",
+            "Treat missing, invalid, incompatible, or stale local bundles as unavailable during default optional startup so an old recovery bundle cannot block an already recovered database resume.",
+            "Fail closed on the same invalid, incompatible, or stale bundle when RequireSchemaBundle or ApplySchemaBundle is explicitly set.",
+            "Invoke Clone-StagingDatabases.ps1 in schema_only mode with the exact expected commit only after the bundle manifest converges.",
             "Apply only when ApplySchemaBundle is explicitly set; otherwise perform dry-run validation.",
             "Persist schema seed status in AutoPilot state and continue same-cycle certification."
           ],
           "assertions": [
             "Bundle presence probing never dereferences Count on a null or scalar pipeline result.",
+            "An optional bundle from an older exact commit returns skipped_stale_schema_bundle before Clone-StagingDatabases.ps1 is invoked.",
+            "Invalid or unsupported optional bundle manifests are never imported or validated as current.",
+            "RequireSchemaBundle and ApplySchemaBundle both fail closed unless the manifest contract and source_commit match the exact expected commit.",
             "Missing bundle is fail-closed when RequireSchemaBundle or ApplySchemaBundle is set.",
             "The direct entrypoint uses schema_only mode and explicit local apply semantics.",
             "No Production/provider mutation is introduced."

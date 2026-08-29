@@ -266,13 +266,37 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
 function Seed-SchemaBundle([string]$RepoPath, [string]$Sha) {
     $dumpDir = Join-Path $RepoPath "autopilot-portable-staging\staging-db-dumps"
     $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
+    $bundleManifestPath = Join-Path $dumpDir "staging-schema-bundle-manifest.json"
     $missingRequired = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dumpDir $_)) })
-    $available = (Test-Path -LiteralPath $dumpDir) -and ($missingRequired.Count -eq 0)
+    $missingArtifacts = @($missingRequired)
+    if (-not (Test-Path -LiteralPath $bundleManifestPath -PathType Leaf)) { $missingArtifacts += "staging-schema-bundle-manifest.json" }
+    $available = (Test-Path -LiteralPath $dumpDir -PathType Container) -and ($missingArtifacts.Count -eq 0)
     if (-not $available) {
         if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
-        Write-StagingLog -Level info -Component $LogComponent -Stage "schema-bundle" -Message "no local schema-only bundle found; leaving fresh Staging databases unchanged"
+        Write-StagingLog -Level info -Component $LogComponent -Stage "schema-bundle" -Message "no complete local schema-only bundle found; leaving recovered Staging databases unchanged" -Data @{ missing_artifacts = @($missingArtifacts) }
         return "skipped_no_schema_bundle"
     }
+
+    try { $bundleManifest = Get-Content -Raw -LiteralPath $bundleManifestPath | ConvertFrom-Json }
+    catch {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle manifest is invalid JSON: $bundleManifestPath" }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "schema-bundle" -Message "local schema-only bundle manifest is invalid; skipping optional bundle validation" -Data @{ expected_commit = $Sha; manifest = $bundleManifestPath }
+        return "skipped_invalid_schema_bundle"
+    }
+    $bundleContract = if ($bundleManifest.PSObject.Properties.Name -contains "contract") { [string]$bundleManifest.contract } else { "" }
+    $bundleSourceCommit = if ($bundleManifest.PSObject.Properties.Name -contains "source_commit") { ([string]$bundleManifest.source_commit).Trim().ToLowerInvariant() } else { "" }
+    $expectedSha = $Sha.ToLowerInvariant()
+    if ($bundleContract -ne "mad4b.staging.schema-bundle-output.v1") {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle manifest contract is unsupported: $bundleContract" }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "schema-bundle" -Message "local schema-only bundle contract is unsupported; skipping optional bundle validation" -Data @{ expected_commit = $expectedSha; observed_commit = $bundleSourceCommit; contract = $bundleContract }
+        return "skipped_incompatible_schema_bundle"
+    }
+    if ($bundleSourceCommit -ne $expectedSha) {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle manifest is not bound to ExpectedCommit: expected=$expectedSha observed=$bundleSourceCommit" }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "schema-bundle" -Message "local schema-only bundle is stale for the exact commit; skipping optional bundle validation" -Data @{ expected_commit = $expectedSha; observed_commit = $bundleSourceCommit; contract = $bundleContract }
+        return "skipped_stale_schema_bundle"
+    }
+
     $clone = Join-Path $RepoPath "autopilot-portable-staging\Clone-StagingDatabases.ps1"
     if (-not (Test-Path -LiteralPath $clone)) { Fail "Clone-StagingDatabases.ps1 is missing: $clone" }
     $cloneArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-ExpectedCommit", $Sha, "-Mode", "schema_only")
