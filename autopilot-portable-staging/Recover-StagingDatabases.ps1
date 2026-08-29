@@ -341,7 +341,7 @@ try {
 
     $script:RecoveryState.status = "restart_and_certify"
     Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
-    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $StartAutoPilot -RepositoryPath $RepositoryPath -ExpectedCommit $ExpectedCommit -BuildMode Smart -SkipBuild -SkipSelfUpdate
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $StartAutoPilot -RepositoryPath $RepositoryPath -ExpectedCommit $ExpectedCommit -BuildMode Smart -SkipSelfUpdate
     Require ($LASTEXITCODE -eq 0) "Auto Pilot restart failed after local database recovery"
 
     $autoPilotStatePath = Join-Path $PSScriptRoot "autopilot-state.json"
