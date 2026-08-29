@@ -50,9 +50,11 @@ function buildDatabaseDependencies(statement, builderDatabase) {
   const builder = quoteRegex(builderDatabase);
   const quotedPattern = new RegExp("`" + builder + "`\\.`([^`]+)`", "giu");
   const unquotedPattern = new RegExp(`\\b${builder}\\.([A-Za-z0-9_$]+)`, "giu");
+  const unqualifiedRelationPattern = /\b(?:FROM|JOIN)\s*[\s(]*`([^`]+)`(?!\s*\.)/giu;
   const dependencies = [];
   for (const match of statement.matchAll(quotedPattern)) dependencies.push(normalizeName(match[1]));
   for (const match of statement.matchAll(unquotedPattern)) dependencies.push(normalizeName(match[1]));
+  for (const match of statement.matchAll(unqualifiedRelationPattern)) dependencies.push(normalizeName(match[1]));
   return uniqueSorted(dependencies);
 }
 
