@@ -87,10 +87,16 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
   let governanceConnection = null;
 
   try {
-    const runtimePool = deps.runtimePool || getPool();
+    const localStaging = text(env.DEPLOYMENT_ENVIRONMENT) === "staging_local_windows_docker";
+    const environmentAuthorityDeps = localStaging
+      ? {
+          repositoryAuthorityOnly: true,
+          ...(deps.environmentAuthorityReadFile ? { readFile: deps.environmentAuthorityReadFile } : {}),
+        }
+      : { pool: deps.runtimePool || getPool() };
     const preflight = await preflightFn(
       { env },
-      { environmentAuthorityDeps: { pool: runtimePool } },
+      { environmentAuthorityDeps },
     );
     const governanceConfig = resolveConfigFn(env);
     const governancePool = deps.governancePool || getGovernancePool();
