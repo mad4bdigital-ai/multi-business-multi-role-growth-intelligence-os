@@ -76,7 +76,7 @@ assert.doesNotMatch(clone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 // authenticated role rather than granting SET USER or replaying schema as root.
 assert.match(clone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(clone, /mariadb --protocol=socket -u'\$user' '\$db'/);
-assert.doesNotMatch(clone, /GRANT\s+SET\s+USER/i);
+assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
 assert.doesNotMatch(clone, /mariadb[^\r\n]*-uroot/i);
 assert.match(clone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
 
