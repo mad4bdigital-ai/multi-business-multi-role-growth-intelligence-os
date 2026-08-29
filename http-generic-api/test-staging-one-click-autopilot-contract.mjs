@@ -36,11 +36,13 @@ assert.deepEqual(policy.lifecycle.schema_import.required_runtime_support_tables,
 assert.equal(policy.lifecycle.canonical_seeds.contract, "mad4b.staging.canonical-seed-manifest.v1");
 assert.deepEqual(policy.lifecycle.canonical_seeds.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
+  "1023_sprint69_sql_cache_runtime_policy.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
 ]);
 assert.equal(policy.lifecycle.canonical_seeds.explicit_apply_only, true);
 assert.equal(policy.lifecycle.canonical_seeds.readback_required, true);
+assert.ok(policy.lifecycle.canonical_seeds.canonical_rows_required.includes("sql_cache_runtime_policies.sql_cache_policy_v2"));
 assert.equal(policy.lifecycle.activation_readiness.stale_policy_blocks_activation, true);
 assert.equal(policy.lifecycle.activation_readiness.schema_and_catalog_readiness_required, true);
 assert.deepEqual(policy.safety, {
