@@ -287,7 +287,7 @@ function main() {
     const observed = sha256(raw);
     if (observed !== normalizeName(bundleManifest.roles[role].sha256)) fail(`bundle checksum mismatch for ${role}`);
     try { bundleTexts[role] = zlib.gunzipSync(raw).toString("utf8"); }
-    catch (error) { fail(`${role} bundle gzip decode failed: ${error.message}`); }
+    catch (error) { fail(`bundle gzip decode failed for ${role}: ${error.message}`); }
   }
   const plan = buildReplayPlanFromBundleTexts({ roleManifest, bundleManifest, bundleTexts });
   const publicPlan = structuredClone(plan);
