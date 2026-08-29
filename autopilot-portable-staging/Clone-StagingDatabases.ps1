@@ -271,7 +271,9 @@ try {
     $containerPath = "/tmp/$($item.File)"
     & docker compose @compose cp $item.Source "$($item.Service):$containerPath"
     Require ($LASTEXITCODE -eq 0) "Failed to copy bundle into $($item.Service)"
-    & docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service sh -lc "gzip -dc '$containerPath' | mariadb --protocol=socket -u'$user' '$db'"
+    # mariadb-dump preserves the disposable root DEFINER on view DDL. Rebind only the
+    # DEFINER token to the authenticated Staging role at replay time; do not grant SET USER.
+    & docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service sh -lc "gzip -dc '$containerPath' | sed -E 's/DEFINER=[^ ]+/DEFINER=CURRENT_USER/g' | mariadb --protocol=socket -u'$user' '$db'"
     if ($LASTEXITCODE -ne 0) { Fail "Schema import failed for role $($item.Key); state remains applying for explicit recovery." }
     & docker compose @compose exec -T $item.Service rm -f $containerPath
     if ($LASTEXITCODE -ne 0) { Fail "Failed to remove temporary bundle from $($item.Service)" }
