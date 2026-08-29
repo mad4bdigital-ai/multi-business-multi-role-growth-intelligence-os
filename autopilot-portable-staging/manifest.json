@@ -258,7 +258,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "d7e1bc0449411506a9b2ac545c989353f9027c8fc908c5306ef4f02092f7a9ee"
+      "sha256": "0bfdf9d712943bc69102c2dfaecb2d23666fe511d4778405da790c7bdae43299"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
