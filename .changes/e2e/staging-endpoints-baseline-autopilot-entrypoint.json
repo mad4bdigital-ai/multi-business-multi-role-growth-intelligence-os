@@ -118,7 +118,7 @@
             "Build and dry-run the three-role schema bundle using disposable MariaDB without Production/provider access.",
             "Resolve the runtime support-table contract from the canonical staging-database-role-migration-manifest.json, cross-check the 18-table census projection, and prove the bundle runtime role contains the canonical support set without requiring a duplicated bundle-manifest field.",
             "Stop the local Compose project without -v and move runtime, governance, and persistence data directories to a timestamped recovery backup instead of deleting them.",
-            "Start fresh local database containers from the current ignored .env.staging identities and prove each role can authenticate.",
+            "Start fresh local database containers from the current ignored .env.staging identities and prove each role can authenticate through a bounded 60 x 2s readiness loop that treats transient Windows PowerShell native stderr as retryable but still requires native exit code 0 and SELECT 1.",
             "Apply the schema-only bundle through Clone-StagingDatabases.ps1.",
             "Derive the exact role grant plan from BOOTSTRAP_ROLE_GRANT_POLICIES, revoke broad/default grants, grant only registered table privileges, and read back no global/schema/column/role/grant-option authority.",
             "Restart the exact existing Staging image without rebuilding and require certification_status=ready before recovery completes."
@@ -129,6 +129,7 @@
             "Clone resolves required_runtime_support_tables from the canonical role migration manifest, verifies the bundle runtime census against that same source of truth, and never dereferences bundleManifest.validation.required_runtime_support_tables.",
             "No docker compose down -v, database-directory deletion, Production access, provider access, Hostinger mutation, or Cloudflare mutation is allowed.",
             "The backup directory is preserved on success and failure and is never automatically deleted.",
+            "Fresh MariaDB self-auth readiness remains bounded to 60 attempts with a 2-second delay; expected transient native stderr cannot terminate the loop, and a nonzero native exit code never counts as ready.",
             "Grant scope is sourced from repository-owned databasePrivilegeContracts.js and permits only SELECT, INSERT, UPDATE, and DELETE as declared per role/table.",
             "No global privilege, schema-wide privilege, column privilege, applicable role, or GRANT OPTION remains after reconciliation.",
             "Recovery cannot report success unless the exact commit returns certification_status=ready."
