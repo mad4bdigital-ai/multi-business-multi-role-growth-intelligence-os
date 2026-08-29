@@ -111,6 +111,9 @@ function Reconcile-SqlCacheRuntimePolicy([object]$Role) {
         Require ($seedSql -match "(?is)ON\s+DUPLICATE\s+KEY\s+UPDATE") "Canonical SQL cache policy seed is not idempotent"
         Require ($seedSql -notmatch "(?im)^\s*(?:GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER|CREATE\s+DATABASE|DROP\s+DATABASE|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|LOAD\s+DATA)\b") "Extracted SQL cache policy seed contains forbidden authority/schema SQL"
         Require ($seedSql -notmatch "(?im)\bINTO\s+(?:OUTFILE|DUMPFILE)\b") "Extracted SQL cache policy seed contains external-data SQL"
+        $qualifiedInsert = "INSERT INTO $databaseIdentifier." + '`sql_cache_runtime_policies`'
+        $seedSql = $seedSql.Replace($insertMarker, $qualifiedInsert)
+        Require ($seedSql.StartsWith($qualifiedInsert, [StringComparison]::OrdinalIgnoreCase)) "SQL cache policy seed target qualification failed"
         Invoke-RootSql $Role $seedSql
         $inserted = $true
     }
