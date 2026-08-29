@@ -40,7 +40,8 @@ assert.match(recovery, /COLUMN_PRIVILEGES/);
 assert.match(recovery, /APPLICABLE_ROLES/);
 assert.match(recovery, /IS_GRANTABLE = 'YES'/);
 assert.match(recovery, /Start-AutoPilot\.ps1/);
-assert.match(recovery, /-SkipBuild -SkipSelfUpdate/);
+assert.match(recovery, /-BuildMode Smart -SkipSelfUpdate/);
+assert.doesNotMatch(recovery, /-BuildMode Smart -SkipBuild -SkipSelfUpdate/);
 assert.match(recovery, /certification_status -eq "ready"/);
 assert.match(recovery, /backups_deleted = \$false/);
 assert.match(recovery, /production_accessed = \$false/);
@@ -233,6 +234,7 @@ console.log(JSON.stringify({
   cross_role_grants_added: false,
   root_replay_used: false,
   repository_owned_grant_matrix: true,
+  smart_image_restart: true,
   certification_ready_required: true,
   production_accessed: false,
   provider_accessed: false,
