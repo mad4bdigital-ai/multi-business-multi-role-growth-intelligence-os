@@ -46,6 +46,20 @@ assert.match(recovery, /hostinger_mutation = \$false/);
 assert.match(recovery, /cloudflare_mutation = \$false/);
 assert.match(recovery, /secrets_included = \$false/);
 
+// Windows PowerShell 5.1 can promote transient native stderr into a
+// terminating NativeCommandError when ErrorActionPreference is Stop. The
+// readiness loop must suppress only that expected probe surface, preserve the
+// native exit code, restore fail-closed semantics, and remain bounded.
+assert.match(recovery, /for \(\$attempt = 1; \$attempt -le 60; \$attempt\+\+\)/);
+assert.match(recovery, /\$previousErrorActionPreference = \$ErrorActionPreference/);
+assert.match(recovery, /\$ErrorActionPreference = "Continue"/);
+assert.match(recovery, /\$probeExitCode = \$LASTEXITCODE/);
+assert.match(recovery, /finally \{\s*\$ErrorActionPreference = \$previousErrorActionPreference\s*\}/);
+assert.match(recovery, /if \(\$probeExitCode -eq 0 -and \$result -eq "1"\) \{ return \}/);
+assert.doesNotMatch(recovery, /if \(\$LASTEXITCODE -eq 0 -and \$result -eq "1"\) \{ return \}/);
+assert.match(recovery, /Start-Sleep -Seconds 2/);
+assert.match(recovery, /Fresh local database did not accept the configured role identity/);
+
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
 assert.equal(roleManifest.validation.required_runtime_support_tables.length, 11);
@@ -74,6 +88,7 @@ console.log(JSON.stringify({
   explicit_reset_confirmation_required: true,
   explicit_grant_confirmation_required: true,
   canonical_runtime_support_contract_required: true,
+  windows_powershell_transient_db_probe_safe: true,
   repository_owned_grant_matrix: true,
   certification_ready_required: true,
   production_accessed: false,
