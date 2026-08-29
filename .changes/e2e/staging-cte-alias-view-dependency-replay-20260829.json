@@ -1,0 +1,79 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-cte-alias-view-dependency-replay-20260829",
+  "title": "Staging recovery replay CTE alias dependency handling",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-cte-alias-view-dependency-replay-20260829.json",
+      "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve fail-closed role-aware Staging schema replay while distinguishing SQL CTE aliases from persistent builder objects during unqualified view dependency discovery.",
+      "e2e_journeys": [
+        {
+          "id": "staging-role-schema-replay-cte-alias-filtering",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+          "terminal_outcome": "A MariaDB dump view using a CTE such as registered_engines is replay-planned from its underlying persistent relations without classifying the CTE alias as an unknown builder object, while genuine unknown relations still fail closed.",
+          "steps": [
+            "Discover qualified disposable-builder dependencies and unqualified backticked FROM or JOIN relations from dumped views.",
+            "Discover CTE declaration aliases local to each view statement and exclude only those aliases from persistent dependency classification.",
+            "Run the Staging database recovery contract fixture mirroring v_engine_runtime_coverage with registered_engines backed by runtime_t.",
+            "Verify a genuine missing_relation still fails the unknown-builder-object guard and cross-role exclusion, CURRENT_USER definer rebinding, no grant expansion, and no root replay remain unchanged."
+          ],
+          "assertions": [
+            "registered_engines is treated as a statement-local CTE alias rather than a persistent builder object.",
+            "The persistent runtime_t relation inside the CTE remains part of the ownership dependency graph.",
+            "A genuine unknown unqualified relation continues to fail closed.",
+            "Cross-role views remain excluded from isolated role replay and no cross-role grants are added.",
+            "Replay remains bound to CURRENT_USER and does not use root replay or SET USER authority.",
+            "The change performs no Production, Hostinger, Cloudflare, provider, migration Apply, database recovery rerun, or credential mutation."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This Staging-only replay parser repair grants no Production deployment, provider mutation, credential access, or production_live authority.",
+      "blockers": [
+        "Production remains outside this pull request and requires a separate governed promotion and operational evidence.",
+        "No Production, Hostinger, Cloudflare, provider, migration Apply, root replay, or recovery execution is authorized by this declaration."
+      ]
+    }
+  ]
+}

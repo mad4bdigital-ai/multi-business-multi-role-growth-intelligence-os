@@ -101,6 +101,8 @@ assert.match(replayPlanner, /DEFINER=CURRENT_USER/);
 assert.match(replayPlanner, /staging_schema_build/);
 assert.match(replayPlanner, /cross_role/);
 assert.match(replayPlanner, /unqualifiedRelationPattern/);
+assert.match(replayPlanner, /commonTableExpressionNames/);
+assert.match(replayPlanner, /cteDeclarationPattern/);
 assert.match(replayPlanner, /disposable_builder_qualifier_removed: true/);
 assert.match(replayPlanner, /cross_role_grants_added: false/);
 assert.match(replayPlanner, /root_replay_used: false/);
@@ -125,7 +127,7 @@ const fixtureBundleManifest = {
   provider_accessed: false,
   secrets_included: false,
   roles: {
-    runtime: { tables: ["runtime_t", "v_runtime", "v_runtime_child", "v_governance", "v_cross", "v_activation_agent_skill_grants", "v_effective_agent_skill_grants"] },
+    runtime: { tables: ["runtime_t", "v_runtime", "v_runtime_child", "v_governance", "v_cross", "v_activation_agent_skill_grants", "v_effective_agent_skill_grants", "v_engine_runtime_coverage"] },
     governance: { tables: ["governance_t"] },
     runtime_persistence: { tables: ["persistence_t"] },
   },
@@ -146,12 +148,15 @@ const fixtureRuntime = [
   "/*!50001 CREATE TABLE `v_activation_agent_skill_grants` (`id` INT) */",
   "DROP TABLE IF EXISTS `v_effective_agent_skill_grants`",
   "/*!50001 CREATE TABLE `v_effective_agent_skill_grants` (`id` INT) */",
+  "DROP TABLE IF EXISTS `v_engine_runtime_coverage`",
+  "/*!50001 CREATE TABLE `v_engine_runtime_coverage` (`id` INT) */",
   view("v_runtime", "SELECT `staging_schema_build`.`runtime_t`.`id` AS `id` FROM `staging_schema_build`.`runtime_t`"),
   view("v_runtime_child", "SELECT `staging_schema_build`.`v_runtime`.`id` AS `id` FROM `staging_schema_build`.`v_runtime`"),
   view("v_governance", "SELECT `staging_schema_build`.`governance_t`.`id` AS `id` FROM `staging_schema_build`.`governance_t`"),
   view("v_cross", "SELECT r.`id` FROM `staging_schema_build`.`runtime_t` r JOIN `staging_schema_build`.`governance_t` g ON g.`id` = r.`id`"),
   view("v_effective_agent_skill_grants", "SELECT `runtime_t`.`id` AS `id` FROM `runtime_t`"),
   view("v_activation_agent_skill_grants", "SELECT `e`.`id` AS `id` FROM ((`v_effective_agent_skill_grants` `e` JOIN `runtime_t` `t` ON (`t`.`id` = `e`.`id`)))"),
+  view("v_engine_runtime_coverage", "WITH `registered_engines` AS (SELECT `runtime_t`.`id` AS `id` FROM `runtime_t`) SELECT `registered_engines`.`id` AS `id` FROM `registered_engines`"),
 ].join(";\n") + ";\n";
 const fixturePlan = buildReplayPlanFromBundleTexts({
   roleManifest: fixtureRoleManifest,
@@ -162,8 +167,10 @@ const fixturePlan = buildReplayPlanFromBundleTexts({
     runtime_persistence: "CREATE TABLE `persistence_t` (`id` INT);\n",
   },
 });
-assert.deepEqual(fixturePlan.roles.runtime.views, ["v_effective_agent_skill_grants", "v_activation_agent_skill_grants", "v_runtime", "v_runtime_child"]);
+assert.deepEqual(fixturePlan.roles.runtime.views, ["v_effective_agent_skill_grants", "v_activation_agent_skill_grants", "v_engine_runtime_coverage", "v_runtime", "v_runtime_child"]);
 assert.ok(fixturePlan.roles.runtime.views.indexOf("v_effective_agent_skill_grants") < fixturePlan.roles.runtime.views.indexOf("v_activation_agent_skill_grants"));
+assert.ok(fixturePlan.roles.runtime.views.includes("v_engine_runtime_coverage"));
+assert.equal(fixturePlan.roles.runtime.sql.includes("FROM `registered_engines`"), true);
 assert.deepEqual(fixturePlan.roles.governance.views, ["v_governance"]);
 assert.deepEqual(fixturePlan.roles.runtime_persistence.views, []);
 assert.deepEqual(fixturePlan.excluded_cross_role_views.map((item) => item.name), ["v_cross"]);
@@ -182,6 +189,19 @@ assert.equal(fixturePlan.grant_mutation, false);
 assert.equal(fixturePlan.production_accessed, false);
 assert.equal(fixturePlan.provider_accessed, false);
 assert.equal(fixturePlan.secrets_included, false);
+
+const unknownBundleManifest = structuredClone(fixtureBundleManifest);
+unknownBundleManifest.roles.runtime.tables = [...unknownBundleManifest.roles.runtime.tables, "v_unknown_relation"];
+const unknownRuntime = `${fixtureRuntime}${view("v_unknown_relation", "SELECT `missing_relation`.`id` AS `id` FROM `missing_relation`")};\n`;
+assert.throws(() => buildReplayPlanFromBundleTexts({
+  roleManifest: fixtureRoleManifest,
+  bundleManifest: unknownBundleManifest,
+  bundleTexts: {
+    runtime: unknownRuntime,
+    governance: "CREATE TABLE `governance_t` (`id` INT);\n",
+    runtime_persistence: "CREATE TABLE `persistence_t` (`id` INT);\n",
+  },
+}), /view v_unknown_relation references unknown builder object missing_relation/);
 
 assert.match(grantPlan, /BOOTSTRAP_ROLE_GRANT_POLICIES/);
 assert.match(grantPlan, /runtime_persistence/);
@@ -207,6 +227,8 @@ console.log(JSON.stringify({
   schema_view_builder_qualifier_removed: true,
   schema_view_role_dependency_closure: true,
   schema_view_unqualified_dependency_ordering: true,
+  schema_view_cte_alias_dependency_safe: true,
+  schema_view_unknown_object_guard_preserved: true,
   cross_role_views_excluded_from_isolated_replay: true,
   cross_role_grants_added: false,
   root_replay_used: false,
