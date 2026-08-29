@@ -110,8 +110,18 @@ async function loadFileAuthority(readFile = fs.readFile) {
   return validateEnvironmentBranchAuthority(parsed, { source: "deployment-branch-policy.json" });
 }
 
-export async function loadEnvironmentBranchAuthority({ pool = getPool(), readFile = fs.readFile } = {}) {
-  const sql = await loadSqlAuthority(pool);
+export async function loadEnvironmentBranchAuthority({
+  pool = null,
+  readFile = fs.readFile,
+  repositoryAuthorityOnly = false,
+} = {}) {
+  // Local Windows/Docker Staging intentionally runs with a narrowly scoped
+  // runtime principal. Its certification path may opt into repository-only
+  // branch authority so a denied SELECT on platform_runtime_config cannot be
+  // mistaken for a Governance DB privilege failure. Production remains SQL-first
+  // and fail-closed by default.
+  if (repositoryAuthorityOnly === true) return await loadFileAuthority(readFile);
+  const sql = await loadSqlAuthority(pool || getPool());
   if (sql) return { ...sql.authority, config_key: ENVIRONMENT_BRANCH_AUTHORITY_CONFIG_KEY, updated_at: sql.updated_at };
   return await loadFileAuthority(readFile);
 }
