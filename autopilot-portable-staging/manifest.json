@@ -26,7 +26,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "sha256": "ad43a5b7321790dc39b0bca5cc8c1f16532250e69ff9569aa9715dc1c89d1a7e"
+      "sha256": "86ac4bc86159640986af62a79e5d04fb86f8c43b20b1923369140e9bde99a3f1"
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "923e992b5bc186718f18c672d13bbaea9dbbb68052f0e4ccc8ab80b67472bd73"
+      "sha256": "e35c92aedb217e572fdb4b72ebde3e6639e344c5c4c29cc96964c19ef4309f8d"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
