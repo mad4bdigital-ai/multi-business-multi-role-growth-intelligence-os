@@ -15,12 +15,15 @@
       "http-generic-api/environmentBranchAuthority.js",
       "http-generic-api/governanceDbPrivilegeReadinessService.js",
       "http-generic-api/docker-compose.staging.yml",
-      "http-generic-api/test-staging-database-readiness-repair.mjs"
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": [
+      "staging"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -68,7 +71,8 @@
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
-            "http-generic-api/test-staging-database-readiness-repair.mjs"
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
