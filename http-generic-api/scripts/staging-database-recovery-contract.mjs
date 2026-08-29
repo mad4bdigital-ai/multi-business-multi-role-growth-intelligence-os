@@ -71,6 +71,15 @@ assert.equal((clone.match(/"--user=\$user"/g) || []).length, 2);
 assert.equal((clone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
 assert.doesNotMatch(clone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 
+// mariadb-dump preserves the disposable builder account as an explicit view
+// DEFINER. The local role importer must rebind only that account token to the
+// authenticated role rather than granting SET USER or replaying schema as root.
+assert.match(clone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
+assert.match(clone, /mariadb --protocol=socket -u'\$user' '\$db'/);
+assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
+assert.doesNotMatch(clone, /mariadb[^\r\n]*-uroot/i);
+assert.match(clone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
+
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
 assert.equal(roleManifest.validation.required_runtime_support_tables.length, 11);
@@ -101,6 +110,7 @@ console.log(JSON.stringify({
   canonical_runtime_support_contract_required: true,
   windows_powershell_transient_db_probe_safe: true,
   windows_powershell_native_user_argument_safe: true,
+  schema_view_definer_rebound_to_authenticated_role: true,
   repository_owned_grant_matrix: true,
   certification_ready_required: true,
   production_accessed: false,
