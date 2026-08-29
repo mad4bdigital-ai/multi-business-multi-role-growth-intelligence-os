@@ -120,6 +120,7 @@
             "Stop the local Compose project without -v and move runtime, governance, and persistence data directories to a timestamped recovery backup instead of deleting them.",
             "Start fresh local database containers from the current ignored .env.staging identities and prove each role can authenticate through a bounded 60 x 2s readiness loop that treats transient Windows PowerShell native stderr as retryable but still requires native exit code 0 and SELECT 1.",
             "Construct every host-side MariaDB user option as an explicit expandable PowerShell string so docker.exe receives the configured identity rather than the literal token $user or $runtimeUser.",
+            "Replay each schema-only role bundle as its authenticated least-privilege Staging identity while deterministically rebinding any mariadb-dump explicit account DEFINER token to CURRENT_USER; never grant SET USER and never switch schema replay to root.",
             "Apply the schema-only bundle through Clone-StagingDatabases.ps1.",
             "Derive the exact role grant plan from BOOTSTRAP_ROLE_GRANT_POLICIES, revoke broad/default grants, grant only registered table privileges, and read back no global/schema/column/role/grant-option authority.",
             "Restart the exact existing Staging image without rebuilding and require certification_status=ready before recovery completes."
@@ -132,6 +133,7 @@
             "The backup directory is preserved on success and failure and is never automatically deleted.",
             "Fresh MariaDB self-auth readiness remains bounded to 60 attempts with a 2-second delay; expected transient native stderr cannot terminate the loop, and a nonzero native exit code never counts as ready.",
             "Host-side PowerShell MariaDB calls use explicit expanded --user=<identity> arguments and the contract rejects bare -u$user or -u$runtimeUser native arguments.",
+            "Schema view replay replaces only explicit account DEFINER tokens with CURRENT_USER so the authenticated role owns recreated views without SET USER authority, root replay, or privilege escalation.",
             "Grant scope is sourced from repository-owned databasePrivilegeContracts.js and permits only SELECT, INSERT, UPDATE, and DELETE as declared per role/table.",
             "No global privilege, schema-wide privilege, column privilege, applicable role, or GRANT OPTION remains after reconciliation.",
             "Recovery cannot report success unless the exact commit returns certification_status=ready."
