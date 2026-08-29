@@ -38,11 +38,13 @@ assert.deepEqual(policy.schema_bundle_lifecycle.required_runtime_support_tables,
 assert.equal(policy.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
 assert.deepEqual(policy.canonical_seed_lifecycle.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
+  "1023_sprint69_sql_cache_runtime_policy.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
 ]);
 assert.equal(policy.canonical_seed_lifecycle.explicit_apply_only, true);
 assert.equal(policy.canonical_seed_lifecycle.readback_required, true);
+assert.ok(policy.canonical_seed_lifecycle.canonical_rows_required.includes("sql_cache_runtime_policies.sql_cache_policy_v2"));
 assert.equal(policy.activation_gateway.readback_gate.stale_policy_blocks_activation, true);
 assert.equal(policy.activation_gateway.readback_gate.schema_and_catalog_readiness_required, true);
 assert.equal(policy.preflight_lifecycle.required_mariadb_image, "mariadb:11.4");
@@ -107,8 +109,6 @@ assert.match(buildContextScript, /git_archive_exact_commit/);
 assert.match(buildContextScript, /local_ignored_files_included: false/);
 assert.match(buildContextScript, /secrets_included: false/);
 
-// The repository-root Docker build context must be deny-by-default so ignored
-// local state (especially .env.staging) can never become part of image bytes.
 assert.match(dockerignore, /^\*\*/m);
 assert.match(dockerignore, /^!http-generic-api\/\*\*$/m);
 assert.match(dockerignore, /^!edge\/activation-gateway\/generated\/route-policy\.staging\.json$/m);
@@ -209,6 +209,10 @@ assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /canonical_seed_re
 assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /requiredRuntimeCensus/);
 assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /Assert-ContainsSet/);
 assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /mcp_catalog_level/);
+assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /1023_sprint69_sql_cache_runtime_policy\.sql/);
+assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /RUNTIME_DB_ROOT_PASSWORD/);
+assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /sql_cache_policy_v2/);
+assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /canonical_seed_root_applied_files/);
 assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /STAGING_CANONICAL_SEEDS_COMPLETED/);
 assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /post_import_role_table_verification/);
 assert.match(schemaImporterEntrypoint + schemaImporterLegacy, /Assert-SetEqual/);
