@@ -184,7 +184,7 @@ Require ([string]$canonicalSeedManifest.contract -eq "mad4b.staging.canonical-se
 Require ([string]$canonicalSeedManifest.target_role -eq "runtime" -and [string]$canonicalSeedManifest.replay_mode -eq "explicit_local_staging_only") "Canonical seed replay policy is invalid."
 Require ($canonicalSeedManifest.production_access_forbidden -eq $true -and $canonicalSeedManifest.provider_access_forbidden -eq $true -and $canonicalSeedManifest.readback_required -eq $true) "Canonical seed safety/readback policy is not fail-closed."
 $canonicalSeedRows = @($canonicalSeedManifest.seed_files)
-$expectedCanonicalSeedFiles = @("039_sprint43_data_integrity_and_missing_tables.sql", "1043_sprint69_dynamic_container_hvac_activity_seed.sql", "20260815_custom_gpt_mcp_catalog_levels.sql")
+$expectedCanonicalSeedFiles = @("039_sprint43_data_integrity_and_missing_tables.sql", "1023_sprint69_sql_cache_runtime_policy.sql", "1043_sprint69_dynamic_container_hvac_activity_seed.sql", "20260815_custom_gpt_mcp_catalog_levels.sql")
 Require (($canonicalSeedRows | ForEach-Object { [string]$_.file }) -join "," -eq ($expectedCanonicalSeedFiles -join ",") ) "Canonical seed file order is not exact."
 foreach ($seed in $canonicalSeedRows) {
   $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
@@ -196,9 +196,9 @@ Require (@($canonicalSeedManifest.mcp_catalog_required_columns).Count -eq 2) "Ca
 $manifestSha = Get-Sha256 $manifestPath
 
 $roleConfig = @(
-  @{ Key = "runtime"; Service = "runtime-db"; Database = "DB_NAME"; User = "DB_USER"; Password = "DB_PASSWORD"; File = "runtime.schema.sql.gz" },
-  @{ Key = "governance"; Service = "governance-db"; Database = "GOVERNANCE_DB_NAME"; User = "GOVERNANCE_DB_USER"; Password = "GOVERNANCE_DB_PASSWORD"; File = "governance.schema.sql.gz" },
-  @{ Key = "runtime_persistence"; Service = "persistence-db"; Database = "RUNTIME_PERSISTENCE_DB_NAME"; User = "RUNTIME_PERSISTENCE_DB_USER"; Password = "RUNTIME_PERSISTENCE_DB_PASSWORD"; File = "persistence.schema.sql.gz" }
+  @{ Key = "runtime"; Service = "runtime-db"; Database = "DB_NAME"; User = "DB_USER"; Password = "DB_PASSWORD"; RootPassword = "RUNTIME_DB_ROOT_PASSWORD"; File = "runtime.schema.sql.gz" },
+  @{ Key = "governance"; Service = "governance-db"; Database = "GOVERNANCE_DB_NAME"; User = "GOVERNANCE_DB_USER"; Password = "GOVERNANCE_DB_PASSWORD"; RootPassword = "GOVERNANCE_DB_ROOT_PASSWORD"; File = "governance.schema.sql.gz" },
+  @{ Key = "runtime_persistence"; Service = "persistence-db"; Database = "RUNTIME_PERSISTENCE_DB_NAME"; User = "RUNTIME_PERSISTENCE_DB_USER"; Password = "RUNTIME_PERSISTENCE_DB_PASSWORD"; RootPassword = "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD"; File = "persistence.schema.sql.gz" }
 )
 $services = @()
 foreach ($item in $roleConfig) {
@@ -210,7 +210,7 @@ foreach ($item in $roleConfig) {
   Require (Test-Path -LiteralPath $source -PathType Leaf) "Missing required schema_only bundle: $($item.File)"
   Require ((Get-Sha256 $source) -eq ([string]$role.sha256).ToLowerInvariant()) "Bundle hash mismatch: $($item.File)"
   Require (Test-GzipFile $source) "Bundle gzip validation failed: $($item.File)"
-  $services += [pscustomobject]@{ Key = $item.Key; Service = $item.Service; Database = $item.Database; User = $item.User; Password = $item.Password; File = $item.File; Source = $source; ExpectedTables = @($role.tables) }
+  $services += [pscustomobject]@{ Key = $item.Key; Service = $item.Service; Database = $item.Database; User = $item.User; Password = $item.Password; RootPassword = $item.RootPassword; File = $item.File; Source = $source; ExpectedTables = @($role.tables) }
 }
 $runtimeRole = $bundleManifest.roles.runtime
 Assert-ContainsSet $requiredRuntimeCensus @($runtimeRole.tables) "runtime required 18-table census"
@@ -256,6 +256,7 @@ try {
     canonical_seed_files = @($canonicalSeedRows | ForEach-Object { [string]$_.file })
     canonical_seed_status = "pending"
     canonical_seed_applied_files = @()
+    canonical_seed_root_applied_files = @()
     canonical_seed_readback = [ordered]@{ status = "pending"; required_runtime_table_census = @(); required_runtime_support_tables = @(); mcp_catalog_columns = @(); canonical_row_counts = @{} }
     production_accessed = $false
     provider_accessed = $false
@@ -286,13 +287,20 @@ try {
   $runtimeDb = Read-Env $runtimeService.Database
   $runtimeUser = Read-Env $runtimeService.User
   $runtimePassword = Read-Env $runtimeService.Password
+  $runtimeRootPassword = Read-Env $runtimeService.RootPassword
   Require ($runtimeDb -notmatch '(?i)(production|hostinger)' -and $runtimeUser -notmatch '(?i)(production|hostinger)') "Canonical seed target identity is not Staging-local."
   foreach ($seed in $canonicalSeedRows) {
     $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
     $seedSql = Get-Content -Raw -LiteralPath $seedPath
     Test-SafeCanonicalSeed $seedSql ([string]$seed.file)
-    $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimePassword" $runtimeService.Service mariadb --protocol=socket "--user=$runtimeUser" $runtimeDb --binary-mode
-    if ($LASTEXITCODE -ne 0) { Fail "Canonical seed apply failed: $($seed.file); state remains applying for explicit recovery." }
+    if ([string]$seed.file -eq "1023_sprint69_sql_cache_runtime_policy.sql") {
+      $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimeRootPassword" $runtimeService.Service mariadb --protocol=socket -uroot $runtimeDb --binary-mode
+      if ($LASTEXITCODE -ne 0) { Fail "Canonical SQL cache authority seed apply failed; state remains applying for explicit recovery." }
+      $state.canonical_seed_root_applied_files = @($state.canonical_seed_root_applied_files + [string]$seed.file)
+    } else {
+      $seedSql | docker compose @compose exec -T -e "MYSQL_PWD=$runtimePassword" $runtimeService.Service mariadb --protocol=socket "--user=$runtimeUser" $runtimeDb --binary-mode
+      if ($LASTEXITCODE -ne 0) { Fail "Canonical seed apply failed: $($seed.file); state remains applying for explicit recovery." }
+    }
     $state.canonical_seed_applied_files = @($state.canonical_seed_applied_files + [string]$seed.file)
     Write-JsonAtomic $BundleStatePath $state
   }
@@ -320,6 +328,7 @@ try {
     business_type_profiles = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM business_type_profiles WHERE active IS NULL OR active IN ('1','true','yes','active')") 1 "business_type_profiles"
     brand_paths = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM brand_paths WHERE active IS NULL OR active IN ('1','true','yes','active')") 1 "brand_paths"
     hvac_activity = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM business_activity_types WHERE business_activity_type_key = 'hvac_air_conditioning_services' AND status = 'active'") 1 "hvac business activity"
+    sql_cache_runtime_policy = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM sql_cache_runtime_policies WHERE policy_key = 'sql_cache_policy_v2' AND revision >= 1 AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.required')) IN ('false','0') AND FIND_IN_SET('endpoints', REPLACE(JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.table_blocklist')), ' ', '')) > 0") 1 "sql_cache_policy_v2"
   }
   $supportRowCounts = [ordered]@{
     connected_systems_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM connected_systems") 0 "connected_systems"
