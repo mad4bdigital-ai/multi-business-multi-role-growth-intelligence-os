@@ -1,4 +1,4 @@
-import { BOOTSTRAP_ROLE_GRANT_POLICIES } from "../databasePrivilegeContracts.js";
+import { STAGING_ROLE_GRANT_POLICIES } from "../databasePrivilegeContracts.js";
 
 const args = process.argv.slice(2);
 const valueOf = (name) => {
@@ -12,8 +12,8 @@ if (!allowedRoles.has(role)) {
   throw new Error("--role must be one of runtime, governance, runtime_persistence");
 }
 
-const spec = BOOTSTRAP_ROLE_GRANT_POLICIES[role];
-if (!spec) throw new Error(`Missing repository-owned grant policy for role: ${role}`);
+const spec = STAGING_ROLE_GRANT_POLICIES[role];
+if (!spec) throw new Error(`Missing repository-owned Staging grant policy for role: ${role}`);
 
 const requiredTables = Array.isArray(spec.required_tables) ? [...spec.required_tables] : [];
 const sharedOperations = Array.isArray(spec.required_operations)
