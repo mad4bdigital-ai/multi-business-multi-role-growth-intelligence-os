@@ -42,9 +42,9 @@ export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
 });
 
 // Local Staging keeps the production bootstrap grant surface unchanged while
-// adding only the two read-only MCP catalog tables that the running Staging app
-// must be able to inspect and serve. This preserves least privilege: no broad
-// schema grant and no write authority is added to either catalog table.
+// adding only bounded read-only runtime authority surfaces that the running
+// Staging app must inspect: the two MCP catalog tables and the MySQL-primary
+// SQL-cache runtime policy. No broad schema grant or write authority is added.
 export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
   runtime: buildGrantSpec(
     [
@@ -56,12 +56,14 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "json_assets",
       "admin_platform_endpoint_tools",
       "tenant_platform_endpoint_tools",
+      "sql_cache_runtime_policies",
     ],
     ["SELECT", "INSERT", "UPDATE"],
     "always",
     {
       admin_platform_endpoint_tools: ["SELECT"],
       tenant_platform_endpoint_tools: ["SELECT"],
+      sql_cache_runtime_policies: ["SELECT"],
     },
   ),
   governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance,
