@@ -10,6 +10,10 @@ const MANIFEST_PATH = path.join(REPO_ROOT, MANIFEST_RELATIVE_PATH);
 const REQUIRED_PORTABLE_STAGING_FILES = [
   "autopilot-portable-staging/Staging-GitTransport.ps1",
   "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
+  "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+  "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+  "http-generic-api/scripts/staging-sql-parser.mjs",
+  "http-generic-api/config/staging-database-role-migration-manifest.json",
 ];
 const check = process.argv.includes("--check");
 const write = process.argv.includes("--write") || !check;
