@@ -46,15 +46,29 @@ function objectDefinitionName(statement) {
   return null;
 }
 
+function commonTableExpressionNames(statement) {
+  const names = new Set();
+  const cteDeclarationPattern = /(?:\bWITH(?:\s+RECURSIVE)?|,)\s*(?:`([^`]+)`|([A-Za-z0-9_$]+))(?:\s*\([^)]*\))?\s+AS\s*\(/giu;
+  for (const match of String(statement).matchAll(cteDeclarationPattern)) {
+    const name = normalizeName(match[1] || match[2]);
+    if (name) names.add(name);
+  }
+  return names;
+}
+
 function buildDatabaseDependencies(statement, builderDatabase) {
   const builder = quoteRegex(builderDatabase);
   const quotedPattern = new RegExp("`" + builder + "`\\.`([^`]+)`", "giu");
   const unquotedPattern = new RegExp(`\\b${builder}\\.([A-Za-z0-9_$]+)`, "giu");
   const unqualifiedRelationPattern = /\b(?:FROM|JOIN)\s*[\s(]*`([^`]+)`(?!\s*\.)/giu;
+  const cteNames = commonTableExpressionNames(statement);
   const dependencies = [];
   for (const match of statement.matchAll(quotedPattern)) dependencies.push(normalizeName(match[1]));
   for (const match of statement.matchAll(unquotedPattern)) dependencies.push(normalizeName(match[1]));
-  for (const match of statement.matchAll(unqualifiedRelationPattern)) dependencies.push(normalizeName(match[1]));
+  for (const match of statement.matchAll(unqualifiedRelationPattern)) {
+    const dependency = normalizeName(match[1]);
+    if (!cteNames.has(dependency)) dependencies.push(dependency);
+  }
   return uniqueSorted(dependencies);
 }
 
@@ -273,7 +287,7 @@ function main() {
     const observed = sha256(raw);
     if (observed !== normalizeName(bundleManifest.roles[role].sha256)) fail(`bundle checksum mismatch for ${role}`);
     try { bundleTexts[role] = zlib.gunzipSync(raw).toString("utf8"); }
-    catch (error) { fail(`bundle gzip decode failed for ${role}: ${error.message}`); }
+    catch (error) { fail(`${role} bundle gzip decode failed: ${error.message}`); }
   }
   const plan = buildReplayPlanFromBundleTexts({ roleManifest, bundleManifest, bundleTexts });
   const publicPlan = structuredClone(plan);
