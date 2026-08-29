@@ -62,7 +62,10 @@ assert.match(discovery, /stagingPresetHost/);
 assert.match(discovery, /activation-dev\.mad4b\.com/);
 assert.match(discovery, /TENANT_GPT_ACTIVATION_RESOURCE/);
 assert.match(generator, /openapi\.tenant-gpt\.staging\.yaml/);
-assert.match(generator, /activation_schema_url = ""/);
+assert.match(
+  generator,
+  /document\["x-gpt-action-auth-preset"\]\.activation_schema_url\s*=\s*"";/,
+);
 assert.match(activationGateway, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
 assert.match(activationGateway, /resolveActivationGatewayHostProfile\(env\)/);
 const stagingGatewayProfile = resolveActivationGatewayHostProfile({ DEPLOYMENT_ENVIRONMENT: "staging" });
