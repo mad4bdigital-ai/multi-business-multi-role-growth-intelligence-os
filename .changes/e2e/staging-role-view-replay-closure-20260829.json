@@ -10,8 +10,10 @@
       ".changes/e2e/staging-role-view-replay-closure-20260829.json",
       "autopilot-portable-staging/Clone-StagingDatabases.ps1",
       "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+      "autopilot-portable-staging/manifest.json",
       "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
-      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs"
     ]
   },
   "merge_contract": {
@@ -44,7 +46,7 @@
             "Remove staging_schema_build qualifiers and replace explicit dump account DEFINER tokens with CURRENT_USER without granting SET USER or switching replay to root.",
             "On apply only, emit temporary prepared schema-only bundles plus provenance while preserving the original generated bundles and checksums.",
             "Invoke the previously verified importer engine against the prepared bundles using the configured non-root Staging identities and the existing canonical seed/readback lifecycle.",
-            "Copy schema-import-state.json back to the canonical dump directory, persist role-schema-replay-plan.json evidence, and remove only the temporary replay workspace."
+            "Copy schema-import-state.json back to the canonical dump directory, persist role-schema-replay-plan.json evidence, remove only the temporary replay workspace, and keep the portable manifest generated from the official writer."
           ],
           "assertions": [
             "The planner performs no Docker, MariaDB, Production, provider, Hostinger, Cloudflare, grant, or database mutation calls.",
@@ -55,6 +57,7 @@
             "SET USER grants, root schema replay, broad schema grants, and cross-role grants remain forbidden.",
             "Dry-run performs planning and legacy validation without prepared-file generation or database mutation.",
             "Apply reuses the verified non-root importer and preserves canonical recovery state and existing reversible database backups.",
+            "The official portable-manifest writer includes the wrapper runtime dependencies needed for local recovery.",
             "production_mutation_allowed is false and secrets_included is false."
           ],
           "tests": [
@@ -70,8 +73,10 @@
             ".changes/e2e/staging-role-view-replay-closure-20260829.json",
             "autopilot-portable-staging/Clone-StagingDatabases.ps1",
             "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+            "autopilot-portable-staging/manifest.json",
             "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
             "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
             "http-generic-api/config/staging-database-role-migration-manifest.json",
             "http-generic-api/databasePrivilegeContracts.js"
           ]
