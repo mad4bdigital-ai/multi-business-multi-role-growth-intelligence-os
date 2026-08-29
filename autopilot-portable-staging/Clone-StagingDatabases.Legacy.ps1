@@ -157,6 +157,7 @@ Require ((Read-Env "DATABASE_MUTATED") -eq "false") "DATABASE_MUTATED must be ex
 if ($Mode -eq "sanitized_data") {
   Require $AllowSanitizedData.IsPresent "sanitized_data requires -AllowSanitizedData."
   Require ($env:STAGING_DB_COPY_APPROVED -eq "true") "Set STAGING_DB_COPY_APPROVED=true only after independent review."
+  # Legacy runtime.sanitized.sql.gz, governance.sanitized.sql.gz, and persistence.sanitized.sql.gz artifacts remain explicitly blocked here.
   Fail "sanitized_data import is not part of the zero-click governed schema lifecycle; use a separately reviewed data-restore procedure."
 }
 
