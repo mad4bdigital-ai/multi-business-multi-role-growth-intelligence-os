@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "f6e3dd92f41c45b87d75734f2f9e8daf4767023309aaa3728bbd28770af2a1e3"
+      "sha256": "51661c9f333f4fe40a92af17b6f5bec4dc9517182e9d2cea293c61eb8c3cfa3d"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "fc01c27986c5322abc3a89c971eb4ededf5d0cdda2a79bc8a0f30adb70c3161e"
+      "sha256": "1882ad842a1c6c5ccb72e80878ecf61ca6d7be41cddea06a5946613a493e4126"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
