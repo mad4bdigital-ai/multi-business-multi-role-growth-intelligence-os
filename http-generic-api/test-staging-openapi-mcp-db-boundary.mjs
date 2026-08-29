@@ -47,7 +47,7 @@ assert.match(openapi, /url: https:\/\/dev\.mad4b\.com/);
 assert.match(openapi, /x-mad4b-surface: tenant-custom-gpt/);
 assert.match(openapi, /server_uri_count: 1/);
 assert.match(openapi, /schema_url: https:\/\/dev\.mad4b\.com\/openapi\.tenant-gpt\.staging\.yaml/);
-assert.match(openapi, /activation_schema_url = ""/);
+assert.match(openapi, /activation_schema_url:\s*""/);
 assert.match(openapi, /TENANT_GPT_STAGING_OAUTH_CLIENT_ID/);
 assert.match(openapi, /TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET/);
 assert.doesNotMatch(openapi, /https:\/\/auth\.mad4b\.com\/(?:auth|oauth)(?:\/|$)|https:\/\/activation\.mad4b\.com(?:\/|$)|https:\/\/mcp\.mad4b\.com(?:\/|$)/);
