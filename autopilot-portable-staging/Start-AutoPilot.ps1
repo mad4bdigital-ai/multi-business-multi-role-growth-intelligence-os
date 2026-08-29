@@ -266,7 +266,8 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
 function Seed-SchemaBundle([string]$RepoPath, [string]$Sha) {
     $dumpDir = Join-Path $RepoPath "autopilot-portable-staging\staging-db-dumps"
     $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
-    $available = (Test-Path -LiteralPath $dumpDir) -and (($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dumpDir $_)) }).Count -eq 0)
+    $missingRequired = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dumpDir $_)) })
+    $available = (Test-Path -LiteralPath $dumpDir) -and ($missingRequired.Count -eq 0)
     if (-not $available) {
         if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "schema-bundle" -Message "no local schema-only bundle found; leaving fresh Staging databases unchanged"
