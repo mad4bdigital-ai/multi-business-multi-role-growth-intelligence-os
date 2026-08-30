@@ -49,6 +49,16 @@ function loadEnvFile(filePath) {
   }
 }
 
+function secretFreeProvisioningOutput(result) {
+  if (!result || typeof result !== "object") return result;
+  return {
+    ...result,
+    client_secret: result.client_secret ? "[REDACTED]" : null,
+    secret_available_from_canonical_env: Boolean(process.env.REMOTE_MCP_APP_SECRET),
+    secrets_included: false,
+  };
+}
+
 const listProfiles = process.argv.includes("--list-profiles");
 if (listProfiles) {
   console.log(JSON.stringify(listRemoteMcpClientProfiles(), null, 2));
@@ -74,6 +84,7 @@ if (environment === "production" && (process.env.REMOTE_MCP_APP_ID || process.en
   process.exit(1);
 }
 
+const redactSecretOutput = process.argv.includes("--redact-secret-output");
 const pool = getPool();
 try {
   if (process.argv.includes("--all-status")) {
@@ -104,8 +115,10 @@ try {
         rotate: process.argv.includes("--rotate"),
         note: argValue("note") || `remote_mcp_oauth_client_${environment}_${profileKey}_operator`,
       });
-      console.log(JSON.stringify(result, null, 2));
-      console.error("Store client_secret only in the approved client configuration. Access/refresh tokens are minted by OAuth and must not be persisted in .env files.");
+      console.log(JSON.stringify(redactSecretOutput ? secretFreeProvisioningOutput(result) : result, null, 2));
+      console.error(redactSecretOutput
+        ? "Client secret output was redacted; the canonical Staging secret remains only in ignored .env.staging and encrypted platform_secrets after provisioning."
+        : "Store client_secret only in the approved client configuration. Access/refresh tokens are minted by OAuth and must not be persisted in .env files.");
     }
   }
 } finally {
