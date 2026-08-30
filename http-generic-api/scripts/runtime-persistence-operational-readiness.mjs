@@ -215,12 +215,74 @@ export async function runRuntimePersistenceOperationalReadiness({
   }
 }
 
+export async function runRuntimePersistenceOperationalReadinessCli({
+  env = process.env,
+  runtimePersistencePoolFactory = getRuntimePersistencePool,
+  inspectAuthority = inspectRuntimePersistenceWriteAuthority,
+  inspectSchema = inspectGovernedResponseChunkSchema,
+  inspectCollation = inspectRuntimePersistenceCollation,
+  writeOutput = (text) => process.stdout.write(text),
+  setExitCode = (code) => {
+    process.exitCode = code;
+  },
+} = {}) {
+  let cliPool = null;
+  const capturePoolFactory = () => {
+    cliPool = runtimePersistencePoolFactory();
+    return cliPool;
+  };
+
+  let result = await runRuntimePersistenceOperationalReadiness({
+    env,
+    runtimePersistencePoolFactory: capturePoolFactory,
+    inspectAuthority,
+    inspectSchema,
+    inspectCollation,
+  });
+
+  let cleanupError = null;
+  let poolEndCalled = false;
+  if (cliPool && typeof cliPool.end === "function") {
+    try {
+      poolEndCalled = true;
+      await cliPool.end();
+    } catch (error) {
+      cleanupError = normalizeError(error);
+    }
+  }
+
+  const cleanup = {
+    attempted: Boolean(cliPool),
+    completed: cleanupError === null,
+    pool_end_called: poolEndCalled,
+    error: cleanupError,
+    secrets_included: false,
+  };
+
+  if (cleanupError) {
+    result = {
+      ...result,
+      ok: false,
+      status: "blocked",
+      reason: "runtime_persistence_cli_resource_cleanup_failed",
+      cli_resource_cleanup: cleanup,
+      secrets_included: false,
+    };
+  } else {
+    result = {
+      ...result,
+      cli_resource_cleanup: cleanup,
+      secrets_included: false,
+    };
+  }
+
+  writeOutput(`${JSON.stringify(result)}\n`);
+  if (!result.ok) setExitCode(1);
+  return result;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runRuntimePersistenceOperationalReadiness()
-    .then((result) => {
-      process.stdout.write(`${JSON.stringify(result)}\n`);
-      if (!result.ok) process.exitCode = 1;
-    })
+  runRuntimePersistenceOperationalReadinessCli()
     .catch((error) => {
       process.stdout.write(`${JSON.stringify({
         ok: false,
@@ -232,6 +294,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         migration_apply_performed: null,
         provider_mutation_performed: null,
         deployment_performed: null,
+        cli_resource_cleanup: {
+          attempted: null,
+          completed: false,
+          pool_end_called: null,
+          error: normalizeError(error),
+          secrets_included: false,
+        },
         secrets_included: false,
       })}\n`);
       process.exitCode = 1;
