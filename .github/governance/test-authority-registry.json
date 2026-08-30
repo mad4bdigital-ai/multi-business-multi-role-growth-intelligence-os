@@ -134,6 +134,7 @@
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "http-generic-api/test-staging-database-readiness-repair.mjs",
+        "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
         "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
         "http-generic-api/databasePrivilegeContracts.js",
         "http-generic-api/scripts/staging-role-grant-plan.mjs",
