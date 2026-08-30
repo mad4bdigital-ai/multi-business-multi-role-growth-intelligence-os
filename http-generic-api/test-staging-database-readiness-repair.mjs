@@ -30,11 +30,10 @@ const sqlCacheAuthoritySeed = {
   statement_count: 2,
 };
 
-const sqlCacheInsertMarker = 'INSERT INTO `sql_cache_runtime_policies`';
-const sqlCacheInsertIndex = sqlCacheMigration.indexOf(sqlCacheInsertMarker);
+const sqlCacheInsertIndex = sqlCacheMigration.indexOf('INSERT INTO `sql_cache_runtime_policies`');
 assert.ok(sqlCacheInsertIndex >= 0);
 const extractedSqlCacheSeed = sqlCacheMigration.slice(sqlCacheInsertIndex).trim();
-assert.ok(extractedSqlCacheSeed.startsWith(sqlCacheInsertMarker));
+assert.ok(extractedSqlCacheSeed.startsWith('INSERT INTO `sql_cache_runtime_policies`'));
 assert.match(repair, /\$seedSql\.StartsWith\(\$insertMarker, \[StringComparison\]::Ordinal\)/);
 
 assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
