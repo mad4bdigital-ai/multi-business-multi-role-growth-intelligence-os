@@ -14,7 +14,8 @@
     "never_store_secrets_in_repository": true,
     "canonical_environment_generator": "autopilot-portable-staging/Staging-Environment.ps1",
     "local_env_file": "http-generic-api/.env.staging",
-    "local_env_must_remain_untracked": true
+    "local_env_must_remain_untracked": true,
+    "generated_values_are_idempotent_until_explicit_rotation": true
   },
   "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
   "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
@@ -28,6 +29,7 @@
       "app_publish": "127.0.0.1:8080:8080",
       "compose_override": "http-generic-api/docker-compose.staging.windows-service.yml",
       "token_transport": "token_file",
+      "token_env_required": false,
       "inline_token_forbidden": true,
       "docker_tunnel_forbidden": true
     },
@@ -35,7 +37,9 @@
       "runtime": "docker_compose_cloudflared",
       "origin": "http://app:8080",
       "host_publish_required": false,
-      "windows_service_required": false
+      "windows_service_required": false,
+      "token_transport": "ignored_env_file",
+      "token_env_required": true
     }
   },
   "remote_mcp_bootstrap": {
@@ -49,9 +53,13 @@
     "credentials_rotation_implicit": false,
     "provisioning_requires_explicit_switch": true,
     "provisioning_confirmation": "PROVISION_REMOTE_MCP_STAGING",
-    "secret_output_redaction_supported": true,
+    "provisioning_execution": "inside_staging_app_container",
+    "provisioning_database": "runtime_staging_only",
+    "secret_output_redaction_default_when_canonical_secret_present": true,
     "access_refresh_tokens_runtime_minted": true,
-    "access_refresh_tokens_persisted_to_env": false
+    "token_issuance_mode": "oauth_authorization_code_runtime",
+    "access_refresh_tokens_persisted_to_env": false,
+    "forbidden_env_credentials": ["REMOTE_MCP_AUTHORIZATION_CODE", "REMOTE_MCP_ACCESS_TOKEN", "REMOTE_MCP_REFRESH_TOKEN"]
   },
   "lifecycle": {
     "preflight": {
@@ -108,8 +116,11 @@
       "public_https_required_when_tunnel_enabled": true,
       "tenant_schema_remote_required": true,
       "admin_schema_remote_required": true,
+      "tenant_oauth_metadata_required": true,
+      "tenant_auth_enforcement_probe_required": true,
       "admin_authenticated_read_only_probe_required": true,
-      "remote_mcp_metadata_required": true,
+      "remote_mcp_authorization_metadata_required": true,
+      "remote_mcp_protected_resource_metadata_required": true,
       "remote_mcp_schema_required": true,
       "activation_gateway_remote_required_when_enabled": true,
       "public_failure_blocks_platform_ready": true
