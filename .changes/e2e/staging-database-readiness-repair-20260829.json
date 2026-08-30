@@ -20,6 +20,7 @@
       "http-generic-api/test-staging-database-readiness-repair.mjs",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+      "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
       "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
       "autopilot-portable-staging/auto-deploy-policy.json",
       "autopilot-portable-staging/autopilot-one-click-policy.json",
@@ -43,7 +44,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Repair the causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility and MySQL-primary SQL-cache policy visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, converge MariaDB database default collation, and materialize the checksum-bound SQL-cache authority seed with canonical LF bytes on Windows.",
+      "objective": "Repair the causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility and MySQL-primary SQL-cache policy visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, converge MariaDB database default collation, materialize the checksum-bound SQL-cache authority seed with canonical LF bytes on Windows, and ensure the direct Runtime Persistence readiness CLI closes its owned MySQL pool before process exit.",
       "e2e_journeys": [
         {
           "id": "local-staging-readiness-repair",
@@ -51,7 +52,7 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging recovery operator",
           "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
-          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, the checksum-bound SQL-cache authority seed materializes with reviewed LF bytes, SQL-cache runtime policy can load from MySQL primary authority, and Auto Pilot certification can reach ready without destructive reset or Production/provider access.",
+          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, the checksum-bound SQL-cache authority seed materializes with reviewed LF bytes, SQL-cache runtime policy can load from MySQL primary authority, direct Runtime Persistence CLI probes close their owned pool, and Auto Pilot certification can reach ready without destructive reset or Production/provider access.",
           "steps": [
             "Bind the repair to exact local HEAD and origin/main and reject remote Docker contexts or unsafe mutation flags.",
             "Materialize the checksum-bound 1023 SQL-cache authority seed as LF on Windows through the exact-path Git attribute before exact SHA256 validation.",
@@ -61,6 +62,7 @@
             "Extract the reviewed sql_cache_policy_v2 INSERT after exact checksum validation and require its exact ordinal INSERT prefix before any execution.",
             "Replay the reviewed SQL-cache authority seed through local database root only, then require exact readback while preserving runtime SELECT-only authority.",
             "Use repository-only environment branch authority for local Staging Governance readiness while leaving Production SQL-first behavior unchanged.",
+            "Run direct Runtime Persistence readiness through a CLI wrapper that captures the CLI-owned pool, awaits pool.end(), reports secret-free cleanup evidence, and fails closed if cleanup fails while leaving the reusable readiness function non-closing for long-lived callers.",
             "Restart Auto Pilot at the exact commit and require certification_status=ready."
           ],
           "assertions": [
@@ -74,6 +76,8 @@
             "No schema-wide, global, column, GRANT OPTION, or applicable-role privilege is introduced.",
             "Local Staging Governance readiness does not require SELECT on platform_runtime_config through the runtime principal.",
             "All three local MariaDB services are started with utf8mb4_unicode_ci as server default and the repair readback confirms the database default.",
+            "The direct Runtime Persistence CLI awaits pool.end() whenever it creates a pool, records secret-free cleanup evidence, and treats cleanup failure as blocked readiness.",
+            "The reusable runRuntimePersistenceOperationalReadiness() function remains non-closing so long-lived application callers retain ownership of their pool lifecycle.",
             "The repair performs no database reset, schema replay, data-directory move, backup deletion, Production access, Hostinger/Cloudflare mutation, or provider mutation."
           ],
           "tests": [
@@ -92,6 +96,7 @@
             "http-generic-api/test-staging-database-readiness-repair.mjs",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+            "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
             "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
             "autopilot-portable-staging/auto-deploy-policy.json",
             "autopilot-portable-staging/autopilot-one-click-policy.json",
