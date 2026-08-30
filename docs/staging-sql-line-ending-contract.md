@@ -1,10 +1,10 @@
 # Staging SQL line-ending contract
 
-Repository SQL migrations and seeds are canonical UTF-8 text with LF line endings.
+Checksum-bound SQL migrations and seeds must declare canonical UTF-8/LF checkout bytes.
 
-The `*.sql text eol=lf` Git attribute makes Windows and Linux checkouts materialize the same reviewed bytes before checksum validation. Exact SHA256 checks remain fail-closed; alternate CRLF hashes and checksum bypasses are not accepted.
+The exact `1023_sprint69_sql_cache_runtime_policy.sql` Git attribute makes Windows and Linux checkouts materialize the same reviewed bytes before checksum validation. Exact SHA256 checks remain fail-closed; alternate CRLF hashes and checksum bypasses are not accepted.
 
-The migrations normalized with this contract contain no semantic SQL change. Their tracked CRLF bytes are replaced with LF bytes only. Normalization does not authorize migration replay, database mutation, grant changes, or ledger reconciliation.
+This contract does not rewrite unrelated legacy migrations and contains no semantic SQL change. Normalization does not authorize migration replay, database mutation, grant changes, or ledger reconciliation.
 
 Local Windows/Docker Staging repair must still:
 
