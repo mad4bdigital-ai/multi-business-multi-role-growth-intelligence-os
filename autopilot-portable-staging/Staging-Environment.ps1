@@ -14,13 +14,8 @@ function New-StagingRandomValue([int]$ByteCount = 32, [string]$Prefix = '') {
     return $Prefix + (ConvertTo-StagingBase64Url $bytes)
 }
 
-function New-StagingMcpAppId {
-    return New-StagingRandomValue -ByteCount 18 -Prefix 'mcp_stg_'
-}
-
-function New-StagingMcpAppSecret {
-    return New-StagingRandomValue -ByteCount 32 -Prefix 'm4b_rmcp_'
-}
+function New-StagingMcpAppId { return New-StagingRandomValue -ByteCount 18 -Prefix 'mcp_stg_' }
+function New-StagingMcpAppSecret { return New-StagingRandomValue -ByteCount 32 -Prefix 'm4b_rmcp_' }
 
 function Get-StagingEnvValue([string]$Path, [string]$Name) {
     if (-not (Test-Path -LiteralPath $Path)) { return '' }
@@ -41,9 +36,7 @@ function Set-StagingEnvValue([string]$Path, [string]$Name, [string]$Value) {
             if ($found) { throw "Duplicate environment key is forbidden: $Name" }
             $out += "$Name=$Value"
             $found = $true
-        } else {
-            $out += $line
-        }
+        } else { $out += $line }
     }
     if (-not $found) { $out += "$Name=$Value" }
     $encoding = New-Object Text.UTF8Encoding($false)
@@ -57,8 +50,7 @@ function Test-StagingPlaceholder([string]$Value) {
 function Ensure-StagingGeneratedValue([string]$Path, [string]$Name, [scriptblock]$Factory) {
     $current = Get-StagingEnvValue $Path $Name
     if (Test-StagingPlaceholder $current) {
-        $generated = & $Factory
-        Set-StagingEnvValue $Path $Name $generated
+        Set-StagingEnvValue $Path $Name (& $Factory)
         return $true
     }
     return $false
@@ -79,8 +71,12 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     $mode = Get-StagingEnvValue $Path 'STAGING_TUNNEL_MODE'
     $origin = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
     if ($mode -in @('windows_service','docker_sidecar') -and $origin -ne 'http://127.0.0.1:8080') {
-        throw 'Both supported Staging tunnel runtimes must use the canonical remote-managed loopback origin http://127.0.0.1:8080.'
+        throw 'Both supported Staging tunnel runtimes must use canonical remote-managed origin http://127.0.0.1:8080.'
     }
+    $tokenFile = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_FILE'
+    if ($tokenFile -and $tokenFile -notmatch '(?i)^C:\\ProgramData\\cloudflared\\[^\\]+$') { throw 'Windows tunnel token-file must remain under C:\ProgramData\cloudflared.' }
+    $metrics = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_METRICS'
+    if ($metrics -and $metrics -notmatch '^127\.0\.0\.1:\d{2,5}$') { throw 'Cloudflared metrics must remain loopback-only.' }
     $appId = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_ID'
     if ($appId -and $appId -notmatch '^mcp_stg_[A-Za-z0-9_-]{16,128}$') { throw 'REMOTE_MCP_APP_ID is not a Staging-scoped MCP client identity.' }
     $appSecret = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_SECRET'
@@ -128,7 +124,17 @@ function Initialize-StagingEnvironment {
         if (Ensure-StagingGeneratedValue $envFile $entry.Key $entry.Value) { $generatedNames += $entry.Key }
     }
 
+    # Canonical shared Staging environment authority.
     Set-StagingEnvValue $envFile 'STAGING_TUNNEL_MODE' $TunnelMode
+    Set-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
+    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp_dev.mad4b.com'
+    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_FILE' 'C:\ProgramData\cloudflared\tunnel-token.txt'
+    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_LOG_FILE' 'C:\ProgramData\cloudflared\staging-cloudflared.log'
+    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_METRICS' '127.0.0.1:49312'
+    Set-StagingEnvValue $envFile 'STAGING_PUBLIC_SCHEMA_SEMANTIC_VALIDATION_REQUIRED' 'true'
+    Set-StagingEnvValue $envFile 'STAGING_REMOTE_ORIGIN_EVIDENCE_REQUIRED' 'true'
+    Set-StagingEnvValue $envFile 'STAGING_ACTIVATION_REQUIRED_FOR_PLATFORM_READY' 'true'
+
     Set-StagingEnvValue $envFile 'REMOTE_MCP_ENVIRONMENT' 'staging'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_ENABLED' 'true'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_OAUTH_ENABLED' 'true'
@@ -140,8 +146,6 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_URL' 'https://mcp_dev.mad4b.com'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_AUTHORIZATION_SERVER_URL' 'https://dev.mad4b.com/auth/mcp'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_DOCUMENTATION_URL' 'https://mcp_dev.mad4b.com/docs'
-    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp_dev.mad4b.com'
-    Set-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
 
     switch ($TunnelMode) {
         'windows_service' {
@@ -201,6 +205,7 @@ function Initialize-StagingEnvironment {
         mcp_app_secret_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_SECRET'))
         mcp_token_issuance_mode = 'oauth_authorization_code_runtime'
         mcp_access_tokens_persisted_to_env = $false
+        activation_required_for_platform_ready = $true
         production_mutation = $false
         provider_mutation = $false
         secrets_included = $false
