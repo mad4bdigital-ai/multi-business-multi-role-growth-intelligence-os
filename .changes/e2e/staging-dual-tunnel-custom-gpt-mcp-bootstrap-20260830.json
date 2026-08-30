@@ -26,7 +26,8 @@
       "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
-      "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "environment_impact": {
@@ -129,7 +130,8 @@
             "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-domain-family-policy.mjs",
-            "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
