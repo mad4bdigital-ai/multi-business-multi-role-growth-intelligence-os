@@ -66,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "f5c7ec33bf80565b8f453a2b18539c9890f0f975dfade29dd47dc23baf8875ac"
+      "sha256": "b6f4a29815aa86530b0bc4af6e94aab41207652a456f26c829f92aee10ebef80"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
@@ -78,7 +78,7 @@
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "71acdedf975952d47616c24e9d2154794470255eb7e4eb93eb0bf9615201e674"
+      "sha256": "045e314c50f49e2cbc58ba0855c6b708400444c8d620393e2125ce945c2a5fa2"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "d765168c4d60b3c8c8034a62f10f7e4a0d92dd110bac4eb8ab0f3399a662e57c"
+      "sha256": "b4442463e6ae35e2c0fa2e9b167276feb3490458d090a3dca6014b2575a9c111"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "4bcfd1ff38e0091a1402a4f7f66f52bcad2a5d73bfabea83ccbadff9a76cf239"
+      "sha256": "1482be736ae78139bf55f4a7b0e6fb50a1256bd6c45f3e98813ee3f2923d05ce"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "65bb6fcd58838f441f40deaa15f4b88d0c60ed258d6e020dd3292b4fa28f7925"
+      "sha256": "d48c108bc34e4a9aafdddcd231ecdc256020458741dd094654403e2079c7f032"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
