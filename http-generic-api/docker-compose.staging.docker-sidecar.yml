@@ -1,0 +1,8 @@
+services:
+  cloudflared:
+    # Share the app network namespace so the same remote-managed Tunnel origin
+    # (http://127.0.0.1:8080) works for both Docker sidecar and Windows Service.
+    # This avoids Cloudflare route mutation when switching Staging tunnel mode.
+    network_mode: "service:app"
+    environment:
+      TUNNEL_ORIGIN_APP: http://127.0.0.1:8080
