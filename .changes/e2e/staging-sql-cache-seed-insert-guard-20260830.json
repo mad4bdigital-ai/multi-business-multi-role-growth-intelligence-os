@@ -1,0 +1,68 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-sql-cache-seed-insert-guard-20260830",
+  "title": "Accept the canonical SQL cache authority seed INSERT",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-sql-cache-seed-insert-guard-20260830.json",
+      "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Accept the exact canonical SQL cache authority INSERT after checksum validation without relaxing seed, grant, or environment boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-sql-cache-authority-seed-guard",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+          "terminal_outcome": "The checksum-verified canonical INSERT passes the ordinal prefix guard and remains subject to idempotency, forbidden-SQL, and same-cycle readback checks.",
+          "steps": [
+            "Extract the canonical INSERT from migration 1023 after exact SHA256 verification.",
+            "Validate the exact ordinal INSERT prefix.",
+            "Preserve idempotency, forbidden-SQL validation, root-only execution, and same-cycle readback."
+          ],
+          "assertions": [
+            "No checksum bypass or alternate seed is accepted.",
+            "No runtime write authority or grant is added.",
+            "No Production, provider, Hostinger, or Cloudflare mutation is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-readiness-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+            "http-generic-api/test-staging-database-readiness-repair.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
